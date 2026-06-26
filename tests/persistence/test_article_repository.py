@@ -106,42 +106,9 @@ def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> N
     repo.hard_delete("never-existed")  # must not raise
 
 
-@pytest.mark.parametrize(
-    "body",
-    ["", "\n", "\n\nopens with blank lines", "no trailing newline", "ends with a fence\n---"],
-)
-def test_body_round_trips_exactly(repo: ArticleRepository, body: str) -> None:
-    # No lossy stripping: a body may legitimately open with blank lines or be empty.
-    repo.save(_article(body=body), expected_version=0)
-    assert repo.load("01J0").article.body == body
-
-
-def test_load_corrupt_front_matter_raises_archive_error(repo: ArticleRepository) -> None:
-    # A fenced-but-damaged README (missing required field, or a bad enum) must surface
-    # as ArchiveError, never a raw KeyError/ValueError across the port.
-    repo._store.write_atomic("articles/m/README.md", b"---\ntitle: x\n---\nbody")  # no ulid/version
+def test_load_of_a_corrupt_readme_surfaces_archive_error(repo: ArticleRepository) -> None:
+    # Integration: a damaged README must reach the caller as ArchiveError (the codec's
+    # detailed corrupt-input cases are covered directly in test_readme.py).
+    repo._store.write_atomic("articles/bad/README.md", b"---\ntags: [unclosed\n---\nbody")
     with pytest.raises(ArchiveError):
-        repo.load("m")
-    repo._store.write_atomic(
-        "articles/e/README.md",
-        b"---\nulid: e\nversion: 1\ntitle: x\ncollection_id: c\nlifecycle: bogus\n---\n",
-    )
-    with pytest.raises(ArchiveError):
-        repo.load("e")
-
-
-def test_load_syntactically_broken_yaml_raises_archive_error(repo: ArticleRepository) -> None:
-    # Malformed YAML between the fences must surface as ArchiveError, not a raw
-    # yaml.YAMLError across the port.
-    repo._store.write_atomic("articles/y/README.md", b"---\ntags: [unclosed\n---\nbody")
-    with pytest.raises(ArchiveError):
-        repo.load("y")
-
-
-def test_load_scalar_tags_raises_rather_than_scrambling(repo: ArticleRepository) -> None:
-    repo._store.write_atomic(
-        "articles/s/README.md",
-        b"---\nulid: s\nversion: 1\ntitle: x\ncollection_id: c\nlifecycle: draft\ntags: notalist\n---\n",
-    )
-    with pytest.raises(ArchiveError):
-        repo.load("s")
+        repo.load("bad")

@@ -17,7 +17,8 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; atomic temp→fsync→rename, all backend errors mapped to `ArchiveError` via the `_backend` seam |
 | `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud **mirror** (PUT-temp+MOVE), a sync adapter; transport errors wrapped via `_request` |
-| `repository.py` | `ArticleRepository` + README (de)serialization |
+| `repository.py` | `ArticleRepository` — versioning, pinned write order, media, trash |
+| `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
 
 Every adapter passes one shared contract: `tests/persistence/test_objectstore_conformance.py`
 (parametrized over all three — the WebDAV one against a real in-process server).
