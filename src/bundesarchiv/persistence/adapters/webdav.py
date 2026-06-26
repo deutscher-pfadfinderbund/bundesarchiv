@@ -12,6 +12,7 @@ failure mode) from crossing the port as anything but `ArchiveError`.
 """
 
 import enum
+import itertools
 import uuid
 from collections.abc import Iterable, Iterator
 from typing import Any, BinaryIO
@@ -93,9 +94,8 @@ class WebDavObjectStore:
         self._ensure(move, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
 
     def _mkcol_parents(self, key: str) -> None:
-        prefix = ""
-        for segment in key.split("/")[:-1]:
-            prefix = f"{prefix}/{segment}" if prefix else segment
+        ancestors = key.split("/")[:-1]
+        for prefix in itertools.accumulate(ancestors, lambda acc, segment: f"{acc}/{segment}"):
             resp = self._request("MKCOL", self._url(prefix))
             # 201 created; 405 already exists.
             self._ensure(resp, httpx.codes.CREATED, httpx.codes.METHOD_NOT_ALLOWED)
