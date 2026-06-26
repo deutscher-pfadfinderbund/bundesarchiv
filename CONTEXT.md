@@ -46,8 +46,11 @@ An unauthenticated visitor. Public access is a _deferred_ feature for sharing a 
 _Avoid_: user (ambiguous — see Member), requester.
 
 **Audience** (*Sichtbarkeit*):
-Who may see an Article — a rung on the ladder Public ⊃ Members ⊃ named Group(s).
+Who may see an Article — a rung on the ladder Public ⊃ Members ⊃ named Group(s). An Article or Collection may leave its Audience **unset** to *inherit* the nearest one set walking up its owning Collection chain (root default: Members; see ADR 0001) — leaving it unset is distinct from explicitly setting Members, which blocks a wider ancestor. A well-formed Audience names one or more Groups **iff** it is the Groups rung; Public and Members name none.
 _Avoid_: visibility (in prose, ambiguous), permissions.
+
+**Effective Audience** (code term):
+The single resolved rung an Article actually has, after the Lifecycle gate (a non-Published Article is Archivist-only, above the ladder) and the inherit cascade. Computed by one pure function that every visibility decision routes through (ADR 0001) — never recomputed ad hoc.
 
 **Group** (*Gruppe*):
 A Keycloak group. Naming one (or several, OR-combined) in an Audience narrows Members to that subset. Membership comes from Keycloak only.

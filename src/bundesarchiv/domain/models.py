@@ -32,10 +32,23 @@ class AudienceTier(enum.Enum):
 @dataclass(frozen=True, slots=True)
 class Audience:
     """Who may see an Article (*Sichtbarkeit*). When `tier` is GROUPS, `groups`
-    names the Keycloak group(s) (OR-combined) that narrow Members to a subset."""
+    names the Keycloak group(s) (OR-combined) that narrow Members to a subset.
+
+    Invariant: `groups` is non-empty *iff* `tier is GROUPS`. A GROUPS rung with no
+    group named would narrow Members to nobody; naming a group on a PUBLIC/MEMBERS
+    rung is a silent over-exposure (a tier-first reader ignores the group). Both are
+    illegal states, forbidden here so they can never reach the access model.
+    """
 
     tier: AudienceTier = AudienceTier.MEMBERS
     groups: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if bool(self.groups) != (self.tier is AudienceTier.GROUPS):
+            raise ValueError(
+                f"audience: groups must be non-empty iff tier is GROUPS "
+                f"(got tier={self.tier.value}, groups={self.groups!r})"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +70,7 @@ class Collection:
     ulid: Ulid
     name: str
     parent_id: Ulid | None = None
+    audience: Audience | None = None  # None = inherit from parent / root default (ADR 0001)
 
 
 @dataclass(frozen=True, slots=True)
