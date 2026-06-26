@@ -4,7 +4,9 @@ Fail-closed (ADR 0001): a non-Published Article is Archivist-only; an unresolvab
 denies everyone. Fixture-driven, no IO. The chain is leaf-first as resolve_chain returns it.
 """
 
-from bundesarchiv.domain.access import can_view
+from dataclasses import fields
+
+from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, project
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public
 
@@ -98,3 +100,59 @@ def test_can_view_denies_everyone_on_a_misresolved_chain() -> None:
     wrong_chain = (Collection(ulid="c-other", name="c-other"),)
     assert can_view(Public(), article, wrong_chain) is False
     assert can_view(Archivist(), article, wrong_chain) is False
+
+
+def _physical_article() -> Article:
+    return Article(
+        ulid="01J0",
+        title="Zeltlager 1955",
+        collection_id="c-leaf",
+        lifecycle=Lifecycle.PUBLISHED,
+        audience=Audience(AudienceTier.PUBLIC),
+        ref_code="Foto-1955/007",
+        physical_location="Magazin 2 / Regal B / Mappe 14",
+        physical_description="Schwarz-weiß-Abzug, 13x18",
+    )
+
+
+def test_project_floors_archivist_only_fields_for_a_member() -> None:
+    projected = project(Member(), _physical_article())
+    assert projected.physical_location is None
+    assert projected.physical_description is None
+
+
+def test_project_floors_archivist_only_fields_for_public() -> None:
+    projected = project(Public(), _physical_article())
+    assert projected.physical_location is None
+    assert projected.physical_description is None
+
+
+def test_project_is_unchanged_for_an_archivist() -> None:
+    article = _physical_article()
+    assert project(Archivist(), article) == article  # an Archivist sees everything
+
+
+def test_project_preserves_non_floored_fields_for_a_member() -> None:
+    article = _physical_article()
+    projected = project(Member(), article)
+    assert projected.title == article.title
+    assert projected.ref_code == article.ref_code
+    assert projected.audience == article.audience
+    assert projected.lifecycle == article.lifecycle
+
+
+def test_project_does_not_mutate_the_source_article() -> None:
+    article = _physical_article()
+    project(Member(), article)
+    assert article.physical_location is not None  # the frozen source is untouched
+
+
+def test_project_floors_exactly_the_declared_archivist_only_fields() -> None:
+    # Drift guard: floor exactly ARCHIVIST_ONLY_FIELDS — no more (over-flooring a public field),
+    # no less (a leak if a field is added to the set but not to project's explicit kwargs).
+    article = _physical_article()
+    projected = project(Member(), article)
+    differing = {
+        f.name for f in fields(article) if getattr(article, f.name) != getattr(projected, f.name)
+    }
+    assert differing == ARCHIVIST_ONLY_FIELDS

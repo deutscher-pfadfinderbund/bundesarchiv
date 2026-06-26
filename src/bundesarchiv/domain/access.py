@@ -9,12 +9,18 @@ The `match` statements close over their unions with `assert_never`: adding a mem
 than a silent fail-open — the leak the single-source resolver exists to prevent.
 """
 
+from dataclasses import replace
 from typing import assert_never
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+
+# Fields only an Archivist may see, floored from any non-Archivist projection regardless of
+# whether the Viewer can otherwise view the Article. Add provenance/notes fields here as the
+# model grows — projection and the visibility preview both read this one set.
+ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "physical_description"})
 
 
 def can_view(viewer: Viewer, article: Article, chain: tuple[Collection, ...]) -> bool:
@@ -59,3 +65,20 @@ def _member_satisfies(held: tuple[str, ...], named: tuple[str, ...]) -> bool:
     """True iff the Member holds at least one of the named groups (OR-combined). An empty
     held set is vacuously False — a Member with no groups never clears a GROUPS rung."""
     return any(group in named for group in held)
+
+
+def project(viewer: Viewer, article: Article) -> Article:
+    """Project `article` to the fields `viewer` may see: the Archivist-only fields are floored
+    (set to None) for any non-Archivist, regardless of whether the Viewer can otherwise view
+    the Article. An Archivist sees everything. Returns a new Article — the frozen source is
+    untouched. This does NOT decide visibility; gate with `can_view` separately.
+    """
+    match viewer:
+        case Archivist():
+            return article
+        case Public() | Member():
+            # Explicit kwargs (not **ARCHIVIST_ONLY_FIELDS) so mypy --strict type-checks each
+            # field; the drift-guard test pins that this floors exactly that named set.
+            return replace(article, physical_location=None, physical_description=None)
+        case _ as unreachable:
+            assert_never(unreachable)
