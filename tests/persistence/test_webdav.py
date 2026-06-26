@@ -35,11 +35,11 @@ def test_transport_failure_surfaces_as_archive_error() -> None:
         client.close()
 
 
-def test_read_of_collection_key_is_not_found_under_redirect_following(webdav_server: str) -> None:
+def test_read_of_collection_key_is_not_found_under_redirect_following(webdav_root: str) -> None:
     # read() must not depend on the injected client's redirect policy. With
     # follow_redirects=True a naive GET would chase the collection's 301 and return
     # the server's HTML listing as blob bytes; the adapter must still raise NotFound.
-    client = httpx.Client(base_url=webdav_server, timeout=10, follow_redirects=True)
+    client = httpx.Client(base_url=webdav_root, timeout=10, follow_redirects=True)
     store = WebDavObjectStore(client)
     try:
         store.write_atomic("art/1/README.md", b"body")

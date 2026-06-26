@@ -1,14 +1,15 @@
 """Shared persistence-test fixtures.
 
-`webdav_store` brings up a real, in-process WebDAV server (wsgidav served on cheroot,
-bound to an ephemeral localhost port) and yields a WebDavObjectStore pointed at it.
-Nothing is mocked — the adapter speaks real HTTP/WebDAV to a real server, exactly as
-the local-FS adapter speaks to a real filesystem.
+One real, in-process WebDAV server (wsgidav on cheroot, ephemeral localhost port) is
+brought up ONCE per session; each test gets an isolated collection on it. Nothing is
+mocked — the adapter speaks real HTTP/WebDAV to a real server, exactly as the local-FS
+adapter speaks to a real filesystem. Sharing the server (vs one per test) keeps the
+suite fast even though many parametrized cases request a WebDAV store.
 """
 
 import threading
+import uuid
 from collections.abc import Iterator
-from pathlib import Path
 
 import httpx
 import pytest
@@ -19,11 +20,10 @@ from wsgidav.wsgidav_app import WsgiDAVApp
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 
 
-@pytest.fixture
-def webdav_server(tmp_path: Path) -> Iterator[str]:
-    """A real WebDAV server bound to an ephemeral port; yields its base URL."""
-    backing = tmp_path / "dav"
-    backing.mkdir()
+@pytest.fixture(scope="session")
+def webdav_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
+    """A real WebDAV server for the whole session; yields its base URL."""
+    backing = tmp_path_factory.mktemp("dav")
     config: dict[str, object] = {
         "provider_mapping": {"/": FilesystemProvider(str(backing), readonly=False)},
         "simple_dc": {"user_mapping": {"*": True}},  # anonymous, read/write
@@ -43,8 +43,17 @@ def webdav_server(tmp_path: Path) -> Iterator[str]:
 
 
 @pytest.fixture
-def webdav_store(webdav_server: str) -> Iterator[WebDavObjectStore]:
-    client = httpx.Client(base_url=webdav_server, timeout=10)
+def webdav_root(webdav_server: str) -> str:
+    """A fresh, isolated collection on the shared server for one test; yields its URL."""
+    base = f"{webdav_server}{uuid.uuid4().hex}/"
+    with httpx.Client(timeout=10) as setup:
+        setup.request("MKCOL", base).raise_for_status()  # fail loudly if setup didn't create it
+    return base
+
+
+@pytest.fixture
+def webdav_store(webdav_root: str) -> Iterator[WebDavObjectStore]:
+    client = httpx.Client(base_url=webdav_root, timeout=10)
     try:
         yield WebDavObjectStore(client)
     finally:
