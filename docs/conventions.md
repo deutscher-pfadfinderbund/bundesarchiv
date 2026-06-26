@@ -29,6 +29,7 @@ Django 6's async ORM is still partial — transactions raise `SynchronousOnlyOpe
 ## Code style
 
 - **Typed** — every public interface fully annotated; mypy strict.
+- **No `from __future__ import annotations`** — on Python ≥3.14, PEP 649 evaluates annotations lazily by default; the future import (PEP 563) re-stringizes them and defeats PEP 649 (and runtime introspection). Omit it.
 - **Errors** — a typed exception hierarchy (`ArchiveError` → `NotFound`, `Conflict`, …); never bare `Exception`.
 - **Immutability** — frozen dataclasses where sensible.
 - **Docstrings** — light; public interfaces only. Types + clear names carry the rest.
