@@ -46,6 +46,10 @@ are left to the implementer.
 4. **Collection chain — fail-closed edges** — one red→green per edge: missing parent raises (not
    silently truncates); a cycle raises rather than looping; an Article whose `collection_id` is
    unknown raises. _Commit per behaviour (3–4 tiny commits)._
+   **Model prerequisite (a Part-1 ripple):** the cascade needs *explicit vs inherit*, so make
+   `Article.audience` optional (`Audience | None`, `None` = inherit) and add `Collection.audience`
+   (also optional). Touches `domain/models.py` AND the README codec (`readme.encode`/`decode` +
+   their tests), since audience is now optional on the wire. Do this first, then:
 5. **Nearest-explicit-Audience walk** — the cascade from ADR 0001: take the Article's own Audience
    if explicit, else the nearest ancestor Collection's, else the **root default `Members`**.
    Red→green with fixtures: Article-explicit wins; falls through one empty level; root default when
