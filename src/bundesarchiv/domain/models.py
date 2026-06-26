@@ -1,9 +1,10 @@
-"""Domain data shapes for the archive (Part 1: shapes only — no behaviour).
+"""Domain data shapes for the archive — the records the persistence layer (de)serializes.
 
-These are the records the persistence layer (de)serializes. Audience *logic*
-(effective-audience, field floors) and Collection-tree resolution arrive in Part 2;
-here Audience and Collection are plain data. Terms follow CONTEXT.md (English code,
-German UI labels live in the glossary).
+Value objects self-validate their construction invariants here (e.g. `Audience` enforces
+the groups-iff-GROUPS rule in `__post_init__`); the *resolution* logic over these shapes —
+effective-audience and Collection-tree resolution — lives in `audience.py` / `collections.py`,
+and field floors land with the `can_view` layer (Part 2, later steps). Terms follow CONTEXT.md
+(English code, German UI labels live in the glossary).
 """
 
 import enum
@@ -44,6 +45,9 @@ class Audience:
     groups: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        # Normalize before validating: a frozen, hashable value object must store a tuple
+        # even if built from a list via untyped input (object.__setattr__ — the class is frozen).
+        object.__setattr__(self, "groups", tuple(self.groups))
         if bool(self.groups) != (self.tier is AudienceTier.GROUPS):
             raise ValueError(
                 f"audience: groups must be non-empty iff tier is GROUPS "

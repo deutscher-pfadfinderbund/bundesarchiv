@@ -50,6 +50,16 @@ def test_absent_audience_key_decodes_to_inherit() -> None:
     assert decoded.audience is None
 
 
+def test_empty_audience_mapping_decodes_to_inherit() -> None:
+    # A content-less `audience: {}` names no rung, so it is inherit (None) — same as an
+    # absent key — not a surprising explicit Members rung that would block a wider ancestor.
+    decoded, _ = readme.decode(
+        "x",
+        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: {}\n---\nbody",
+    )
+    assert decoded.audience is None
+
+
 @pytest.mark.parametrize(
     "body", ["", "\n", "\n\nopens blank", "no trailing newline", "ends with a fence\n---"]
 )
@@ -96,6 +106,14 @@ def test_decode_without_marker_still_parses() -> None:
         (
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: notadict\n---\n",
             "non-mapping audience",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience:\n  tier: groups\n  groups: []\n---\n",
+            "GROUPS tier with no groups (Audience invariant -> ArchiveError at the seam)",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience:\n  tier: public\n  groups:\n  - geheim\n---\n",
+            "PUBLIC tier with a named group (Audience invariant -> ArchiveError at the seam)",
         ),
     ],
 )

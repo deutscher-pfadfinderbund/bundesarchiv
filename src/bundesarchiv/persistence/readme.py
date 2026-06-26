@@ -127,6 +127,8 @@ def _audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
         return None
     if not isinstance(raw, dict):
         raise ValueError(f"audience: expected a mapping, got {type(raw).__name__}")
+    if not raw:
+        return None  # a content-less `audience: {}` names no rung -> inherit, like an absent key
     return Audience(
         tier=AudienceTier(raw.get("tier", AudienceTier.MEMBERS.value)),
         groups=_as_str_tuple(raw.get("groups")),

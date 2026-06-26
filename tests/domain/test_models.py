@@ -25,3 +25,12 @@ def test_valid_audiences_construct() -> None:
     Audience(AudienceTier.PUBLIC)
     Audience(AudienceTier.GROUPS, ("bundesfuehrung",))
     Audience(AudienceTier.GROUPS, ("bundesfuehrung", "landesfuehrung"))
+
+
+def test_groups_is_normalized_to_a_tuple() -> None:
+    # A frozen, hashable value object must not store a list (unhashable, and unequal to its
+    # tuple twin) even when built from one via dynamic/untyped input.
+    built_from_list = Audience(AudienceTier.GROUPS, ["bundesfuehrung"])  # type: ignore[arg-type]
+    assert isinstance(built_from_list.groups, tuple)
+    assert built_from_list == Audience(AudienceTier.GROUPS, ("bundesfuehrung",))
+    assert hash(built_from_list) == hash(Audience(AudienceTier.GROUPS, ("bundesfuehrung",)))

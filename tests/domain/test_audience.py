@@ -97,3 +97,45 @@ def test_explicit_article_audience_may_widen_a_narrower_collection() -> None:
     public = Audience(AudienceTier.PUBLIC)
     chain = (_coll("c-leaf", audience=Audience(AudienceTier.MEMBERS)),)
     assert effective_audience(_article(audience=public), chain) == public
+
+
+def test_truncated_chain_silent_leaf_is_rejected_not_defaulted_to_members() -> None:
+    # A silent leaf that names a parent but whose chain stops at the leaf is NOT a root:
+    # falling through to root-default Members would widen a possibly-narrower ancestor.
+    # The chain must reach a real root (parent_id is None) — else fail closed.
+    chain = (_coll("c-leaf", parent_id="c-mid"),)
+    with pytest.raises(MisresolvedChain):
+        effective_audience(_article(audience=None), chain)
+
+
+def test_spliced_chain_with_a_disconnected_parent_is_rejected() -> None:
+    # chain[1] is not chain[0]'s parent — an unrelated Collection spliced in. Returning
+    # its rung would expose the Article to a tier from a Collection it does not belong to.
+    chain = (
+        _coll("c-leaf", parent_id="c-true-parent"),
+        _coll("c-root", audience=Audience(AudienceTier.PUBLIC)),
+    )
+    with pytest.raises(MisresolvedChain):
+        effective_audience(_article(audience=None), chain)
+
+
+def test_misresolved_chain_is_rejected_even_for_a_non_published_article() -> None:
+    # Pins guard-before-gate ordering: a DRAFT with a bad chain must RAISE, not be
+    # silently swallowed into ArchivistOnly by an early Lifecycle gate (a wiring bug).
+    draft = _article(audience=None, lifecycle=Lifecycle.DRAFT)
+    with pytest.raises(MisresolvedChain):
+        effective_audience(draft, ())
+    with pytest.raises(MisresolvedChain):
+        effective_audience(draft, (_coll("c-other"),))
+
+
+def test_nearest_explicit_ancestor_wins_in_a_deep_chain() -> None:
+    # 3-deep: the explicit MIDDLE Collection wins over a different, more distant root —
+    # proving the walk truly stops at the first explicit ancestor (not chain[-1]/two-ended).
+    public = Audience(AudienceTier.PUBLIC)
+    chain = (
+        _coll("c-leaf", parent_id="c-mid"),
+        _coll("c-mid", parent_id="c-root", audience=public),
+        _coll("c-root", audience=Audience(AudienceTier.MEMBERS)),
+    )
+    assert effective_audience(_article(audience=None), chain) == public
