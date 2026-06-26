@@ -3,6 +3,8 @@ ObjectStore fake (no disk) — the canonical-file protocol, optimistic concurren
 content-addressed write-once media, and recoverable hard_delete.
 """
 
+from dataclasses import replace
+
 import pytest
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
@@ -112,3 +114,34 @@ def test_load_of_a_corrupt_readme_surfaces_archive_error(repo: ArticleRepository
     repo._store.write_atomic("articles/bad/README.md", b"---\ntags: [unclosed\n---\nbody")
     with pytest.raises(ArchiveError):
         repo.load("bad")
+
+
+def test_update_applies_mutation_and_bumps_version(repo: ArticleRepository) -> None:
+    repo.save(_article(lifecycle=Lifecycle.DRAFT), expected_version=0)  # v1
+    new_version = repo.update("01J0", lambda a: replace(a, lifecycle=Lifecycle.PUBLISHED))
+    assert new_version == 2
+    assert repo.load("01J0").article.lifecycle is Lifecycle.PUBLISHED
+
+
+def test_update_on_absent_article_raises_not_found(repo: ArticleRepository) -> None:
+    with pytest.raises(NotFound):
+        repo.update("nope", lambda a: a)
+
+
+def test_update_retries_on_a_concurrent_conflict(repo: ArticleRepository) -> None:
+    # A REAL conflict (no mocking): the mutate fn sneaks a concurrent save on its first
+    # call, bumping the version so update's save sees a stale version and must reload.
+    repo.save(_article(title="v1"), expected_version=0)  # v1
+    calls = 0
+
+    def mutate(article: Article) -> Article:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            repo.save(_article(title="sneaky"), expected_version=1)  # concurrent writer -> v2
+        return replace(article, title="updated")
+
+    final = repo.update("01J0", mutate)
+    assert calls == 2  # retried exactly once after the conflict
+    assert final == 3  # sneaky (v2) then the retried update (v3)
+    assert repo.load("01J0").article.title == "updated"

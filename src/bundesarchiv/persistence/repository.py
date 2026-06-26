@@ -26,7 +26,7 @@ v1); see docs/plans/part-1-persistence.md.
 
 import hashlib
 import json
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Article, MediaRef, Ulid, Version
@@ -80,6 +80,22 @@ class ArticleRepository:
             json.dumps({"ulid": article.ulid, "version": new_version}, sort_keys=True).encode(),
         )
         return new_version
+
+    def update(
+        self, ulid: Ulid, mutate: Callable[[Article], Article], *, retries: int = 3
+    ) -> Version:
+        """Load the Article, apply `mutate`, and save at its current version — the
+        optimistic-concurrency dance hidden from callers, retrying on `Conflict` (a
+        concurrent write) up to `retries` times. Returns the new version; raises
+        `NotFound` if absent. `mutate` must not add media (use add_media + save)."""
+        while True:
+            stored = self.load(ulid)
+            try:
+                return self.save(mutate(stored.article), stored.version)
+            except Conflict:
+                retries -= 1
+                if retries < 0:
+                    raise
 
     def add_media(
         self, ulid: Ulid, filename: str, data: bytes, media_type: str | None = None
