@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *.py) ;; *) exit 0;; esac; uv run ruff format \"$f\" >/dev/null 2>&1; uv run ruff check --fix \"$f\" || exit 2; }",
+            "timeout": 60,
+            "statusMessage": "ruff format + check on edited file"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git status --porcelain 2>/dev/null | grep -q '\\.py$' || exit 0; uv run ruff check && uv run mypy && uv run pytest -q || exit 2",
+            "timeout": 120,
+            "statusMessage": "gate: ruff + mypy + pytest"
+          }
+        ]
+      }
+    ]
+  }
+}
