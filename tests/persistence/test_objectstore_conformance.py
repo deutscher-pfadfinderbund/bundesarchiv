@@ -18,7 +18,7 @@ import pytest
 
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.errors import NotFound
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -112,3 +112,24 @@ def test_delete_directory_prefix_key_is_a_no_op(store: ObjectStore) -> None:
     store.write_atomic("art/1/README.md", b"body")
     store.delete("art/1")
     assert store.read("art/1/README.md") == b"body"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["", ".", "..", "a/../b", "a//b", "/x", "x/", "a\x00b", "a\tb", "a\x7fb"],
+)
+def test_invalid_keys_are_rejected(store: ObjectStore, bad: str) -> None:
+    # Key validity (fail-closed traversal safety + no control chars) is a port
+    # contract EVERY key-taking op of EVERY adapter enforces — not a rule only the
+    # local-FS adapter happens to apply. NUL/control chars matter because they would
+    # otherwise leak a raw ValueError from pathlib or be silently stored by the fake.
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.read(bad)
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.write_atomic(bad, b"x")
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.put_large(bad, io.BytesIO(b"x"), 1)
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.exists(bad)
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.delete(bad)

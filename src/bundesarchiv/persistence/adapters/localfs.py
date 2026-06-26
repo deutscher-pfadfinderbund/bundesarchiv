@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
-from bundesarchiv.persistence.objectstore import is_reserved
+from bundesarchiv.persistence.objectstore import is_reserved, validate_key
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 
@@ -27,13 +27,10 @@ class LocalFsObjectStore:
         root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, key: str) -> Path:
-        # Fail closed against traversal: app-internal keys are never absolute and
-        # never carry "." or ".." segments. A reserved leading-dot segment (".lock",
-        # ".tmp", ".snapshots") is a legitimate name, not traversal.
-        segments = key.split("/")
-        if not key or any(segment in ("", ".", "..") for segment in segments):
-            raise ArchiveError(f"invalid key: {key!r}")
-        return self._root.joinpath(*segments)
+        # Every key-taking op routes through _path, so this is LocalFs's single
+        # enforcement point for the port-level key contract (fail-closed traversal).
+        validate_key(key)
+        return self._root.joinpath(*key.split("/"))
 
     @contextmanager
     def _backend(self, key: str) -> Iterator[None]:

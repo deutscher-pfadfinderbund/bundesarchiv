@@ -21,7 +21,7 @@ from xml.etree import ElementTree
 import httpx
 
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
-from bundesarchiv.persistence.objectstore import is_reserved
+from bundesarchiv.persistence.objectstore import is_reserved, validate_key
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 _DAV = "{DAV:}"  # ElementTree Clark notation for the DAV: namespace
@@ -44,6 +44,7 @@ class WebDavObjectStore:
         self._root_path = urlsplit(str(client.base_url)).path
 
     def read(self, key: str) -> bytes:
+        validate_key(key)
         resp = self._request("GET", self._url(key), follow_redirects=False)
         if resp.status_code == httpx.codes.OK:
             return resp.content
@@ -55,20 +56,24 @@ class WebDavObjectStore:
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
     def write_atomic(self, key: str, data: bytes) -> None:
+        validate_key(key)
         self._put_then_move(key, data)
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         # `size` is a hint for backends that need it (e.g. chunked upload); the body
         # is streamed straight through here, so it is unused.
+        validate_key(key)
         self._put_then_move(key, _iter_chunks(stream))
 
     def list(self, prefix: str = "") -> Iterable[str]:
         return sorted(key for key in self._walk("") if key.startswith(prefix))
 
     def exists(self, key: str) -> bool:
+        validate_key(key)
         return self._resourcetype(key) is _Resource.FILE
 
     def delete(self, key: str) -> None:
+        validate_key(key)
         # Never recursively delete a collection: a directory-prefix key has no blob.
         if self._resourcetype(key) is not _Resource.FILE:
             return  # absent or a collection — idempotent no-op

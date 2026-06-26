@@ -8,6 +8,8 @@ this Protocol and the conformance suite. Keys are "/"-separated paths.
 from collections.abc import Iterable
 from typing import BinaryIO, Protocol, runtime_checkable
 
+from bundesarchiv.persistence.errors import ArchiveError
+
 # A key is "reserved" if any "/"-segment starts with a dot. Reserved keys are the
 # storage protocol's internal namespace: temp-write scratch (".tmp/…"), per-Article
 # lock objects ("…/.lock"), and snapshot history ("…/.snapshots/…"). They are real,
@@ -19,6 +21,22 @@ _RESERVED_SEGMENT_PREFIX = "."
 def is_reserved(key: str) -> bool:
     """True if `key` is in the reserved internal namespace (excluded from `list()`)."""
     return any(segment.startswith(_RESERVED_SEGMENT_PREFIX) for segment in key.split("/"))
+
+
+def validate_key(key: str) -> None:
+    """Raise `ArchiveError` if `key` is not a valid object key — part of the port
+    contract every adapter enforces (read/write_atomic/put_large/exists/delete).
+
+    A key is "/"-separated and non-empty; no segment may be empty, "." or ".."
+    (fail closed against path traversal), and no character may be a NUL or other
+    ASCII control character (those provoke a raw ValueError from pathlib that would
+    escape the port, and the in-memory fake would diverge by accepting them). A
+    leading-dot reserved segment (".tmp", ".lock", ".snapshots") is valid.
+    """
+    if not key or any(segment in ("", ".", "..") for segment in key.split("/")):
+        raise ArchiveError(f"invalid key: {key!r}")
+    if any(ch < " " or ch == "\x7f" for ch in key):
+        raise ArchiveError(f"invalid key (control character): {key!r}")
 
 
 @runtime_checkable
