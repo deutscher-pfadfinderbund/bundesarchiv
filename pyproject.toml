@@ -5,6 +5,7 @@ description = "DPB Bundesarchiv — multimedia archive"
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
+    "pyyaml>=6.0.3",
 ]
 
 [build-system]
@@ -22,6 +23,7 @@ dev = [
     "pre-commit>=3.8",
     "wsgidav>=4.3.4",
     "cheroot>=11.1.2",
+    "types-pyyaml>=6.0.12.20260518",
 ]
 
 [tool.ruff]

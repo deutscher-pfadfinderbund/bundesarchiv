@@ -28,7 +28,7 @@ save(article, expected_version) -> Version   # atomic commit; Conflict if stale
 list_ulids() -> Iterable[ULID]               # walk for reindex
 hard_delete(ulid) -> None                    # rare, recoverable trash; normal delete = a lifecycle/status save
 ```
-Owns: the `articles/<ulid>/{README.md, media/, changes/<ulid>.json, .snapshots/}` layout; README.md (de)serialization (YAML front-matter + Markdown body + managed-by marker); the per-Article **lock object**; the pinned write order (**media → README.md = commit → changes → snapshot**); optimistic versioning; media write-once. Sits on an `ObjectStore`.
+Owns: the `articles/<ulid>/{README.md, media/, changes/<version>.json, .snapshots/}` layout; README.md (de)serialization (YAML front-matter + Markdown body + managed-by marker); the per-Article **lock object**; the pinned write order (**media → README.md = commit → changes → snapshot**); optimistic versioning; media write-once. Sits on an `ObjectStore`.
 
 ## Build steps (TDD — red → green → refactor, tiny commits)
 
