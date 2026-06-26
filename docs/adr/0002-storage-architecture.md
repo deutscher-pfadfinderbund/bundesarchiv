@@ -5,7 +5,7 @@ Canonical data is **plain files on disk** — one directory per Article (named b
 ## Considered options
 
 - **DB-canonical (Postgres) + derived file export** — rejected: the durable artifact becomes a binary dump, losing the readable-without-code goal.
-- **Nextcloud as the canonical store** — rejected: ~yearly forced major upgrades and lossy file-versioning make it the wrong anchor for a decades archive. Demoted to an optional **strictly read-only** browse mount + a backup hedge; never canonical, never writable.
+- **Nextcloud as the canonical store** — rejected: ~yearly forced major upgrades and lossy file-versioning make it the wrong anchor for a decades archive. Demoted to a non-canonical, human-read-only role; never canonical, never human-writable. _(ADR 0005 refines the connection: since the app and Nextcloud cannot share a host, Nextcloud is an **async one-way WebDAV mirror** of the canonical local-FS tree, not a local read-only mount.)_
 - **git as canonical / history layer** — deferred: not needed in v1. The on-disk shape already matches git's, so `git init` is a later upgrade if guaranteed history is ever required.
 
 ## Consequences
