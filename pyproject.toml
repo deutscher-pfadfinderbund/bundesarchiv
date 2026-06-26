@@ -26,7 +26,8 @@ src = ["src", "tests"]
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# Keep ruff's defaults (E4/E7/E9, F); EXTEND with import-sort + modernization/idiom rules.
+extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET"]
 
 [tool.mypy]
 strict = true
