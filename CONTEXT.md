@@ -41,6 +41,10 @@ _Avoid_: user.
 **Public** (*Öffentlich*):
 An unauthenticated visitor. Public access is a _deferred_ feature for sharing a single Article by link — never a public listing, browse, or search.
 
+**Viewer** (code term, no single UI label):
+*Who is asking* — the union of Archivist, Member, and Public. The value object the access model takes (with the asker's Group names) to decide what they may see; data only, never reads Keycloak itself.
+_Avoid_: user (ambiguous — see Member), requester.
+
 **Audience** (*Sichtbarkeit*):
 Who may see an Article — a rung on the ladder Public ⊃ Members ⊃ named Group(s).
 _Avoid_: visibility (in prose, ambiguous), permissions.
