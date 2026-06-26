@@ -3,24 +3,29 @@
 The `store` fixture provides the adapter under test. In-memory here; the local-FS
 and WebDAV adapters will reuse this suite by parametrizing the fixture.
 
-Scope note: the atomicity claims in ADR 0005 — a concurrent reader sees old-or-new
-(never partial), a process killed mid-write leaves prior-object-or-nothing at the
-final key, `put_large` finalize is all-or-nothing — hold trivially for the in-memory
-fake (a single dict assignment) and so are not stressed here. They are exercised by
-the local-FS crash-injection test added with `LocalFsObjectStore` (Part 1, step 5).
+Scope note: ADR 0005's atomicity claims — a crash mid-write leaves
+prior-object-or-nothing at the final key, and `put_large`'s finalize is
+all-or-nothing — hold trivially for the in-memory fake (a single dict assignment),
+so they are not stressed here. They are exercised for real by the SIGKILL crash test
+in test_localfs.py, which kills a process mid-`put_large` (driving the same atomic
+commit path both writes share) and inspects what survived on disk.
 """
 
 import io
+from pathlib import Path
 
 import pytest
 
+from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
-@pytest.fixture
-def store() -> ObjectStore:
+@pytest.fixture(params=["memory", "fs"])
+def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectStore:
+    if request.param == "fs":
+        return LocalFsObjectStore(tmp_path)
     return InMemoryObjectStore()
 
 
@@ -87,3 +92,19 @@ def test_put_large_round_trip(store: ObjectStore) -> None:
     data = b"x" * 10_000
     store.put_large("media/big.bin", io.BytesIO(data), len(data))
     assert store.read("media/big.bin") == data
+
+
+def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
+    # "art/1" names no blob even though "art/1/README.md" does — it is absent,
+    # not a leaked backend error. (Pins memory and FS adapters to the same behavior.)
+    store.write_atomic("art/1/README.md", b"body")
+    with pytest.raises(NotFound):
+        store.read("art/1")
+
+
+def test_delete_directory_prefix_key_is_a_no_op(store: ObjectStore) -> None:
+    # Deleting a directory-prefix key removes nothing and must not touch the blobs
+    # nested under it.
+    store.write_atomic("art/1/README.md", b"body")
+    store.delete("art/1")
+    assert store.read("art/1/README.md") == b"body"
