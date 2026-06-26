@@ -6,9 +6,11 @@ denies everyone. Fixture-driven, no IO. The chain is leaf-first as resolve_chain
 
 from dataclasses import fields
 
-from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, project
+import pytest
+
+from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
-from bundesarchiv.domain.viewer import Archivist, Member, Public
+from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
 def _article(
@@ -156,3 +158,94 @@ def test_project_floors_exactly_the_declared_archivist_only_fields() -> None:
         f.name for f in fields(article) if getattr(article, f.name) != getattr(projected, f.name)
     }
     assert differing == ARCHIVIST_ONLY_FIELDS
+
+
+def test_preview_shows_post_publish_audience_for_a_draft() -> None:
+    # "If published now" (ADR 0001): the Lifecycle gate is bypassed, so a Public Draft previews
+    # as world-visible — the warning an Archivist needs *before* publishing.
+    draft = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
+    p = preview(draft, _chain())
+    assert p.public is True
+    assert p.members is True
+
+
+def test_preview_agrees_with_can_view_for_a_published_article() -> None:
+    article = _article(audience=Audience(AudienceTier.MEMBERS))
+    p = preview(article, _chain())
+    assert p.public == can_view(Public(), article, _chain())
+    assert p.members == can_view(Member(), article, _chain())
+
+
+def test_preview_surfaces_the_named_groups_for_a_groups_article() -> None:
+    p = preview(_groups_article(), _chain())
+    assert p.public is False
+    assert p.members is False
+    assert p.groups == ("vorstand", "stamm-koeln")
+
+
+def test_preview_visible_fields_exclude_the_archivist_only_fields() -> None:
+    p = preview(_physical_article(), _chain())
+    assert p.visible_fields == {f.name for f in fields(Article)} - ARCHIVIST_ONLY_FIELDS
+
+
+def test_preview_denies_all_on_a_misresolved_chain() -> None:
+    # Unresolvable chain -> nobody sees it, no fields shown (preview inherits can_view's deny).
+    article = _article(audience=Audience(AudienceTier.PUBLIC))
+    bad_chain = (Collection(ulid="c-other", name="c-other"),)
+    p = preview(article, bad_chain)
+    assert p.public is False
+    assert p.members is False
+    assert p.groups == ()
+    assert p.visible_fields == frozenset()
+
+
+# --- Step 12: single-source safety net -------------------------------------------------------
+
+_VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
+
+
+@pytest.mark.parametrize(
+    ("viewer", "audience", "lifecycle", "expected"),
+    [
+        # PUBLISHED, Public rung — everyone sees it.
+        (Public(), Audience(AudienceTier.PUBLIC), Lifecycle.PUBLISHED, True),
+        (Member(()), Audience(AudienceTier.PUBLIC), Lifecycle.PUBLISHED, True),
+        (Archivist(), Audience(AudienceTier.PUBLIC), Lifecycle.PUBLISHED, True),
+        # PUBLISHED, Members rung — any Member + Archivist, not Public.
+        (Public(), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, False),
+        (Member(()), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
+        (Archivist(), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
+        # PUBLISHED, Groups rung — only a Member holding the group, plus Archivist.
+        (Public(), _VORSTAND, Lifecycle.PUBLISHED, False),
+        (Member(("vorstand",)), _VORSTAND, Lifecycle.PUBLISHED, True),
+        (Member(("stamm-bonn",)), _VORSTAND, Lifecycle.PUBLISHED, False),
+        (Archivist(), _VORSTAND, Lifecycle.PUBLISHED, True),
+        # DRAFT — the Lifecycle gate: Archivist only, tier irrelevant.
+        (Public(), Audience(AudienceTier.PUBLIC), Lifecycle.DRAFT, False),
+        (Member(("vorstand",)), _VORSTAND, Lifecycle.DRAFT, False),
+        (Archivist(), Audience(AudienceTier.PUBLIC), Lifecycle.DRAFT, True),
+    ],
+)
+def test_can_view_matrix(
+    viewer: Viewer, audience: Audience, lifecycle: Lifecycle, expected: bool
+) -> None:
+    # The core regression net: Viewer kind x effective tier x Lifecycle, hand-verified.
+    article = _article(audience=audience, lifecycle=lifecycle)
+    assert can_view(viewer, article, _chain()) is expected
+
+
+@pytest.mark.parametrize("lifecycle", [Lifecycle.PUBLISHED, Lifecycle.DRAFT])
+@pytest.mark.parametrize(
+    "audience",
+    [Audience(AudienceTier.PUBLIC), Audience(AudienceTier.MEMBERS), _VORSTAND, None],
+)
+def test_preview_who_sees_is_defined_by_can_view(
+    audience: Audience | None, lifecycle: Lifecycle
+) -> None:
+    # Single-source invariant: preview never re-derives visibility — its flags equal can_view
+    # on the published projection. If preview's logic drifted from the resolver, this fails.
+    article = _article(audience=audience, lifecycle=lifecycle)
+    published = _article(audience=audience, lifecycle=Lifecycle.PUBLISHED)
+    p = preview(article, _chain())
+    assert p.public == can_view(Public(), published, _chain())
+    assert p.members == can_view(Member(), published, _chain())

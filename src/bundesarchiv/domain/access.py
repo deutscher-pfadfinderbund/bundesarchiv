@@ -9,18 +9,23 @@ The `match` statements close over their unions with `assert_never`: adding a mem
 than a silent fail-open — the leak the single-source resolver exists to prevent.
 """
 
-from dataclasses import replace
+from dataclasses import dataclass, fields, replace
 from typing import assert_never
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # Fields only an Archivist may see, floored from any non-Archivist projection regardless of
 # whether the Viewer can otherwise view the Article. Add provenance/notes fields here as the
 # model grows — projection and the visibility preview both read this one set.
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "physical_description"})
+
+# The fields a non-Archivist viewer who can view the Article sees — every field but the floored.
+_MEMBER_VISIBLE_FIELDS: frozenset[str] = (
+    frozenset(f.name for f in fields(Article)) - ARCHIVIST_ONLY_FIELDS
+)
 
 
 def can_view(viewer: Viewer, article: Article, chain: tuple[Collection, ...]) -> bool:
@@ -82,3 +87,47 @@ def project(viewer: Viewer, article: Article) -> Article:
             return replace(article, physical_location=None, physical_description=None)
         case _ as unreachable:
             assert_never(unreachable)
+
+
+@dataclass(frozen=True, slots=True)
+class VisibilityPreview:
+    """ "If published now, who sees this and which fields" — the ADR 0001 anti-over-exposure
+    summary. `members` is a *plain* Member (no groups); `groups` names the groups that would
+    see a GROUPS-rung Article (so the Archivist isn't misled by `members=False`)."""
+
+    public: bool
+    members: bool
+    groups: tuple[str, ...]
+    visible_fields: frozenset[str]
+
+
+def preview(article: Article, chain: tuple[Collection, ...]) -> VisibilityPreview:
+    """If `article` were published now, who would see it and which fields it would expose.
+
+    Bypasses the Lifecycle gate by previewing a published projection (ADR 0001's publish-time
+    warning), and routes who-sees through `can_view` — it never re-derives visibility, so it
+    shares the one resolver. The rung is read only to surface the named groups for display.
+    """
+    published = replace(article, lifecycle=Lifecycle.PUBLISHED)
+    public = can_view(Public(), published, chain)
+    members = can_view(Member(), published, chain)
+    groups = _would_be_groups(published, chain)
+    visible_to_someone = public or members or bool(groups)
+    return VisibilityPreview(
+        public=public,
+        members=members,
+        groups=groups,
+        visible_fields=_MEMBER_VISIBLE_FIELDS if visible_to_someone else frozenset(),
+    )
+
+
+def _would_be_groups(article: Article, chain: tuple[Collection, ...]) -> tuple[str, ...]:
+    """The named groups of the effective rung, if it is a GROUPS rung — else empty. Reads the
+    resolver's output for display only; the who-sees decision stays in `can_view`."""
+    try:
+        effective = effective_audience(article, chain)
+    except DomainError:
+        return ()
+    if isinstance(effective, Audience) and effective.tier is AudienceTier.GROUPS:
+        return effective.groups
+    return ()
