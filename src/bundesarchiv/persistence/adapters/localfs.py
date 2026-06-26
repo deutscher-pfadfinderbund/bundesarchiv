@@ -8,7 +8,8 @@ reader therefore sees the old bytes or the new bytes, never a partial write. Key
 
 import errno
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO
 
@@ -34,19 +35,32 @@ class LocalFsObjectStore:
             raise ArchiveError(f"invalid key: {key!r}")
         return self._root.joinpath(*segments)
 
-    def read(self, key: str) -> bytes:
+    @contextmanager
+    def _backend(self, key: str) -> Iterator[None]:
+        """The single seam every filesystem operation passes through, so no raw
+        `OSError` ever crosses the port (the local-FS analogue of WebDav's
+        `_request`). A path that names no blob — missing (`FileNotFoundError`) or a
+        directory-prefix key (`IsADirectoryError`) — is "absent" → `NotFound`; every
+        other backend failure (permissions, ENOSPC, EXDEV, …) → `ArchiveError`."""
         try:
-            return self._path(key).read_bytes()
+            yield
         except FileNotFoundError, IsADirectoryError:
-            # A directory-prefix key (e.g. "art/1" when "art/1/README.md" exists)
-            # names no blob — that is "absent", not a raw OSError past the port.
             raise NotFound(key) from None
+        except OSError as exc:
+            if exc.errno == errno.EXDEV:
+                raise ArchiveError(f"cross-device rename refused (EXDEV): {key}") from exc
+            raise ArchiveError(f"local-FS backend error on {key!r}: {exc}") from exc
+
+    def read(self, key: str) -> bytes:
+        with self._backend(key):
+            return self._path(key).read_bytes()
 
     def write_atomic(self, key: str, data: bytes) -> None:
         def write(f: BinaryIO) -> None:
             f.write(data)
 
-        self._commit(self._path(key), write)
+        with self._backend(key):
+            self._commit(self._path(key), write)
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         # `size` is a hint for multipart backends (S3/WebDAV); a streamed local write
@@ -55,29 +69,38 @@ class LocalFsObjectStore:
             while chunk := stream.read(_CHUNK):
                 f.write(chunk)
 
-        self._commit(self._path(key), write)
+        with self._backend(key):
+            self._commit(self._path(key), write)
 
     def list(self, prefix: str = "") -> Iterable[str]:
+        def _raise(exc: OSError) -> None:
+            # Fail closed: an unreadable directory must error, not silently drop its
+            # contents (rglob would swallow it and under-report live content).
+            raise ArchiveError(f"local-FS list failed under {self._root}: {exc}") from exc
+
         keys = (
-            path.relative_to(self._root).as_posix()
-            for path in self._root.rglob("*")
-            if path.is_file()
+            Path(dirpath, name).relative_to(self._root).as_posix()
+            for dirpath, _dirs, files in os.walk(self._root, onerror=_raise)
+            for name in files
         )
         return sorted(key for key in keys if key.startswith(prefix) and not is_reserved(key))
 
     def exists(self, key: str) -> bool:
-        return self._path(key).is_file()
+        with self._backend(key):
+            return self._path(key).is_file()
 
     def delete(self, key: str) -> None:
         path = self._path(key)
-        if path.is_dir():
-            return  # a directory-prefix key holds no blob — nothing to delete (no-op)
-        path.unlink(missing_ok=True)
+        with self._backend(key):
+            if path.is_dir():
+                return  # a directory-prefix key holds no blob — nothing to delete (no-op)
+            path.unlink(missing_ok=True)
 
     def _commit(self, target: Path, write: Callable[[BinaryIO], None]) -> None:
         """Durably commit `write`'s output to `target`: temp → fsync → atomic
         rename → fsync parent dir. The temp sibling is reserved (".tmp-…"), so a
-        crash that leaves it behind is invisible to `list()`."""
+        crash that leaves it behind is invisible to `list()`. Backend faults raised
+        here (incl. EXDEV) are mapped to `ArchiveError` by the enclosing `_backend`."""
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.parent / f".tmp-{os.getpid()}-{id(target)}-{target.name}"
         try:
@@ -85,12 +108,7 @@ class LocalFsObjectStore:
                 write(f)
                 f.flush()
                 os.fsync(f.fileno())
-            try:
-                tmp.replace(target)
-            except OSError as exc:
-                if exc.errno == errno.EXDEV:
-                    raise ArchiveError(f"cross-device rename refused (EXDEV): {target}") from exc
-                raise
+            tmp.replace(target)
             self._fsync_dir(target.parent)
         finally:
             tmp.unlink(missing_ok=True)

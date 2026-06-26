@@ -15,6 +15,7 @@ from typing import BinaryIO, cast
 import pytest
 
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+from bundesarchiv.persistence.errors import ArchiveError
 
 
 class _KillAfterFirstChunk:
@@ -67,3 +68,33 @@ def test_successful_write_leaves_no_temp(tmp_path: Path) -> None:
 
     on_disk = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
     assert on_disk == ["art/1/x"]
+
+
+@pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
+def test_read_unreadable_file_raises_archive_error(tmp_path: Path) -> None:
+    # A real, broken backend (NO mocking): a key whose file is mode 000. read() must
+    # surface this as ArchiveError, never let the raw PermissionError cross the port.
+    store = LocalFsObjectStore(tmp_path)
+    store.write_atomic("secret", b"classified")
+    target = tmp_path / "secret"
+    target.chmod(0o000)
+    try:
+        with pytest.raises(ArchiveError):
+            store.read("secret")
+    finally:
+        target.chmod(0o600)  # restore so pytest's tmp_path cleanup can remove it
+
+
+@pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
+def test_list_under_unreadable_dir_raises_not_under_reports(tmp_path: Path) -> None:
+    # Fail closed: a walk that hits an unreadable directory must raise ArchiveError,
+    # not silently drop that subtree's live content (no mocking — a real mode-000 dir).
+    store = LocalFsObjectStore(tmp_path)
+    store.write_atomic("a/k", b"x")
+    store.write_atomic("b/k", b"y")
+    (tmp_path / "a").chmod(0o000)
+    try:
+        with pytest.raises(ArchiveError):
+            store.list()
+    finally:
+        (tmp_path / "a").chmod(0o755)  # restore for cleanup
