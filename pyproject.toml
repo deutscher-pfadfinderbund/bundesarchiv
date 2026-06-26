@@ -3,7 +3,9 @@ name = "bundesarchiv"
 version = "0.1.0"
 description = "DPB Bundesarchiv — multimedia archive"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -18,6 +20,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pre-commit>=3.8",
+    "wsgidav>=4.3.4",
+    "cheroot>=11.1.2",
 ]
 
 [tool.ruff]
@@ -32,6 +36,12 @@ extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+
+# Test-only WebDAV server libs ship no type stubs; they are exercised through the
+# typed WebDavObjectStore + httpx, not depended on for types.
+[[tool.mypy.overrides]]
+module = ["wsgidav.*", "cheroot.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

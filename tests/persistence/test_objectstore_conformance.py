@@ -1,7 +1,7 @@
 """Conformance suite: every ObjectStore adapter must pass these tests.
 
-The `store` fixture provides the adapter under test. In-memory here; the local-FS
-and WebDAV adapters will reuse this suite by parametrizing the fixture.
+The `store` fixture is parametrized over every adapter — in-memory, local-FS, and
+WebDAV (against a real in-process server) — so this one suite is the shared contract.
 
 Scope note: ADR 0005's atomicity claims — a crash mid-write leaves
 prior-object-or-nothing at the final key, and `put_large`'s finalize is
@@ -22,10 +22,14 @@ from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
-@pytest.fixture(params=["memory", "fs"])
+@pytest.fixture(params=["memory", "fs", "webdav"])
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectStore:
     if request.param == "fs":
         return LocalFsObjectStore(tmp_path)
+    if request.param == "webdav":
+        # a real in-process WebDAV server (see conftest.webdav_store)
+        webdav: ObjectStore = request.getfixturevalue("webdav_store")
+        return webdav
     return InMemoryObjectStore()
 
 
