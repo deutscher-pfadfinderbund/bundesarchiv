@@ -30,6 +30,26 @@ def test_encode_decode_round_trips_every_field() -> None:
     assert version == 3
 
 
+def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
+    # `audience=None` means "inherit" (ADR 0001): nothing is written on the wire,
+    # and an absent key decodes back to None, not to an explicit default.
+    article = _article(audience=None)
+    text = readme.encode(article, 1)
+    assert "audience:" not in text
+    decoded, _ = readme.decode("01J0", text)
+    assert decoded.audience is None
+    assert decoded == article
+
+
+def test_absent_audience_key_decodes_to_inherit() -> None:
+    # A README that never had an audience key (e.g. older / hand-written) is inherit,
+    # not an explicit Members rung — explicit Members must stay distinguishable.
+    decoded, _ = readme.decode(
+        "x", "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
+    )
+    assert decoded.audience is None
+
+
 @pytest.mark.parametrize(
     "body", ["", "\n", "\n\nopens blank", "no trailing newline", "ends with a fence\n---"]
 )

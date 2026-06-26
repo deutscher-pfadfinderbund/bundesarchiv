@@ -36,7 +36,17 @@ def encode(article: Article, version: Version) -> str:
         "title": article.title,
         "collection_id": article.collection_id,
         "lifecycle": article.lifecycle.value,
-        "audience": {"tier": article.audience.tier.value, "groups": list(article.audience.groups)},
+        # None = inherit (ADR 0001): omit the key entirely so absence reads as inherit.
+        **(
+            {
+                "audience": {
+                    "tier": article.audience.tier.value,
+                    "groups": list(article.audience.groups),
+                }
+            }
+            if article.audience is not None
+            else {}
+        ),
         "ref_code": article.ref_code,
         "media_type": article.media_type,
         "document_type": article.document_type,
@@ -109,11 +119,22 @@ def _as_str_tuple(value: object) -> tuple[str, ...]:
     return tuple(str(item) for item in value)
 
 
+def _audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
+    """Decode the optional audience. An absent or null key is inherit (None, ADR 0001);
+    a present mapping is an explicit rung; anything else present is corrupt."""
+    raw = fm.get("audience")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"audience: expected a mapping, got {type(raw).__name__}")
+    return Audience(
+        tier=AudienceTier(raw.get("tier", AudienceTier.MEMBERS.value)),
+        groups=_as_str_tuple(raw.get("groups")),
+    )
+
+
 def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
-    audience = fm.get("audience") or {}
     media = fm.get("media") or []
-    if not isinstance(audience, dict):
-        raise ValueError(f"audience: expected a mapping, got {type(audience).__name__}")
     if not isinstance(media, list | tuple):
         raise ValueError(f"media: expected a list, got {type(media).__name__}")
     return Article(
@@ -122,10 +143,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         collection_id=str(fm["collection_id"]),
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),
-        audience=Audience(
-            tier=AudienceTier(audience.get("tier", AudienceTier.MEMBERS.value)),
-            groups=_as_str_tuple(audience.get("groups")),
-        ),
+        audience=_audience_from_front_matter(fm),
         ref_code=fm.get("ref_code"),
         media_type=fm.get("media_type"),
         document_type=fm.get("document_type"),

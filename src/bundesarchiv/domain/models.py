@@ -7,7 +7,7 @@ German UI labels live in the glossary).
 """
 
 import enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 type Ulid = str  # a Crockford-base32 ULID; the Article's stable identity
 type Version = int  # optimistic-concurrency counter (0 = never saved; first save -> 1)
@@ -72,7 +72,7 @@ class Article:
     collection_id: Ulid
     body: str = ""
     lifecycle: Lifecycle = Lifecycle.DRAFT
-    audience: Audience = field(default_factory=Audience)
+    audience: Audience | None = None  # None = inherit from the Collection chain (ADR 0001)
     ref_code: str | None = None  # Signatur — human-facing, not identity
     media_type: str | None = None  # Medienart
     document_type: str | None = None  # Dokumenttyp
