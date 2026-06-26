@@ -10,7 +10,11 @@ It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
 `save` is optimistic: the README front-matter carries a `version`; a stale
 `expected_version` raises `Conflict`. The pinned write order is media → README
 (= commit) → changes: a half-written save leaves the prior README (or none), and a
-README is refused if it references media not yet stored.
+README is refused if it references media not yet stored. A failure *after* the README
+commits (e.g. writing the changes record) still propagates, but the Article is by then
+durably saved at the new version — the changes log is secondary metadata that ADR 0005
+tolerates gaps in, and a caller's retry with the old version will surface `Conflict`,
+signalling the save took effect.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
 Snapshots (.snapshots/) and the per-Article lock object are deferred (single-writer
