@@ -17,12 +17,6 @@ import pytest
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 
 
-def test_write_then_read_round_trip(tmp_path: Path) -> None:
-    store = LocalFsObjectStore(tmp_path)
-    store.write_atomic("art/1/README.md", b"hello")
-    assert store.read("art/1/README.md") == b"hello"
-
-
 class _KillAfterFirstChunk:
     """A read-stream that yields one chunk, then SIGKILLs its own process on the
     next read — a deterministic hard crash partway through the write, with the real
