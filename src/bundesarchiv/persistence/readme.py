@@ -112,6 +112,8 @@ def _as_str_tuple(value: object) -> tuple[str, ...]:
 def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
     audience = fm.get("audience") or {}
     media = fm.get("media") or []
+    if not isinstance(audience, dict):
+        raise ValueError(f"audience: expected a mapping, got {type(audience).__name__}")
     if not isinstance(media, list | tuple):
         raise ValueError(f"media: expected a list, got {type(media).__name__}")
     return Article(

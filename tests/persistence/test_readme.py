@@ -73,6 +73,10 @@ def test_decode_without_marker_still_parses() -> None:
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\ntags: scalar\n---\n",
             "scalar tags",
         ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: notadict\n---\n",
+            "non-mapping audience",
+        ),
     ],
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:
