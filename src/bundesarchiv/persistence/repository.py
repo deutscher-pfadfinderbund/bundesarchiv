@@ -53,7 +53,7 @@ class ArticleRepository:
 
     def load(self, ulid: Ulid) -> Stored:
         try:
-            text = self._store.read(_readme_key(ulid)).decode("utf-8")
+            text = self._read_readme(ulid)
         except NotFound:
             raise NotFound(ulid) from None
         article, version = readme.decode(ulid, text)
@@ -133,10 +133,14 @@ class ArticleRepository:
 
     def _current_version(self, ulid: Ulid) -> Version:
         try:
-            text = self._store.read(_readme_key(ulid)).decode("utf-8")
+            text = self._read_readme(ulid)
         except NotFound:
             return 0
         return readme.read_version(ulid, text)
+
+    def _read_readme(self, ulid: Ulid) -> str:
+        """Read + decode the Article's README text (raises NotFound if absent)."""
+        return self._store.read(_readme_key(ulid)).decode("utf-8")
 
 
 # --- key scheme ------------------------------------------------------------------

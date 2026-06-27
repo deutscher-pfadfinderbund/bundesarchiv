@@ -33,8 +33,8 @@ def validate_key(key: str) -> None:
     escape the port, and the in-memory fake would diverge by accepting them). A
     leading-dot reserved segment (".tmp", ".lock", ".snapshots") is valid.
     """
-    if not key or any(segment in ("", ".", "..") for segment in key.split("/")):
-        raise ArchiveError(f"invalid key: {key!r}")
+    if any(segment in ("", ".", "..") for segment in key.split("/")):
+        raise ArchiveError(f"invalid key: {key!r}")  # an empty key splits to [""], caught here
     if any(ch < " " or ch == "\x7f" for ch in key):
         raise ArchiveError(f"invalid key (control character): {key!r}")
 
