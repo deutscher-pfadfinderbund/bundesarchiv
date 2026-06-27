@@ -13,8 +13,9 @@ from dataclasses import dataclass, fields, replace
 from typing import assert_never
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
+from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # Fields only an Archivist may see, floored from any non-Archivist projection regardless of
@@ -28,11 +29,12 @@ _MEMBER_VISIBLE_FIELDS: frozenset[str] = (
 )
 
 
-def can_view(viewer: Viewer, article: Article, chain: tuple[Collection, ...]) -> bool:
+def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:
     """Fail-closed yes/no: may `viewer` see `article` given its resolved Collection `chain`?
 
-    Any `DomainError` from resolution (e.g. a misresolved chain) denies *everyone*, including
-    an Archivist — an unresolvable chain yields no Audience to authorize against.
+    Any `DomainError` from resolution (e.g. a chain resolved for a different Article) denies
+    *everyone*, including an Archivist — an unresolvable chain yields no Audience to authorize
+    against.
     """
     try:
         effective = effective_audience(article, chain)
@@ -101,7 +103,7 @@ class VisibilityPreview:
     visible_fields: frozenset[str]
 
 
-def preview(article: Article, chain: tuple[Collection, ...]) -> VisibilityPreview:
+def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
     """If `article` were published now, who would see it and which fields it would expose.
 
     Bypasses the Lifecycle gate by previewing a published projection (ADR 0001's publish-time
@@ -121,7 +123,7 @@ def preview(article: Article, chain: tuple[Collection, ...]) -> VisibilityPrevie
     )
 
 
-def _would_be_groups(article: Article, chain: tuple[Collection, ...]) -> tuple[str, ...]:
+def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
     """The named groups of the effective rung, if it is a GROUPS rung — else empty. Reads the
     resolver's output for display only; the who-sees decision stays in `can_view`."""
     try:

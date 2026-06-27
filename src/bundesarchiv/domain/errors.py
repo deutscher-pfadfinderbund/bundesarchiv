@@ -17,8 +17,10 @@ class BrokenCollectionTree(DomainError):
 
 
 class MisresolvedChain(DomainError):
-    """Raised when the Collection chain handed to the effective-Audience resolver
-    is not a usable owning chain for the Article — it is empty, or its leaf is not
-    the Article's own Collection. Distinct from `BrokenCollectionTree` (which is
-    about *building* the chain): this is a caller wiring the *wrong* chain in.
-    Surfaces the bug loudly; at the visibility seam it is caught and denied."""
+    """Raised when a Collection chain is not a usable owning chain — either ill-formed
+    (empty, not parent-linked, or not terminated at a root: caught when a `ResolvedChain`
+    is constructed) or bound to the wrong Article (its leaf is not the Article's own
+    Collection: caught by the effective-Audience resolver). Distinct from
+    `BrokenCollectionTree` (which is about *building* the chain from the lookup): this is a
+    caller wiring the *wrong* chain in. Surfaces the bug loudly; at the visibility seam it
+    is caught and denied."""

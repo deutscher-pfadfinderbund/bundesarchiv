@@ -1,7 +1,7 @@
 """Viewer-facing access predicate — `can_view` composes effective_audience + Viewer.
 
-Fail-closed (ADR 0001): a non-Published Article is Archivist-only; an unresolvable chain
-denies everyone. Fixture-driven, no IO. The chain is leaf-first as resolve_chain returns it.
+Fail-closed (ADR 0001): a non-Published Article is Archivist-only; a chain resolved for a
+different Article denies everyone. Fixture-driven, no IO. Chains are `ResolvedChain`s.
 """
 
 from dataclasses import fields
@@ -9,6 +9,7 @@ from dataclasses import fields
 import pytest
 
 from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project
+from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -28,9 +29,9 @@ def _article(
     )
 
 
-def _chain(collection_id: str = "c-leaf") -> tuple[Collection, ...]:
+def _chain(collection_id: str = "c-leaf") -> ResolvedChain:
     # A single root Collection that owns the Article — a minimal valid resolved chain.
-    return (Collection(ulid=collection_id, name=collection_id),)
+    return ResolvedChain((Collection(ulid=collection_id, name=collection_id),))
 
 
 def test_public_viewer_sees_a_published_public_article() -> None:
@@ -87,19 +88,12 @@ def test_public_cannot_view_a_groups_article() -> None:
     assert can_view(Public(), _groups_article(), _chain()) is False
 
 
-def test_can_view_denies_everyone_on_an_empty_chain() -> None:
-    # effective_audience raises MisresolvedChain; can_view catches and denies — fail closed.
-    # Even an Archivist is denied: there is no resolvable Audience to gate on.
-    article = _article(audience=Audience(AudienceTier.PUBLIC))
-    assert can_view(Public(), article, ()) is False
-    assert can_view(Member(("vorstand",)), article, ()) is False
-    assert can_view(Archivist(), article, ()) is False
-
-
-def test_can_view_denies_everyone_on_a_misresolved_chain() -> None:
-    # A chain whose leaf is not the Article's Collection is a wiring bug — deny, don't raise.
+def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
+    # The chain is a valid ResolvedChain but its leaf is not this Article's Collection — a
+    # wiring bug. can_view catches the MisresolvedChain and denies (not raises). (An *empty*
+    # chain can no longer reach here at all — ResolvedChain(()) fails at construction.)
     article = _article(collection_id="c-leaf", audience=Audience(AudienceTier.PUBLIC))
-    wrong_chain = (Collection(ulid="c-other", name="c-other"),)
+    wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
     assert can_view(Public(), article, wrong_chain) is False
     assert can_view(Archivist(), article, wrong_chain) is False
 
@@ -188,18 +182,18 @@ def test_preview_visible_fields_exclude_the_archivist_only_fields() -> None:
     assert p.visible_fields == {f.name for f in fields(Article)} - ARCHIVIST_ONLY_FIELDS
 
 
-def test_preview_denies_all_on_a_misresolved_chain() -> None:
-    # Unresolvable chain -> nobody sees it, no fields shown (preview inherits can_view's deny).
+def test_preview_denies_all_on_a_chain_resolved_for_a_different_article() -> None:
+    # Unresolvable binding -> nobody sees it, no fields shown (preview inherits can_view's deny).
     article = _article(audience=Audience(AudienceTier.PUBLIC))
-    bad_chain = (Collection(ulid="c-other", name="c-other"),)
-    p = preview(article, bad_chain)
+    wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
+    p = preview(article, wrong_chain)
     assert p.public is False
     assert p.members is False
     assert p.groups == ()
     assert p.visible_fields == frozenset()
 
 
-# --- Step 12: single-source safety net -------------------------------------------------------
+# --- Single-source safety net -----------------------------------------------------------------
 
 _VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
 
