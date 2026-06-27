@@ -73,7 +73,7 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version]:
     """Parse README.md text back to its Article + stored version."""
     front_matter, body = _parse_front_matter(ulid, text)
     try:
-        return _article_from_front_matter(front_matter, body), int(front_matter["version"])
+        return _article_from_front_matter(front_matter, body), _version_of(front_matter)
     except (KeyError, ValueError, TypeError) as exc:
         raise ArchiveError(f"{ulid}: README front-matter is malformed: {exc}") from exc
 
@@ -82,7 +82,7 @@ def read_version(ulid: Ulid, text: str) -> Version:
     """Read only the stored version — no Article rebuild (optimistic-lock / reindex)."""
     front_matter, _ = _parse_front_matter(ulid, text)
     try:
-        return int(front_matter["version"])
+        return _version_of(front_matter)
     except (KeyError, ValueError, TypeError) as exc:
         raise ArchiveError(f"{ulid}: README version is malformed: {exc}") from exc
 
@@ -119,6 +119,35 @@ def _as_str_tuple(value: object) -> tuple[str, ...]:
     return tuple(str(item) for item in value)
 
 
+def _as_opt_str(value: object) -> str | None:
+    """An optional free-text field: absent -> None, a YAML scalar -> its string form, anything
+    structured (list/dict) -> reject. Keeps a bad type from building a type-violating Article."""
+    if value is None:
+        return None
+    if not isinstance(value, str | int | float):
+        raise ValueError(f"expected a string, got {type(value).__name__}")
+    return str(value)
+
+
+def _as_opt_int(value: object) -> int | None:
+    """An optional integer field: absent -> None, an int -> itself, anything else (incl. bool,
+    float, str) -> reject rather than coerce."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"expected an integer, got {type(value).__name__}")
+    return value
+
+
+def _version_of(fm: dict[str, Any]) -> Version:
+    """The stored optimistic-concurrency version: an exact non-negative int. Reject bool/float/
+    str rather than coercing (int(1.5) -> 1 would silently accept a corrupt version)."""
+    value = fm["version"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"version must be a non-negative integer, got {value!r}")
+    return value
+
+
 def _audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
     """Decode the optional audience. An absent or null key is inherit (None, ADR 0001);
     a present mapping is an explicit rung; anything else present is corrupt."""
@@ -146,18 +175,18 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),
         audience=_audience_from_front_matter(fm),
-        ref_code=fm.get("ref_code"),
-        media_type=fm.get("media_type"),
-        document_type=fm.get("document_type"),
+        ref_code=_as_opt_str(fm.get("ref_code")),
+        media_type=_as_opt_str(fm.get("media_type")),
+        document_type=_as_opt_str(fm.get("document_type")),
         tags=_as_str_tuple(fm.get("tags")),
-        physical_location=fm.get("physical_location"),
-        physical_description=fm.get("physical_description"),
+        physical_location=_as_opt_str(fm.get("physical_location")),
+        physical_description=_as_opt_str(fm.get("physical_description")),
         media=tuple(
             MediaRef(
                 filename=str(m["filename"]),
                 content_hash=str(m["content_hash"]),
-                media_type=m.get("media_type"),
-                byte_size=m.get("byte_size"),
+                media_type=_as_opt_str(m.get("media_type")),
+                byte_size=_as_opt_int(m.get("byte_size")),
             )
             for m in media
         ),

@@ -115,6 +115,18 @@ def test_decode_without_marker_still_parses() -> None:
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience:\n  tier: public\n  groups:\n  - geheim\n---\n",
             "PUBLIC tier with a named group (Audience invariant -> ArchiveError at the seam)",
         ),
+        (
+            "---\nulid: x\nversion: 1.5\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\n",
+            "non-integer version (must not silently truncate)",
+        ),
+        (
+            "---\nulid: x\nversion: true\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\n",
+            "boolean version (bool is not an int version)",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nref_code:\n  - a\n  - b\n---\n",
+            "non-scalar ref_code (must not build a type-violating Article)",
+        ),
     ],
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:

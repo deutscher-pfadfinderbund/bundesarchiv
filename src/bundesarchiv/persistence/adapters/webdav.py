@@ -152,9 +152,10 @@ class WebDavObjectStore:
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         try:
             return self._client.request(method, url, **kwargs)
-        except httpx.TransportError as exc:
-            # A down/slow/unreachable mirror is an expected failure mode (ADR 0005);
-            # surface it as ArchiveError, never a raw transport exception past the port.
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
+            # A down/slow/unreachable/misbehaving mirror is an expected failure mode (ADR 0005);
+            # surface ANY httpx error (transport, decoding, redirects, status, bad URL) as
+            # ArchiveError, never a raw httpx exception past the port.
             raise ArchiveError(f"WebDAV {method} {url}: {exc}") from exc
 
     def _ensure(self, resp: httpx.Response, *ok: int) -> None:
@@ -170,7 +171,12 @@ def _iter_chunks(stream: BinaryIO) -> Iterator[bytes]:
 
 
 def _parse_multistatus(body: bytes) -> Iterator[tuple[str, bool]]:
-    root = ElementTree.fromstring(body)
+    try:
+        root = ElementTree.fromstring(body)
+    except ElementTree.ParseError as exc:
+        # A malformed multistatus body is a misbehaving mirror — ArchiveError, not a raw
+        # xml.etree.ParseError escaping past the port.
+        raise ArchiveError(f"WebDAV: malformed multistatus body: {exc}") from exc
     for response in root.iterfind(f"{_DAV}response"):
         href = response.findtext(f"{_DAV}href")
         if href is None:
