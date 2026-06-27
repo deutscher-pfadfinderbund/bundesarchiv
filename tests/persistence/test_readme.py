@@ -127,6 +127,14 @@ def test_decode_without_marker_still_parses() -> None:
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nref_code:\n  - a\n  - b\n---\n",
             "non-scalar ref_code (must not build a type-violating Article)",
         ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nmedia: notalist\n---\n",
+            "non-list media",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nmedia:\n  - filename: a.jpg\n    content_hash: abc\n    byte_size: not-a-number\n---\n",
+            "media entry with a non-integer byte_size",
+        ),
     ],
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:
@@ -137,3 +145,20 @@ def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> 
 def test_read_version_rejects_corrupt_as_archive_error() -> None:
     with pytest.raises(ArchiveError):
         readme.read_version("x", "---\ntags: [unclosed\n---\n")
+
+
+def test_read_version_rejects_a_non_integer_version() -> None:
+    # Valid YAML, corrupt version routed specifically through read_version's own catch.
+    text = "---\nulid: x\nversion: 1.5\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
+    with pytest.raises(ArchiveError):
+        readme.read_version("x", text)
+
+
+def test_deeply_nested_front_matter_surfaces_as_archive_error() -> None:
+    # Deeply-nested flow collections blow the stack inside yaml.safe_load (RecursionError, not a
+    # YAMLError subclass) — the codec must still contain it, from both decode and read_version.
+    nested = "---\nkey: " + "{" * 600 + "\n---\nbody"
+    with pytest.raises(ArchiveError):
+        readme.decode("x", nested)
+    with pytest.raises(ArchiveError):
+        readme.read_version("x", nested)

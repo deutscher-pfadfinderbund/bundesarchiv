@@ -91,11 +91,11 @@ def project(viewer: Viewer, article: Article) -> Article:
         case Archivist():
             return article
         case Public() | Member():
-            # Floor exactly ARCHIVIST_ONLY_FIELDS, derived from the one declared set so a field
-            # added there is honored automatically (no fail-open). The import-time assert above
-            # guarantees the names are real Article fields; the type: ignore is only because the
-            # dataclasses-replace mypy plugin can't match dynamic kwarg names to field types.
-            return replace(article, **dict.fromkeys(ARCHIVIST_ONLY_FIELDS))  # type: ignore[arg-type]
+            # Explicit kwargs so mypy --strict type-checks each floored field (a dynamic splat
+            # would need a blanket type: ignore that hides exactly that). The import-time assert
+            # pins the field names exist; the drift-guard test pins this floors *exactly*
+            # ARCHIVIST_ONLY_FIELDS — together they cover the fail-open a dynamic form would avoid.
+            return replace(article, physical_location=None, physical_description=None)
         case _ as unreachable:
             assert_never(unreachable)
 

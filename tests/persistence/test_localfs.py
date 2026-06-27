@@ -15,7 +15,7 @@ from typing import BinaryIO, cast
 import pytest
 
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
 class _KillAfterFirstChunk:
@@ -94,6 +94,15 @@ def test_commit_fsyncs_every_directory_it_creates(
         root / "articles/01J0/media",
     ):
         assert directory in synced, f"{directory} was not fsynced after creation"
+
+
+def test_descend_through_a_file_key_is_not_found(tmp_path: Path) -> None:
+    # A key whose intermediate component is an existing blob (ENOTDIR) names no blob -> NotFound,
+    # matching the in-memory/WebDAV adapters (not a generic ArchiveError) so the port is uniform.
+    store = LocalFsObjectStore(tmp_path)
+    store.write_atomic("art/1", b"i am a file")
+    with pytest.raises(NotFound):
+        store.read("art/1/extra")
 
 
 @pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")

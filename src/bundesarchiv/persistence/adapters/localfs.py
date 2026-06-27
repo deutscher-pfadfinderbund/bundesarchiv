@@ -41,7 +41,10 @@ class LocalFsObjectStore:
         other backend failure (permissions, ENOSPC, EXDEV, …) → `ArchiveError`."""
         try:
             yield
-        except FileNotFoundError, IsADirectoryError:
+        except FileNotFoundError, IsADirectoryError, NotADirectoryError:
+            # No blob lives at this key: missing, a directory-prefix key, or a descend-through-
+            # a-file key (ENOTDIR) — all "absent" -> NotFound, matching the in-memory/WebDAV
+            # adapters so the port stays interchangeable.
             raise NotFound(key) from None
         except OSError as exc:
             if exc.errno == errno.EXDEV:
