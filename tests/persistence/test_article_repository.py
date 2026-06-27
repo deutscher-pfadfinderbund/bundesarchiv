@@ -93,14 +93,18 @@ def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository)
 def test_hard_delete_removes_article_but_keeps_recoverable_copy(repo: ArticleRepository) -> None:
     ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
     repo.save(_article(media=(ref,)), expected_version=0)
+    original = set(repo._store.list("articles/01J0/"))
+    assert len(original) == 3  # README + the media blob + the v1 changes record
 
     repo.hard_delete("01J0")
 
     with pytest.raises(NotFound):
         repo.load("01J0")
     assert list(repo.list_ulids()) == []  # gone from listings
-    # recoverable: the files live under reserved .trash, excluded from list()
-    assert repo._store.exists(".trash/articles/01J0/README.md") is True
+    # recoverable: the ENTIRE subtree (README, media, changes) lives under reserved .trash,
+    # excluded from list() — not just the README.
+    for key in original:
+        assert repo._store.exists(f".trash/{key}") is True
     assert set(repo._store.list()) == set()
 
 
@@ -145,3 +149,55 @@ def test_update_retries_on_a_concurrent_conflict(repo: ArticleRepository) -> Non
     assert calls == 2  # retried exactly once after the conflict
     assert final == 3  # sneaky (v2) then the retried update (v3)
     assert repo.load("01J0").article.title == "updated"
+
+
+def test_update_reraises_conflict_after_exhausting_retries(repo: ArticleRepository) -> None:
+    # A mutate whose every attempt loses to a concurrent writer must, after retries+1
+    # attempts, re-raise Conflict rather than loop forever or silently give up.
+    repo.save(_article(title="v1"), expected_version=0)  # v1
+    calls = 0
+
+    def mutate(article: Article) -> Article:
+        nonlocal calls
+        calls += 1
+        # Always sneak a winning concurrent save first, so update's save is always stale.
+        repo.save(_article(title=f"sneaky-{calls}"), expected_version=repo.load("01J0").version)
+        return replace(article, title="never-lands")
+
+    with pytest.raises(Conflict):
+        repo.update("01J0", mutate, retries=1)
+    assert calls == 2  # initial attempt + exactly one retry, then re-raise
+
+
+class _RecordingStore(InMemoryObjectStore):
+    """A real in-memory store that also records the order of write_atomic keys — a spy at the
+    genuine ObjectStore boundary (not a mock of the repository), to pin write ordering."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.writes: list[str] = []
+
+    def write_atomic(self, key: str, data: bytes) -> None:
+        self.writes.append(key)
+        super().write_atomic(key, data)
+
+
+def test_save_writes_a_correct_append_only_change_record(repo: ArticleRepository) -> None:
+    import json
+
+    repo.save(_article(), expected_version=0)  # v1
+    repo.save(_article(title="revised"), expected_version=1)  # v2
+    record = json.loads(repo._store.read("articles/01J0/changes/1.json"))
+    assert record == {"ulid": "01J0", "version": 1}
+    assert repo._store.exists("articles/01J0/changes/2.json") is True
+
+
+def test_save_writes_the_readme_commit_before_the_changes_record() -> None:
+    # The pinned order is README (the commit) -> changes; a crash between them leaves a
+    # durably-saved Article with only its change-log record missing (tolerable per ADR 0005).
+    store = _RecordingStore()
+    repo = ArticleRepository(store)
+    repo.save(_article(), expected_version=0)
+    assert store.writes.index("articles/01J0/README.md") < store.writes.index(
+        "articles/01J0/changes/1.json"
+    )
