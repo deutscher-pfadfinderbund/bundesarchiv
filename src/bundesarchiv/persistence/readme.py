@@ -52,7 +52,6 @@ def encode(article: Article, version: Version) -> str:
         "document_type": article.document_type,
         "tags": list(article.tags),
         "physical_location": article.physical_location,
-        "physical_description": article.physical_description,
         "media": [
             {
                 "filename": m.filename,
@@ -62,6 +61,8 @@ def encode(article: Article, version: Version) -> str:
             }
             for m in article.media
         ],
+        # Custom metadata as a sub-mapping; omitted when empty (like audience) to avoid noise.
+        **({"custom": dict(article.custom)} if article.custom else {}),
     }
     yaml_block = yaml.safe_dump(
         front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
@@ -141,6 +142,16 @@ def _as_opt_int(value: object) -> int | None:
     return value
 
 
+def _as_str_map(value: object) -> tuple[tuple[str, str], ...]:
+    """Coerce the optional custom mapping to (str, str) pairs: absent -> empty, a non-mapping ->
+    reject. Article.__post_init__ re-normalizes (sort, dedupe, reserved-key check)."""
+    if value is None:
+        return ()
+    if not isinstance(value, dict):
+        raise ValueError(f"custom: expected a mapping, got {type(value).__name__}")
+    return tuple((str(key), str(val)) for key, val in value.items())
+
+
 def _version_of(fm: dict[str, Any]) -> Version:
     """The stored optimistic-concurrency version: an exact non-negative int. Reject bool/float/
     str rather than coercing (int(1.5) -> 1 would silently accept a corrupt version)."""
@@ -182,7 +193,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         document_type=_as_opt_str(fm.get("document_type")),
         tags=_as_str_tuple(fm.get("tags")),
         physical_location=_as_opt_str(fm.get("physical_location")),
-        physical_description=_as_opt_str(fm.get("physical_description")),
+        custom=_as_str_map(fm.get("custom")),
         media=tuple(
             MediaRef(
                 filename=str(m["filename"]),

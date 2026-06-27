@@ -153,20 +153,20 @@ def _physical_article() -> Article:
         audience=Audience(AudienceTier.PUBLIC),
         ref_code="Foto-1955/007",
         physical_location="Magazin 2 / Regal B / Mappe 14",
-        physical_description="Schwarz-weiß-Abzug, 13x18",
+        custom=(("herkunft", "Familie Müller"),),
     )
 
 
 def test_project_floors_archivist_only_fields_for_a_member() -> None:
     projected = project(Member(), _physical_article())
     assert projected.physical_location is None
-    assert projected.physical_description is None
+    assert projected.custom == ()
 
 
 def test_project_floors_archivist_only_fields_for_public() -> None:
     projected = project(Public(), _physical_article())
     assert projected.physical_location is None
-    assert projected.physical_description is None
+    assert projected.custom == ()
 
 
 def test_project_is_unchanged_for_an_archivist() -> None:

@@ -32,8 +32,8 @@ def create_article(
     document_type: str | None = None,
     tags: tuple[str, ...] = (),
     physical_location: str | None = None,
-    physical_description: str | None = None,
     media: tuple[MediaRef, ...] = (),
+    custom: tuple[tuple[str, str], ...] = (),
 ) -> Article:
     """Create a NEW Article, minting its stable ULID at creation (ADR 0006: identity is a
     ULID minted here, never derived from a slug). The single place a ULID is minted — every
@@ -51,8 +51,8 @@ def create_article(
         document_type=document_type,
         tags=tags,
         physical_location=physical_location,
-        physical_description=physical_description,
         media=media,
+        custom=custom,
     )
 
 

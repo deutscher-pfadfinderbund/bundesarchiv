@@ -21,7 +21,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 # Fields only an Archivist may see, floored from any non-Archivist projection regardless of
 # whether the Viewer can otherwise view the Article. Add provenance/notes fields here as the
 # model grows — projection and the visibility preview both read this one set.
-ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "physical_description"})
+ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
 
 # The fields a non-Archivist viewer who can view the Article sees — every field but the floored.
 _NON_ARCHIVIST_VISIBLE_FIELDS: frozenset[str] = (
@@ -95,7 +95,7 @@ def project(viewer: Viewer, article: Article) -> Article:
             # would need a blanket type: ignore that hides exactly that). The import-time assert
             # pins the field names exist; the drift-guard test pins this floors *exactly*
             # ARCHIVIST_ONLY_FIELDS — together they cover the fail-open a dynamic form would avoid.
-            return replace(article, physical_location=None, physical_description=None)
+            return replace(article, physical_location=None, custom=())
         case _ as unreachable:
             assert_never(unreachable)
 

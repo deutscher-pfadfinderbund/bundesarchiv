@@ -8,7 +8,7 @@ and field floors land with the `can_view` layer (Part 2, later steps). Terms fol
 """
 
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 type Ulid = str  # a Crockford-base32 ULID; the Article's stable identity
 type Version = int  # optimistic-concurrency counter (0 = never saved; first save -> 1)
@@ -100,5 +100,20 @@ class Article:
     document_type: str | None = None  # Dokumenttyp
     tags: tuple[str, ...] = ()
     physical_location: str | None = None  # Standort
-    physical_description: str | None = None  # Objektbeschreibung
     media: tuple[MediaRef, ...] = ()
+    # Archivist-only escape hatch for metadata the schema doesn't cover (ADR 0009). The body
+    # already holds the (physical or digital) description, so there is no separate field for it.
+    custom: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        # Normalize custom: sort by key (canonical, order-independent), dedupe (last wins),
+        # coerce values to str, and reject a key that collides with a predefined field name
+        # (a custom key must never masquerade as a visible predefined field). frozen -> setattr.
+        reserved = {f.name for f in fields(self)} - {"custom"}
+        normalized: dict[str, str] = {}
+        for key, value in self.custom:
+            name = str(key)
+            if name in reserved:
+                raise ValueError(f"custom: key {name!r} collides with a predefined Article field")
+            normalized[name] = str(value)
+        object.__setattr__(self, "custom", tuple(sorted(normalized.items())))

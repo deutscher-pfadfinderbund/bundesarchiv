@@ -30,6 +30,18 @@ def test_encode_decode_round_trips_every_field() -> None:
     assert version == 3
 
 
+def test_custom_metadata_round_trips() -> None:
+    article = _article(custom=(("herkunft", "Familie Müller"), ("zustand", "gut")))
+    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    assert decoded.custom == (("herkunft", "Familie Müller"), ("zustand", "gut"))
+
+
+def test_empty_custom_is_omitted_from_the_wire() -> None:
+    text = readme.encode(_article(custom=()), 1)
+    assert "custom:" not in text
+    assert readme.decode("01J0", text)[0].custom == ()
+
+
 def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
     # `audience=None` means "inherit" (ADR 0001): nothing is written on the wire,
     # and an absent key decodes back to None, not to an explicit default.
@@ -134,6 +146,10 @@ def test_decode_without_marker_still_parses() -> None:
         (
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nmedia:\n  - filename: a.jpg\n    content_hash: abc\n    byte_size: not-a-number\n---\n",
             "media entry with a non-integer byte_size",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\ncustom: notamap\n---\n",
+            "non-mapping custom",
         ),
     ],
 )

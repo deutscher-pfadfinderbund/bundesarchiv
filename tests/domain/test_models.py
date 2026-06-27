@@ -2,7 +2,7 @@
 
 import pytest
 
-from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.models import Article, Audience, AudienceTier
 
 
 def test_groups_tier_requires_at_least_one_named_group() -> None:
@@ -50,3 +50,25 @@ def test_duplicate_group_names_are_deduplicated() -> None:
     deduped = Audience(AudienceTier.GROUPS, ("vorstand", "vorstand"))
     assert deduped.groups == ("vorstand",)
     assert deduped == Audience(AudienceTier.GROUPS, ("vorstand",))
+
+
+def _article(**custom_pairs: object) -> Article:
+    return Article(ulid="01J0", title="t", collection_id="c", custom=tuple(custom_pairs.items()))  # type: ignore[arg-type]
+
+
+def test_custom_fields_are_sorted_and_deduped() -> None:
+    # Order-independent + canonical: sorted by key, last value wins on a duplicate key.
+    article = Article(
+        ulid="01J0", title="t", collection_id="c", custom=(("zeta", "1"), ("alpha", "2"))
+    )
+    assert article.custom == (("alpha", "2"), ("zeta", "1"))
+
+
+def test_custom_field_values_are_coerced_to_str() -> None:
+    assert _article(jahr=1955).custom == (("jahr", "1955"),)
+
+
+def test_custom_key_colliding_with_a_predefined_field_is_rejected() -> None:
+    # A custom key must not masquerade as a predefined field (e.g. the visible `title`).
+    with pytest.raises(ValueError):
+        _article(title="sneaky")

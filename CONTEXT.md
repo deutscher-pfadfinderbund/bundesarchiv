@@ -64,7 +64,10 @@ Descriptive classifications of an Article. Free-text with autocomplete, seeded w
 Free-text keyword with autocomplete.
 
 **Physical location** (*Standort*):
-Where an Article's physical original is kept, as free text with a path convention (`Magazin 2 / Regal B / Mappe 14`) + autocomplete. An optional `physical_description` (*Objektbeschreibung*) describes the object itself.
+Where an Article's physical original is kept, as free text with a path convention (`Magazin 2 / Regal B / Mappe 14`) + autocomplete. The object's description lives in the Article body, not a separate field.
+
+**Custom fields**:
+Arbitrary key/value metadata an Archivist can attach for things the predefined fields don't cover. Always Archivist-only — never shown to Members or the public. To show a field to others, it must become a predefined field (a code change). See ADR 0009.
 
 ### Lifecycle
 

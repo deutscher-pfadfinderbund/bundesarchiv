@@ -51,6 +51,11 @@ def test_create_article_passes_through_optional_fields() -> None:
     assert article.ref_code == "Foto-1955/007"
 
 
+def test_create_article_carries_custom_metadata() -> None:
+    article = create_article(title="t", collection_id="c", custom=(("herkunft", "x"),))
+    assert article.custom == (("herkunft", "x"),)
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
