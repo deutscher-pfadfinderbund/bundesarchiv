@@ -70,6 +70,32 @@ def test_successful_write_leaves_no_temp(tmp_path: Path) -> None:
     assert on_disk == ["art/1/x"]
 
 
+def test_commit_fsyncs_every_directory_it_creates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Durability: a fresh deep key creates intermediate dirs; each must have its parent fsynced,
+    # else a crash could lose a committed README despite the blob's own rename being durable.
+    root = tmp_path / "root"
+    store = LocalFsObjectStore(root)
+    synced: list[Path] = []
+    real = LocalFsObjectStore._fsync_dir
+
+    def recording(directory: Path) -> None:
+        synced.append(Path(directory))
+        real(directory)
+
+    monkeypatch.setattr(LocalFsObjectStore, "_fsync_dir", staticmethod(recording))
+    store.write_atomic("articles/01J0/media/blob", b"data")
+
+    for directory in (
+        root,
+        root / "articles",
+        root / "articles/01J0",
+        root / "articles/01J0/media",
+    ):
+        assert directory in synced, f"{directory} was not fsynced after creation"
+
+
 @pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
 def test_read_unreadable_file_raises_archive_error(tmp_path: Path) -> None:
     # A real, broken backend (NO mocking): a key whose file is mode 000. read() must

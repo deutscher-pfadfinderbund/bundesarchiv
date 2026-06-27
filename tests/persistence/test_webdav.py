@@ -58,6 +58,31 @@ def test_malformed_multistatus_body_surfaces_as_archive_error() -> None:
         list(_parse_multistatus(b"<not-valid-xml"))
 
 
+def test_failed_move_deletes_the_orphaned_temp_blob() -> None:
+    # PUT succeeds, MOVE fails -> the temp blob must be cleaned up, not left to accumulate.
+    # MockTransport scripts the failure at the real httpx boundary.
+    seen: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        if request.method == "MOVE":
+            return httpx.Response(500)  # force the MOVE to fail after a successful PUT
+        if request.method in ("PUT", "MKCOL"):
+            return httpx.Response(201)
+        return httpx.Response(204)  # DELETE (the cleanup) and anything else
+
+    client = httpx.Client(
+        base_url="http://example.invalid/", transport=httpx.MockTransport(handler)
+    )
+    store = WebDavObjectStore(client)
+    try:
+        with pytest.raises(ArchiveError):
+            store.write_atomic("articles/01J0/README.md", b"data")
+        assert any(method == "DELETE" and ".tmp-" in path for method, path in seen)
+    finally:
+        client.close()
+
+
 def test_read_of_collection_key_is_not_found_under_redirect_following(webdav_root: str) -> None:
     # read() must not depend on the injected client's redirect policy. With
     # follow_redirects=True a naive GET would chase the collection's 301 and return

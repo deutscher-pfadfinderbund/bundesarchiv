@@ -95,10 +95,10 @@ class LocalFsObjectStore:
 
     def _commit(self, target: Path, write: Callable[[BinaryIO], None]) -> None:
         """Durably commit `write`'s output to `target`: temp → fsync → atomic
-        rename → fsync parent dir. The temp sibling is reserved (".tmp-…"), so a
+        rename → fsync parent dir(s). The temp sibling is reserved (".tmp-…"), so a
         crash that leaves it behind is invisible to `list()`. Backend faults raised
         here (incl. EXDEV) are mapped to `ArchiveError` by the enclosing `_backend`."""
-        target.parent.mkdir(parents=True, exist_ok=True)
+        created = _make_parents(target.parent)
         tmp = target.parent / f".tmp-{os.getpid()}-{id(target)}-{target.name}"
         try:
             with tmp.open("wb") as f:
@@ -106,7 +106,12 @@ class LocalFsObjectStore:
                 f.flush()
                 os.fsync(f.fileno())
             tmp.replace(target)
-            self._fsync_dir(target.parent)
+            self._fsync_dir(target.parent)  # the renamed blob's entry, durable in its dir
+            # Each directory we just created is only durable once ITS parent is fsynced too —
+            # else a crash could lose a freshly-created articles/<ulid>/ despite the README
+            # rename being durable inside it (the entry linking the new dir was never flushed).
+            for directory in created:
+                self._fsync_dir(directory.parent)
         finally:
             tmp.unlink(missing_ok=True)
 
@@ -117,3 +122,16 @@ class LocalFsObjectStore:
             os.fsync(fd)
         finally:
             os.close(fd)
+
+
+def _make_parents(leaf: Path) -> list[Path]:
+    """Create `leaf` and any missing ancestors; return the directories that were newly created
+    (deepest-first), so the caller can fsync each one's parent for crash durability. Module-level
+    so `list[Path]` resolves to the builtin, not LocalFsObjectStore.list."""
+    created: list[Path] = []
+    directory = leaf
+    while not directory.exists() and directory != directory.parent:
+        created.append(directory)
+        directory = directory.parent
+    leaf.mkdir(parents=True, exist_ok=True)
+    return created

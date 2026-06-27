@@ -11,6 +11,7 @@ infinity — recursing only into non-reserved collections. Every request goes th
 failure mode) from crossing the port as anything but `ArchiveError`.
 """
 
+import contextlib
 import enum
 import itertools
 import uuid
@@ -85,13 +86,22 @@ class WebDavObjectStore:
     def _put_then_move(self, key: str, content: bytes | Iterator[bytes]) -> None:
         self._mkcol_parents(key)
         tmp = self._tmp_key(key)
-        put = self._request("PUT", self._url(tmp), content=content)
-        self._ensure(put, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
-        destination = str(self._client.base_url.join(self._url(key)))
-        move = self._request(
-            "MOVE", self._url(tmp), headers={"Destination": destination, "Overwrite": "T"}
-        )
-        self._ensure(move, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
+        try:
+            put = self._request("PUT", self._url(tmp), content=content)
+            self._ensure(put, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
+            destination = str(self._client.base_url.join(self._url(key)))
+            move = self._request(
+                "MOVE", self._url(tmp), headers={"Destination": destination, "Overwrite": "T"}
+            )
+            self._ensure(move, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
+        except ArchiveError:
+            self._cleanup_temp(tmp)  # don't leave an orphaned .tmp-… blob on the mirror
+            raise
+
+    def _cleanup_temp(self, tmp: str) -> None:
+        # Best-effort: a failed cleanup DELETE must not mask the original PUT/MOVE failure.
+        with contextlib.suppress(ArchiveError):
+            self._request("DELETE", self._url(tmp))
 
     def _mkcol_parents(self, key: str) -> None:
         ancestors = key.split("/")[:-1]
