@@ -88,6 +88,52 @@ def test_public_cannot_view_a_groups_article() -> None:
     assert can_view(Public(), _groups_article(), _chain()) is False
 
 
+def _inherited_groups_chain() -> ResolvedChain:
+    # A silent leaf under a root that carries the GROUPS rung — the rung is INHERITED.
+    return ResolvedChain(
+        (
+            Collection(ulid="c-leaf", name="c-leaf", parent_id="c-root"),
+            Collection(
+                ulid="c-root",
+                name="c-root",
+                audience=Audience(AudienceTier.GROUPS, ("vorstand", "stamm-koeln")),
+            ),
+        )
+    )
+
+
+def test_can_view_narrows_a_member_against_an_inherited_groups_rung() -> None:
+    # The leak surface: can_view must honor the RESOLVER's output (the inherited rung), not
+    # just the Article's own audience. A regression consulting article.audience would expose it.
+    article = _article(audience=None, collection_id="c-leaf")
+    chain = _inherited_groups_chain()
+    assert can_view(Member(("vorstand",)), article, chain) is True
+    assert can_view(Member(("stamm-bonn",)), article, chain) is False
+    assert can_view(Public(), article, chain) is False
+
+
+def test_member_holding_several_groups_clears_a_rung_naming_only_one() -> None:
+    # OR over the FULL held set (not first-element, not AND): rung names vorstand+stamm-koeln,
+    # the Member holds three groups and only stamm-koeln matches -> True.
+    held = Member(("stamm-bonn", "stamm-koeln", "andere"))
+    assert can_view(held, _groups_article(), _chain()) is True
+
+
+def test_member_holding_several_unnamed_groups_cannot_view() -> None:
+    held = Member(("stamm-bonn", "andere"))
+    assert can_view(held, _groups_article(), _chain()) is False
+
+
+def test_preview_surfaces_inherited_group_names() -> None:
+    # preview must surface the group names of an INHERITED GROUPS rung, not only an explicit one.
+    article = _article(audience=None, collection_id="c-leaf", lifecycle=Lifecycle.DRAFT)
+    p = preview(article, _inherited_groups_chain())
+    assert p.public is False
+    assert p.members is False
+    assert p.groups == ("vorstand", "stamm-koeln")
+    assert p.visible_fields != frozenset()  # group members still see the non-floored fields
+
+
 def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
     # The chain is a valid ResolvedChain but its leaf is not this Article's Collection — a
     # wiring bug. can_view catches the MisresolvedChain and denies (not raises). (An *empty*
@@ -209,6 +255,9 @@ _VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
         (Public(), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, False),
         (Member(()), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
         (Archivist(), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
+        # Holding groups never narrows a Member out of a Public/Members rung.
+        (Member(("vorstand",)), Audience(AudienceTier.PUBLIC), Lifecycle.PUBLISHED, True),
+        (Member(("vorstand",)), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
         # PUBLISHED, Groups rung — only a Member holding the group, plus Archivist.
         (Public(), _VORSTAND, Lifecycle.PUBLISHED, False),
         (Member(("vorstand",)), _VORSTAND, Lifecycle.PUBLISHED, True),

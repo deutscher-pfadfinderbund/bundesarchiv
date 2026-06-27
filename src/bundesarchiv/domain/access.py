@@ -24,7 +24,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "physical_description"})
 
 # The fields a non-Archivist viewer who can view the Article sees — every field but the floored.
-_MEMBER_VISIBLE_FIELDS: frozenset[str] = (
+_NON_ARCHIVIST_VISIBLE_FIELDS: frozenset[str] = (
     frozenset(f.name for f in fields(Article)) - ARCHIVIST_ONLY_FIELDS
 )
 
@@ -119,7 +119,7 @@ def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
         public=public,
         members=members,
         groups=groups,
-        visible_fields=_MEMBER_VISIBLE_FIELDS if visible_to_someone else frozenset(),
+        visible_fields=_NON_ARCHIVIST_VISIBLE_FIELDS if visible_to_someone else frozenset(),
     )
 
 
