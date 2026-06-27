@@ -29,7 +29,7 @@ Every adapter passes one shared contract: `tests/persistence/test_objectstore_co
 articles/<ulid>/README.md            front-matter + Markdown body + managed-by marker — the commit point
 articles/<ulid>/media/<sha256>       content-addressed media blobs, write-once
 articles/<ulid>/changes/<version>.json   append-only change records
-.trash/<ulid>/…                      recoverable hard_delete destination (reserved → excluded from list)
+.trash/articles/<ulid>/…             recoverable hard_delete destination (reserved → excluded from list)
 ```
 
 Identity is the ULID; the key never embeds a slug ([ADR 0006](../../../docs/adr/0006-article-identity-and-key-naming.md)).

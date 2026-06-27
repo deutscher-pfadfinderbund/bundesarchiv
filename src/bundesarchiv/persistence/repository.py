@@ -5,7 +5,7 @@ It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
     articles/<ulid>/README.md          the commit point (front-matter + body + marker)
     articles/<ulid>/media/<sha256>     content-addressed media blobs, write-once
     articles/<ulid>/changes/<version>.json   append-only change records
-    .trash/<ulid>/...                  recoverable destination for hard_delete (reserved)
+    .trash/articles/<ulid>/...         recoverable destination for hard_delete (reserved)
 
 The README.md ⇄ Article translation is the `readme` codec; this module owns versioning,
 the pinned write order, media write-once, and recoverable delete.
@@ -60,6 +60,12 @@ class ArticleRepository:
         return Stored(article, version)
 
     def save(self, article: Article, expected_version: Version) -> Version:
+        # CONCURRENCY LIMITATION (v1): this version check-then-write is NOT atomic, and the
+        # ObjectStore port has no compare-and-swap. It is safe only under the single-writer
+        # invariant (ADR 0002) — two genuinely-interleaved saves can both pass this check and
+        # the second silently clobbers the first. The durable per-Article lock object (or a
+        # CAS primitive on the port) that would close this is deferred; gate the Part-3/4
+        # multi-writer paths (background worker, multi-process WSGI) on it.
         current = self._current_version(article.ulid)
         if current != expected_version:
             raise Conflict(
@@ -113,7 +119,12 @@ class ArticleRepository:
 
     def hard_delete(self, ulid: Ulid) -> None:
         """Move the Article's whole tree into recoverable trash (reserved, excluded
-        from listings), then remove the originals. A no-op if the Article is absent."""
+        from listings), then remove the originals. A no-op if the Article is absent.
+
+        Not atomic (the port has no batch move): a crash mid-copy leaves the originals intact
+        with a partial trash copy; a crash mid-delete leaves a complete trash copy with the
+        originals partly gone. The copy-all-then-delete-all order keeps the data recoverable
+        across either window. Reads each blob fully into memory — fine at v1 media sizes."""
         keys = list(self._store.list(f"articles/{ulid}/"))
         for key in keys:
             self._store.write_atomic(f".trash/{key}", self._store.read(key))
