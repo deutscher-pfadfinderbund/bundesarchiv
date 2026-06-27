@@ -34,3 +34,19 @@ def test_groups_is_normalized_to_a_tuple() -> None:
     assert isinstance(built_from_list.groups, tuple)
     assert built_from_list == Audience(AudienceTier.GROUPS, ("bundesfuehrung",))
     assert hash(built_from_list) == hash(Audience(AudienceTier.GROUPS, ("bundesfuehrung",)))
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_group_names_are_rejected(blank: str) -> None:
+    # A blank Keycloak group name narrows Members to a group that cannot exist — a cataloging
+    # mistake (and leak-adjacent), so reject it rather than store nobody.
+    with pytest.raises(ValueError):
+        Audience(AudienceTier.GROUPS, ("vorstand", blank))
+
+
+def test_duplicate_group_names_are_deduplicated() -> None:
+    # Groups are OR-combined (set semantics); a duplicate is redundant. Dedupe so equal group
+    # sets yield equal, equally-hashing Audiences.
+    deduped = Audience(AudienceTier.GROUPS, ("vorstand", "vorstand"))
+    assert deduped.groups == ("vorstand",)
+    assert deduped == Audience(AudienceTier.GROUPS, ("vorstand",))

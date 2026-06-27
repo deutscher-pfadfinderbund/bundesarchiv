@@ -45,13 +45,17 @@ class Audience:
     groups: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        # Normalize before validating: a frozen, hashable value object must store a tuple
-        # even if built from a list via untyped input (object.__setattr__ — the class is frozen).
-        object.__setattr__(self, "groups", tuple(self.groups))
-        if bool(self.groups) != (self.tier is AudienceTier.GROUPS):
+        # Normalize before validating: dedupe (preserving first-occurrence order) into a tuple,
+        # so a frozen, hashable value object stays well-formed from untyped/duplicated input
+        # (groups are OR-combined, so a duplicate is redundant; object.__setattr__ — frozen).
+        groups = tuple(dict.fromkeys(self.groups))
+        if any(not name.strip() for name in groups):
+            raise ValueError(f"audience: group names must be non-blank (got {self.groups!r})")
+        object.__setattr__(self, "groups", groups)
+        if bool(groups) != (self.tier is AudienceTier.GROUPS):
             raise ValueError(
                 f"audience: groups must be non-empty iff tier is GROUPS "
-                f"(got tier={self.tier.value}, groups={self.groups!r})"
+                f"(got tier={self.tier.value}, groups={groups!r})"
             )
 
 

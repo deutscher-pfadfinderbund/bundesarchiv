@@ -28,6 +28,13 @@ _NON_ARCHIVIST_VISIBLE_FIELDS: frozenset[str] = (
     frozenset(f.name for f in fields(Article)) - ARCHIVIST_ONLY_FIELDS
 )
 
+# Fail loudly at import if the set names a field Article doesn't have — `project` floors exactly
+# this set, so a typo or stale name must not silently floor nothing (a leak).
+assert {f.name for f in fields(Article)} >= ARCHIVIST_ONLY_FIELDS, (
+    f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: "
+    f"{ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}}"
+)
+
 
 def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:
     """Fail-closed yes/no: may `viewer` see `article` given its resolved Collection `chain`?
@@ -84,9 +91,11 @@ def project(viewer: Viewer, article: Article) -> Article:
         case Archivist():
             return article
         case Public() | Member():
-            # Explicit kwargs (not **ARCHIVIST_ONLY_FIELDS) so mypy --strict type-checks each
-            # field; the drift-guard test pins that this floors exactly that named set.
-            return replace(article, physical_location=None, physical_description=None)
+            # Floor exactly ARCHIVIST_ONLY_FIELDS, derived from the one declared set so a field
+            # added there is honored automatically (no fail-open). The import-time assert above
+            # guarantees the names are real Article fields; the type: ignore is only because the
+            # dataclasses-replace mypy plugin can't match dynamic kwarg names to field types.
+            return replace(article, **dict.fromkeys(ARCHIVIST_ONLY_FIELDS))  # type: ignore[arg-type]
         case _ as unreachable:
             assert_never(unreachable)
 
