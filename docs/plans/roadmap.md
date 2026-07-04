@@ -53,6 +53,17 @@ confirm or amend ADR 0004).
   audience edits exists — materialized scope must not go stale against live viewers.
 - Multi-writer arrives: per-Article lock/CAS (parked since Part 1), `visible()`
   combinator at the first full-Article list caller, `is_valid_ulid` gets its route.
+- **Media tiering (sketch, decide at Part 4 kickoff):** VPS disk is small; Nextcloud is
+  large. Proposal: Nextcloud becomes primary *cold* storage for media blobs, local FS a
+  size-capped read-through cache. Content-addressed write-once blobs make this clean
+  (no invalidation; eviction safe once cold-verified) — a `TieredObjectStore` adapter
+  composing the existing LocalFs + WebDav adapters; port/repository/codec unchanged.
+  READMEs/collections stay local-canonical. Serving: Range passthrough + background
+  caching for video. **Open before adoption:** durability ownership moves to Nextcloud
+  ("byte-exact originals" promise + restic can't back what the VPS doesn't hold — needs
+  a cold-side backup answer), and the WebDAV overwrite window gets promoted to a
+  correctness item. Alternative to price: attached volume (~€0.04/GB/mo) buys no new
+  architecture. The mirror-is-never-a-read-path rule becomes cache-miss-only.
 
 ## Part 5 — auth
 
