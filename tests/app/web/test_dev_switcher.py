@@ -1,0 +1,131 @@
+"""Dev viewer switcher + prod-safety (Part 4.4).
+
+Two seams:
+
+- The switcher round-trip UNDER dev settings: POST a viewer choice -> a signed cookie is set ->
+  the next request's ``viewer_of`` returns that viewer. Exercised through Django's test ``Client``
+  with the dev URLconf + middleware active (the real request path, not mocks).
+- Prod-safety: under the PRODUCTION settings module the ``DevViewerMiddleware`` is absent from
+  ``MIDDLEWARE`` and the switcher route does not resolve — the dev mechanism is unreachable in prod
+  by absence of code paths, not by a flag.
+"""
+
+import importlib
+import os
+import subprocess
+import sys
+
+import pytest
+from django.test import Client, RequestFactory, override_settings
+from django.urls import NoReverseMatch, Resolver404, resolve, reverse
+
+from bundesarchiv.app.web.dev import SWITCHER_PATH
+from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.domain.viewer import Archivist, Member, Public
+
+_DEV = {
+    "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
+    "MIDDLEWARE": ["bundesarchiv.app.web.dev.DevViewerMiddleware"],
+    "DEV_VIEWER_SIGNING_KEY": "test-dev-viewer-key",
+}
+
+
+@override_settings(**_DEV)
+def test_switcher_get_renders_form() -> None:
+    response = Client().get(SWITCHER_PATH)
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'name="kind"' in body or "name=kind" in body
+    assert "Betrachter" in body  # German switcher heading
+
+
+@override_settings(**_DEV)
+def test_switcher_post_member_roundtrips_to_viewer_of() -> None:
+    client = Client()
+    response = client.post(SWITCHER_PATH, {"kind": "member", "groups": "vorstand, archiv-ag"})
+    assert response.status_code == 302  # redirect back to the switcher
+    # The signed cookie is now on the client; a fresh request through viewer_of must decode it.
+    request = RequestFactory().get("/")
+    request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
+    assert viewer_of(request) == Member(groups=("vorstand", "archiv-ag"))
+
+
+@override_settings(**_DEV)
+def test_switcher_post_archivist_roundtrips() -> None:
+    client = Client()
+    client.post(SWITCHER_PATH, {"kind": "archivist"})
+    request = RequestFactory().get("/")
+    request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
+    assert viewer_of(request) == Archivist()
+
+
+@override_settings(**_DEV)
+def test_switcher_post_public_roundtrips() -> None:
+    client = Client()
+    client.post(SWITCHER_PATH, {"kind": "public"})
+    request = RequestFactory().get("/")
+    request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
+    assert viewer_of(request) == Public()
+
+
+@override_settings(**_DEV)
+def test_middleware_attaches_viewer_to_request() -> None:
+    client = Client()
+    client.post(SWITCHER_PATH, {"kind": "archivist"})
+    # A subsequent GET runs through DevViewerMiddleware, which sets request.viewer used by the form.
+    response = client.get(SWITCHER_PATH)
+    assert "Archivar" in response.content.decode()
+
+
+# --- prod-safety: the dev mechanism is unreachable under production settings -----------------
+
+
+def test_prod_settings_have_no_dev_middleware() -> None:
+    prod = importlib.import_module("bundesarchiv.index.settings")
+    assert "bundesarchiv.app.web.dev.DevViewerMiddleware" not in getattr(prod, "MIDDLEWARE", [])
+
+
+def test_prod_settings_define_no_dev_signing_key() -> None:
+    prod = importlib.import_module("bundesarchiv.index.settings")
+    assert not hasattr(prod, "DEV_VIEWER_SIGNING_KEY")
+
+
+def test_prod_settings_have_no_root_urlconf() -> None:
+    # Prod stays HTTP-agnostic: no ROOT_URLCONF at all (so no route can resolve).
+    prod = importlib.import_module("bundesarchiv.index.settings")
+    assert not hasattr(prod, "ROOT_URLCONF")
+
+
+def test_switcher_route_lives_only_in_the_dev_urlconf() -> None:
+    # The switcher route exists ONLY in the dev URLconf — nothing production imports adds it.
+    dev_urls = importlib.import_module("bundesarchiv.app.web.dev_urls")
+    assert any(getattr(p, "name", None) == "dev-switch-viewer" for p in dev_urls.urlpatterns)
+
+
+@override_settings(ROOT_URLCONF="tests.app.web._empty_urls")
+def test_switcher_neither_resolves_nor_reverses_without_the_dev_urlconf() -> None:
+    # With a URLconf that has no routes (a stand-in for a prod process mounting no HTTP surface),
+    # the switcher path 404s and its name is unreversible — the concrete "does not resolve"
+    # assertion the prod-safety spec calls for.
+    with pytest.raises(Resolver404):
+        resolve(SWITCHER_PATH)
+    with pytest.raises(NoReverseMatch):
+        reverse("dev-switch-viewer")
+
+
+def test_prod_process_boots_clean_under_prod_settings() -> None:
+    # The strongest, realest prod-safety proof: a fresh process runs ``manage.py check`` under the
+    # PRODUCTION settings module (no SECRET_KEY, no MIDDLEWARE, no ROOT_URLCONF) and passes. If prod
+    # settings had grown any dev-viewer coupling (a middleware/URLconf referencing dev code that
+    # needs the dev key), this real boot would surface it — mocks cannot.
+    env = dict(os.environ)
+    env["DJANGO_SETTINGS_MODULE"] = "bundesarchiv.index.settings"
+    env.pop("DEV_VIEWER_SIGNING_KEY", None)
+    env.pop("SECRET_KEY", None)
+    env.pop("BUNDESARCHIV_DEV_VIEWER_SIGNING_KEY", None)
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check"], capture_output=True, text=True, env=env
+    )
+    assert result.returncode == 0, (
+        f"prod `manage.py check` failed:\n{result.stdout}\n{result.stderr}"
+    )
