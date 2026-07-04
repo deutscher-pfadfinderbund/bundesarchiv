@@ -18,7 +18,12 @@ This closes the intra-process race. The cross-process race is out of scope by th
 single-app-process deploy rule (ADR 0013 runbook item): one app process writes the
 canonical store; a second writer host would need real distributed CAS (deferred with a
 trigger). Media blobs are exempt — content-addressed, write-once, idempotent — so
-`add_media` does not take the lock.
+`add_media` does not take the lock. `hard_delete` is exempt too: a delete-vs-save race
+on the same ulid stays out of scope under the v1 single-writer discipline (deletes are
+rare Archivist actions, not a Part 4 concurrent path). The "nothing slow under the
+lock" guarantee assumes a LOCAL-latency canonical store (the v1 deploy); a
+WebDAV-canonical configuration would serialize network round-trips under this one
+process-wide lock.
 """
 
 import threading

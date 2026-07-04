@@ -71,6 +71,10 @@ process replaces the lock object. The reserved `.lock` key name stays reserved
 
 - Media blobs exempt: content-addressed write-once; concurrent identical
   writes are idempotent, a differing blob is a new key.
+- The process-wide mutex assumes a local-latency canonical store (the v1
+  deploy): a WebDAV-canonical configuration would serialize network
+  round-trips under the one lock — revisit the lock scope before any such
+  configuration ships.
 - Part 4.1 conformance tests: two racing form saves → exactly one winner, the
   loser's `save(…, stale_version)` raises `Conflict`, the store's README ends
   at the winner's `version + 1`. Assert against the README version — never

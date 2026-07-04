@@ -1,23 +1,35 @@
-"""ArticleRepository behaviour, exercised through its interface over the in-memory
-ObjectStore fake (no disk) — the canonical-file protocol, optimistic concurrency,
-content-addressed write-once media, and recoverable hard_delete.
+"""ArticleRepository behaviour, exercised through its interface over both the
+in-memory ObjectStore fake and the LocalFs adapter (the Collection conformance
+pattern) — the canonical-file protocol, optimistic concurrency, content-addressed
+write-once media, and recoverable hard_delete.
 """
 
 import threading
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.persistence import readme
+from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
+from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
 
-@pytest.fixture
-def repo() -> ArticleRepository:
-    return ArticleRepository(InMemoryObjectStore())
+@pytest.fixture(params=["memory", "localfs"])
+def repo(request: pytest.FixtureRequest, tmp_path: Path) -> ArticleRepository:
+    # Parametrized over both stores: the racing test in particular MUST run against
+    # localfs — the in-memory critical section has no IO yield point, so under the GIL
+    # it cannot lose the race even with the lock neutralized; only real file IO between
+    # the version check and the commit makes the race honest.
+    if request.param == "memory":
+        store: ObjectStore = InMemoryObjectStore()
+    else:
+        store = LocalFsObjectStore(tmp_path)
+    return ArticleRepository(store)
 
 
 def _article(ulid: str = "01J0", **overrides: object) -> Article:
