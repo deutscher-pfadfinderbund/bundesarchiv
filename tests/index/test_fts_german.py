@@ -14,9 +14,8 @@ Regression guard for the ``bundesarchiv_german`` text-search configuration and t
 - The ``de_numeric`` collation sorts ``ref_code`` numeric + locale-aware
   (``Ä 3 < B 1 < B 2 < B 10``).
 
-Every test is skipped until Task 6 creates the configuration in the migration. They then run
-forever against the live container as the behaviour lock. Skipped is not unlinted: this file
-passes ruff and mypy.
+Task 6 created the configuration in migration ``0001_search_infrastructure``; these run
+forever against the live container as the behaviour lock.
 """
 
 from __future__ import annotations
@@ -29,8 +28,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from django.db.backends.utils import CursorWrapper
-
-pytestmark = pytest.mark.skip(reason="config migration lands in Task 6")
 
 _CONFIG = "bundesarchiv_german"
 _COLLATION = "de_numeric"

@@ -37,6 +37,11 @@ src = ["src", "tests"]
 # Keep ruff's defaults (E4/E7/E9, F); EXTEND with import-sort + modernization/idiom rules.
 extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET"]
 
+[tool.ruff.lint.per-file-ignores]
+# Django migration classes own `dependencies`/`operations` as bare class attributes (the
+# framework mutates them); RUF012 (ClassVar) does not apply and 0002 is auto-generated.
+"**/migrations/*.py" = ["RUF012"]
+
 [tool.mypy]
 strict = true
 files = ["src", "tests", "manage.py"]
