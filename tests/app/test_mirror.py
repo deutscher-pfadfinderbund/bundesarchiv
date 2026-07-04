@@ -9,6 +9,8 @@ re-reads canonical truth, so a key GONE from canonical by execution time is DELE
 (the mirror mirrors; it does not accumulate).
 """
 
+import pytest
+
 from bundesarchiv.app.mirror import ReconcileSummary, push_key, reconcile
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 
@@ -142,3 +144,41 @@ def test_reconcile_summary_is_the_result_shape() -> None:
 
     assert isinstance(summary, ReconcileSummary)
     assert (summary.pushed, summary.deleted, summary.failed) == (1, 1, 0)
+
+
+# --- mass-delete warning: a misconfigured mirror root must be an actionable signal
+
+
+def test_reconcile_mass_delete_logs_warning_with_sample_keys(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A sweep that deletes an anomalous number of mirror-only keys (the signature of
+    BUNDESARCHIV_MIRROR_DAV_URL pointed at a folder holding non-archive files) must log a WARNING
+    naming the count and a bounded sample of the deleted keys — an actionable signal, not a silent
+    count in the summary."""
+    canonical, mirror = _stores()
+    canonical.write_atomic("articles/01A/README.md", b"a")
+    for i in range(30):  # 30 > the absolute threshold of 25
+        mirror.write_atomic(f"human-files/photo-{i:02}.jpg", b"not-archive-content")
+
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        summary = reconcile(canonical, mirror)
+
+    assert summary.deleted == 30
+    warning = "\n".join(r.message for r in caplog.records if r.levelname == "WARNING")
+    assert "30" in warning  # the count
+    assert "human-files/photo-00.jpg" in warning  # a sample of WHAT was deleted
+    assert warning.count("human-files/") <= 20  # the sample is bounded, not the full list
+
+
+def test_reconcile_small_delete_does_not_warn(caplog: pytest.LogCaptureFixture) -> None:
+    """Routine mirror deletes (e.g. a hard-deleted Article's few keys) stay below the threshold —
+    no warning noise for normal operation."""
+    canonical, mirror = _stores()
+    canonical.write_atomic("articles/01A/README.md", b"a")
+    mirror.write_atomic("articles/01OLD/README.md", b"orphan")
+
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        reconcile(canonical, mirror)
+
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]

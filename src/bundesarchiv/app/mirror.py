@@ -20,10 +20,22 @@ it never accumulates.
   blob must not abandon the rest of the sweep (the next reconcile heals it).
 """
 
+import logging
 from dataclasses import dataclass
 
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+logger = logging.getLogger(__name__)
+
+#: Mass-delete warning threshold: warn when one sweep deletes more than ``max(25, 10% of canonical
+#: keys)``. The absolute floor of 25 keeps routine deletes silent (one hard-deleted Article is a
+#: handful of keys) even on a small archive; the 10%-of-canonical term scales the bound up so a
+#: legitimate bulk delete on a large archive does not cry wolf. A misconfigured
+#: ``BUNDESARCHIV_MIRROR_DAV_URL`` (pointed at a folder holding human-managed files) shows up as a
+#: mass of mirror-only keys — far above both bounds — and gets NAMED, not silently counted.
+_MASS_DELETE_FLOOR = 25
+_MASS_DELETE_SAMPLE = 20  # how many deleted keys the warning lists
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +73,8 @@ def reconcile(canonical: ObjectStore, mirror: ObjectStore) -> ReconcileSummary:
     metadata (no size/etag); at this archive's scale (~10³ objects) a full compare is fine."""
     canonical_keys = set(canonical.list())
     mirror_keys = set(mirror.list())
-    pushed = failed = deleted = 0
+    pushed = failed = 0
+    deleted_keys: list[str] = []
 
     for key in sorted(canonical_keys):
         try:
@@ -75,8 +88,28 @@ def reconcile(canonical: ObjectStore, mirror: ObjectStore) -> ReconcileSummary:
     for key in sorted(mirror_keys - canonical_keys):
         try:
             mirror.delete(key)
-            deleted += 1
+            deleted_keys.append(key)
         except ArchiveError:
             failed += 1
 
-    return ReconcileSummary(pushed=pushed, deleted=deleted, failed=failed)
+    _warn_on_mass_delete(deleted_keys, len(canonical_keys))
+    return ReconcileSummary(pushed=pushed, deleted=len(deleted_keys), failed=failed)
+
+
+def _warn_on_mass_delete(deleted_keys: list[str], canonical_count: int) -> None:
+    """Log a WARNING naming (a sample of) the deleted keys when one sweep deletes an anomalous
+    number — the signature of a mirror root shared with human-managed files (see the threshold
+    rationale at ``_MASS_DELETE_FLOOR``). An actionable signal, not a silent count."""
+    threshold = max(_MASS_DELETE_FLOOR, canonical_count // 10)
+    if len(deleted_keys) <= threshold:
+        return
+    sample = ", ".join(deleted_keys[:_MASS_DELETE_SAMPLE])
+    logger.warning(
+        "mirror reconcile deleted %d mirror-only keys (threshold %d) — if these are not "
+        "hard-deleted archive objects, BUNDESARCHIV_MIRROR_DAV_URL points at a folder the app "
+        "does not own exclusively. First %d: %s",
+        len(deleted_keys),
+        threshold,
+        min(len(deleted_keys), _MASS_DELETE_SAMPLE),
+        sample,
+    )

@@ -98,6 +98,9 @@ reconcile heals it.
 
 - `BUNDESARCHIV_MIRROR_DAV_URL` — the WebDAV base URL. **Unset ⇒ mirror off** (no store built, no
   jobs enqueued, reconcile no-ops). This is the common dev case.
+  **WARNING: point this at a dedicated folder the app owns exclusively. Reconcile deletes
+  everything under this root that is not in canonical — never share it with human-managed files.**
+  (An anomalously large delete sweep logs a warning naming the deleted keys.)
 - `BUNDESARCHIV_MIRROR_DAV_USER` / `BUNDESARCHIV_MIRROR_DAV_PASSWORD` — mirror credentials.
 - `BUNDESARCHIV_MIRROR_RECONCILE_CRON` — the scheduled full-sweep cadence (default `0 3 * * *`,
   daily; coarser than the hourly index reconcile because a briefly-stale browse copy harms
