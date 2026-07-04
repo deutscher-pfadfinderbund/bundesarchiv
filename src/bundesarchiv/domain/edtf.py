@@ -1,9 +1,14 @@
 """EDTF Level 0/1 value object for archival dates.
 
-**Dependency decision — python-edtf rejected:**
-``python-edtf`` returned HTTP 404 from PyPI on 2026-07-04; the package does not exist
-in the registry. Criterion "maintained" cannot be satisfied. Hand-rolled Level 0/1
-subset below.
+**Dependency decision — ``edtf`` (PyPI) rejected, verified 2026-07-04:**
+The package exists as ``edtf`` 5.0.1 on PyPI (``python-edtf`` is only the GitHub repo
+name). It is maintained and imports/parses fine on Python 3.14. It fails the
+``mypy --strict`` typability criterion: the wheel ships a ``py.typed`` marker, but the
+entry point ``parse_edtf`` is wrapped in an untyped decorator and has no return
+annotation, so it — and everything reached through it — type-checks as ``Any``
+(confirmed via ``reveal_type`` under mypy --strict). Adopting it would make this
+module's typed boundary vacuous unless we hand-wrote stubs for its pyparsing-based
+parser, which is more work than hand-rolling the small Level 0/1 subset below.
 
 **Supported subset** (anything else raises ValueError):
 - Level 0: ``YYYY``, ``YYYY-MM``, ``YYYY-MM-DD``
@@ -208,11 +213,13 @@ def _bounds(value: str) -> tuple[datetime.date, datetime.date | None]:
 
     # Open lower end: "../B"
     if left == _OPEN or not left:
-        _, hi = _parse_single(right)
-        lo_anchor, _ = _parse_single(right)
+        lo_anchor, hi = _parse_single(right)
         return lo_anchor, hi
 
-    # Closed interval: "A/B"
+    # Closed interval: "A/B" — earliest must not exceed latest (bounds feed SQL
+    # date-range columns downstream; an inverted range would silently match nothing)
     lo, _ = _parse_single(left)
     _, hi = _parse_single(right)
+    if lo > hi:
+        raise ValueError(f"invalid EDTF interval (start after end): {value!r}")
     return lo, hi

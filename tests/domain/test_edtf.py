@@ -146,12 +146,9 @@ def test_open_lower_end_bounds_and_capped_decades() -> None:
     ed = EdtfDate("../1973")
     _, hi = ed.bounds()
     assert hi == datetime.date(1973, 12, 31)
-    # lower bound is None / open — decades starts from cap_year's decade's opposite is undefined;
-    # decades only covers up to (and including) the decade of hi
-    # We expect decades from lo's decade up through hi's decade.
-    # For open lower, decades uses the earliest possible = None → only hi decade counted
-    # The spec says open upper → cap. Open lower → no cap needed; we test hi decade only.
-    assert 1970 in ed.decades(cap_year=2030)
+    # Open lower end anchors bounds()[0] at B's start (1973-01-01), so the span
+    # covers exactly B's decade. No cap involved — the upper end is fixed.
+    assert ed.decades(cap_year=2030) == (1970,)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +167,7 @@ INVALID_VALUES = [
     "1970-25",  # bad season code
     "197Y",  # invalid unspecified digit position
     "1970-06-15-extra",  # trailing garbage
+    "1975/1970",  # inverted interval (start after end)
 ]
 
 
