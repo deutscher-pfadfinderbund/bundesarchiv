@@ -23,6 +23,7 @@ from pathlib import Path
 from django.conf import settings
 from procrastinate.contrib.django import app
 
+from bundesarchiv.app import thumbnails
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
@@ -57,6 +58,17 @@ def full_rebuild() -> None:
     indexer.rebuild(canonical_store())
 
 
+@app.task(name="generate_thumbnail")
+def generate_thumbnail(content_hash: str) -> None:
+    """Reference job (Part 4.3): derive the WebP thumbnail for the media blob with ``content_hash``,
+    re-reading the blob from current canonical and writing to the LOCAL derived thumbnail cache
+    (``BUNDESARCHIV_THUMBNAIL_ROOT``). A no-op for a non-image blob or a hash no longer in canonical;
+    idempotent. The thumbnail is a prunable cache, never archive truth (README runbook)."""
+    thumbnails.generate_thumbnail(
+        canonical_store(), content_hash, Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
+    )
+
+
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
 @app.task(name="reconcile")
 def reconcile(timestamp: int) -> None:
@@ -79,6 +91,13 @@ def enqueue_reindex_article(ulid: str) -> None:
 def enqueue_reindex_subtree(collection_ulid: str) -> None:
     """Enqueue a ``reindex_subtree`` reference job (retry net for a failed subtree reindex)."""
     reindex_subtree.defer(collection_ulid=collection_ulid)
+
+
+def enqueue_generate_thumbnail(content_hash: str) -> None:
+    """Enqueue a ``generate_thumbnail`` reference job for one image blob (the app services call this
+    for image media on save/create — Part 4.3). Content-hash-keyed, so re-enqueuing the same blob is
+    harmless (the job is idempotent and the cache key is the hash)."""
+    generate_thumbnail.defer(content_hash=content_hash)
 
 
 # --- in-test worker harness ------------------------------------------------------

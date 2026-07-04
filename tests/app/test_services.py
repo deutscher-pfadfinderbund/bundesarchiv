@@ -235,3 +235,67 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     assert result.index_updated is True
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)  # descendant hidden from Public
     assert "Öffentliches Foto" in _pub_titles(PLAIN_MEMBER)  # still visible to Members
+
+
+# ---------------------------------------------------------------------------
+# Thumbnail enqueue — save/create enqueue a thumbnail job for IMAGE media only (Part 4.3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_save_article_enqueues_thumbnail_for_image_media(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An image MediaRef on a saved Article enqueues a content-hash thumbnail job; a non-image one
+    does not (the job would no-op anyway, but the service avoids enqueuing obvious non-images)."""
+    import bundesarchiv.app.articles as articles_mod
+
+    enqueued: list[str] = []
+    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", lambda h: enqueued.append(h))
+
+    articles = ArticleRepository(store)
+    image = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
+    doc = articles.add_media("01FOTO", "notes.pdf", b"%PDF-1.7", media_type="application/pdf")
+    stored = articles.load("01FOTO")
+    save_article(
+        store,
+        Article(
+            ulid="01FOTO",
+            title="Öffentliches Foto",
+            collection_id="FOTOS",
+            lifecycle=Lifecycle.PUBLISHED,
+            media=(image, doc),
+        ),
+        stored.version,
+    )
+
+    assert enqueued == [image.content_hash]  # image enqueued, PDF skipped
+
+
+def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The shared enqueue helper (used by both save_article and create_article) enqueues exactly the
+    image media: an ``image/*`` media_type, or a known image extension when media_type is absent —
+    and nothing else. This covers the create path too (it shares this helper), without the
+    chicken-and-egg of storing a blob under a not-yet-minted ULID."""
+    import bundesarchiv.app.articles as articles_mod
+    from bundesarchiv.domain.models import MediaRef
+
+    enqueued: list[str] = []
+    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", lambda h: enqueued.append(h))
+
+    article = Article(
+        ulid="01FOTO",
+        title="Mixed media",
+        collection_id="FOTOS",
+        media=(
+            MediaRef("a.jpg", "hash-typed-image", media_type="image/jpeg"),
+            MediaRef("b.png", "hash-untyped-image", media_type=None),  # inferred by extension
+            MediaRef("c.pdf", "hash-doc", media_type="application/pdf"),
+            MediaRef("d.bin", "hash-unknown", media_type=None),  # unknown ext, no type
+        ),
+    )
+    articles_mod._enqueue_thumbnails(article)
+
+    assert enqueued == ["hash-typed-image", "hash-untyped-image"]

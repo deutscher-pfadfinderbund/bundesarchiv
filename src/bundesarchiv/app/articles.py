@@ -13,7 +13,7 @@ seam is monkeypatchable in tests (a genuine boundary): the index adapter and the
 """
 
 from bundesarchiv.app.result import CreateResult, SaveResult
-from bundesarchiv.app.tasks import enqueue_reindex_article
+from bundesarchiv.app.tasks import enqueue_generate_thumbnail, enqueue_reindex_article
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -28,6 +28,11 @@ from bundesarchiv.index.indexer import index_article
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
+#: Filename extensions of the corpus image types we thumbnail (JPEG/PNG/TIFF), used when a MediaRef
+#: carries no ``media_type``. Best-effort: the ``generate_thumbnail`` job itself no-ops on any blob
+#: that isn't a decodable image, so a false positive here just enqueues a job that does nothing.
+_IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"})
+
 
 def save_article(store: ObjectStore, article: Article, expected_version: Version) -> SaveResult:
     """Save ``article`` (CAS at ``expected_version``) then synchronously reindex it. A stale
@@ -35,6 +40,7 @@ def save_article(store: ObjectStore, article: Article, expected_version: Version
     stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
     new_version = ArticleRepository(store).save(article, expected_version)
     index_updated = _sync_index(store, article.ulid)
+    _enqueue_thumbnails(article)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -79,6 +85,7 @@ def create_article(
     )
     new_version = ArticleRepository(store).save(article, 0)  # 0 = never saved -> first save is v1
     index_updated = _sync_index(store, article.ulid)
+    _enqueue_thumbnails(article)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -90,6 +97,25 @@ def hard_delete_article(store: ObjectStore, ulid: Ulid) -> SaveResult:
     ArticleRepository(store).hard_delete(ulid)
     index_updated = _sync_index(store, ulid)
     return SaveResult(version=0, index_updated=index_updated)
+
+
+def _enqueue_thumbnails(article: Article) -> None:
+    """Enqueue a thumbnail job for each image media reference on ``article`` (Part 4.3). Best-effort
+    and out-of-band: the thumbnail is a prunable derived cache, so a failure to enqueue never affects
+    the canonical write. Content-hash-keyed and idempotent, so re-saving an Article that keeps its
+    media just re-enqueues harmlessly (write-once blobs → identical thumbnails)."""
+    for ref in article.media:
+        if _is_image(ref):
+            enqueue_generate_thumbnail(ref.content_hash)
+
+
+def _is_image(ref: MediaRef) -> bool:
+    """Best-effort image detection for thumbnail enqueue: an ``image/*`` media_type, or (when
+    media_type is absent) a known corpus image extension on the filename. The job no-ops on any blob
+    that isn't a decodable image, so this only needs to avoid enqueuing obvious non-images."""
+    if ref.media_type is not None:
+        return ref.media_type.lower().startswith("image/")
+    return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
 def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:

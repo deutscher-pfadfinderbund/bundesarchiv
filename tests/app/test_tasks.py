@@ -4,7 +4,12 @@ execution re-reads canonical truth and recomputes (ADR 0014). These tests drive 
 function to prove the reference semantics and a synchronous worker-execution smoke.
 """
 
+import io
+from pathlib import Path
+
 import pytest
+from django.test import override_settings
+from PIL import Image
 
 from bundesarchiv.domain.models import (
     Article,
@@ -114,3 +119,29 @@ def enqueue_test_article() -> None:
     from bundesarchiv.app.tasks import reindex_article
 
     reindex_article.defer(ulid="01FOTO")
+
+
+def test_generate_thumbnail_task_derives_from_canonical(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Procrastinate thumbnail task is a reference over a content-hash: it re-reads the blob from
+    the store the factory builds and writes the WebP into the configured THUMBNAIL_ROOT (a no-op for
+    a hash with no blob). Runs the task's underlying function directly (no DB needed)."""
+    import bundesarchiv.app.tasks as tasks_mod
+
+    store = InMemoryObjectStore()
+    ref = ArticleRepository(store).add_media("A1", "p.png", _png_bytes(), media_type="image/png")
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        tasks_mod.generate_thumbnail.func(content_hash=ref.content_hash)
+    out = thumbs / f"{ref.content_hash}.webp"
+    assert out.is_file()
+    with Image.open(out) as im:
+        assert im.format == "WEBP"
+
+
+def _png_bytes() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (300, 200), (50, 100, 150)).save(buf, format="PNG")
+    return buf.getvalue()
