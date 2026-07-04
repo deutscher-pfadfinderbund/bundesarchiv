@@ -53,17 +53,19 @@ confirm or amend ADR 0004).
   audience edits exists — materialized scope must not go stale against live viewers.
 - Multi-writer arrives: per-Article lock/CAS (parked since Part 1), `visible()`
   combinator at the first full-Article list caller, `is_valid_ulid` gets its route.
-- **Media tiering (sketch, decide at Part 4 kickoff):** VPS disk is small; Nextcloud is
-  large. Proposal: Nextcloud becomes primary *cold* storage for media blobs, local FS a
-  size-capped read-through cache. Content-addressed write-once blobs make this clean
-  (no invalidation; eviction safe once cold-verified) — a `TieredObjectStore` adapter
-  composing the existing LocalFs + WebDav adapters; port/repository/codec unchanged.
-  READMEs/collections stay local-canonical. Serving: Range passthrough + background
-  caching for video. **Open before adoption:** durability ownership moves to Nextcloud
-  ("byte-exact originals" promise + restic can't back what the VPS doesn't hold — needs
-  a cold-side backup answer), and the WebDAV overwrite window gets promoted to a
-  correctness item. Alternative to price: attached volume (~€0.04/GB/mo) buys no new
-  architecture. The mirror-is-never-a-read-path rule becomes cache-miss-only.
+- **Media tiering (decided: build as Part 7 prerequisite, not in Part 4):** Nextcloud
+  becomes primary *cold* storage for media blobs, local FS a size-capped read-through
+  cache. Durability is answered: Nextcloud is effectively free and already backed up.
+  Timing: the archive goes live empty, so disk pressure arrives exactly with Part 7's
+  bulk import — tiering lands between go-live and the import, on a proven system.
+  Content-addressed write-once blobs make it clean (no invalidation; eviction safe once
+  cold-verified) — a `TieredObjectStore` adapter composing LocalFs + WebDav;
+  port/repository/codec unchanged. READMEs/collections stay local-canonical.
+  **Part 4 keeps the door open with one rule:** media bytes are served through a narrow
+  `media_response(key)` seam behind `can_view`, where X-Accel-from-local-path is an
+  implementation detail — the seam grows a stream/Range-proxy miss-path later. No cache
+  code, config, or stubs before Part 7 (YAGNI; the port is the openness). The WebDAV
+  overwrite window becomes a correctness item when tiering lands.
 
 ## Part 5 — auth
 
