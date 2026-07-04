@@ -96,6 +96,24 @@ One-off import script: old Django + django-filer dataset → README tree. Feasib
 already de-risked by the Part 3 mapping spike. EDTF and creator/place fields exist by
 construction. OCR remains deferred; the index shape reserves a body field (ADR 0003).
 
+Also lands around Part 7 (owner-sketched 2026-07-04, ADRs when built):
+
+- **Cloud inbox (ingest + offline derivations):** a staging folder on Nextcloud
+  OUTSIDE the canonical tree. Strong offline machines drop content-hash-named results
+  (OCR text, transcripts) or new scans; the worker polls, validates (recompute sha256 —
+  names are self-verifying), writes through the port, clears the inbox. Nextcloud is
+  transport, never a second writer — the sole-writer invariant survives. Doubles as
+  archivist batch ingestion (drop a folder of scans → draft Articles).
+- **OCR/full-content search:** derived text co-located as content-hash-keyed sidecars
+  next to media (immutable — media is write-once, so OCR runs once per blob ever;
+  restic-backed because expensive to recompute; layout alternative: global
+  `derived/ocr/<sha>` tree, dedups shared blobs — decide in the OCR ADR). Index gains
+  the reserved body column reading sidecars. Formats: born-digital PDF = direct
+  extraction; scanned PDF/images = OCRmyPDF/Tesseract `deu` (printed text only —
+  handwriting/Kurrent needs HTR, out of scope; Fraktur via `deu_latf`, moderate);
+  AV = whisper-class speech-to-text, separate decision. Detection: try extraction,
+  sparse text → OCR route.
+
 ## Release definition
 
 Archivists catalog, Members browse/search behind Keycloak, backups restore-tested,
