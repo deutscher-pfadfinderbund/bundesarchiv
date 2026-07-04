@@ -69,6 +69,12 @@ Where an Article's physical original is kept, as free text with a path conventio
 **Custom fields**:
 Arbitrary key/value metadata an Archivist can attach for things the predefined fields don't cover. Always Archivist-only — never shown to Members or the public. To show a field to others, it must become a predefined field (a code change). See ADR 0009.
 
+**EDTF date** (*Datierung*) — code field `date`:
+An archival date as an EDTF Level 0/1 string: plain year (`1967`), year-month (`1967-03`), full date (`1967-03-15`), unspecified digit (`196X`), interval (`1960/1969`), or open interval (`1960/..`). Qualifiers `?`, `~`, `%` flag uncertainty/approximation. Stored verbatim; bounds are derived for facet search. Any other EDTF feature is out of scope for v1.
+
+**Index** (*Suchindex*):
+The derived, disposable Postgres table rebuilt from the canonical `README.md` files. Holds each Article's resolved effective-audience columns (materialized at build time, ADR 0012) and searchable text. Rebuilt in full by `rebuild()`; queried by `search()`. Never canonical — the README is.
+
 ### Lifecycle
 
 **Lifecycle**:

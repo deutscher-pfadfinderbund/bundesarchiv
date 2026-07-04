@@ -10,3 +10,5 @@ Every query is scoped by the one **effective-audience function**, and is additio
 
 - Field-floor partitioning is a **leak-prevention requirement**, not an optimization — it must be tested per viewer tier.
 - **Index engine = PostgreSQL** — `to_tsvector('german')` + `unaccent` + a German Hunspell dictionary (compound splitting, e.g. *Fahrtenbericht* → *Fahrt*), and ICU numeric collation (`de-u-kn-true`) for `ref_code` sort. Because the index is derived and disposable, the engine stays swappable (e.g. add Meilisearch later if search UX needs typo-tolerance).
+
+**Update 2026-07-04:** The Hunspell ispell dict splits **0 / 28** real compounds (Postgres implements only the legacy `compoundwords controlled` mechanism; the baked `hunspell-de-de` uses modern `COMPOUNDBEGIN/END` directives). v1 ships `unaccent + german_stem` only — no compound decomposition. See ADR 0011 for measurements and the final SQL config.

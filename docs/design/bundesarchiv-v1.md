@@ -37,7 +37,7 @@ Two independent axes:
 
 ## 5. Domain model  (→ `CONTEXT.md`)
 
-**Article** fields: `ref_code` (*Signatur* — optional, free text, numeric-aware sort, soft-unique, **not** the identity), `title`, `creator`, `provenance`, `subject_place`, `physical_location` (free text + autocomplete, path convention) + optional `physical_description`, `date_edtf` (EDTF → derived `date_lo`/`date_hi`/`uncertain`), `media_type` + `document_type` (free-text + autocomplete, seeded defaults), `tags` (free + autocomplete), owning `collection`, `lifecycle`, `audience` (+ `audience_groups`), an **ordered** `gallery` of N media with captions, free-text Markdown `description`. Identity = an immutable **ULID**.
+**Article** fields: `ref_code` (*Signatur* — optional, free text, numeric-aware sort, soft-unique, **not** the identity), `title`, `creator` (*Urheber*), `subject_place` (*Ortsangabe*), `date` (EDTF Level 0/1 string — e.g. `1967`, `1967-03`, `196X`, `1960/1969?`), `physical_location` (free text + autocomplete, path convention), `media_type` + `document_type` (free-text + autocomplete, seeded defaults), `tags` (free + autocomplete), owning `collection`, `lifecycle`, `audience` (+ `audience_groups`), an **ordered** `media` list (captions live in the Markdown `body`), free-text Markdown `body` (the description). `custom` holds arbitrary key/value metadata — always Archivist-only (ADR 0009). `provenance` and old-system misc columns are stored in `custom`. Identity = an immutable **ULID**.
 
 **Collection** (*Sammlung*): owning, nestable division; carries the base audience.
 
@@ -50,7 +50,7 @@ Two independent axes:
 
 ## 7. Search & index  (→ ADR 0003)
 
-Derived, rebuildable **PostgreSQL** index. German FTS (`to_tsvector('german')` + `unaccent` + Hunspell compounds), facets (Collection tree, media/document-type, tags, EDTF date range/decade), ICU numeric `ref_code` sort. Every query is scoped by the effective-audience function and is **field-floor-aware** (a viewer can't match an Article via a field above their floor). `bin/reindex` rebuilds from `README.md` files.
+Derived, rebuildable **PostgreSQL** index. German FTS (`bundesarchiv_german` config: `unaccent` + `german_stem`; no compound splitting — see ADR 0011), facets (Collection tree, media/document-type, tags, EDTF date range/decade), ICU numeric `ref_code` sort. Every query is scoped by the effective-audience function and is **field-floor-aware** (a viewer can't match an Article via a field above their floor). `rebuild()` / `search()` are the public interface; `rebuild()` reads from `README.md` files.
 
 ## 8. Media
 
