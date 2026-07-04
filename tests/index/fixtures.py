@@ -20,7 +20,10 @@ so Task 9 can assert the grid without re-deriving it. The three viewers used acr
 are the module-level singletons below.
 """
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+
+import pytest
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -123,6 +126,26 @@ def build_index() -> indexer.RebuildReport:
     """Build the store AND rebuild the index from it. Returns the ``RebuildReport`` (the
     django_db fixture in ``test_search.py`` calls this)."""
     return indexer.rebuild(build_store())
+
+
+def indexed_corpus[T](
+    django_db_blocker: pytest.FixtureRequest, build: Callable[[], T]
+) -> Iterator[T]:
+    """THE single index-isolation mechanism for ``tests/index/``: build + index a corpus outside
+    the per-test transaction, then wipe ``ArticleIndex`` when the requesting module is done.
+
+    ``rebuild`` commits rows with the db blocker unblocked, so no per-test transaction ever rolls
+    them back — a corpus left behind leaks into any later module that assumes an empty table
+    (``test_schema`` was green only by alphabetical luck before this existed). Every module-scoped
+    corpus fixture must ``yield from`` this helper; none may add its own wipe. Deliberately NOT an
+    autouse conftest fixture: that would have to touch the DB after EVERY module in this directory,
+    breaking the documented guarantee that the pure architecture checks run without Postgres.
+    """
+    from bundesarchiv.index.models import ArticleIndex
+
+    with django_db_blocker.unblock():  # type: ignore[attr-defined]
+        yield build()
+        ArticleIndex.objects.all().delete()
 
 
 def _articles() -> tuple[Article, ...]:

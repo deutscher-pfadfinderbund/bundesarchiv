@@ -12,6 +12,7 @@ come straight from ``fixtures.EXPECTED_VISIBILITY`` (Public 5, plain Member 8, v
 """
 
 import datetime
+from collections.abc import Iterator
 
 import pytest
 from tests.index import fixtures
@@ -22,7 +23,7 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
-from bundesarchiv.index import search
+from bundesarchiv.index import indexer, search
 from bundesarchiv.index.query import (
     FacetCount,
     SearchFilters,
@@ -32,14 +33,17 @@ from bundesarchiv.index.query import (
 
 
 @pytest.fixture(scope="module")
-def _indexed(django_db_setup: None, django_db_blocker: pytest.FixtureRequest) -> None:
-    """Build + index the shared corpus once for the whole module (search never mutates)."""
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        fixtures.build_index()
+def _indexed(
+    django_db_setup: None, django_db_blocker: pytest.FixtureRequest
+) -> Iterator[indexer.RebuildReport]:
+    """Build + index the shared corpus once for the whole module (search never mutates), routed
+    through ``fixtures.indexed_corpus`` — the single isolation mechanism, which wipes the table on
+    module teardown so the committed corpus never leaks into a later module."""
+    yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 
 
 @pytest.fixture
-def corpus(_indexed: None, db: None) -> None:
+def corpus(_indexed: indexer.RebuildReport, db: None) -> None:
     """Per-test entry: joins the module-indexed corpus to the ``db`` transaction fixture."""
 
 
