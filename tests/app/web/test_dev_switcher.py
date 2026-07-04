@@ -90,10 +90,20 @@ def test_prod_settings_define_no_dev_signing_key() -> None:
     assert not hasattr(prod, "DEV_VIEWER_SIGNING_KEY")
 
 
-def test_prod_settings_have_no_root_urlconf() -> None:
-    # Prod stays HTTP-agnostic: no ROOT_URLCONF at all (so no route can resolve).
+def test_prod_root_urlconf_is_the_media_surface_not_the_dev_urls() -> None:
+    # Part 4.3: prod now HAS a ROOT_URLCONF — the authorized media surface — but NOT the dev URLconf
+    # (which is what adds the switcher). Prod points straight at the media routes; the dev switcher
+    # composes those media routes WITH the switcher only under settings_dev.
     prod = importlib.import_module("bundesarchiv.index.settings")
-    assert not hasattr(prod, "ROOT_URLCONF")
+    assert prod.ROOT_URLCONF == "bundesarchiv.app.web.urls"
+    assert prod.ROOT_URLCONF != "bundesarchiv.app.web.dev_urls"
+
+
+def test_prod_media_urlconf_exposes_no_dev_switcher_route() -> None:
+    # The prod URLconf carries the media routes and nothing dev-only: the switcher name is unknown
+    # there, so it cannot resolve/reverse under production settings (unreachable by absence).
+    prod_urls = importlib.import_module("bundesarchiv.app.web.urls")
+    assert not any(getattr(p, "name", None) == "dev-switch-viewer" for p in prod_urls.urlpatterns)
 
 
 def test_switcher_route_lives_only_in_the_dev_urlconf() -> None:
