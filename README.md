@@ -81,4 +81,29 @@ seam. The media tree is never web-root reachable; denials/absence are byte-ident
   (byte-identically) until the job regenerates it. Point it at a cache dir on the same host
   that serves media; safe to `rm -rf` between runs.
 
+### WebDAV mirror (Part 4.9) — ADR 0005, roadmap "mirror is never a read path"
+
+An OPTIONAL Nextcloud/WebDAV **browse-only convenience** copy of the canonical store. The mirror is
+**never a read path** and **is NOT backup** — durability is restic (the day-one go-live gate).
+Nothing reads from it; it exists only so a human can browse the archive tree in a familiar file UI.
+Leave it UNSET (the default) and all mirror machinery no-ops cleanly.
+
+The mirror is kept current the same way as the index: write paths enqueue an async `mirror_push`
+reference job per touched canonical key (out-of-band — never blocks or fails the save), and a
+periodic `mirror_reconcile` sweeps the whole store to re-push anything missed and delete
+mirror-only stragglers (the mirror mirrors; it never accumulates). Jobs are references (they carry
+a key and re-read canonical at run), so a stale push whose key was deleted deletes it from the
+mirror too. A down/slow mirror retries with bounded exponential backoff, then parks — the next
+reconcile heals it.
+
+- `BUNDESARCHIV_MIRROR_DAV_URL` — the WebDAV base URL. **Unset ⇒ mirror off** (no store built, no
+  jobs enqueued, reconcile no-ops). This is the common dev case.
+- `BUNDESARCHIV_MIRROR_DAV_USER` / `BUNDESARCHIV_MIRROR_DAV_PASSWORD` — mirror credentials.
+- `BUNDESARCHIV_MIRROR_RECONCILE_CRON` — the scheduled full-sweep cadence (default `0 3 * * *`,
+  daily; coarser than the hourly index reconcile because a briefly-stale browse copy harms
+  nothing). The `mirror_reconcile` task logs and returns a `{pushed, deleted, failed}` summary.
+
+A live-Nextcloud mirror smoke is a Part 6 runbook item; the in-repo tests cover the logic against
+both the in-memory double and the real WebDAV adapter (the ObjectStore port is the seam).
+
 Status: greenfield. Building the persistence layer first — see [docs/plans/part-1-persistence.md](docs/plans/part-1-persistence.md).

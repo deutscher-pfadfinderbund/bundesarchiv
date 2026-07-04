@@ -94,6 +94,13 @@ class CollectionRepository:
         for key in keys:
             self._store.delete(key)
 
+    def keys_for(self, ulid: Ulid) -> list[str]:
+        """The live canonical keys under this Collection's tree (just its README today), for callers
+        that must address them by key without hand-rolling the layout — e.g. the mirror replay, which
+        enqueues one push per key. Mirrors ``ArticleRepository.keys_for``; an absent Collection
+        yields ``[]``."""
+        return list(self._store.list(f"collections/{ulid}/"))
+
     def _current_version(self, ulid: Ulid) -> Version:
         try:
             text = self._store.read(_readme_key(ulid)).decode("utf-8")

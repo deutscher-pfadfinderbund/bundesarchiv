@@ -20,13 +20,23 @@ schedule (hourly default) — a periodic full rebuild bounds every missed increm
 from collections.abc import Callable
 from pathlib import Path
 
+import httpx
 from django.conf import settings
+from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
 
-from bundesarchiv.app import thumbnails
+from bundesarchiv.app import mirror, thumbnails
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+#: Bounded exponential backoff for the mirror jobs. A down/slow WebDAV mirror is the EXPECTED
+#: failure mode (ADR 0005): retry a handful of times with growing waits (~3s, 9s, 27s, 81s), then
+#: PARK the job (max_attempts reached -> Procrastinate marks it failed; the periodic reconcile is
+#: the backstop that re-pushes it later). The mirror is a convenience, so we never retry forever —
+#: mirror lag is invisible-by-design and self-heals at the next reconcile.
+_MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
 
 def canonical_store() -> ObjectStore:
@@ -34,6 +44,21 @@ def canonical_store() -> ObjectStore:
     per job, from settings — jobs carry references, never a store handle. Monkeypatched in tests to
     point at an in-memory store."""
     return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
+
+
+def mirror_store() -> ObjectStore | None:
+    """Build the WebDAV mirror store from settings, or None when no mirror is configured (Part 4.9).
+
+    The mirror is OPTIONAL convenience: when ``BUNDESARCHIV_MIRROR_DAV_URL`` is unset (the common
+    dev case) this returns None and every mirror job / enqueue becomes a clean no-op. Constructed
+    per job from settings (jobs carry references, never a store handle); monkeypatched in tests."""
+    url: str | None = settings.BUNDESARCHIV_MIRROR_DAV_URL
+    if not url:
+        return None
+    user: str | None = settings.BUNDESARCHIV_MIRROR_DAV_USER
+    password: str | None = settings.BUNDESARCHIV_MIRROR_DAV_PASSWORD
+    auth: tuple[str, str] | None = (user, password or "") if user is not None else None
+    return WebDavObjectStore(httpx.Client(base_url=url, auth=auth, timeout=30))
 
 
 # --- reference tasks -------------------------------------------------------------
@@ -79,6 +104,39 @@ def reconcile(timestamp: int) -> None:
     indexer.rebuild(canonical_store())
 
 
+# --- mirror replay + reconcile (Part 4.9) ----------------------------------------
+
+
+@app.task(name="mirror_push", retry=_MIRROR_RETRY)
+def mirror_push(key: str) -> None:
+    """Reference job (Part 4.9): replay ONE ``key`` onto the WebDAV mirror from current canonical
+    truth — copy the current bytes, or delete the mirror copy when the key is gone from canonical
+    (a stale job). A no-op when no mirror is configured. A down/slow mirror raises ``ArchiveError``,
+    which triggers the bounded retry (``_MIRROR_RETRY``); after the last attempt the job parks and
+    the periodic ``mirror_reconcile`` re-pushes it. The mirror is a convenience, never a read path
+    or durability (roadmap)."""
+    mirror_target = mirror_store()
+    if mirror_target is None:
+        return  # mirror unset -> clean no-op
+    mirror.push_key(canonical_store(), mirror_target, key)
+
+
+@app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
+@app.task(name="mirror_reconcile")
+def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
+    """The scheduled mirror reconcile (Part 4.9): a periodic full sweep that makes the mirror match
+    canonical — pushes anything the async replay missed, deletes mirror-only stragglers — so the
+    mirror self-heals no matter what any push job dropped. Daily by default
+    (``BUNDESARCHIV_MIRROR_RECONCILE_CRON``). Returns the summary counts (pushed/deleted/failed) as
+    the task result, which the worker logs. A no-op returning ``skipped=True`` when no mirror is
+    configured. ``timestamp`` is the periodic tick (unused; the sweep recomputes from canonical)."""
+    mirror_target = mirror_store()
+    if mirror_target is None:
+        return {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
+    summary = mirror.reconcile(canonical_store(), mirror_target)
+    return {"pushed": summary.pushed, "deleted": summary.deleted, "failed": summary.failed}
+
+
 # --- enqueue wrappers the app services call --------------------------------------
 
 
@@ -98,6 +156,16 @@ def enqueue_generate_thumbnail(content_hash: str) -> None:
     for image media on save/create — Part 4.3). Content-hash-keyed, so re-enqueuing the same blob is
     harmless (the job is idempotent and the cache key is the hash)."""
     generate_thumbnail.defer(content_hash=content_hash)
+
+
+def enqueue_mirror_push(key: str) -> None:
+    """Enqueue a ``mirror_push`` reference job for ONE canonical key (Part 4.9). The app services
+    call this AFTER a canonical write, for every key they touched — the mirror replay is async and
+    never blocks the request. A clean no-op when no mirror is configured (do not churn the queue for
+    a feature that is off). Reference-only: the job carries the key and re-reads canonical at run."""
+    if mirror_store() is None:
+        return  # mirror unset -> nothing to enqueue
+    mirror_push.defer(key=key)
 
 
 # --- in-test worker harness ------------------------------------------------------

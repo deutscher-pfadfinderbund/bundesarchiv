@@ -11,7 +11,7 @@ monkeypatchable in tests.
 """
 
 from bundesarchiv.app.result import SaveResult
-from bundesarchiv.app.tasks import enqueue_reindex_subtree
+from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
 from bundesarchiv.domain.models import Collection, Version
 from bundesarchiv.index.indexer import index_subtree
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -27,7 +27,20 @@ def save_collection(
     subtree-reindex retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
     new_version = CollectionRepository(store).save(collection, expected_version)
     index_updated = _sync_index_subtree(store, collection.ulid)
+    _enqueue_mirror(store, collection.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
+
+
+def _enqueue_mirror(store: ObjectStore, ulid: str) -> None:
+    """Enqueue a mirror_push for every canonical key of the Collection, AFTER the canonical write
+    (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
+    enqueue failure must never fail the request (the periodic reconcile heals mirror lag). A no-op
+    when no mirror is configured."""
+    try:
+        for key in CollectionRepository(store).keys_for(ulid):
+            enqueue_mirror_push(key)
+    except Exception:  # queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+        return
 
 
 def _sync_index_subtree(store: ObjectStore, collection_ulid: str) -> bool:

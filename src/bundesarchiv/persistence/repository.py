@@ -133,6 +133,13 @@ class ArticleRepository:
     def list_ulids(self) -> Iterable[Ulid]:
         return [ulid for key in self._store.list("articles/") if (ulid := _ulid_of_readme(key))]
 
+    def keys_for(self, ulid: Ulid) -> list[str]:
+        """The live canonical keys under this Article's tree (README + media + changes), for callers
+        that must address them by key without hand-rolling the layout — e.g. the mirror replay, which
+        enqueues one push per key. Reserved keys (temp/lock/snapshots) are excluded by `list`. An
+        absent Article yields ``[]``."""
+        return list(self._store.list(f"articles/{ulid}/"))
+
     def hard_delete(self, ulid: Ulid) -> None:
         """Move the Article's whole tree into recoverable trash (reserved, excluded
         from listings), then remove the originals. A no-op if the Article is absent.

@@ -13,7 +13,11 @@ seam is monkeypatchable in tests (a genuine boundary): the index adapter and the
 """
 
 from bundesarchiv.app.result import CreateResult, SaveResult
-from bundesarchiv.app.tasks import enqueue_generate_thumbnail, enqueue_reindex_article
+from bundesarchiv.app.tasks import (
+    enqueue_generate_thumbnail,
+    enqueue_mirror_push,
+    enqueue_reindex_article,
+)
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -41,6 +45,7 @@ def save_article(store: ObjectStore, article: Article, expected_version: Version
     new_version = ArticleRepository(store).save(article, expected_version)
     index_updated = _sync_index(store, article.ulid)
     _enqueue_thumbnails(article)
+    _enqueue_mirror(store, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -86,6 +91,7 @@ def create_article(
     new_version = ArticleRepository(store).save(article, 0)  # 0 = never saved -> first save is v1
     index_updated = _sync_index(store, article.ulid)
     _enqueue_thumbnails(article)
+    _enqueue_mirror(store, article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -94,8 +100,11 @@ def hard_delete_article(store: ObjectStore, ulid: Ulid) -> SaveResult:
     reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
     index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
     ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""
-    ArticleRepository(store).hard_delete(ulid)
+    repo = ArticleRepository(store)
+    removed_keys = repo.keys_for(ulid)  # capture BEFORE deletion — the push job mirrors the removal
+    repo.hard_delete(ulid)
     index_updated = _sync_index(store, ulid)
+    _enqueue_mirror_keys(removed_keys)
     return SaveResult(version=0, index_updated=index_updated)
 
 
@@ -116,6 +125,24 @@ def _is_image(ref: MediaRef) -> bool:
     if ref.media_type is not None:
         return ref.media_type.lower().startswith("image/")
     return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
+
+
+def _enqueue_mirror(store: ObjectStore, ulid: Ulid) -> None:
+    """Enqueue a mirror_push for every canonical key of the Article, AFTER the canonical write
+    (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
+    enqueue failure must never fail the request (mirror lag is invisible-by-design; the periodic
+    reconcile heals it). A no-op when no mirror is configured (the enqueue wrapper checks)."""
+    _enqueue_mirror_keys(ArticleRepository(store).keys_for(ulid))
+
+
+def _enqueue_mirror_keys(keys: list[str]) -> None:
+    """Enqueue a mirror_push per key, swallowing any enqueue failure (the mirror is a convenience —
+    a failed enqueue never fails the canonical write; the periodic reconcile re-pushes)."""
+    try:
+        for key in keys:
+            enqueue_mirror_push(key)
+    except Exception:  # queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+        return
 
 
 def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:

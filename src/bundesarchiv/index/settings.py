@@ -80,5 +80,22 @@ BUNDESARCHIV_X_ACCEL_PREFIX = os.environ.get("BUNDESARCHIV_X_ACCEL_PREFIX") or N
 # points it at a cache dir on the same host that serves media.
 BUNDESARCHIV_THUMBNAIL_ROOT = os.environ.get("BUNDESARCHIV_THUMBNAIL_ROOT", "var/thumbnails")
 
+# WebDAV mirror (Part 4.9) — an OPTIONAL, browse-only convenience copy of the canonical store on a
+# Nextcloud/WebDAV endpoint. It is NEVER a read path and NEVER counted as durability (restic is the
+# backup; roadmap rule, changed only by Part 7 tiering). UNSET is the common dev case: when
+# ``BUNDESARCHIV_MIRROR_DAV_URL`` is empty, ALL mirror machinery no-ops cleanly (no store is built,
+# no jobs enqueue, the reconcile is a no-op). Credentials are read from env alongside the URL.
+BUNDESARCHIV_MIRROR_DAV_URL = os.environ.get("BUNDESARCHIV_MIRROR_DAV_URL") or None
+BUNDESARCHIV_MIRROR_DAV_USER = os.environ.get("BUNDESARCHIV_MIRROR_DAV_USER") or None
+BUNDESARCHIV_MIRROR_DAV_PASSWORD = os.environ.get("BUNDESARCHIV_MIRROR_DAV_PASSWORD") or None
+
+# The scheduled mirror reconcile cadence (Part 4.9): a periodic full sweep that re-pushes anything
+# the async replay missed and deletes mirror-only stragglers, so the mirror self-heals. Daily by
+# default — the mirror is a convenience, so a coarser cadence than the hourly index reconcile is
+# right (a briefly-stale browse copy harms nothing). Cron expression, overridable by the deploy.
+BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
+    "BUNDESARCHIV_MIRROR_RECONCILE_CRON", "0 3 * * *"
+)
+
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True
