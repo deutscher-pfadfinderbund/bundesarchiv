@@ -17,3 +17,13 @@ Chosen because the application is **server-render-shaped** (CRUD + faceted searc
 - The **effective-audience function** is one pure, test-guarded Python function (Django does not enforce purity at the language level — tests do); it is reused by list filters, detail auth, the index filter, and the visibility preview.
 - The Postgres index is treated as **disposable/derived** — resist the ORM's gravity to treat DB rows as canonical; everything rebuilds from `README.md`.
 - Per ADR 0002, framework lock-in is bounded to an app-layer rewrite; the archive (files) is unaffected by this choice.
+
+**Update 2026-07-05 — prototype confirmation (Part 4.0):** the cataloging form was
+built twice (HTMX and Datastar, identical feature set) against the real service
+layer; see `docs/plans/prototype-4.0-memo.md`. Owner confirmed HTMX. Deciding
+facts: upload progress is impossible over Datastar's fetch-based actions (a
+categorical gap for an upload-heavy archive), the Datastar variant needed ~45
+lines of hand-rolled SSE plumbing for one-shot responses, and its v1.0
+packaging is not yet settled. Datastar's live/SSE strengths are unused by this
+archive's v1. Alpine remains available as the sanctioned sprinkle if a purely
+local UI need appears.
