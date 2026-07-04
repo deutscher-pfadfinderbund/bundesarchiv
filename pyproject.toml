@@ -46,10 +46,14 @@ extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH
 strict = true
 files = ["src", "tests", "manage.py"]
 plugins = ["mypy_django_plugin.main"]
-# Multiple conftest.py / test modules share basenames across tests/ subdirs; derive module
-# names from their path (relative to these roots) so they don't collide as one "conftest".
+# Multiple conftest.py / test modules share basenames across tests/ subdirs; explicit package
+# bases derive each module's name from its path relative to the repo root (the implicit base), so
+# same-named files (e.g. two conftest.py) stay distinct and by-name imports like
+# ``tests.index.fixtures`` resolve to ONE canonical module. mypy_path is src-only: adding tests
+# here would give tests/ files a second name (``index.fixtures``) and collide with the repo-root
+# one ("source file found twice").
 explicit_package_bases = true
-mypy_path = ["src", "tests"]
+mypy_path = ["src"]
 
 # django-stubs needs to know which settings to load to type the ORM. The index is the
 # only place Django lives; this is type-checking config, not a runtime default.
