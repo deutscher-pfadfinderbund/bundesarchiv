@@ -15,14 +15,28 @@ The names below are stubs; Tasks 6-8 fill them in. They exist now so the public
 interface is fixed and the architecture test can assert ``__all__``.
 """
 
+from typing import TYPE_CHECKING
+
+from bundesarchiv.persistence.objectstore import ObjectStore
+
+if TYPE_CHECKING:
+    from bundesarchiv.index.indexer import RebuildReport
+
 # Order is the fixed public contract (Task 4 brief); the architecture test pins this exact
 # sequence. Do not let isort/RUF022 resort it.
 __all__ = ["rebuild", "search", "SearchPage", "SearchHit", "SearchFilters"]  # noqa: RUF022
 
 
-def rebuild() -> None:
-    """Wipe and rebuild the index from README files. Implemented in Task 7."""
-    raise NotImplementedError("rebuild() lands in Task 7")
+def rebuild(store: ObjectStore) -> RebuildReport:
+    """Wipe and rebuild the derived index from the README files on `store` (Task 7).
+
+    A thin re-export: the implementation lives in ``bundesarchiv.index.indexer``, imported
+    lazily here because that module pulls in the ``ArticleIndex`` ORM model, which cannot be
+    imported at package-init time (before Django's app registry is ready).
+    """
+    from bundesarchiv.index.indexer import rebuild as _rebuild
+
+    return _rebuild(store)
 
 
 def search() -> None:
