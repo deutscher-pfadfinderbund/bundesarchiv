@@ -10,6 +10,8 @@ and field floors land with the `can_view` layer (Part 2, later steps). Terms fol
 import enum
 from dataclasses import dataclass, fields
 
+from bundesarchiv.domain.edtf import EdtfDate
+
 type Ulid = str  # a Crockford-base32 ULID; the Article's stable identity
 type Version = int  # optimistic-concurrency counter (0 = never saved; first save -> 1)
 
@@ -101,6 +103,10 @@ class Article:
     tags: tuple[str, ...] = ()
     physical_location: str | None = None  # Standort
     media: tuple[MediaRef, ...] = ()
+    # Member-visible provenance fields (Part 3).
+    date: EdtfDate | None = None  # EDTF Level 0/1 archival date
+    creator: str | None = None  # Urheber
+    subject_place: str | None = None  # Ortsangabe
     # Archivist-only escape hatch for metadata the schema doesn't cover (ADR 0009). The body
     # already holds the (physical or digital) description, so there is no separate field for it.
     custom: tuple[tuple[str, str], ...] = ()

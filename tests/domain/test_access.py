@@ -200,6 +200,12 @@ def test_project_floors_exactly_the_declared_archivist_only_fields() -> None:
     assert differing == ARCHIVIST_ONLY_FIELDS
 
 
+def test_archivist_only_fields_floor_set_is_exactly_physical_location_and_custom() -> None:
+    # Pin the exact floor set: date/creator/subject_place are member-visible (NOT floored).
+    # Adding a field to this set needs a deliberate decision, not an accidental inclusion.
+    assert frozenset({"physical_location", "custom"}) == ARCHIVIST_ONLY_FIELDS
+
+
 def test_preview_shows_post_publish_audience_for_a_draft() -> None:
     # "If published now" (ADR 0001): the Lifecycle gate is bypassed, so a Public Draft previews
     # as world-visible — the warning an Archivist needs *before* publishing.

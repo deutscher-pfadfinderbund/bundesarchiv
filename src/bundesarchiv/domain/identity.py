@@ -12,6 +12,7 @@ import unicodedata
 
 from ulid import ULID
 
+from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, Lifecycle, MediaRef, Ulid
 
 
@@ -33,6 +34,9 @@ def create_article(
     tags: tuple[str, ...] = (),
     physical_location: str | None = None,
     media: tuple[MediaRef, ...] = (),
+    date: EdtfDate | None = None,
+    creator: str | None = None,
+    subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> Article:
     """Create a NEW Article, minting its stable ULID at creation (ADR 0006: identity is a
@@ -52,6 +56,9 @@ def create_article(
         tags=tags,
         physical_location=physical_location,
         media=media,
+        date=date,
+        creator=creator,
+        subject_place=subject_place,
         custom=custom,
     )
 

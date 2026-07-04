@@ -72,3 +72,10 @@ def test_custom_key_colliding_with_a_predefined_field_is_rejected() -> None:
     # A custom key must not masquerade as a predefined field (e.g. the visible `title`).
     with pytest.raises(ValueError):
         _article(title="sneaky")
+
+
+def test_custom_key_colliding_with_new_member_visible_field_is_rejected() -> None:
+    # date/creator/subject_place are member-visible fields — a custom key with the same
+    # name must still be rejected by the reserved-key collision check.
+    with pytest.raises(ValueError):
+        _article(creator="x")

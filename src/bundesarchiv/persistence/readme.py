@@ -13,6 +13,7 @@ from typing import Any
 
 import yaml
 
+from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -52,6 +53,10 @@ def encode(article: Article, version: Version) -> str:
         "document_type": article.document_type,
         "tags": list(article.tags),
         "physical_location": article.physical_location,
+        # Optional provenance fields: omit key entirely when None (same convention as audience).
+        **({"date": article.date.value} if article.date is not None else {}),
+        **({"creator": article.creator} if article.creator is not None else {}),
+        **({"subject_place": article.subject_place} if article.subject_place is not None else {}),
         "media": [
             {
                 "filename": m.filename,
@@ -142,6 +147,16 @@ def _as_opt_int(value: object) -> int | None:
     return value
 
 
+def _as_opt_edtf(value: object) -> EdtfDate | None:
+    """An optional EDTF date field: absent -> None, a YAML scalar -> EdtfDate (validates eagerly),
+    invalid EDTF string -> ValueError (caller wraps to ArchiveError)."""
+    if value is None:
+        return None
+    if not isinstance(value, str | int | float):
+        raise ValueError(f"date: expected a string, got {type(value).__name__}")
+    return EdtfDate(str(value))
+
+
 def _as_str_map(value: object) -> tuple[tuple[str, str], ...]:
     """Coerce the optional custom mapping to (str, str) pairs: absent -> empty, a non-mapping ->
     reject. Article.__post_init__ re-normalizes (sort, dedupe, reserved-key check)."""
@@ -193,6 +208,9 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         document_type=_as_opt_str(fm.get("document_type")),
         tags=_as_str_tuple(fm.get("tags")),
         physical_location=_as_opt_str(fm.get("physical_location")),
+        date=_as_opt_edtf(fm.get("date")),
+        creator=_as_opt_str(fm.get("creator")),
+        subject_place=_as_opt_str(fm.get("subject_place")),
         custom=_as_str_map(fm.get("custom")),
         media=tuple(
             MediaRef(

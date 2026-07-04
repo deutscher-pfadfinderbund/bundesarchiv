@@ -2,6 +2,7 @@
 
 import pytest
 
+from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence.errors import ArchiveError
@@ -178,3 +179,45 @@ def test_deeply_nested_front_matter_surfaces_as_archive_error() -> None:
         readme.decode("x", nested)
     with pytest.raises(ArchiveError):
         readme.read_version("x", nested)
+
+
+# --- date / creator / subject_place -----------------------------------------------------------
+
+
+def test_date_creator_subject_place_round_trip() -> None:
+    article = _article(
+        date=EdtfDate("1955-07"),
+        creator="Max Mustermann",
+        subject_place="Köln",
+    )
+    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    assert decoded.date == EdtfDate("1955-07")
+    assert decoded.creator == "Max Mustermann"
+    assert decoded.subject_place == "Köln"
+    assert decoded == article
+
+
+def test_absent_date_creator_subject_place_decode_to_none() -> None:
+    # A README that omits the three keys must produce None (not a default, not a KeyError).
+    text = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
+    decoded, _ = readme.decode("x", text)
+    assert decoded.date is None
+    assert decoded.creator is None
+    assert decoded.subject_place is None
+
+
+def test_none_date_creator_subject_place_omitted_from_wire() -> None:
+    article = _article(date=None, creator=None, subject_place=None)
+    text = readme.encode(article, 1)
+    assert "date:" not in text
+    assert "creator:" not in text
+    assert "subject_place:" not in text
+
+
+def test_invalid_edtf_date_on_wire_raises_archive_error() -> None:
+    text = (
+        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\n"
+        "lifecycle: draft\ndate: not-a-date\n---\nbody"
+    )
+    with pytest.raises(ArchiveError):
+        readme.decode("x", text)
