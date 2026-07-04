@@ -11,9 +11,15 @@ local dev container published on ``localhost:5434`` (see README dev setup).
 """
 
 import os
+from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
+
+# The web layer's template dir (Part 4.5 workbench). Kept as an explicit DIRS entry rather than
+# APP_DIRS: ``app.web`` is not a Django app (ADR 0004/0005 — Django is an adapter), so templates are
+# addressed by directory, not by app autodiscovery.
+_WEB_TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "web" / "templates"
 
 
 def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
@@ -65,6 +71,19 @@ BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 *
 # viewer switcher is NOT here (it lives in settings_dev, which composes these prod routes WITH the
 # switcher); prod is unreachable-by-absence for anything dev-only.
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
+
+# Templates for the server-rendered workbench (Part 4.5). The Django template backend only — no
+# context processors that need auth/sessions (this project has none): the viewer is passed in the
+# view's context, never read from ``request.user``. Autoescape is on (the default), so German UI
+# strings and index values render safely.
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [str(_WEB_TEMPLATES)],
+        "APP_DIRS": False,
+        "OPTIONS": {"context_processors": []},
+    }
+]
 
 # Media-serving seam config (Part 4.3, roadmap "Media authorization"). When set (prod behind nginx),
 # ``media_response`` returns an X-Accel-Redirect to ``<prefix>/<store-relative blob path>`` and nginx

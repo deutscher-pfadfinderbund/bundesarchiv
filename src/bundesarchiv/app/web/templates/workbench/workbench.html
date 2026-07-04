@@ -1,0 +1,27 @@
+{# The workbench full page (Part 4.5-MVP). Plain GET renders this whole page; an HX-Request GET
+   renders only _results.html into #results. Both share the same context — the no-JS baseline and the
+   HTMX swap are one code path. URL-as-state: the form GETs to "/" with param q, so the URL always
+   reflects the state (hx-push-url keeps the enhanced path honest too). #}
+{% extends "workbench/base.html" %}
+{% block title %}Findbuch — Suche{% endblock %}
+{% block body %}
+<div class="topbar">
+  {# GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
+     URL; without JS the form still submits normally to "/". #}
+  <form method="get" action="/"
+        hx-get="/" hx-target="#results" hx-select="#results" hx-swap="outerHTML"
+        hx-push-url="true" hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
+    <input type="search" name="q" value="{{ text }}" placeholder="Im Findbuch suchen…"
+           aria-label="Suche">
+    <button type="submit">Suchen</button>
+  </form>
+  <a class="neu" href="/artikel/neu">Neuer Artikel</a>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" aria-label="Facetten">
+    {% include "workbench/_facets.html" %}
+  </aside>
+  {% include "workbench/_results.html" %}
+</div>
+{% endblock %}

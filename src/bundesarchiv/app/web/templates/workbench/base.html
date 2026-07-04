@@ -1,0 +1,42 @@
+{# Base layout for the archivist workbench (Part 4.5-MVP). German UI. Progressive enhancement:
+   htmx is loaded but every screen works without it (the no-JS baseline is BINDING). #}
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Findbuch — Archiv{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; color: #1a1a1a; }
+    a { color: #14507a; }
+    .topbar { display: flex; gap: 1rem; align-items: center; padding: .75rem 1.25rem;
+              border-bottom: 1px solid #ddd; }
+    .topbar form { flex: 1; display: flex; gap: .5rem; }
+    .topbar input[type=search] { flex: 1; padding: .5rem; font-size: 1rem; }
+    .neu { white-space: nowrap; background: #14507a; color: #fff; padding: .55rem .9rem;
+           border-radius: 4px; text-decoration: none; }
+    .layout { display: flex; gap: 1.5rem; padding: 1.25rem; align-items: flex-start; }
+    .sidebar { flex: 0 0 15rem; }
+    .results { flex: 1; min-width: 0; }
+    .facet-group h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em;
+                      color: #555; margin: 1rem 0 .3rem; }
+    .facet-group ul { list-style: none; margin: 0; padding: 0; }
+    .facet-group li { margin: .15rem 0; }
+    .facet-group .active { font-weight: 700; }
+    .count { color: #777; font-size: .85rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; padding: 0; }
+    .chip { display: inline-flex; gap: .4rem; align-items: center; background: #eef3f7;
+            border: 1px solid #cdd9e2; border-radius: 999px; padding: .15rem .6rem; font-size: .85rem; }
+    .card { border: 1px solid #e2e2e2; border-radius: 6px; padding: .75rem 1rem; margin: 0 0 .75rem; }
+    .card h2 { font-size: 1.05rem; margin: 0 0 .3rem; }
+    .card .meta { color: #555; font-size: .9rem; }
+    .tag-chips { display: inline; }
+    .tag-chips .tag { background: #f0efe8; border-radius: 3px; padding: 0 .35rem; font-size: .8rem; }
+    .pager { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+{% block body %}{% endblock %}
+<script src="/static/htmx.min.js" defer></script>
+</body>
+</html>

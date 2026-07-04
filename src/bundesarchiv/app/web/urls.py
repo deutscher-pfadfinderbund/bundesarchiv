@@ -11,13 +11,26 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 
 from django.urls import path
 
+from bundesarchiv.app.web.browse_views import (
+    article_detail_stub,
+    article_new_stub,
+    serve_htmx,
+    workbench,
+)
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
 #: the hash shape itself, mapping any malformed value to the SAME byte-identical 404 — a route-level
 #: converter that 404'd on shape would be a distinguishable failure mode (a different 404 body), so
 #: validation stays in the view where every reject collapses to one shape.
+#:
+#: ``artikel-neu`` is registered BEFORE ``artikel-detail`` so the literal ``neu`` path wins over the
+#: ``<str:ulid>`` capture (``neu`` is not a valid ULID anyway, but ordering makes intent explicit).
 urlpatterns = [
+    path("", workbench, name="workbench"),
+    path("static/htmx.min.js", serve_htmx, name="static-htmx"),
+    path("artikel/neu", article_new_stub, name="artikel-neu"),
+    path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),
 ]
