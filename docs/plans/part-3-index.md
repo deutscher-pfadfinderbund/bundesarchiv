@@ -174,6 +174,13 @@ Dockerfile: `FROM postgres:18` + install `hunspell-de-de` (Debian package), copy
 the `.aff`/`.dic` files to `$(pg_config --sharedir)/tsearch_data/de_de.{affix,dict}`
 (UTF-8; `iconv` if the package ships ISO-8859-1). Compose: single `postgres` service,
 port 5433 (avoid host clashes), env `POSTGRES_DB=bundesarchiv`, healthcheck.
+Local dev runtime is Apple `container` (installed, v1.0.0), NOT Docker: build with
+`container build -t bundesarchiv-postgres docker/postgres/` and run with
+`container run -d --name bundesarchiv-pg -p 5433:5432 -e POSTGRES_DB=bundesarchiv
+-e POSTGRES_PASSWORD=postgres bundesarchiv-postgres`. Put both commands in the README
+dev-setup paragraph. `docker-compose.yml` is still written and committed — it is the
+VPS deploy artifact (roadmap Part 6), not the local dev path; note that in a comment
+at the top of the compose file. Tests connect to localhost:5433 either way.
 Settings: `DATABASES` from env (`BUNDESARCHIV_PG_DSN`, default
 `postgresql://postgres:postgres@localhost:5433/bundesarchiv`), `INSTALLED_APPS =
 ["django.contrib.postgres", "bundesarchiv.index"]`, nothing else.

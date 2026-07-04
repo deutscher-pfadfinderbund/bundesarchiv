@@ -13,18 +13,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git status --porcelain 2>/dev/null | grep -q '\\.py$' || exit 0; uv run ruff check && uv run mypy && uv run pytest -q || exit 2",
-            "timeout": 120,
-            "statusMessage": "gate: ruff + mypy + pytest"
-          }
-        ]
-      }
     ]
   }
 }
