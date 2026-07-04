@@ -34,3 +34,7 @@ ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 MIDDLEWARE = [
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]
+
+# Local runserver ergonomics — dev-only by construction (prod never imports this module).
+DEBUG = True
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
