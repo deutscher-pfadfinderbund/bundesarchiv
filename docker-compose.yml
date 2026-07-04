@@ -1,0 +1,29 @@
+# VPS DEPLOY ARTIFACT — not the local dev path.
+#
+# Local development uses Apple's `container` CLI (see README "Development"); this compose
+# file exists for the VPS deployment (roadmap Part 6). Both build the same
+# docker/postgres/ image and publish Postgres on host port 5434, so tests and app code
+# connect to localhost:5434 either way (env BUNDESARCHIV_PG_DSN). A non-default port
+# avoids host clashes; 5434 because 5433 was already taken on the dev machine.
+services:
+  postgres:
+    build: ./docker/postgres
+    image: bundesarchiv-postgres
+    environment:
+      POSTGRES_DB: bundesarchiv
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bundesarchiv"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

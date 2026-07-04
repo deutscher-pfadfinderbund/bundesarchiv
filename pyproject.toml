@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "DPB Bundesarchiv — multimedia archive"
 requires-python = ">=3.14"
 dependencies = [
+    "django>=6.0",
     "httpx>=0.28.1",
+    "psycopg[binary]>=3.2",
     "python-ulid>=3.1.0",
     "pyyaml>=6.0.3",
 ]
@@ -16,6 +18,8 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pytest-django>=4.9",
+    "django-stubs[compatible-mypy]>=5.1",
     "ruff>=0.6",
     "mypy>=1.11",
     "pre-commit>=3.8",
@@ -35,7 +39,17 @@ extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH
 
 [tool.mypy]
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "manage.py"]
+plugins = ["mypy_django_plugin.main"]
+# Multiple conftest.py / test modules share basenames across tests/ subdirs; derive module
+# names from their path (relative to these roots) so they don't collide as one "conftest".
+explicit_package_bases = true
+mypy_path = ["src", "tests"]
+
+# django-stubs needs to know which settings to load to type the ORM. The index is the
+# only place Django lives; this is type-checking config, not a runtime default.
+[tool.django-stubs]
+django_settings_module = "bundesarchiv.index.settings"
 
 # Test-only WebDAV server libs ship no type stubs; they are exercised through the
 # typed WebDavObjectStore + httpx, not depended on for types.
@@ -45,3 +59,10 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# pytest-django needs DJANGO_SETTINGS_MODULE at plugin-configure time (before conftests are
+# imported) to run django.setup(). Setting it here does NOT force a database on the pure
+# suites: django.setup() is cheap and DB-free; pytest-django only creates the test database
+# when a test actually uses the `db`/`django_db` fixture. tests/domain and tests/persistence
+# use neither, so they still run with no Postgres. Only tests/index touches the DB, gated by
+# tests/index/conftest.py (which fails, not skips, when Postgres is unreachable).
+DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
