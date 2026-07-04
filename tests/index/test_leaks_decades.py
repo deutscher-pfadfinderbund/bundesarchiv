@@ -48,7 +48,7 @@ def _build_decade_store() -> InMemoryObjectStore:
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-    collections.save(Collection(ulid=_DEC_ROOT, name="Dekaden-Wurzel", parent_id=None))
+    collections.save(Collection(ulid=_DEC_ROOT, name="Dekaden-Wurzel", parent_id=None), 0)
     articles.save(
         Article(
             ulid=_DEC_MEMBER_ULID,

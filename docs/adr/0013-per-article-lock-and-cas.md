@@ -1,7 +1,8 @@
 # Per-Article optimistic concurrency: version CAS, no locks
 
-Status: DRAFT v2 — designed ahead of Part 4; v2 folds the 2026-07-04 adversarial
-panel findings (reconciled against the built Part 1 code).
+Status: Accepted (2026-07-04) — adopted by Part 4.1. v2 folded the 2026-07-04
+adversarial panel findings (reconciled against the built Part 1 code); Part 4.1
+added the shared writer mutex and Collection versioning, then adopted this ADR.
 
 Multiple archivists edit through the web UI at once. v1 through Part 3 was
 single-writer; Part 4 breaks that assumption. We need a concurrency rule for

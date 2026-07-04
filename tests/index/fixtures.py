@@ -89,23 +89,25 @@ def build_store() -> InMemoryObjectStore:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection(ulid="ROOT", name="Bundesarchiv", parent_id=None))
+    collections.save(Collection(ulid="ROOT", name="Bundesarchiv", parent_id=None), 0)
     collections.save(
         Collection(
             ulid="FOTOS",
             name="Fotografien",
             parent_id="ROOT",
             audience=Audience(AudienceTier.PUBLIC),
-        )
+        ),
+        0,
     )
-    collections.save(Collection(ulid="LAGER", name="Lagerfotos", parent_id="FOTOS"))
+    collections.save(Collection(ulid="LAGER", name="Lagerfotos", parent_id="FOTOS"), 0)
     collections.save(
         Collection(
             ulid="AKTEN",
             name="Aktenbestand",
             parent_id="ROOT",
             audience=Audience(AudienceTier.MEMBERS),
-        )
+        ),
+        0,
     )
     collections.save(
         Collection(
@@ -113,7 +115,8 @@ def build_store() -> InMemoryObjectStore:
             name="Vorstandsakten",
             parent_id="AKTEN",
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
-        )
+        ),
+        0,
     )
 
     for article in _articles():

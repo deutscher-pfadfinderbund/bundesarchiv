@@ -31,6 +31,7 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Article, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
+from bundesarchiv.persistence._writer import WRITER_LOCK
 from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -60,31 +61,35 @@ class ArticleRepository:
         return Stored(article, version)
 
     def save(self, article: Article, expected_version: Version) -> Version:
-        # CONCURRENCY LIMITATION (v1): this version check-then-write is NOT atomic, and the
-        # ObjectStore port has no compare-and-swap. It is safe only under the single-writer
-        # invariant (ADR 0002) — two genuinely-interleaved saves can both pass this check and
-        # the second silently clobbers the first. The durable per-Article lock object (or a
-        # CAS primitive on the port) that would close this is deferred; gate the Part-3/4
-        # multi-writer paths (background worker, multi-process WSGI) on it.
-        current = self._current_version(article.ulid)
-        if current != expected_version:
-            raise Conflict(
-                f"{article.ulid}: expected version {expected_version}, store has {current}"
-            )
-        # Pinned order: media must already be stored before the README commits to it.
-        for ref in article.media:
-            if not self._store.exists(_media_key(article.ulid, ref.content_hash)):
-                raise ArchiveError(
-                    f"{article.ulid}: media {ref.content_hash} not stored before save"
+        # CONCURRENCY (ADR 0013): the version check-then-write is CAS, and the ObjectStore port
+        # has no native compare-and-swap, so the whole load-check-write critical section runs
+        # under the ONE process-wide WRITER_LOCK shared with CollectionRepository (both write the
+        # same store — see persistence/_writer.py). That serialization is what makes check-then-
+        # write atomic within the single app process: two genuinely-interleaved saves can no
+        # longer both pass the check; the second sees the bumped version and raises Conflict, the
+        # write-nothing failure mode a stale form save relies on. The cross-process race is out of
+        # scope by the single-app-process deploy rule (ADR 0013 runbook item); a second writer
+        # host would need real distributed CAS (deferred with a trigger).
+        with WRITER_LOCK:
+            current = self._current_version(article.ulid)
+            if current != expected_version:
+                raise Conflict(
+                    f"{article.ulid}: expected version {expected_version}, store has {current}"
                 )
-        new_version = current + 1
-        self._store.write_atomic(
-            _readme_key(article.ulid), readme.encode(article, new_version).encode("utf-8")
-        )  # the commit
-        self._store.write_atomic(
-            _changes_key(article.ulid, new_version),
-            json.dumps({"ulid": article.ulid, "version": new_version}, sort_keys=True).encode(),
-        )
+            # Pinned order: media must already be stored before the README commits to it.
+            for ref in article.media:
+                if not self._store.exists(_media_key(article.ulid, ref.content_hash)):
+                    raise ArchiveError(
+                        f"{article.ulid}: media {ref.content_hash} not stored before save"
+                    )
+            new_version = current + 1
+            self._store.write_atomic(
+                _readme_key(article.ulid), readme.encode(article, new_version).encode("utf-8")
+            )  # the commit
+            self._store.write_atomic(
+                _changes_key(article.ulid, new_version),
+                json.dumps({"ulid": article.ulid, "version": new_version}, sort_keys=True).encode(),
+            )
         return new_version
 
     def update(
@@ -93,7 +98,18 @@ class ArticleRepository:
         """Load the Article, apply `mutate`, and save at its current version — the
         optimistic-concurrency dance hidden from callers, retrying on `Conflict` (a
         concurrent write) up to `retries` times. Returns the new version; raises
-        `NotFound` if absent. `mutate` must not add media (use add_media + save)."""
+        `NotFound` if absent. `mutate` must not add media (use add_media + save).
+
+        WARNING — internal idempotent mutations ONLY (worker jobs, migrations, ADR 0013).
+        Because it re-loads and retries on `Conflict`, this is last-writer-wins by
+        construction: a retry re-applies `mutate` to the WINNER's fresh Article, so the
+        concurrent edit is not lost — but only when `mutate` is a pure, idempotent
+        transform of whatever it is handed. It is FORBIDDEN for web form saves: a form
+        carries a value the archivist typed against a now-stale Article, so retrying
+        would silently overwrite the concurrent edit with that stale form (silent
+        last-writer-wins — the one unforgivable archive failure). Form saves call
+        `save(mutated, expected_version_from_form)` directly and let the FIRST `Conflict`
+        propagate to the re-load/re-apply UI."""
         while True:
             stored = self.load(ulid)
             try:

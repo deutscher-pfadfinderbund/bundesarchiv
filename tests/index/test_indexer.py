@@ -297,13 +297,14 @@ def store() -> InMemoryObjectStore:
     articles = ArticleRepository(store)
 
     # Tree: ROOT (Members default) -> FOTOS (PUBLIC) -> AKTEN (inherits PUBLIC)
-    collections.save(_root("ROOT", name="Wurzel"))
+    collections.save(_root("ROOT", name="Wurzel"), 0)
     collections.save(
         Collection(
             ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
-        )
+        ),
+        0,
     )
-    collections.save(Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"))
+    collections.save(Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0)
 
     # 1. Published, inherits PUBLIC from FOTOS.
     articles.save(

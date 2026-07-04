@@ -18,68 +18,99 @@ def _collection(**overrides: object) -> Collection:
     return Collection(**defaults)  # type: ignore[arg-type]
 
 
-def test_encode_decode_round_trips_all_fields() -> None:
+def test_encode_decode_round_trips_all_fields_and_version() -> None:
     collection = _collection()
-    decoded = collection_readme.decode_collection(
-        collection_readme.encode_collection(collection), ulid="01J0"
+    decoded, version = collection_readme.decode_collection(
+        collection_readme.encode_collection(collection, 3), ulid="01J0"
     )
     assert decoded == collection
+    assert version == 3
 
 
 def test_encode_decode_without_parent_id() -> None:
     collection = _collection(parent_id=None)
-    text = collection_readme.encode_collection(collection)
+    text = collection_readme.encode_collection(collection, 1)
     assert "parent_id:" not in text
-    decoded = collection_readme.decode_collection(text, ulid="01J0")
+    decoded, _version = collection_readme.decode_collection(text, ulid="01J0")
     assert decoded == collection
     assert decoded.parent_id is None
 
 
 def test_encode_decode_without_audience() -> None:
     collection = _collection(audience=None)
-    text = collection_readme.encode_collection(collection)
+    text = collection_readme.encode_collection(collection, 1)
     assert "audience:" not in text
-    decoded = collection_readme.decode_collection(text, ulid="01J0")
+    decoded, _version = collection_readme.decode_collection(text, ulid="01J0")
     assert decoded == collection
     assert decoded.audience is None
 
 
 def test_encode_decode_minimal() -> None:
     collection = Collection(ulid="01J0", name="Root")
-    decoded = collection_readme.decode_collection(
-        collection_readme.encode_collection(collection), ulid="01J0"
+    decoded, version = collection_readme.decode_collection(
+        collection_readme.encode_collection(collection, 1), ulid="01J0"
     )
     assert decoded == collection
+    assert version == 1
     assert decoded.parent_id is None
     assert decoded.audience is None
 
 
+def test_encode_carries_the_version_in_front_matter() -> None:
+    text = collection_readme.encode_collection(_collection(), 7)
+    assert "version: 7" in text
+
+
 def test_encode_starts_with_marker_then_fence() -> None:
-    text = collection_readme.encode_collection(_collection())
+    text = collection_readme.encode_collection(_collection(), 1)
     assert text.startswith("<!-- Managed by bundesarchiv")
     assert "\n---\n" in text
 
 
+def test_absent_version_backfills_to_zero() -> None:
+    # A pre-versioning README (written before Part 4.1) has no `version:` key. It must
+    # load as version 0 so its first versioned save writes version 1 (ADR 0013 migration).
+    _decoded, version = collection_readme.decode_collection(
+        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
+    )
+    assert version == 0
+
+
 def test_absent_parent_id_decodes_to_none() -> None:
-    decoded = collection_readme.decode_collection("---\nulid: 01J0\nname: Root\n---\n", ulid="01J0")
+    decoded, _version = collection_readme.decode_collection(
+        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
+    )
     assert decoded.parent_id is None
 
 
 def test_absent_audience_key_decodes_to_inherit() -> None:
-    decoded = collection_readme.decode_collection("---\nulid: 01J0\nname: Root\n---\n", ulid="01J0")
+    decoded, _version = collection_readme.decode_collection(
+        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
+    )
     assert decoded.audience is None
 
 
 def test_empty_audience_mapping_decodes_to_inherit() -> None:
-    decoded = collection_readme.decode_collection(
+    decoded, _version = collection_readme.decode_collection(
         "---\nulid: 01J0\nname: Root\naudience: {}\n---\n", ulid="01J0"
     )
     assert decoded.audience is None
 
 
 def test_decode_without_marker_still_parses() -> None:
-    decoded = collection_readme.decode_collection("---\nulid: 01J0\nname: Root\n---\n", ulid="01J0")
+    decoded, _version = collection_readme.decode_collection(
+        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
+    )
     assert decoded.name == "Root"
+
+
+def test_decode_rejects_a_corrupt_version() -> None:
+    # A present-but-malformed version (float, string, negative) is corruption, not a
+    # backfill case — it must surface as ArchiveError, never coerce.
+    with pytest.raises(ArchiveError):
+        collection_readme.decode_collection(
+            "---\nulid: 01J0\nname: Root\nversion: -1\n---\n", ulid="01J0"
+        )
 
 
 @pytest.mark.parametrize(

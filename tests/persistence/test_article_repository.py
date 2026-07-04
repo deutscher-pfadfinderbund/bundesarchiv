@@ -3,11 +3,13 @@ ObjectStore fake (no disk) — the canonical-file protocol, optimistic concurren
 content-addressed write-once media, and recoverable hard_delete.
 """
 
+import threading
 from dataclasses import replace
 
 import pytest
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
+from bundesarchiv.persistence import readme
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -201,3 +203,47 @@ def test_save_writes_the_readme_commit_before_the_changes_record() -> None:
     assert store.writes.index("articles/01J0/README.md") < store.writes.index(
         "articles/01J0/changes/1.json"
     )
+
+
+def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
+    repo: ArticleRepository,
+) -> None:
+    """Two threads save the same Article at the same expected_version. The shared writer
+    mutex (ADR 0013) serializes the check-then-write critical section, so EXACTLY one wins
+    and the other sees a stale version -> Conflict. Assert the README version ends at the
+    winner's version + 1 — NEVER against changes/*.json presence (gap-tolerant, ADR 0005).
+
+    A barrier releases both threads together to force the interleave through the mutex; the
+    mutex makes the outcome deterministic once both are past the barrier, so there are no
+    sleeps and no flakiness.
+    """
+    repo.save(_article(), expected_version=0)  # store is now at v1
+    barrier = threading.Barrier(2)
+    results: dict[str, object] = {}
+    lock = threading.Lock()
+
+    def attempt(name: str) -> None:
+        barrier.wait()  # both threads arrive, then both race the save
+        try:
+            new_version = repo.save(_article(title=name), expected_version=1)
+            with lock:
+                results[name] = new_version
+        except Conflict as exc:
+            with lock:
+                results[name] = exc
+
+    threads = [threading.Thread(target=attempt, args=(n,)) for n in ("A", "B")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    winners = [v for v in results.values() if isinstance(v, int)]
+    losers = [v for v in results.values() if isinstance(v, Conflict)]
+    assert len(winners) == 1, f"expected exactly one winner, got {results}"
+    assert len(losers) == 1, f"expected exactly one Conflict, got {results}"
+    assert winners[0] == 2  # winner wrote v1 -> v2
+    # Assert the README version (the CAS source of truth), never changes/*.json presence.
+    assert repo.load("01J0").version == 2
+    raw = repo._store.read("articles/01J0/README.md").decode("utf-8")
+    assert readme.read_version("01J0", raw) == 2
