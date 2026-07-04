@@ -156,8 +156,10 @@ class EdtfDate:
         """Return ``(earliest, latest)`` for this date expression.
 
         For open upper ends (``A/..``) ``latest`` is ``None``.
-        For open lower ends (``../B``) ``earliest`` is the start of B's range
-        (the only anchor available — caller should treat as unbounded-below).
+        For open lower ends (``../B``) ``earliest`` is the start of B's range —
+        the anchor IS the effective lower bound (v1 has no unbounded-below
+        sentinel; consumers like the index date-range filter treat it as a
+        real floor).
         """
         return _bounds(self.value)
 

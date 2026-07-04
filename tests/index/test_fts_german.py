@@ -18,8 +18,6 @@ Task 6 created the configuration in migration ``0001_search_infrastructure``; th
 forever against the live container as the behaviour lock.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import pytest
