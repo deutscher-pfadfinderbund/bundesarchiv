@@ -132,10 +132,17 @@ Binding constraints regardless of prototype outcome:
 - Uploads: content-hash on receipt, write-once semantics — re-upload of an
   existing blob is a no-op attach.
 
-Open at kickoff (owner input): screen layouts and interaction patterns (pick
-from `part-4-ui-ideas.md` options), facet UI shape, cataloging batch-pipeline
-scope (dropzone/annotate-queue now vs later), the 8 owner questions in the
-ideas doc.
+Decided at kickoff (owner, 2026-07-05): **HTMX confirmed** (prototype evidence,
+`prototype-4.0-memo.md`; ADR 0004 stands). Hybrid start page (search field on
+top, Tektonik/Bestand entry points below). Results: card list default,
+auto-flip to thumbnail grid for photo-heavy result sets. Cataloging:
+single-article form first; the batch dropzone→annotate-queue pipeline is its
+own follow-up task once the form ships. Upload: progress bar in v1; resumable/
+chunked deferred until it hurts. Defaults (owner-delegated): Findbuch as
+*language* (headings/terms), not a layout regime; "Ohne Datum" is a
+first-class facet value (data honesty); visibility preview speaks human German
+("Alle Mitglieder", named groups), not ladder rungs; curated entry points
+fixed in code for v1.
 
 ## 4.9 Mirror + reconcile
 
