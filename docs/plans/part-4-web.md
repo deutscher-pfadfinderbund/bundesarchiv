@@ -32,31 +32,43 @@ autocomplete, per-field autosave) — the ideas-doc analysis says this is the
 only screen where HTMX and Datastar genuinely diverge. Timebox; decide;
 amend/confirm ADR 0004; discard both prototypes.
 
-## 4.1 CAS (ADR 0013)
+## 4.1 CAS (ADR 0013 v2 — reconciled with built code)
 
-- `Article.version` surfaces through the repository; `update(ulid, mutate,
-  expected_version)` raises `StaleVersion` (ArchiveError child) on mismatch.
-- Same for `CollectionRepository` (collection edits are access-control edits).
-- Conformance test: two racing updates → exactly one winner, loser gets
-  `StaleVersion`, store at winner's `version + 1`.
-- Process-wide mutex around load-check-write; single-app-process rule goes in
-  the deploy runbook.
+- Article CAS already exists: web form path calls `save(mutated,
+  expected_version_from_form)` and lets the FIRST existing-`Conflict`
+  propagate. No new error type. The retrying `update()` gets a docstring
+  warning: internal idempotent mutations only, never form saves.
+- **Collections: real sized work** — `Collection.version` field + collection
+  README codec round-trip + versioned load result + `save(collection,
+  expected_version)` with `Conflict`, plus conformance tests mirroring the
+  Article shape (they have NO version today).
+- Conformance test: two racing form saves → one winner; loser's save raises
+  `Conflict`; README version (not `changes/*.json`) ends at winner's +1.
+- Process-wide mutex + single-app-process rule → deploy runbook. ADR 0013
+  supersedes the `.lock` object reserved by ADR 0002/0005.
 
 ## 4.2 Worker + incremental reindex (ADR 0014)
 
 - Postgres-backed worker (Procrastinate or django-tasks-db — implementer
   evaluates both against: Django 6 compat, table-only state, dead-simple
   deploy; records choice in the task report; no Redis, no broker).
-- Jobs are REFERENCES (`reindex_article(ulid)`, `reindex_subtree(collection)`,
-  `full_rebuild()`); execution recomputes from canonical. Idempotent, safe to
-  re-run, no payloads.
+- New indexer surface (does not exist yet): `index_article(store, ulid)` +
+  `index_subtree(store, collection_ulid)`, routing through the SAME
+  `build_row` + fail-closed branch as `rebuild()`. Jobs are REFERENCES;
+  execution recomputes from canonical. Idempotent, no payloads.
+- Every index writer takes the same `pg_advisory_xact_lock` (one project key)
+  — closes the rebuild-vs-upsert clobber race (ADR 0014 v2).
 - Synchronous in-request index updates on every canonical write path; failure
-  → enqueue + UI warning, never fail the canonical write.
-- Scheduled reconcile `full_rebuild()` (nightly default) + `config_version`
-  check on deploy.
-- THE GATE (roadmap): no member-visible route ships before the staleness test
-  passes — narrow a collection audience, assert the member's next search
-  excludes descendants, no worker involvement.
+  → enqueue + a SPECIFIC UI warning ("Sichtbarkeitsänderung noch nicht
+  wirksam"), never fail the canonical write.
+- Scheduled reconcile `full_rebuild()` (**hourly** default — bounds the
+  crash-window over-exposure honestly) + `config_version` comparison at
+  deploy/startup (comparison code is new; only the column exists).
+- Job-table retention/prune knob in the runbook.
+- THE GATE (roadmap): no member-visible route ships before the ADVERSARIAL
+  staleness test passes — it calls ONLY the production edit entry point
+  (`rebuild()` forbidden inside the test), then asserts the member's next
+  search excludes the narrowed content.
 
 ## 4.3 Media auth seam + thumbnails
 
@@ -66,8 +78,10 @@ amend/confirm ADR 0004; discard both prototypes.
   (nginx `internal;`), correct Content-Type from MediaRef, Range delegated to
   nginx. The public URL namespace never encodes filesystem paths; media URLs
   are `/media/<article-ulid>/<content-hash>` — resolution happens in the view.
-- Denial semantics: 404 (existence-hiding), identical for "no such article",
-  "no such blob", "not permitted" — mirrors search invisibility.
+- Denial semantics: 404 (existence-hiding), **byte-identical** across "no such
+  article" / "no such blob" / "not permitted" — same headers, no Content-Type/
+  Content-Length divergence — and authorization runs and denies BEFORE any
+  blob/thumbnail existence lookup (no timing/metadata oracle).
 - Thumbnails: worker job per image blob (content-hash keyed, regenerable,
   pruned freely, NOT backed up); served through the same seam with the same
   checks (a thumbnail leaks the image).
@@ -84,7 +98,9 @@ Part 5 brings Keycloak; Part 4 needs viewers NOW. A `DevViewerMiddleware`
 reading a signed cookie set by a dev-only switcher view. Existence gated on a
 dedicated settings module (`settings_dev.py`) that the production settings
 never import — not a flag inside prod settings (flags get flipped; missing
-code cannot). The `request → Viewer` seam (`viewer_of(request)`) is the SAME
+code cannot). The dev cookie is signed with a dedicated dev-only key defined
+in `settings_dev.py` — never the production `SECRET_KEY` — so the cookie is
+worthless against any prod deployment even if code paths leak. The `request → Viewer` seam (`viewer_of(request)`) is the SAME
 function Part 5 will re-implement against OIDC claims — one seam, two
 adapters, UI code never knows.
 
@@ -106,7 +122,9 @@ Binding constraints regardless of prototype outcome:
 - Visibility preview: ONE server-computed widget (domain `preview()` — exists
   since Part 2), reused by publish flow AND collection-move flow (ideas-doc
   theme #1). Collection move REQUIRES the over-exposure preview before commit
-  (roadmap).
+  (roadmap). The widget is **Archivist-only** (`preview()` surfaces group
+  names by design); preview/publish/move endpoints join the 4.10 leak suite —
+  Member/Public hitting them → redirect/404, never widget content.
 - Collection deletion blocked while descendants/articles exist (ADR 0014).
 - German UI language per CONTEXT.md glossary; Findbuch vocabulary per ideas
   doc where it fits without inventing features.
