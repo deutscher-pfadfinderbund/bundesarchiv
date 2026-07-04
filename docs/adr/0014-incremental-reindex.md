@@ -1,7 +1,14 @@
 # Incremental reindex: synchronous scope updates, reference jobs, reconcile net
 
-Status: DRAFT v2 — designed ahead of Part 4; v2 folds the 2026-07-04 adversarial
-panel findings.
+Status: Accepted (2026-07-04) — adopted by Part 4.2. v2 folded the 2026-07-04
+adversarial panel findings; adoption added the worker-library choice below and
+built the `index_article` / `index_subtree` surfaces, the app-service shell, the
+Procrastinate wiring, the advisory lock, and the config_version check.
+
+Worker library: **Procrastinate** (Postgres-table-only queue, no broker, Django
+6.0 compatible, `periodic` scheduler for the reconcile, single-process deploy).
+django-tasks was rejected: as of 0.12.0 it ships no database backend (only
+`immediate`/`dummy`), so it cannot durably queue jobs today.
 
 Part 3's index is rebuild-only. Part 4 serves members from it, so scope changes
 (audience edits, unpublish, collection moves) must reach the index without a
@@ -89,9 +96,16 @@ rebuild proves nothing about the synchronous path.
 
 - Collection deletion in the UI is blocked while descendants exist (otherwise:
   fail-closed rows by design — acceptable, ugly, so the UI prevents it).
-- Job-table hygiene is an ops knob: completed-job retention + periodic prune
-  (both Procrastinate and django-tasks accumulate finished rows), stated in
-  the deploy runbook next to the reconcile interval.
+- Job-table hygiene is an ops knob: Procrastinate accumulates finished
+  `procrastinate_jobs` rows; prune them periodically (its `DjangoApp` ships a
+  `db_cleanup` periodic task / the `procrastinate` CLI). Stated in the deploy
+  runbook next to the reconcile interval.
+- Concrete knobs (Part 4.2): the reconcile cadence is `BUNDESARCHIV_RECONCILE_CRON`
+  (default `0 * * * *`, hourly); the canonical store a job re-reads is
+  `BUNDESARCHIV_CANONICAL_ROOT`; the one index-writer advisory-lock key is the
+  fixed constant `indexer._INDEX_WRITER_LOCK_KEY` (never reuse it for another
+  lock). config_version drift is remedied by `manage.py ensure_index_current`,
+  run at deploy and worker startup.
 - Part 4 tests: the adversarial staleness gate per edit type; sync-failure →
   job-enqueued + specific-warning path; reconcile-heals-orphan; advisory-lock
   serialization (upsert during rebuild → final state reflects canonical).

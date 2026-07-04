@@ -37,6 +37,29 @@ uv run manage.py migrate
 Tests connect via `BUNDESARCHIV_PG_DSN` (default
 `postgresql://postgres:postgres@localhost:5434/bundesarchiv`). Index tests require a
 running Postgres and **fail** (not skip) if it is unreachable; set `BUNDESARCHIV_SKIP_PG=1`
-to skip the `tests/index/` suite for domain-only work.
+to skip the DB-backed (`tests/index/`, `tests/app/`) suites for domain-only work.
+
+### Background worker (Procrastinate) — ADR 0014
+
+The search index is kept current by a Postgres-backed worker
+([Procrastinate](https://procrastinate.readthedocs.io/)): no broker, jobs live in
+Postgres tables applied by `migrate`. Web write paths update the index synchronously
+(the app-service layer); the worker is the retry net for failed synchronous updates,
+plus the scheduled full reconcile.
+
+```sh
+uv run manage.py ensure_index_current   # deploy + worker-startup: rebuild if config_version drifted
+uv run manage.py procrastinate worker    # run the worker (single process)
+```
+
+Runbook knobs (env vars, see `bundesarchiv/index/settings.py`):
+
+- `BUNDESARCHIV_CANONICAL_ROOT` — the canonical files-store the worker jobs re-read
+  truth from (jobs carry only references, never payloads).
+- `BUNDESARCHIV_RECONCILE_CRON` — the scheduled full-rebuild cadence (default `0 * * * *`,
+  hourly; bounds worst-case staleness after any missed incremental update).
+- Job-table hygiene: prune finished `procrastinate_jobs` rows periodically (the worker's
+  `db_cleanup` periodic task / the `procrastinate` CLI). One index-writer advisory lock
+  serializes every index writer (`indexer._INDEX_WRITER_LOCK_KEY`); do not reuse that key.
 
 Status: greenfield. Building the persistence layer first — see [docs/plans/part-1-persistence.md](docs/plans/part-1-persistence.md).
