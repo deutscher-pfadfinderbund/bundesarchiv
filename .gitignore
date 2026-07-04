@@ -16,3 +16,5 @@ htmlcov/
 # Local archive data (never commit the archive tree)
 /var/
 *.local
+*.local.*
+tests/test_data/archive_items.txt
