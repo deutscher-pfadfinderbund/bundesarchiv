@@ -40,6 +40,10 @@ PARAM_DATE_TO = "bis"
 PARAM_SORT = "sortierung"
 PARAM_PAGE = "seite"
 
+#: The workbench's fixed result-page size. ONE constant shared by the view's ``search`` call and
+#: ``has_next_page``, so the pager arithmetic can never drift from the window actually fetched.
+PAGE_SIZE = 50
+
 #: German sort labels -> the ``SortOrder`` the index understands. An unknown value falls to the
 #: default (relevance), so a hand-edited URL can never 500 the sort.
 _SORT_BY_LABEL: dict[str, SortOrder] = {
@@ -191,6 +195,16 @@ def page_query(params: Mapping[str, str], page: int) -> str:
     updated = _clean(params)
     updated[PARAM_PAGE] = str(page)
     return urlencode(updated)
+
+
+def has_next_page(*, page: int, page_size: int, hits_on_page: int, total: int) -> bool:
+    """Whether a further result page exists after the current one.
+
+    Rows consumed so far = the ``page_size``-sized windows before this page PLUS the hits actually
+    on it — NOT ``page * hits_on_page``: on a partial last page ``len(hits)`` understates the window
+    (total=60, page 2 with 10 hits would read 20 < 60 and offer a spurious link to an empty page 3).
+    An overshot empty page consumes its full preceding windows, so it also reports no next."""
+    return (page - 1) * page_size + hits_on_page < total
 
 
 @dataclass(frozen=True, slots=True)

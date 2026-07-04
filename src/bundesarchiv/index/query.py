@@ -26,8 +26,8 @@ scope predicate is therefore always applied by Django as a real ``WHERE`` on eve
 
 import datetime
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Literal, assert_never
+from dataclasses import dataclass, replace
+from typing import Any, Literal, assert_never
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVectorField
 from django.db.models import Count, F, Func, Q, QuerySet
@@ -428,8 +428,6 @@ def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> 
     along from ``matched`` (never re-derived). Date-range is cleared alongside ``dateless`` because a
     range and "no date" are mutually exclusive dimensions of the same column — leaving a range on
     would zero this count by construction, which is not the facet's question."""
-    from dataclasses import replace
-
     other = replace(filters, dateless=False, date_from=None, date_to=None)
     return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
 
@@ -438,9 +436,6 @@ def _without(filters: SearchFilters, key: str) -> SearchFilters:
     """A copy of ``filters`` with the facet ``key``'s own dimension cleared (standard faceting).
     The facet key maps to the filter field it excludes: ``collection`` -> collection,
     ``tags`` -> tag, ``decades`` -> decade, and the scalar keys to themselves."""
-    from dataclasses import replace
-    from typing import Any
-
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
     # ``field`` is always a nullable facet dimension (collection/media_type/document_type/tag/decade)
     # — never the bool ``dateless`` — so clearing it to None is well-typed; ``Any`` keeps ``replace``

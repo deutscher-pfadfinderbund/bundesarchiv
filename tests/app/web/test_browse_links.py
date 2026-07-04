@@ -8,6 +8,7 @@ facet sidebar / chips / pagination / sort control emit, and pin the round-trip: 
 
 from bundesarchiv.app.web.browse import (
     active_chips,
+    has_next_page,
     page_query,
     parse_query,
     with_param,
@@ -79,3 +80,32 @@ def test_active_chips_lists_each_set_filter_with_a_remove_query() -> None:
 
 def test_active_chips_empty_when_no_filters() -> None:
     assert active_chips({"q": "Lager"}) == ()
+
+
+# --- pagination boundary (has_next_page) ------------------------------------------
+# The bug this pins: computing "rows consumed" from page * len(hits) understates consumption on a
+# partial last page (total=60, page 2 with 10 hits -> 2*10=20 < 60 -> a spurious "Weiter" link to
+# an empty page). Consumed rows are (page-1)*page_size + hits_on_page.
+
+
+def test_has_next_true_on_full_non_final_page() -> None:
+    assert has_next_page(page=1, page_size=50, hits_on_page=50, total=60) is True
+
+
+def test_has_next_false_on_partial_last_page() -> None:
+    # total=60, page 2 carries the remaining 10 — there is no page 3.
+    assert has_next_page(page=2, page_size=50, hits_on_page=10, total=60) is False
+
+
+def test_has_next_false_on_exactly_full_last_page() -> None:
+    # total == page * page_size: the last page is full, but it IS the last.
+    assert has_next_page(page=2, page_size=50, hits_on_page=50, total=100) is False
+
+
+def test_has_next_false_on_empty_results() -> None:
+    assert has_next_page(page=1, page_size=50, hits_on_page=0, total=0) is False
+
+
+def test_has_next_false_on_overshot_empty_page() -> None:
+    # A hand-edited seite beyond the end (no hits) must not offer a further page.
+    assert has_next_page(page=3, page_size=50, hits_on_page=0, total=60) is False

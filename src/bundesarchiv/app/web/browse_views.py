@@ -54,6 +54,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         filters=parsed.filters,
         sort=parsed.sort,
         page=parsed.page,
+        page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
     )
     context = _results_context(request, parsed, page)
     if request.headers.get("HX-Request"):
@@ -112,7 +113,9 @@ def _results_context(
         "chips": browse.active_chips(params),
         "facet_groups": _facet_groups(params, parsed, page),
         "current_page": parsed.page,
-        "has_next": parsed.page * size < total if size else False,
+        "has_next": browse.has_next_page(
+            page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
+        ),
         "has_prev": parsed.page > 1,
         "next_query": browse.page_query(params, parsed.page + 1),
         "prev_query": browse.page_query(params, parsed.page - 1),
