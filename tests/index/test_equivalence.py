@@ -297,6 +297,13 @@ def test_grid_facet_total_equals_can_view_count_per_viewer(corpus: _Grid) -> Non
             mismatches.append(
                 f"[{label}] media_type[{_GRID_MEDIA_TYPE}]={got_media} != can_view count={expected_n}"
             )
+        # Grid articles carry NO date, so EVERY visible row is dateless: the "Ohne Datum" count
+        # (Part 4) must also equal the whole visible set — the same aggregate-leak guard extended
+        # generically to the new facet, so an unscoped dateless aggregate is caught here too.
+        if page.dateless_count != expected_n:
+            mismatches.append(
+                f"[{label}] dateless_count={page.dateless_count} != can_view count={expected_n}"
+            )
     assert not mismatches, "facet/total ≢ can_view count:\n" + "\n".join(mismatches)
 
 

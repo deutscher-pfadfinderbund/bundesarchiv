@@ -122,6 +122,28 @@ def test_text_matches_compound_whole_word(corpus: None) -> None:
 
 
 @pytest.mark.django_db
+def test_prefix_matching_recovers_compound_head(corpus: None) -> None:
+    """ADR-0011 prefix mitigation (:* on the trailing lexeme): a compound HEAD matches the whole
+    compound. 'Lager' alone (no decomposition) reaches 'Bundeslager Lieder und Häuser'."""
+    assert "ART_PUBLAGER" in _ulids(search(PUBLIC, text="Lager"))
+
+
+@pytest.mark.django_db
+def test_prefix_matching_matches_partial_word_start(corpus: None) -> None:
+    """The brief's pinned case: 'Fahrt' matches a 'Fahrten' title via the :* prefix (a query
+    'Fahrt' would match 'Fahrtenbericht' too — the recall the missing decomposition would give)."""
+    assert "ART_PUBFOTO" in _ulids(search(PUBLIC, text="Fahrt"))  # "... der Fahrten"
+
+
+@pytest.mark.django_db
+def test_all_stopword_query_does_not_crash(corpus: None) -> None:
+    """A query that parses to an EMPTY tsquery (all stopwords) must not raise — the NULLIF guard
+    in the prefix wrapper turns ''||':*' into the empty tsquery, not the invalid ':*'."""
+    page = search(PUBLIC, text="und der die")
+    assert isinstance(page.total, int)  # ran without error
+
+
+@pytest.mark.django_db
 def test_text_ranks_and_scopes(corpus: None) -> None:
     """'Fahrten' matches several public docs; a plain member sees member ones too."""
     public_hits = _ulids(search(PUBLIC, text="Fahrten"))
@@ -378,6 +400,40 @@ def test_facet_counts_never_exceed_scope(corpus: None) -> None:
     """A facet count can never include rows the viewer can't see."""
     for fc in search(PUBLIC).facets["document_type"]:
         assert fc.count <= 5  # public total
+
+
+# ===========================================================================
+# "Ohne Datum" facet (Part 4) — dateless count + filter. The shared corpus dates every article,
+# so here the count is 0 and the filter is empty; the tier-exclusive leak case (a restricted
+# dateless row must not inflate a lesser viewer's count) needs its own corpus — see
+# ``test_leaks_dateless.py``, mirroring the decade-leak module's dedicated-corpus pattern.
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_dateless_count_is_zero_when_every_row_is_dated(corpus: None) -> None:
+    """Every corpus article has a date, so the "Ohne Datum" bucket is empty for every viewer."""
+    for viewer in (PUBLIC, PLAIN_MEMBER, VORSTAND_MEMBER, ARCHIVIST):
+        assert search(viewer, page_size=200).dateless_count == 0
+
+
+@pytest.mark.django_db
+def test_dateless_filter_selects_nothing_when_every_row_is_dated(corpus: None) -> None:
+    """The ``dateless=True`` filter returns the (here empty) set of undated rows, not an error."""
+    page = search(PUBLIC, filters=SearchFilters(dateless=True))
+    assert page.total == 0
+    assert page.hits == ()
+
+
+@pytest.mark.django_db
+def test_dateless_filter_and_date_range_are_disjoint(corpus: None) -> None:
+    """``dateless`` (date_earliest IS NULL) and a date range (date_earliest IS NOT NULL) conjoin to
+    the empty set — the honest outcome for a nonsensical combination, never a 500."""
+    page = search(
+        PUBLIC,
+        filters=SearchFilters(dateless=True, date_from=datetime.date(1900, 1, 1)),
+    )
+    assert page.total == 0
 
 
 # ===========================================================================

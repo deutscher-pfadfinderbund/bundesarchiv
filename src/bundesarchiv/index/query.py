@@ -39,8 +39,10 @@ from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.index.scope import _viewer_scope
 
 # The FTS config both the generated columns and the query parser use (ADR 0011). websearch is the
-# query parser (``websearch_to_tsquery``): quoted phrases, ``-`` negation, bare AND. No prefix
-# ``:*`` and no ``ts_headline`` in v1 (ADR 0011 / brief; Part 4 UX decides presentation).
+# query parser (``websearch_to_tsquery``): quoted phrases, ``-`` negation, bare AND. Part 4 adds the
+# ADR-0011 recall mitigation: prefix (``:*``) matching on the trailing lexeme (``_prefix_tsquery``),
+# which lifts the corpus spot-check from 9/12 to 12/12 (a compound head like ``Lager`` then matches
+# ``Bundeslager``). No ``ts_headline`` in v1.
 _CONFIG = "bundesarchiv_german"
 
 # page_size cap. A page is a human-facing result window; 200 is a generous ceiling that still
@@ -62,6 +64,12 @@ class SearchFilters:
     ``collection`` matches the whole subtree (any row whose ``collection_ancestors`` contains the
     ulid — leaf, mid or root). ``date_from``/``date_to`` are an interval-overlap constraint (see
     ``_apply_date_range``); a row with no date is excluded from any date-range-filtered result.
+
+    ``dateless`` (Part 4, "Ohne Datum" facet — data honesty per the ideas doc) narrows to rows with
+    NO date at all (``date_earliest IS NULL``). It is the exact complement of the date-range filter's
+    NULL exclusion, and mutually exclusive with a date range in practice (a dateless row can never
+    overlap a window): if ``dateless`` and a range are both given, the two ``date_earliest`` clauses
+    (IS NULL vs IS NOT NULL) conjoin to the empty set — the honest, non-crashing outcome.
     """
 
     collection: Ulid | None = None
@@ -71,6 +79,7 @@ class SearchFilters:
     decade: int | None = None
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None
+    dateless: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,11 +106,19 @@ class FacetCount:
 
 @dataclass(frozen=True, slots=True)
 class SearchPage:
-    """A page of hits with the total (pre-pagination, scoped+filtered count) and the facets."""
+    """A page of hits with the total (pre-pagination, scoped+filtered count) and the facets.
+
+    ``dateless_count`` is the "Ohne Datum" facet bucket (Part 4): how many in-scope, in-filter rows
+    carry NO date. Own-dimension-excluded like every other facet (computed with the ``dateless``
+    filter cleared) so it always reads as "how many you'd get by switching this filter on", never
+    collapsed by the current selection. It is a scalar (not a ``FacetCount``) because it has one
+    value — present-or-not — not a set of values to choose among.
+    """
 
     hits: tuple[SearchHit, ...]
     total: int
     facets: Mapping[str, tuple[FacetCount, ...]]
+    dateless_count: int
 
 
 # The columns ``SearchHit`` reads, pulled with ``.values(...)`` so no model instance is built or
@@ -136,7 +153,8 @@ def search(
         filtered, query=query, viewer=viewer, sort=sort, page=page, page_size=page_size
     )
     facets = _facets(matched, filters)
-    return SearchPage(hits=hits, total=total, facets=facets)
+    dateless_count = _dateless_count(matched, filters)
+    return SearchPage(hits=hits, total=total, facets=facets, dateless_count=dateless_count)
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +163,48 @@ def search(
 
 
 def _search_query(text: str | None) -> SearchQuery | None:
-    """The parsed websearch tsquery for ``text``, or ``None`` for a browse (no text). A blank /
-    whitespace-only string is treated as no text — an all-match browse, not an empty query."""
+    """The parsed tsquery for ``text``, or ``None`` for a browse (no text). A blank / whitespace-only
+    string is treated as no text — an all-match browse, not an empty query.
+
+    ADR-0011 recall mitigation: the query is prefix-augmented — the trailing lexeme is given the
+    ``:*`` prefix form so a compound head (``Lager``) matches the whole compound (``Bundeslager``),
+    recovering the recall the missing German decomposition would otherwise lose. See
+    ``_PrefixWebSearchQuery``.
+    """
     if text is None or not text.strip():
         return None
-    return SearchQuery(text, config=_CONFIG, search_type="websearch")
+    return _PrefixWebSearchQuery(text, config=_CONFIG)
+
+
+class _PrefixWebSearchQuery(SearchQuery):
+    """A ``websearch_to_tsquery`` with ``:*`` appended to its trailing lexeme (ADR 0011).
+
+    Postgres has no inline ``:*`` in ``websearch_to_tsquery``, so the ADR's verified pattern is
+    applied at the SQL level: parse with ``websearch_to_tsquery``, cast to text, append ``':*'``, and
+    re-parse with ``to_tsquery`` — which reparses cleanly (``websearch_to_tsquery('Berliner
+    Lieder')::text || ':*'`` → ``'berlin' & 'lied':*``). The ``NULLIF(..., '')`` guard makes an
+    all-stopword query (empty tsquery, whose text is ``''``) fall to ``to_tsquery(config, NULL)`` =
+    the empty tsquery again, instead of the invalid ``':*'``. Subclassing ``SearchQuery`` (not a bare
+    ``Func``) keeps it a first-class query expression usable by both ``@@`` and ``ts_rank``.
+    """
+
+    def as_sql(  # type: ignore[override]
+        self,
+        compiler: object,
+        connection: object,
+        function: str | None = None,
+        template: str | None = None,
+    ) -> tuple[str, list[object]]:
+        # ``params`` carries [config, text] for a websearch SearchQuery; we rebuild the SQL around
+        # the same two params so the config is applied to BOTH the websearch parse and the reparse.
+        sql, params = super().as_sql(compiler, connection, function, template)  # type: ignore[arg-type]
+        # ``sql`` is ``websearch_to_tsquery(%s::regconfig, %s)`` (Django's rendering). Wrap it:
+        # to_tsquery(config, NULLIF(<that>::text, '') || ':*') — but the config param is consumed
+        # once by the inner call, so re-supply it for the outer to_tsquery too. The first param is
+        # always the config (a websearch SearchQuery always renders config + term).
+        config_param = next(iter(params))
+        wrapped = f"to_tsquery(%s::regconfig, NULLIF(({sql})::text, '') || ':*')"
+        return wrapped, [config_param, *params]
 
 
 def _matched_vector(viewer: Viewer) -> F | Func:
@@ -215,6 +270,11 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
         qs = qs.filter(tags__contains=[f.tag])
     if f.decade is not None:
         qs = qs.filter(decades__contains=[f.decade])
+    if f.dateless:
+        # "Ohne Datum": rows with NO date at all. Same column, same NULL rule the date-range filter
+        # uses to EXCLUDE dateless rows — here we SELECT them. Applied over the already-scoped set,
+        # so the scope WHERE rides along (no visibility re-derivation).
+        qs = qs.filter(date_earliest__isnull=True)
     return _apply_date_range(qs, f.date_from, f.date_to)
 
 
@@ -360,14 +420,34 @@ def _facets(
     return scalar | array
 
 
+def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> int:
+    """The "Ohne Datum" facet count: how many in-scope, text-matched, other-filtered rows have NO
+    date (``date_earliest IS NULL``). Own-dimension-excluded like the scalar/array facets — computed
+    over ``matched`` re-filtered by every OTHER dimension (the ``dateless`` and date-range clauses
+    cleared), so it reports what switching the bucket on would yield, and the scope ``WHERE`` rides
+    along from ``matched`` (never re-derived). Date-range is cleared alongside ``dateless`` because a
+    range and "no date" are mutually exclusive dimensions of the same column — leaving a range on
+    would zero this count by construction, which is not the facet's question."""
+    from dataclasses import replace
+
+    other = replace(filters, dateless=False, date_from=None, date_to=None)
+    return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
+
+
 def _without(filters: SearchFilters, key: str) -> SearchFilters:
     """A copy of ``filters`` with the facet ``key``'s own dimension cleared (standard faceting).
     The facet key maps to the filter field it excludes: ``collection`` -> collection,
     ``tags`` -> tag, ``decades`` -> decade, and the scalar keys to themselves."""
     from dataclasses import replace
+    from typing import Any
 
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
-    return replace(filters, **{field: None})
+    # ``field`` is always a nullable facet dimension (collection/media_type/document_type/tag/decade)
+    # — never the bool ``dateless`` — so clearing it to None is well-typed; ``Any`` keeps ``replace``
+    # from narrowing the kwarg value against the union of field types (the same shape it had before
+    # ``dateless`` joined the dataclass).
+    kwargs: dict[str, Any] = {field: None}
+    return replace(filters, **kwargs)
 
 
 def _scalar_facet(
