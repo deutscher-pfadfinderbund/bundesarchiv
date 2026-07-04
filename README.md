@@ -1,29 +1,23 @@
 # DPB Bundesarchiv
 
-A long-lived, controlled-visibility multimedia archive (photos, audio, video, scans, documents) for the Deutscher Pfadfinderbund.
+The digital archive of the Deutscher Pfadfinderbund: photos, documents, audio and
+video, with controlled visibility (public, all members, specific groups, or
+archivists only).
 
-- Domain glossary — [CONTEXT.md](CONTEXT.md)
-- Design decisions — [docs/adr/](docs/adr/)
-- v1 design overview — [docs/design/bundesarchiv-v1.md](docs/design/bundesarchiv-v1.md)
-- Conventions — [docs/conventions.md](docs/conventions.md)
-- Django 6 notes — [docs/django6-notes.md](docs/django6-notes.md)
-- Python 3.14 notes — [docs/python314-notes.md](docs/python314-notes.md)
+## What you need
 
-## Development
+- Python 3.14 or newer
+- [uv](https://docs.astral.sh/uv/) — installs everything else
+- Apple's [`container`](https://github.com/apple/container) CLI (or Docker) — runs
+  the search database
 
-Python ≥ 3.14, managed with [uv](https://docs.astral.sh/uv/).
+## Setup
 
 ```sh
-uv sync            # install dependencies
-uv run pytest      # run tests
-pre-commit install # enable lint + type-check + test hooks
+uv sync   # install all dependencies
 ```
 
-### Search index (Postgres)
-
-The derived search index needs a Postgres 18 with a German Hunspell dictionary baked in.
-Local dev uses Apple's [`container`](https://github.com/apple/container) CLI (Docker is
-not the dev path); build and run it, then apply migrations:
+Start the search database (a Postgres with a German dictionary) and create its tables:
 
 ```sh
 container build -t bundesarchiv-postgres docker/postgres/
@@ -32,81 +26,38 @@ container run -d --name bundesarchiv-pg -p 5434:5432 \
 uv run manage.py migrate
 ```
 
-`docker-compose.yml` is the VPS deploy artifact, not the local dev path — but
-`docker compose up -d` works too and publishes the same Postgres on `localhost:5434`.
-Tests connect via `BUNDESARCHIV_PG_DSN` (default
-`postgresql://postgres:postgres@localhost:5434/bundesarchiv`). Index tests require a
-running Postgres and **fail** (not skip) if it is unreachable; set `BUNDESARCHIV_SKIP_PG=1`
-to skip the DB-backed (`tests/index/`, `tests/app/`) suites for domain-only work.
+(With Docker instead: `docker compose up -d`, then `uv run manage.py migrate`.)
 
-### Background worker (Procrastinate) — ADR 0014
-
-The search index is kept current by a Postgres-backed worker
-([Procrastinate](https://procrastinate.readthedocs.io/)): no broker, jobs live in
-Postgres tables applied by `migrate`. Web write paths update the index synchronously
-(the app-service layer); the worker is the retry net for failed synchronous updates,
-plus the scheduled full reconcile.
+## Start the app
 
 ```sh
-uv run manage.py ensure_index_current   # deploy + worker-startup: rebuild if config_version drifted
-uv run manage.py procrastinate worker    # run the worker (single process)
+DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver
 ```
 
-Runbook knobs (env vars, see `bundesarchiv/index/settings.py`):
+Open <http://localhost:8000>. To try the archive as different people, open
+<http://localhost:8000/_dev/viewer/> and pick a role (archivist, member, public) —
+this switcher exists only in development.
 
-- `BUNDESARCHIV_CANONICAL_ROOT` — the canonical files-store the worker jobs re-read
-  truth from (jobs carry only references, never payloads).
-- `BUNDESARCHIV_RECONCILE_CRON` — the scheduled full-rebuild cadence (default `0 * * * *`,
-  hourly; bounds worst-case staleness after any missed incremental update).
-- Job-table hygiene: prune finished `procrastinate_jobs` rows periodically (the worker's
-  `db_cleanup` periodic task / the `procrastinate` CLI). One index-writer advisory lock
-  serializes every index writer (`indexer._INDEX_WRITER_LOCK_KEY`); do not reuse that key.
+Optional, in a second terminal — the background worker (generates thumbnails,
+retries failed index updates):
 
-### Media serving + thumbnails (Part 4.3) — ADR 0005, roadmap "Media authorization"
+```sh
+DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py procrastinate worker
+```
 
-Every media/thumbnail byte is served ONLY by the authorized view at
-`/media/<article-ulid>/<content-hash>` (+ `/thumb`), which resolves the viewer and calls
-`can_view` on the resolved Collection chain before handing off to the one `media_response`
-seam. The media tree is never web-root reachable; denials/absence are byte-identical 404s.
+## Tests
 
-- `BUNDESARCHIV_X_ACCEL_PREFIX` — set in production (behind nginx): `media_response` returns
-  an `X-Accel-Redirect` to `<prefix>/<store-relative blob path>` and nginx serves the bytes
-  from an `internal;` location over the media tree (nginx handles HTTP Range). Leave UNSET in
-  dev — the seam then streams the blob directly via `FileResponse` (no Range support in dev).
-- `BUNDESARCHIV_THUMBNAIL_ROOT` — the LOCAL derived thumbnail cache (default `var/thumbnails`).
-  Thumbnails are content-hash-keyed WebP files (`<hash>.webp`) generated by the
-  `generate_thumbnail` worker job from canonical image blobs (JPEG/PNG/TIFF via Pillow;
-  non-images no-op). This cache is **NOT** the ObjectStore, **NOT** canonical, **NOT** mirrored,
-  **NOT** backed up, and freely **prunable** — a pruned/never-generated thumbnail simply 404s
-  (byte-identically) until the job regenerates it. Point it at a cache dir on the same host
-  that serves media; safe to `rm -rf` between runs.
+```sh
+uv run pytest                          # full suite (needs the database from Setup)
+BUNDESARCHIV_SKIP_PG=1 uv run pytest   # without a database (skips index + app tests)
+pre-commit install                     # lint + type-check + tests on every commit
+```
 
-### WebDAV mirror (Part 4.9) — ADR 0005, roadmap "mirror is never a read path"
+## Learn more
 
-An OPTIONAL Nextcloud/WebDAV **browse-only convenience** copy of the canonical store. The mirror is
-**never a read path** and **is NOT backup** — durability is restic (the day-one go-live gate).
-Nothing reads from it; it exists only so a human can browse the archive tree in a familiar file UI.
-Leave it UNSET (the default) and all mirror machinery no-ops cleanly.
-
-The mirror is kept current the same way as the index: write paths enqueue an async `mirror_push`
-reference job per touched canonical key (out-of-band — never blocks or fails the save), and a
-periodic `mirror_reconcile` sweeps the whole store to re-push anything missed and delete
-mirror-only stragglers (the mirror mirrors; it never accumulates). Jobs are references (they carry
-a key and re-read canonical at run), so a stale push whose key was deleted deletes it from the
-mirror too. A down/slow mirror retries with bounded exponential backoff, then parks — the next
-reconcile heals it.
-
-- `BUNDESARCHIV_MIRROR_DAV_URL` — the WebDAV base URL. **Unset ⇒ mirror off** (no store built, no
-  jobs enqueued, reconcile no-ops). This is the common dev case.
-  **WARNING: point this at a dedicated folder the app owns exclusively. Reconcile deletes
-  everything under this root that is not in canonical — never share it with human-managed files.**
-  (An anomalously large delete sweep logs a warning naming the deleted keys.)
-- `BUNDESARCHIV_MIRROR_DAV_USER` / `BUNDESARCHIV_MIRROR_DAV_PASSWORD` — mirror credentials.
-- `BUNDESARCHIV_MIRROR_RECONCILE_CRON` — the scheduled full-sweep cadence (default `0 3 * * *`,
-  daily; coarser than the hourly index reconcile because a briefly-stale browse copy harms
-  nothing). The `mirror_reconcile` task logs and returns a `{pushed, deleted, failed}` summary.
-
-A live-Nextcloud mirror smoke is a Part 6 runbook item; the in-repo tests cover the logic against
-both the in-memory double and the real WebDAV adapter (the ObjectStore port is the seam).
-
-Status: greenfield. Building the persistence layer first — see [docs/plans/part-1-persistence.md](docs/plans/part-1-persistence.md).
+- [CONTEXT.md](CONTEXT.md) — what the domain words mean
+- [docs/adr/](docs/adr/) — design decisions and why
+- [docs/runbook.md](docs/runbook.md) — production/operations: media serving,
+  thumbnails, the WebDAV mirror, worker and reconcile settings
+- [docs/design/bundesarchiv-v1.md](docs/design/bundesarchiv-v1.md) — v1 design overview
+- [docs/conventions.md](docs/conventions.md) — code conventions
