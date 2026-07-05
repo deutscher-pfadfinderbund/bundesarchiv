@@ -87,11 +87,14 @@ def _describe(viewer: Viewer) -> str:
 
 
 def _render_form(current: Viewer) -> str:
-    """Minimal no-JS German switcher form: three radio choices + a groups text input. Dev-only, so
-    styling is deliberately nil — this page never ships to production."""
+    """Minimal no-JS German switcher form: three radio choices + a groups text input. Dev-only; it
+    borrows the workbench stylesheet (same-origin, self-contained) for a consistent minimal look —
+    no styling of its own beyond the shared ``stub-card`` shell."""
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
+        '<link rel="stylesheet" href="/static/workbench.css">'
         "<title>Dev: Betrachter wechseln</title></head><body>"
+        '<main class="stub-card">'
         "<h1>Betrachter wechseln (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
         f'<form method=post action="{SWITCHER_PATH}">'
@@ -99,6 +102,6 @@ def _render_form(current: Viewer) -> str:
         "<p><label><input type=radio name=kind value=member checked> Mitglied</label>"
         ' Gruppen: <input type=text name=groups placeholder="gruppe1, gruppe2"></p>'
         "<p><label><input type=radio name=kind value=public> Öffentlich</label></p>"
-        "<p><button type=submit>Übernehmen</button></p>"
-        "</form></body></html>"
+        '<p><button class="btn" type=submit>Übernehmen</button></p>'
+        "</form></main></body></html>"
     )

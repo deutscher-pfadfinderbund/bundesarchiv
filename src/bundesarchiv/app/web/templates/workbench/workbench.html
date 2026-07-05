@@ -1,33 +1,32 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-The workbench full page (Part 4.5-MVP). Plain GET renders this whole page; an HX-Request GET
-renders only _results.html into #results. Both share the same context — the no-JS baseline and the
-HTMX swap are one code path. URL-as-state: the form GETs to "/" with param q, so the URL always
+The workbench full page (Part 4.5). Plain GET renders this whole page; an HX-Request GET renders
+only _results.html into #results. Both share the same context — the no-JS baseline and the HTMX
+swap are one code path. URL-as-state: the form GETs to "/" with param q, so the URL always
 reflects the state (hx-push-url keeps the enhanced path honest too).
 Multi-line notes MUST use comment blocks — Django's hash-comment syntax is single-line only and
 renders literally into the page otherwise.
 {% endcomment %}
 {% block title %}Findbuch — Suche{% endblock %}
-{% block body %}
-<div class="topbar">
+{% block header %}
   {% comment %}
   GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
   URL; without JS the form still submits normally to "/".
   {% endcomment %}
-  <form method="get" action="/"
+  <form class="search" role="search" method="get" action="/"
         hx-get="/" hx-target="#results" hx-select="#results" hx-swap="outerHTML"
         hx-push-url="true" hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
     <input type="search" name="q" value="{{ text }}" placeholder="Im Findbuch suchen…"
            aria-label="Suche">
-    <button type="submit">Suchen</button>
+    <button class="btn" type="submit">Suchen</button>
   </form>
   {% comment %}
   Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
   search()/can_view; the /artikel/neu ROUTE is independently gated either way).
   {% endcomment %}
   {% if is_archivist %}<a class="neu" href="/artikel/neu">Neuer Artikel</a>{% endif %}
-</div>
-
+{% endblock %}
+{% block body %}
 <div class="layout">
   <aside class="sidebar" aria-label="Facetten">
     {% include "workbench/_facets.html" %}

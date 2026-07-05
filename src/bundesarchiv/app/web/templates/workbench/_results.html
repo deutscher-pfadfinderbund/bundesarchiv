@@ -1,21 +1,21 @@
 {% comment %}
-The results region — the HTMX swap target (#results). Rendered standalone on an HX-Request and
-embedded in the full page on a plain GET. Contains the active-filter chips, the sort control, the
-result cards and numbered pagination. No visibility logic: every hit here is already viewer-scoped
-by search().
+The results region — the HTMX swap target (#results) and the page's main landmark. Rendered
+standalone on an HX-Request and embedded in the full page on a plain GET. One toolbar row (hit
+count + removable filter chips left, sort select right), the result cards with a single muted meta
+row (the separators between meta spans are CSS-generated), an honest empty state, and numbered
+pagination. No visibility logic: every hit here is already viewer-scoped by search().
 {% endcomment %}
-<section class="results" id="results">
-  {% if chips %}
-  <ul class="chips" aria-label="Aktive Filter">
-    {% for chip in chips %}
-    <li class="chip">{{ chip.label }}: {{ chip.value }}
-      <a href="?{{ chip.remove_query }}" aria-label="{{ chip.label }} entfernen">✕</a></li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-
-  <div class="results-head">
-    <p>{{ total }} Treffer</p>
+<main class="results" id="results">
+  <div class="results-toolbar">
+    <p class="hit-count">{{ total }} Treffer</p>
+    {% if chips %}
+    <ul class="chips" aria-label="Aktive Filter">
+      {% for chip in chips %}
+      <li class="chip">{{ chip.label }}: {{ chip.value }}
+        <a href="?{{ chip.remove_query }}" aria-label="{{ chip.label }} entfernen">✕</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
     {% comment %}
     Sort as a GET form: changing it navigates with the new sortierung, preserving other params
     (they ride as hidden inputs). No-JS friendly: onchange submits; a plain submit works too.
@@ -30,7 +30,7 @@ by search().
           {% endfor %}
         </select>
       </label>
-      <noscript><button type="submit">Anwenden</button></noscript>
+      <noscript><button class="btn" type="submit">Anwenden</button></noscript>
     </form>
   </div>
 
@@ -38,16 +38,17 @@ by search().
   <article class="card">
     <h2><a href="/artikel/{{ hit.ulid }}">{{ hit.title }}</a></h2>
     <p class="meta">
-      {% if hit.ref_code %}<span class="sig">Signatur: {{ hit.ref_code }}</span>{% endif %}
-      {% if hit.date_edtf %} · <span class="dat">Datierung: {{ hit.date_edtf }}</span>{% endif %}
-    </p>
-    <p class="meta">
-      {% if hit.media_type %}<span class="tag">{{ hit.media_type }}</span>{% endif %}
-      {% if hit.document_type %}<span class="tag">{{ hit.document_type }}</span>{% endif %}
+      {% if hit.ref_code %}<span>Signatur {{ hit.ref_code }}</span>{% endif %}
+      {% if hit.date_edtf %}<span>Datierung {{ hit.date_edtf }}</span>{% endif %}
+      {% if hit.media_type %}<span>{{ hit.media_type }}</span>{% endif %}
+      {% if hit.document_type %}<span>{{ hit.document_type }}</span>{% endif %}
     </p>
   </article>
   {% empty %}
-  <p>Keine für dich sichtbaren Treffer.</p>
+  <div class="empty">
+    <p class="empty-title">Keine Treffer</p>
+    <p class="empty-hint">Entferne einzelne Filter oder ändere den Suchbegriff.</p>
+  </div>
   {% endfor %}
 
   {% if has_prev or has_next %}
@@ -57,4 +58,4 @@ by search().
     {% if has_next %}<a href="?{{ next_query }}" rel="next">Weiter →</a>{% endif %}
   </nav>
   {% endif %}
-</section>
+</main>

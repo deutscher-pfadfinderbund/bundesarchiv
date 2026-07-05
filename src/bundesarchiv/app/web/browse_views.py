@@ -232,11 +232,23 @@ def article_new_stub(request: HttpRequest) -> HttpResponseBase:
     return render(request, "workbench/stub_new.html", {})
 
 
-def serve_htmx(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/htmx.min.js`` — the vendored htmx, for dev/no-CDN serving. Prod serves static
-    files via nginx; this keeps ``runserver`` self-contained (the enhancement layer degrades to the
-    no-JS baseline if the file is ever unavailable, so this is best-effort)."""
-    path = _STATIC_DIR / "htmx.min.js"
+def _serve_static(filename: str, content_type: str) -> HttpResponseBase:
+    """One vendored static file from the web package's ``static/`` dir, for dev/no-CDN serving.
+    Prod serves these via nginx; this keeps ``runserver`` self-contained. Same-origin only — the
+    stylesheet/script are self-contained by design (no external requests, dormancy rule)."""
+    path = _STATIC_DIR / filename
     if not path.is_file():
         return _not_found()
-    return FileResponse(path.open("rb"), content_type="application/javascript")
+    return FileResponse(path.open("rb"), content_type=content_type)
+
+
+def serve_htmx(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/htmx.min.js`` — the vendored htmx (the enhancement layer degrades to the
+    no-JS baseline if the file is ever unavailable, so this is best-effort)."""
+    return _serve_static("htmx.min.js", "application/javascript")
+
+
+def serve_stylesheet(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/workbench.css`` — the self-contained workbench stylesheet (design tokens as
+    CSS custom properties; no webfonts, no external requests)."""
+    return _serve_static("workbench.css", "text/css")
