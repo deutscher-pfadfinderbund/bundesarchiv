@@ -73,8 +73,13 @@ confirm or amend ADR 0004).
 - **Keycloak hosting (review: critical)**: compose service + its DB on the VPS, realm/
   client/group bootstrap, realm export into the restic backup set, RAM budget checked.
 - First-Archivist bootstrap + grant/revoke runbook (out-of-app by design).
-- **Dead-IdP decision (review)**: either accept "IdP down = members can't log in" and
-  re-scope design §11 explicitly, or build the minimal cached read path. Decide here.
+- **Dead-IdP decision (owner, 2026-07-05): accept lockout.** IdP down means no new
+  member logins until it is back; existing sessions keep working, public published
+  content is unaffected (served without a Keycloak round-trip by design). No cached
+  claims path — it would add revocation lag (a removed group member keeps group-tier
+  access until cache expiry) for little gain, since Keycloak shares the VPS with the
+  app. Part 5 must state this degradation explicitly in the design §11 notes and the
+  runbook.
 
 ## Part 6 — release hardening + go-live
 
