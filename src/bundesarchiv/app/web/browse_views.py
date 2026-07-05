@@ -57,6 +57,11 @@ def workbench(request: HttpRequest) -> HttpResponse:
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
     )
     context = _results_context(request, parsed, page)
+    # Presentation-only chrome flag: the template hides the "Neuer Artikel" button for
+    # non-Archivists so an anonymous viewer never sees an admin affordance that 404s. This is NOT
+    # scoping (§11) — result visibility is decided exclusively by search()/can_view; the
+    # /artikel/neu ROUTE stays independently Archivist-gated regardless of this flag.
+    context["is_archivist"] = isinstance(viewer, Archivist)
     if request.headers.get("HX-Request"):
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)

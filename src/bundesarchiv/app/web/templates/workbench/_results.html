@@ -1,7 +1,9 @@
-{# The results region — the HTMX swap target (#results). Rendered standalone on an HX-Request and
-   embedded in the full page on a plain GET. Contains the active-filter chips, the sort control, the
-   result cards and numbered pagination. No visibility logic: every hit here is already viewer-scoped
-   by search(). #}
+{% comment %}
+The results region — the HTMX swap target (#results). Rendered standalone on an HX-Request and
+embedded in the full page on a plain GET. Contains the active-filter chips, the sort control, the
+result cards and numbered pagination. No visibility logic: every hit here is already viewer-scoped
+by search().
+{% endcomment %}
 <section class="results" id="results">
   {% if chips %}
   <ul class="chips" aria-label="Aktive Filter">
@@ -14,8 +16,10 @@
 
   <div class="results-head">
     <p>{{ total }} Treffer</p>
-    {# Sort as a GET form: changing it navigates with the new sortierung, preserving other params
-       (they ride as hidden inputs). No-JS friendly: onchange submits; a plain submit works too. #}
+    {% comment %}
+    Sort as a GET form: changing it navigates with the new sortierung, preserving other params
+    (they ride as hidden inputs). No-JS friendly: onchange submits; a plain submit works too.
+    {% endcomment %}
     <form method="get" action="/" class="sortform">
       {% for key, value in params.items %}{% if key != "sortierung" and key != "seite" %}
       <input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}

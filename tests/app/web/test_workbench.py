@@ -215,17 +215,44 @@ def test_prefix_recall_fahrt_finds_fahrtenbericht(corpus_root: Path) -> None:
 def test_plain_get_renders_full_page(corpus_root: Path) -> None:
     response = _get(corpus_root, Public())
     body = response.content.decode()
-    assert "<html" in body and "Neuer Artikel" in body  # full chrome
+    assert "<html" in body and "Suchen" in body  # full chrome (search form)
     assert 'id="results"' in body
 
 
 @pytest.mark.django_db
 def test_hx_request_renders_only_results_partial(corpus_root: Path) -> None:
-    response = _get(corpus_root, Public(), "q=Foto", hx=True)
+    # As Archivist so the "Neuer Artikel" absence below is load-bearing (the button DOES render on
+    # the Archivist's full page — its absence here proves the topbar is outside the partial).
+    response = _get(corpus_root, Archivist(), "q=Foto", hx=True)
     body = response.content.decode()
     assert 'id="results"' in body  # the swap target
     assert "<html" not in body  # NOT the full page — just the region
     assert "Neuer Artikel" not in body  # topbar is outside the partial
+
+
+# --- template hygiene + archivist chrome ------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "viewer",
+    [Public(), Member(groups=()), Archivist()],
+    ids=["public", "member", "archivist"],
+)
+def test_no_template_comment_syntax_leaks_into_page(corpus_root: Path, viewer: Viewer) -> None:
+    # Django's hash-style template comment is SINGLE-LINE only: a multi-line one renders literally
+    # into the page. Pin that no comment syntax ever reaches the body, for every tier.
+    body = _get(corpus_root, viewer).content.decode()
+    assert "{#" not in body
+
+
+@pytest.mark.django_db
+def test_neuer_artikel_chrome_only_for_archivist(corpus_root: Path) -> None:
+    # The ROUTE is archivist-gated regardless; this pins the CHROME — Public/Member must not be
+    # shown an admin affordance that 404s when clicked (and must not learn it exists).
+    assert "Neuer Artikel" in _get(corpus_root, Archivist()).content.decode()
+    assert "Neuer Artikel" not in _get(corpus_root, Public()).content.decode()
+    assert "Neuer Artikel" not in _get(corpus_root, Member(groups=())).content.decode()
 
 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
