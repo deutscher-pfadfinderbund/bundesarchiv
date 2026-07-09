@@ -126,8 +126,9 @@ Binding constraints regardless of prototype outcome:
   names by design); preview/publish/move endpoints join the 4.10 leak suite —
   Member/Public hitting them → redirect/404, never widget content.
 - Collection deletion blocked while descendants/articles exist (ADR 0014).
-- German UI language per CONTEXT.md glossary; Findbuch vocabulary per ideas
-  doc where it fits without inventing features.
+- German UI language per CONTEXT.md glossary, plain and modern. (REVERSED
+  2026-07-10: "Findbuch" banned from UI copy — archaic. Development-facing
+  language — code, routes, dev pages, docs — is English.)
 - `is_valid_ulid` guards route params (its long-parked caller).
 - Uploads: content-hash on receipt, write-once semantics — re-upload of an
   existing blob is a no-op attach.
@@ -138,8 +139,7 @@ top, Tektonik/Bestand entry points below). Results: card list default,
 auto-flip to thumbnail grid for photo-heavy result sets. Cataloging:
 single-article form first; the batch dropzone→annotate-queue pipeline is its
 own follow-up task once the form ships. Upload: progress bar in v1; resumable/
-chunked deferred until it hurts. Defaults (owner-delegated): Findbuch as
-*language* (headings/terms), not a layout regime; "Ohne Datum" is a
+chunked deferred until it hurts. Defaults (owner-delegated): "Ohne Datum" is a
 first-class facet value (data honesty); visibility preview speaks human German
 ("Alle Mitglieder", named groups), not ladder rungs; curated entry points
 fixed in code for v1.
