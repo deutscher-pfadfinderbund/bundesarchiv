@@ -81,8 +81,11 @@ Semantic notes:
   faces are a later, drop-in decision.
 - **Spacing**: 4px-base scale (`--space-1` … `--space-8`), density chosen for
   a weekly work tool: compact but not cramped.
-- **Shape**: `--radius-s`, `--radius-m`, and `--notch` (the index-card corner
-  clip-path — the one shape signature, used on the Signatur tab and cards).
+- **Shape**: `--radius-s`, `--radius-m`, `--bevel`. Cut corners draw via
+  native `corner-shape: bevel` (the index-card cut — the one shape signature,
+  used on the Signatur tab, cards and drawer tabs); the browser owns the
+  geometry, so borders and fills follow it automatically. Older browsers
+  render rounded corners instead — accepted, no fallback (owner, 2026-07-10).
 
 ## Component mapping (workbench)
 
@@ -93,7 +96,7 @@ Semantic notes:
 | Facet group panels | `surface-container-low`, headings `label`/`on-surface-variant` |
 | Active facet | `primary-container` / `on-primary-container` |
 | Result card | `surface-container-low`, hover `-mid` |
-| Signatur tab | `primary-container` / `on-primary-container`, `mono`, `--notch`; draft: dashed `outline-variant`, no fill |
+| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; draft: dashed `outline-variant`, no fill |
 | Chips | `primary-container` / `on-primary-container` |
 | Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
 | ENTWURF badge | `draft` / `on-draft` |

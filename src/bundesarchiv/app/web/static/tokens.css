@@ -124,17 +124,12 @@
   --space-7: 1.75rem; /* 28px */
   --space-8: 2rem; /* 32px */
 
-  /* Shape: the two radii and the index-card notch — the one shape
-     signature (Signatur tab, result cards). `--notch` is the ready
-     clip-path; `--notch-size` the corner cut it derives from. */
+  /* Shape: two radii and the bevel size. The house corner style is native
+     `corner-shape: bevel` — the index-card cut (cards, Signatur tab, drawer
+     tabs); the browser draws the geometry, so borders and fills follow it
+     automatically. Older browsers ignore corner-shape and render rounded
+     corners instead — explicitly accepted, no fallback (owner, 2026-07-10). */
   --radius-s: 4px;
   --radius-m: 6px;
-  --notch-size: 12px;
-  --notch: polygon(
-    0 0,
-    calc(100% - var(--notch-size)) 0,
-    100% var(--notch-size),
-    100% 100%,
-    0 100%
-  );
+  --bevel: 12px;
 }

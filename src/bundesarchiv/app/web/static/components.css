@@ -1,7 +1,10 @@
 /* Component atoms (templates/components/*.html) — styles consume ROLE tokens from tokens.css
    ONLY (design-system.md: "a hex value in a component style is a defect"; pinned by test).
    Load order: tokens.css first, then this file. No external requests, no raw color values;
-   the only color functions allowed are var() over roles and color-mix() OVER roles. */
+   the only color functions allowed are var() over roles and color-mix() OVER roles.
+
+   Visual language: crisp, flat, workmanlike (the approved round-3 mock) — NOT Material. Small
+   beveled corners, hairline borders, dense proportions, mono for Signaturen/counts/dates. */
 
 /* ---- focus: the one global interaction invariant (3:1 on every surface, gated) ---- */
 
@@ -10,12 +13,35 @@
   outline-offset: 2px;
 }
 
-/* ---- button ---- */
+/* ---- house corner style: every corner is a BEVEL ----
+   The index-card cut is the shape signature; native corner-shape: bevel lets the browser draw
+   the geometry, so borders and fills follow it automatically (no clip-path, no hairline hacks).
+   Sizes come from each component's border-radius: --radius-s on interactive elements,
+   --radius-m on panels/tabs, --bevel for the card's big index cut. Older browsers ignore
+   corner-shape and render rounded corners — accepted, no fallback (owner, 2026-07-10). */
+
+.c-btn,
+.c-input,
+.c-select,
+.c-chip,
+.c-chip-x,
+.c-badge,
+.c-sig,
+.c-facet,
+.c-facet-tab,
+.c-facet-row,
+.c-card,
+.c-empty {
+  corner-shape: bevel;
+}
+
+/* ---- button: flat, dense, hairline-bordered ---- */
 
 .c-btn {
   display: inline-block;
   font: var(--type-body);
-  padding: var(--space-2) var(--space-4);
+  font-size: 0.9rem;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-s);
   cursor: pointer;
   text-decoration: none;
@@ -35,7 +61,7 @@
   background: color-mix(in oklab, var(--primary), var(--on-primary) 12%);
 }
 
-/* ---- field label + input + select ---- */
+/* ---- field label + input + select: squarer, hairline, dense ---- */
 
 .c-field {
   display: inline-flex;
@@ -52,39 +78,41 @@
 .c-input,
 .c-select {
   font: var(--type-body);
+  font-size: 0.9rem;
   color: var(--on-surface);
   background: var(--surface-container-lowest);
   border: 1px solid var(--outline);
   border-radius: var(--radius-s);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
 }
 .c-input::placeholder { color: var(--on-surface-variant); }
 
-/* ---- removable filter chip ---- */
+/* ---- removable filter chip: a compact rectangular tag, not a pill ---- */
 
 .c-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   font: var(--type-mono);
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   background: var(--primary-container);
   color: var(--on-primary-container);
-  border-radius: 999px;
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-s);
+  padding: calc(var(--space-1) / 2) var(--space-1) calc(var(--space-1) / 2) var(--space-2);
 }
 .c-chip-x {
   color: inherit;
   text-decoration: none;
-  padding: 0 var(--space-2);
-  border-radius: 999px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-s);
 }
 .c-chip-x:hover {
   background: var(--primary);
   color: var(--on-primary);
 }
 
-/* ---- badges (lifecycle + visibility) ---- */
+/* ---- badges (lifecycle + visibility): small flat marks ---- */
 
 .c-badge {
   display: inline-block;
@@ -113,7 +141,7 @@
   border: 1px solid var(--outline);
 }
 
-/* ---- Signatur tab (the shape signature) ---- */
+/* ---- Signatur tab (the shape signature): beveled leading corner ---- */
 
 .c-sig {
   display: inline-flex;
@@ -124,9 +152,9 @@
   font-variant-numeric: tabular-nums;
   background: var(--primary-container);
   color: var(--on-primary-container);
-  padding: var(--space-1) var(--space-3);
-  /* notched leading corner — the drawer-label silhouette */
-  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  /* the drawer-label silhouette: one beveled leading corner */
+  border-radius: var(--radius-m) 0 0 0;
 }
 .c-sig-label {
   font: var(--type-label);
@@ -139,12 +167,11 @@
   white-space: nowrap;
 }
 .c-sig--leer {
-  /* unfiled: the hollow dashed slot (draft look — dashed outline-variant, no fill) */
+  /* unfiled: the hollow dashed slot — SAME silhouette as the filled tab (the dashed border
+     follows the bevel), so filed vs unfiled reads as stamped tab vs empty slot */
   background: transparent;
   color: var(--on-surface-variant);
-  clip-path: none;
   border: 1px dashed var(--outline-variant);
-  border-radius: var(--radius-s);
 }
 
 /* ---- facet group panel with drawer-label tab ---- */
@@ -171,7 +198,8 @@
   font: var(--type-label);
   letter-spacing: var(--label-tracking);
   text-transform: uppercase;
-  clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%);
+  /* drawer-label silhouette: one beveled leading corner */
+  border-radius: var(--radius-m) 0 0 0;
 }
 .c-facet-list {
   list-style: none;
@@ -208,29 +236,17 @@
   font-weight: 600;
 }
 
-/* ---- result card (index-card notch) ---- */
+/* ---- result card: the index-card cut, drawn natively ---- */
 
 .c-card {
-  position: relative;
   background: var(--surface-container-low);
   border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-m);
+  /* big beveled index cut top-right (--bevel), small bevels elsewhere — the border follows
+     the cut automatically, which is the whole point of corner-shape */
+  border-radius: var(--radius-s) var(--bevel) var(--radius-s) var(--radius-s);
   padding: var(--space-4);
-  clip-path: var(--notch);
 }
 .c-card:hover { background: var(--surface-container-mid); }
-.c-card::after {
-  /* redraw the notch diagonal as a hairline — the clip removes the border along the cut */
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: calc(var(--notch-size) + 2px);
-  height: calc(var(--notch-size) + 2px);
-  background: var(--outline-variant);
-  clip-path: polygon(0 0, 100% 100%, calc(100% - 2px) 100%, 0 2px);
-  pointer-events: none;
-}
 .c-card-kopf {
   display: flex;
   flex-wrap: wrap; /* narrow viewports: badges drop under the Signatur tab, never overflow */
@@ -238,7 +254,7 @@
   align-items: flex-start;
   gap: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
-  padding-right: calc(var(--notch-size) + var(--space-1));
+  padding-right: calc(var(--bevel) + var(--space-1));
 }
 .c-card-badges {
   display: inline-flex;
@@ -276,6 +292,7 @@
   justify-content: center;
   margin-top: var(--space-4);
   font: var(--type-body);
+  font-size: 0.9rem;
   color: var(--on-surface-variant);
 }
 .c-pager a {
