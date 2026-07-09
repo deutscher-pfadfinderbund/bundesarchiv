@@ -73,6 +73,47 @@ def test_component_library_route_does_not_resolve_under_prod_urlconf() -> None:
         resolve("/_dev/components/", urlconf="bundesarchiv.app.web.urls")
 
 
+# --- design-variant routes ----------------------------------------------------------
+
+
+@override_settings(**_DEV)
+def test_baseline_links_the_baseline_stylesheet() -> None:
+    body = Client().get("/_dev/components/").content.decode()
+    assert '<link rel="stylesheet" href="/static/components.css">' in body
+
+
+@override_settings(**_DEV)
+def test_whitelisted_variant_renders_with_its_stylesheet(monkeypatch: pytest.MonkeyPatch) -> None:
+    from bundesarchiv.app.web import components_demo
+
+    monkeypatch.setattr(components_demo, "VARIANTS", {"probe": "components-probe.css"})
+    response = Client().get("/_dev/components/probe/")
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert '<link rel="stylesheet" href="/_dev/static/components-probe.css">' in body
+    assert ">probe</a>" in body  # the variant-switcher nav lists the registered variant
+
+
+@override_settings(**_DEV)
+def test_unknown_variant_is_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    from bundesarchiv.app.web import components_demo
+
+    monkeypatch.setattr(components_demo, "VARIANTS", {"probe": "components-probe.css"})
+    assert Client().get("/_dev/components/woven-nonsense/").status_code == 404
+
+
+@override_settings(**_DEV)
+def test_variant_stylesheet_route_serves_only_whitelisted_files() -> None:
+    # Not registered -> 404; the route can never become an arbitrary-static-file server.
+    assert Client().get("/_dev/static/anything-else.css").status_code == 404
+
+
+def test_variant_routes_do_not_resolve_under_prod_urlconf() -> None:
+    for path in ("/_dev/components/stamp/", "/_dev/static/components-stamp.css"):
+        with pytest.raises(Resolver404):
+            resolve(path, urlconf="bundesarchiv.app.web.urls")
+
+
 # --- components consume roles only -------------------------------------------------
 
 
@@ -81,7 +122,10 @@ def _component_files() -> list[Path]:
     present = {f.name for f in files}
     missing = _EXPECTED_ATOMS - present
     assert not missing, f"component atoms missing from {_COMPONENTS_DIR}: {sorted(missing)}"
-    return [*files, _COMPONENTS_CSS]
+    # Variant stylesheets (static/components-*.css) are components too — every registered AND
+    # every on-disk variant css joins the sweep, so an experiment cannot smuggle raw colors.
+    variant_css = sorted(_COMPONENTS_CSS.parent.glob("components-*.css"))
+    return [*files, _COMPONENTS_CSS, *variant_css]
 
 
 def test_components_carry_no_raw_color_values() -> None:

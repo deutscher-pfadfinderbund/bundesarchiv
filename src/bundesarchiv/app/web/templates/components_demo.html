@@ -1,9 +1,11 @@
 {% comment %}
-Dev-only component library (/_dev/components/ — see components_demo.py). English chrome
-(development-facing); German copy INSIDE the atoms (product UI). Every sample renders twice via
-the modes loop: each column forces its own color-scheme, and light-dark() resolves per element,
-so light and dark sit side by side in one document, no JS. Each sample is annotated with its
-include path + params, so this page doubles as the developer documentation for the atoms.
+Dev-only component library (/_dev/components/[<variant>/] — see components_demo.py). English
+chrome (development-facing); German copy INSIDE the atoms (product UI). Every sample renders
+twice via the modes loop: each column forces its own color-scheme, and light-dark() resolves per
+element, so light and dark sit side by side in one document, no JS. Each sample is annotated with
+its include path + params, so this page doubles as the developer documentation for the atoms.
+The component stylesheet href comes from the view (baseline or a whitelisted design variant) —
+design iterations happen on the real atoms, this template never changes per variant.
 {% endcomment %}<!doctype html>
 <html lang="en">
 <head>
@@ -11,7 +13,7 @@ include path + params, so this page doubles as the developer documentation for t
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Component library — dev</title>
   <link rel="stylesheet" href="/static/tokens.css">
-  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="{{ stylesheet }}">
   <style>
     /* Page scaffolding only — role tokens, no raw colors here either. */
     * { box-sizing: border-box; }
@@ -98,6 +100,15 @@ include path + params, so this page doubles as the developer documentation for t
     }
     .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
     .sig-narrow { max-width: 9rem; }
+    .variants { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+                margin: 0 0 var(--space-6); font-size: 0.85rem; }
+    .variants .vlabel { color: var(--on-surface-variant); font: var(--type-label);
+                        letter-spacing: var(--label-tracking); text-transform: uppercase; }
+    .variants a { color: var(--on-surface); text-decoration: none; padding: 0.1rem var(--space-2);
+                  border: 1px solid var(--outline-variant); border-radius: var(--radius-s); }
+    .variants a:hover { border-color: var(--outline); }
+    .variants a[aria-current="page"] { background: var(--on-surface); color: var(--surface);
+                                       border-color: var(--on-surface); }
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -109,6 +120,14 @@ include path + params, so this page doubles as the developer documentation for t
 <p class="lead">Design-system atoms (templates/components/) and tokens (static/tokens.css), each
 sample rendered light / dark via a forced per-column <code>color-scheme</code>. Chrome is
 English; the copy inside atoms is product UI German.</p>
+
+<nav class="variants" aria-label="Design variants">
+  <span class="vlabel">Variant:</span>
+  <a href="/_dev/components/"{% if not variant %} aria-current="page"{% endif %}>baseline</a>
+  {% for name in variant_names %}
+  <a href="/_dev/components/{{ name }}/"{% if name == variant %} aria-current="page"{% endif %}>{{ name }}</a>
+  {% endfor %}
+</nav>
 
 <h2>Tokens — surface ramp</h2>
 <div class="probe">
