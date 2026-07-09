@@ -1,0 +1,283 @@
+{% comment %}
+Dev-only component library (/_dev/components/ — see components_demo.py). English chrome
+(development-facing); German copy INSIDE the atoms (product UI). Every sample renders twice via
+the modes loop: each column forces its own color-scheme, and light-dark() resolves per element,
+so light and dark sit side by side in one document, no JS. Each sample is annotated with its
+include path + params, so this page doubles as the developer documentation for the atoms.
+{% endcomment %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Component library — dev</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <style>
+    /* Page scaffolding only — role tokens, no raw colors here either. */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--surface);
+      color: var(--on-surface);
+      font: var(--type-body);
+      padding: var(--space-6) var(--space-6) var(--space-8);
+      max-width: 70rem;
+      margin-inline: auto;
+    }
+    h1 { font: var(--type-display); margin: 0 0 var(--space-2); }
+    .lead { color: var(--on-surface-variant); margin: 0 0 var(--space-6); }
+    /* Section headings only — direct children of body, so the chrome style can never leak
+       into an atom's own h2 (the card title is an h2). */
+    body > h2 {
+      font: var(--type-label);
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+      margin: var(--space-8) 0 var(--space-3);
+      border-bottom: 1px solid var(--outline-variant);
+      padding-bottom: var(--space-1);
+    }
+    .col .c-card + .c-card { margin-top: var(--space-3); }
+    .probe {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-m);
+      overflow: hidden;
+      margin-bottom: var(--space-2);
+    }
+    .col {
+      position: relative;
+      background: var(--surface);
+      color: var(--on-surface);
+      padding: var(--space-6) var(--space-4) var(--space-4);
+      min-width: 0;
+    }
+    .col::before {
+      content: attr(data-mode);
+      position: absolute;
+      top: var(--space-1);
+      right: var(--space-2);
+      font: var(--type-label);
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+    .doc {
+      display: block;
+      font: var(--type-mono);
+      color: var(--on-surface-variant);
+      margin: 0 0 var(--space-5);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .swatch {
+      flex: 1 1 8rem;
+      min-width: 8rem;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-s);
+      padding: var(--space-3) var(--space-2);
+      font: var(--type-mono);
+      font-size: 0.72rem;
+    }
+    .linebox {
+      display: inline-block;
+      padding: var(--space-2) var(--space-3);
+      border: 2px solid var(--outline);
+      border-radius: var(--radius-s);
+    }
+    .ringbox {
+      display: inline-block;
+      padding: var(--space-2) var(--space-3);
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: var(--radius-s);
+      margin-left: var(--space-3);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+    .sig-narrow { max-width: 9rem; }
+    @media (max-width: 640px) {
+      .probe { grid-template-columns: 1fr; }
+      body { padding: var(--space-4); }
+    }
+  </style>
+</head>
+<body>
+<h1>Component library</h1>
+<p class="lead">Design-system atoms (templates/components/) and tokens (static/tokens.css), each
+sample rendered light / dark via a forced per-column <code>color-scheme</code>. Chrome is
+English; the copy inside atoms is product UI German.</p>
+
+<h2>Tokens — surface ramp</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="swatches">
+      {% for bg, fg in swatch_surface_ramp %}
+      <div class="swatch" style="background: var(--{{ bg }}); color: var(--{{ fg }})">{{ bg }}<br>/ {{ fg }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">static/tokens.css · roles surface, surface-container-lowest/low/mid/high vs on-surface</code>
+
+<h2>Tokens — primary / draft / error pairs</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="swatches">
+      {% for bg, fg in swatch_pairs %}
+      <div class="swatch" style="background: var(--{{ bg }}); color: var(--{{ fg }})">{{ bg }}<br>/ {{ fg }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">static/tokens.css · role pairs primary, primary-container, draft, error (each with its on- partner)</code>
+
+<h2>Tokens — outline &amp; focus ring</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <span class="linebox">outline</span>
+    <span class="ringbox">focus-ring</span>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">static/tokens.css · roles outline (border), focus-ring (2px offset outline) — 3:1 vs every surface step</code>
+
+<h2>Buttons</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      {% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
+      {% include "components/button.html" with variant="subtle" label="Bearbeiten" only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/button.html · variant="primary"|"subtle" label=… type=…</code>
+
+<h2>Inputs</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      {% include "components/input.html" with type="search" name="q" placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
+      {% include "components/input.html" with name="titel" label="Titel" value="Sommerfahrt 1962" only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/input.html · name=… [label=… | aria_label=…] [type=…] [value=…] [placeholder=…]</code>
+
+<h2>Select</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/select.html" with name="sortierung" label="Sortierung" options=sort_options selected="relevanz" only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/select.html · name=… label=… options=[(value, caption)…] selected=…</code>
+
+<h2>Chip (removable filter)</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/chip.html" with label="Schlagwort" value="sommer" remove_query="q=Lager" only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/chip.html · label=… value=… remove_query=…</code>
+
+<h2>Badges — lifecycle</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      {% include "components/badge_lifecycle.html" with draft=True only %}
+      {% include "components/badge_lifecycle.html" with draft=False only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/badge_lifecycle.html · draft=True|False</code>
+
+<h2>Badges — visibility</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      {% include "components/badge_visibility.html" with text="Öffentlich" only %}
+      {% include "components/badge_visibility.html" with text="Alle Mitglieder" only %}
+      {% include "components/badge_visibility.html" with text="Gruppe: vorstand" only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/badge_visibility.html · text=…</code>
+
+<h2>Signatur tab</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      {% include "components/signatur_tab.html" with ref_code="F 12" only %}
+      {% include "components/signatur_tab.html" with ref_code="F 12/3-b" only %}
+      <span class="sig-narrow">{% include "components/signatur_tab.html" with ref_code="Sehr lange Signatur 1234/5678-xyz" only %}</span>
+      {% include "components/signatur_tab.html" only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/signatur_tab.html · ref_code=… (absent → unfiled hollow slot; long codes ellipsize)</code>
+
+<h2>Facet group</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/facet_group.html" with heading="Bestand" items=facet_items_bestand direct=True only %}
+    {% include "components/facet_group.html" with heading="Schlagworte" items=facet_items_schlagworte only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] [direct=True]</code>
+
+<h2>Card</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/card.html" with title="Sommerfahrt 1962" href="#demo-detail" ref_code="F 12" draft=False visibility="Öffentlich" meta=card_meta action_label="Bearbeiten" action_href="#demo-edit" only %}
+    {% include "components/card.html" with title="Entwurf: Lagerchronik" href="#demo-detail" draft=True action_label="Bearbeiten" action_href="#demo-edit" only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/card.html · title=… href=… [ref_code=…] [draft=…] [visibility=…] [meta=[…]] [action_label=… action_href=…]</code>
+
+<h2>Pagination</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/pagination.html" with current_page=2 has_prev=True has_next=True prev_query="seite=1" next_query="seite=3" only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/pagination.html · current_page=… has_prev/has_next=… prev_query/next_query=…</code>
+
+<h2>Empty state</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/empty_state.html · [title=…] [hint=…] — .c-empty-zeichen is the extension slot (empty in v1)</code>
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+{% comment %}
+Signatur tab — the shape signature (spec "Shape"). Param: ref_code.
+Filed: primary-container fill, notched leading corner, mono code; long codes like "F 12/3-b"
+grow with the content and ellipsize rather than overflow. Without ref_code: the hollow dashed
+"unfiled" slot with an em-dash (draft look — dashed outline-variant, no fill).
+{% endcomment %}
+{% if ref_code %}<span class="c-sig"><span class="c-sig-label">Sig</span><span class="c-sig-code">{{ ref_code }}</span></span>{% else %}<span class="c-sig c-sig--leer"><span class="c-sig-label">Sig</span><span class="c-sig-code">—</span></span>{% endif %}

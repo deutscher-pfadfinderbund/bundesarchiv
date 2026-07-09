@@ -1,0 +1,16 @@
+{% comment %}
+Facet group panel with a drawer-label tab heading. Params: heading; items — each with .label,
+.count, .query (the GET query string the row links to) and .active; direct (bool) labels counts
+"direkt:" (the collection facet's direct-membership honesty).
+{% endcomment %}
+<section class="c-facet">
+  <h3 class="c-facet-tab">{{ heading }}</h3>
+  <ul class="c-facet-list">
+    {% for item in items %}
+    <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
+      <a href="?{{ item.query }}">{{ item.label }}</a>
+      <span class="c-facet-count">{% if direct %}direkt: {% endif %}{{ item.count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>

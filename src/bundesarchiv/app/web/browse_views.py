@@ -258,3 +258,9 @@ def serve_tokens(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/tokens.css`` — the design-system token layers (docs/design/design-system.md):
     seed, reference ramps, roles + non-color tokens. Self-contained; gated by the contrast test."""
     return _serve_static("tokens.css", "text/css")
+
+
+def serve_components_css(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/components.css`` — the atom component styles (templates/components/), role
+    tokens only (load tokens.css first). Pinned raw-color-free by test."""
+    return _serve_static("components.css", "text/css")

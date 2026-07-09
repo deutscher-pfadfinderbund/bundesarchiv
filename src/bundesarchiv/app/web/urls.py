@@ -14,6 +14,7 @@ from django.urls import path
 from bundesarchiv.app.web.browse_views import (
     article_detail_stub,
     article_new_stub,
+    serve_components_css,
     serve_htmx,
     serve_stylesheet,
     serve_tokens,
@@ -33,6 +34,7 @@ urlpatterns = [
     path("static/htmx.min.js", serve_htmx, name="static-htmx"),
     path("static/workbench.css", serve_stylesheet, name="static-css"),
     path("static/tokens.css", serve_tokens, name="static-tokens"),
+    path("static/components.css", serve_components_css, name="static-components"),
     path("artikel/neu", article_new_stub, name="artikel-neu"),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),

@@ -8,11 +8,14 @@ switcher route this module adds is unreachable in production by absence, not by 
 
 from django.urls import include, path
 
+from bundesarchiv.app.web.components_demo import component_library
 from bundesarchiv.app.web.dev import switch_viewer
 
-# Prod media routes first (included verbatim), then the dev-only switcher. ``SWITCHER_PATH`` is
-# "/_dev/viewer/"; the URLconf pattern is the same without the leading slash.
+# Prod routes first (included verbatim), then the dev-only routes: the viewer switcher
+# (``SWITCHER_PATH`` is "/_dev/viewer/"; the pattern is the same without the leading slash) and
+# the component library — both unreachable in prod by absence of this URLconf.
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("_dev/viewer/", switch_viewer, name="dev-switch-viewer"),
+    path("_dev/components/", component_library, name="dev-components"),
 ]

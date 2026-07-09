@@ -1,0 +1,96 @@
+"""Component atoms + the dev-only component library page.
+
+Three seams:
+
+- The library route renders under DEV settings (all atoms + swatches in one document) — and does
+  NOT resolve under the production URLconf: unreachable in prod by absence of a code path, the
+  same discipline the switcher tests pin.
+- The components-consume-ROLES-only rule (design-system.md: "a hex value in a component style is
+  a defect"): a grep-style sweep over templates/components/*.html AND static/components.css for
+  raw color values (hex, oklch(, rgb(/rgba(, hsl(/hsla(). color-mix() over role tokens is
+  allowed — it mixes roles, it does not introduce a color.
+- The sweep fails loudly if the component directory is missing or unexpectedly empty — an empty
+  glob must never pass as "no raw colors found".
+"""
+
+import re
+from pathlib import Path
+
+import pytest
+from django.test import Client, override_settings
+from django.urls import Resolver404, resolve
+
+_WEB = Path(__file__).parents[3] / "src" / "bundesarchiv" / "app" / "web"
+_COMPONENTS_DIR = _WEB / "templates" / "components"
+_COMPONENTS_CSS = _WEB / "static" / "components.css"
+
+#: Every atom the design-system brief names — the sweep must see at least these.
+_EXPECTED_ATOMS = frozenset(
+    {
+        "button.html",
+        "input.html",
+        "select.html",
+        "chip.html",
+        "badge_lifecycle.html",
+        "badge_visibility.html",
+        "signatur_tab.html",
+        "facet_group.html",
+        "card.html",
+        "pagination.html",
+        "empty_state.html",
+    }
+)
+
+_DEV = {
+    "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
+    "MIDDLEWARE": ["bundesarchiv.app.web.dev.DevViewerMiddleware"],
+    "DEV_VIEWER_SIGNING_KEY": "test-components-dev-key",
+}
+
+#: Raw color values, any of which in a component file is a defect. Hex needs 3+ hex digits so
+#: demo anchors like href="#" stay legal; the function forms catch oklch/rgb/hsl and their
+#: alpha variants. var(--…) and color-mix(…) do not match — they carry roles, not colors.
+_RAW_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\boklch\(|\brgba?\(|\bhsla?\(", re.IGNORECASE)
+
+
+# --- the dev-only library route ---------------------------------------------------
+
+
+@override_settings(**_DEV)
+def test_component_library_renders_under_dev_settings() -> None:
+    response = Client().get("/_dev/components/")
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Component library" in body  # English dev chrome
+    assert "Archiv durchsuchen" in body  # German product copy inside the atoms
+    assert "components/button.html" in body  # include-path annotations (self-documentation)
+    assert "{#" not in body  # template-comment hygiene, same rule as the workbench
+
+
+def test_component_library_route_does_not_resolve_under_prod_urlconf() -> None:
+    # Same discipline as the switcher: dev-only by absence of a code path, not by a flag.
+    with pytest.raises(Resolver404):
+        resolve("/_dev/components/", urlconf="bundesarchiv.app.web.urls")
+
+
+# --- components consume roles only -------------------------------------------------
+
+
+def _component_files() -> list[Path]:
+    files = sorted(_COMPONENTS_DIR.glob("*.html"))
+    present = {f.name for f in files}
+    missing = _EXPECTED_ATOMS - present
+    assert not missing, f"component atoms missing from {_COMPONENTS_DIR}: {sorted(missing)}"
+    return [*files, _COMPONENTS_CSS]
+
+
+def test_components_carry_no_raw_color_values() -> None:
+    offenders = {
+        f"{path.name}: {match.group(0)!r}"
+        for path in _component_files()
+        for match in _RAW_COLOR.finditer(path.read_text(encoding="utf-8"))
+    }
+    assert not offenders, (
+        "raw color values in component files (components consume ROLE tokens only, "
+        f"design-system.md): {sorted(offenders)}"
+    )

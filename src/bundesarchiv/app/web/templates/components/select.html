@@ -1,0 +1,12 @@
+{% comment %}
+Select atom. Params: name, label (required); options = list of (value, caption) pairs;
+selected = the currently-selected value.
+{% endcomment %}
+<label class="c-field">
+  <span class="c-field-label">{{ label }}</span>
+  <select class="c-select" name="{{ name }}">
+    {% for value, caption in options %}
+    <option value="{{ value }}"{% if value == selected %} selected{% endif %}>{{ caption }}</option>
+    {% endfor %}
+  </select>
+</label>
