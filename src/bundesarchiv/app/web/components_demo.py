@@ -29,6 +29,7 @@ from bundesarchiv.app.web.browse_views import _serve_static
 #: (components.css) is not an entry — it is the no-variant route.
 VARIANTS: dict[str, str] = {
     "stamp": "components-stamp.css",
+    "papier": "components-papier.css",
 }
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
