@@ -1,0 +1,140 @@
+/* Bundesarchiv design tokens (docs/design/design-system.md) — the three layers, NOTHING else.
+   NO component styles in this file. Consumers reference ROLE tokens only; a hex value in a
+   component style is a defect (spec principle "Roles, not colors").
+
+   Format contract (tests/app/web/test_design_tokens.py parses this file):
+   - the seed:      --seed: oklch(<L> <C> <H>);
+   - ramp entries:  --<name>: oklch(from var(--seed) <L> <C|c> h);   (relative, seed hue)
+                    --<name>: oklch(<L> <C> <H>);                    (absolute, semantic hues)
+   - role entries:  --<role>: light-dark(var(--<light-ramp>), var(--<dark-ramp>));
+   The exact L/C values are an implementation detail PINNED BY THE CONTRAST TEST (the spec's
+   pair table is the contract); edit them only with that gate green in both modes. */
+
+:root {
+  /* ==================================================================
+     Layer 1 — seed. The ONLY line a sibling DPB service changes.
+     ================================================================== */
+  color-scheme: light dark;
+  --seed: oklch(0.55 0.13 300);
+
+  /* ==================================================================
+     Layer 2 — reference ramps. Derived from the seed with relative
+     color syntax; nothing below this layer mixes color by hand.
+
+     Tonal ramp: the seed's hue at fixed L steps. Chroma rides the seed
+     (`c`) mid-ramp and is eased toward the L extremes so every entry
+     stays inside sRGB gamut (the contrast test resolves colors the way
+     a browser does; an out-of-gamut token would drift from what ships).
+     ================================================================== */
+  --tone-25: oklch(from var(--seed) 0.25 0.06 h);
+  --tone-32: oklch(from var(--seed) 0.32 0.10 h);
+  --tone-35: oklch(from var(--seed) 0.35 0.08 h);
+  --tone-45: oklch(from var(--seed) 0.45 c h);
+  --tone-50: oklch(from var(--seed) 0.50 c h);
+  --tone-78: oklch(from var(--seed) 0.78 0.11 h);
+  --tone-88: oklch(from var(--seed) 0.88 0.06 h);
+  --tone-92: oklch(from var(--seed) 0.92 0.035 h);
+
+  /* Neutral ramp: near-gray with a whisper of the seed hue (chroma
+     0.012, eased at the light extreme for gamut), so surfaces retint
+     with the service automatically. */
+  --neutral-22: oklch(from var(--seed) 0.22 0.012 h);
+  --neutral-25: oklch(from var(--seed) 0.25 0.012 h);
+  --neutral-28: oklch(from var(--seed) 0.28 0.012 h);
+  --neutral-31: oklch(from var(--seed) 0.31 0.012 h);
+  --neutral-34: oklch(from var(--seed) 0.34 0.012 h);
+  --neutral-40: oklch(from var(--seed) 0.40 0.012 h);
+  --neutral-46: oklch(from var(--seed) 0.46 0.012 h);
+  --neutral-50: oklch(from var(--seed) 0.50 0.012 h);
+  --neutral-72: oklch(from var(--seed) 0.72 0.012 h);
+  --neutral-78: oklch(from var(--seed) 0.78 0.012 h);
+  --neutral-84: oklch(from var(--seed) 0.84 0.012 h);
+  --neutral-90: oklch(from var(--seed) 0.90 0.012 h);
+  --neutral-92: oklch(from var(--seed) 0.92 0.012 h);
+  --neutral-93: oklch(from var(--seed) 0.93 0.012 h);
+  --neutral-94: oklch(from var(--seed) 0.94 0.012 h);
+  --neutral-96: oklch(from var(--seed) 0.96 0.012 h);
+  --neutral-98: oklch(from var(--seed) 0.98 0.008 h);
+  --neutral-99: oklch(from var(--seed) 0.99 0.005 h);
+
+  /* Semantic hue ramps: lifecycle amber (ENTWURF) and error red. Fixed
+     hues by design — a draft must look like a draft and an error like an
+     error in EVERY sibling service, so these deliberately do not retint
+     with the seed. Absolute oklch, still reference-layer-only. */
+  --amber-32: oklch(0.32 0.05 80);
+  --amber-40: oklch(0.40 0.09 70);
+  --amber-85: oklch(0.85 0.12 85);
+  --amber-92: oklch(0.92 0.06 85);
+  --red-25: oklch(0.25 0.08 25);
+  --red-50: oklch(0.50 0.19 27);
+  --red-75: oklch(0.75 0.12 25);
+
+  /* ==================================================================
+     Layer 3 — roles. Each declares its light and dark value in one
+     place via light-dark(); components consume ONLY these.
+     ================================================================== */
+  --surface: light-dark(var(--neutral-98), var(--neutral-22));
+  --surface-container-lowest: light-dark(var(--neutral-96), var(--neutral-25));
+  --surface-container-low: light-dark(var(--neutral-94), var(--neutral-28));
+  --surface-container-mid: light-dark(var(--neutral-92), var(--neutral-31));
+  --surface-container-high: light-dark(var(--neutral-90), var(--neutral-34));
+  --on-surface: light-dark(var(--neutral-25), var(--neutral-93));
+  --on-surface-variant: light-dark(var(--neutral-46), var(--neutral-78));
+
+  --primary: light-dark(var(--tone-45), var(--tone-78));
+  --on-primary: light-dark(var(--neutral-99), var(--tone-25));
+  --primary-container: light-dark(var(--tone-92), var(--tone-35));
+  --on-primary-container: light-dark(var(--tone-32), var(--tone-88));
+
+  --draft: light-dark(var(--amber-92), var(--amber-32));
+  --on-draft: light-dark(var(--amber-40), var(--amber-85));
+
+  --error: light-dark(var(--red-50), var(--red-75));
+  --on-error: light-dark(var(--neutral-99), var(--red-25));
+
+  --outline: light-dark(var(--neutral-50), var(--neutral-72));
+  --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
+  --focus-ring: light-dark(var(--tone-50), var(--tone-78));
+
+  /* ==================================================================
+     Non-color tokens.
+     ================================================================== */
+
+  /* Type roles (system stacks in v1; vendored OFL faces are a later,
+     drop-in decision — swap the family stacks, roles stay). Usage:
+     `font: var(--type-title);` — label additionally applies
+     `letter-spacing: var(--label-tracking); text-transform: uppercase;`. */
+  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --type-display: 600 1.35rem/1.2 var(--font-display);
+  --type-title: 600 1.05rem/1.35 var(--font-display);
+  --type-body: 400 0.95rem/1.5 var(--font-body);
+  --type-label: 600 0.72rem/1.3 var(--font-body);
+  --type-mono: 400 0.85rem/1.4 var(--font-mono);
+  --label-tracking: 0.08em;
+
+  /* Spacing: 4px-base scale — compact but not cramped (a weekly work tool). */
+  --space-1: 0.25rem; /*  4px */
+  --space-2: 0.5rem; /*  8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-7: 1.75rem; /* 28px */
+  --space-8: 2rem; /* 32px */
+
+  /* Shape: the two radii and the index-card notch — the one shape
+     signature (Signatur tab, result cards). `--notch` is the ready
+     clip-path; `--notch-size` the corner cut it derives from. */
+  --radius-s: 4px;
+  --radius-m: 6px;
+  --notch-size: 12px;
+  --notch: polygon(
+    0 0,
+    calc(100% - var(--notch-size)) 0,
+    100% var(--notch-size),
+    100% 100%,
+    0 100%
+  );
+}

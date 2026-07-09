@@ -16,6 +16,7 @@ from bundesarchiv.app.web.browse_views import (
     article_new_stub,
     serve_htmx,
     serve_stylesheet,
+    serve_tokens,
     workbench,
 )
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
@@ -31,6 +32,7 @@ urlpatterns = [
     path("", workbench, name="workbench"),
     path("static/htmx.min.js", serve_htmx, name="static-htmx"),
     path("static/workbench.css", serve_stylesheet, name="static-css"),
+    path("static/tokens.css", serve_tokens, name="static-tokens"),
     path("artikel/neu", article_new_stub, name="artikel-neu"),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),

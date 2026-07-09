@@ -252,3 +252,9 @@ def serve_stylesheet(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/workbench.css`` — the self-contained workbench stylesheet (design tokens as
     CSS custom properties; no webfonts, no external requests)."""
     return _serve_static("workbench.css", "text/css")
+
+
+def serve_tokens(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/tokens.css`` — the design-system token layers (docs/design/design-system.md):
+    seed, reference ramps, roles + non-color tokens. Self-contained; gated by the contrast test."""
+    return _serve_static("tokens.css", "text/css")
