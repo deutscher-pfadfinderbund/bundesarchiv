@@ -114,6 +114,21 @@ def test_variant_routes_do_not_resolve_under_prod_urlconf() -> None:
             resolve(path, urlconf="bundesarchiv.app.web.urls")
 
 
+@override_settings(**_DEV)
+def test_registered_variants_render_and_serve_their_css() -> None:
+    from bundesarchiv.app.web.components_demo import VARIANTS
+
+    assert VARIANTS, "at least one design variant should be registered"
+    client = Client()
+    for name, filename in VARIANTS.items():
+        page = client.get(f"/_dev/components/{name}/")
+        assert page.status_code == 200, f"variant page {name} should render"
+        assert f'href="/_dev/static/{filename}"' in page.content.decode()
+        css = client.get(f"/_dev/static/{filename}")
+        assert css.status_code == 200, f"variant css {filename} should be served"
+        assert css["Content-Type"] == "text/css"
+
+
 # --- components consume roles only -------------------------------------------------
 
 

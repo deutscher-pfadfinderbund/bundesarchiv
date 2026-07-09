@@ -13,61 +13,65 @@
 :root {
   /* ==================================================================
      Layer 1 — seed. The ONLY line a sibling DPB service changes.
+     Chroma pulled 0.13 -> 0.055 (owner, color-grammar round 2026-07-10):
+     the violet is stamp INK, not paint — global chroma down.
      ================================================================== */
   color-scheme: light dark;
-  --seed: oklch(0.55 0.13 300);
+  --seed: oklch(0.52 0.055 300);
 
   /* ==================================================================
      Layer 2 — reference ramps. Derived from the seed with relative
      color syntax; nothing below this layer mixes color by hand.
 
-     Tonal ramp: the seed's hue at fixed L steps. Chroma rides the seed
-     (`c`) mid-ramp and is eased toward the L extremes so every entry
-     stays inside sRGB gamut (the contrast test resolves colors the way
-     a browser does; an out-of-gamut token would drift from what ships).
+     Tonal ramp: the seed's hue at fixed L steps, chroma capped low so
+     the violet reads as ink. Every entry stays inside sRGB gamut (the
+     contrast test resolves colors the way a browser does; an
+     out-of-gamut token would drift from what ships).
      ================================================================== */
-  --tone-25: oklch(from var(--seed) 0.25 0.06 h);
-  --tone-32: oklch(from var(--seed) 0.32 0.10 h);
-  --tone-35: oklch(from var(--seed) 0.35 0.08 h);
-  --tone-45: oklch(from var(--seed) 0.45 c h);
+  --tone-25: oklch(from var(--seed) 0.25 0.035 h);
+  --tone-32: oklch(from var(--seed) 0.32 0.045 h);
+  --tone-35: oklch(from var(--seed) 0.35 0.045 h);
+  --tone-45: oklch(from var(--seed) 0.45 0.05 h);
   --tone-50: oklch(from var(--seed) 0.50 c h);
-  --tone-78: oklch(from var(--seed) 0.78 0.11 h);
-  --tone-88: oklch(from var(--seed) 0.88 0.06 h);
-  --tone-92: oklch(from var(--seed) 0.92 0.035 h);
+  --tone-78: oklch(from var(--seed) 0.78 c h);
+  --tone-88: oklch(from var(--seed) 0.88 0.035 h);
+  --tone-92: oklch(from var(--seed) 0.92 0.022 h);
 
-  /* Neutral ramp: near-gray with a whisper of the seed hue (chroma
-     0.012, eased at the light extreme for gamut), so surfaces retint
-     with the service automatically. */
-  --neutral-22: oklch(from var(--seed) 0.22 0.012 h);
-  --neutral-25: oklch(from var(--seed) 0.25 0.012 h);
-  --neutral-28: oklch(from var(--seed) 0.28 0.012 h);
-  --neutral-31: oklch(from var(--seed) 0.31 0.012 h);
-  --neutral-34: oklch(from var(--seed) 0.34 0.012 h);
-  --neutral-40: oklch(from var(--seed) 0.40 0.012 h);
-  --neutral-46: oklch(from var(--seed) 0.46 0.012 h);
-  --neutral-50: oklch(from var(--seed) 0.50 0.012 h);
-  --neutral-72: oklch(from var(--seed) 0.72 0.012 h);
-  --neutral-78: oklch(from var(--seed) 0.78 0.012 h);
-  --neutral-84: oklch(from var(--seed) 0.84 0.012 h);
-  --neutral-90: oklch(from var(--seed) 0.90 0.012 h);
-  --neutral-92: oklch(from var(--seed) 0.92 0.012 h);
-  --neutral-93: oklch(from var(--seed) 0.93 0.012 h);
-  --neutral-94: oklch(from var(--seed) 0.94 0.012 h);
-  --neutral-96: oklch(from var(--seed) 0.96 0.012 h);
-  --neutral-98: oklch(from var(--seed) 0.98 0.008 h);
-  --neutral-99: oklch(from var(--seed) 0.99 0.005 h);
+  /* Neutral ramp: PURE gray paper (chroma 0) since the color-grammar
+     round — the divide between hued marks and hueless chrome must be
+     unmistakable, so surfaces carry no seed tint at all. Variants that
+     want tinted sheets derive them via color-mix over roles. */
+  --neutral-22: oklch(from var(--seed) 0.22 0 h);
+  --neutral-25: oklch(from var(--seed) 0.25 0 h);
+  --neutral-28: oklch(from var(--seed) 0.28 0 h);
+  --neutral-31: oklch(from var(--seed) 0.31 0 h);
+  --neutral-34: oklch(from var(--seed) 0.34 0 h);
+  --neutral-40: oklch(from var(--seed) 0.40 0 h);
+  --neutral-46: oklch(from var(--seed) 0.46 0 h);
+  --neutral-50: oklch(from var(--seed) 0.50 0 h);
+  --neutral-72: oklch(from var(--seed) 0.72 0 h);
+  --neutral-78: oklch(from var(--seed) 0.78 0 h);
+  --neutral-84: oklch(from var(--seed) 0.84 0 h);
+  --neutral-90: oklch(from var(--seed) 0.90 0 h);
+  --neutral-92: oklch(from var(--seed) 0.92 0 h);
+  --neutral-93: oklch(from var(--seed) 0.93 0 h);
+  --neutral-94: oklch(from var(--seed) 0.94 0 h);
+  --neutral-96: oklch(from var(--seed) 0.96 0 h);
+  --neutral-98: oklch(from var(--seed) 0.98 0 h);
+  --neutral-99: oklch(from var(--seed) 0.99 0 h);
 
   /* Semantic hue ramps: lifecycle amber (ENTWURF) and error red. Fixed
      hues by design — a draft must look like a draft and an error like an
      error in EVERY sibling service, so these deliberately do not retint
-     with the seed. Absolute oklch, still reference-layer-only. */
-  --amber-32: oklch(0.32 0.05 80);
-  --amber-40: oklch(0.40 0.09 70);
-  --amber-85: oklch(0.85 0.12 85);
-  --amber-92: oklch(0.92 0.06 85);
-  --red-25: oklch(0.25 0.08 25);
-  --red-50: oklch(0.50 0.19 27);
-  --red-75: oklch(0.75 0.12 25);
+     with the seed. Kept SATURATED on purpose: with the violet quieted,
+     lifecycle and errors are the loud channel and must pop at a glance. */
+  --amber-32: oklch(0.32 0.06 80);
+  --amber-40: oklch(0.42 0.11 72);
+  --amber-85: oklch(0.85 0.14 85);
+  --amber-92: oklch(0.90 0.10 85);
+  --red-25: oklch(0.25 0.09 25);
+  --red-50: oklch(0.52 0.20 27);
+  --red-75: oklch(0.75 0.14 25);
 
   /* ==================================================================
      Layer 3 — roles. Each declares its light and dark value in one

@@ -27,7 +27,9 @@ from bundesarchiv.app.web.browse_views import _serve_static
 #: The design-variant whitelist: variant name -> stylesheet filename under ``static/``. An entry
 #: here is the ONLY way a variant becomes routable (both the page and its stylesheet). Baseline
 #: (components.css) is not an entry — it is the no-variant route.
-VARIANTS: dict[str, str] = {}
+VARIANTS: dict[str, str] = {
+    "stamp": "components-stamp.css",
+}
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
 _MODES = ("light", "dark")
