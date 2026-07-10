@@ -57,7 +57,7 @@ def test_unknown_layout_is_404() -> None:
 @override_settings(**_DEV)
 def test_layout_routes_do_not_resolve_under_prod_urlconf() -> None:
     # Same discipline as the switcher / component library: dev-only by absence of a code path.
-    for path in ("/_dev/layouts/split-rail/", "/_dev/layouts/static/layouts.css"):
+    for path in ("/_dev/layouts/split-narrow/", "/_dev/layouts/static/layouts.css"):
         with pytest.raises(Resolver404):
             resolve(path, urlconf="bundesarchiv.app.web.urls")
 
@@ -68,8 +68,8 @@ def test_layout_routes_do_not_resolve_under_prod_urlconf() -> None:
 @override_settings(**_DEV)
 def test_preview_pane_present_only_when_open() -> None:
     client = Client()
-    closed = client.get("/_dev/layouts/split-rail/").content.decode()
-    opened = client.get("/_dev/layouts/split-rail/?vorschau=1").content.decode()
+    closed = client.get("/_dev/layouts/split-narrow/").content.decode()
+    opened = client.get("/_dev/layouts/split-narrow/?vorschau=1").content.decode()
     assert 'class="wb-pane"' not in closed  # pane absent by default
     assert 'class="wb-pane"' in opened  # ?vorschau=1 renders the pane
     assert "wb--vorschau" in opened and "wb--vorschau" not in closed  # frame state class
@@ -77,10 +77,17 @@ def test_preview_pane_present_only_when_open() -> None:
 
 @override_settings(**_DEV)
 def test_layout_class_reflects_the_layout_name() -> None:
-    client = Client()
-    for name in ("split-rail", "split-narrow"):
-        body = client.get(f"/_dev/layouts/{name}/").content.decode()
-        assert f"wb--{name}" in body  # the frame carries its per-layout class
+    body = Client().get("/_dev/layouts/split-narrow/").content.decode()
+    assert "wb--split-narrow" in body  # the frame carries its per-layout class
+
+
+@override_settings(**_DEV)
+def test_split_rail_is_gone() -> None:
+    # The owner rejected split-rail; it must be neither routable nor whitelisted.
+    from bundesarchiv.app.web.layouts_demo import LAYOUTS
+
+    assert "split-rail" not in LAYOUTS
+    assert Client().get("/_dev/layouts/split-rail/").status_code == 404
 
 
 # --- the dev-only layout stylesheet route -------------------------------------------

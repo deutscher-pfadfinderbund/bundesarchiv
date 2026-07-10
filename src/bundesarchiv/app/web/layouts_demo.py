@@ -7,15 +7,14 @@ atom partials (templates/components/) over static German demo context defined he
 index, no viewer. The layouts iterate the PAGE FRAME (header + chips + sort + facet sidebar +
 ledger + preview pane), not the atoms.
 
-TWO layouts, whitelisted (unknown name → 404, never a path interpolation):
-- ``split-rail``   — when the preview pane is open the facet sidebar collapses to a slim rail
-                     (group initials + title attrs); the ledger keeps its full columns.
-- ``split-narrow`` — the facet sidebar stays full; the ledger folds to its narrow two-line density
-                     while the pane is open.
+ONE layout, whitelisted (unknown name → 404, never a path interpolation):
+- ``split-narrow`` — when the preview pane is open the facet sidebar stays full and the ledger
+                     folds to its narrow two-line density (owner's pick over the rejected
+                     "split-rail", whose collapsed-rail state read as confusing and useless).
 
-Both states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0`` (default)
-closes it; the demo chrome links switch between them. Below 1280px a media query hides the pane and
-returns the ledger to full/no-pane — the layout css owns that, the view does not branch on width.
+Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
+(default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
+and returns the ledger to full/no-pane — the layout css owns that, the view does not branch on width.
 
 The layout css is a dev experiment, so it is served by a dev-only whitelisted static route
 (``/_dev/static/layouts.css``), never mounted in prod. Page chrome is English (development-facing);
@@ -28,11 +27,10 @@ from django.shortcuts import render
 
 from bundesarchiv.app.web.browse_views import _serve_static
 
-#: The layout whitelist: name → human label for the demo nav. An entry here is the ONLY way a
-#: layout becomes routable. Unknown name → 404.
+#: The layout whitelist: name → human label. An entry here is the ONLY way a layout becomes
+#: routable. Unknown name → 404. One layout after the owner's review (split-rail rejected).
 LAYOUTS: dict[str, str] = {
-    "split-rail": "Split rail (sidebar collapses to a rail)",
-    "split-narrow": "Split narrow (ledger folds to two-line)",
+    "split-narrow": "Split narrow (ledger folds to two-line when the pane opens)",
 }
 
 #: The dev-only layout stylesheet (served by the whitelisted dev static route below).
@@ -173,12 +171,11 @@ _SORT_OPTIONS = (
     ("titel", "Titel"),
 )
 
-#: Facet sidebar groups, each with the rail initial the split-rail layout shows when collapsed.
-#: items match facet_group.html's contract (label, count, query, active).
+#: Facet sidebar groups; items match facet_group.html's contract (label, count, query, active).
+#: ``open`` seeds each <details> group's initial expanded/collapsed state.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",
-        "initial": "B",
         "direct": True,
         "open": True,
         "items": (
@@ -194,7 +191,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Dokumenttyp",
-        "initial": "D",
         "direct": False,
         "open": True,
         "items": (
@@ -205,7 +201,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Schlagworte",
-        "initial": "S",
         "direct": False,
         "open": False,
         "items": (
@@ -216,7 +211,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Jahrzehnte",
-        "initial": "J",
         "direct": False,
         "open": False,
         "items": (
@@ -255,8 +249,6 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
         "layouts_demo.html",
         {
             "layout_name": name,
-            "layout_label": LAYOUTS[name],
-            "layout_names": sorted(LAYOUTS),
             "vorschau": vorschau,
             "stylesheet": f"/_dev/layouts/static/{LAYOUT_STYLESHEET}",
             "ledger_rows": _LEDGER_ROWS,

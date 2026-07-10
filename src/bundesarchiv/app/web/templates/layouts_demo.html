@@ -3,10 +3,9 @@ Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL arc
 layout composed from the real atom partials (templates/components/) over static German demo
 context. English dev chrome; German product copy inside the atoms. The page frame is a CSS grid
 (layouts.css): facet sidebar · main (chips + sort + ledger) · preview pane. Two server-rendered
-states via ?vorschau=0|1 (no JS): the pane is present only when vorschau=1. Which layout reshapes
-which region when the pane opens is decided by the frame class (wb--<layout_name>): split-rail
-collapses the sidebar to a rail; split-narrow folds the ledger to its narrow density. Below 1280px
-a media query hides the pane and returns the ledger to full — layouts.css owns that, not the view.
+states via ?vorschau=0|1 (no JS): the pane is present only when vorschau=1. When it opens, the
+ledger folds to its narrow two-line density (the split-narrow layout). Below 1280px a media query
+hides the pane and returns the ledger to full — layouts.css owns that, not the view.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -19,13 +18,9 @@ a media query hides the pane and returns the ledger to full — layouts.css owns
 </head>
 <body class="wb wb--{{ layout_name }}{% if vorschau %} wb--vorschau{% endif %}">
 
-{% comment %} English dev chrome: a small bar to switch layouts, pane state, and back to components. {% endcomment %}
+{% comment %} English dev chrome: pane-state toggle + back to the component library. {% endcomment %}
 <nav class="wb-devbar" aria-label="Dev navigation">
-  <span class="wb-devbar-label">Layout demo</span>
-  {% for n in layout_names %}
-  <a href="/_dev/layouts/{{ n }}/{% if vorschau %}?vorschau=1{% endif %}"{% if n == layout_name %} aria-current="page"{% endif %}>{{ n }}</a>
-  {% endfor %}
-  <span class="wb-devbar-sep">·</span>
+  <span class="wb-devbar-label">{{ layout_name }}</span>
   <a href="?vorschau=0"{% if not vorschau %} aria-current="page"{% endif %}>Vorschau zu</a>
   <a href="?vorschau=1"{% if vorschau %} aria-current="page"{% endif %}>Vorschau auf</a>
   <span class="wb-devbar-sep">·</span>
@@ -44,14 +39,9 @@ a media query hides the pane and returns the ledger to full — layouts.css owns
 
 <div class="wb-frame">
 
-  {% comment %} Facet sidebar — sticky. Full panel (collapsible <details> groups) + a rail strip;
-  layouts.css shows the rail instead of the panel when split-rail has the pane open. {% endcomment %}
+  {% comment %} Facet sidebar — sticky; collapsible <details> groups (no-JS). Stays full in
+  split-narrow when the pane opens (the ledger folds instead). {% endcomment %}
   <aside class="wb-sidebar" aria-label="Facetten">
-    <nav class="wb-rail" aria-hidden="true">
-      {% for group in facet_groups %}
-      <span class="wb-rail-mark" title="{{ group.heading }}">{{ group.initial }}</span>
-      {% endfor %}
-    </nav>
     <div class="wb-facets">
       {% for group in facet_groups %}
       <details class="wb-facet"{% if group.open %} open{% endif %}>

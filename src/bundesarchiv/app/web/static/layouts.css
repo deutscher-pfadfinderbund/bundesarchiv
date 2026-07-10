@@ -82,29 +82,11 @@ body.wb {
   padding: var(--space-4);
 }
 
-/* ---- facet sidebar: sticky. Full panel (collapsible groups) + a rail strip (split-rail). ---- */
+/* ---- facet sidebar: sticky, collapsible groups. Stays full when the pane opens. ---- */
 .wb-sidebar {
   position: sticky;
   top: var(--space-4);
   grid-column: sidebar;
-}
-.wb-rail {
-  display: none; /* shown only when split-rail collapses the sidebar (see below) */
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: center;
-}
-.wb-rail-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  font: var(--type-label);
-  color: var(--on-surface-variant);
 }
 .wb-facets { display: flex; flex-direction: column; gap: var(--space-3); }
 
@@ -188,24 +170,15 @@ body.wb {
    inside this min-width guard.
    ============================================================ */
 @media (min-width: 1280px) {
-  /* pane open: the frame grows a third column */
+  /* pane open: the frame grows a third column; the sidebar stays full. */
   .wb--vorschau .wb-frame {
     grid-template-columns:
-      [sidebar] minmax(3.5rem, 16rem) [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
+      [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
   }
 
-  /* split-rail + pane open: the sidebar collapses to the slim rail (~3.5rem), the ledger keeps
-     its full columns. The full facet panel is replaced by the initials rail. */
-  .wb--split-rail.wb--vorschau .wb-frame {
-    grid-template-columns:
-      [sidebar] 3.5rem [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
-  }
-  .wb--split-rail.wb--vorschau .wb-facets { display: none; }
-  .wb--split-rail.wb--vorschau .wb-rail { display: flex; }
-
-  /* split-narrow + pane open: the sidebar stays full; the ledger folds to its narrow two-line
-     density. These rules mirror components.css .c-ledger--narrow but are state-driven (no class)
-     and live behind this breakpoint, so below 1280px the ledger is full again automatically. */
+  /* split-narrow + pane open: the ledger folds to its narrow two-line density. These rules mirror
+     components.css .c-ledger--narrow but are state-driven (no class) and live behind this
+     breakpoint, so below 1280px the ledger is full again automatically. */
   .wb--split-narrow.wb--vorschau .c-ledger { grid-template-columns: 1fr; }
   .wb--split-narrow.wb--vorschau .c-ledger-head { display: none; }
   .wb--split-narrow.wb--vorschau .c-ledger-row {
