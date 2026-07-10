@@ -23,8 +23,7 @@ body.wb {
   padding: var(--space-1) var(--space-4);
   background: var(--surface-container-lowest);
   border-bottom: 1px solid var(--outline-variant);
-  font: var(--type-mono);
-  font-size: 0.78rem;
+  font: var(--type-mono-meta);
 }
 .wb-devbar-label {
   font: var(--type-label);
@@ -193,13 +192,11 @@ body.wb {
   }
   .wb--split-narrow.wb--vorschau .c-ledger-cell--datierung {
     grid-area: datum;
-    font: var(--type-mono);
-    font-size: 0.78rem;
+    font: var(--type-mono-meta);
   }
   .wb--split-narrow.wb--vorschau .c-ledger-cell--typ {
     grid-area: typ;
-    font: var(--type-mono);
-    font-size: 0.78rem;
+    font: var(--type-mono-meta);
     color: var(--on-surface-variant);
   }
   .wb--split-narrow.wb--vorschau .c-ledger-cell--typ::before {

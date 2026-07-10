@@ -41,8 +41,7 @@
 
 .c-btn {
   display: inline-block;
-  font: var(--type-body);
-  font-size: 0.9rem;
+  font: var(--type-meta);
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-s);
   cursor: pointer;
@@ -81,8 +80,7 @@
 }
 .c-input,
 .c-select {
-  font: var(--type-body);
-  font-size: 0.9rem;
+  font: var(--type-meta);
   color: var(--on-surface);
   background: var(--surface-container-lowest);
   border: 1px solid var(--outline);
@@ -101,8 +99,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font: var(--type-mono);
-  font-size: 0.78rem;
+  font: var(--type-mono-meta);
   font-variant-numeric: tabular-nums;
   background: var(--surface-container-low);
   color: var(--primary);
@@ -311,8 +308,7 @@
   align-items: center;
   justify-content: center;
   margin-top: var(--space-4);
-  font: var(--type-body);
-  font-size: 0.9rem;
+  font: var(--type-meta);
   color: var(--on-surface-variant);
 }
 .c-pager a {
@@ -384,24 +380,25 @@
 
 .c-ledger-cell { min-width: 0; }
 
-/* header cells: label small-caps; sortable ones are ink links */
+/* header cells: ONE treatment for every column head — the label role, identical for all. */
 .c-ledger-h {
   font: var(--type-label);
   letter-spacing: var(--label-tracking);
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
+/* sortable head: same label base (inherited from .c-ledger-h); the ONLY difference is the link
+   affordance — ink + underline on hover (stamp-grammar link rule). No at-rest hue. */
 .c-ledger-sort {
   display: inline-flex;
   align-items: baseline;
   gap: calc(var(--space-1) / 2);
-  color: var(--primary);
+  color: inherit;
   text-decoration: none;
 }
-.c-ledger-sort:hover { text-decoration: underline; }
-/* active sort = neutral ink, bold (a header state, not a mark — no violet fill/wash) */
-.c-ledger-sort--aktiv { color: var(--on-surface); font-weight: 700; }
-.c-ledger-sort-pfeil { font: var(--type-mono); font-size: 0.7rem; }
+.c-ledger-sort:hover { color: var(--primary); text-decoration: underline; }
+/* active sort: exactly one marker — the direction glyph — never a different font/weight/color. */
+.c-ledger-sort-pfeil { font-size: 0.85em; }
 
 /* body cells */
 .c-ledger-titel {
@@ -422,8 +419,7 @@
   color: var(--primary);
 }
 .c-ledger-cell--typ {
-  font: var(--type-body);
-  font-size: 0.85rem;
+  font: var(--type-meta);
   color: var(--on-surface-variant);
 }
 .c-ledger-cell--sichtbarkeit {
@@ -460,14 +456,12 @@
 }
 .c-ledger--narrow .c-ledger-cell--datierung {
   grid-area: datum;
-  font: var(--type-mono);
-  font-size: 0.78rem;
+  font: var(--type-mono-meta);
   color: var(--primary);
 }
 .c-ledger--narrow .c-ledger-cell--typ {
   grid-area: typ;
-  font: var(--type-mono);
-  font-size: 0.78rem;
+  font: var(--type-mono-meta);
   color: var(--on-surface-variant);
 }
 .c-ledger--narrow .c-ledger-cell--typ::before {

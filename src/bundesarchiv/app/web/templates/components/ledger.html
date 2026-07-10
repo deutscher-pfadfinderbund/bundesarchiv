@@ -8,14 +8,17 @@ Ledger organism — the results register. A dense, aligned alternative to the ca
               the mail-client fold: line 1 = SIG + Titel, line 2 = Datierung · Typ). The class swap
               is the ONLY difference — same rows, CSS reflows the grid.
 
-Header cells that are not sortable (SICHTBARKEIT, the action gutter) are plain labels. Marks (SIG
-codes, Datierung) carry ink per the stamp grammar; everything else is neutral chrome.
+Every column head — sortable or not — uses the ONE label type role (small-caps, letterspaced,
+on-surface-variant), identical size/case/weight/color. The only systematic modifiers on that base:
+sortable heads get the link affordance (ink + underline on HOVER, stamp-grammar link rule); the
+active sort column gets exactly one direction glyph (▲/▼), never a different font treatment. Body
+marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is neutral chrome.
 {% endcomment %}
 <div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}" role="table" aria-label="Trefferliste">
   <div class="c-ledger-head" role="row">
     {% for col in sort_links %}
     <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %} aria-sort="{{ col.order }}ending"{% endif %}>
-      <a class="c-ledger-sort{% if col.active %} c-ledger-sort--aktiv{% endif %}" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}↑{% else %}↓{% endif %}</span>{% endif %}</a>
+      <a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}▲{% else %}▼{% endif %}</span>{% endif %}</a>
     </span>
     {% endfor %}
     <span class="c-ledger-cell c-ledger-cell--sichtbarkeit c-ledger-h" role="columnheader">Sichtbarkeit</span>
