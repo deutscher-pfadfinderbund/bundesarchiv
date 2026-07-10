@@ -62,6 +62,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         text=parsed.text,
         filters=parsed.filters,
         sort=parsed.sort,
+        descending=parsed.descending,
         page=parsed.page,
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
     )
@@ -172,14 +173,15 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("decades", browse.PARAM_DECADE, "Jahrzehnte"),
 )
 
-# The ledger's sortable column headers: (German label, cell key matching the css modifier, the
-# ``sortierung`` value the header links to). Mirrors browse.SORT_CHOICES minus "relevanz" (there is
-# no relevance COLUMN to sort by a header). Presentation only — the sort itself is browse/search.
-_LEDGER_SORT_COLUMNS: tuple[tuple[str, str, str], ...] = (
+# The ledger's column headers: (German label, css-modifier key, sortierung label or None). SIG /
+# TITEL / DATIERUNG are sortable (their sortierung label mirrors browse.SORT_CHOICES minus relevanz,
+# which has no column). TYP is NOT a sortable index column, so it is a plain header (None). SICHTBAR-
+# KEIT + the action gutter are added by the ledger component. Presentation only — sort is browse.
+_LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
     ("Sig", "sig", "signatur"),
     ("Titel", "titel", "titel"),
     ("Datierung", "datierung", "datierung"),
-    ("Typ", "typ", "typ"),
+    ("Typ", "typ", None),
 )
 
 
@@ -236,23 +238,41 @@ def _ledger_rows(
     )
 
 
-def _ledger_sort_links(sort_value: str, params: dict[str, str]) -> tuple[dict[str, object], ...]:
-    """The ledger's sortable column headers, each a link that sets ``sortierung`` (preserving the
-    other params and resetting to page 1 via the browse link algebra). The active column carries the
-    ascending direction glyph. Presentation only."""
-    links: list[dict[str, object]] = []
-    for label, key, sort_key in _LEDGER_SORT_COLUMNS:
-        active = sort_value == sort_key
-        links.append(
+def _ledger_columns(
+    active_label: str, descending: bool, params: dict[str, str]
+) -> tuple[dict[str, object], ...]:
+    """The ledger's column headers. SIG / TITEL / DATIERUNG are the sort control (the select is gone):
+    clicking cycles asc → desc → default. The link a header points at is its NEXT state:
+      inactive        -> ?sortierung=<label>        (ascending)
+      active ascending -> ?sortierung=-<label>       (descending)
+      active descending -> clear sortierung          (back to default / Relevanz)
+    The active column shows ▲ (asc) or ▼ (desc). TYP is not a sortable index column, so it is a plain
+    header (sortable False, no query). Every header keeps its label-role treatment; presentation
+    only — the sort itself is browse/search. The browse link algebra preserves other params + resets
+    the page."""
+    cols: list[dict[str, object]] = []
+    for label, key, sort_key in _LEDGER_COLUMNS:
+        if sort_key is None:  # TYP — plain, non-sortable header
+            cols.append({"label": label, "key": key, "sortable": False})
+            continue
+        active = active_label == sort_key
+        if not active:
+            query = browse.with_param(params, browse.PARAM_SORT, sort_key)  # -> ascending
+        elif not descending:
+            query = browse.with_param(params, browse.PARAM_SORT, f"-{sort_key}")  # -> descending
+        else:
+            query = browse.without_param(params, browse.PARAM_SORT)  # -> default (clear)
+        cols.append(
             {
                 "label": label,
                 "key": key,
-                "query": browse.with_param(params, browse.PARAM_SORT, sort_key),
+                "sortable": True,
+                "query": query,
                 "active": active,
-                "order": "asc",
+                "order": "desc" if (active and descending) else "asc",
             }
         )
-    return tuple(links)
+    return tuple(cols)
 
 
 def _results_context(
@@ -276,17 +296,13 @@ def _results_context(
     params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
-    sort_value = _sort_label(parsed.sort)
     return {
         "params": params,
         "text": parsed.text or "",
         "page": page,
-        "sort_value": sort_value,
-        "sort_choices": browse.SORT_CHOICES,
-        "chips": browse.active_chips(params),
         "facet_groups": _facet_groups(params, parsed, page),
         "ledger_rows": _ledger_rows(page, is_archivist=is_archivist, selected_ulid=selected_ulid),
-        "ledger_sort_links": _ledger_sort_links(sort_value, params),
+        "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
         "current_page": parsed.page,
         "has_next": browse.has_next_page(
             page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
@@ -310,7 +326,7 @@ def _facet_groups(
         _FacetGroup(heading, _facet_items(params, param, facets.get(key, ())))
         for key, param, heading in _FACET_GROUPS
     ]
-    groups.append(_dateless_group(params, parsed, page))
+    groups.append(_datum_group(params, parsed, page))
     return tuple(g for g in groups if g.items)
 
 
@@ -350,23 +366,36 @@ def _collection_group(params: dict[str, str], counts: tuple[FacetCount, ...]) ->
     )
 
 
-def _dateless_group(
-    params: dict[str, str], parsed: browse.ParsedQuery, page: object
-) -> _FacetGroup:
-    """The "Ohne Datum" bucket (data honesty, ideas §1.3): a single toggle item counting in-scope
-    rows with no date. Shown only when there ARE dateless rows OR the filter is already on (so it can
-    be turned off). Active → query removes it; inactive → query adds ``ohne_datum=1``."""
+def _datum_group(params: dict[str, str], parsed: browse.ParsedQuery, page: object) -> _FacetGroup:
+    """The DATUM group: the "Ohne Datum" toggle PLUS any active von/bis range, each as a removable
+    row (the chips row died — active date filters are removed here, like every other facet).
+
+    "Ohne Datum" (data honesty, ideas §1.3): a toggle counting in-scope dateless rows; shown when
+    there ARE dateless rows OR it is already on. Active → removes it; inactive → adds ``ohne_datum``.
+    von/bis: an active bound shows as an active row (count 0 — a bound is a state, not a bucket) whose
+    query removes just that bound. Order: von, bis, then Ohne Datum."""
+    items: list[_FacetItem] = []
+    for param, label in ((browse.PARAM_DATE_FROM, "von"), (browse.PARAM_DATE_TO, "bis")):
+        raw = params.get(param)
+        if raw:
+            items.append(
+                _FacetItem(
+                    label=f"{label}: {raw}",
+                    count=0,
+                    active=True,
+                    query=browse.without_param(params, param),
+                )
+            )
     count: int = page.dateless_count  # type: ignore[attr-defined]
     active = parsed.filters.dateless
-    if count == 0 and not active:
-        return _FacetGroup("Datum", ())
-    query = (
-        browse.without_param(params, browse.PARAM_DATELESS)
-        if active
-        else browse.with_param(params, browse.PARAM_DATELESS, "1")
-    )
-    item = _FacetItem(label="Ohne Datum", count=count, active=active, query=query)
-    return _FacetGroup("Datum", (item,))
+    if count > 0 or active:
+        query = (
+            browse.without_param(params, browse.PARAM_DATELESS)
+            if active
+            else browse.with_param(params, browse.PARAM_DATELESS, "1")
+        )
+        items.append(_FacetItem(label="Ohne Datum", count=count, active=active, query=query))
+    return _FacetGroup("Datum", tuple(items))
 
 
 def _sort_label(sort: str) -> str:

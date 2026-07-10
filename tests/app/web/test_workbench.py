@@ -115,6 +115,29 @@ class _Corpus:
                 ("entwurf",),
                 EdtfDate("2010"),
             ),
+            # Realistic LONG Signaturen — the SIG column must size to content, never truncate these.
+            (
+                "LONGSIG1",
+                "Fahrtenmappe mit Unterakte",
+                "FOTOS",
+                Lifecycle.PUBLISHED,
+                "F 12/3-b",
+                "Foto",
+                "Fotografie",
+                ("fahrten",),
+                EdtfDate("1968"),
+            ),
+            (
+                "LONGSIG2",
+                "Historischer Bestand 1848",
+                "FOTOS",
+                Lifecycle.PUBLISHED,
+                "BA 1848/II",
+                "Druck",
+                "Druck",
+                ("historisch",),
+                EdtfDate("1848"),
+            ),
         ]
         for ulid, title, coll, lifecycle, ref, media, doc, tags, date in specs:
             articles.save(
@@ -424,10 +447,47 @@ def test_media_facet_filter_narrows_results(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_active_filter_shows_removable_chip(corpus_root: Path) -> None:
+def test_active_filter_removal_lives_in_the_sidebar_not_chips(corpus_root: Path) -> None:
+    # The chips row died: active-filter state + removal live ONLY in the sidebar. An active facet row
+    # gets the inversion marking + an inline ✕ (the remove affordance). No separate chips row.
     body = _get(corpus_root, Public(), "medienart=Foto").content.decode()
-    assert "Medienart: Foto" in body  # the chip
-    assert "entfernen" in body  # the ✕ remove affordance
+    assert "c-facet-row--aktiv" in body  # the active facet row is marked
+    assert "entfernen" in body  # the ✕ remove affordance (aria-label "... entfernen")
+    assert 'aria-label="Aktive Filter"' not in body  # no chips row
+
+
+@pytest.mark.django_db
+def test_active_date_range_removable_in_datum_group(corpus_root: Path) -> None:
+    # von/bis removal moved into the DATUM group (chips are gone). An active range shows as a
+    # removable row there.
+    body = _get(corpus_root, Public(), "von=1960-01-01").content.decode()
+    assert "von: 1960-01-01" in body  # the active bound, in the sidebar DATUM group
+    assert "entfernen" in body
+
+
+# --- long Signaturen: the SIG mark sizes to content, never truncates --------------
+
+
+@pytest.mark.django_db
+def test_long_signaturen_render_in_full(corpus_root: Path) -> None:
+    # An identity mark must never truncate at realistic lengths (owner correction 3).
+    body = _get(corpus_root, Public()).content.decode()
+    assert "F 12/3-b" in body
+    assert "BA 1848/II" in body
+
+
+@pytest.mark.django_db
+def test_sort_headers_cycle_asc_desc_default(corpus_root: Path) -> None:
+    # The header sort cycle (the select is gone): a plain click sets ascending; the active-ascending
+    # header links to descending (-signatur); the active-descending header links back to default
+    # (no sortierung). Assert the link algebra the headers emit.
+    asc = _get(corpus_root, Public(), "sortierung=signatur").content.decode()
+    assert "sortierung=-signatur" in asc  # active-asc header now offers descending
+    desc = _get(corpus_root, Public(), "sortierung=-signatur").content.decode()
+    # active-desc header offers clearing the sort (default/Relevanz) — no sortierung in its href.
+    assert "▼" in desc  # the descending glyph is shown on the active column
+    # and there is no sort <select> anywhere (headers are the only sort control)
+    assert 'name="sortierung"' not in desc
 
 
 # --- param injection: garbage → 200 defaults, never 500 --------------------------

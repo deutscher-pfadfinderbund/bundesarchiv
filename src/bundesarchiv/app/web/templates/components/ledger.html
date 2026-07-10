@@ -2,8 +2,11 @@
 Ledger organism — the results register. A dense, aligned alternative to the card list. Params:
 - rows      — list of dicts, each carrying a ledger_row's params (title, href, ref_code,
               datierung, typ, draft, visibility, action_label, action_href)
-- sort_links — list of {label, key, query, active, order} for the sortable column headers; each
-              header is a plain link (URL-as-state, no JS). order "asc"|"desc" marks direction.
+- columns   — list of column headers {label, key, sortable, [query, active, order]}. Sortable heads
+              (sortable=True) are links whose href is the header's NEXT sort state (asc→desc→default
+              cycle, computed in the view); the active column shows ▲ (asc) / ▼ (desc). Non-sortable
+              heads (sortable=False, e.g. Typ) are plain labels. URL-as-state, no JS — the sort
+              control IS the headers (there is no sort select).
 - narrow (bool) — density mode: full (aligned columns, default) vs narrow (two-line compact rows,
               the mail-client fold: line 1 = SIG + Titel, line 2 = Datierung · Typ). The class swap
               is the ONLY difference — same rows, CSS reflows the grid.
@@ -21,9 +24,9 @@ marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is
 {% endcomment %}
 <div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}{% if not archivist %} c-ledger--ohne-chrome{% endif %}" role="table" aria-label="Trefferliste">
   <div class="c-ledger-head" role="row">
-    {% for col in sort_links %}
+    {% for col in columns %}
     <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %} aria-sort="{{ col.order }}ending"{% endif %}>
-      <a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}▲{% else %}▼{% endif %}</span>{% endif %}</a>
+      {% if col.sortable %}<a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}▲{% else %}▼{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
     </span>
     {% endfor %}
     {% if archivist %}

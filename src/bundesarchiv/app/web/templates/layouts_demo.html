@@ -69,7 +69,7 @@ hides the pane and returns the ledger to full — layouts.css owns that, not the
         {% include "components/select.html" with name="sortierung" label="Sortierung" options=sort_options selected="signatur" only %}
       </div>
     </div>
-    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=False archivist=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=True only %}
   </main>
 
   {% comment %} Preview pane — present only when vorschau=1; hidden below 1280px by layouts.css. {% endcomment %}

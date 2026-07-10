@@ -83,17 +83,38 @@ _CHIP_DIMENSIONS: tuple[tuple[str, str], ...] = (
 @dataclass(frozen=True, slots=True)
 class ParsedQuery:
     """The workbench request state, parsed from the query string: the free text, the typed
-    ``SearchFilters``, the sort and the (1-based) page. Everything ``search`` needs, nothing more."""
+    ``SearchFilters``, the sort (+ direction) and the (1-based) page. Everything ``search`` needs."""
 
     text: str | None
     filters: SearchFilters
     sort: SortOrder
+    descending: bool
     page: int
+
+
+#: Descending is encoded as a ``-`` prefix on the German ``sortierung`` label ("-signatur"), so the
+#: whole sort state stays in one URL param. An unknown/blank label falls to the default (relevance),
+#: which has no direction — the header cycle only ever sets a column label ± the prefix.
+_SORT_DESC_PREFIX = "-"
+
+
+def _parse_sort(raw: str | None) -> tuple[SortOrder, bool]:
+    """Parse ``sortierung`` into (SortOrder, descending). A leading ``-`` means descending; the rest
+    maps through ``_SORT_BY_LABEL``. An unknown label -> (default, ascending) — garbage never 500s."""
+    value = (raw or "").strip().lower()
+    descending = value.startswith(_SORT_DESC_PREFIX)
+    label = value[1:] if descending else value
+    sort = _SORT_BY_LABEL.get(label, _DEFAULT_SORT)
+    # relevance has no direction; a stray "-relevanz" collapses to plain relevance (not descending).
+    if sort == _DEFAULT_SORT:
+        return _DEFAULT_SORT, False
+    return sort, descending
 
 
 def parse_query(params: Mapping[str, str]) -> ParsedQuery:
     """Parse the raw GET params into a ``ParsedQuery``. Total: every malformed field falls to its
     own default, so a hand-edited / garbage URL yields a sane all-defaults search, never a 500."""
+    sort, descending = _parse_sort(params.get(PARAM_SORT))
     return ParsedQuery(
         text=_text(params.get(PARAM_Q)),
         filters=SearchFilters(
@@ -106,7 +127,8 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
             date_to=_date_or_none(params.get(PARAM_DATE_TO)),
             dateless=_truthy(params.get(PARAM_DATELESS)),
         ),
-        sort=_SORT_BY_LABEL.get((params.get(PARAM_SORT) or "").strip().lower(), _DEFAULT_SORT),
+        sort=sort,
+        descending=descending,
         page=_page(params.get(PARAM_PAGE)),
     )
 

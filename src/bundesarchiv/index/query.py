@@ -157,6 +157,7 @@ def search(
     text: str | None = None,
     filters: SearchFilters | None = None,
     sort: SortOrder = "relevance",
+    descending: bool = False,
     page: int = 1,
     page_size: int = 50,
 ) -> SearchPage:
@@ -165,6 +166,9 @@ def search(
     Pipeline: scope the queryset (``_viewer_scope`` — always first), apply the text match, apply
     the filters, then derive total / facets / the ordered, paginated hits from that one scoped +
     filtered queryset. Returns frozen dataclasses only; no QuerySet or model instance escapes.
+
+    ``descending`` reverses a COLUMN sort's primary key (the workbench header cycle asc→desc); it is
+    a no-op for ``relevance`` (always best-first).
     """
     filters = filters or SearchFilters()
     query = _search_query(text)
@@ -175,7 +179,13 @@ def search(
 
     total = filtered.count()
     hits = _page_of_hits(
-        filtered, query=query, viewer=viewer, sort=sort, page=page, page_size=page_size
+        filtered,
+        query=query,
+        viewer=viewer,
+        sort=sort,
+        descending=descending,
+        page=page,
+        page_size=page_size,
     )
     facets = _facets(matched, filters)
     dateless_count = _dateless_count(matched, filters)
@@ -348,15 +358,16 @@ def _page_of_hits(
     query: SearchQuery | None,
     viewer: Viewer,
     sort: SortOrder,
+    descending: bool,
     page: int,
     page_size: int,
 ) -> tuple[SearchHit, ...]:
     """Order ``qs``, slice the page window, and project to floor-safe ``SearchHit``s.
 
-    Uses ``.values(*_HIT_COLUMNS)`` so no model instance is built — only the six member-visible
-    columns leave the ORM, and they map 1:1 onto ``SearchHit``.
+    Uses ``.values(*_HIT_COLUMNS)`` so no model instance is built — only the member-visible
+    columns (+ the archivist-chrome scope data) leave the ORM, and they map 1:1 onto ``SearchHit``.
     """
-    ordered = _ordered(qs, query=query, viewer=viewer, sort=sort)
+    ordered = _ordered(qs, query=query, viewer=viewer, sort=sort, descending=descending)
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
@@ -366,11 +377,21 @@ def _page_of_hits(
 
 
 def _ordered(
-    qs: QuerySet[ArticleIndex], *, query: SearchQuery | None, viewer: Viewer, sort: SortOrder
+    qs: QuerySet[ArticleIndex],
+    *,
+    query: SearchQuery | None,
+    viewer: Viewer,
+    sort: SortOrder,
+    descending: bool = False,
 ) -> QuerySet[ArticleIndex]:
     """Apply the requested sort. Every order ends with ``ulid`` as a deterministic tiebreaker so
     pages never shuffle between calls. ``relevance`` with no text falls back to ``ulid`` (a stable,
     unique browse order — the index has no intrinsic "recency", so the PK is the honest default).
+
+    ``descending`` reverses the PRIMARY key of a COLUMN sort (ref_code / date / title) — the
+    workbench's header cycle asc→desc; the ``ulid`` tiebreaker stays ascending so pages remain
+    deterministic within a key value. It does not apply to ``relevance`` (rank is always best-first;
+    relevance is never a column header), so a descending relevance is a no-op.
     """
     match sort:
         case "relevance":
@@ -382,13 +403,18 @@ def _ordered(
                 "-_rank", "ulid"
             )
         case "ref_code":
-            return qs.annotate(_rc=Collate("ref_code", _DE_NUMERIC)).order_by(
-                F("_rc").asc(nulls_last=True), "ulid"
+            rc = Collate("ref_code", _DE_NUMERIC)
+            primary = (
+                F("_rc").desc(nulls_last=True) if descending else F("_rc").asc(nulls_last=True)
             )
+            return qs.annotate(_rc=rc).order_by(primary, "ulid")
         case "date":
-            return qs.order_by(F("date_earliest").asc(nulls_last=True), "ulid")
+            col = F("date_earliest")
+            primary = col.desc(nulls_last=True) if descending else col.asc(nulls_last=True)
+            return qs.order_by(primary, "ulid")
         case "title":
-            return qs.annotate(_t=Collate("title", _DE_NUMERIC)).order_by("_t", "ulid")
+            primary = F("_t").desc() if descending else F("_t").asc()
+            return qs.annotate(_t=Collate("title", _DE_NUMERIC)).order_by(primary, "ulid")
         case _ as unreachable:
             assert_never(unreachable)
 

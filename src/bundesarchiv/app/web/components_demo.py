@@ -106,17 +106,32 @@ _LEDGER_ROWS = (
 
 #: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,
 #: active, order). "signatur" is shown as the active ascending sort.
-_LEDGER_SORT_LINKS = (
-    {"label": "Sig", "key": "sig", "query": "sort=signatur", "active": True, "order": "asc"},
-    {"label": "Titel", "key": "titel", "query": "sort=titel", "active": False, "order": "asc"},
+_LEDGER_COLUMNS = (
+    {
+        "label": "Sig",
+        "key": "sig",
+        "sortable": True,
+        "query": "sort=signatur",
+        "active": True,
+        "order": "asc",
+    },
+    {
+        "label": "Titel",
+        "key": "titel",
+        "sortable": True,
+        "query": "sort=titel",
+        "active": False,
+        "order": "asc",
+    },
     {
         "label": "Datierung",
         "key": "datierung",
+        "sortable": True,
         "query": "sort=datierung",
         "active": False,
         "order": "asc",
     },
-    {"label": "Typ", "key": "typ", "query": "sort=typ", "active": False, "order": "asc"},
+    {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
 #: Token swatch sections: (section label, tuple of (background role, text role)).
@@ -163,7 +178,7 @@ def component_library(request: HttpRequest, variant: str | None = None) -> HttpR
             "swatch_pairs": _SWATCH_PAIRS,
             "card_meta": ("Signatur F 12", "Datierung 1962-22", "Foto"),
             "ledger_rows": _LEDGER_ROWS,
-            "ledger_sort_links": _LEDGER_SORT_LINKS,
+            "ledger_columns": _LEDGER_COLUMNS,
         },
     )
 

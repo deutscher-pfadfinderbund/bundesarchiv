@@ -80,6 +80,21 @@ def test_sort_maps_from_german_and_defaults_on_garbage() -> None:
     assert _parse(sortierung="woven-nonsense").sort == "relevance"
 
 
+def test_sort_direction_from_minus_prefix() -> None:
+    # The header cycle encodes descending as a "-" prefix on the German label; the whole sort state
+    # is one URL param (URL-as-state).
+    asc = _parse(sortierung="signatur")
+    assert asc.sort == "ref_code" and asc.descending is False
+    desc = _parse(sortierung="-signatur")
+    assert desc.sort == "ref_code" and desc.descending is True
+    # relevance has no direction — a stray "-relevanz" collapses to plain relevance, not descending.
+    rel = _parse(sortierung="-relevanz")
+    assert rel.sort == "relevance" and rel.descending is False
+    # a bare "-" or a "-garbage" falls to the default, ascending.
+    assert _parse(sortierung="-woven-nonsense").sort == "relevance"
+    assert _parse(sortierung="-woven-nonsense").descending is False
+
+
 def test_page_parsed_and_clamped_to_at_least_one() -> None:
     assert _parse(seite="3").page == 3
     assert _parse(seite="0").page == 1

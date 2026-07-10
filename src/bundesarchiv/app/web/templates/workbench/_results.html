@@ -1,38 +1,17 @@
 {% comment %}
 The results region — the HTMX swap target (#results) and the page's main landmark. Rendered
-standalone on an HX-Request and embedded in the full page on a plain GET. A controls row (hit count
-+ removable filter chips left, sort select right), the ledger results (the register — SIG · Titel ·
-Datierung · Typ, plus the archivist-only SICHTBARKEIT column + Bearbeiten action), an honest empty
-state, and pagination. No visibility logic: every hit is already viewer-scoped by search(); the
-archivist chrome is a presentation gate off is_archivist (the ledger omits those columns otherwise).
+standalone on an HX-Request and embedded in the full page on a plain GET. The toolbar row is gone
+(owner: chips + sort select both died as signals-once duplicates of the headers / sidebar): the
+result count folds into a compact aria-live line, and the ledger register carries everything else.
+Sort is the column headers alone (asc→desc→default cycle, in `columns`); active-filter state +
+removal live only in the sidebar. No visibility logic: every hit is already viewer-scoped by
+search(); the archivist chrome is a presentation gate off is_archivist.
 {% endcomment %}
 <main class="wb-main" id="results">
-  <div class="wb-controls">
-    <div class="wb-controls-left">
-      <p class="wb-hitcount">{{ total }} Treffer</p>
-      {% if chips %}
-      <div class="wb-chips" aria-label="Aktive Filter">
-        {% for chip in chips %}
-        {% include "components/chip.html" with label=chip.label value=chip.value remove_query=chip.remove_query only %}
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-    {% comment %}
-    Sort as a GET form: changing it navigates with the new sortierung, preserving other params
-    (they ride as hidden inputs). No-JS friendly: onchange submits; a plain submit works too.
-    {% endcomment %}
-    <form class="wb-sort" method="get" action="/">
-      {% for key, value in params.items %}{% if key != "sortierung" and key != "seite" %}
-      <input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
-      {% include "components/select.html" with name="sortierung" label="Sortierung" options=sort_choices selected=sort_value only %}
-      {% comment %} A plain submit — no-JS baseline (BINDING); an inline onchange would need JS. {% endcomment %}
-      {% include "components/button.html" with variant="subtle" label="Anwenden" type="submit" only %}
-    </form>
-  </div>
+  <p class="wb-hitcount" aria-live="polite">{{ total }} Treffer</p>
 
   {% if page.hits %}
-  {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=False archivist=is_archivist only %}
+  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist only %}
   {% else %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}
   {% endif %}

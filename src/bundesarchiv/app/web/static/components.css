@@ -197,11 +197,19 @@
   text-decoration: none;
 }
 .c-facet-row a:hover { text-decoration: underline; }
+.c-facet-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .c-facet-count {
-  font: var(--type-mono);
+  font: var(--type-mono-meta);
   font-variant-numeric: tabular-nums;
   color: var(--on-surface-variant);
   white-space: nowrap;
+}
+/* the remove ✕ on an active row — the one place a filter is cleared (the chips row is gone) */
+.c-facet-remove {
+  flex: none;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-s);
+  line-height: 1;
 }
 .c-facet-row--aktiv {
   background: var(--primary-container);

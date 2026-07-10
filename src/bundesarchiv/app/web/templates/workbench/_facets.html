@@ -1,10 +1,13 @@
 {% comment %}
-The facet sidebar (Part 4.5, rebuilt). Each facet value is a GET link that adds (or, if active,
-removes) its param — URL-as-state. Every link is a plain <a href> so the no-JS baseline works; they
-navigate the full page (facet counts recompute on click, not on every keystroke — ideas §4). Groups
-are collapsible via <details>/<summary> (no JS). The Bestand group shows Collection names with an
-honest "direkt: N" count (facet counts direct membership while the filter is the subtree). Reuses
-the atoms' .c-facet-* row classes so the stamp grammar applies; the frame owns the disclosure shell.
+The facet sidebar (Part 4.5, rebuilt) — the ONE place active-filter state + removal live (the chips
+row died as a duplicate). Each facet value is a GET link that adds (or, if active, removes) its
+param — URL-as-state. An ACTIVE row keeps the inversion marking AND shows an inline ✕ (the remove
+link) — the stamp-grammar remove affordance; clicking either the label or the ✕ clears that filter.
+Every link is a plain <a href> so the no-JS baseline works; they navigate the full page (facet
+counts recompute on click, not on every keystroke — ideas §4). Groups are collapsible via
+<details>/<summary> (no JS). Bestand counts are subtree counts (bare, right-aligned). The DATUM
+group carries the Ohne-Datum toggle AND any active von/bis range as removable rows. Reuses the
+atoms' .c-facet-* row classes so the stamp grammar applies; the frame owns the disclosure shell.
 {% endcomment %}
 <div class="wb-facets">
   {% for group in facet_groups %}
@@ -13,8 +16,8 @@ the atoms' .c-facet-* row classes so the stamp grammar applies; the frame owns t
     <ul class="c-facet-list">
       {% for item in group.items %}
       <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
-        <a href="?{{ item.query }}">{{ item.label }}</a>
-        <span class="c-facet-count">{{ item.count }}</span>
+        <a class="c-facet-label" href="?{{ item.query }}">{{ item.label }}</a>
+        {% if item.active %}<a class="c-facet-remove" href="?{{ item.query }}" aria-label="{{ item.label }} entfernen">✕</a>{% else %}<span class="c-facet-count">{{ item.count }}</span>{% endif %}
       </li>
       {% endfor %}
     </ul>

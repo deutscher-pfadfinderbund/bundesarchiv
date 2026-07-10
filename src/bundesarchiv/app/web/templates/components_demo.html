@@ -282,17 +282,17 @@ English; the copy inside atoms is product UI German.</p>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=False archivist=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=True only %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · rows=[{title,href,ref_code,datierung,typ,draft,visibility,action_label,action_href}…] sort_links=[{label,key,query,active,order}…] — Bearbeiten shows on row hover/focus; last row is a draft (ENTWURF badge is its sole Sichtbarkeit signal)</code>
+<code class="doc">components/ledger.html · rows=[{title,href,ref_code,datierung,typ,draft,visibility,action_label,action_href}…] columns=[{label,key,sortable,[query,active,order]}…] — sortable heads cycle asc→desc→default; Typ is a plain head; Bearbeiten on row hover/focus; last row is a draft (ENTWURF is its sole Sichtbarkeit signal)</code>
 
 <h2>Ledger — narrow density (two-line fold)</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=True archivist=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=True archivist=True only %}
   </div>
   {% endfor %}
 </div>

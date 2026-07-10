@@ -155,17 +155,32 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
 
 #: Sortable column headers for the ledger: (label, key matching the cell modifier, query stub,
 #: active, order). Signatur is the active ascending sort in the demo.
-_LEDGER_SORT_LINKS: tuple[dict[str, object], ...] = (
-    {"label": "Sig", "key": "sig", "query": "sort=signatur", "active": True, "order": "asc"},
-    {"label": "Titel", "key": "titel", "query": "sort=titel", "active": False, "order": "asc"},
+_LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
+    {
+        "label": "Sig",
+        "key": "sig",
+        "sortable": True,
+        "query": "sort=signatur",
+        "active": True,
+        "order": "asc",
+    },
+    {
+        "label": "Titel",
+        "key": "titel",
+        "sortable": True,
+        "query": "sort=titel",
+        "active": False,
+        "order": "asc",
+    },
     {
         "label": "Datierung",
         "key": "datierung",
+        "sortable": True,
         "query": "sort=datierung",
         "active": False,
         "order": "asc",
     },
-    {"label": "Typ", "key": "typ", "query": "sort=typ", "active": False, "order": "asc"},
+    {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
 _SORT_OPTIONS = (
@@ -256,7 +271,7 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "vorschau": vorschau,
             "stylesheet": f"/_dev/layouts/static/{LAYOUT_STYLESHEET}",
             "ledger_rows": _LEDGER_ROWS,
-            "ledger_sort_links": _LEDGER_SORT_LINKS,
+            "ledger_columns": _LEDGER_COLUMNS,
             "sort_options": _SORT_OPTIONS,
             "facet_groups": _FACET_GROUPS,
             "preview": _PREVIEW,
