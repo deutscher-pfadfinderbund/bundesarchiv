@@ -1,0 +1,266 @@
+/* Dev-only workbench LAYOUT frame (/_dev/layouts/<name>/, layouts_demo.py). Role tokens ONLY
+   (tokens.css), no raw color values — same law as components.css and pinned by the raw-color sweep
+   (test_layouts.py). Load order: tokens.css, components.css (the atoms), then this file. This file
+   owns ONLY the page frame (grid, header, sidebar, pane) and the two per-layout state behaviors;
+   the atoms style themselves. Stamp grammar holds: violet lives only on the atoms' marks; the
+   frame chrome is pure neutral. Bevel restraint: the frame adds NO bevels (the cut corner belongs
+   to the card/sig/drawer-tab atoms alone). */
+
+* { box-sizing: border-box; }
+body.wb {
+  margin: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font: var(--type-body);
+}
+
+/* ---- dev chrome bar (English, development-facing) ---- */
+.wb-devbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-4);
+  background: var(--surface-container-lowest);
+  border-bottom: 1px solid var(--outline-variant);
+  font: var(--type-mono);
+  font-size: 0.78rem;
+}
+.wb-devbar-label {
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+.wb-devbar-sep { color: var(--outline); }
+.wb-devbar a {
+  color: var(--on-surface);
+  text-decoration: none;
+  padding: 0.1rem var(--space-2);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+}
+.wb-devbar a:hover { border-color: var(--outline); }
+.wb-devbar a[aria-current="page"] {
+  /* inversion: the active choice stamps solid neutral (stamp grammar — no tint) */
+  background: var(--on-surface);
+  color: var(--surface);
+  border-color: var(--on-surface);
+}
+
+/* ---- header bar: wordmark + search + Neuer Artikel ---- */
+.wb-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-container-high);
+  border-bottom: 1px solid var(--outline-variant);
+}
+.wb-wordmark {
+  font: var(--type-display);
+  color: var(--on-surface);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.wb-search {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+.wb-search .c-input { flex: 1 1 auto; min-width: 0; }
+
+/* ---- page frame: sidebar · main · (pane). CSS grid; the pane column exists only when open. ---- */
+.wb-frame {
+  display: grid;
+  grid-template-columns: [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+/* ---- facet sidebar: sticky. Full panel (collapsible groups) + a rail strip (split-rail). ---- */
+.wb-sidebar {
+  position: sticky;
+  top: var(--space-4);
+  grid-column: sidebar;
+}
+.wb-rail {
+  display: none; /* shown only when split-rail collapses the sidebar (see below) */
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+}
+.wb-rail-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  font: var(--type-label);
+  color: var(--on-surface-variant);
+}
+.wb-facets { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* collapsible facet group (no-JS via <details>/<summary>) — reuses the atoms' .c-facet-* row
+   classes for the list so the stamp grammar applies; the frame owns only the disclosure shell. */
+.wb-facet {
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+.wb-facet-summary {
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  list-style-position: inside;
+}
+.wb-facet[open] .wb-facet-summary { margin-bottom: var(--space-1); }
+.wb-facet .c-facet-list { margin-top: var(--space-1); }
+
+/* ---- main column: chips + sort controls, then the ledger ---- */
+.wb-main { grid-column: main; min-width: 0; }
+.wb-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.wb-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+
+/* ---- preview pane: present only when vorschau=1 (server-rendered). ---- */
+.wb-pane { grid-column: pane; }
+.wb-pane-inner {
+  position: sticky;
+  top: var(--space-4);
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  padding: var(--space-4);
+}
+.wb-pane-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.wb-pane-titel { margin: 0 0 var(--space-1); font: var(--type-title); color: var(--on-surface); }
+.wb-pane-meta {
+  margin: 0 0 var(--space-3);
+  font: var(--type-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--primary); /* mono meta = ink data (stamp grammar) */
+}
+.wb-pane-meta span + span::before { content: " · "; color: var(--on-surface-variant); }
+.wb-pane-bild {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  margin-bottom: var(--space-3);
+  background: var(--surface-container-lowest);
+  border: 1px dashed var(--outline-variant);
+  border-radius: var(--radius-s);
+  color: var(--on-surface-variant);
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+}
+.wb-pane-text { margin: 0 0 var(--space-4); color: var(--on-surface-variant); }
+.wb-pane-aktionen { display: flex; gap: var(--space-2); }
+
+/* ============================================================
+   Two-state layouts, ≥1280px only. Below the breakpoint the pane is hidden and the ledger returns
+   to full/no-pane (see the media query at the bottom) — so all pane/rail/fold reshaping lives
+   inside this min-width guard.
+   ============================================================ */
+@media (min-width: 1280px) {
+  /* pane open: the frame grows a third column */
+  .wb--vorschau .wb-frame {
+    grid-template-columns:
+      [sidebar] minmax(3.5rem, 16rem) [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
+  }
+
+  /* split-rail + pane open: the sidebar collapses to the slim rail (~3.5rem), the ledger keeps
+     its full columns. The full facet panel is replaced by the initials rail. */
+  .wb--split-rail.wb--vorschau .wb-frame {
+    grid-template-columns:
+      [sidebar] 3.5rem [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
+  }
+  .wb--split-rail.wb--vorschau .wb-facets { display: none; }
+  .wb--split-rail.wb--vorschau .wb-rail { display: flex; }
+
+  /* split-narrow + pane open: the sidebar stays full; the ledger folds to its narrow two-line
+     density. These rules mirror components.css .c-ledger--narrow but are state-driven (no class)
+     and live behind this breakpoint, so below 1280px the ledger is full again automatically. */
+  .wb--split-narrow.wb--vorschau .c-ledger { grid-template-columns: 1fr; }
+  .wb--split-narrow.wb--vorschau .c-ledger-head { display: none; }
+  .wb--split-narrow.wb--vorschau .c-ledger-row {
+    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+    grid-template-areas:
+      "sig titel titel meta-r"
+      "sig datum typ   meta-r";
+    align-items: start;
+    column-gap: var(--space-3);
+    row-gap: calc(var(--space-1) / 2);
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--sig { grid-area: sig; align-self: center; }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--titel {
+    grid-area: titel;
+    align-self: center;
+    white-space: normal;
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--datierung {
+    grid-area: datum;
+    font: var(--type-mono);
+    font-size: 0.78rem;
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--typ {
+    grid-area: typ;
+    font: var(--type-mono);
+    font-size: 0.78rem;
+    color: var(--on-surface-variant);
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--typ::before {
+    content: "· ";
+    color: var(--on-surface-variant);
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--sichtbarkeit {
+    grid-area: meta-r;
+    align-self: center;
+    justify-content: flex-end;
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--aktion { display: none; }
+}
+
+/* ============================================================
+   Below 1280px: the pane is hidden entirely and the ledger is always full/no-pane. The frame
+   drops back to sidebar · main regardless of vorschau, so a bookmarked ?vorschau=1 still reads
+   sensibly on a narrow screen.
+   ============================================================ */
+@media (max-width: 1279.98px) {
+  .wb-pane { display: none; }
+  .wb--vorschau .wb-frame {
+    grid-template-columns: [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr);
+  }
+}
+
+/* very narrow: sidebar stacks above the main column (single column frame) */
+@media (max-width: 720px) {
+  .wb-frame,
+  .wb--vorschau .wb-frame { grid-template-columns: 1fr; }
+  .wb-sidebar { position: static; }
+}
