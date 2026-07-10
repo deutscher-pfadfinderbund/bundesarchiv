@@ -39,7 +39,7 @@ from django.db import connection, transaction
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Collection, Ulid
+from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
 from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES, ArticleIndex
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -52,7 +52,8 @@ from bundesarchiv.persistence.repository import ArticleRepository
 # config_version does not match this value.
 #   v1: initial FTS infrastructure.
 #   v2: media captions join the body-weight bucket (ADR 0015).
-CONFIG_VERSION = 2
+#   v3: is_draft column added (archivist chrome — ENTWURF badge).
+CONFIG_VERSION = 3
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -140,6 +141,8 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         "document_type": article.document_type,
         "tags": list(article.tags),
         "archivist_text": _archivist_text(article),
+        # Lifecycle marker for archivist chrome only (the ENTWURF badge); NOT a scope column.
+        "is_draft": article.lifecycle is Lifecycle.DRAFT,
         "date_edtf": article.date.value if article.date is not None else None,
         "date_earliest": earliest,
         "date_latest": latest,

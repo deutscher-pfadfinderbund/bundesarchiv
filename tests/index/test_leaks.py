@@ -98,6 +98,10 @@ def _facet_count(
     return next((fc.count for fc in page.facets[key] if fc.value == value), 0)
 
 
+def _hits(viewer: Viewer, *, page_size: int = 200) -> tuple[SearchHit, ...]:
+    return search(viewer, page_size=page_size).hits
+
+
 # ===========================================================================
 # Floored-field term isolation — a term only in an archivist-only field.
 # ===========================================================================
@@ -352,15 +356,84 @@ def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> No
 
 
 # ===========================================================================
+# SearchHit scope data (is_draft / tier / groups) — archivist chrome, no cross-tier leak.
+# These fields ride on returned hits so the ledger can render SICHTBARKEIT + ENTWURF; the guarantee
+# is that _viewer_scope already restricts WHICH rows come back, so the data on them is never a leak.
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_no_non_archivist_hit_is_ever_a_draft(corpus: None) -> None:
+    """A non-archivist never receives an archivist_only row, so no hit they get is_draft. (The
+    draft ART_DRAFT is absent from their results entirely — this pins the FIELD too: even if a bug
+    returned it, is_draft would have to be False on every row a non-archivist can see.)"""
+    for label, viewer in _NON_ARCHIVIST_TIERS:
+        assert all(not hit.is_draft for hit in _hits(viewer)), f"[{label}] a draft rode a hit"
+
+
+@pytest.mark.django_db
+def test_archivist_hits_mark_the_draft(corpus: None) -> None:
+    """The archivist DOES get is_draft=True on the draft row (the chrome needs it) and False on
+    published rows — draft-vs-published is honestly carried."""
+    by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
+    assert by_ulid["ART_DRAFT"].is_draft is True
+    assert by_ulid["ART_PUBFOTO"].is_draft is False
+
+
+@pytest.mark.django_db
+def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
+    """A fail-closed row (broken chain, archivist_only) is NOT a draft — the ENTWURF badge must
+    never mislabel it. Only the archivist sees it at all."""
+    by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
+    assert by_ulid["ART_ORPHAN"].is_draft is False
+
+
+@pytest.mark.django_db
+def test_group_names_on_a_members_hits_are_only_groups_they_hold(corpus: None) -> None:
+    """The cross-tier leak the reviewer will probe: a GROUPS row's ``groups`` may ride out ONLY to a
+    viewer who holds one of them (that's why _viewer_scope returned the row). The vorstand member
+    sees ART_GRPPROT/ART_GRPBESCH carrying ('vorstand', ...) — groups they hold; a plain member and
+    a wrong-group member receive NO GROUPS row at all, so no group name can ride to them."""
+    vorstand_hits = {h.ulid: h for h in _hits(VORSTAND_MEMBER)}
+    assert "vorstand" in vorstand_hits["ART_GRPPROT"].groups  # a group the viewer holds
+    # Every GROUPS-tier hit this member gets overlaps the groups they hold — never a foreign name.
+    held = {"vorstand"}
+    for hit in vorstand_hits.values():
+        if hit.tier == "GROUPS":
+            assert held & set(hit.groups), (
+                f"{hit.ulid}: group names the viewer does not hold rode out"
+            )
+    # Plain + wrong-group members: no GROUPS row reaches them, so groups never carry a foreign name.
+    for label, viewer in (
+        ("member()", PLAIN_MEMBER),
+        ("member(wrong)", Member(("nicht-vorstand",))),
+    ):
+        for hit in _hits(viewer):
+            assert hit.tier != "GROUPS", f"[{label}] a GROUPS row leaked to a non-holder"
+
+
+@pytest.mark.django_db
+def test_public_hits_carry_only_public_tier_no_groups(corpus: None) -> None:
+    """Public only ever gets PUBLIC-tier, non-draft, groupless hits — the scope data is trivially
+    leak-free for the public tier."""
+    for hit in _hits(PUBLIC):
+        assert hit.tier == "PUBLIC"
+        assert hit.groups == ()
+        assert hit.is_draft is False
+
+
+# ===========================================================================
 # SearchHit field floor — a static assert the result type cannot carry a floored field.
 # ===========================================================================
 
 
 def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
-    """Static floor: ``SearchHit.__dataclass_fields__`` is EXACTLY the six member-visible columns —
-    no ``physical_location`` / ``custom`` / ``archivist_text`` can ever ride out on a hit. Extends
-    Task 8's runtime shape check with the exact-field-set assertion the brief names (via
-    ``__dataclass_fields__``), so the floor is pinned even if the runtime test is later relaxed."""
+    """Static floor: ``SearchHit.__dataclass_fields__`` is EXACTLY the member-visible identity/
+    metadata columns PLUS the archivist-chrome scope data (is_draft/tier/groups) — and NEVER a
+    floored field. DELIBERATELY extended (4.6 render path): is_draft/tier/groups were added so the
+    ledger's SICHTBARKEIT column + ENTWURF badge render from structured data; they carry no
+    cross-tier leak by construction (see SearchHit docstring) and the template gates them to the
+    archivist. The floored fields below stay OUT — this is a conscious widening, not a relaxation."""
     field_names = set(SearchHit.__dataclass_fields__)
     assert field_names == {
         "ulid",
@@ -369,14 +442,15 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "date_edtf",
         "media_type",
         "document_type",
+        "is_draft",
+        "tier",
+        "groups",
     }
     for floored in (
         "physical_location",
         "custom",
         "archivist_text",
         "body",
-        "tier",
-        "groups",
         "caption",  # captions feed FTS only (ADR 0015); never a result field
         "media",
     ):

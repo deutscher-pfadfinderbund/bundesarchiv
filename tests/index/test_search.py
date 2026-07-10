@@ -490,11 +490,23 @@ def test_empty_text_browses_everything_in_scope(corpus: None) -> None:
 
 
 def test_search_hit_has_no_floored_fields() -> None:
-    """SearchHit must never carry physical_location / custom / archivist_text (field floor)."""
+    """SearchHit carries the member-visible columns plus the archivist-chrome scope data
+    (is_draft/tier/groups, added for the 4.6 ledger — see test_leaks for the no-leak proof), and
+    NEVER a floored field (physical_location / custom / archivist_text)."""
     import dataclasses
 
     names = {f.name for f in dataclasses.fields(SearchHit)}
-    assert names == {"ulid", "title", "ref_code", "date_edtf", "media_type", "document_type"}
+    assert names == {
+        "ulid",
+        "title",
+        "ref_code",
+        "date_edtf",
+        "media_type",
+        "document_type",
+        "is_draft",
+        "tier",
+        "groups",
+    }
     assert "physical_location" not in names
     assert "custom" not in names
     assert "archivist_text" not in names

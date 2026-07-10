@@ -84,8 +84,18 @@ class SearchFilters:
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
-    """One result row, floor-safe by construction: only the member-visible identity + metadata
-    columns. No ``physical_location`` / ``custom`` / ``archivist_text`` ever appear here."""
+    """One result row, floor-safe by construction: the member-visible identity + metadata columns
+    plus the STRUCTURED scope data the archivist ledger chrome renders (SICHTBARKEIT column +
+    ENTWURF badge). No ``physical_location`` / ``custom`` / ``archivist_text`` (the floored fields)
+    ever appear here.
+
+    ``is_draft`` / ``tier`` / ``groups`` carry NO cross-tier leak by construction: ``_viewer_scope``
+    already restricts the returned rows to those the viewer may see, so a row's ``groups`` are only
+    ever groups a viewer in that GROUPS rung holds (public/members rows carry ``groups=()``), never
+    another tier's names; ``is_draft`` rows (archivist_only) are never returned to a non-archivist at
+    all. The human-German SICHTBARKEIT string is rendered in the view/template from this structured
+    data, and the TEMPLATE additionally gates it to the archivist — this dataclass only carries the
+    facts, it never decides visibility."""
 
     ulid: str
     title: str
@@ -93,6 +103,9 @@ class SearchHit:
     date_edtf: str | None
     media_type: str | None
     document_type: str | None
+    is_draft: bool
+    tier: str | None  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff an archivist-only row
+    groups: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,8 +135,20 @@ class SearchPage:
 
 
 # The columns ``SearchHit`` reads, pulled with ``.values(...)`` so no model instance is built or
-# leaked. Exactly the SearchHit fields — the floor is enforced by this projection being narrow.
-_HIT_COLUMNS = ("ulid", "title", "ref_code", "date_edtf", "media_type", "document_type")
+# leaked. Exactly the SearchHit fields — the floor is enforced by this projection being narrow: the
+# floored columns (physical_location/custom/archivist_text) are simply never named here. is_draft/
+# tier/groups are archivist-chrome scope data (see SearchHit) — safe on scoped rows by construction.
+_HIT_COLUMNS = (
+    "ulid",
+    "title",
+    "ref_code",
+    "date_edtf",
+    "media_type",
+    "document_type",
+    "is_draft",
+    "tier",
+    "groups",
+)
 
 
 def search(
@@ -335,7 +360,9 @@ def _page_of_hits(
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
-    return tuple(SearchHit(**row) for row in rows)
+    # ``groups`` comes back as a list from the ArrayField; SearchHit is frozen/hashable, so coerce
+    # to a tuple. Every other column maps 1:1.
+    return tuple(SearchHit(**{**row, "groups": tuple(row["groups"])}) for row in rows)
 
 
 def _ordered(

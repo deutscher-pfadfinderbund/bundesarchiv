@@ -128,6 +128,16 @@ def test_build_row_draft_lifecycle_is_archivist_only() -> None:
     assert row["groups"] == []
 
 
+def test_build_row_stamps_is_draft_from_lifecycle() -> None:
+    # is_draft is an explicit column (archivist chrome needs draft-vs-published; archivist_only
+    # alone can't distinguish a draft from a fail-closed row — both are archivist_only).
+    root = _root(audience=Audience(AudienceTier.PUBLIC))
+    draft = _article(lifecycle=Lifecycle.DRAFT, audience=Audience(AudienceTier.PUBLIC))
+    published = _article(lifecycle=Lifecycle.PUBLISHED, audience=Audience(AudienceTier.PUBLIC))
+    assert indexer.build_row(draft, _chain(root), cap_year=_CAP_YEAR)["is_draft"] is True
+    assert indexer.build_row(published, _chain(root), cap_year=_CAP_YEAR)["is_draft"] is False
+
+
 def test_build_row_still_indexes_text_of_a_draft() -> None:
     """An archivist-only row still carries title/body so an Archivist can find it."""
     root = _root()
@@ -416,6 +426,9 @@ def test_rebuild_fails_closed_on_dangling_collection(store: InMemoryObjectStore)
     assert bad.archivist_only is True  # fail-closed: only an Archivist can find it
     assert bad.tier is None
     assert list(bad.groups) == []
+    assert (
+        bad.is_draft is False
+    )  # a broken chain is NOT a draft — draft-vs-failclosed stay distinct
     assert bad.title == "Verwaistes Artikel"  # still indexed with its text, so it's findable
 
 
