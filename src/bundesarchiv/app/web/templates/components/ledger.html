@@ -1,0 +1,29 @@
+{% comment %}
+Ledger organism — the results register. A dense, aligned alternative to the card list. Params:
+- rows      — list of dicts, each carrying a ledger_row's params (title, href, ref_code,
+              datierung, typ, draft, visibility, action_label, action_href)
+- sort_links — list of {label, key, query, active, order} for the sortable column headers; each
+              header is a plain link (URL-as-state, no JS). order "asc"|"desc" marks direction.
+- narrow (bool) — density mode: full (aligned columns, default) vs narrow (two-line compact rows,
+              the mail-client fold: line 1 = SIG + Titel, line 2 = Datierung · Typ). The class swap
+              is the ONLY difference — same rows, CSS reflows the grid.
+
+Header cells that are not sortable (SICHTBARKEIT, the action gutter) are plain labels. Marks (SIG
+codes, Datierung) carry ink per the stamp grammar; everything else is neutral chrome.
+{% endcomment %}
+<div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}" role="table" aria-label="Trefferliste">
+  <div class="c-ledger-head" role="row">
+    {% for col in sort_links %}
+    <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %} aria-sort="{{ col.order }}ending"{% endif %}>
+      <a class="c-ledger-sort{% if col.active %} c-ledger-sort--aktiv{% endif %}" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}↑{% else %}↓{% endif %}</span>{% endif %}</a>
+    </span>
+    {% endfor %}
+    <span class="c-ledger-cell c-ledger-cell--sichtbarkeit c-ledger-h" role="columnheader">Sichtbarkeit</span>
+    <span class="c-ledger-cell c-ledger-cell--aktion c-ledger-h" role="columnheader"><span class="c-visually-hidden">Aktion</span></span>
+  </div>
+  <div class="c-ledger-body" role="rowgroup">
+    {% for row in rows %}
+    {% include "components/ledger_row.html" with title=row.title href=row.href ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href only %}
+    {% endfor %}
+  </div>
+</div>

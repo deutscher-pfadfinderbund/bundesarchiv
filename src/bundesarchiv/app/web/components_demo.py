@@ -53,6 +53,70 @@ _FACET_ITEMS_SCHLAGWORTE = (
     {"label": "fahrt", "count": 7, "query": "schlagwort=fahrt", "active": False},
 )
 
+#: Ledger sample rows — the known demo set (incl. the draft row with a hollow sig slot). Each dict
+#: carries a ledger_row's params; the draft row deliberately omits ref_code and visibility.
+_LEDGER_ROWS = (
+    {
+        "title": "Sommerfahrt 1962",
+        "href": "#demo-detail",
+        "ref_code": "F 12",
+        "datierung": "1962",
+        "typ": "Foto",
+        "draft": False,
+        "visibility": "Öffentlich",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+    {
+        "title": "Jahresbericht 1974",
+        "href": "#demo-detail",
+        "ref_code": "B 3",
+        "datierung": "1974",
+        "typ": "Bericht",
+        "draft": False,
+        "visibility": "Alle Mitglieder",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+    {
+        "title": "Vorstandsprotokoll März 1980",
+        "href": "#demo-detail",
+        "ref_code": "V 7",
+        "datierung": "1980-03",
+        "typ": "Protokoll",
+        "draft": False,
+        "visibility": "Gruppe: vorstand",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+    {
+        "title": "Entwurf: Lagerchronik",
+        "href": "#demo-detail",
+        "ref_code": "",
+        "datierung": "",
+        "typ": "Chronik",
+        "draft": True,
+        "visibility": "",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+)
+
+#: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,
+#: active, order). "signatur" is shown as the active ascending sort.
+_LEDGER_SORT_LINKS = (
+    {"label": "Sig", "key": "sig", "query": "sort=signatur", "active": True, "order": "asc"},
+    {"label": "Titel", "key": "titel", "query": "sort=titel", "active": False, "order": "asc"},
+    {
+        "label": "Datierung",
+        "key": "datierung",
+        "query": "sort=datierung",
+        "active": False,
+        "order": "asc",
+    },
+    {"label": "Typ", "key": "typ", "query": "sort=typ", "active": False, "order": "asc"},
+)
+
 #: Token swatch sections: (section label, tuple of (background role, text role)).
 _SWATCH_SURFACE_RAMP = (
     ("surface", "on-surface"),
@@ -96,6 +160,8 @@ def component_library(request: HttpRequest, variant: str | None = None) -> HttpR
             "swatch_surface_ramp": _SWATCH_SURFACE_RAMP,
             "swatch_pairs": _SWATCH_PAIRS,
             "card_meta": ("Signatur F 12", "Datierung 1962-22", "Foto"),
+            "ledger_rows": _LEDGER_ROWS,
+            "ledger_sort_links": _LEDGER_SORT_LINKS,
         },
     )
 

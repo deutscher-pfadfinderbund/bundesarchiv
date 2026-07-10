@@ -36,6 +36,8 @@ _EXPECTED_ATOMS = frozenset(
         "signatur_tab.html",
         "facet_group.html",
         "card.html",
+        "ledger.html",
+        "ledger_row.html",
         "pagination.html",
         "empty_state.html",
     }
@@ -64,6 +66,7 @@ def test_component_library_renders_under_dev_settings() -> None:
     assert "Component library" in body  # English dev chrome
     assert "Archiv durchsuchen" in body  # German product copy inside the atoms
     assert "components/button.html" in body  # include-path annotations (self-documentation)
+    assert "components/ledger.html" in body  # the ledger organism is on the page too
     assert "{#" not in body  # template-comment hygiene, same rule as the workbench
 
 

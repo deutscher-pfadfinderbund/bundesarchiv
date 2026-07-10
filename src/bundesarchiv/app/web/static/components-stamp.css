@@ -356,3 +356,151 @@
   font: var(--type-body);
   color: var(--on-surface-variant);
 }
+
+/* ============================================================
+   LEDGER — the results register. Stamp law applies: the SIG code and the mono DATIERUNG are
+   INK data; the title is a neutral heading (ink on interaction); sort links are ink interactive
+   text; header chrome and row surfaces are pure neutral, no tint. Corners square / --radius-s —
+   a register is not a card, it gets no bevel.
+   ============================================================ */
+
+.c-ledger {
+  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
+    minmax(5rem, max-content) minmax(7rem, max-content) minmax(6rem, max-content);
+  display: grid;
+  grid-template-columns: var(--c-ledger-cols);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  overflow-x: auto;
+}
+/* the rowgroup keeps its ARIA role but leaves the box tree, so rows are effective grid children of
+   .c-ledger and their subgrid inherits the 6 columns (a real wrapper box would break the chain). */
+.c-ledger-body { display: contents; }
+.c-ledger-head,
+.c-ledger-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.c-ledger-head {
+  background: var(--surface-container-high);
+  border-bottom: 1px solid var(--outline-variant);
+}
+.c-ledger-row + .c-ledger-row { border-top: 1px solid var(--outline-variant); }
+.c-ledger-row:hover,
+.c-ledger-row:focus-within { background: var(--surface-container-mid); }
+
+.c-ledger-cell { min-width: 0; }
+
+/* header cells: label small-caps; sortable ones are ink links */
+.c-ledger-h {
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+.c-ledger-sort {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(var(--space-1) / 2);
+  color: var(--primary);
+  text-decoration: none;
+}
+.c-ledger-sort:hover { text-decoration: underline; }
+/* active sort = neutral ink, bold (a header state, not a mark — no violet fill/wash) */
+.c-ledger-sort--aktiv { color: var(--on-surface); font-weight: 700; }
+.c-ledger-sort-pfeil { font: var(--type-mono); font-size: 0.7rem; }
+
+/* body cells */
+.c-ledger-titel {
+  font: var(--type-body);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+.c-ledger-titel:hover { color: var(--primary); text-decoration: underline; }
+.c-ledger-cell--titel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-ledger-cell--datierung {
+  /* mono date = ink data */
+  font: var(--type-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.c-ledger-cell--typ {
+  font: var(--type-body);
+  font-size: 0.85rem;
+  color: var(--on-surface-variant);
+}
+.c-ledger-cell--sichtbarkeit {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.c-ledger-cell--aktion { text-align: right; }
+.c-ledger-aktion { opacity: 0; }
+.c-ledger-row:hover .c-ledger-aktion,
+.c-ledger-row:focus-within .c-ledger-aktion { opacity: 1; }
+.c-ledger-aktion:focus-visible { opacity: 1; }
+
+.c-ledger-row--entwurf .c-ledger-titel { color: var(--on-surface-variant); }
+
+/* narrow density — the mail-client fold: header hidden, each row two lines. Line 2 = Datierung
+   (ink data) · Typ, each in its own track so they sit side by side without overlap. */
+.c-ledger--narrow { grid-template-columns: 1fr; }
+.c-ledger--narrow .c-ledger-head { display: none; }
+.c-ledger--narrow .c-ledger-row {
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+  grid-template-areas:
+    "sig titel titel meta-r"
+    "sig datum typ   meta-r";
+  align-items: start;
+  column-gap: var(--space-3);
+  row-gap: calc(var(--space-1) / 2);
+}
+.c-ledger--narrow .c-ledger-cell--sig { grid-area: sig; align-self: center; }
+.c-ledger--narrow .c-ledger-cell--titel {
+  grid-area: titel;
+  align-self: center;
+  white-space: normal;
+}
+.c-ledger--narrow .c-ledger-cell--datierung {
+  grid-area: datum;
+  font: var(--type-mono);
+  font-size: 0.78rem;
+  color: var(--primary);
+}
+.c-ledger--narrow .c-ledger-cell--typ {
+  grid-area: typ;
+  font: var(--type-mono);
+  font-size: 0.78rem;
+  color: var(--on-surface-variant);
+}
+.c-ledger--narrow .c-ledger-cell--typ::before {
+  content: "· ";
+  color: var(--on-surface-variant);
+}
+.c-ledger--narrow .c-ledger-cell--sichtbarkeit {
+  grid-area: meta-r;
+  align-self: center;
+  justify-content: flex-end;
+}
+.c-ledger--narrow .c-ledger-cell--aktion { display: none; }
+
+/* screen-reader-only label (the action column header carries no visible text) */
+.c-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

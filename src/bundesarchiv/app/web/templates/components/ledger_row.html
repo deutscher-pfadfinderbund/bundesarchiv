@@ -1,0 +1,30 @@
+{% comment %}
+One ledger row — a result register line. Params (via {% include with %}):
+- title + href       — the detail link (required; TITEL column)
+- ref_code           — Signatur; empty/absent renders the unfiled hollow slot (SIG column)
+- datierung          — mono date string (DATIERUNG column); empty renders an em-dash
+- typ                — document type, plain neutral text (TYP column)
+- draft (bool)       — ENTWURF badge in the SICHTBARKEIT column; a draft shows no visibility badge
+- visibility         — human-German visibility text (SICHTBARKEIT column, archivist chrome)
+- action_label/href  — the row action (e.g. "Bearbeiten"), revealed on hover/focus-within
+
+Composes the signatur_tab + badge atoms. The narrow density (.c-ledger--narrow) reflows the same
+cells into two lines via CSS grid areas — no markup fork. No visibility logic here; callers decide.
+{% endcomment %}
+<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}" role="row">
+  <span class="c-ledger-cell c-ledger-cell--sig" role="cell">
+    {% include "components/signatur_tab.html" with ref_code=ref_code only %}
+  </span>
+  <span class="c-ledger-cell c-ledger-cell--titel" role="cell">
+    <a class="c-ledger-titel" href="{{ href }}">{{ title }}</a>
+  </span>
+  <span class="c-ledger-cell c-ledger-cell--datierung" role="cell">{{ datierung|default:"—" }}</span>
+  <span class="c-ledger-cell c-ledger-cell--typ" role="cell">{{ typ|default:"—" }}</span>
+  <span class="c-ledger-cell c-ledger-cell--sichtbarkeit" role="cell">
+    {% include "components/badge_lifecycle.html" with draft=draft only %}
+    {% if visibility and not draft %}{% include "components/badge_visibility.html" with text=visibility only %}{% endif %}
+  </span>
+  <span class="c-ledger-cell c-ledger-cell--aktion" role="cell">
+    {% if action_label %}<a class="c-btn c-btn--subtle c-ledger-aktion" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+  </span>
+</div>
