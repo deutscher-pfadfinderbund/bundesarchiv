@@ -81,15 +81,30 @@ confirm or amend ADR 0004).
   app. Part 5 must state this degradation explicitly in the design §11 notes and the
   runbook.
 
-## Part 6 — release hardening + go-live
+## Part 6 — deploy + CD + go-live
+
+Owner decisions (2026-07-10): the repo goes to a **public GitHub repo**;
+**deploy every green main** (continuous deployment); observability rides the
+VPS's existing **Grafana + Loki + Alloy** stack; **restic + rehearsed restore
+is deferred** — not a go-live gate for now (the mirror remains explicitly NOT
+backup; revisit before the archive holds sole copies of anything).
 
 - Deploy config is a first-class versioned deliverable, assembled per part along the way
   (Postgres joins in Part 3, app+proxy in Part 4, Keycloak in Part 5): compose files,
-  Dockerfiles, TLS, secrets, bring-up runbook.
-- **Restic + rehearsed restore = go-live gate** (resolves the "from day one" vs Part 7
-  doc conflict: day one of production, not of development). Backup set: canonical file
-  tree + Keycloak realm export. The index is disposable and is not backed up.
-- Capacity note: corpus estimate vs VPS disk (canonical + mirror + restic ×3), disk-full
+  Dockerfiles, TLS, secrets (GH Actions secrets + host .env, never in the public repo),
+  bring-up runbook.
+- **CI**: GitHub Actions runs the pre-commit gates (ruff, mypy --strict, pytest) with
+  the custom Postgres image as a service container — CI runs the index suite exactly
+  like dev. Images (app + docker/postgres) build and push to GHCR.
+- **CD**: every green main deploys — SSH to the VPS: `docker compose pull && up -d`,
+  then `migrate` + `ensure_index_current` (config_version machinery makes deploys
+  self-healing). Single-app-process rule ⇒ no rolling deploys; seconds of downtime
+  per deploy is accepted.
+- **Observability**: app + worker log structured to stdout; Alloy scrapes container
+  logs into Loki; Grafana dashboards + alerts (error rate, worker job failures,
+  disk). A simple health endpoint for uptime checks.
+- Fix docker-compose.yml (crash-loops on PG18) as the first task.
+- Capacity note: corpus estimate vs VPS disk (canonical + mirror), disk-full
   alarm, thumbnails regenerable and prunable.
 - Postgres image pinned; major upgrades = deliberate index drop-and-rebuild + documented
   dump/restore for queue state.
