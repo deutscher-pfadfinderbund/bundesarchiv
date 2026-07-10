@@ -100,6 +100,21 @@ def project(viewer: Viewer, article: Article) -> Article:
             assert_never(unreachable)
 
 
+def visible(viewer: Viewer, article: Article, chain: ResolvedChain) -> Article | None:
+    """The render-path combinator (Part 4.6): ``can_view`` THEN ``project`` in one call.
+
+    Returns the ``article`` projected to the fields ``viewer`` may see, or ``None`` if ``viewer``
+    may not see it at all. Denial (``None``) and a floored copy are the two outcomes — a caller can
+    never accidentally render an article the viewer can't see, nor an unfloored one. Fail-closed:
+    any ``DomainError`` in resolution makes ``can_view`` deny, so a broken chain yields ``None``.
+    Pure — no IO. The gate (``can_view``) and the floor (``project``) stay the single sources; this
+    only sequences them so the two-step can't be split and half-applied at a call site.
+    """
+    if not can_view(viewer, article, chain):
+        return None
+    return project(viewer, article)
+
+
 @dataclass(frozen=True, slots=True)
 class VisibilityPreview:
     """ "If published now, who sees this and which fields" — the ADR 0001 anti-over-exposure

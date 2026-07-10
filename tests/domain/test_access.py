@@ -8,7 +8,7 @@ from dataclasses import fields
 
 import pytest
 
-from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project
+from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS, can_view, preview, project, visible
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -298,3 +298,68 @@ def test_preview_who_sees_is_defined_by_can_view(
     p = preview(article, _chain())
     assert p.public == can_view(Public(), published, _chain())
     assert p.members == can_view(Member(), published, _chain())
+
+
+# --- visible(): the can_view + project combinator (Part 4.6 render path) ------------
+
+
+def test_visible_returns_none_when_denied() -> None:
+    # A member cannot see a groups-only article -> visible() denies (None), never a floored copy.
+    article = _article(audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
+    assert visible(Member(()), article, _chain()) is None
+    assert visible(Public(), _article(audience=Audience(AudienceTier.MEMBERS)), _chain()) is None
+
+
+def test_visible_denies_a_draft_to_non_archivists() -> None:
+    draft = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
+    assert visible(Public(), draft, _chain()) is None
+    assert visible(Member(()), draft, _chain()) is None
+
+
+def test_visible_denies_everyone_on_a_broken_chain() -> None:
+    # A chain resolved for a DIFFERENT article yields no audience -> deny all, incl. the archivist.
+    article = _article(audience=Audience(AudienceTier.PUBLIC), collection_id="c-leaf")
+    wrong_chain = _chain(collection_id="c-other")
+    assert visible(Archivist(), article, wrong_chain) is None
+    assert visible(Public(), article, wrong_chain) is None
+
+
+def test_visible_gives_a_member_a_floored_copy() -> None:
+    # A member who CAN view gets the article with ARCHIVIST_ONLY_FIELDS floored.
+    got = visible(Member(()), _physical_article(), _chain())
+    assert got is not None
+    assert got.physical_location is None
+    assert got.custom == ()
+    assert got.title == "Zeltlager 1955"  # member-visible fields preserved
+    assert got.ref_code == "Foto-1955/007"
+
+
+def test_visible_gives_public_a_floored_copy() -> None:
+    got = visible(Public(), _physical_article(), _chain())
+    assert got is not None
+    assert got.physical_location is None
+    assert got.custom == ()
+
+
+def test_visible_gives_the_archivist_everything() -> None:
+    article = _physical_article()
+    got = visible(Archivist(), article, _chain())
+    assert got == article  # unfloored, identical to the source
+
+
+def test_visible_does_not_mutate_the_source() -> None:
+    article = _physical_article()
+    visible(Member(()), article, _chain())
+    assert article.physical_location is not None  # the frozen source is untouched
+
+
+def test_visible_floors_exactly_the_archivist_only_fields_for_a_member() -> None:
+    # Drift guard mirroring project's: a member's visible copy differs from the source in EXACTLY
+    # ARCHIVIST_ONLY_FIELDS — no over-flooring, no leak.
+    article = _physical_article()
+    got = visible(Member(()), article, _chain())
+    assert got is not None
+    differing = {
+        f.name for f in fields(article) if getattr(article, f.name) != getattr(got, f.name)
+    }
+    assert differing == ARCHIVIST_ONLY_FIELDS
