@@ -406,24 +406,22 @@ def _clamp_page_size(page_size: int) -> int:
 # Scalar facets: (facet key, model column). Each is a group-by count over the scoped+filtered set
 # with THIS facet's own filter removed (standard faceting), so the counts show what a user could
 # switch to, not just what the current selection already narrowed to.
-#
-# KNOWN, DELIBERATE DIVERGENCE (collection): the collection FACET counts DIRECT membership — it
-# groups by ``collection_id`` (each row's own leaf Collection) — whereas the collection FILTER
-# matches the whole SUBTREE (``collection_ancestors__contains``, in ``_apply_filters``). So a
-# parent Collection's facet count is the rows sitting directly in it, not the size of the set that
-# selecting it as a filter would return (which includes descendants). This is intentional for v1:
-# a direct-membership breakdown is the useful drill-down signal; reconciling the two into a subtree
-# rollup is a Part 4 UI decision, not a query-layer one. Pinned by Task 9's equivalence grid, which
-# checks facet TOTALS against the can_view-visible set — a divergence in *scoping* would still fail
-# there; this divergence is only in *grouping granularity*, which the grid does not conflate.
 _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("media_type", "media_type"),
     ("document_type", "document_type"),
-    ("collection", "collection_id"),
 )
 
 # Array facets: (facet key, array column) — counted per-element via unnest.
+#
+# COLLECTION counts the SUBTREE (owner, 2026-07-10): it unnests ``collection_ancestors`` (each row's
+# leaf→root chain), so every row contributes to each of its ancestors and a parent Collection's
+# count is the size of its whole subtree — exactly the set selecting it as the (subtree) FILTER
+# returns (``collection_ancestors__contains``). This replaces the old direct-membership group-by on
+# ``collection_id`` (the confusing "direkt: N" hedge): facet count now matches what clicking yields.
+# Still per-tier scoped — the aggregate runs over the ``_viewer_scope``'d ``matched`` set — and a
+# fail-closed row carries no ancestors, so it never inflates any collection's count.
 _ARRAY_FACETS: tuple[tuple[str, str], ...] = (
+    ("collection", "collection_ancestors"),
     ("tags", "tags"),
     ("decades", "decades"),
 )

@@ -14,7 +14,7 @@ the atoms' .c-facet-* row classes so the stamp grammar applies; the frame owns t
       {% for item in group.items %}
       <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
         <a href="?{{ item.query }}">{{ item.label }}</a>
-        <span class="c-facet-count">{% if group.direct %}direkt: {% endif %}{{ item.count }}</span>
+        <span class="c-facet-count">{{ item.count }}</span>
       </li>
       {% endfor %}
     </ul>

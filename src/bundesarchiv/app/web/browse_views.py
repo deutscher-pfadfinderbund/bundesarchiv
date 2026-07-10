@@ -99,13 +99,11 @@ class _FacetItem:
 
 @dataclass(frozen=True, slots=True)
 class _FacetGroup:
-    """A sidebar facet section: its German heading and its items. ``direct`` marks the collection
-    group so the template can label its counts "direkt: N" (facet counts DIRECT membership while the
-    filter is subtree — query.py's documented divergence, surfaced honestly)."""
+    """A sidebar facet section: its German heading and its items. Every group shows a bare
+    right-aligned count (collection counts are subtree counts now — no "direkt:" hedge)."""
 
     heading: str
     items: tuple[_FacetItem, ...]
-    direct: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -341,13 +339,14 @@ def _facet_items(
 
 
 def _collection_group(params: dict[str, str], counts: tuple[FacetCount, ...]) -> _FacetGroup:
-    """The Bestand facet: ULIDs resolved to Collection names, counts labeled "direkt" by the
-    template. Empty ``counts`` yields an empty group (dropped by ``_facet_groups``)."""
+    """The Bestand facet: ULIDs resolved to Collection names. Counts are SUBTREE counts (the query
+    facets over ``collection_ancestors``), so the number matches what clicking the (subtree) filter
+    yields — a bare right-aligned count like every other group (the old "direkt:" hedge is gone).
+    Empty ``counts`` yields an empty group (dropped by ``_facet_groups``)."""
     labels = _collection_names() if counts else {}
     return _FacetGroup(
         "Bestand",
         _facet_items(params, browse.PARAM_COLLECTION, counts, labels=labels),
-        direct=True,
     )
 
 

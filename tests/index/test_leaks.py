@@ -235,6 +235,62 @@ def test_wrong_group_member_sees_exactly_a_plain_member(corpus: None) -> None:
 
 
 # ===========================================================================
+# Collection facet = SUBTREE counts (owner correction). The count must equal what selecting the
+# collection as a (subtree) filter yields, AND stay per-tier scoped — no descendant a viewer can't
+# see may inflate an ancestor's count.
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_collection_facet_count_equals_subtree_filter_result_per_tier(corpus: None) -> None:
+    """The invariant the "direkt:" hedge violated: for every collection in a viewer's Bestand facet,
+    its count equals the number of results selecting that collection as the subtree filter returns —
+    for EACH tier independently (so the count is scoped, never a global subtree size)."""
+    for label, viewer in (*_NON_ARCHIVIST_TIERS, ("archivist", ARCHIVIST)):
+        page = search(viewer, page_size=200)
+        for fc in page.facets["collection"]:
+            got = len(_ulids(viewer, filters=SearchFilters(collection=fc.value), page_size=200))
+            assert fc.count == got, (
+                f"[{label}] collection {fc.value}: facet count {fc.count} != subtree filter {got}"
+            )
+
+
+@pytest.mark.django_db
+def test_collection_facet_root_count_is_the_whole_rooted_visible_set(corpus: None) -> None:
+    """ROOT is every WELL-FORMED row's ancestor, so its subtree count is the viewer's whole visible
+    set MINUS ancestorless rows (a fail-closed row carries collection_ancestors=[], so it is in the
+    archivist's total but under no collection — including ROOT). The count still equals the ROOT
+    subtree-filter result, and the archivist (drafts + members/groups rows) counts more than public."""
+    root_pub = _facet_count(PUBLIC, "collection", "ROOT")
+    root_arch = _facet_count(ARCHIVIST, "collection", "ROOT")
+    # ROOT count == ROOT subtree-filter result (the invariant) — for the archivist this is < total
+    # by exactly the ancestorless ART_ORPHAN (present in total, absent from every collection).
+    assert root_arch == len(
+        _ulids(ARCHIVIST, filters=SearchFilters(collection="ROOT"), page_size=200)
+    )
+    assert root_arch == search(ARCHIVIST, page_size=200).total - 1  # minus the ancestorless orphan
+    assert root_pub == search(PUBLIC, page_size=200).total  # public corpus has no ancestorless row
+    assert root_arch > root_pub  # the archivist's subtree includes rows the public can't see
+
+
+@pytest.mark.django_db
+def test_collection_facet_subtree_count_hides_restricted_descendants(corpus: None) -> None:
+    """AKTEN's subtree holds VORSTAND (GROUPS). A plain member's AKTEN count must exclude the
+    GROUPS rows under it (they can't see them); the vorstand member's AKTEN count includes them —
+    a restricted descendant never inflates an ancestor's count for a viewer who can't see it."""
+    akten_plain = _facet_count(PLAIN_MEMBER, "collection", "AKTEN")
+    akten_vorstand = _facet_count(VORSTAND_MEMBER, "collection", "AKTEN")
+    assert akten_vorstand > akten_plain  # the vorstand rows show up only for the holder
+    # and each still equals its own subtree-filter result (the invariant, per this tier)
+    assert akten_plain == len(
+        _ulids(PLAIN_MEMBER, filters=SearchFilters(collection="AKTEN"), page_size=200)
+    )
+    assert akten_vorstand == len(
+        _ulids(VORSTAND_MEMBER, filters=SearchFilters(collection="AKTEN"), page_size=200)
+    )
+
+
+# ===========================================================================
 # Differential facet leaks (controller #3) — tags. The mutation-tested gap:
 # a value on ONLY restricted rows must be absent from an unauthorized viewer's
 # facet and present for an authorized one. Catches an unscoped facet queryset.

@@ -391,13 +391,13 @@ def test_facets_render_with_headings(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_collection_facet_shows_name_and_direkt_label(corpus_root: Path) -> None:
+def test_collection_facet_shows_name_and_no_direkt_label(corpus_root: Path) -> None:
     body = _get(corpus_root, Public()).content.decode()
     assert "Fotografien" in body  # ULID resolved to the Collection NAME (the visible label)
     # The ULID rides in the facet link href (URL-as-state), but the ANCHOR TEXT is the name, not the
     # ULID — the raw ULID never shows as the clickable label.
     assert ">FOTOS</a>" not in body
-    assert "direkt:" in body  # honest direct-membership label
+    assert "direkt:" not in body  # the "direkt:" hedge is gone — counts are subtree counts now
 
 
 @pytest.mark.django_db
