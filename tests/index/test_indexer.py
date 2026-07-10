@@ -29,6 +29,7 @@ from bundesarchiv.domain.models import (
     AudienceTier,
     Collection,
     Lifecycle,
+    MediaRef,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public
 from bundesarchiv.index import indexer
@@ -134,6 +135,51 @@ def test_build_row_still_indexes_text_of_a_draft() -> None:
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
     assert row["title"] == "Geheim"
     assert row["body"] == "Notizen"
+
+
+# --- media captions join the body-weight FTS bucket (ADR 0015) --------------
+
+
+def test_build_row_appends_media_captions_to_the_body_bucket() -> None:
+    """Media captions join the article's FTS document at BODY weight: build_row concatenates them,
+    order-preserving, into the same column the body text feeds (weight D in the general tsvector).
+    The body text stays first; captions follow in media order."""
+    root = _root()
+    article = _article(
+        body="Ein Bericht.",
+        media=(
+            MediaRef("a.mp3", "9" * 64, caption="Sprecher unbekannt"),
+            MediaRef("b.jpg", "c" * 64),  # uncaptioned -> contributes nothing
+            MediaRef("c.jpg", "d" * 64, caption="Huelle vorne"),
+        ),
+    )
+    row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
+    body = row["body"]
+    assert isinstance(body, str)
+    assert body.startswith("Ein Bericht.")  # the real body text leads
+    assert "Sprecher unbekannt" in body
+    assert "Huelle vorne" in body
+    # order-preserving: the first caption precedes the third
+    assert body.index("Sprecher unbekannt") < body.index("Huelle vorne")
+
+
+def test_build_row_body_unchanged_without_captions() -> None:
+    """No captions -> the body column is exactly the article body (no trailing whitespace/joins)."""
+    root = _root()
+    article = _article(body="Nur Text.", media=(MediaRef("a.jpg", "a" * 64),))
+    row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
+    assert row["body"] == "Nur Text."
+
+
+def test_build_row_captions_index_even_with_empty_body() -> None:
+    """An article with no body but a captioned media file still contributes the caption text to
+    the body bucket (so it is searchable at body weight)."""
+    root = _root()
+    article = _article(body="", media=(MediaRef("a.mp3", "9" * 64, caption="Tonbandaufnahme"),))
+    row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
+    body = row["body"]
+    assert isinstance(body, str)
+    assert "Tonbandaufnahme" in body
 
 
 # --- date columns ----------------------------------------------------------

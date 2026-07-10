@@ -47,9 +47,12 @@ from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# Bump on any ADR 0011 config change (FTS config, collation, wrapper functions). The Part 4
-# background worker rebuilds when a row's stored config_version does not match this value.
-CONFIG_VERSION = 1
+# Bump on any ADR 0011 config change (FTS config, collation, wrapper functions) OR any change to
+# what feeds a tsvector column. The Part 4 background worker rebuilds when a row's stored
+# config_version does not match this value.
+#   v1: initial FTS infrastructure.
+#   v2: media captions join the body-weight bucket (ADR 0015).
+CONFIG_VERSION = 2
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -110,6 +113,17 @@ def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> dict[
     return _content_columns(article, ancestors=ancestors, cap_year=cap_year) | _scope_dict(scope)
 
 
+def _body_text(article: Article) -> str:
+    """The body FTS bucket: the article body followed by every media caption in order (ADR 0015).
+    Captions are member-visible article content, so they ride the body-weight (weight D) general
+    tsvector — not the archivist bucket. Uncaptioned entries contribute nothing; order is preserved
+    so the cover's caption leads. Blank-joined and stripped so an empty body + one caption yields
+    just the caption (no leading whitespace). This feeds ONLY the FTS ``body`` column; SearchHit
+    never surfaces it, so concatenation cannot leak into displayed text."""
+    captions = [m.caption for m in article.media if m.caption]
+    return " ".join([article.body, *captions]).strip()
+
+
 def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:
     """Every non-scope column: identity, member-visible text, folded archivist_text, dates, and
     the Collection ancestry. Shared by ``build_row`` and the fail-closed path (which supplies an
@@ -118,7 +132,7 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
     return {
         "ulid": article.ulid,
         "title": article.title,
-        "body": article.body,
+        "body": _body_text(article),
         "creator": article.creator,
         "subject_place": article.subject_place,
         "ref_code": article.ref_code,

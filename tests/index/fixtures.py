@@ -21,7 +21,7 @@ are the module-level singletons below.
 """
 
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pytest
 
@@ -120,9 +120,36 @@ def build_store() -> InMemoryObjectStore:
     )
 
     for article in _articles():
-        articles.save(article, 0)
+        articles.save(_with_captioned_media(articles, article), 0)
 
     return store
+
+
+# Unique caption words per article — each appears NOWHERE else in the corpus, so a search for it
+# probes exactly the caption channel (ADR 0015). One public article (reachable by all tiers) and
+# two RESTRICTED articles (a GROUPS row + the draft) so the leak test can assert per-tier isolation.
+CAPTION_WORDS: dict[str, str] = {
+    "ART_PUBFOTO": "Zeltwiese",  # public: caption search must reach every tier + archivist
+    "ART_GRPPROT": "Tresornotiz",  # GROUPS{vorstand}: must NOT leak to public / non-vorstand
+    "ART_DRAFT": "Skizzenblatt",  # draft (archivist-only): must NOT leak to any non-archivist
+}
+
+
+def _with_captioned_media(articles: ArticleRepository, article: Article) -> Article:
+    """Attach one captioned media file to the articles named in ``CAPTION_WORDS`` (others pass
+    through untouched). Stores the blob via ``add_media`` (so ``save``'s media-exists check passes)
+    and threads the article's unique caption word onto the ref."""
+    word = CAPTION_WORDS.get(article.ulid)
+    if word is None:
+        return article
+    ref = articles.add_media(
+        article.ulid,
+        f"{article.ulid.lower()}-media.jpg",
+        f"bytes for {article.ulid}".encode(),
+        media_type="image/jpeg",
+        caption=f"Aufnahme: {word}",
+    )
+    return replace(article, media=(ref,))
 
 
 def build_index() -> indexer.RebuildReport:

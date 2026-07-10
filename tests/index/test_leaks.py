@@ -310,6 +310,48 @@ def test_failclosed_row_visible_to_archivist_but_not_via_collection_filter(corpu
 
 
 # ===========================================================================
+# Media captions (ADR 0015) — searchable at body weight, but STILL scope-first.
+# A caption on a restricted row must never open a leak the row itself doesn't.
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_public_caption_word_reaches_every_tier(corpus: None) -> None:
+    """'Zeltwiese' lives ONLY in ART_PUBFOTO's media caption (a public, published row). Because it
+    joins the body-weight FTS bucket, every tier — including the Archivist — reaches the row by that
+    caption word. This is the positive that proves captions actually index (the negatives below are
+    scope gates, not an indexing gap)."""
+    for label, viewer in (*_NON_ARCHIVIST_TIERS, ("archivist", ARCHIVIST)):
+        assert "ART_PUBFOTO" in _ulids(viewer, text="Zeltwiese"), (
+            f"[{label}] public caption word did not reach a tier that can see the row"
+        )
+
+
+@pytest.mark.django_db
+def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) -> None:
+    """'Tresornotiz' is ONLY in ART_GRPPROT's caption (GROUPS{vorstand}). A caption is member-
+    visible content, so it is scope-first like body text: absent for Public, plain Member and a
+    wrong-group Member; present for the vorstand Member and the Archivist."""
+    assert _ulids(PUBLIC, text="Tresornotiz") == set()
+    assert _ulids(PLAIN_MEMBER, text="Tresornotiz") == set()
+    assert _ulids(Member(("nicht-vorstand",)), text="Tresornotiz") == set()
+    assert "ART_GRPPROT" in _ulids(VORSTAND_MEMBER, text="Tresornotiz")
+    assert "ART_GRPPROT" in _ulids(ARCHIVIST, text="Tresornotiz")
+
+
+@pytest.mark.django_db
+def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> None:
+    """'Skizzenblatt' is ONLY in ART_DRAFT's caption. A draft is archivist-only regardless of
+    audience, so its caption word yields ZERO hits for every non-Archivist tier and reaches only
+    the Archivist — the caption channel does not bypass the lifecycle gate."""
+    for label, viewer in _NON_ARCHIVIST_TIERS:
+        assert _ulids(viewer, text="Skizzenblatt") == set(), (
+            f"[{label}] draft caption word 'Skizzenblatt' leaked via the caption channel"
+        )
+    assert "ART_DRAFT" in _ulids(ARCHIVIST, text="Skizzenblatt")
+
+
+# ===========================================================================
 # SearchHit field floor — a static assert the result type cannot carry a floored field.
 # ===========================================================================
 
@@ -328,7 +370,16 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "media_type",
         "document_type",
     }
-    for floored in ("physical_location", "custom", "archivist_text", "body", "tier", "groups"):
+    for floored in (
+        "physical_location",
+        "custom",
+        "archivist_text",
+        "body",
+        "tier",
+        "groups",
+        "caption",  # captions feed FTS only (ADR 0015); never a result field
+        "media",
+    ):
         assert floored not in field_names, f"floored field {floored!r} leaked into SearchHit"
 
 
