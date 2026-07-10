@@ -161,11 +161,6 @@
   color: var(--on-draft);
   border: 1px solid var(--on-draft);
 }
-.c-badge--veroeffentlicht {
-  background: transparent;
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-}
 .c-badge--sichtbarkeit {
   background: transparent;
   color: var(--on-surface-variant);
@@ -191,12 +186,6 @@
   border: 1px solid var(--outline-variant);
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
   border-radius: var(--radius-m) 0 0 0;
-}
-.c-sig-label {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
 }
 .c-sig-code {
   /* the actual signature = stamp ink */

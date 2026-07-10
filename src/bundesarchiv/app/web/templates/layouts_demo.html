@@ -76,13 +76,13 @@ hides the pane and returns the ledger to full — layouts.css owns that, not the
   {% if vorschau %}
   <aside class="wb-pane" aria-label="Vorschau">
     <div class="wb-pane-inner">
+      <div class="wb-pane-bild" aria-hidden="true"></div>
       <div class="wb-pane-kopf">
         {% include "components/signatur_tab.html" with ref_code=preview.ref_code only %}
         {% include "components/badge_visibility.html" with text=preview.visibility only %}
       </div>
       <h2 class="wb-pane-titel">{{ preview.title }}</h2>
       <p class="wb-pane-meta"><span>{{ preview.datierung }}</span><span>{{ preview.typ }}</span></p>
-      <div class="wb-pane-bild" aria-hidden="true"><span>Bild</span></div>
       <p class="wb-pane-text">{{ preview.beschreibung }}</p>
       <div class="wb-pane-aktionen">
         {% include "components/button.html" with variant="subtle" label="Bearbeiten" only %}

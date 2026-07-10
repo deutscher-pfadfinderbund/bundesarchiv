@@ -132,6 +132,15 @@ body.wb {
   border-radius: var(--radius-s);
   padding: var(--space-4);
 }
+/* cover image region leads the preview (order is meaning — ADR 0015 first-media-is-cover); a quiet
+   placeholder, no "BILD" label restating the obvious. */
+.wb-pane-bild {
+  aspect-ratio: 4 / 3;
+  margin-bottom: var(--space-3);
+  background: var(--surface-container-lowest);
+  border: 1px dashed var(--outline-variant);
+  border-radius: var(--radius-s);
+}
 .wb-pane-kopf {
   display: flex;
   flex-wrap: wrap;
@@ -147,20 +156,6 @@ body.wb {
   color: var(--primary); /* mono meta = ink data (stamp grammar) */
 }
 .wb-pane-meta span + span::before { content: " · "; color: var(--on-surface-variant); }
-.wb-pane-bild {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 4 / 3;
-  margin-bottom: var(--space-3);
-  background: var(--surface-container-lowest);
-  border: 1px dashed var(--outline-variant);
-  border-radius: var(--radius-s);
-  color: var(--on-surface-variant);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-}
 .wb-pane-text { margin: 0 0 var(--space-4); color: var(--on-surface-variant); }
 .wb-pane-aktionen { display: flex; gap: var(--space-2); }
 

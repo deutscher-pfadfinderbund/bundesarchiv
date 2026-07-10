@@ -37,7 +37,8 @@ LAYOUTS: dict[str, str] = {
 LAYOUT_STYLESHEET = "layouts.css"
 
 #: The known demo set plus extra plausible rows so the ledger scrolls. Each dict carries a
-#: ledger_row's params; the draft row omits ref_code + visibility (hollow sig slot, ENTWURF badge).
+#: ledger_row's params. Two drafts demonstrate the sig/lifecycle decoupling: one WITH a ref_code
+#: (code shows; ENTWURF is the only lifecycle signal) and one WITHOUT (hollow "ohne Signatur" slot).
 _LEDGER_ROWS: tuple[dict[str, object], ...] = (
     {
         "title": "Sommerfahrt 1962",
@@ -67,10 +68,11 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "visibility": "Gruppe: vorstand",
     },
     {
-        "title": "Entwurf: Lagerchronik",
+        # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
+        "title": "Lagerchronik",
         "href": "?artikel=lagerchronik",
-        "ref_code": "",
-        "datierung": "",
+        "ref_code": "C 5",
+        "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
         "visibility": "",
@@ -130,7 +132,9 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "visibility": "Öffentlich",
     },
     {
-        "title": "Entwurf: Festschrift 60 Jahre",
+        # Draft WITHOUT a Signatur: the hollow slot means "ohne Signatur" (ref_code absent), a
+        # separate axis from the ENTWURF lifecycle badge.
+        "title": "Festschrift 60 Jahre",
         "href": "?artikel=festschrift-60",
         "ref_code": "",
         "datierung": "",

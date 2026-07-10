@@ -53,8 +53,9 @@ _FACET_ITEMS_SCHLAGWORTE = (
     {"label": "fahrt", "count": 7, "query": "schlagwort=fahrt", "active": False},
 )
 
-#: Ledger sample rows — the known demo set (incl. the draft row with a hollow sig slot). Each dict
-#: carries a ledger_row's params; the draft row deliberately omits ref_code and visibility.
+#: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
+#: carries a ref_code (lifecycle is decoupled from the sig slot) and shows the ENTWURF badge as its
+#: sole SICHTBARKEIT signal.
 _LEDGER_ROWS = (
     {
         "title": "Sommerfahrt 1962",
@@ -90,10 +91,11 @@ _LEDGER_ROWS = (
         "action_href": "#demo-edit",
     },
     {
-        "title": "Entwurf: Lagerchronik",
+        # A draft WITH a Signatur: lifecycle (ENTWURF badge) is decoupled from the sig slot.
+        "title": "Lagerchronik",
         "href": "#demo-detail",
-        "ref_code": "",
-        "datierung": "",
+        "ref_code": "C 5",
+        "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
         "visibility": "",

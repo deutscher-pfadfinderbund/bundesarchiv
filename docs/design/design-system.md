@@ -69,7 +69,8 @@ steps are the elevation ramp (page → panel → card → raised) in both modes.
 Semantic notes:
 
 - `draft` exists because lifecycle state (ENTWURF) is core archive vocabulary,
-  not a decoration. Published items stay quiet; drafts pop.
+  not a decoration. Published items carry NO lifecycle marker (absence = published,
+  since v1 lifecycle is binary); only drafts pop.
 - `error` is reserved for Part 4.7 form validation ("Inzwischen geändert",
   field errors). Do not repurpose.
 
@@ -96,11 +97,12 @@ Semantic notes:
 | Facet group panels | `surface-container-low`, headings `label`/`on-surface-variant` |
 | Active facet | `primary-container` / `on-primary-container` |
 | Result card | `surface-container-low`, hover `-mid` |
-| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; draft: dashed `outline-variant`, no fill |
+| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle |
 | Chips | `primary-container` / `on-primary-container` |
 | Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
-| ENTWURF badge | `draft` / `on-draft` |
-| Visibility badge (archivist only) | `outline` + `on-surface-variant` |
+| ENTWURF badge | `draft` / `on-draft`; the Sichtbarkeit value for drafts (shown instead of the visibility badge) |
+| Visibility badge (published, archivist only) | `outline` + `on-surface-variant` |
+| Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 
 ## Contrast test

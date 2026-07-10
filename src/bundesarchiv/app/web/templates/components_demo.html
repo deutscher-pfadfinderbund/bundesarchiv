@@ -220,12 +220,12 @@ English; the copy inside atoms is product UI German.</p>
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="row">
       {% include "components/badge_lifecycle.html" with draft=True only %}
-      {% include "components/badge_lifecycle.html" with draft=False only %}
+      <span class="doc">draft=False renders nothing (published is the quiet default)</span>
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/badge_lifecycle.html · draft=True|False</code>
+<code class="doc">components/badge_lifecycle.html · draft=True → ENTWURF; draft=False → nothing</code>
 
 <h2>Badges — visibility</h2>
 <div class="probe">
@@ -254,7 +254,7 @@ English; the copy inside atoms is product UI German.</p>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/signatur_tab.html · ref_code=… (absent → unfiled hollow slot; long codes ellipsize)</code>
+<code class="doc">components/signatur_tab.html · ref_code=… (absent → hollow "ohne Signatur" slot; long codes ellipsize)</code>
 
 <h2>Facet group</h2>
 <div class="probe">
@@ -272,7 +272,7 @@ English; the copy inside atoms is product UI German.</p>
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     {% include "components/card.html" with title="Sommerfahrt 1962" href="#demo-detail" ref_code="F 12" draft=False visibility="Öffentlich" meta=card_meta action_label="Bearbeiten" action_href="#demo-edit" only %}
-    {% include "components/card.html" with title="Entwurf: Lagerchronik" href="#demo-detail" draft=True action_label="Bearbeiten" action_href="#demo-edit" only %}
+    {% include "components/card.html" with title="Lagerchronik" href="#demo-detail" ref_code="C 5" draft=True action_label="Bearbeiten" action_href="#demo-edit" only %}
   </div>
   {% endfor %}
 </div>
@@ -286,7 +286,7 @@ English; the copy inside atoms is product UI German.</p>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · rows=[{title,href,ref_code,datierung,typ,draft,visibility,action_label,action_href}…] sort_links=[{label,key,query,active,order}…] — Bearbeiten shows on row hover/focus; last row is the ENTWURF draft (hollow sig slot)</code>
+<code class="doc">components/ledger.html · rows=[{title,href,ref_code,datierung,typ,draft,visibility,action_label,action_href}…] sort_links=[{label,key,query,active,order}…] — Bearbeiten shows on row hover/focus; last row is a draft (ENTWURF badge is its sole Sichtbarkeit signal)</code>
 
 <h2>Ledger — narrow density (two-line fold)</h2>
 <div class="probe">
