@@ -31,7 +31,7 @@ from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.models import Collection, Ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
-from bundesarchiv.index.query import FacetCount
+from bundesarchiv.index.query import FacetCount, SearchHit
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 
@@ -48,6 +48,11 @@ def workbench(request: HttpRequest) -> HttpResponse:
     and the HTMX swap are one code path."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
+    # Presentation-only chrome flag: the templates hide archivist affordances (SICHTBARKEIT column,
+    # ENTWURF badge, Bearbeiten, "Neuer Artikel") for non-Archivists. This is NOT scoping (§11) —
+    # result visibility is decided exclusively by search()/can_view; the /artikel/neu ROUTE stays
+    # independently Archivist-gated regardless of this flag.
+    is_archivist = isinstance(viewer, Archivist)
     page = search(
         viewer,
         text=parsed.text,
@@ -56,12 +61,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
         page=parsed.page,
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
     )
-    context = _results_context(request, parsed, page)
-    # Presentation-only chrome flag: the template hides the "Neuer Artikel" button for
-    # non-Archivists so an anonymous viewer never sees an admin affordance that 404s. This is NOT
-    # scoping (§11) — result visibility is decided exclusively by search()/can_view; the
-    # /artikel/neu ROUTE stays independently Archivist-gated regardless of this flag.
-    context["is_archivist"] = isinstance(viewer, Archivist)
+    context = _results_context(request, parsed, page, is_archivist=is_archivist, selected_ulid=None)
+    context["is_archivist"] = is_archivist
     if request.headers.get("HX-Request"):
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
@@ -99,24 +100,115 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("decades", browse.PARAM_DECADE, "Jahrzehnte"),
 )
 
+# The ledger's sortable column headers: (German label, cell key matching the css modifier, the
+# ``sortierung`` value the header links to). Mirrors browse.SORT_CHOICES minus "relevanz" (there is
+# no relevance COLUMN to sort by a header). Presentation only — the sort itself is browse/search.
+_LEDGER_SORT_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("Sig", "sig", "signatur"),
+    ("Titel", "titel", "titel"),
+    ("Datierung", "datierung", "datierung"),
+    ("Typ", "typ", "typ"),
+)
+
+
+def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
+    """Render a hit's STRUCTURED scope data (tier + group names) to the German Sichtbarkeit string.
+
+    Presentation only — it maps the index scope columns the hit already carries; it does NOT
+    re-derive visibility (that is search()/_viewer_scope). Only the archivist ledger renders this
+    (the template gates it), and the data is leak-free on scoped rows by construction (SearchHit
+    docstring). ``tier is None`` is an archivist-only row (a fail-closed row that is not a draft) —
+    it has no ladder rung, so it shows nothing here."""
+    match tier:
+        case "PUBLIC":
+            return "Öffentlich"
+        case "MEMBERS":
+            return "Alle Mitglieder"
+        case "GROUPS":
+            return "Gruppe: " + ", ".join(groups)
+        case _:
+            return ""
+
+
+def _ledger_row(
+    hit: SearchHit, *, is_archivist: bool, selected_ulid: str | None
+) -> dict[str, object]:
+    """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
+    logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action are archivist
+    chrome: left EMPTY for non-archivists here (and the ledger component also omits those columns),
+    so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in the pane."""
+    return {
+        "title": hit.title,
+        "href": f"?artikel={hit.ulid}",
+        "ref_code": hit.ref_code or "",
+        "datierung": hit.date_edtf or "",
+        "typ": hit.document_type or "",
+        "draft": hit.is_draft if is_archivist else False,
+        "visibility": _visibility_label(hit.tier, hit.groups) if is_archivist else "",
+        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
+        "action_label": "Bearbeiten" if is_archivist else "",
+        "action_href": f"/artikel/{hit.ulid}" if is_archivist else "",
+        "selected": hit.ulid == selected_ulid,
+    }
+
+
+def _ledger_rows(
+    page: object, *, is_archivist: bool, selected_ulid: str | None
+) -> tuple[dict[str, object], ...]:
+    """The ledger row view-models for the page's SearchHits. The title link points at ``?artikel=``
+    (opens the pane); the pane open/close is URL-as-state. No visibility logic — that already
+    happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``."""
+    hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
+    return tuple(
+        _ledger_row(hit, is_archivist=is_archivist, selected_ulid=selected_ulid) for hit in hits
+    )
+
+
+def _ledger_sort_links(sort_value: str, params: dict[str, str]) -> tuple[dict[str, object], ...]:
+    """The ledger's sortable column headers, each a link that sets ``sortierung`` (preserving the
+    other params and resetting to page 1 via the browse link algebra). The active column carries the
+    ascending direction glyph. Presentation only."""
+    links: list[dict[str, object]] = []
+    for label, key, sort_key in _LEDGER_SORT_COLUMNS:
+        active = sort_value == sort_key
+        links.append(
+            {
+                "label": label,
+                "key": key,
+                "query": browse.with_param(params, browse.PARAM_SORT, sort_key),
+                "active": active,
+                "order": "asc",
+            }
+        )
+    return tuple(links)
+
 
 def _results_context(
-    request: HttpRequest, parsed: browse.ParsedQuery, page: object
+    request: HttpRequest,
+    parsed: browse.ParsedQuery,
+    page: object,
+    *,
+    is_archivist: bool,
+    selected_ulid: str | None,
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. ``params`` is the raw
-    query dict; every link the sidebar/chips/pagination need is prebuilt in Python (the template
-    calls no functions with args). No visibility logic — that already happened in ``search``."""
+    query dict; every link the sidebar/chips/pagination/ledger need is prebuilt in Python (the
+    template calls no functions with args). No visibility logic — that already happened in
+    ``search``; the ledger's archivist chrome is a presentation gate off ``is_archivist``."""
     params = request.GET.dict()
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
+    sort_value = _sort_label(parsed.sort)
     return {
         "params": params,
         "text": parsed.text or "",
         "page": page,
-        "sort_value": _sort_label(parsed.sort),
+        "sort_value": sort_value,
         "sort_choices": browse.SORT_CHOICES,
         "chips": browse.active_chips(params),
         "facet_groups": _facet_groups(params, parsed, page),
+        "ledger_rows": _ledger_rows(page, is_archivist=is_archivist, selected_ulid=selected_ulid),
+        "ledger_sort_links": _ledger_sort_links(sort_value, params),
         "current_page": parsed.page,
         "has_next": browse.has_next_page(
             page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
@@ -248,10 +340,12 @@ def serve_htmx(request: HttpRequest) -> HttpResponseBase:
     return _serve_static("htmx.min.js", "application/javascript")
 
 
-def serve_stylesheet(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/workbench.css`` — the self-contained workbench stylesheet (design tokens as
-    CSS custom properties; no webfonts, no external requests)."""
-    return _serve_static("workbench.css", "text/css")
+def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
+    sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
+    first); graduated from the dev layout demo into production. Self-contained, no external requests;
+    raw-color-free by test."""
+    return _serve_static("layouts.css", "text/css")
 
 
 def serve_tokens(request: HttpRequest) -> HttpResponseBase:

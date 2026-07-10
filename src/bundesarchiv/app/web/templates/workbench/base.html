@@ -1,20 +1,23 @@
 {% comment %}
-Base layout for the archivist workbench (Part 4.5). German UI. Progressive enhancement: htmx is
-loaded but every screen works without it (the no-JS baseline is BINDING). All styling lives in the
-self-contained /static/workbench.css (design tokens at its top); no external requests ever.
-The header block carries screen-specific chrome (the workbench's search form); the wordmark is
-always present and always links home.
+Base layout for the archivist workbench (Part 4.5, rebuilt on the design system). German UI.
+Progressive enhancement: htmx is loaded but every screen works without it (the no-JS baseline is
+BINDING). Styling is the design-system stack — tokens.css (roles), components.css (atoms),
+layouts.css (the workbench frame) — each self-contained, no external requests. The header block
+carries screen-specific chrome (the workbench's search form); the wordmark is always present and
+always links home.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
-  <link rel="stylesheet" href="/static/workbench.css">
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="/static/layouts.css">
 </head>
-<body>
-<header class="site-header">
-  <a class="wordmark" href="/">Bundesarchiv</a>
+<body class="wb{% block body_class %}{% endblock %}">
+<header class="wb-header">
+  <a class="wb-wordmark" href="/">Bundesarchiv</a>
   {% block header %}{% endblock %}
 </header>
 {% block body %}{% endblock %}

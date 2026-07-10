@@ -282,7 +282,7 @@ English; the copy inside atoms is product UI German.</p>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=False only %}
+    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=False archivist=True only %}
   </div>
   {% endfor %}
 </div>
@@ -292,7 +292,7 @@ English; the copy inside atoms is product UI German.</p>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows sort_links=ledger_sort_links narrow=True archivist=True only %}
   </div>
   {% endfor %}
 </div>

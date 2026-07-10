@@ -1,20 +1,23 @@
 {% comment %}
-The facet sidebar (Part 4.5-MVP). Each facet value is a GET link that adds (or, if active,
-removes) its param — URL-as-state. Every link is a plain <a href> so the no-JS baseline works;
-they navigate the full page (facet counts recompute on click, not on every keystroke — ideas §4).
-The Bestand group shows Collection names with an honest "direkt: N" count (facet counts direct
-membership while the filter is the subtree).
+The facet sidebar (Part 4.5, rebuilt). Each facet value is a GET link that adds (or, if active,
+removes) its param — URL-as-state. Every link is a plain <a href> so the no-JS baseline works; they
+navigate the full page (facet counts recompute on click, not on every keystroke — ideas §4). Groups
+are collapsible via <details>/<summary> (no JS). The Bestand group shows Collection names with an
+honest "direkt: N" count (facet counts direct membership while the filter is the subtree). Reuses
+the atoms' .c-facet-* row classes so the stamp grammar applies; the frame owns the disclosure shell.
 {% endcomment %}
-{% for group in facet_groups %}
-<div class="facet-group">
-  <h3>{{ group.heading }}</h3>
-  <ul>
-    {% for item in group.items %}
-    <li{% if item.active %} class="active"{% endif %}>
-      <a href="?{{ item.query }}">{{ item.label }}</a>
-      <span class="count">{% if group.direct %}direkt: {% endif %}{{ item.count }}</span>
-    </li>
-    {% endfor %}
-  </ul>
+<div class="wb-facets">
+  {% for group in facet_groups %}
+  <details class="wb-facet" open>
+    <summary class="wb-facet-summary">{{ group.heading }}</summary>
+    <ul class="c-facet-list">
+      {% for item in group.items %}
+      <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
+        <a href="?{{ item.query }}">{{ item.label }}</a>
+        <span class="c-facet-count">{% if group.direct %}direkt: {% endif %}{{ item.count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endfor %}
 </div>
-{% endfor %}

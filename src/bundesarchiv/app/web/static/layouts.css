@@ -109,6 +109,16 @@ body.wb {
 .wb-facet[open] .wb-facet-summary { margin-bottom: var(--space-1); }
 .wb-facet .c-facet-list { margin-top: var(--space-1); }
 
+/* ---- stub / simple centered card (detail + neu placeholders, dev switcher) ---- */
+.wb-stub {
+  max-width: 40rem;
+  margin: var(--space-6) auto;
+  padding: 0 var(--space-4);
+}
+.wb-stub h1 { font: var(--type-display); margin: 0 0 var(--space-3); }
+.wb-stub p { color: var(--on-surface-variant); }
+.wb-stub a { color: var(--primary); }
+
 /* ---- main column: chips + sort controls, then the ledger ---- */
 .wb-main { grid-column: main; min-width: 0; }
 .wb-controls {
@@ -119,7 +129,18 @@ body.wb {
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
+.wb-controls-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+.wb-hitcount { margin: 0; font: var(--type-meta); color: var(--on-surface-variant); }
 .wb-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.wb-sort { display: flex; align-items: flex-end; gap: var(--space-2); }
+/* the "+ Neuer Artikel" affordance sits in the header (archivist-only, rendered by the view) */
+.wb-neu { white-space: nowrap; }
 
 /* ---- preview pane: present only when vorschau=1 (server-rendered). ---- */
 .wb-pane { grid-column: pane; }

@@ -124,6 +124,31 @@ class _Corpus:
                 ),
                 0,
             )
+        # A GROUPS-tier article carrying the floored fields (physical_location + custom) and a
+        # named group — the chrome/leak tests probe it: its "Gruppe: vorstand" Sichtbarkeit string
+        # and its Geheimregal/Herkunft floored values must never reach a non-archivist body.
+        collections.save(
+            Collection(
+                "VORSTAND", "Vorstandsakten", "AKTEN", Audience(AudienceTier.GROUPS, ("vorstand",))
+            ),
+            0,
+        )
+        articles.save(
+            Article(
+                ulid="GRPPROT",
+                title="Protokoll der Vorstandssitzung",
+                collection_id="VORSTAND",
+                lifecycle=Lifecycle.PUBLISHED,
+                ref_code="V 2",
+                media_type="Akte",
+                document_type="Protokoll",
+                tags=("vorstand",),
+                date=EdtfDate("1995"),
+                physical_location="Geheimregal 7",
+                custom=(("herkunft", "Nachlass Schmidt"),),
+            ),
+            0,
+        )
 
 
 @pytest.fixture(scope="module")
@@ -253,6 +278,61 @@ def test_neuer_artikel_chrome_only_for_archivist(corpus_root: Path) -> None:
     assert "Neuer Artikel" in _get(corpus_root, Archivist()).content.decode()
     assert "Neuer Artikel" not in _get(corpus_root, Public()).content.decode()
     assert "Neuer Artikel" not in _get(corpus_root, Member(groups=())).content.decode()
+
+
+# --- §11 render-path leaks: floored fields + archivist chrome (the reviewer's mutation targets) --
+
+_NON_ARCHIVIST: list[tuple[Viewer, str]] = [
+    (Public(), "public"),
+    (Member(groups=()), "member"),
+    (Member(groups=("vorstand",)), "vorstand-member"),
+]
+
+
+@pytest.mark.django_db
+def test_floored_fields_never_in_a_non_archivist_body(corpus_root: Path) -> None:
+    # physical_location VALUE and custom KEYS/values are archivist-only (ARCHIVIST_ONLY_FIELDS);
+    # they must never appear in any non-archivist rendered page, on ANY row they can otherwise see.
+    for viewer, label in _NON_ARCHIVIST:
+        body = _get(corpus_root, viewer).content.decode()
+        assert "Geheimregal" not in body, f"[{label}] physical_location leaked"
+        assert "herkunft" not in body, f"[{label}] custom key leaked"
+        assert "Nachlass Schmidt" not in body, f"[{label}] custom value leaked"
+
+
+@pytest.mark.django_db
+def test_floored_fields_present_for_archivist_only_where_intended(corpus_root: Path) -> None:
+    # The archivist reaches GRPPROT (a groups row) in results; the floored fields are NOT rendered
+    # in the LEDGER either (the ledger shows only member-visible columns + visibility chrome) — the
+    # floor holds even for the archivist's ledger. (Full floored content is the 4.6 detail's job.)
+    body = _get(corpus_root, Archivist()).content.decode()
+    assert "Protokoll der Vorstandssitzung" in body  # the row is present for the archivist
+    assert "Geheimregal" not in body  # ...but its floored physical_location is not in the ledger
+
+
+@pytest.mark.django_db
+def test_visibility_column_and_strings_only_for_archivist(corpus_root: Path) -> None:
+    # The SICHTBARKEIT column header + its strings (incl. the group name) are archivist chrome.
+    arch = _get(corpus_root, Archivist()).content.decode()
+    assert "Sichtbarkeit" in arch
+    assert "Gruppe: vorstand" in arch  # the GROUPS row's visibility string, archivist-only
+    assert "Öffentlich" in arch and "Alle Mitglieder" in arch
+    for viewer, label in _NON_ARCHIVIST:
+        body = _get(corpus_root, viewer).content.decode()
+        assert "Sichtbarkeit" not in body, f"[{label}] SICHTBARKEIT column header leaked"
+        assert "Gruppe: vorstand" not in body, f"[{label}] group-name visibility string leaked"
+
+
+@pytest.mark.django_db
+def test_entwurf_badge_and_bearbeiten_only_for_archivist(corpus_root: Path) -> None:
+    arch = _get(corpus_root, Archivist()).content.decode()
+    assert "ENTWURF" in arch or "Entwurf" in arch  # the draft badge (label text is "Entwurf")
+    assert "Bearbeiten" in arch
+    for viewer, label in _NON_ARCHIVIST:
+        body = _get(corpus_root, viewer).content.decode()
+        assert "Bearbeiten" not in body, f"[{label}] Bearbeiten action leaked"
+        # The draft ROW is already scope-hidden; this pins the BADGE chrome is gone too.
+        assert "c-badge--entwurf" not in body, f"[{label}] ENTWURF badge chrome leaked"
 
 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------

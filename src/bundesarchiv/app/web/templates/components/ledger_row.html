@@ -9,12 +9,15 @@ One ledger row — a result register line. Params (via {% include with %}):
                        visibility badge (a draft's effective visibility is archivists-only).
 - visibility         — human-German visibility text (SICHTBARKEIT column, published rows only)
 - action_label/href  — the row action (e.g. "Bearbeiten"), revealed on hover/focus-within
+- archivist (bool)   — archivist chrome; when false the SICHTBARKEIT + action cells are omitted
+                       entirely (members/public never receive that data or that column)
+- selected (bool)    — this row is the one shown in the preview pane; marked by inversion
 
 Composes the signatur_tab + badge atoms. SICHTBARKEIT carries ONE signal per row, exactly once:
 ENTWURF for drafts, the visibility badge otherwise. The narrow density (.c-ledger--narrow) reflows
 the same cells into two lines via CSS grid areas — no markup fork.
 {% endcomment %}
-<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}" role="row">
+<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}{% if selected %} c-ledger-row--aktiv{% endif %}" role="row"{% if selected %} aria-current="true"{% endif %}>
   <span class="c-ledger-cell c-ledger-cell--sig" role="cell">
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
@@ -23,10 +26,12 @@ the same cells into two lines via CSS grid areas — no markup fork.
   </span>
   <span class="c-ledger-cell c-ledger-cell--datierung" role="cell">{{ datierung|default:"—" }}</span>
   <span class="c-ledger-cell c-ledger-cell--typ" role="cell">{{ typ|default:"—" }}</span>
+  {% if archivist %}
   <span class="c-ledger-cell c-ledger-cell--sichtbarkeit" role="cell">
     {% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% elif visibility %}{% include "components/badge_visibility.html" with text=visibility only %}{% endif %}
   </span>
   <span class="c-ledger-cell c-ledger-cell--aktion" role="cell">
     {% if action_label %}<a class="c-btn c-btn--subtle c-ledger-aktion" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
   </span>
+  {% endif %}
 </div>

@@ -318,6 +318,12 @@
   border-radius: var(--radius-s);
   overflow-x: auto;
 }
+/* member/public: no SICHTBARKEIT + no action gutter — the grid drops to the four member-visible
+   columns (SIG · TITEL · DATIERUNG · TYP). Those cells are omitted from the markup entirely. */
+.c-ledger--ohne-chrome {
+  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
+    minmax(5rem, max-content);
+}
 /* the rowgroup keeps its ARIA role but leaves the box tree, so the rows become effective grid
    children of .c-ledger and their subgrid inherits the 6 columns (a real wrapper box would break
    the subgrid chain and collapse each row to one column) */
@@ -338,6 +344,9 @@
 .c-ledger-row + .c-ledger-row { border-top: 1px solid var(--outline-variant); }
 .c-ledger-row:hover,
 .c-ledger-row:focus-within { background: var(--surface-container-mid); }
+/* selected row (the one shown in the preview pane): a persistent highlight, distinct from hover. */
+.c-ledger-row--aktiv,
+.c-ledger-row--aktiv:hover { background: var(--surface-container-high); }
 
 .c-ledger-cell { min-width: 0; }
 

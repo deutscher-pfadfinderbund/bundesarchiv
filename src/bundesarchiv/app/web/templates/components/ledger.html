@@ -7,6 +7,11 @@ Ledger organism — the results register. A dense, aligned alternative to the ca
 - narrow (bool) — density mode: full (aligned columns, default) vs narrow (two-line compact rows,
               the mail-client fold: line 1 = SIG + Titel, line 2 = Datierung · Typ). The class swap
               is the ONLY difference — same rows, CSS reflows the grid.
+- archivist (bool) — archivist chrome. When true (default), the SICHTBARKEIT column (visibility
+              badge / ENTWURF) and the row action gutter render. For members/public it is FALSE, so
+              those two columns are omitted entirely (header + every row cell), and the grid drops
+              to the four member-visible columns. This is presentation gating; the SICHTBARKEIT data
+              itself never rides to a non-archivist (search()/SearchHit already scope the rows).
 
 Every column head — sortable or not — uses the ONE label type role (small-caps, letterspaced,
 on-surface-variant), identical size/case/weight/color. The only systematic modifiers on that base:
@@ -14,19 +19,21 @@ sortable heads get the link affordance (ink + underline on HOVER, stamp-grammar 
 active sort column gets exactly one direction glyph (▲/▼), never a different font treatment. Body
 marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is neutral chrome.
 {% endcomment %}
-<div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}" role="table" aria-label="Trefferliste">
+<div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}{% if not archivist %} c-ledger--ohne-chrome{% endif %}" role="table" aria-label="Trefferliste">
   <div class="c-ledger-head" role="row">
     {% for col in sort_links %}
     <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %} aria-sort="{{ col.order }}ending"{% endif %}>
       <a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}▲{% else %}▼{% endif %}</span>{% endif %}</a>
     </span>
     {% endfor %}
+    {% if archivist %}
     <span class="c-ledger-cell c-ledger-cell--sichtbarkeit c-ledger-h" role="columnheader">Sichtbarkeit</span>
     <span class="c-ledger-cell c-ledger-cell--aktion c-ledger-h" role="columnheader"><span class="c-visually-hidden">Aktion</span></span>
+    {% endif %}
   </div>
   <div class="c-ledger-body" role="rowgroup">
     {% for row in rows %}
-    {% include "components/ledger_row.html" with title=row.title href=row.href ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href only %}
+    {% include "components/ledger_row.html" with title=row.title href=row.href ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected only %}
     {% endfor %}
   </div>
 </div>
