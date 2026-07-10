@@ -18,7 +18,7 @@ from django.conf import settings
 from django.http import HttpRequest
 
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.access import can_view
+from bundesarchiv.domain.access import can_view, visible
 from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -58,6 +58,30 @@ def authorize_article(request: HttpRequest, ulid: str) -> Article | None:
     if not can_view(viewer, article, chain):
         return None  # AUTHORIZATION denies here
     return article
+
+
+def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
+    """Like ``authorize_article`` but returns the Article PROJECTED to the viewer's visible fields
+    (``visible`` = can_view + project), or ``None`` on any deny/absence/malformed/broken-chain — the
+    ONE resolution path for a full-Article RENDER (the preview pane, the 4.6 detail).
+
+    Same fail-closed order as ``authorize_article``: a malformed ulid, a missing/unreadable article,
+    a broken chain, or a denied viewer all collapse to ``None`` — indistinguishable to the caller, so
+    a rendered pane can never be an existence oracle. The returned Article has ARCHIVIST_ONLY_FIELDS
+    floored for non-archivists, so the render layer cannot leak a floored field even by accident."""
+    if not is_valid_ulid(ulid):
+        return None
+    store = _canonical_store()
+    try:
+        article = ArticleRepository(store).load(ulid).article
+    except ArchiveError:
+        return None
+    viewer = viewer_of(request)
+    try:
+        chain = resolve_chain(article.collection_id, _collections(store))
+    except DomainError:
+        return None
+    return visible(viewer, article, chain)
 
 
 def _collections(store: ObjectStore) -> dict[Ulid, Collection]:

@@ -25,7 +25,7 @@ from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
 from bundesarchiv.app.web import browse
-from bundesarchiv.app.web.article_auth import authorize_article
+from bundesarchiv.app.web.article_auth import authorize_article, resolve_visible_article
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.models import Collection, Ulid
@@ -37,6 +37,10 @@ from bundesarchiv.persistence.collections import CollectionRepository
 
 #: The vendored htmx file (served by the dev static route; prod serves it via nginx/whitenoise).
 _STATIC_DIR = Path(__file__).parent / "static"
+
+#: The preview-pane selection param. NOT a search param — it is stripped from every search link so
+#: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
+_PANE_PARAM = "artikel"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -61,8 +65,21 @@ def workbench(request: HttpRequest) -> HttpResponse:
         page=parsed.page,
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
     )
-    context = _results_context(request, parsed, page, is_archivist=is_archivist, selected_ulid=None)
+    # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
+    # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
+    pane = _resolve_pane(request, is_archivist=is_archivist)
+    context = _results_context(
+        request,
+        parsed,
+        page,
+        is_archivist=is_archivist,
+        selected_ulid=pane.ulid if pane is not None else None,
+    )
     context["is_archivist"] = is_archivist
+    context["pane"] = pane
+    # The ledger folds narrow while the pane is open (the split-narrow layout); the frame class
+    # drives it (and the <1280px media query hides the pane + unfolds the ledger — css owns that).
+    context["vorschau"] = pane is not None
     if request.headers.get("HX-Request"):
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
@@ -89,6 +106,63 @@ class _FacetGroup:
     heading: str
     items: tuple[_FacetItem, ...]
     direct: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class _PaneMedia:
+    """One media entry in the preview pane: its caption (may be empty) and the gated thumbnail URL.
+    The URL points at the existing /media/<ulid>/<hash>/thumb route, which re-authorizes on its own
+    (a thumbnail leaks the image) — the pane never inlines bytes."""
+
+    caption: str
+    thumb_url: str
+
+
+@dataclass(frozen=True, slots=True)
+class _Pane:
+    """The preview pane view-model, built ONLY from a ``visible``-projected Article (so no floored
+    field can reach it). ``media`` is cover-first (the tuple's order is meaning, ADR 0015). The
+    Bearbeiten href is archivist-only (empty otherwise); Öffnen points at the detail stub."""
+
+    ulid: str
+    title: str
+    ref_code: str
+    datierung: str
+    typ: str
+    media: tuple[_PaneMedia, ...]
+    oeffnen_href: str
+    bearbeiten_href: str
+
+
+def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
+    """Resolve the ``?artikel`` param to a preview-pane view-model, or ``None`` when there is no
+    pane to show. Fail-closed by delegating to the ONE render-resolution path
+    (``resolve_visible_article`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
+    all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
+    existence oracle). An absent ``artikel`` param is simply no pane."""
+    ulid = request.GET.get(_PANE_PARAM)
+    if not ulid:
+        return None
+    article = resolve_visible_article(request, ulid)
+    if article is None:
+        return None  # malformed / absent / denied — all indistinguishable, no pane
+    media = tuple(
+        _PaneMedia(
+            caption=m.caption or "", thumb_url=f"/media/{article.ulid}/{m.content_hash}/thumb"
+        )
+        for m in article.media
+    )
+    return _Pane(
+        ulid=article.ulid,
+        title=article.title,
+        ref_code=article.ref_code or "",
+        datierung=article.date.value if article.date is not None else "",
+        typ=article.document_type or "",
+        media=media,
+        oeffnen_href=f"/artikel/{article.ulid}",
+        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
+        bearbeiten_href=f"/artikel/{article.ulid}" if is_archivist else "",
+    )
 
 
 # Which index facet key feeds which sidebar group: (facet key, param key, German heading). The
@@ -194,8 +268,14 @@ def _results_context(
     """The template context shared by the full page and the results partial. ``params`` is the raw
     query dict; every link the sidebar/chips/pagination/ledger need is prebuilt in Python (the
     template calls no functions with args). No visibility logic — that already happened in
-    ``search``; the ledger's archivist chrome is a presentation gate off ``is_archivist``."""
-    params = request.GET.dict()
+    ``search``; the ledger's archivist chrome is a presentation gate off ``is_archivist``.
+
+    ``artikel`` (the pane selection) is STRIPPED from the link-building params: it is pane state,
+    not search state, so no facet/sort/chip/pager link may carry it. This is also the existence-
+    hiding invariant — a denied/absent/malformed ``artikel`` must leave the page byte-identical to
+    no pane, which it cannot if the raw value rode into every link. Pane selection is tracked
+    separately via ``selected_ulid``."""
+    params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
     sort_value = _sort_label(parsed.sort)

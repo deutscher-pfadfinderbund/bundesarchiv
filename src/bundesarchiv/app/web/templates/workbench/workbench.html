@@ -7,6 +7,9 @@ GETs to "/" with param q, so the URL always reflects the state (hx-push-url keep
 honest too). Multi-line notes MUST use comment blocks — Django's hash-comment syntax is single-line.
 {% endcomment %}
 {% block title %}Suche — Bundesarchiv{% endblock %}
+{% comment %} split-narrow always; wb--vorschau when the pane is open folds the ledger (layouts.css,
+≥1280px) and grows the pane column. <1280px the media query hides the pane + unfolds. {% endcomment %}
+{% block body_class %} wb--split-narrow{% if vorschau %} wb--vorschau{% endif %}{% endblock %}
 {% block header %}
   {% comment %}
   GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
@@ -30,5 +33,6 @@ honest too). Multi-line notes MUST use comment blocks — Django's hash-comment 
     {% include "workbench/_facets.html" %}
   </aside>
   {% include "workbench/_results.html" %}
+  {% if pane %}{% include "workbench/_pane.html" %}{% endif %}
 </div>
 {% endblock %}

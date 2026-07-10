@@ -30,6 +30,13 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 _DEV_KEY = "test-workbench-dev-key"
 
+# Valid ULIDs for the preview-pane articles (the pane resolves via is_valid_ulid, which the corpus's
+# mnemonic ids like "PUBFOTO" fail). PANE_PUB is public; PANE_MEM is members-only + floored fields.
+PANE_PUB_ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
+PANE_MEM_ULID = "01KX6RHVHG90WHP1PZWP0GSKQR"
+# A valid ULID that is NOT in the corpus — the "absent" pane case (must be byte-identical to denied).
+PANE_ABSENT_ULID = "01KX6RHVHG90WHP1PZWP0GSKZZ"
+
 
 class _Corpus:
     """A LocalFs archive indexed for the workbench tests: a small tiered tree with dates, one
@@ -146,6 +153,44 @@ class _Corpus:
                 date=EdtfDate("1995"),
                 physical_location="Geheimregal 7",
                 custom=(("herkunft", "Nachlass Schmidt"),),
+            ),
+            0,
+        )
+        # Two articles with VALID ULIDs so the preview pane (resolve_visible_article -> is_valid_ulid)
+        # can open them. PANE_PUB is public (pane opens for everyone) and carries a captioned media
+        # file; PANE_MEM is members-only with the floored fields (pane denied for public -> the
+        # workbench renders byte-identically to no ?artikel; floored fields never in a member body).
+        pub_ref = articles.add_media(
+            PANE_PUB_ULID, "titel.jpg", b"pane-cover-bytes", "image/jpeg", "Titelaufnahme der Fahrt"
+        )
+        articles.save(
+            Article(
+                ulid=PANE_PUB_ULID,
+                title="Vorschau Sommerfahrt",
+                collection_id="FOTOS",
+                lifecycle=Lifecycle.PUBLISHED,
+                ref_code="P 1",
+                media_type="Foto",
+                document_type="Fotografie",
+                tags=("vorschau",),
+                date=EdtfDate("1962"),
+                media=(pub_ref,),
+            ),
+            0,
+        )
+        articles.save(
+            Article(
+                ulid=PANE_MEM_ULID,
+                title="Vorschau Mitgliederakte",
+                collection_id="AKTEN",
+                lifecycle=Lifecycle.PUBLISHED,
+                ref_code="P 2",
+                media_type="Akte",
+                document_type="Schriftstück",
+                tags=("vorschau",),
+                date=EdtfDate("1977"),
+                physical_location="Panzerschrank 9",
+                custom=(("geheimnis", "Panzernachlass"),),
             ),
             0,
         )
@@ -410,3 +455,75 @@ def test_pagination_second_page_via_seite(corpus_root: Path) -> None:
     # tested in test_browse_links; here we pin that seite is honored without crashing.)
     response = _get(corpus_root, Archivist(), "seite=2")
     assert response.status_code == 200
+
+
+# --- preview pane (?artikel): fail-closed, byte-identical, leak-safe ----------------
+
+
+@pytest.mark.django_db
+def test_pane_opens_for_a_viewable_article(corpus_root: Path) -> None:
+    # A public article's pane opens for the public viewer: its title + Signatur + Öffnen appear, and
+    # the row is marked selected.
+    body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
+    assert 'class="wb-pane"' in body
+    assert "Vorschau Sommerfahrt" in body
+    assert "Titelaufnahme der Fahrt" in body  # the media caption
+    assert "Öffnen" in body
+    assert "c-ledger-row--aktiv" in body  # the selected row is marked
+
+
+@pytest.mark.django_db
+def test_pane_absent_denied_malformed_are_byte_identical_to_no_pane(corpus_root: Path) -> None:
+    # The existence-hiding invariant: for a viewer, a DENIED artikel (members-only, as public), an
+    # ABSENT one (valid ULID not in the corpus), and a MALFORMED one all render the byte-identical
+    # response as no ?artikel at all — no pane, no oracle distinguishing the three.
+    base = _get(corpus_root, Public()).content
+    denied = _get(corpus_root, Public(), f"artikel={PANE_MEM_ULID}").content
+    absent = _get(corpus_root, Public(), f"artikel={PANE_ABSENT_ULID}").content
+    malformed = _get(corpus_root, Public(), "artikel=not-a-ulid").content
+    assert denied == base, "a denied artikel must be byte-identical to no pane"
+    assert absent == base, "an absent artikel must be byte-identical to no pane"
+    assert malformed == base, "a malformed artikel must be byte-identical to no pane"
+
+
+@pytest.mark.django_db
+def test_pane_denied_for_member_only_article_as_public(corpus_root: Path) -> None:
+    # Public cannot open the members-only article's pane at all (no pane markup, no title, no floored
+    # fields) — the deny is total.
+    body = _get(corpus_root, Public(), f"artikel={PANE_MEM_ULID}").content.decode()
+    assert 'class="wb-pane"' not in body
+    assert "Vorschau Mitgliederakte" not in body
+    assert "Panzerschrank" not in body  # floored physical_location never appears
+    assert "geheimnis" not in body  # floored custom key never appears
+
+
+@pytest.mark.django_db
+def test_pane_floored_fields_absent_even_for_member_who_can_view(corpus_root: Path) -> None:
+    # A member CAN open the members-only article's pane, but its floored fields are projected away
+    # (visible() = can_view + project) — the pane view-model is built from the floored copy.
+    body = _get(corpus_root, Member(groups=()), f"artikel={PANE_MEM_ULID}").content.decode()
+    assert 'class="wb-pane"' in body
+    assert "Vorschau Mitgliederakte" in body  # the member sees the article
+    assert "Panzerschrank" not in body  # ...but never its physical_location
+    assert "Panzernachlass" not in body  # ...nor its custom value
+    assert "geheimnis" not in body  # ...nor its custom key
+
+
+@pytest.mark.django_db
+def test_pane_bearbeiten_only_for_archivist(corpus_root: Path) -> None:
+    # The pane's Bearbeiten is archivist chrome; Öffnen is for everyone who can see the article.
+    pub = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
+    assert "Öffnen" in pub
+    assert "Bearbeiten" not in pub  # public gets no edit affordance
+    arch = _get(corpus_root, Archivist(), f"artikel={PANE_PUB_ULID}").content.decode()
+    assert "Bearbeiten" in arch and "Öffnen" in arch
+
+
+@pytest.mark.django_db
+def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
+    # Opening the pane puts the frame in the vorschau state (the split-narrow fold is CSS-driven off
+    # this body class; the <1280px query unfolds + hides the pane).
+    body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
+    assert "wb--vorschau" in body
+    closed = _get(corpus_root, Public()).content.decode()
+    assert "wb--vorschau" not in closed
