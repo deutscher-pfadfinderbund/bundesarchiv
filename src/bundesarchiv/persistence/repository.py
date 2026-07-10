@@ -120,15 +120,20 @@ class ArticleRepository:
                     raise
 
     def add_media(
-        self, ulid: Ulid, filename: str, data: bytes, media_type: str | None = None
+        self,
+        ulid: Ulid,
+        filename: str,
+        data: bytes,
+        media_type: str | None = None,
+        caption: str | None = None,
     ) -> MediaRef:
         """Store `data` content-addressed (write-once) and return a reference to embed
-        in an Article before `save`."""
+        in an Article before `save`. An optional `caption` (ADR 0015) is carried into the ref."""
         content_hash = hashlib.sha256(data).hexdigest()
         key = _media_key(ulid, content_hash)
         if not self._store.exists(key):  # write-once: identical bytes are idempotent
             self._store.write_atomic(key, data)
-        return MediaRef(filename, content_hash, media_type, len(data))
+        return MediaRef(filename, content_hash, media_type, len(data), caption)
 
     def list_ulids(self) -> Iterable[Ulid]:
         return [ulid for key in self._store.list("articles/") if (ulid := _ulid_of_readme(key))]

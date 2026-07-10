@@ -221,3 +221,127 @@ def test_invalid_edtf_date_on_wire_raises_archive_error() -> None:
     )
     with pytest.raises(ArchiveError):
         readme.decode("x", text)
+
+
+# --- media captions (ADR 0015) ----------------------------------------------------------------
+
+
+def test_media_caption_round_trips() -> None:
+    # A caption on a media entry survives encode/decode intact (ADR 0015 front-matter field).
+    article = _article(
+        media=(
+            MediaRef("seite-a.mp3", "9" * 64, "audio/mpeg", 48213977, caption="Seite A — Bericht"),
+            MediaRef("huelle.jpg", "c" * 64, "image/jpeg", 2011458),  # uncaptioned
+        )
+    )
+    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    assert decoded.media[0].caption == "Seite A — Bericht"
+    assert decoded.media[1].caption is None
+    assert decoded == article
+
+
+def test_absent_media_caption_decodes_to_none() -> None:
+    # A media entry with no caption key decodes to caption=None (old READMEs have no caption keys).
+    text = (
+        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"
+        "media:\n- filename: a.jpg\n  content_hash: abc\n---\nbody"
+    )
+    decoded, _ = readme.decode("x", text)
+    assert decoded.media[0].caption is None
+
+
+def test_uncaptioned_media_omits_caption_key_from_wire() -> None:
+    # No caption line for an uncaptioned entry (ADR 0015: empty optional fields omitted on write).
+    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1)
+    assert "caption:" not in text
+
+
+def test_non_scalar_media_caption_rejected_as_archive_error() -> None:
+    text = (
+        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"
+        "media:\n- filename: a.jpg\n  content_hash: abc\n  caption:\n  - a\n  - b\n---\nbody"
+    )
+    with pytest.raises(ArchiveError):
+        readme.decode("x", text)
+
+
+# --- omit-empty front-matter fields (ADR 0015 write rule) -------------------------------------
+
+
+def test_empty_optional_fields_omitted_from_wire() -> None:
+    # A minimal Article: no ref_code / media_type / document_type / physical_location, empty tags,
+    # no media. NONE of these emit a `: null` line or an empty collection (ADR 0015).
+    text = readme.encode(
+        Article(ulid="x", title="t", collection_id="c", lifecycle=Lifecycle.DRAFT), 1
+    )
+    assert ": null" not in text
+    assert "null" not in text  # no bare null value anywhere in the front matter
+    for absent_key in ("ref_code:", "media_type:", "document_type:", "physical_location:"):
+        assert absent_key not in text, f"{absent_key} should be omitted when empty"
+    assert "tags:" not in text  # empty tuple -> no key (not `tags: []`)
+    assert "media:" not in text  # empty tuple -> no key (not `media: []`)
+
+
+def test_set_optional_fields_still_emitted() -> None:
+    # The omit-empty rule drops only EMPTY fields; a set field still appears on the wire.
+    text = readme.encode(
+        _article(ref_code="B 2", media_type="Foto", document_type="Fotografie", tags=("a",)), 1
+    )
+    assert "ref_code: B 2" in text
+    assert "media_type: Foto" in text
+    assert "document_type: Fotografie" in text
+    assert "tags:" in text
+
+
+def test_media_entry_omits_empty_media_type_and_byte_size() -> None:
+    # A media entry with only filename + content_hash writes neither `media_type: null` nor
+    # `byte_size: null` (ADR 0015), and still round-trips to None for both.
+    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1)
+    assert "media_type:" not in text
+    assert "byte_size:" not in text
+    decoded, _ = readme.decode("01J0", text)
+    assert decoded.media[0].media_type is None
+    assert decoded.media[0].byte_size is None
+
+
+def test_old_style_readme_with_explicit_nulls_loads_identically() -> None:
+    # The compat contract (ADR 0015): a README in the OLD style — explicit `: null` lines, an empty
+    # `tags: []`, a media entry carrying `media_type: null` / `byte_size: null` and NO caption key —
+    # must decode to exactly the same Article as the new omit-empty style. This is what makes every
+    # existing README parse with zero migration.
+    old_style = (
+        "<!-- Managed by bundesarchiv — do not edit by hand. -->\n"
+        "---\n"
+        "ulid: 01J0\n"
+        "version: 1\n"
+        "title: Zeltlager 1955\n"
+        "collection_id: c\n"
+        "lifecycle: published\n"
+        "ref_code: null\n"
+        "media_type: null\n"
+        "document_type: null\n"
+        "tags: []\n"
+        "physical_location: null\n"
+        "media:\n"
+        "- filename: photo.jpg\n"
+        "  content_hash: abc\n"
+        "  media_type: null\n"
+        "  byte_size: null\n"
+        "---\n"
+        "Ein Foto."
+    )
+    new_style = readme.encode(
+        Article(
+            ulid="01J0",
+            title="Zeltlager 1955",
+            collection_id="c",
+            body="Ein Foto.",
+            lifecycle=Lifecycle.PUBLISHED,
+            media=(MediaRef("photo.jpg", "abc"),),
+        ),
+        1,
+    )
+    old_article, old_version = readme.decode("01J0", old_style)
+    new_article, new_version = readme.decode("01J0", new_style)
+    assert old_article == new_article  # explicit-null old style ≡ omit-empty new style
+    assert old_version == new_version == 1

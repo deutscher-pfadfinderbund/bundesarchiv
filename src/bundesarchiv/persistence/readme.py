@@ -30,7 +30,13 @@ _FENCE = "---"
 
 
 def encode(article: Article, version: Version) -> str:
-    """Render an Article + version to README.md text (marker + front-matter + body)."""
+    """Render an Article + version to README.md text (marker + front-matter + body).
+
+    Empty optional fields are OMITTED on write (ADR 0015): a missing optional key defaults on
+    read, so `field: null` / `tags: []` / an all-null media entry are pure noise in the human-
+    readable README. Only the required identity fields (ulid/version/title/collection_id/lifecycle)
+    are always present; everything else is emitted only when it carries a value. The loader still
+    accepts the old explicit-null spelling, so existing READMEs parse identically."""
     front_matter = {
         "ulid": article.ulid,
         "version": version,
@@ -48,24 +54,23 @@ def encode(article: Article, version: Version) -> str:
             if article.audience is not None
             else {}
         ),
-        "ref_code": article.ref_code,
-        "media_type": article.media_type,
-        "document_type": article.document_type,
-        "tags": list(article.tags),
-        "physical_location": article.physical_location,
+        # Optional scalars: omit the key entirely when None (no `field: null` noise, ADR 0015).
+        **({"ref_code": article.ref_code} if article.ref_code is not None else {}),
+        **({"media_type": article.media_type} if article.media_type is not None else {}),
+        **({"document_type": article.document_type} if article.document_type is not None else {}),
+        # Empty tuple -> omit the key (no `tags: []`); a non-empty tuple writes the list.
+        **({"tags": list(article.tags)} if article.tags else {}),
+        **(
+            {"physical_location": article.physical_location}
+            if article.physical_location is not None
+            else {}
+        ),
         # Optional provenance fields: omit key entirely when None (same convention as audience).
         **({"date": article.date.value} if article.date is not None else {}),
         **({"creator": article.creator} if article.creator is not None else {}),
         **({"subject_place": article.subject_place} if article.subject_place is not None else {}),
-        "media": [
-            {
-                "filename": m.filename,
-                "content_hash": m.content_hash,
-                "media_type": m.media_type,
-                "byte_size": m.byte_size,
-            }
-            for m in article.media
-        ],
+        # Empty tuple -> omit the key (no `media: []`); each entry omits its own empty fields.
+        **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
         # Custom metadata as a sub-mapping; omitted when empty (like audience) to avoid noise.
         **({"custom": dict(article.custom)} if article.custom else {}),
     }
@@ -73,6 +78,19 @@ def encode(article: Article, version: Version) -> str:
         front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
     ).rstrip("\n")
     return f"{_MARKER}\n{_FENCE}\n{yaml_block}\n{_FENCE}\n{article.body}"
+
+
+def _media_entry(media: MediaRef) -> dict[str, Any]:
+    """One media entry for the front matter: always filename + content_hash; the optional
+    media_type / byte_size / caption are emitted only when set (ADR 0015 omit-empty)."""
+    entry: dict[str, Any] = {"filename": media.filename, "content_hash": media.content_hash}
+    if media.media_type is not None:
+        entry["media_type"] = media.media_type
+    if media.byte_size is not None:
+        entry["byte_size"] = media.byte_size
+    if media.caption is not None:
+        entry["caption"] = media.caption
+    return entry
 
 
 def decode(ulid: Ulid, text: str) -> tuple[Article, Version]:
@@ -218,6 +236,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
                 content_hash=str(m["content_hash"]),
                 media_type=_as_opt_str(m.get("media_type")),
                 byte_size=_as_opt_int(m.get("byte_size")),
+                caption=_as_opt_str(m.get("caption")),
             )
             for m in media
         ),

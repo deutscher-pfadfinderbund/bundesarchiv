@@ -93,6 +93,14 @@ def test_add_media_is_content_addressed_and_write_once(repo: ArticleRepository) 
     }
 
 
+def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None:
+    # ADR 0015: add_media threads an optional caption into the returned ref; absent -> None.
+    with_caption = repo.add_media("01J0", "seite-a.mp3", b"audio", caption="Seite A — Bericht")
+    assert with_caption.caption == "Seite A — Bericht"
+    without = repo.add_media("01J0", "huelle.jpg", b"scan")
+    assert without.caption is None
+
+
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:
     # The pinned order is media -> README. Referencing media that was never stored
     # must fail rather than commit a README that points at nothing.
