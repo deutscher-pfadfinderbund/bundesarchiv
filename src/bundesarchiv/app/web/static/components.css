@@ -435,8 +435,10 @@
   align-self: center;
   white-space: normal;
 }
-/* the fold: Datierung and Typ sit side by side on line 2, each in its own track; Typ prints its
-   own leading separator so the two read as "Datierung · Typ". */
+/* the fold: Datierung and Typ sit side by side on line 2, each in its own track. The "·" separator
+   is printed by Typ ONLY when a Datierung cell immediately precedes it (adjacent-sibling rule): an
+   absent value (its cell is not rendered at all) leaves no dangling separator, and a row with
+   neither value drops its whole second line (both grid areas empty → the row auto-sizes away). */
 .c-ledger--narrow .c-ledger-cell--datierung {
   grid-area: datum;
   font: var(--type-mono-meta);
@@ -447,7 +449,7 @@
   font: var(--type-mono-meta);
   color: var(--on-surface-variant);
 }
-.c-ledger--narrow .c-ledger-cell--typ::before { content: "· "; }
+.c-ledger--narrow .c-ledger-cell--datierung + .c-ledger-cell--typ::before { content: "· "; }
 .c-ledger--narrow .c-ledger-cell--sichtbarkeit {
   grid-area: meta-r;
   align-self: center;

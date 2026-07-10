@@ -242,7 +242,9 @@ body.wb {
     font: var(--type-mono-meta);
     color: var(--on-surface-variant);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--typ::before {
+  /* "·" only between a present Datierung and Typ (adjacent-sibling rule); an absent cell is not
+     rendered, so no dangling separator and a value-less row drops its second line. */
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--datierung + .c-ledger-cell--typ::before {
     content: "· ";
     color: var(--on-surface-variant);
   }

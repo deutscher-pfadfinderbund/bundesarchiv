@@ -489,7 +489,7 @@
   font: var(--type-mono-meta);
   color: var(--on-surface-variant);
 }
-.c-ledger--narrow .c-ledger-cell--typ::before {
+.c-ledger--narrow .c-ledger-cell--datierung + .c-ledger-cell--typ::before {
   content: "· ";
   color: var(--on-surface-variant);
 }

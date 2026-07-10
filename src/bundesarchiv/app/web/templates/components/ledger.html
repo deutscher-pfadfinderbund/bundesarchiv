@@ -36,7 +36,7 @@ marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is
   </div>
   <div class="c-ledger-body" role="rowgroup">
     {% for row in rows %}
-    {% include "components/ledger_row.html" with title=row.title href=row.href ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected only %}
+    {% include "components/ledger_row.html" with title=row.title href=row.href artikel_ulid=row.artikel_ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected only %}
     {% endfor %}
   </div>
 </div>

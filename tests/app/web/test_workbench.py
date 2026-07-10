@@ -517,6 +517,49 @@ def test_pagination_second_page_via_seite(corpus_root: Path) -> None:
     assert response.status_code == 200
 
 
+# --- ledger row href: canonical detail baseline + pane progressive-enhancement hook -----
+
+
+@pytest.mark.django_db
+def test_ledger_row_href_is_the_canonical_detail_route(corpus_root: Path) -> None:
+    # BASELINE (no-JS, every viewport): a row title links to /artikel/<ulid>, the canonical detail
+    # route — NOT ?artikel (below 1280px the pane is CSS-hidden, so ?artikel would be a dead click).
+    body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
+    assert f'href="/artikel/{PANE_PUB_ULID}"' in body
+    # ...and the enhancement hook rides alongside: ledger_pane.js upgrades the click to the pane on
+    # wide viewports via this data attribute (no-JS still gets the detail link above).
+    assert f'data-artikel="{PANE_PUB_ULID}"' in body
+    # The old ?artikel row-href baseline is gone (it now lives only in the JS enhancement + the pane
+    # close/media links, never as a row title href).
+    assert f'href="?artikel={PANE_PUB_ULID}"' not in body
+
+
+@pytest.mark.django_db
+def test_ledger_pane_enhancement_script_is_loaded_and_served(corpus_root: Path) -> None:
+    # The enhancement is a deferred static script (same mechanism as htmx); the no-JS baseline works
+    # without it, so it degrades cleanly if unavailable.
+    body = _get(corpus_root, Public()).content.decode()
+    assert '<script src="/static/ledger_pane.js" defer></script>' in body
+    with override_settings(**_settings(corpus_root)):
+        served = _client_as(Public()).get("/static/ledger_pane.js")
+    assert served.status_code == 200
+    assert served["Content-Type"] == "application/javascript"
+
+
+# --- absence renders as absence: no em-dash placeholders in the ledger ------------------
+
+
+@pytest.mark.django_db
+def test_absent_datierung_typ_render_nothing_not_an_em_dash(corpus_root: Path) -> None:
+    # "Undatiertes Liederheft" has no date (date=None). Absence must render as ABSENCE — the old
+    # `default:"—"` placeholder is gone: a dateless/typeless value renders NOTHING, so no em-dash
+    # ever appears inside a ledger cell (the "—" in the <title> separator is legitimate and stays).
+    body = _get(corpus_root, Public()).content.decode()
+    assert "Undatiertes Liederheft" in body  # the dateless row is present
+    # No em-dash as a rendered ledger cell value (the removed placeholder would show as ">—<").
+    assert ">—<" not in body
+
+
 # --- preview pane (?artikel): fail-closed, byte-identical, leak-safe ----------------
 
 

@@ -1,10 +1,16 @@
 {% comment %}
 One ledger row — a result register line. Params (via {% include with %}):
-- title + href       — the detail link (required; TITEL column)
+- title + href       — the detail link (required; TITEL column). BASELINE href is the canonical
+                       /artikel/<ulid> detail route (no-JS-safe on every viewport).
+- artikel_ulid       — optional pane hook: when set, the title link carries data-artikel=<ulid> so
+                       ledger_pane.js can upgrade the click to the ?artikel pane on wide viewports.
 - ref_code           — Signatur; empty/absent renders the hollow "ohne Signatur" slot (SIG column),
                        independent of lifecycle — a draft WITH a ref_code shows its code normally.
-- datierung          — mono date string (DATIERUNG column); empty renders an em-dash
-- typ                — document type, plain neutral text (TYP column)
+- datierung          — mono date string (DATIERUNG column); absent renders NOTHING (no placeholder)
+- typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In the
+                       narrow fold the "·" separator only appears BETWEEN a present datierung and typ
+                       (css adjacent-sibling rule), so an absent value leaves no dangling separator
+                       and a row with neither shows no second line.
 - draft (bool)       — a draft shows the ENTWURF badge in the SICHTBARKEIT column INSTEAD of the
                        visibility badge (a draft's effective visibility is archivists-only).
 - visibility         — human-German visibility text (SICHTBARKEIT column, published rows only)
@@ -22,10 +28,10 @@ the same cells into two lines via CSS grid areas — no markup fork.
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
   <span class="c-ledger-cell c-ledger-cell--titel" role="cell">
-    <a class="c-ledger-titel" href="{{ href }}">{{ title }}</a>
+    <a class="c-ledger-titel" href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>
   </span>
-  <span class="c-ledger-cell c-ledger-cell--datierung" role="cell">{{ datierung|default:"—" }}</span>
-  <span class="c-ledger-cell c-ledger-cell--typ" role="cell">{{ typ|default:"—" }}</span>
+  {% if datierung %}<span class="c-ledger-cell c-ledger-cell--datierung" role="cell">{{ datierung }}</span>{% endif %}
+  {% if typ %}<span class="c-ledger-cell c-ledger-cell--typ" role="cell">{{ typ }}</span>{% endif %}
   {% if archivist %}
   <span class="c-ledger-cell c-ledger-cell--sichtbarkeit" role="cell">
     {% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% elif visibility %}{% include "components/badge_visibility.html" with text=visibility only %}{% endif %}

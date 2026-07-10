@@ -102,6 +102,43 @@ _LEDGER_ROWS = (
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
+    {
+        # Absence renders as absence (no em-dash). Datierung present, Typ absent: in the narrow fold
+        # this shows just "1990" with NO dangling separator.
+        "title": "Undatierter Zugang",
+        "href": "#demo-detail",
+        "ref_code": "Z 1",
+        "datierung": "1990",
+        "typ": "",
+        "draft": False,
+        "visibility": "Öffentlich",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+    {
+        # Typ present, Datierung absent: the fold shows just "Notiz" with NO leading separator.
+        "title": "Lose Notiz",
+        "href": "#demo-detail",
+        "ref_code": "",
+        "datierung": "",
+        "typ": "Notiz",
+        "draft": False,
+        "visibility": "Öffentlich",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
+    {
+        # Neither Datierung nor Typ: the narrow fold shows NO second line at all.
+        "title": "Ohne Datierung und Typ",
+        "href": "#demo-detail",
+        "ref_code": "",
+        "datierung": "",
+        "typ": "",
+        "draft": False,
+        "visibility": "Öffentlich",
+        "action_label": "Bearbeiten",
+        "action_href": "#demo-edit",
+    },
 )
 
 #: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,

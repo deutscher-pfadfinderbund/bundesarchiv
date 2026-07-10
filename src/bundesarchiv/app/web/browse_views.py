@@ -213,7 +213,12 @@ def _ledger_row(
     so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in the pane."""
     return {
         "title": hit.title,
-        "href": f"?artikel={hit.ulid}",
+        # BASELINE href = the canonical detail route: it works without JS on every viewport (below
+        # 1280px the pane is CSS-hidden, so ?artikel would be a dead click for a no-JS narrow user).
+        # ledger_pane.js progressively upgrades this to the ?artikel pane on wide viewports (see the
+        # data-artikel hook). No-JS behavior: the detail link everywhere.
+        "href": f"/artikel/{hit.ulid}",
+        "artikel_ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
         "datierung": hit.date_edtf or "",
         "typ": hit.document_type or "",
@@ -229,9 +234,10 @@ def _ledger_row(
 def _ledger_rows(
     page: object, *, is_archivist: bool, selected_ulid: str | None
 ) -> tuple[dict[str, object], ...]:
-    """The ledger row view-models for the page's SearchHits. The title link points at ``?artikel=``
-    (opens the pane); the pane open/close is URL-as-state. No visibility logic — that already
-    happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``."""
+    """The ledger row view-models for the page's SearchHits. The title link's BASELINE points at the
+    canonical detail route ``/artikel/<ulid>`` (works with no JS, every viewport); ``ledger_pane.js``
+    progressively upgrades it to the ``?artikel`` pane on wide viewports. No visibility logic — that
+    already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
         _ledger_row(hit, is_archivist=is_archivist, selected_ulid=selected_ulid) for hit in hits
@@ -446,6 +452,14 @@ def serve_htmx(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/htmx.min.js`` — the vendored htmx (the enhancement layer degrades to the
     no-JS baseline if the file is ever unavailable, so this is best-effort)."""
     return _serve_static("htmx.min.js", "application/javascript")
+
+
+def serve_ledger_pane_js(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/ledger_pane.js`` — the ledger-row pane enhancement: on viewports ≥1280px a
+    plain click on a row title opens the ?artikel pane in place (preserving the other query params)
+    instead of the detail page. Best-effort: the no-JS baseline is the canonical /artikel detail
+    link, so if this file is unavailable rows still navigate correctly."""
+    return _serve_static("ledger_pane.js", "application/javascript")
 
 
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
