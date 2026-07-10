@@ -3,8 +3,16 @@
    Load order: tokens.css first, then this file. No external requests, no raw color values;
    the only color functions allowed are var() over roles and color-mix() OVER roles.
 
-   Visual language: crisp, flat, workmanlike (the approved round-3 mock) — NOT Material. Small
-   beveled corners, hairline borders, dense proportions, mono for Signaturen/counts/dates. */
+   GRAMMAR (duotone stamp — spec law, design-system.md): the archive is gray paper; the accent is
+   stamp ink. Violet (--primary / --on-primary-container) appears ONLY on the archive's MARKS — the
+   Signatur tab's code, mono counts/dates, and inline interactive text (links). Every other piece of
+   chrome is PURE NEUTRAL: buttons, inputs, chips, panels, cards, badges, empty state carry no hue.
+   Selection/active states are INVERSION (swap fg/bg to a solid neutral-ink block, like a stamp
+   pressed down), never a tonal tint wash. draft=amber and error=red keep loud semantic marks so
+   lifecycle and errors stay instantly visible. If an element is not a mark, it gets no hue. Corners:
+   square or --radius-s everywhere; the ONE beveled corner survives only on the card's index cut and
+   the Signatur/drawer-tab leading corner. (Was two files — components-stamp.css folded in here since
+   the stamp grammar is spec law; components-papier.css remains the one dev materiality variant.) */
 
 /* ---- focus: the one global interaction invariant (3:1 on every surface, gated) ---- */
 
@@ -41,14 +49,16 @@
   color: var(--on-surface);
   border: 1px solid var(--outline);
 }
-.c-btn--subtle:hover { background: var(--surface-container-mid); }
+.c-btn--subtle:hover { background: var(--surface-container-high); }
 .c-btn--primary {
-  background: var(--primary);
-  color: var(--on-primary);
-  border: 1px solid var(--primary);
+  /* inversion: paper text stamped onto ink-neutral — a filled button is chrome, not a mark */
+  background: var(--on-surface);
+  color: var(--surface);
+  border: 1px solid var(--on-surface);
 }
 .c-btn--primary:hover {
-  background: color-mix(in oklab, var(--primary), var(--on-primary) 12%);
+  background: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
+  border-color: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
 }
 
 /* ---- field label + input + select: squarer, hairline, dense ---- */
@@ -75,8 +85,12 @@
   padding: var(--space-1) var(--space-2);
 }
 .c-input::placeholder { color: var(--on-surface-variant); }
+/* focus deepens the neutral border in addition to the ink ring */
+.c-input:focus-visible,
+.c-select:focus-visible { border-color: var(--on-surface); }
 
-/* ---- removable filter chip: a compact rectangular tag, not a pill ---- */
+/* ---- removable filter chip: a filter is a MARK -> its text is stamp ink, but the fill stays
+   neutral paper (no tonal wash). Hover on the X inverts. ---- */
 
 .c-chip {
   display: inline-flex;
@@ -84,20 +98,22 @@
   gap: var(--space-1);
   font: var(--type-mono-meta);
   font-variant-numeric: tabular-nums;
-  background: var(--primary-container);
-  color: var(--on-primary-container);
+  background: var(--surface-container-low);
+  color: var(--primary);
+  border: 1px solid var(--outline-variant);
   border-radius: var(--radius-s);
   padding: calc(var(--space-1) / 2) var(--space-1) calc(var(--space-1) / 2) var(--space-2);
 }
 .c-chip-x {
-  color: inherit;
+  color: var(--on-surface-variant);
   text-decoration: none;
   padding: 0 var(--space-1);
   border-radius: var(--radius-s);
 }
 .c-chip-x:hover {
-  background: var(--primary);
-  color: var(--on-primary);
+  /* inversion: the removal target stamps solid */
+  background: var(--on-surface);
+  color: var(--surface);
 }
 
 /* ---- badges (lifecycle + visibility): small flat marks ---- */
@@ -123,7 +139,8 @@
   border: 1px solid var(--outline);
 }
 
-/* ---- Signatur tab (the shape signature): beveled leading corner ---- */
+/* ---- Signatur tab: the archive's primary MARK. Ink text on gray paper, NOT a tinted fill.
+   One beveled leading corner (the drawer-label silhouette). ---- */
 
 .c-sig {
   display: inline-flex;
@@ -132,23 +149,31 @@
   max-width: 100%;
   font: var(--type-mono);
   font-variant-numeric: tabular-nums;
-  background: var(--primary-container);
-  color: var(--on-primary-container);
+  background: var(--surface-container-low);
+  color: var(--on-surface-variant);
+  border: 1px solid var(--outline-variant);
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
   /* the drawer-label silhouette: one beveled leading corner */
   border-radius: var(--radius-m) 0 0 0;
 }
 .c-sig-code {
+  /* the actual signature = stamp ink */
+  color: var(--primary);
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .c-sig--leer {
-  /* unfiled: the hollow dashed slot — SAME silhouette as the filled tab (the dashed border
+  /* "ohne Signatur": the hollow dashed slot — SAME silhouette as the filled tab (the dashed border
      follows the bevel), so filed vs unfiled reads as stamped tab vs empty slot */
   background: transparent;
-  color: var(--on-surface-variant);
   border: 1px dashed var(--outline-variant);
+}
+.c-sig--leer .c-sig-code {
+  /* unfiled: no ink, hollow slot */
+  color: var(--on-surface-variant);
+  font-weight: 400;
 }
 
 /* ---- facet group panel with drawer-label tab ---- */
@@ -172,6 +197,8 @@
   padding: 0 var(--space-3);
   background: var(--surface-container-high);
   color: var(--on-surface-variant);
+  border: 1px solid var(--outline-variant);
+  border-bottom: none;
   font: var(--type-label);
   letter-spacing: var(--label-tracking);
   text-transform: uppercase;
@@ -193,12 +220,14 @@
   border-radius: var(--radius-s);
 }
 .c-facet-row a {
-  color: var(--on-surface);
+  /* inline interactive text = stamp ink */
+  color: var(--primary);
   text-decoration: none;
 }
 .c-facet-row a:hover { text-decoration: underline; }
 .c-facet-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .c-facet-count {
+  /* mono count = ink data */
   font: var(--type-mono-meta);
   font-variant-numeric: tabular-nums;
   color: var(--on-surface-variant);
@@ -211,13 +240,15 @@
   border-radius: var(--radius-s);
   line-height: 1;
 }
+/* INVERSION: the selected row is stamped solid neutral ink — a highlight, not a tint */
 .c-facet-row--aktiv {
-  background: var(--primary-container);
-  border-left-color: var(--primary);
+  background: var(--on-surface);
+  border-left-color: var(--on-surface);
 }
 .c-facet-row--aktiv a,
-.c-facet-row--aktiv .c-facet-count {
-  color: var(--on-primary-container);
+.c-facet-row--aktiv .c-facet-count,
+.c-facet-row--aktiv .c-facet-remove {
+  color: var(--surface);
   font-weight: 600;
 }
 
@@ -248,6 +279,7 @@
 }
 .c-card-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
 .c-card-titel a {
+  /* the title link: neutral at rest (it is a heading, not data), ink on interaction */
   color: var(--on-surface);
   text-decoration: none;
 }
@@ -256,12 +288,16 @@
   text-decoration: underline;
 }
 .c-card-meta {
+  /* mono meta (Signatur/Datierung) = ink data */
   margin: 0;
   font: var(--type-mono);
   font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.c-card-meta span + span::before {
+  content: " · ";
   color: var(--on-surface-variant);
 }
-.c-card-meta span + span::before { content: " · "; }
 .c-card-aktionen {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
@@ -287,6 +323,7 @@
 .c-pager-stand {
   font: var(--type-mono);
   font-variant-numeric: tabular-nums;
+  color: var(--on-surface); /* the current-page stand = ink data */
 }
 
 /* ---- honest empty state (carries the extension slot) ---- */
@@ -296,12 +333,11 @@
   text-align: center;
   background: var(--surface-container-lowest);
   border: 1px dashed var(--outline-variant);
-  border-radius: var(--radius-m);
+  border-radius: var(--radius-s);
   color: var(--on-surface);
 }
-.c-empty-zeichen {
-  /* extension slot — empty in v1 (Kohte / Waldläuferzeichen later, additive only) */
-}
+/* .c-empty-zeichen is the extension slot (Kohte / Waldläuferzeichen later, additive only) — the
+   template keeps the class hook; no style rule until there is something to draw. */
 .c-empty-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
 .c-empty-hinweis {
   margin: 0;
@@ -391,9 +427,10 @@
   white-space: nowrap;
 }
 .c-ledger-cell--datierung {
+  /* mono date = ink data */
   font: var(--type-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--on-surface-variant);
+  color: var(--primary);
 }
 .c-ledger-cell--typ {
   font: var(--type-meta);
@@ -442,7 +479,7 @@
 .c-ledger--narrow .c-ledger-cell--datierung {
   grid-area: datum;
   font: var(--type-mono-meta);
-  color: var(--on-surface-variant);
+  color: var(--primary); /* mono date = ink data */
 }
 .c-ledger--narrow .c-ledger-cell--typ {
   grid-area: typ;

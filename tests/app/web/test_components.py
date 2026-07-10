@@ -112,7 +112,7 @@ def test_variant_stylesheet_route_serves_only_whitelisted_files() -> None:
 
 
 def test_variant_routes_do_not_resolve_under_prod_urlconf() -> None:
-    for path in ("/_dev/components/stamp/", "/_dev/static/components-stamp.css"):
+    for path in ("/_dev/components/papier/", "/_dev/static/components-papier.css"):
         with pytest.raises(Resolver404):
             resolve(path, urlconf="bundesarchiv.app.web.urls")
 

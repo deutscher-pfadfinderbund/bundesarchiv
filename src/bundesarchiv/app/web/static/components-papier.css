@@ -355,9 +355,8 @@
   border-radius: var(--radius-s);
   color: var(--on-surface);
 }
-.c-empty-zeichen {
-  /* extension slot — empty in v1 */
-}
+/* .c-empty-zeichen is the extension slot (empty in v1) — the template keeps the class hook; no
+   style rule until there is something to draw. */
 .c-empty-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
 .c-empty-hinweis {
   margin: 0;

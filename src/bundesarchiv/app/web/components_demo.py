@@ -26,9 +26,10 @@ from bundesarchiv.app.web.browse_views import _serve_static
 
 #: The design-variant whitelist: variant name -> stylesheet filename under ``static/``. An entry
 #: here is the ONLY way a variant becomes routable (both the page and its stylesheet). Baseline
-#: (components.css) is not an entry — it is the no-variant route.
+#: (components.css) is not an entry — it is the no-variant route and now CARRIES the stamp grammar
+#: (spec law; the former "stamp" variant folded into baseline). ``papier`` is the one remaining dev
+#: variant — the owner's materiality experiment (tinted sheets), still browsable.
 VARIANTS: dict[str, str] = {
-    "stamp": "components-stamp.css",
     "papier": "components-papier.css",
 }
 

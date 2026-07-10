@@ -24,9 +24,12 @@ marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is
 {% endcomment %}
 <div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}{% if not archivist %} c-ledger--ohne-chrome{% endif %}" role="table" aria-label="Trefferliste">
   <div class="c-ledger-head" role="row">
+    {% comment %} aria-sort is constrained to the valid tokens only — an active column emits
+    ascending/descending strictly (never an interpolated garbage value from a hand-edited sort
+    param); a non-active/non-sortable column omits it (= "none"). {% endcomment %}
     {% for col in columns %}
-    <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %} aria-sort="{{ col.order }}ending"{% endif %}>
-      {% if col.sortable %}<a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "asc" %}▲{% else %}▼{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
+    <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %}{% if col.order == "desc" %} aria-sort="descending"{% else %} aria-sort="ascending"{% endif %}{% endif %}>
+      {% if col.sortable %}<a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "desc" %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
     </span>
     {% endfor %}
     {% if archivist %}
