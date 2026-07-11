@@ -20,7 +20,7 @@ strings between the URL and ``SearchFilters``.
 """
 
 import datetime
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
@@ -195,6 +195,34 @@ def page_query(params: Mapping[str, str], page: int) -> str:
     updated = _clean(params)
     updated[PARAM_PAGE] = str(page)
     return urlencode(updated)
+
+
+#: The bulk-edit selection param. Multi-valued (one per selected ulid); preserved across pagination
+#: so a no-JS selection survives page moves (spec §2/§3). NOT a search param — stripped from facet/
+#: sort links elsewhere, threaded only through the pagination + select-page links below.
+PARAM_AUSWAHL = "auswahl"
+
+
+def page_query_with_auswahl(params: Mapping[str, str], auswahl: Sequence[str], page: int) -> str:
+    """The pagination query string at ``page`` PLUS the multi-valued ``auswahl`` selection (spec §2).
+    Like ``page_query`` but re-attaches every selected ulid (``doseq``) so paging never drops the
+    selection. An empty selection omits the param entirely."""
+    pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
+    pairs = [(k, v) for k, v in pairs if k != PARAM_PAGE]
+    pairs.append((PARAM_PAGE, str(page)))
+    pairs.extend((PARAM_AUSWAHL, u) for u in auswahl)
+    return urlencode(pairs)
+
+
+def select_page_query(
+    params: Mapping[str, str], auswahl: Sequence[str], page_ulids: Sequence[str]
+) -> str:
+    """The "Alle auf dieser Seite" link: the current state with this page's ulids ADDED to the
+    selection (deduped, order-preserving), staying on the current page (spec §2, no-JS select-page)."""
+    merged = list(dict.fromkeys([*auswahl, *page_ulids]))
+    pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
+    pairs.extend((PARAM_AUSWAHL, u) for u in merged)
+    return urlencode(pairs)
 
 
 def has_next_page(*, page: int, page_size: int, hits_on_page: int, total: int) -> bool:
