@@ -121,6 +121,9 @@ body.wb {
 
 /* ---- main column: chips + sort controls, then the ledger ---- */
 .wb-main { grid-column: main; min-width: 0; }
+/* HTMX in-flight: dim the results region while a swap is pending (htmx toggles .htmx-request on the
+   requesting element). Static opacity only — NO transition/animation (no-motion is design law). */
+#results.htmx-request { opacity: 0.6; }
 .wb-controls {
   display: flex;
   flex-wrap: wrap;

@@ -17,7 +17,8 @@ honest too). Multi-line notes MUST use comment blocks — Django's hash-comment 
   {% endcomment %}
   <form class="wb-search" role="search" method="get" action="/"
         hx-get="/" hx-target="#results" hx-select="#results" hx-swap="outerHTML"
-        hx-push-url="true" hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
+        hx-indicator="#results" hx-push-url="true"
+        hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
     {% include "components/input.html" with type="search" name="q" value=text placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
     {% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
   </form>
