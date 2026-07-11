@@ -31,7 +31,11 @@ DEV_VIEWER_SIGNING_KEY = os.environ.get(
 # The dev switcher's URLconf and the middleware that reads the signed cookie into ``request.viewer``.
 ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 
+# Prod's CSRF protection (see settings.py) PLUS the dev-viewer middleware. CSRF runs first so the
+# write forms are protected in dev exactly as in prod (the dev switcher + every {% csrf_token %} form
+# carry the token); DevViewerMiddleware then attaches request.viewer for the views below.
 MIDDLEWARE = [
+    "django.middleware.csrf.CsrfViewMiddleware",
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]
 

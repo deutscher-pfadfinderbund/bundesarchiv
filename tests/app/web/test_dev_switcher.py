@@ -25,7 +25,11 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public
 
 _DEV = {
     "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
-    "MIDDLEWARE": ["bundesarchiv.app.web.dev.DevViewerMiddleware"],
+    # Mirror the real settings_dev MIDDLEWARE: CSRF first (the Part 4.7 fix wave), then the dev viewer.
+    "MIDDLEWARE": [
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "bundesarchiv.app.web.dev.DevViewerMiddleware",
+    ],
     "DEV_VIEWER_SIGNING_KEY": "test-dev-viewer-key",
 }
 
@@ -66,6 +70,17 @@ def test_switcher_post_public_roundtrips() -> None:
     request = RequestFactory().get("/")
     request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
     assert viewer_of(request) == Public()
+
+
+@override_settings(**_DEV)
+def test_switcher_post_carries_csrf_token_so_it_works_under_enforcement() -> None:
+    # With CsrfViewMiddleware now active in dev, the switcher's hand-rolled form must carry the token.
+    # Enforce CSRF: GET the form (seeds the cookie + renders the hidden token), then POST with it.
+    client = Client(enforce_csrf_checks=True)
+    client.get(SWITCHER_PATH)
+    token = client.cookies["csrftoken"].value
+    response = client.post(SWITCHER_PATH, {"kind": "archivist", "csrfmiddlewaretoken": token})
+    assert response.status_code == 302  # accepted (a missing token would be 403)
 
 
 @override_settings(**_DEV)

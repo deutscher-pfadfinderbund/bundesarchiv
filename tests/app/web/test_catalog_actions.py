@@ -85,8 +85,8 @@ def _settings(corpus: _Corpus) -> dict[str, object]:
     }
 
 
-def _client_as(viewer: Viewer) -> Client:
-    client = Client()
+def _client_as(viewer: Viewer, *, enforce_csrf: bool = False) -> Client:
+    client = Client(enforce_csrf_checks=enforce_csrf)
     signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
     client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
     return client
@@ -394,3 +394,29 @@ def test_vorschau_no_leaked_template_comment(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).post(f"/artikel/{_DRAFT}/vorschau").content.decode()
     assert "{#" not in body
+
+
+# --- CSRF enforcement (fix wave: prod/dev now run CsrfViewMiddleware) ---------------
+
+
+def test_destructive_post_without_csrf_token_is_403(corpus: _Corpus) -> None:
+    # A cross-site destructive POST with no CSRF token must be rejected (CsrfViewMiddleware active).
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist(), enforce_csrf=True).post(
+            f"/artikel/{_PUBLISHED}/loeschen"
+        )
+    assert response.status_code == 403
+    # the article is untouched — the forged POST was rejected before hard_delete ran
+    assert ArticleRepository(corpus.store).load(_PUBLISHED).article.title == "Sommerfahrt 1962"
+
+
+def test_destructive_post_with_csrf_token_works(corpus: _Corpus) -> None:
+    # The legitimate flow — GET the confirm page (sets the csrf cookie + token), then POST with it.
+    with override_settings(**_settings(corpus)):
+        client = _client_as(Archivist(), enforce_csrf=True)
+        client.get(f"/artikel/{_PUBLISHED}/loeschen")  # seeds the csrf cookie
+        token = client.cookies["csrftoken"].value
+        response = client.post(f"/artikel/{_PUBLISHED}/loeschen", {"csrfmiddlewaretoken": token})
+    assert response.status_code == 302  # accepted → hard-deleted → redirect
+    with pytest.raises(NotFound):
+        ArticleRepository(corpus.store).load(_PUBLISHED)

@@ -20,6 +20,7 @@ from django.http import (
     HttpResponseNotFound,
     HttpResponseRedirect,
 )
+from django.middleware.csrf import get_token
 
 from bundesarchiv.app.web.viewers import (
     _DEV_VIEWER_MAX_AGE,
@@ -89,7 +90,7 @@ def switch_viewer(request: HttpRequest) -> HttpResponse:
             DEV_VIEWER_COOKIE, signed, max_age=_DEV_VIEWER_MAX_AGE, httponly=True, samesite="Lax"
         )
         return response
-    return HttpResponse(_render_form(viewer_of(request)))
+    return HttpResponse(_render_form(viewer_of(request), csrf_token=get_token(request)))
 
 
 def _describe(viewer: Viewer) -> str:
@@ -103,10 +104,11 @@ def _describe(viewer: Viewer) -> str:
             return "Öffentlich (nicht angemeldet)"
 
 
-def _render_form(current: Viewer) -> str:
+def _render_form(current: Viewer, *, csrf_token: str) -> str:
     """Minimal no-JS German switcher form: three radio choices + a groups text input. Dev-only; it
     borrows the design-system stylesheet stack (same-origin, self-contained) for a consistent minimal
-    look — no styling of its own beyond the shared ``wb-stub`` shell."""
+    look — no styling of its own beyond the shared ``wb-stub`` shell. The hidden CSRF token is
+    required now that CsrfViewMiddleware runs in dev too (see settings_dev)."""
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
         '<link rel="stylesheet" href="/static/tokens.css">'
@@ -117,6 +119,7 @@ def _render_form(current: Viewer) -> str:
         "<h1>Betrachter wechseln (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
         f'<form method=post action="{SWITCHER_PATH}">'
+        f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">'
         "<p><label><input type=radio name=kind value=archivist> Archivar</label></p>"
         "<p><label><input type=radio name=kind value=member checked> Mitglied</label>"
         ' Gruppen: <input type=text name=groups placeholder="gruppe1, gruppe2"></p>'

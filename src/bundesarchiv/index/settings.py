@@ -72,6 +72,17 @@ BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 *
 # switcher); prod is unreachable-by-absence for anything dev-only.
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
 
+# The ONE piece of HTTP middleware prod runs: CSRF protection for the Part 4.7 write forms (create,
+# edit-save, kopieren, loeschen, lebenszyklus, vorschau all POST). Without it, CsrfViewMiddleware is
+# inactive and those destructive POSTs accept cross-site requests despite their {% csrf_token %}.
+# Deliberately the ONLY entry — no SessionMiddleware (CsrfViewMiddleware uses the cookie token by
+# default, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a Django session),
+# no auth/admin. This bends the "tiny settings, no middleware" stance (ADR 0004) for a real security
+# hole; subject to owner ratification, and the 4.10 hardening gate revisits the middleware surface.
+MIDDLEWARE = [
+    "django.middleware.csrf.CsrfViewMiddleware",
+]
+
 # Templates for the server-rendered workbench (Part 4.5). The Django template backend only — no
 # context processors that need auth/sessions (this project has none): the viewer is passed in the
 # view's context, never read from ``request.user``. Autoescape is on (the default), so German UI
