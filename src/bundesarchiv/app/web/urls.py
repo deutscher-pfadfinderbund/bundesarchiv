@@ -24,7 +24,9 @@ from bundesarchiv.app.web.browse_views import (
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
     article_create,
+    article_datierung_echo,
     article_delete,
+    article_dokumenttypen,
     article_edit,
     article_lifecycle,
     article_medien_entfernen,
@@ -69,6 +71,10 @@ urlpatterns = [
         "artikel/<str:ulid>/medien/hochladen",
         article_medien_hochladen,
         name="artikel-medien-hochladen",
+    ),
+    path("artikel/<str:ulid>/dokumenttypen", article_dokumenttypen, name="artikel-dokumenttypen"),
+    path(
+        "artikel/<str:ulid>/datierung-echo", article_datierung_echo, name="artikel-datierung-echo"
     ),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),

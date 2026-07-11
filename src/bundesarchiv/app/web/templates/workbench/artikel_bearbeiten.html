@@ -11,7 +11,10 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
 {% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
 {% block body %}
-<main class="c-form">
+{% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
+hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
+the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.{% endcomment %}
+<main class="c-form" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   {% if conflict %}
   <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
@@ -66,6 +69,10 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
   </section>
   {% endif %}
 
+  {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet on-surface-variant
+  hinweis — NOT loud (it is not an error; the save succeeded).{% endcomment %}
+  {% if index_lag %}<p class="c-form-hinweis" role="status">{{ index_lag }}</p>{% endif %}
+
   <header class="c-form-kopf">
     <h1 class="c-form-kopf-titel">{{ values.title|default:"Ohne Titel" }}</h1>
     <span class="c-form-kopf-marken">
@@ -118,7 +125,12 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       <div class="c-form-row">
         <label class="c-field{% if errors.media_type %} c-field--fehler{% endif %}">
           <span class="c-field-label">Medienart</span>
+          {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
+          them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
+          server pairing re-validation still stand.{% endcomment %}
           <select class="c-select" name="media_type"
+                  hx-get="/artikel/{{ values.ulid }}/dokumenttypen"
+                  hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
                   {% if autofocus == "media_type" %}autofocus{% endif %}>
             {% for value, caption in media_type_options %}
             <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
@@ -130,7 +142,7 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       <div class="c-form-row">
         <label class="c-field{% if errors.document_type %} c-field--fehler{% endif %}">
           <span class="c-field-label">Dokumenttyp</span>
-          <select class="c-select" name="document_type"
+          <select class="c-select" id="dokumenttyp-select" name="document_type"
                   {% if autofocus == "document_type" %}autofocus{% endif %}>
             <option value="">— kein Dokumenttyp —</option>
             {% for group_label, group_options in document_type_groups %}
@@ -155,11 +167,17 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       <div class="c-form-row">
         <label class="c-field{% if errors.date %} c-field--fehler{% endif %}">
           <span class="c-field-label">Datierung (EDTF)</span>
+          {% comment %}HTMX (spec §5): debounced keyup fetches the human-German echo and swaps the
+          line below. No-JS baseline unchanged — the echo also renders server-side after any
+          submit/reload.{% endcomment %}
           <input class="c-input" type="text" name="date" value="{{ values.date }}"
+                 hx-get="/artikel/{{ values.ulid }}/datierung-echo"
+                 hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
+                 hx-swap="outerHTML"
                  {% if autofocus == "date" %}autofocus{% endif %}>
           <span class="c-form-hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
           {% if errors.date %}<span class="c-field-fehler">{{ errors.date }}</span>{% endif %}
-          {% if edtf_echo %}<span class="c-form-echo">{{ edtf_echo }}</span>{% endif %}
+          {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
         </label>
       </div>
     </fieldset>

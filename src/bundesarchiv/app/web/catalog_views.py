@@ -218,7 +218,12 @@ def _handle_edit_post(
         return render(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
     match outcome:
-        case catalog.SavedOutcome():
+        case catalog.SavedOutcome(result=save_result):
+            # State H (ADR 0014): the canonical write stood but the sync index update failed and a
+            # retry job was enqueued — re-render (not 302) with the quiet index-lag hinweis so the
+            # archivist knows the visibility change is not yet effective in search. Otherwise 302.
+            if not save_result.index_updated:
+                return _rerender_edit(request, store, ulid, index_lag=True)
             return HttpResponseRedirect(f"/artikel/{ulid}")
         case catalog.ConflictOutcome() as conflict:
             context = _edit_context_from_post(
@@ -921,10 +926,12 @@ def _rerender_edit(
     *,
     entfernen_hash: str = "",
     medien_fehler: str = "",
+    index_lag: bool = False,
 ) -> HttpResponseBase:
-    """Re-render the edit form after a structural media change (or the remove-confirm step). Re-loads
-    the article so the register reflects the just-applied change. ``entfernen_hash`` shows one row's
-    inline remove-confirm; ``medien_fehler`` surfaces an upload error above the register."""
+    """Re-render the edit form after a structural media change (or the remove-confirm step, or a
+    saved-but-index-lagged metadata save). Re-loads the article so the register + fields reflect the
+    just-applied change. ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler``
+    surfaces an upload error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis."""
     stored = ArticleRepository(store).load(ulid)
     collections = _collections(store)
     context = _edit_context_from_article(
@@ -936,4 +943,44 @@ def _rerender_edit(
     )
     if medien_fehler:
         context["medien_fehler"] = medien_fehler
+    if index_lag:
+        context["index_lag"] = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
     return render(request, "workbench/artikel_bearbeiten.html", context)
+
+
+# --- HTMX enhancement partials (Slice E, spec §5) ----------------------------------
+# Two archivist-gated GET transforms the edit form's HTMX layer swaps in. Both have a no-JS baseline
+# already shipped (the grouped optgroup select; the server-side echo after submit), so these ONLY
+# remove a round-trip. Pure transforms, no mutation. Gated via _load_gated -> byte-identical 404 for
+# anyone else and NEVER partial content (they join the 4.10 leak suite).
+
+
+def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET /artikel/<ulid>/dokumenttypen?medienart=`` — the Dokumenttyp option list for one
+    Medienart (spec §5). Archivist-only, GET-only. The no-JS baseline renders all types grouped by
+    Medienart; this returns just the chosen Medienart's options for an HTMX inner-swap."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "GET":
+        return _not_found()
+    # htmx sends the <select name="media_type"> value under that name; accept ?medienart= too so the
+    # endpoint is callable directly with the German param name.
+    media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
+    return render(
+        request,
+        "workbench/_dokumenttyp_options.html",
+        {"document_types": vocab.document_types_for(media_type), "selected": ""},
+    )
+
+
+def article_datierung_echo(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET /artikel/<ulid>/datierung-echo?date=`` — the human-German EDTF echo line (spec §5).
+    Archivist-only, GET-only. Empty echo for an unparseable value (no error surface while typing —
+    validation errors ride the field on submit, not the echo)."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "GET":
+        return _not_found()
+    return render(
+        request,
+        "workbench/_datierung_echo.html",
+        {"edtf_echo": _edtf_echo(request.GET.get("date", ""))},
+    )

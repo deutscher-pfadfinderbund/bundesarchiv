@@ -1,0 +1,6 @@
+{% comment %}
+EDTF German echo line (Part 4.7 Slice E, spec §5). The HTMX enhancement swaps THIS into the echo
+slot as the archivist types; the no-JS baseline renders the same line server-side after a submit.
+Neutral body text, at most one violet fragment (spec §0); empty when the value is unparseable (no
+error surface while typing). The wrapper span is always present so HTMX has a stable swap target.
+{% endcomment %}<span class="c-form-echo" id="datierung-echo">{% if edtf_echo %}{{ edtf_echo }}{% endif %}</span>

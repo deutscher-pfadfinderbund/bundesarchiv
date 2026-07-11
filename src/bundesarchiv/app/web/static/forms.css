@@ -60,6 +60,13 @@
   font: var(--type-meta);
   color: var(--on-surface-variant);
 }
+/* state-H index-lag hinweis (ADR 0014): quiet on-surface-variant body — NOT loud (the save
+   succeeded; only search lags). Sits above the form header after a saved-but-lagged POST. */
+.c-form-hinweis {
+  margin: 0 0 var(--space-4);
+  font: var(--type-body);
+  color: var(--on-surface-variant);
+}
 
 /* ---- field error (spec §6.1: the LIGHT treatment, never the panel) ---- */
 
