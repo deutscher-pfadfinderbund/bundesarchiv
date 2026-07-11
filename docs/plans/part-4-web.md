@@ -159,6 +159,52 @@ fixed in code for v1.
 - Media leak tests green (4.3).
 - `/simplify` + adversarial review pass (same discipline as Parts 1–3).
 
+## Status (2026-07-11)
+
+**Shipped and gate-green** (1068 unit + 13 e2e at part exit; both security and
+design-gate passes per wave):
+
+- **4.1 CAS** + **4.2 worker/incremental reindex** + **4.3 media auth seam** +
+  **4.4 dev-viewer mechanism** + **4.9 mirror/reconcile** — the plumbing.
+- **4.5-R archivist workbench** — split-narrow layout, dense ledger rows,
+  collapsible facet sidebar (subtree counts), preview pane (`?artikel=`, one
+  fail-closed resolution path), `visible()` combinator built and consumed,
+  stamp-grammar design system (tokens.css, contrast gate, atom components).
+- **4.7 cataloging form** — create/edit (no-JS baseline + CAS "Inzwischen
+  geändert" panel), copy (clears Signatur), delete (confirm), lifecycle
+  (publish gated on the over-exposure preview), media manager (reorder /
+  remove / upload / captions), and the HTMX enhancement layer (dependent
+  Dokumenttyp select, EDTF echo, swaps via `hx-select` from the same full
+  render — no partial fork).
+- **4.6 Artikel detail (Lesesaal)** — one `visible`-projected render, cover +
+  filmstrip, EDTF human-German phrasing, per-tier field flooring, draft gate.
+- **E2E + state gallery** (#26) — 10 Playwright journeys + a 52-PNG gallery
+  (13 states x 2 modes x 2 widths); the design-gate review medium.
+- **4.10 hardening gate** (this part-exit) — the route x tier leak matrix
+  (`tests/app/web/test_leak_matrix.py`: every prod route x every viewer tier x
+  {GET, POST}, byte-identical-404 on every deny, exhaustive against the
+  urlconf, dev-by-absence proven); the whole-slice simplify pass; these docs.
+
+**Deferred (with a home):**
+
+- **Bulk edit** — shipped once, then owner-parked for a quality rework
+  (`scratchpad/task-bulk-rework-spec.md`); the shipped feature stays live.
+- **Collection move** + **collection audience-EDIT** — the visibility-changing
+  ops; each re-audiences descendants and wants its own over-exposure subtree
+  preview (see ADR 0001 note). Creating a collection *with* an audience is
+  shipped (safe — empty at creation).
+- **Plattentisch** media region (round-3 mock, unrated), the hybrid start page,
+  the auto-flip thumbnail grid, member-facing Katalogkarte polish, and the
+  Eingangskiste ingest queue — all post-MVP.
+- **EDTF human-German phrasings** ship as **provisional** pending owner
+  sign-off (the month/season/century table in `vocab.py`).
+
+**Corrections to this plan's earlier text:** the 4.10 leak suite does NOT do an
+"anonymous → login redirect" (that assumed Keycloak); v1 floors an anonymous
+request to `Public()` and denies with the byte-identical 404. Login lands with
+Keycloak in Part 5. The **CSRF middleware** (absent under the Part 4.3 "tiny
+settings") was enabled at 4.7 — see the ADR 0004 update.
+
 ## Explicitly out of Part 4
 
 Keycloak/OIDC (Part 5), restic + deploy hardening (Part 6), tiering/inbox

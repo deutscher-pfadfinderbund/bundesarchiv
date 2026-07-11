@@ -27,3 +27,17 @@ lines of hand-rolled SSE plumbing for one-shot responses, and its v1.0
 packaging is not yet settled. Datastar's live/SSE strengths are unused by this
 archive's v1. Alpine remains available as the sanctioned sprinkle if a purely
 local UI need appears.
+
+**Update 2026-07-11 — CSRF middleware enabled (Part 4.7):** the early settings
+carried NO `MIDDLEWARE` list at all — a "tiny settings" stance from Part 4.3,
+when the HTTP surface was read-only (media bytes) and had no cross-site write to
+protect. Part 4.7 added the first destructive cross-site POSTs (create / edit /
+delete / lifecycle / bulk), so `django.middleware.csrf.CsrfViewMiddleware` is now
+enabled in both prod and dev settings (owner-ratified: it is part of Django's
+default stack; the tiny settings had simply omitted the whole list). The forms
+already carried `{% csrf_token %}`, and the HTMX layer sends the token via
+`hx-headers`, so enabling it was reversible and required no template changes. A
+tokenless cross-site POST now gets a 403 before the view runs — orthogonal to the
+archivist gate (a valid token still hits the byte-identical 404 for a
+non-archivist). **Deferred to Part 6 (TLS deploy):** set `CSRF_COOKIE_SECURE = True`
+and `CSRF_TRUSTED_ORIGINS` once the service is behind HTTPS.
