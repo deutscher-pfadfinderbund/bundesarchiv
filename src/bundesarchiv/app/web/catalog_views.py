@@ -29,6 +29,7 @@ from django.shortcuts import render
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, AudienceTier, Collection, Ulid
 from bundesarchiv.domain.viewer import Archivist
@@ -290,8 +291,6 @@ def _media_type_options() -> tuple[tuple[str, str], ...]:
 def _edtf_echo(date_value: str) -> str:
     """The server-side EDTF echo (spec §5): render the human-German sentence if the value parses,
     else empty (a bad value shows its field error, not a broken echo)."""
-    from bundesarchiv.domain.edtf import EdtfDate
-
     if not date_value.strip():
         return ""
     try:
