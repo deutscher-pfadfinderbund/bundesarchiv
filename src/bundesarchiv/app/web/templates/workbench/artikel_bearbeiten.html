@@ -74,7 +74,7 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
     </span>
   </header>
 
-  <form class="c-form-felder" method="post" action="/artikel/{{ values.ulid }}/bearbeiten">
+  <form id="bearbeiten-form" class="c-form-felder" method="post" action="/artikel/{{ values.ulid }}/bearbeiten">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
@@ -224,6 +224,52 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       </div>
     </fieldset>
 
+    {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar. Caption inputs
+    ride THIS form's save (save_article — captions are README front matter, ADR 0015). Each row's
+    reorder/remove buttons belong to their OWN per-row form (declared after this form, referenced via
+    form=) so each carries exactly one unambiguous hash — never the whole register. The FIRST row's
+    TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per
+    spec §6.3. Upload is a separate multipart form below.{% endcomment %}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Medien</legend>
+      {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
+      {% if media_rows %}
+      <div class="c-medien">
+        {% for row in media_rows %}
+        <div class="c-medien-zeile{% if row.is_cover %} c-medien-zeile--cover{% endif %}">
+          <img class="c-medien-thumb" src="{{ row.thumb_url }}" alt="" loading="lazy">
+          <span class="c-medien-datei">
+            <span class="c-medien-name">{{ row.filename }}</span>
+            {% if row.size %}<span class="c-medien-groesse">{{ row.size }}</span>{% endif %}
+            {% if row.is_cover %}<span class="c-medien-titelbild">Titelbild</span>{% endif %}
+          </span>
+          <label class="c-field">
+            <span class="c-visually-hidden">Bildunterschrift</span>
+            <input class="c-input" type="text" name="caption[{{ row.content_hash }}]"
+                   value="{{ row.caption }}" aria-label="Bildunterschrift">
+          </label>
+          <span class="c-medien-reihenfolge">
+            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="hoch"{% if row.is_first %} disabled{% endif %}>nach oben</button>
+            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="runter"{% if row.is_last %} disabled{% endif %}>nach unten</button>
+          </span>
+          {% if row.confirm_remove %}
+          <span class="c-medien-confirm">Wirklich entfernen?
+            <button class="c-medien-entfernen" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
+            <button class="c-medien-entfernen" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
+          </span>
+          {% else %}
+          <button class="c-medien-entfernen" type="submit" form="entfernen-frage-{{ row.content_hash }}">Entfernen</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
+      {% endif %}
+    </fieldset>
+
     {# Gruppe 7 — Weitere Angaben (custom bag) #}
     <details class="c-form-details">
       <summary class="c-form-details-summary">Weitere Angaben</summary>
@@ -257,6 +303,38 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
         {% endif %}
       </div>
     </div>
+  </form>
+
+  {% comment %}Per-row media structural forms (spec §6.3) — declared here, referenced by the register
+  buttons above via form=. Each carries exactly ONE hash, so a reorder/remove is unambiguous. These
+  are non-CAS structural POSTs, separate from the caption metadata save. Upload is its own multipart
+  form. Placed outside the edit form (forms cannot nest) but wired to the rows by id.{% endcomment %}
+  {% for row in media_rows %}
+  <form id="verschieben-{{ row.content_hash }}" method="post"
+        action="/artikel/{{ values.ulid }}/medien/verschieben" hidden>
+    {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
+  </form>
+  <form id="entfernen-frage-{{ row.content_hash }}" method="post"
+        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+    {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
+  </form>
+  <form id="entfernen-ja-{{ row.content_hash }}" method="post"
+        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+    {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
+    <input type="hidden" name="bestaetigt" value="1">
+  </form>
+  <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
+        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+    {% csrf_token %}
+  </form>
+  {% endfor %}
+
+  {# Upload — a separate multipart form (spec §6.3): native file input, appends at the end #}
+  <form class="c-medien-upload" method="post" enctype="multipart/form-data"
+        action="/artikel/{{ values.ulid }}/medien/hochladen">
+    {% csrf_token %}
+    <input class="c-input" type="file" name="dateien" multiple>
+    <button class="c-btn c-btn--subtle" type="submit">Hinzufügen</button>
   </form>
 
   {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),

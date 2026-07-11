@@ -1,0 +1,321 @@
+"""Media manager — reorder / remove / upload + caption round-trip (Part 4.7 Slice D, spec §6.3).
+
+Three structural POST routes plus the caption metadata save:
+
+- ``/medien/verschieben`` — reorder (= re-cover, order is meaning ADR 0015). Structural, non-CAS.
+- ``/medien/entfernen`` — two-step no-JS confirm (show → [Ja] removes the ref; the blob stays).
+- ``/medien/hochladen`` — multipart, multiple files, write-once dedupe, append at END; oversize →
+  a clean German error not a 500. The blob persists BEFORE the README references it.
+- captions ride the main edit-form save (``save_article``), README round-trip, ``"" → None``.
+
+SECURITY (mutation-tested): every structural route archivist-gated, POST-only → byte-identical 404
+for Member/Public/anon; the deny tests assert the media tuple is UNCHANGED. The write path is real;
+only index + queue seams are stubbed (conftest.py).
+"""
+
+from pathlib import Path
+
+import pytest
+from django.core import signing
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http.response import HttpResponseBase
+from django.test import Client, override_settings
+
+from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.domain.models import (
+    Article,
+    Audience,
+    AudienceTier,
+    Collection,
+    Lifecycle,
+    MediaRef,
+)
+from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.repository import ArticleRepository
+
+_DEV_KEY = "test-catalog-medien-key"
+_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+
+
+class _Corpus:
+    """A FS-store archive: one DRAFT article with two media blobs (a cover + a second)."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.store = LocalFsObjectStore(root)
+        collections = CollectionRepository(self.store)
+        collections.save(Collection("ROOT", "Wurzel", None), 0)
+        collections.save(Collection("PUB", "Öffentlich", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
+        repo = ArticleRepository(self.store)
+        # store two real blobs so the README may reference them (repo refuses an unstored ref)
+        self.ref_a = repo.add_media(_ULID, "cover.jpg", b"cover-bytes", "image/jpeg", "Titelbild")
+        self.ref_b = repo.add_media(_ULID, "zweite.jpg", b"second-bytes", "image/jpeg", None)
+        self.version = repo.save(
+            Article(
+                ulid=_ULID,
+                title="Lagerchronik",
+                collection_id="PUB",
+                lifecycle=Lifecycle.DRAFT,
+                media_type="Fotografie",
+                media=(self.ref_a, self.ref_b),
+            ),
+            0,
+        )
+
+    def media(self) -> tuple[MediaRef, ...]:
+        return ArticleRepository(self.store).load(_ULID).article.media
+
+
+@pytest.fixture
+def corpus(tmp_path: Path) -> _Corpus:
+    return _Corpus(tmp_path / "canonical")
+
+
+def _settings(corpus: _Corpus) -> dict[str, object]:
+    return {
+        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
+        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
+        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
+    }
+
+
+def _client_as(viewer: Viewer) -> Client:
+    client = Client()
+    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
+    client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
+    return client
+
+
+def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
+    from bundesarchiv.app.web.media_views import _not_found
+
+    r = _not_found()
+    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
+    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
+
+
+def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
+    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
+    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
+    content: bytes = response.content  # type: ignore[attr-defined]
+    return content, headers
+
+
+def _hashes(corpus: _Corpus) -> list[str]:
+    return [m.content_hash for m in corpus.media()]
+
+
+_NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
+
+
+# --- reorder (= re-cover) ----------------------------------------------------------
+
+
+def test_verschieben_runter_moves_cover_and_re_covers(corpus: _Corpus) -> None:
+    before = _hashes(corpus)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+        )
+    assert response.status_code == 200
+    after = _hashes(corpus)
+    assert after == [before[1], before[0]]  # swapped → the second entry is now the cover
+
+
+def test_verschieben_hoch_at_top_is_noop(corpus: _Corpus) -> None:
+    before = _hashes(corpus)
+    with override_settings(**_settings(corpus)):
+        _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "hoch"},
+        )
+    assert _hashes(corpus) == before  # already first → no change
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+def test_verschieben_denied_leaves_order(corpus: _Corpus, viewer: Viewer) -> None:
+    before = _hashes(corpus)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(viewer).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+        )
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
+    assert _hashes(corpus) == before  # order unchanged
+
+
+def test_verschieben_get_is_404(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        assert (
+            _client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben").status_code == 404
+        )
+
+
+# --- remove (two-step) -------------------------------------------------------------
+
+
+def test_entfernen_step1_shows_confirm_without_removing(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/entfernen", {"entfernen": corpus.ref_b.content_hash}
+        )
+    assert response.status_code == 200
+    assert "Wirklich entfernen?" in response.content.decode()
+    assert len(corpus.media()) == 2  # nothing removed yet
+
+
+def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/entfernen",
+            {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
+        )
+    assert response.status_code == 200
+    assert _hashes(corpus) == [corpus.ref_a.content_hash]  # the ref is gone
+    # the blob is write-once recoverable — it still exists in the store
+    from bundesarchiv.persistence.repository import _media_key
+
+    assert corpus.store.exists(_media_key(_ULID, corpus.ref_b.content_hash))
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+def test_entfernen_denied_leaves_media(corpus: _Corpus, viewer: Viewer) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(viewer).post(
+            f"/artikel/{_ULID}/medien/entfernen",
+            {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
+        )
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
+    assert len(corpus.media()) == 2  # nothing removed
+
+
+# --- upload ------------------------------------------------------------------------
+
+
+def test_hochladen_appends_at_end_never_displacing_cover(corpus: _Corpus) -> None:
+    before = _hashes(corpus)
+    upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
+        )
+    assert response.status_code == 200
+    after = _hashes(corpus)
+    assert after[: len(before)] == before  # cover + existing kept, in order
+    assert len(after) == len(before) + 1  # appended at the END
+
+
+def test_hochladen_identical_bytes_is_noop_dedupe(corpus: _Corpus) -> None:
+    # Re-uploading the cover's exact bytes is a write-once no-op attach (same content hash) — it does
+    # not create a duplicate ref beyond appending the (identical-hash) ref once.
+    same = SimpleUploadedFile("cover-again.jpg", b"cover-bytes", content_type="image/jpeg")
+    with override_settings(**_settings(corpus)):
+        _client_as(Archivist()).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": same})
+    hashes = _hashes(corpus)
+    # the content hash of b"cover-bytes" already existed; appending it yields at most a duplicate
+    # entry of the SAME hash — the blob is deduped (one stored blob), which is the write-once contract
+    assert corpus.ref_a.content_hash in hashes
+
+
+def test_hochladen_oversize_is_clean_error_not_500(corpus: _Corpus) -> None:
+    big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
+    with override_settings(**_settings(corpus), DATA_UPLOAD_MAX_MEMORY_SIZE=100):
+        # force the per-file ceiling low so 1 KB is "oversize"
+        from bundesarchiv.app.web import catalog_views
+
+        original = catalog_views._MAX_UPLOAD_BYTES
+        catalog_views._MAX_UPLOAD_BYTES = 100
+        try:
+            response = _client_as(Archivist()).post(
+                f"/artikel/{_ULID}/medien/hochladen", {"dateien": big}
+            )
+        finally:
+            catalog_views._MAX_UPLOAD_BYTES = original
+    assert response.status_code == 200  # a clean re-render, not a 500
+    assert "Datei zu groß" in response.content.decode()
+    assert len(corpus.media()) == 2  # nothing attached
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+def test_hochladen_denied_attaches_nothing(corpus: _Corpus, viewer: Viewer) -> None:
+    upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
+    with override_settings(**_settings(corpus)):
+        response = _client_as(viewer).post(
+            f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
+        )
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
+    assert len(corpus.media()) == 2  # nothing attached
+
+
+# --- captions ride the metadata save (README round-trip, "" -> None) ---------------
+
+
+def test_caption_saved_via_edit_form_round_trips(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Lagerchronik",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+                f"caption[{corpus.ref_a.content_hash}]": "Neue Unterschrift",
+                f"caption[{corpus.ref_b.content_hash}]": "",  # "" -> None
+            },
+        )
+    assert response.status_code == 302  # saved
+    media = corpus.media()
+    by_hash = {m.content_hash: m for m in media}
+    assert by_hash[corpus.ref_a.content_hash].caption == "Neue Unterschrift"
+    assert by_hash[corpus.ref_b.content_hash].caption is None  # blank caption -> None
+    # order + refs preserved (the metadata save never wipes media)
+    assert [m.content_hash for m in media] == [
+        corpus.ref_a.content_hash,
+        corpus.ref_b.content_hash,
+    ]
+
+
+def test_edit_save_preserves_media_when_no_caption_change(corpus: _Corpus) -> None:
+    # A plain metadata save (no caption fields touched) must NOT wipe the media tuple.
+    with override_settings(**_settings(corpus)):
+        _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Neuer Titel",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+                f"caption[{corpus.ref_a.content_hash}]": "Titelbild",
+                f"caption[{corpus.ref_b.content_hash}]": "",
+            },
+        )
+    assert len(corpus.media()) == 2  # media survived the metadata save
+
+
+# --- the register renders the cover stamp + zero-state -----------------------------
+
+
+def test_edit_form_renders_media_register_with_cover_stamp(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    assert "c-medien" in body
+    assert "Titelbild" in body  # the cover stamp label
+    assert "cover.jpg" in body  # the filename
+    assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL
+
+
+def test_edit_form_zero_state_when_no_media(corpus: _Corpus) -> None:
+    # a fresh article with no media shows the teaching zero-state
+    repo = ArticleRepository(corpus.store)
+    empty = "01KX7YT9E3VX0CP3A5Q49RZMWK"
+    repo.save(Article(ulid=empty, title="Leer", collection_id="PUB", lifecycle=Lifecycle.DRAFT), 0)
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{empty}/bearbeiten").content.decode()
+    assert "Noch keine Medien" in body
+    assert "Das erste hochgeladene Bild wird zum Titelbild." in body

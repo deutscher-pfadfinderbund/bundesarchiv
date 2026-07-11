@@ -18,6 +18,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 ``urls.py`` so the literal path wins.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -40,12 +41,13 @@ from bundesarchiv.domain.models import (
     AudienceTier,
     Collection,
     Lifecycle,
+    MediaRef,
     Ulid,
 )
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import ArchiveError, Conflict
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository, Stored
 
@@ -171,7 +173,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     store, stored = gated
     collections = _collections(store)
     if request.method == "POST":
-        return _handle_edit_post(request, store, ulid, collections)
+        return _handle_edit_post(request, store, ulid, stored.article, collections)
     context = _edit_context_from_article(
         stored.article, stored.version, collections, autofocus_first_empty=True
     )
@@ -186,21 +188,32 @@ def _handle_edit_post(
     request: HttpRequest,
     store: ObjectStore,
     ulid: Ulid,
+    current: Article,
     collections: tuple[Collection, ...],
 ) -> HttpResponseBase:
     """Parse + save the edit POST. On a validation error re-render state F (first errored field
     autofocused). On success 302 to the read view. On ``Conflict`` re-render state G with the
     submitted values preserved (the ONE catch site is ``catalog.save_catalog_form``). A
     ``custom_entfernen`` submit is the no-JS custom-row removal — it re-renders the form with that
-    row cleared, without saving (spec §5)."""
+    row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
+    metadata save preserves them (only captions update; media structure is its own POSTs)."""
     if "custom_entfernen" in request.POST:
         return _rerender_with_custom_removed(request, ulid, collections)
     result = catalog.parse_edit_form(
-        request.POST, ulid=ulid, collections=tuple(c.ulid for c in collections)
+        request.POST,
+        ulid=ulid,
+        collections=tuple(c.ulid for c in collections),
+        current_media=current.media,
+        current_lifecycle=current.lifecycle,
     )
     if result.article is None:
         context = _edit_context_from_post(
-            request, ulid, result, collections, autofocus=_first_error_field(result.errors)
+            request,
+            ulid,
+            result,
+            collections,
+            autofocus=_first_error_field(result.errors),
+            media=current.media,
         )
         return render(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
@@ -209,7 +222,13 @@ def _handle_edit_post(
             return HttpResponseRedirect(f"/artikel/{ulid}")
         case catalog.ConflictOutcome() as conflict:
             context = _edit_context_from_post(
-                request, ulid, result, collections, autofocus="speichern", conflict=conflict
+                request,
+                ulid,
+                result,
+                collections,
+                autofocus="speichern",
+                media=conflict.winner.media,
+                conflict=conflict,
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
 
@@ -254,12 +273,22 @@ def _edit_context_from_article(
     collections: tuple[Collection, ...],
     *,
     autofocus_first_empty: bool,
+    entfernen_hash: str = "",
 ) -> dict[str, object]:
     """The edit form context seeded from a stored Article (the GET path). Autofocus lands on the
-    first empty field (spec §5) when requested."""
+    first empty field (spec §5) when requested. The media register renders the stored media, cover-
+    first; ``entfernen_hash`` puts one row into the remove-confirm state."""
     values = _article_to_form_values(article)
     autofocus = _first_empty_field(values) if autofocus_first_empty else ""
-    return _edit_context(values, version, collections, errors={}, autofocus=autofocus)
+    return _edit_context(
+        values,
+        version,
+        collections,
+        errors={},
+        autofocus=autofocus,
+        media=article.media,
+        entfernen_hash=entfernen_hash,
+    )
 
 
 def _edit_context_from_post(
@@ -269,14 +298,18 @@ def _edit_context_from_post(
     collections: tuple[Collection, ...],
     *,
     autofocus: str,
+    media: tuple[MediaRef, ...],
     conflict: catalog.ConflictOutcome | None = None,
 ) -> dict[str, object]:
     """The edit form context re-seeded from the raw POST (state F/G): the archivist's just-typed
     values are preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to
-    the winner's current version and the neutral diff rows are attached (spec §6.1)."""
+    the winner's current version and the neutral diff rows are attached (spec §6.1). ``media`` is the
+    stored media (structure isn't POSTed via the main form), so the register renders correctly."""
     values = _post_to_form_values(request, ulid)
     version = conflict.current_version if conflict is not None else result.expected_version
-    context = _edit_context(values, version, collections, errors=result.errors, autofocus=autofocus)
+    context = _edit_context(
+        values, version, collections, errors=result.errors, autofocus=autofocus, media=media
+    )
     if conflict is not None:
         context["conflict"] = True
         context["conflict_rows"] = _conflict_rows(conflict.submitted, conflict.winner)
@@ -290,10 +323,14 @@ def _edit_context(
     *,
     errors: catalog.FormErrors,
     autofocus: str,
+    media: tuple[MediaRef, ...] = (),
+    entfernen_hash: str = "",
 ) -> dict[str, object]:
     """Assemble the full edit-form context: the field values, the option lists, the field errors, the
     hidden version, and the autofocus target. The Signatur mark in the header reflects the current
-    ``ref_code`` value (empty → the hollow slot)."""
+    ``ref_code`` value (empty → the hollow slot). The media register rows come from the stored media
+    (structure is edited via its own POSTs, never the main form); ``entfernen_hash`` puts one row
+    into the two-step "Wirklich entfernen?" confirm state (spec §6.3)."""
     return {
         "values": values,
         "version": version,
@@ -305,7 +342,64 @@ def _edit_context(
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
         "ref_code": values.get("ref_code") or "",
         "edtf_echo": _edtf_echo(str(values.get("date") or "")),
+        "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
     }
+
+
+@dataclass(frozen=True, slots=True)
+class _MediaRow:
+    """One media register row for the edit-form template (spec §6.3). Built on the ledger grid: the
+    thumb URL (via the gated media-thumb route, which re-authorizes per request), the filename +
+    human byte size (mono marks), the caption input value, and structural flags. ``is_cover`` marks
+    the FIRST row — the TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint), a
+    position-state expressed like the active facet row. ``confirm_remove`` puts this row into the
+    two-step remove confirm. ``is_first``/``is_last`` disable the reorder links at the ends."""
+
+    filename: str
+    content_hash: str
+    thumb_url: str
+    size: str
+    caption: str
+    is_cover: bool
+    is_first: bool
+    is_last: bool
+    confirm_remove: bool
+
+
+def _media_rows(
+    ulid: str, media: tuple[MediaRef, ...], entfernen_hash: str
+) -> tuple[_MediaRow, ...]:
+    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015). The
+    thumb URL points at the gated ``/media/<ulid>/<hash>/thumb`` route (re-authorizes on its own —
+    the edit form never bypasses media auth). ``entfernen_hash`` flags the one row in remove-confirm
+    state."""
+    last = len(media) - 1
+    return tuple(
+        _MediaRow(
+            filename=ref.filename,
+            content_hash=ref.content_hash,
+            thumb_url=f"/media/{ulid}/{ref.content_hash}/thumb",
+            size=_human_size(ref.byte_size),
+            caption=ref.caption or "",
+            is_cover=i == 0,
+            is_first=i == 0,
+            is_last=i == last,
+            confirm_remove=ref.content_hash == entfernen_hash,
+        )
+        for i, ref in enumerate(media)
+    )
+
+
+def _human_size(byte_size: int | None) -> str:
+    """A compact human byte size (mono meta mark). Absent → empty."""
+    if byte_size is None:
+        return ""
+    size = float(byte_size)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
 
 
 def _media_type_options() -> tuple[tuple[str, str], ...]:
@@ -690,3 +784,144 @@ def _preview_fields_label(result: VisibilityPreview) -> str:
         label for field_name, label in _VISIBLE_FIELD_LABELS if field_name in result.visible_fields
     )
     return ", ".join(names)
+
+
+# --- media manager: structural POSTs (Slice D, spec §6.3 + ADR 0015) ---------------
+#
+# Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save
+# (captions ride the main form's save_article, spec §6.3). They are "non-CAS" in that they do NOT
+# ride the edit form's expected_version: each re-loads the article at its current version, applies a
+# pure idempotent transform of the media tuple, and saves at THAT version, retrying once on a
+# concurrent bump (safe because the transform is idempotent — "move hash X up", "drop hash Y",
+# "append these blobs" re-applied to the winner's fresh article yields the same intent). Order is
+# meaning (first = cover, ADR 0015), so reorder is re-cover and upload appends at the END.
+
+#: How many bytes a single upload request may carry / a single file may be (spec §8). Kept modest for
+#: a v1 archive of scans; the settings mirror lets the deploy raise them. Oversize → a clean German
+#: error, never a 500.
+_MAX_UPLOAD_BYTES = getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024)
+
+
+def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/medien/verschieben`` — reorder one media entry up/down (``richtung`` =
+    ``hoch``/``runter``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
+    §6.3). Archivist-only, POST-only → byte-identical 404 otherwise. Structural, non-CAS: re-render
+    the edit form afterwards. A bad hash / edge move is a no-op (never raises)."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, _ = gated
+    content_hash = request.POST.get("hash", "")
+    richtung = request.POST.get("richtung", "")
+    _structural_save(store, ulid, lambda media: _reordered(media, content_hash, richtung))
+    return _rerender_edit(request, store, ulid)
+
+
+def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/medien/entfernen`` — the two-step no-JS remove (spec §6.3). First POST
+    (``entfernen``=hash) re-renders the edit form with that row in the "Wirklich entfernen? [Ja]
+    [Nein]" confirm state — NO removal yet. The [Ja] POST (``bestaetigt``=1) actually drops the ref
+    (the blob is write-once and stays, recoverable). Archivist-only, POST-only → 404 otherwise."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, _ = gated
+    content_hash = request.POST.get("entfernen", "")
+    if request.POST.get("bestaetigt") == "1":
+        _structural_save(store, ulid, lambda media: _without(media, content_hash))
+        return _rerender_edit(request, store, ulid)
+    # step 1: show the inline confirm for this row (no mutation)
+    return _rerender_edit(request, store, ulid, entfernen_hash=content_hash)
+
+
+def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/medien/hochladen`` — attach one or more files (multipart ``dateien``).
+    Each blob is stored content-addressed (write-once: identical bytes = a no-op attach) and its ref
+    appended at the END (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404
+    otherwise. Oversize → a clean German error, not a 500. The blob MUST persist before the README
+    references it (repository.save raises otherwise) — ``add_media`` writes the blob, then the
+    structural save commits the refs."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, _ = gated
+    files = request.FILES.getlist("dateien")
+    oversize = any(f.size is not None and f.size > _MAX_UPLOAD_BYTES for f in files)
+    if oversize:
+        return _rerender_edit(
+            request, store, ulid, medien_fehler="Datei zu groß. Bitte kleinere Dateien hochladen."
+        )
+    repo = ArticleRepository(store)
+    new_refs = [
+        repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
+    ]  # add_media persists each blob (write-once) BEFORE any ref is committed
+    if new_refs:
+        _structural_save(store, ulid, lambda media: (*media, *new_refs))
+    return _rerender_edit(request, store, ulid)
+
+
+def _structural_save(
+    store: ObjectStore,
+    ulid: Ulid,
+    transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
+) -> None:
+    """Apply an idempotent structural transform to the article's media tuple and save via the service
+    (canonical write + index sync), retrying ONCE on a concurrent version bump (safe: the transform
+    re-applies to the winner's fresh media with the same intent). Non-CAS from the form's view — it
+    re-loads the current version rather than trusting the form's expected_version (spec §6.3)."""
+    repo = ArticleRepository(store)
+    for _ in range(2):
+        stored = repo.load(ulid)
+        mutated = replace(stored.article, media=transform(stored.article.media))
+        try:
+            article_services.save_article(store, mutated, stored.version)
+            return
+        except Conflict:
+            continue  # a concurrent write won; re-load and re-apply the idempotent transform
+
+
+def _reordered(
+    media: tuple[MediaRef, ...], content_hash: str, richtung: str
+) -> tuple[MediaRef, ...]:
+    """Move the entry named by ``content_hash`` one step ``hoch`` (earlier) or ``runter`` (later). A
+    missing hash, an unknown direction, or a move past an edge is a no-op (returns the tuple as-is)."""
+    index = next((i for i, r in enumerate(media) if r.content_hash == content_hash), None)
+    if index is None:
+        return media
+    target = index - 1 if richtung == "hoch" else index + 1 if richtung == "runter" else index
+    if not (0 <= target < len(media)) or target == index:
+        return media
+    items = list(media)
+    items[index], items[target] = items[target], items[index]
+    return tuple(items)
+
+
+def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, ...]:
+    """The media tuple without the entry named by ``content_hash`` (the blob stays on disk, write-once
+    recoverable). A missing hash is a no-op."""
+    return tuple(r for r in media if r.content_hash != content_hash)
+
+
+def _rerender_edit(
+    request: HttpRequest,
+    store: ObjectStore,
+    ulid: Ulid,
+    *,
+    entfernen_hash: str = "",
+    medien_fehler: str = "",
+) -> HttpResponseBase:
+    """Re-render the edit form after a structural media change (or the remove-confirm step). Re-loads
+    the article so the register reflects the just-applied change. ``entfernen_hash`` shows one row's
+    inline remove-confirm; ``medien_fehler`` surfaces an upload error above the register."""
+    stored = ArticleRepository(store).load(ulid)
+    collections = _collections(store)
+    context = _edit_context_from_article(
+        stored.article,
+        stored.version,
+        collections,
+        autofocus_first_empty=False,
+        entfernen_hash=entfernen_hash,
+    )
+    if medien_fehler:
+        context["medien_fehler"] = medien_fehler
+    return render(request, "workbench/artikel_bearbeiten.html", context)

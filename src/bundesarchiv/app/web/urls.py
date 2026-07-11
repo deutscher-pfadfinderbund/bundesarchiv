@@ -27,6 +27,9 @@ from bundesarchiv.app.web.catalog_views import (
     article_delete,
     article_edit,
     article_lifecycle,
+    article_medien_entfernen,
+    article_medien_hochladen,
+    article_medien_verschieben,
     article_vorschau,
 )
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
@@ -52,6 +55,21 @@ urlpatterns = [
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
     path("artikel/<str:ulid>/lebenszyklus", article_lifecycle, name="artikel-lebenszyklus"),
     path("artikel/<str:ulid>/vorschau", article_vorschau, name="artikel-vorschau"),
+    path(
+        "artikel/<str:ulid>/medien/verschieben",
+        article_medien_verschieben,
+        name="artikel-medien-verschieben",
+    ),
+    path(
+        "artikel/<str:ulid>/medien/entfernen",
+        article_medien_entfernen,
+        name="artikel-medien-entfernen",
+    ),
+    path(
+        "artikel/<str:ulid>/medien/hochladen",
+        article_medien_hochladen,
+        name="artikel-medien-hochladen",
+    ),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

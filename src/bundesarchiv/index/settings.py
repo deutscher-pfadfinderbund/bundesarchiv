@@ -127,5 +127,17 @@ BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
     "BUNDESARCHIV_MIRROR_RECONCILE_CRON", "0 3 * * *"
 )
 
+# Upload limits for the Part 4.7 media manager (spec §8). A single request and a single in-memory
+# file are both capped at 50 MB by default; past FILE_UPLOAD_MAX_MEMORY_SIZE Django streams the file
+# to a temp file rather than holding it in RAM, and past DATA_UPLOAD_MAX_MEMORY_SIZE the request is
+# rejected (the view turns an oversize upload into a clean German error, never a 500). The deploy can
+# raise these via env for large-scan workflows. Kept modest for a v1 archive of document scans.
+_MAX_UPLOAD = int(os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
+DATA_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
+FILE_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
+# A generous ceiling on the number of form fields (the media manager renders one caption input per
+# file); the default 1000 is fine for a v1 item, set explicitly so a large item never trips it.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))
+
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True

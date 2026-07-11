@@ -144,6 +144,118 @@
 }
 .c-form-bag-entfernen:hover { text-decoration: underline; }
 
+/* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register the
+   archivist already knows — NOT a bespoke system. Row: [thumb][datei][caption][reorder][remove].
+   The whole register is ONE grid; each row is a subgrid row on the shared tracks. Scrolls in its own
+   box on narrow viewports (the page body never scrolls sideways). ---- */
+
+.c-medien {
+  --c-medien-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content max-content;
+  display: grid;
+  grid-template-columns: var(--c-medien-cols);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  overflow-x: auto;
+}
+.c-medien-zeile {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.c-medien-zeile + .c-medien-zeile { border-top: 1px solid var(--outline-variant); }
+/* the cover row may sit a hair raised (spec §6.3) — a position cue, still neutral */
+.c-medien-zeile--cover { background: var(--surface-container-mid); }
+
+/* thumb: gated image or a dashed placeholder; neutral border, small radius */
+.c-medien-thumb {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  background: var(--surface-container-low);
+}
+
+/* datei: filename (mono ink data mark) + byte size (mono-meta, quiet) */
+.c-medien-datei { min-width: 0; }
+.c-medien-name {
+  display: block;
+  font: var(--type-mono);
+  color: var(--primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-medien-groesse { font: var(--type-mono-meta); color: var(--on-surface-variant); }
+
+/* the TITELBILD cover mark — INVERSION, not tint (spec §6.3, the single most likely grammar
+   violation): a solid NEUTRAL-INK stamp (on-surface bg, surface fg), like the active facet row and
+   the primary button. NOT amber, NOT violet. A position-state, expressed as a pressed stamp. */
+.c-medien-titelbild {
+  display: inline-block;
+  margin-top: calc(var(--space-1) / 2);
+  padding: 0 var(--space-1);
+  background: var(--on-surface);
+  color: var(--surface);
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  border-radius: var(--radius-s);
+}
+
+/* reorder: nach oben / nach unten inline links (stamp ink); disabled at the ends */
+.c-medien-reihenfolge {
+  display: inline-flex;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.c-medien-pfeil {
+  font: var(--type-meta);
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+.c-medien-pfeil:hover { text-decoration: underline; }
+.c-medien-pfeil:disabled { color: var(--on-surface-variant); cursor: default; text-decoration: none; }
+
+/* remove: inline link, two-step confirm re-render */
+.c-medien-entfernen {
+  font: var(--type-meta);
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  white-space: nowrap;
+}
+.c-medien-entfernen:hover { text-decoration: underline; }
+.c-medien-confirm {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font: var(--type-meta);
+  color: var(--on-surface-variant);
+}
+
+/* upload row + error line below the register */
+.c-medien-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.c-medien-fehler {
+  margin-top: var(--space-2);
+  font: var(--type-meta);
+  color: var(--error);
+}
+
 /* ---- EDTF echo: neutral body text, at most one violet fragment (spec §0) ---- */
 
 .c-form-echo {
