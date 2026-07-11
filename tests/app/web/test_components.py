@@ -26,6 +26,9 @@ _COMPONENTS_CSS = _WEB / "static" / "components.css"
 #: The Part 4.7 cataloging-form stylesheet — a component stylesheet under the same roles-only law, so
 #: it joins the raw-color sweep (spec §4/§6 owner decision: one shared file, token terms only).
 _FORMS_CSS = _WEB / "static" / "forms.css"
+#: The Part 4.6 Lesesaal detail-page stylesheet — same roles-only law, one shared file (4.6 §11 Q2),
+#: so it joins the sweep too.
+_DETAIL_CSS = _WEB / "static" / "detail.css"
 
 #: Every atom the design-system brief names — the sweep must see at least these.
 _EXPECTED_ATOMS = frozenset(
@@ -153,7 +156,8 @@ def _component_files() -> list[Path]:
     # every on-disk variant css joins the sweep, so an experiment cannot smuggle raw colors.
     variant_css = sorted(_COMPONENTS_CSS.parent.glob("components-*.css"))
     assert _FORMS_CSS.is_file(), f"forms.css missing from {_FORMS_CSS.parent} (Part 4.7)"
-    return [*files, _COMPONENTS_CSS, _FORMS_CSS, *variant_css]
+    assert _DETAIL_CSS.is_file(), f"detail.css missing from {_DETAIL_CSS.parent} (Part 4.6)"
+    return [*files, _COMPONENTS_CSS, _FORMS_CSS, _DETAIL_CSS, *variant_css]
 
 
 def test_components_carry_no_raw_color_values() -> None:

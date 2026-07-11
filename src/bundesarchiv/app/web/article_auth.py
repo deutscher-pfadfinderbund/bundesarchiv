@@ -20,7 +20,7 @@ from django.http import HttpRequest
 
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import can_view, visible
-from bundesarchiv.domain.collections import resolve_chain
+from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Collection, Ulid
@@ -89,10 +89,12 @@ def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
 @dataclass(frozen=True, slots=True)
 class DetailResolution:
     """One resolution of the 4.6 detail path: the ``visible``-projected Article (for the template),
+    its owning Collection ``chain`` (leaf-first, for the Bestand breadcrumb — names are member-safe),
     its raw ``version`` (the archivist action-row's lifecycle CAS field), and ``is_archivist`` (the
     presentation gate for the action row + ENTWURF badge). Produced by a SINGLE store load."""
 
     article: Article
+    chain: ResolvedChain
     version: int
     is_archivist: bool
 
@@ -124,7 +126,10 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     if projected is None:
         return None  # denied viewer (incl. a draft to a non-archivist) — fail closed
     return DetailResolution(
-        article=projected, version=loaded.version, is_archivist=isinstance(viewer, Archivist)
+        article=projected,
+        chain=chain,
+        version=loaded.version,
+        is_archivist=isinstance(viewer, Archivist),
     )
 
 

@@ -1,19 +1,20 @@
-"""The archivist workbench views (Part 4.5-MVP): search/browse + the detail/neu stubs.
+"""The archivist workbench views (Part 4.5-MVP): search/browse + the 4.6 detail read view.
 
 Thin by design. Every request resolves its viewer via ``viewer_of`` and reaches data ONLY through
 ``search`` (results are pre-scoped SearchHits — no ``can_view`` in the search path) or, for the
-detail stub, through ``article_auth.authorize_article`` (the one place ``can_view`` runs here). No
-visibility logic and no business logic live in these views or the templates (plan §11): param
-parsing is the pure ``browse`` layer, scoping is the index layer, and the templates only render.
+detail view, through ``article_auth.resolve_visible_detail`` (the one place ``can_view`` + ``project``
+run here — one load, feeding the projected Article + the archivist CAS version). No visibility logic
+and no business logic live in these views or the templates (plan §11): param parsing is the pure
+``browse`` layer, scoping is the index layer, and the templates only render.
 
 Progressive enhancement (BINDING, plan §4.5): a plain GET renders the whole page; an ``HX-Request``
 GET renders only the results region (same data, same template partial), so the no-JS baseline and
 the HTMX-enhanced path share one render. URL-as-state: the full state is the query string, so an
 HTMX swap that pushes the URL and a shared/bookmarked link resolve to the identical page.
 
-The workbench is a production route (mounted in ``web.urls``); the detail + neu routes are STUBS for
-4.6 / 4.7 — they register the stable URL names now and ship their visibility gate with the workbench
-(a result link or the "Neuer Artikel" button must never leak past its gate before the real screen).
+The workbench + the detail view are production routes (mounted in ``web.urls``). The detail view
+(``article_detail``, Part 4.6) is the Lesesaal read page: one template fed a ``visible``-projected
+Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
 from dataclasses import dataclass
@@ -26,17 +27,19 @@ from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
 from bundesarchiv.app.web import browse, bulk, vocab
-from bundesarchiv.app.web.article_auth import authorize_article, resolve_visible_article
+from bundesarchiv.app.web.article_auth import (
+    DetailResolution,
+    resolve_visible_article,
+    resolve_visible_detail,
+)
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.models import Collection, Lifecycle, Ulid
+from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
 from bundesarchiv.index.query import FacetCount, SearchHit
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.repository import ArticleRepository
 
 #: The vendored htmx file (served by the dev static route; prod serves it via nginx/whitenoise).
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -185,6 +188,11 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     # query (a bare "?" would). artikel is pane state, not search state.
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
+    # Öffnen carries the current search back to the detail page via ?zurueck (search state only —
+    # artikel + auswahl excluded), so its "Zurück zur Suche" restores this search (spec §2).
+    search_params = {
+        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
+    }
     return _Pane(
         ulid=article.ulid,
         title=article.title,
@@ -192,11 +200,20 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         datierung=article.date.value if article.date is not None else "",
         typ=article.document_type or "",
         media=media,
-        oeffnen_href=f"/artikel/{article.ulid}",
+        oeffnen_href=f"/artikel/{article.ulid}{_zurueck_suffix(search_params)}",
         # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
         bearbeiten_href=f"/artikel/{article.ulid}" if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
+
+
+def _zurueck_suffix(search_params: dict[str, str]) -> str:
+    """The ``?zurueck=<encoded current search>`` suffix a detail link carries so the detail page's
+    "Zurück zur Suche" restores this search (spec §2). ``search_params`` must already exclude the
+    pane (artikel) + bulk (auswahl) keys — only search state travels. Empty string when there is no
+    active search (the detail page then falls back to a bare "/")."""
+    current = urlencode({k: v for k, v in search_params.items() if v != ""})
+    return f"?{urlencode({'zurueck': current})}" if current else ""
 
 
 # Which index facet key feeds which sidebar group: (facet key, param key, German heading). The
@@ -241,21 +258,28 @@ def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
 
 
 def _ledger_row(
-    hit: SearchHit, *, is_archivist: bool, selected_ulid: str | None, auswahl: frozenset[str]
+    hit: SearchHit,
+    *,
+    is_archivist: bool,
+    selected_ulid: str | None,
+    auswahl: frozenset[str],
+    zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
     logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action + bulk
     checkbox are archivist chrome: left EMPTY/False for non-archivists here (and the ledger component
     also omits those columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row
     shown in the pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row
-    inverts when its ulid is in it)."""
+    inverts when its ulid is in it). ``zurueck`` is the encoded ``?zurueck=`` suffix carrying the
+    current search so the detail page's "Zurück zur Suche" returns here (empty when no search)."""
     return {
         "title": hit.title,
         # BASELINE href = the canonical detail route: it works without JS on every viewport (below
         # 1280px the pane is CSS-hidden, so ?artikel would be a dead click for a no-JS narrow user).
         # ledger_pane.js progressively upgrades this to the ?artikel pane on wide viewports (see the
-        # data-artikel hook). No-JS behavior: the detail link everywhere.
-        "href": f"/artikel/{hit.ulid}",
+        # data-artikel hook). No-JS behavior: the detail link everywhere. ?zurueck carries the search
+        # back so detail's "Zurück zur Suche" restores it (spec §2).
+        "href": f"/artikel/{hit.ulid}{zurueck}",
         "artikel_ulid": hit.ulid,
         "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
@@ -272,15 +296,27 @@ def _ledger_row(
 
 
 def _ledger_rows(
-    page: object, *, is_archivist: bool, selected_ulid: str | None, auswahl: frozenset[str]
+    page: object,
+    *,
+    is_archivist: bool,
+    selected_ulid: str | None,
+    auswahl: frozenset[str],
+    zurueck: str,
 ) -> tuple[dict[str, object], ...]:
     """The ledger row view-models for the page's SearchHits. The title link's BASELINE points at the
     canonical detail route ``/artikel/<ulid>`` (works with no JS, every viewport); ``ledger_pane.js``
     progressively upgrades it to the ``?artikel`` pane on wide viewports. No visibility logic — that
-    already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``."""
+    already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``.
+    ``zurueck`` is the shared encoded return suffix (same for every row — the current search)."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
-        _ledger_row(hit, is_archivist=is_archivist, selected_ulid=selected_ulid, auswahl=auswahl)
+        _ledger_row(
+            hit,
+            is_archivist=is_archivist,
+            selected_ulid=selected_ulid,
+            auswahl=auswahl,
+            zurueck=zurueck,
+        )
         for hit in hits
     )
 
@@ -348,12 +384,19 @@ def _results_context(
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
     auswahl_set = frozenset(auswahl)
+    # The ?zurueck= suffix every detail link carries: the current search (params already excludes
+    # artikel + auswahl), so the detail page's "Zurück zur Suche" restores it. Empty when no search.
+    zurueck = _zurueck_suffix(params)
     context: dict[str, object] = {
         "text": parsed.text or "",
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page),
         "ledger_rows": _ledger_rows(
-            page, is_archivist=is_archivist, selected_ulid=selected_ulid, auswahl=auswahl_set
+            page,
+            is_archivist=is_archivist,
+            selected_ulid=selected_ulid,
+            auswahl=auswahl_set,
+            zurueck=zurueck,
         ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
         "current_page": parsed.page,
@@ -508,41 +551,120 @@ def _collection_names() -> dict[Ulid, str]:
     return {c.ulid: c.name for c in collections}
 
 
-def article_detail_stub(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /artikel/<ulid>`` — STUB for 4.6. Applies the SAME visibility rule the real detail view
-    will: load + resolve + ``can_view`` (``authorize_article``); any deny → the byte-identical 404.
-    A permitted request returns a minimal German placeholder (the article's own fields are NOT
-    emitted — 4.6 owns projection; the stub only proves the gate).
+def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET /artikel/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
 
-    Part 4.7 adds the archivist ACTION ROW (Bearbeiten / Kopieren / Löschen / lifecycle): rendered
-    ONLY for an Archivist (absent, not disabled, for everyone else — presentation-gated chrome, NOT
-    a visibility decision). The row needs the article's ulid + lifecycle; those come from the already-
-    authorized Article, so no extra load."""
-    article = authorize_article(request, ulid)
-    if article is None:
+    ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project,
+    read the version — any deny/absence/malformed/broken-chain → the byte-identical 404 (existence-
+    hiding). The template is a SINGLE file fed a projected Article, so archivist-only fields
+    (Standort, Weitere Angaben) are floored to None/() before rendering and vanish through the same
+    ``{% if value %}`` — there is no member-vs-archivist template fork (spec §4/§10). The action row
+    + ENTWURF badge are presentation-gated on ``is_archivist``; the CAS version is surfaced only then.
+    """
+    resolution = resolve_visible_detail(request, ulid)
+    if resolution is None:
         return _not_found()
-    is_archivist = isinstance(viewer_of(request), Archivist)
-    return render(
-        request,
-        "workbench/stub_detail.html",
-        {
-            "ulid": ulid,
-            "is_archivist": is_archivist,
-            "is_draft": article.lifecycle is Lifecycle.DRAFT if is_archivist else False,
-            "version": _detail_version(request, ulid) if is_archivist else 0,
-        },
+    # The "Zurück zur Suche" target: the search the visitor came from, carried in ?zurueck= and
+    # sanitized through the browse param whitelist (never echoed raw — no reflection/open-redirect,
+    # spec §2). Falls back to a bare "/" when absent or nothing survives sanitizing.
+    clean = browse.sanitize_query(request.GET.get("zurueck", ""))
+    zurueck_href = f"/?{clean}" if clean else "/"
+    return render(request, "workbench/detail.html", _detail_context(resolution, zurueck_href))
+
+
+@dataclass(frozen=True, slots=True)
+class _DetailMedia:
+    """One plate in the filmstrip (or the cover): its caption, the gated thumb URL, and the full
+    gated byte URL a click opens. The page never inlines bytes — both point at the /media routes,
+    which re-authorize per request."""
+
+    caption: str
+    thumb_url: str
+    file_url: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DetailCrumb:
+    """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
+
+    name: str
+    href: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DetailTag:
+    """One Schlagwort: the tag text + the workbench link into the tag facet."""
+
+    label: str
+    href: str
+
+
+def _body_paragraphs(body: str) -> tuple[str, ...]:
+    """Split the Markdown ``body`` into paragraphs on blank lines (spec §3). No Markdown rendering in
+    this minimal slice — each paragraph is emitted as an autoescaped ``<p>``, so no markup is
+    interpreted (rich rendering is a later owner decision, §11). Empty/whitespace body → ()."""
+    return tuple(block.strip() for block in body.split("\n\n") if block.strip())
+
+
+def _detail_media(article: Article) -> tuple[_DetailMedia, ...]:
+    """The article's media as filmstrip view-models, cover-first (the tuple order is meaning). Thumb
+    + full-byte URLs point at the gated /media routes (never inline bytes)."""
+    return tuple(
+        _DetailMedia(
+            caption=m.caption or "",
+            thumb_url=f"/media/{article.ulid}/{m.content_hash}/thumb",
+            file_url=f"/media/{article.ulid}/{m.content_hash}",
+        )
+        for m in article.media
     )
 
 
-def _detail_version(request: HttpRequest, ulid: str) -> int:
-    """The article's current version, for the read-view lifecycle control's CAS hidden field
-    (archivist-only). Read from the canonical store; 0 if unreadable (the control then loses its CAS
-    check harmlessly on submit)."""
-    store = LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-    try:
-        return ArticleRepository(store).load(ulid).version
-    except ArchiveError:
-        return 0
+def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str, object]:
+    """The detail template context, built ONLY from the projected Article (no floored field can reach
+    it) + the member-safe chain. Every value is `{% if %}`-gated in the template, so an absent field
+    (or a floored archivist-only field) emits no row — no member/archivist fork, no "—" placeholders.
+    The breadcrumb runs root→leaf (chain is leaf-first, so reversed); tags + Bestand link back into
+    the workbench facets (the archive's browsing loop). Version is archivist-only CAS chrome.
+    ``zurueck_href`` is the sanitized return-to-search link (built in the view from ?zurueck)."""
+    article = resolution.article
+    media = _detail_media(article)
+    crumbs = tuple(
+        _DetailCrumb(
+            name=c.name, href=f"/?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}"
+        )
+        for c in reversed(resolution.chain.collections)
+    )
+    tags = tuple(
+        _DetailTag(label=t, href=f"/?{browse.with_param({}, browse.PARAM_TAG, t)}")
+        for t in article.tags
+    )
+    return {
+        "ulid": article.ulid,
+        "is_archivist": resolution.is_archivist,
+        "is_draft": article.lifecycle is Lifecycle.DRAFT,
+        "version": resolution.version,
+        "zurueck_href": zurueck_href,
+        "title": article.title,
+        "ref_code": article.ref_code or "",
+        "datierung_prose": vocab.edtf_to_german(article.date),
+        "datierung_mono": article.date.value if article.date is not None else "",
+        "typ": article.document_type or article.media_type or "",
+        "creator": article.creator or "",
+        "ort": article.subject_place or "",
+        # Beschreibung: split the Markdown body into paragraphs on blank lines and render each as an
+        # escaped <p> (spec §3 — no Markdown dependency in this minimal slice; the template autoescapes,
+        # so no markup is interpreted). Flagged to the owner as §11: rich Markdown rendering is a later
+        # decision, not manufactured here.
+        "body_paragraphs": _body_paragraphs(article.body),
+        "crumbs": crumbs,
+        "leaf_bestand": crumbs[-1] if crumbs else None,
+        "tags": tags,
+        "umfang": len(media),
+        "cover": media[0] if media else None,
+        "weitere": media[1:],
+        "standort": article.physical_location or "",
+        "custom": article.custom,
+    }
 
 
 def _serve_static(filename: str, content_type: str) -> HttpResponseBase:
@@ -608,3 +730,10 @@ def serve_forms_css(request: HttpRequest) -> HttpResponseBase:
     sticky footer, field errors, CAS panel), role tokens only (load tokens.css + components.css
     first). Loaded wherever components.css is. Pinned raw-color-free by the same sweep test."""
     return _serve_static("forms.css", "text/css")
+
+
+def serve_detail_css(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/detail.css`` — the Part 4.6 Lesesaal detail-page styles (the reading column,
+    cover Platte, record card, filmstrip), role tokens only (load tokens.css + components.css first).
+    One shared file for the read view (§11 Q2 decision). Pinned raw-color-free by the same sweep."""
+    return _serve_static("detail.css", "text/css")

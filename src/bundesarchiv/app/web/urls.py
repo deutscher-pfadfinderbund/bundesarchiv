@@ -12,10 +12,11 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 from django.urls import path
 
 from bundesarchiv.app.web.browse_views import (
-    article_detail_stub,
+    article_detail,
     serve_catalog_bulk_js,
     serve_catalog_form_js,
     serve_components_css,
+    serve_detail_css,
     serve_forms_css,
     serve_htmx,
     serve_layouts_css,
@@ -56,6 +57,7 @@ urlpatterns = [
     path("static/components.css", serve_components_css, name="static-components"),
     path("static/layouts.css", serve_layouts_css, name="static-layouts"),
     path("static/forms.css", serve_forms_css, name="static-forms"),
+    path("static/detail.css", serve_detail_css, name="static-detail"),
     path("artikel/neu", article_create, name="artikel-neu"),
     path(
         "artikel/sammelbearbeitung/dokumenttypen",
@@ -87,7 +89,7 @@ urlpatterns = [
     path(
         "artikel/<str:ulid>/datierung-echo", article_datierung_echo, name="artikel-datierung-echo"
     ),
-    path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
+    path("artikel/<str:ulid>", article_detail, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),
 ]

@@ -105,11 +105,13 @@ def _stub_404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[
 # --- /artikel/<ulid> (detail stub, can_view gated) -------------------------------
 
 
-def test_detail_stub_served_when_can_view(corpus: _Corpus) -> None:
+def test_detail_served_when_can_view(corpus: _Corpus) -> None:
+    # the gate serves the real 4.6 detail page (the full render is covered by test_detail.py; here we
+    # only prove the can_view gate opens for a viewable article).
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(f"/artikel/{corpus.ulid_by_tier['public']}")
     assert response.status_code == 200
-    assert "4.6" in response.content.decode()  # the German "kommt in 4.6" placeholder
+    assert "public Artikel" in response.content.decode()  # the article's title renders
 
 
 def test_detail_stub_denies_forbidden_article_as_byte_identical_404(corpus: _Corpus) -> None:
