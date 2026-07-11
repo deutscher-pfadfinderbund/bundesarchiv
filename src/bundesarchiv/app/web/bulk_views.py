@@ -79,7 +79,13 @@ def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
     server re-validates per-article; this only removes a round-trip on Medienart change."""
     if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
         return _not_found()
-    media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
+    # htmx sends the drawer's <select name="wert_media_type"> value under that name; accept the plain
+    # media_type / medienart names too so the endpoint is callable directly.
+    media_type = (
+        request.GET.get("wert_media_type")
+        or request.GET.get("media_type")
+        or request.GET.get("medienart", "")
+    )
     return render(
         request,
         "workbench/_dokumenttyp_options.html",

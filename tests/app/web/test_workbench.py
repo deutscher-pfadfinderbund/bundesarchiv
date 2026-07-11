@@ -723,3 +723,22 @@ def test_header_select_all_checkbox_hidden_no_js(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
     head = body.split('class="c-ledger-auswahl-alle"', 1)[1].split(">", 1)[0]
     assert "hidden" in head
+
+
+@pytest.mark.django_db
+def test_bulk_bar_wires_htmx_and_csrf(corpus_root: Path) -> None:
+    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
+    # the bulk form carries the CSRF header for HTMX + the dependent-Dokumenttyp swap wiring
+    assert "X-CSRFToken" in body
+    assert 'hx-get="/artikel/sammelbearbeitung/dokumenttypen"' in body
+    assert 'hx-target="#bulk-dokumenttyp-select"' in body
+    # the PE script is loaded
+    assert '<script src="/static/catalog_bulk.js" defer></script>' in body
+
+
+@pytest.mark.django_db
+def test_catalog_bulk_js_served(corpus_root: Path) -> None:
+    with override_settings(**_settings(corpus_root)):
+        served = _client_as(Archivist()).get("/static/catalog_bulk.js")
+    assert served.status_code == 200
+    assert served["Content-Type"] == "application/javascript"

@@ -13,6 +13,7 @@ from django.urls import path
 
 from bundesarchiv.app.web.browse_views import (
     article_detail_stub,
+    serve_catalog_bulk_js,
     serve_catalog_form_js,
     serve_components_css,
     serve_forms_css,
@@ -50,6 +51,7 @@ urlpatterns = [
     path("static/htmx.min.js", serve_htmx, name="static-htmx"),
     path("static/ledger_pane.js", serve_ledger_pane_js, name="static-ledger-pane"),
     path("static/catalog_form.js", serve_catalog_form_js, name="static-catalog-form"),
+    path("static/catalog_bulk.js", serve_catalog_bulk_js, name="static-catalog-bulk"),
     path("static/tokens.css", serve_tokens, name="static-tokens"),
     path("static/components.css", serve_components_css, name="static-components"),
     path("static/layouts.css", serve_layouts_css, name="static-layouts"),

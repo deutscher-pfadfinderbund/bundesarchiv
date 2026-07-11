@@ -572,6 +572,13 @@ def serve_catalog_form_js(request: HttpRequest) -> HttpResponseBase:
     return _serve_static("catalog_form.js", "application/javascript")
 
 
+def serve_catalog_bulk_js(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/catalog_bulk.js`` — the bulk-edit (Sammelbearbeitung) enhancement: the header
+    select-all-on-page checkbox, live selection count, and the Feld→widget show/hide. Enhancement-
+    only (the no-JS baseline is the select-page link + all-widgets-rendered), degrades cleanly."""
+    return _serve_static("catalog_bulk.js", "application/javascript")
+
+
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
     sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css

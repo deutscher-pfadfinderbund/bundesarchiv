@@ -34,7 +34,9 @@ prüfen (submit → confirm POST). No loud color; the primary is the one anchor.
     </label>
     <label class="c-field" data-bulk-wert="media_type">
       <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_media_type" data-bulk-media-type>
+      <select class="c-select" name="wert_media_type" data-bulk-media-type
+              hx-get="/artikel/sammelbearbeitung/dokumenttypen"
+              hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
         {% for value, caption in bulk_media_type_options %}
         <option value="{{ value }}">{{ caption }}</option>
         {% endfor %}
