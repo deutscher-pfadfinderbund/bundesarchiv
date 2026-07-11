@@ -77,6 +77,29 @@ def test_middleware_attaches_viewer_to_request() -> None:
     assert "Archivar" in response.content.decode()
 
 
+# --- /favicon.ico: an honest 404, never the debug-page 500 -----------------------------------
+
+
+@override_settings(**_DEV, DEBUG=True)
+def test_favicon_returns_a_clean_404_under_debug() -> None:
+    # The browser auto-probes /favicon.ico. There is no favicon asset, so without the dev-only shim
+    # a request under DEBUG falls to Django's technical-404 debug page — which reads SECRET_KEY while
+    # rendering, and dev leaves it empty, so the probe surfaced as a 500. The explicit route answers
+    # the route directly, before the debug handler ever runs. DEBUG=True reproduces the broken path
+    # (a plain 404 handled by our view, never the debug renderer).
+    response = Client().get("/favicon.ico")
+    assert response.status_code == 404
+
+
+def test_favicon_route_lives_only_in_the_dev_urlconf() -> None:
+    # The favicon shim exists ONLY in the dev URLconf; prod already 404s cleanly and must not grow
+    # the route (unreachable in prod by absence, like the switcher).
+    dev_urls = importlib.import_module("bundesarchiv.app.web.dev_urls")
+    prod_urls = importlib.import_module("bundesarchiv.app.web.urls")
+    assert any(getattr(p, "name", None) == "dev-favicon" for p in dev_urls.urlpatterns)
+    assert not any(getattr(p, "name", None) == "dev-favicon" for p in prod_urls.urlpatterns)
+
+
 # --- prod-safety: the dev mechanism is unreachable under production settings -----------------
 
 

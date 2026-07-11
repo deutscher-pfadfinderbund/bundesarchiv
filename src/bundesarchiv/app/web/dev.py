@@ -14,7 +14,12 @@ sets the signed cookie and redirects back to itself.
 from collections.abc import Callable
 from html import escape
 
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseRedirect,
+)
 
 from bundesarchiv.app.web.viewers import (
     _DEV_VIEWER_MAX_AGE,
@@ -27,6 +32,18 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: The switcher's own path (dev URLconf mounts it; nothing in prod references it).
 SWITCHER_PATH = "/_dev/viewer/"
+
+
+def favicon(request: HttpRequest) -> HttpResponse:
+    """Dev-only ``GET /favicon.ico`` -> an explicit, plain 404.
+
+    There is no favicon asset, so the app has no route for it. Under prod settings that already
+    yields a clean 404. Under ``settings_dev`` (DEBUG=True) it does NOT: Django's technical-404
+    debug page reads ``SECRET_KEY`` while rendering, and dev deliberately leaves it empty (the
+    dev-viewer signs with its own dedicated key), so the debug renderer raises and the browser's
+    automatic ``/favicon.ico`` probe surfaces as a 500. Answering the route here returns the honest
+    404 directly, never entering the debug handler — no asset, prod behavior unchanged."""
+    return HttpResponseNotFound()
 
 
 class DevViewerMiddleware:
