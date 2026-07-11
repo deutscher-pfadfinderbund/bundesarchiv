@@ -980,7 +980,7 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return render(
         request,
         "workbench/_dokumenttyp_options.html",
-        {"document_types": vocab.document_types_for(media_type), "selected": ""},
+        {"document_types": vocab.document_types_for(media_type)},
     )
 
 

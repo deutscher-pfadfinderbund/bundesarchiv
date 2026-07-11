@@ -4,4 +4,4 @@ the Dokumenttyp select's inner content on Medienart change; the no-JS baseline r
 grouped optgroup list instead. Just <option>s — the empty "kein Dokumenttyp" first, then the chosen
 Medienart's types. Server pairing re-validation on save is unchanged.
 {% endcomment %}<option value="">— kein Dokumenttyp —</option>{% for value in document_types %}
-<option value="{{ value }}"{% if value == selected %} selected{% endif %}>{{ value }}</option>{% endfor %}
+<option value="{{ value }}">{{ value }}</option>{% endfor %}
