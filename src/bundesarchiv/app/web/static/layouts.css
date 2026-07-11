@@ -275,9 +275,15 @@ body.wb {
   }
 }
 
-/* very narrow: sidebar stacks above the main column (single column frame) */
+/* very narrow: sidebar stacks above the main column (single column frame). The frame collapses to
+   one 1fr track, so the children's named grid-column placements (sidebar/main/pane) must reset —
+   otherwise their vanished named lines resolve to implicit tracks after 1fr and orphan the content
+   right of a dead gutter (body scrolls sideways). Span every child across the single column. */
 @media (max-width: 720px) {
   .wb-frame,
   .wb--vorschau .wb-frame { grid-template-columns: 1fr; }
+  .wb-sidebar,
+  .wb-main,
+  .wb-pane { grid-column: 1 / -1; }
   .wb-sidebar { position: static; }
 }
