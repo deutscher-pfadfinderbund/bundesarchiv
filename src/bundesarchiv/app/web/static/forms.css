@@ -80,6 +80,18 @@
   color: var(--error);
 }
 
+/* Read-only display rows (4.8 rename: parent + Sichtbarkeit shown, not editable). The dashed
+   baseline reads as a printed record fact — clearly NOT an input (no box, no fill). */
+.c-field--nurlesen {
+  gap: calc(var(--space-1) / 2);
+}
+.c-field-wert {
+  font: var(--type-body);
+  color: var(--on-surface-variant);
+  padding: var(--space-1) 0;
+  border-bottom: 1px dashed var(--outline-variant);
+}
+
 /* ---- group drawer: a fieldset whose legend reuses the .c-facet-tab drawer-label silhouette ----
    (spec §3/§4 — grouping reads as archive drawers). The panel is neutral, square, hairline: no
    fill, no shadow (flatness is load-bearing). */

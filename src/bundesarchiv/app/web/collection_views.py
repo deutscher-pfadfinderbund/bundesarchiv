@@ -15,22 +15,26 @@ article form uses (``catalog_views._SICHTBARKEIT_OPTIONS`` / ``catalog._parse_au
 GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-implemented.
 """
 
+from dataclasses import replace
 from pathlib import Path
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
-from bundesarchiv.app import create_collection
+from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.models import Collection
+from bundesarchiv.domain.identity import is_valid_ulid
+from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
+from bundesarchiv.persistence.errors import ArchiveError, Conflict
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -48,10 +52,15 @@ def _collections(store: ObjectStore) -> tuple[Collection, ...]:
     return CollectionRepository(store).load_all()
 
 
+#: The Eltern-Bestand top-level marker — a Bestand with no parent. One constant so the select
+#: placeholder + the read-only parent-display row can never drift.
+_TOP_LEVEL_LABEL = "— Oberste Ebene —"
+
+
 def _parent_options(collections: tuple[Collection, ...]) -> tuple[tuple[str, str], ...]:
     """The Eltern-Bestand select options: the empty top-level option first (a top-level Bestand has
     no parent), then each existing collection as ``(ulid, name)``."""
-    return (("", "— Oberste Ebene —"), *((c.ulid, c.name) for c in collections))
+    return (("", _TOP_LEVEL_LABEL), *((c.ulid, c.name) for c in collections))
 
 
 # --- /bestand/neu — create -----------------------------------------------------------
@@ -77,7 +86,11 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             result = create_collection(
                 store, name=name, parent_id=parent_id or None, audience=audience
             )
-            return HttpResponseRedirect(f"/?bestand={result.ulid}")
+            # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
+            # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
+            # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
+            query = urlencode({"bestand": result.ulid, "angelegt": name})
+            return HttpResponseRedirect(f"/artikel/neu?{query}")
         return render(
             request,
             "workbench/bestand_neu.html",
@@ -129,3 +142,109 @@ def _create_context(
         "errors": errors,
         "autofocus": "parent_id" if name and "name" not in errors else "name",
     }
+
+
+# --- /bestand/<ulid>/bearbeiten — rename (SLIM: Name only) ---------------------------
+
+
+def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET/POST /bestand/<ulid>/bearbeiten`` — rename a Bestand. SLIM: the Name field ONLY; parent
+    + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
+    visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
+    absent ulid all collapse to the byte-identical 404. POST saves the renamed Collection under CAS
+    (via ``save_collection``, which reindexes the subtree so the new name is live in facets); a blank
+    Name re-renders with the verbatim error, unchanged."""
+    gated = _load_gated_collection(request, ulid)
+    if gated is None:
+        return _not_found()
+    store, stored = gated
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            return render(
+                request,
+                "workbench/bestand_bearbeiten.html",
+                _edit_context(store, stored, name, {"name": "Name ist erforderlich."}),
+            )
+        # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
+        try:
+            save_collection(store, replace(stored.collection, name=name), stored.version)
+        except Conflict:
+            # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
+            # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
+            # preserved (parity with the article form) — never a 500 (security LOW).
+            winner = CollectionRepository(store).load(ulid)
+            return render(
+                request,
+                "workbench/bestand_bearbeiten.html",
+                _edit_context(store, winner, name, {}, conflict_name=winner.collection.name),
+            )
+        return HttpResponseRedirect(f"/?bestand={ulid}")
+    return render(
+        request,
+        "workbench/bestand_bearbeiten.html",
+        _edit_context(store, stored, stored.collection.name, {}),
+    )
+
+
+def _load_gated_collection(
+    request: HttpRequest, ulid: str
+) -> tuple[ObjectStore, StoredCollection] | None:
+    """The shared gate for the rename route: archivist-only, validate the ulid in-view, load the
+    Collection — returning ``(store, stored)`` ONLY if all pass, else ``None`` (the caller maps
+    ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an absent/unreadable
+    collection all collapse to the SAME ``None`` (existence-hiding)."""
+    if not _is_archivist(request) or not is_valid_ulid(ulid):
+        return None
+    store = _canonical_store()
+    try:
+        return store, CollectionRepository(store).load(ulid)
+    except ArchiveError:
+        return None
+
+
+def _edit_context(
+    store: ObjectStore,
+    stored: StoredCollection,
+    name: str,
+    errors: FormErrors,
+    conflict_name: str | None = None,
+) -> dict[str, object]:
+    """The rename form's context: the editable Name (preserved on re-render) + the READ-ONLY parent
+    name + Sichtbarkeit label as quiet display strings (this slice edits neither). Autofocus on Name.
+    ``conflict_name`` (the winner's name after a racing rename) drives the "Inzwischen geändert"
+    panel — None on the normal path."""
+    collection = stored.collection
+    return {
+        "ulid": collection.ulid,
+        "name": name,
+        "parent_display": _parent_name(store, collection.parent_id),
+        "sichtbarkeit_display": _sichtbarkeit_label(collection.audience),
+        "errors": errors,
+        "conflict_name": conflict_name,
+    }
+
+
+def _parent_name(store: ObjectStore, parent_id: str | None) -> str:
+    """The parent Collection's name for the read-only display row, or the top-level marker. A targeted
+    load (1 read) rather than a full ``load_all`` scan; a dangling parent (shouldn't happen) shows the
+    ulid rather than raising."""
+    if parent_id is None:
+        return _TOP_LEVEL_LABEL
+    try:
+        return CollectionRepository(store).load(parent_id).collection.name
+    except ArchiveError:
+        return parent_id
+
+
+def _sichtbarkeit_label(audience: Audience | None) -> str:
+    """The human Sichtbarkeit label for the read-only display row. ``None`` = inherit (the ADR 0001
+    default); otherwise the rung's caption, with the group list for GROUPS. The strings match the
+    shared 4.7 source (``catalog_views._audience_label`` / ``_SICHTBARKEIT_OPTIONS``) verbatim."""
+    if audience is None:
+        return "Vom Bestand erben"
+    if audience.tier is AudienceTier.PUBLIC:
+        return "Öffentlich"
+    if audience.tier is AudienceTier.MEMBERS:
+        return "Alle Mitglieder"
+    return f"Gruppe: {', '.join(audience.groups)}"

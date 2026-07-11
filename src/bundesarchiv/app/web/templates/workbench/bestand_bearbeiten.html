@@ -1,0 +1,45 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Rename-Bestand form (Part 4.8 SLIM, archivist-only — the view gates it). The Name field is the ONLY
+editable control; Eltern-Bestand + Sichtbarkeit render as quiet READ-ONLY display rows with one hint,
+because moving + changing visibility are deferred (they move descendants' visibility and need the
+over-exposure machinery a rename does not). Plain no-JS POST → save_collection (CAS + subtree
+reindex, so the new name is live in facets) → 302 to the workbench filtered to this Bestand.
+{% endcomment %}
+{% block title %}Bestand bearbeiten{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block body %}
+<main class="c-form c-form--neu">
+  <h1 class="c-form-titel">Bestand bearbeiten</h1>
+  {% if conflict_name %}
+  {% comment %}Racing rename (ADR 0013): another archivist renamed this Bestand while this form was
+  open. The "Inzwischen geändert" panel (parity with the article edit form) shows the now-stored name;
+  the form below carries a refreshed version + this archivist's just-typed name to re-submit.{% endcomment %}
+  <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
+    <h2 class="c-panel-titel" id="konflikt-titel">Inzwischen geändert</h2>
+    <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Bestand gespeichert, während Sie ihn bearbeitet haben (jetzt „{{ conflict_name }}“). Bitte prüfen und erneut speichern.</p>
+  </section>
+  {% endif %}
+  <form class="c-form-felder" method="post" action="/bestand/{{ ulid }}/bearbeiten">
+    {% csrf_token %}
+    <label class="c-field{% if errors.name %} c-field--fehler{% endif %}">
+      <span class="c-field-label">Name</span>
+      <input class="c-input" type="text" name="name" value="{{ name }}" autofocus>
+      {% if errors.name %}<span class="c-field-fehler">{{ errors.name }}</span>{% endif %}
+    </label>
+    <div class="c-field c-field--nurlesen">
+      <span class="c-field-label">Eltern-Bestand</span>
+      <span class="c-field-wert">{{ parent_display }}</span>
+    </div>
+    <div class="c-field c-field--nurlesen">
+      <span class="c-field-label">Sichtbarkeit</span>
+      <span class="c-field-wert">{{ sichtbarkeit_display }}</span>
+    </div>
+    <p class="c-form-hinweis">Verschieben und Sichtbarkeit ändern folgen später.</p>
+    <div class="c-form-footer c-form-footer--neu">
+      <button class="c-btn c-btn--primary" type="submit">Speichern</button>
+    </div>
+  </form>
+</main>
+{% endblock %}
