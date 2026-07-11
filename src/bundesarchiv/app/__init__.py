@@ -20,6 +20,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from bundesarchiv.app.articles import (
+        copy_article as copy_article,
+    )
+    from bundesarchiv.app.articles import (
         create_article as create_article,
     )
     from bundesarchiv.app.articles import (
@@ -41,6 +44,7 @@ if TYPE_CHECKING:
 __all__ = [
     "CreateResult",
     "SaveResult",
+    "copy_article",
     "create_article",
     "hard_delete_article",
     "save_article",
@@ -49,7 +53,9 @@ __all__ = [
 
 # app-``populate()`` imports this ``__init__`` before the ORM app registry is ready, so the service
 # functions (which pull in the ArticleIndex model) are resolved lazily on first access (PEP 562).
-_LAZY_ARTICLES = frozenset({"save_article", "create_article", "hard_delete_article"})
+_LAZY_ARTICLES = frozenset(
+    {"save_article", "create_article", "hard_delete_article", "copy_article"}
+)
 
 
 def __getattr__(name: str) -> Any:

@@ -12,6 +12,7 @@ FORBIDDEN inside the gate tests.
 import pytest
 
 from bundesarchiv.app import (
+    copy_article,
     create_article,
     hard_delete_article,
     save_article,
@@ -120,6 +121,67 @@ def test_create_article_mints_ulid_and_indexes(store: InMemoryObjectStore) -> No
     row = ArticleIndex.objects.get(ulid=result.ulid)
     assert row.title == "Neuer Artikel"
     assert row.tier == "PUBLIC"
+
+
+# ---------------------------------------------------------------------------
+# copy_article — copies metadata, clears Signatur, no media, new DRAFT
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_copy_article_copies_metadata_clears_signatur_and_media(
+    store: InMemoryObjectStore,
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    articles = ArticleRepository(store)
+    # store a real blob so the source can reference it (repository refuses an unstored ref)
+    ref = articles.add_media("01SOURCE", "bild.jpg", b"pixels", "image/jpeg", "Am See")
+    # a rich source: published, with a Signatur, media, tags, custom, date, an audience
+    source = Article(
+        ulid="01SOURCE",
+        title="Sommerfahrt 1962",
+        collection_id="FOTOS",
+        lifecycle=Lifecycle.PUBLISHED,
+        ref_code="F 12/3",
+        media_type="Foto",
+        tags=("fahrt", "sommer"),
+        physical_location="Regal 4",
+        media=(ref,),
+        date=EdtfDate("1962"),
+        creator="K. Meier",
+        custom=(("Fotograf", "Meyer"),),
+    )
+    articles.save(source, 0)
+
+    result = copy_article(store, "01SOURCE")
+
+    copy = articles.load(result.ulid).article
+    assert copy.ulid != "01SOURCE"  # a fresh identity
+    assert copy.lifecycle is Lifecycle.DRAFT  # a copy always starts as a draft
+    assert copy.ref_code is None  # Signatur cleared (spec §7)
+    assert copy.media == ()  # NO media copied (spec §7)
+    # metadata carried over
+    assert copy.title == "Sommerfahrt 1962"
+    assert copy.collection_id == "FOTOS"
+    assert copy.tags == ("fahrt", "sommer")
+    assert copy.physical_location == "Regal 4"
+    assert copy.date is not None and copy.date.value == "1962"
+    assert copy.creator == "K. Meier"
+    assert dict(copy.custom) == {"Fotograf": "Meyer"}
+    # the copy is indexed too (it is a real new article)
+    assert result.index_updated is True
+    assert ArticleIndex.objects.filter(ulid=result.ulid).exists()
+
+
+@pytest.mark.django_db
+def test_copy_article_source_untouched(store: InMemoryObjectStore) -> None:
+    articles = ArticleRepository(store)
+    articles.save(Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F 1"), 0)
+    copy_article(store, "01SRC")
+    original = articles.load("01SRC").article
+    assert original.ref_code == "F 1"  # source Signatur intact
+    assert original.title == "Original"
 
 
 # ---------------------------------------------------------------------------

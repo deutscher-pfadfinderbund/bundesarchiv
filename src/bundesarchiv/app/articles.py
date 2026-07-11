@@ -95,6 +95,34 @@ def create_article(
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
+def copy_article(store: ObjectStore, ulid: Ulid) -> CreateResult:
+    """Copy an existing Article's METADATA into a fresh DRAFT (spec §7 Kopieren). The copy goes
+    through ``create_article`` (so it mints a new ULID and indexes like any new article), carrying
+    every metadata field forward EXCEPT: the Signatur (``ref_code`` cleared — a Signatur is unique to
+    one record), the media (NONE copied — series items differ; the archivist attaches fresh), and the
+    lifecycle (always a new DRAFT, never inheriting the source's published state). Creates, never
+    destroys — the source is untouched. Returns the new ulid so the view can 302 to its edit form."""
+    source = ArticleRepository(store).load(ulid).article
+    return create_article(
+        store,
+        title=source.title,
+        collection_id=source.collection_id,
+        body=source.body,
+        lifecycle=Lifecycle.DRAFT,  # a copy always starts as a draft (never inherits published)
+        audience=source.audience,
+        ref_code=None,  # Signatur cleared — unique per record (spec §7)
+        media_type=source.media_type,
+        document_type=source.document_type,
+        tags=source.tags,
+        physical_location=source.physical_location,
+        media=(),  # NO media copied (spec §7)
+        date=source.date,
+        creator=source.creator,
+        subject_place=source.subject_place,
+        custom=source.custom,
+    )
+
+
 def hard_delete_article(store: ObjectStore, ulid: Ulid) -> SaveResult:
     """Hard-delete the Article from canonical (recoverable trash, ADR 0005), then synchronously
     reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
