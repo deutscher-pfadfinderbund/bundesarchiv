@@ -116,7 +116,11 @@ def _collection_options(collections: tuple[Collection, ...]) -> tuple[tuple[str,
 def article_create(request: HttpRequest) -> HttpResponseBase:
     """``GET/POST /artikel/neu`` — the minimal create step. Archivist-only (non-archivist → the
     byte-identical 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
-    edit form; a validation failure re-renders state B with the verbatim error + preserved values."""
+    edit form; a validation failure re-renders state B with the verbatim error + preserved values.
+
+    On GET, a ``?bestand=<ulid>`` param pre-selects that Bestand (validated against the real set,
+    ignored if bogus — no oracle) and a ``?angelegt=<name>`` param shows a success hinweis — the
+    landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
     if not _is_archivist(request):
         return _not_found()
     store = _canonical_store()
@@ -133,10 +137,21 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             "workbench/artikel_neu.html",
             _create_context(collections, title=title, collection_id=collection_id, errors=errors),
         )
+    # GET: pre-select the ?bestand only if it is a real collection (else ignore — no oracle); show a
+    # "Bestand … angelegt." status line when ?angelegt carries the just-created Bestand's name.
+    preselect = request.GET.get("bestand", "")
+    if preselect not in {c.ulid for c in collections}:
+        preselect = ""
     return render(
         request,
         "workbench/artikel_neu.html",
-        _create_context(collections, title="", collection_id="", errors={}),
+        _create_context(
+            collections,
+            title="",
+            collection_id=preselect,
+            errors={},
+            angelegt=request.GET.get("angelegt", ""),
+        ),
     )
 
 
@@ -159,15 +174,18 @@ def _create_context(
     title: str,
     collection_id: str,
     errors: catalog.FormErrors,
+    angelegt: str = "",
 ) -> dict[str, object]:
     """The create form's template context: preserved values, the Bestand options, field errors, and
-    the server-computed autofocus target (Titel unless it already has a value)."""
+    the server-computed autofocus target (Titel unless it already has a value). ``angelegt`` is the
+    just-created Bestand's name for the success hinweis (empty on the plain create step)."""
     return {
         "title": title,
         "collection_id": collection_id,
         "collection_options": _collection_options(collections),
         "errors": errors,
         "autofocus": "collection_id" if title and "title" not in errors else "title",
+        "angelegt": angelegt,
     }
 
 

@@ -1,0 +1,52 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Create-Bestand form (Part 4.8, archivist-only — the view gates it). The 4.7 form grammar wholesale:
+Name (required, autofocus) + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is safe (a fresh
+Bestand is empty — no over-exposure). Plain no-JS POST → create_collection → 302 to the workbench
+filtered to the new Bestand. Validation re-renders here with the verbatim error + preserved values.
+Anlegen is first-in-source so Enter submits it.
+{% endcomment %}
+{% block title %}Neuer Bestand{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block body %}
+<main class="c-form c-form--neu">
+  <h1 class="c-form-titel">Neuer Bestand</h1>
+  <form class="c-form-felder" method="post" action="/bestand/neu">
+    {% csrf_token %}
+    <label class="c-field{% if errors.name %} c-field--fehler{% endif %}">
+      <span class="c-field-label">Name</span>
+      <input class="c-input" type="text" name="name" value="{{ name }}"
+             {% if autofocus == "name" %}autofocus{% endif %}>
+      {% if errors.name %}<span class="c-field-fehler">{{ errors.name }}</span>{% endif %}
+    </label>
+    <label class="c-field{% if errors.parent_id %} c-field--fehler{% endif %}">
+      <span class="c-field-label">Eltern-Bestand</span>
+      <select class="c-select" name="parent_id"
+              {% if autofocus == "parent_id" %}autofocus{% endif %}>
+        {% for value, caption in parent_options %}
+        <option value="{{ value }}"{% if value == parent_id %} selected{% endif %}>{{ caption }}</option>
+        {% endfor %}
+      </select>
+      {% if errors.parent_id %}<span class="c-field-fehler">{{ errors.parent_id }}</span>{% endif %}
+    </label>
+    <label class="c-field{% if errors.sichtbarkeit %} c-field--fehler{% endif %}">
+      <span class="c-field-label">Sichtbarkeit</span>
+      <select class="c-select" name="sichtbarkeit">
+        {% for value, caption in sichtbarkeit_options %}
+        <option value="{{ value }}"{% if value == sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
+        {% endfor %}
+      </select>
+      {% if errors.sichtbarkeit %}<span class="c-field-fehler">{{ errors.sichtbarkeit }}</span>{% endif %}
+    </label>
+    <label class="c-field">
+      <span class="c-field-label">Gruppen</span>
+      <input class="c-input" type="text" name="gruppen" value="{{ gruppen }}">
+      <span class="c-form-hint">Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)</span>
+    </label>
+    <div class="c-form-footer c-form-footer--neu">
+      <button class="c-btn c-btn--primary" type="submit">Anlegen</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

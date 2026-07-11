@@ -38,6 +38,7 @@ from bundesarchiv.app.web.catalog_views import (
     article_medien_verschieben,
     article_vorschau,
 )
+from bundesarchiv.app.web.collection_views import collection_create
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
@@ -59,6 +60,7 @@ urlpatterns = [
     path("static/forms.css", serve_forms_css, name="static-forms"),
     path("static/detail.css", serve_detail_css, name="static-detail"),
     path("artikel/neu", article_create, name="artikel-neu"),
+    path("bestand/neu", collection_create, name="bestand-neu"),
     path(
         "artikel/sammelbearbeitung/dokumenttypen",
         bulk_dokumenttypen,
