@@ -12,6 +12,7 @@ a MediaRef, since a detail view has no blob to locate. The projection to member-
 (``project``) is 4.6's job; the stub only proves the GATE, so it never emits Article fields.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from django.conf import settings
@@ -23,6 +24,7 @@ from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Collection, Ulid
+from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
@@ -82,6 +84,48 @@ def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
     except DomainError:
         return None
     return visible(viewer, article, chain)
+
+
+@dataclass(frozen=True, slots=True)
+class DetailResolution:
+    """One resolution of the 4.6 detail path: the ``visible``-projected Article (for the template),
+    its raw ``version`` (the archivist action-row's lifecycle CAS field), and ``is_archivist`` (the
+    presentation gate for the action row + ENTWURF badge). Produced by a SINGLE store load."""
+
+    article: Article
+    version: int
+    is_archivist: bool
+
+
+def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution | None:
+    """The detail page's single entry (spec §8): load ONCE, resolve the chain, ``visible``-project,
+    and read ``.version`` off the same ``LoadedArticle`` — returning the projection + version +
+    is_archivist, or ``None`` on any deny/absence/malformed/broken-chain (the byte-identical 404).
+
+    Same fail-closed order as ``resolve_visible_article`` (which the pane keeps): a malformed ulid, a
+    missing/unreadable article, a broken chain, or a denied viewer all collapse to ``None`` —
+    indistinguishable, so the rendered detail view is never an existence oracle. This kills the stub's
+    double load (``authorize_article`` + ``_detail_version`` each loaded); the version comes free off
+    the one ``load`` the projection already needs. The version is meaningful only to the archivist
+    CAS field; the caller surfaces it to the template only when ``is_archivist``."""
+    if not is_valid_ulid(ulid):
+        return None
+    store = _canonical_store()
+    try:
+        loaded = ArticleRepository(store).load(ulid)
+    except ArchiveError:
+        return None
+    viewer = viewer_of(request)
+    try:
+        chain = resolve_chain(loaded.article.collection_id, _collections(store))
+    except DomainError:
+        return None
+    projected = visible(viewer, loaded.article, chain)
+    if projected is None:
+        return None  # denied viewer (incl. a draft to a non-archivist) — fail closed
+    return DetailResolution(
+        article=projected, version=loaded.version, is_archivist=isinstance(viewer, Archivist)
+    )
 
 
 def _collections(store: ObjectStore) -> dict[Ulid, Collection]:
