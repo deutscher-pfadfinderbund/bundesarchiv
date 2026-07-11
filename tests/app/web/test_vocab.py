@@ -10,6 +10,8 @@ Two pure presentation helpers the form controller reads:
   the echo is never an error surface — validation errors ride the field, not the echo.
 """
 
+import pytest
+
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.edtf import EdtfDate
 
@@ -92,3 +94,33 @@ def test_edtf_echo_interval() -> None:
 
 def test_edtf_echo_none_is_empty() -> None:
     assert vocab.edtf_to_german(None) == ""
+
+
+# --- the full §5 detail-page table (Part 4.6) --------------------------------------
+# The 4.6 spec §5 table is the contract for the detail-page date presentation. The strings are
+# PROVISIONAL pending owner sign-off (4.7 Q2 / 4.6 §11 Q1); this pins exactly what the helper
+# produces so a phrasing change is a deliberate one-file edit here + in vocab.py. The two rows the
+# controller signed off EXTENDING (month name, century phrasing) are marked below.
+_EDTF_TABLE_46 = [
+    ("1958", "1958"),  # plain year
+    ("1958-07", "Juli 1958"),  # month name — EXTENSION (controller sign-off, §5)
+    ("197X", "1970er"),  # decade
+    ("19XX", "1900\N{EN DASH}1999"),  # century phrasing — EXTENSION (controller sign-off, §5)
+    ("1970~", "um 1970"),  # approximate
+    ("1970?", "1970 (unsicher)"),  # uncertain
+    ("1970%", "1970 (unsicher, etwa)"),  # uncertain + approximate
+    ("1965/1969", "1965 bis 1969"),  # closed interval
+    ("1962-21", "Frühjahr 1962"),  # season
+    ("1965/..", "1965/.."),  # open interval echoes verbatim
+    ("../1969", "../1969"),  # open interval echoes verbatim
+]
+
+
+@pytest.mark.parametrize(("edtf", "expected"), _EDTF_TABLE_46)
+def test_edtf_echo_detail_table(edtf: str, expected: str) -> None:
+    assert vocab.edtf_to_german(EdtfDate(edtf)) == expected
+
+
+def test_edtf_echo_approximate_month_composes() -> None:
+    # a qualifier over a YYYY-MM composes with the month name (um + Juli 1958)
+    assert vocab.edtf_to_german(EdtfDate("1958-07~")) == "um Juli 1958"

@@ -9,10 +9,11 @@ one source with no database:
   ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set so the dependent-select
   render (all types as ``<optgroup>``s, no-JS baseline), the server-side pair re-validation, and any
   later HTMX ``/dokumenttypen`` endpoint never derive the vocabulary twice.
-- ``edtf_to_german`` — the human-German echo rendered server-side after a submit (spec §5). It reads
-  the already-validated ``EdtfDate`` value object; an absent date yields an empty echo. It stays a
-  DISPLAY helper: it never validates (the field's error path owns that), so it can only ever return
-  neutral body text, never an error.
+- ``edtf_to_german`` — the human-German echo rendered server-side after a submit (spec §5) AND the
+  4.6 detail-page date presentation (the sentence under the title). It reads the already-validated
+  ``EdtfDate`` value object; an absent date yields an empty echo. It stays a DISPLAY helper: it never
+  validates (the field's error path owns that), so it can only ever return neutral body text, never
+  an error. Its month/century phrasings are PROVISIONAL pending owner sign-off (4.6 §11 Q1).
 """
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -65,6 +66,24 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 #: EDTF season codes -> German season word (spec open-question 2; seasons 21-24).
 _SEASONS: dict[str, str] = {"21": "Frühjahr", "22": "Sommer", "23": "Herbst", "24": "Winter"}
 
+#: EDTF month numbers -> German month name (01-12), for the 4.6 detail-page date presentation
+#: ("1958-07" -> "Juli 1958"). PROVISIONAL: the exact phrasing awaits owner sign-off (4.7 Q2 /
+#: 4.6 §11 Q1); centralized here so a sign-off change is one edit in this file, never in a template.
+_MONTHS: dict[str, str] = {
+    "01": "Januar",
+    "02": "Februar",
+    "03": "März",
+    "04": "April",
+    "05": "Mai",
+    "06": "Juni",
+    "07": "Juli",
+    "08": "August",
+    "09": "September",
+    "10": "Oktober",
+    "11": "November",
+    "12": "Dezember",
+}
+
 
 def edtf_to_german(date: EdtfDate | None) -> str:
     """Render an already-validated ``EdtfDate`` to a human-German echo sentence fragment (spec §5).
@@ -101,11 +120,21 @@ def _single_to_german(token: str) -> str:
 
 
 def _core_to_german(core: str) -> str:
-    """The qualifier-stripped core token → German. Decade (``197X`` → ``1970er``), season
-    (``1962-21`` → ``Frühjahr 1962``); anything else (plain year, YYYY-MM, ``19XX``) echoes
-    verbatim — the archivist reads the digits directly, no lossy re-phrasing."""
+    """The qualifier-stripped core token → German. Decade (``197X`` → ``1970er``), century
+    (``19XX`` → ``1900-1999`` with a typographic en-dash), month (``1958-07`` → ``Juli 1958``),
+    season (``1962-21`` → ``Frühjahr 1962``); anything else (plain year, open interval) echoes
+    verbatim — the archivist reads the digits directly, no lossy re-phrasing.
+
+    The month/century phrasings are PROVISIONAL (owner sign-off pending, 4.6 §11 Q1); the strings
+    live in ``_MONTHS`` so a change is one edit here."""
     if len(core) == 4 and core[:3].isdigit() and core[3] == "X":
-        return f"{core[:3]}0er"
-    if len(core) == 7 and core[4] == "-" and core[5:] in _SEASONS:
-        return f"{_SEASONS[core[5:]]} {core[:4]}"
+        return f"{core[:3]}0er"  # decade — check before century (197X vs 19XX)
+    if len(core) == 4 and core[:2].isdigit() and core[2:] == "XX":
+        return f"{core[:2]}00\N{EN DASH}{core[:2]}99"  # century, en-dash range
+    if len(core) == 7 and core[4] == "-":
+        year, month = core[:4], core[5:]
+        if month in _MONTHS:
+            return f"{_MONTHS[month]} {year}"
+        if month in _SEASONS:
+            return f"{_SEASONS[month]} {year}"
     return core
