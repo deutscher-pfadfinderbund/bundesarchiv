@@ -21,7 +21,14 @@ from bundesarchiv.app.web.browse_views import (
     serve_tokens,
     workbench,
 )
-from bundesarchiv.app.web.catalog_views import article_create, article_edit
+from bundesarchiv.app.web.catalog_views import (
+    article_copy,
+    article_create,
+    article_delete,
+    article_edit,
+    article_lifecycle,
+    article_vorschau,
+)
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
@@ -41,6 +48,10 @@ urlpatterns = [
     path("static/forms.css", serve_forms_css, name="static-forms"),
     path("artikel/neu", article_create, name="artikel-neu"),
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
+    path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
+    path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
+    path("artikel/<str:ulid>/lebenszyklus", article_lifecycle, name="artikel-lebenszyklus"),
+    path("artikel/<str:ulid>/vorschau", article_vorschau, name="artikel-vorschau"),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

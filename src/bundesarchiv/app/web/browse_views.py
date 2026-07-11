@@ -29,12 +29,14 @@ from bundesarchiv.app.web import browse
 from bundesarchiv.app.web.article_auth import authorize_article, resolve_visible_article
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.models import Collection, Ulid
+from bundesarchiv.domain.models import Collection, Lifecycle, Ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
 from bundesarchiv.index.query import FacetCount, SearchHit
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.repository import ArticleRepository
 
 #: The vendored htmx file (served by the dev static route; prod serves it via nginx/whitenoise).
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -435,10 +437,37 @@ def article_detail_stub(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /artikel/<ulid>`` — STUB for 4.6. Applies the SAME visibility rule the real detail view
     will: load + resolve + ``can_view`` (``authorize_article``); any deny → the byte-identical 404.
     A permitted request returns a minimal German placeholder (the article's own fields are NOT
-    emitted — 4.6 owns projection; the stub only proves the gate)."""
-    if authorize_article(request, ulid) is None:
+    emitted — 4.6 owns projection; the stub only proves the gate).
+
+    Part 4.7 adds the archivist ACTION ROW (Bearbeiten / Kopieren / Löschen / lifecycle): rendered
+    ONLY for an Archivist (absent, not disabled, for everyone else — presentation-gated chrome, NOT
+    a visibility decision). The row needs the article's ulid + lifecycle; those come from the already-
+    authorized Article, so no extra load."""
+    article = authorize_article(request, ulid)
+    if article is None:
         return _not_found()
-    return render(request, "workbench/stub_detail.html", {"ulid": ulid})
+    is_archivist = isinstance(viewer_of(request), Archivist)
+    return render(
+        request,
+        "workbench/stub_detail.html",
+        {
+            "ulid": ulid,
+            "is_archivist": is_archivist,
+            "is_draft": article.lifecycle is Lifecycle.DRAFT if is_archivist else False,
+            "version": _detail_version(request, ulid) if is_archivist else 0,
+        },
+    )
+
+
+def _detail_version(request: HttpRequest, ulid: str) -> int:
+    """The article's current version, for the read-view lifecycle control's CAS hidden field
+    (archivist-only). Read from the canonical store; 0 if unreadable (the control then loses its CAS
+    check harmlessly on submit)."""
+    store = LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
+    try:
+        return ArticleRepository(store).load(ulid).version
+    except ArchiveError:
+        return 0
 
 
 def _serve_static(filename: str, content_type: str) -> HttpResponseBase:

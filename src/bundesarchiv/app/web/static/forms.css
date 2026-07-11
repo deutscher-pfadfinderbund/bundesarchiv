@@ -238,6 +238,84 @@
 .c-panel-diff-feld { color: var(--on-surface-variant); white-space: nowrap; }
 .c-panel-diff-wert { font: var(--type-mono); font-variant-numeric: tabular-nums; }
 
+/* the over-exposure preview panel (spec §6.2): NEUTRAL chrome, NO loud color — confirming
+   who-gains-sight is neither draft nor error, so emphasis is by WEIGHT only (inventing a warning
+   color here is the subtlest law trap). It shares the .c-panel base; the heading stays on-surface. */
+.c-panel--vorschau .c-panel-titel { color: var(--on-surface); }
+.c-panel-zeile {
+  margin: 0 0 var(--space-2);
+  font: var(--type-body);
+  color: var(--on-surface);
+}
+.c-panel-marken {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+/* the loudest case (public) is emphasized by WEIGHT alone — never a color (spec §6.2) */
+.c-panel-oeffentlich { font-weight: 600; }
+.c-panel-felder {
+  margin: 0 0 var(--space-4);
+  font: var(--type-meta);
+  color: var(--on-surface-variant);
+}
+/* the required confirm checkbox row gates the enabled Veröffentlichen (spec §6.2) */
+.c-panel-bestaetigen {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font: var(--type-body);
+  color: var(--on-surface);
+}
+.c-panel-aktionen { display: inline-flex; gap: var(--space-2); }
+
+/* ---- c-btn--gefahr: the ONE destructive filled variant (spec §7). Error INVERSION (--error /
+   --on-error), used ONLY on the delete/discard CONFIRM button — never on a read-view trigger (that
+   would spend the loud channel on a non-error and desensitize the CAS panel). ---- */
+.c-btn--gefahr {
+  background: var(--error);
+  color: var(--on-error);
+  border: 1px solid var(--error);
+}
+.c-btn--gefahr:hover {
+  background: color-mix(in oklab, var(--error), black 12%);
+  border-color: color-mix(in oklab, var(--error), black 12%);
+}
+
+/* ---- the delete / discard confirm page (spec §7 states M/N): a centered narrow column, the .c-sig
+   + Titel context, the danger button the ONE loud element ---- */
+.c-confirm { max-width: 34rem; }
+.c-confirm-titel { margin: 0 0 var(--space-4); font: var(--type-display); color: var(--on-surface); }
+.c-confirm-kontext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.c-confirm-kontext-titel { font: var(--type-title); color: var(--on-surface); }
+.c-confirm-text {
+  margin: 0 0 var(--space-6);
+  font: var(--type-body);
+  color: var(--on-surface-variant);
+}
+.c-confirm-aktionen { display: inline-flex; gap: var(--space-2); }
+
+/* ---- the read-view archivist action row (spec §7): top-of-column, right-aligned, subtle buttons.
+   Löschen stays NEUTRAL at rest here (never red — red only on the confirm-page button). ---- */
+.c-artikel-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+/* lifecycle actions are their own forms (Enter never fires a destructive/lifecycle action) but sit
+   inline in the row */
+.c-artikel-aktionen form { display: inline; margin: 0; }
+
 /* ---- Zurück-zur-Suche header link (the form uses only the wordmark + this) ---- */
 
 .wb-zurueck {

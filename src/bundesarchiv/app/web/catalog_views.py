@@ -18,7 +18,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 ``urls.py`` so the literal path wins.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from django.conf import settings
@@ -26,18 +26,28 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
+from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.domain.access import VisibilityPreview, preview
+from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, AudienceTier, Collection, Ulid
+from bundesarchiv.domain.models import (
+    Article,
+    AudienceTier,
+    Collection,
+    Lifecycle,
+    Ulid,
+)
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.persistence.repository import ArticleRepository, Stored
 
 # The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
 # 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
@@ -56,8 +66,22 @@ def _canonical_store() -> ObjectStore:
 
 
 def _is_archivist(request: HttpRequest) -> bool:
-    """Whether the request's viewer is an Archivist — the gate for both cataloging routes."""
+    """Whether the request's viewer is an Archivist — the gate for every cataloging route."""
     return isinstance(viewer_of(request), Archivist)
+
+
+def _load_gated(request: HttpRequest, ulid: str) -> tuple[ObjectStore, Stored] | None:
+    """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
+    in-view, and load the Article — returning ``(store, stored)`` ONLY if all pass, else ``None``
+    (the caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an
+    absent/unreadable article all collapse to the SAME ``None`` (existence-hiding, spec §8)."""
+    if not _is_archivist(request) or not is_valid_ulid(ulid):
+        return None
+    store = _canonical_store()
+    try:
+        return store, ArticleRepository(store).load(ulid)
+    except ArchiveError:
+        return None
 
 
 def _collections(store: ObjectStore) -> tuple[Collection, ...]:
@@ -141,19 +165,20 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     malformed, or absent ulid → the byte-identical 404, both methods). GET seeds the form from the
     stored Article; POST parses + saves under CAS. A ``Conflict`` re-renders state G with the
     just-submitted values preserved and a refreshed ``expected_version``."""
-    if not _is_archivist(request) or not is_valid_ulid(ulid):
+    gated = _load_gated(request, ulid)
+    if gated is None:
         return _not_found()
-    store = _canonical_store()
-    try:
-        stored = ArticleRepository(store).load(ulid)
-    except ArchiveError:
-        return _not_found()  # absent/unreadable → the same 404 (existence-hiding)
+    store, stored = gated
     collections = _collections(store)
     if request.method == "POST":
         return _handle_edit_post(request, store, ulid, collections)
     context = _edit_context_from_article(
         stored.article, stored.version, collections, autofocus_first_empty=True
     )
+    # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
+    # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
+    if request.GET.get("fokus") == "signatur":
+        context["autofocus"] = "ref_code"
     return render(request, "workbench/artikel_bearbeiten.html", context)
 
 
@@ -253,6 +278,7 @@ def _edit_context_from_post(
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(values, version, collections, errors=result.errors, autofocus=autofocus)
     if conflict is not None:
+        context["conflict"] = True
         context["conflict_rows"] = _conflict_rows(conflict.submitted, conflict.winner)
     return context
 
@@ -417,6 +443,7 @@ _DIFF_FIELDS: tuple[tuple[str, str], ...] = (
     ("physical_location", "Standort"),
     ("body", "Beschreibung"),
     ("sichtbarkeit", "Sichtbarkeit"),
+    ("lifecycle", "Status"),
 )
 
 
@@ -447,6 +474,8 @@ def _diff_value(article: Article, name: str) -> str:
             return article.date.value if article.date is not None else ""
         case "sichtbarkeit":
             return _audience_label(article)
+        case "lifecycle":
+            return "Entwurf" if article.lifecycle is Lifecycle.DRAFT else "Veröffentlicht"
         case _:
             return str(getattr(article, name) or "")
 
@@ -462,3 +491,200 @@ def _audience_label(article: Article) -> str:
             return "Alle Mitglieder"
         case AudienceTier.GROUPS:
             return "Gruppe: " + ", ".join(article.audience.groups)
+
+
+# --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
+
+
+def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/kopieren`` — copy the article's metadata into a fresh DRAFT (Signatur
+    cleared, no media) via the ``copy_article`` service, then 302 to the copy's edit form with the
+    Signatur field autofocused (spec §5 — the one field that must change first on the volume path).
+    Archivist-only; a non-archivist / malformed / absent ulid gets the byte-identical 404. No confirm
+    (it creates, never destroys). GET is not allowed (a copy is a mutation)."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, _ = gated
+    copy = article_services.copy_article(store, ulid)
+    # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
+    return HttpResponseRedirect(f"/artikel/{copy.ulid}/bearbeiten?fokus=signatur")
+
+
+# --- /artikel/<ulid>/loeschen — delete confirm + execute (Slice C, spec §7) --------
+
+
+def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET/POST /artikel/<ulid>/loeschen`` — the delete confirm page (GET) and its execution
+    (POST). Archivist-only; a non-archivist / malformed / absent ulid gets the byte-identical 404,
+    both methods. GET shows the ``.c-sig`` + Titel context so the archivist confirms WHICH record;
+    POST hard-deletes and 302s to the workbench. The read-view Löschen trigger stays neutral — red
+    lives ONLY on this page's Endgültig löschen button (spec §7)."""
+    gated = _load_gated(request, ulid)
+    if gated is None:
+        return _not_found()
+    store, stored = gated
+    if request.method == "POST":
+        article_services.hard_delete_article(store, ulid)
+        return HttpResponseRedirect("/")
+    # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
+    # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it.
+    verwerfen = request.GET.get("verwerfen") == "1"
+    return render(
+        request,
+        "workbench/artikel_loeschen.html",
+        {
+            "ulid": ulid,
+            "title": stored.article.title,
+            "ref_code": stored.article.ref_code or "",
+            "titel_confirm": "Entwurf verwerfen?" if verwerfen else "Artikel löschen?",
+            "button_label": "Entwurf verwerfen" if verwerfen else "Endgültig löschen",
+            "action": f"/artikel/{ulid}/loeschen",
+        },
+    )
+
+
+# --- /artikel/<ulid>/lebenszyklus — publish / unpublish (Slice C, spec §6.2) -------
+
+
+def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/lebenszyklus`` — the lifecycle transition, CAS-guarded (ADR 0013
+    applies to lifecycle too). ``aktion=veroeffentlichen`` → PUBLISHED; ``aktion=zurueckziehen`` →
+    DRAFT. Archivist-only; non-archivist / malformed / absent / GET → the byte-identical 404. A
+    ``Conflict`` re-renders the edit form's state G (the ONE catch site is ``save_catalog_form``).
+    An unknown aktion is a no-op 404 (never mutate on a bad verb)."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, stored = gated
+    lifecycle = _lifecycle_for(request.POST.get("aktion", ""))
+    if lifecycle is None:
+        return _not_found()  # unknown verb → no mutation, indistinguishable 404
+    # Publishing REQUIRES the over-exposure confirm (spec §6.2): the checkbox rides the /vorschau
+    # panel form, so a publish POST without it never saw the preview — re-show the preview instead
+    # of publishing blind (server-enforced, not just the client-side `required` attr).
+    if lifecycle is Lifecycle.PUBLISHED and request.POST.get("geprueft") != "1":
+        collections = _collections(store)
+        context = _edit_context_from_article(
+            stored.article, stored.version, collections, autofocus_first_empty=False
+        )
+        context["vorschau"] = _preview_view_model(store, stored.article)
+        return render(request, "workbench/artikel_bearbeiten.html", context)
+    expected_version = catalog.parse_version(request.POST.get("expected_version", ""))
+    mutated = replace(stored.article, lifecycle=lifecycle)
+    outcome = catalog.save_catalog_form(store, mutated, expected_version)
+    match outcome:
+        case catalog.SavedOutcome():
+            return HttpResponseRedirect(f"/artikel/{ulid}")
+        case catalog.ConflictOutcome() as conflict:
+            collections = _collections(store)
+            context = _edit_context_from_article(
+                conflict.winner, conflict.current_version, collections, autofocus_first_empty=False
+            )
+            context["conflict"] = True
+            context["conflict_rows"] = _conflict_rows(mutated, conflict.winner)
+            return render(request, "workbench/artikel_bearbeiten.html", context)
+
+
+def _lifecycle_for(aktion: str) -> Lifecycle | None:
+    """Map the lifecycle POST verb to its target state, or ``None`` for an unknown verb."""
+    match aktion:
+        case "veroeffentlichen":
+            return Lifecycle.PUBLISHED
+        case "zurueckziehen":
+            return Lifecycle.DRAFT
+        case _:
+            return None
+
+
+# --- /artikel/<ulid>/vorschau — over-exposure preview (Slice C, spec §6.2) ---------
+
+
+def article_vorschau(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/vorschau`` — the over-exposure preview (highest-risk oracle, spec §8):
+    ``preview()`` BYPASSES the lifecycle gate by design, so THIS ROUTE GATE is the sole barrier — a
+    non-archivist / malformed / absent / GET request must get the byte-identical 404 and NEVER the
+    widget content. Archivist: re-render the edit form with the neutral ``c-panel--vorschau`` showing
+    who gains sight after publication + the required confirm checkbox that gates Veröffentlichen. No
+    save happens here (it is a preview)."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    store, stored = gated
+    collections = _collections(store)
+    context = _edit_context_from_article(
+        stored.article, stored.version, collections, autofocus_first_empty=False
+    )
+    context["vorschau"] = _preview_view_model(store, stored.article)
+    return render(request, "workbench/artikel_bearbeiten.html", context)
+
+
+@dataclass(frozen=True, slots=True)
+class _PreviewViewModel:
+    """The over-exposure preview panel data (spec §6.2), built from the domain ``preview()``. NEUTRAL
+    by construction — no loud color; the ``public`` flag drives WEIGHT emphasis only. ``audience`` is
+    the human-German who-gains-sight string; ``fields`` the visible-field list."""
+
+    audience: str
+    public: bool
+    fields: str
+
+
+def _preview_view_model(store: ObjectStore, article: Article) -> _PreviewViewModel | None:
+    """Build the preview panel view-model from the domain ``preview(article, chain)`` — server-
+    computed, archivist-only. Returns ``None`` if the collection chain cannot resolve (fail-closed:
+    no panel rather than a misleading one). The who-sees decision stays entirely in the domain."""
+    try:
+        chain = resolve_chain(article.collection_id, _collection_map(store))
+    except DomainError:
+        return None
+    result = preview(article, chain)
+    return _PreviewViewModel(
+        audience=_preview_audience_label(result),
+        public=result.public,
+        fields=_preview_fields_label(result),
+    )
+
+
+def _collection_map(store: ObjectStore) -> dict[Ulid, Collection]:
+    """Every saved Collection as a ULID→Collection map for ``resolve_chain`` (chain resolution is
+    injected the lookup, never fetches — domain purity)."""
+    return {c.ulid: c for c in CollectionRepository(store).load_all()}
+
+
+def _preview_audience_label(result: VisibilityPreview) -> str:
+    """The who-gains-sight string for the preview panel (spec §6.2): the widest rung the article
+    would reach after publication, in plain German."""
+    if result.public:
+        return "Öffentlich"
+    if result.groups:
+        return "Gruppe: " + ", ".join(result.groups)
+    if result.members:
+        return "Alle Mitglieder"
+    return "Niemand (kein Bestand-Zugriff)"
+
+
+# The member-visible fields, in a stable German-labelled display order, for the preview's "Sichtbare
+# Felder:" line. Only the fields a non-archivist could see (ARCHIVIST_ONLY_FIELDS are excluded by
+# the domain preview's visible_fields set); Standort/interne Felder are called out as hidden.
+_VISIBLE_FIELD_LABELS: tuple[tuple[str, str], ...] = (
+    ("title", "Titel"),
+    ("ref_code", "Signatur"),
+    ("media_type", "Medienart"),
+    ("document_type", "Dokumenttyp"),
+    ("tags", "Schlagworte"),
+    ("date", "Datierung"),
+    ("creator", "Autor"),
+    ("subject_place", "Ort"),
+    ("body", "Beschreibung"),
+    ("media", "Medien"),
+)
+
+
+def _preview_fields_label(result: VisibilityPreview) -> str:
+    """The "Sichtbare Felder:" list for the preview panel (spec §6.2) — the member-visible fields the
+    domain reports, in display order. Empty when nobody would see the article."""
+    names = tuple(
+        label for field_name, label in _VISIBLE_FIELD_LABELS if field_name in result.visible_fields
+    )
+    return ", ".join(names)

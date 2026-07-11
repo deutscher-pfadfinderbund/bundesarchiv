@@ -1,0 +1,31 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Delete / discard confirm page (Part 4.7 Slice C, spec §7 state M). Archivist-only (the view gates
+it). Shows the .c-sig mark + Titel so the archivist confirms WHICH record before an irreversible
+delete. The Endgültig löschen / Entwurf verwerfen button is the ONE loud element — the sole place
+c-btn--gefahr (error inversion) appears. Abbrechen is subtle → back to the read view. Own no-JS
+page: one POST executes; there is no undo (no Papierkorb this version).
+{% endcomment %}
+{% block title %}{{ titel_confirm }}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/artikel/{{ ulid }}">Zurück zum Artikel</a>{% endblock %}
+{% block body %}
+<main class="c-form c-confirm">
+  <h1 class="c-confirm-titel">{{ titel_confirm }}</h1>
+  <div class="c-confirm-kontext">
+    <span class="c-confirm-kontext-titel">„{{ title }}"</span>
+    {% include "components/signatur_tab.html" with ref_code=ref_code %}
+  </div>
+  <p class="c-confirm-text">
+    Dieser Artikel wird unwiderruflich gelöscht.
+    Ein Papierkorb steht in dieser Version nicht zur Verfügung.
+  </p>
+  <div class="c-confirm-aktionen">
+    <form method="post" action="{{ action }}">
+      {% csrf_token %}
+      <button class="c-btn c-btn--gefahr" type="submit">{{ button_label }}</button>
+    </form>
+    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}">Abbrechen</a>
+  </div>
+</main>
+{% endblock %}

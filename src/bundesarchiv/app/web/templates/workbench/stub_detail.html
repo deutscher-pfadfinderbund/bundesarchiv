@@ -1,11 +1,37 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-Detail-view STUB (Part 4.6 placeholder). The visibility gate already ran (authorize_article);
-this page emits NO Article fields — projection is 4.6's job. German placeholder only.
+Detail-view STUB (Part 4.6 placeholder). The visibility gate already ran (authorize_article); this
+page emits NO Article fields — projection is 4.6's job. German placeholder only.
+
+Part 4.7 adds the archivist ACTION ROW: rendered ONLY for an Archivist (absent, not disabled, for
+everyone else — presentation-gated chrome, not a visibility decision). Bearbeiten/Kopieren/Löschen
+are subtle; Löschen stays NEUTRAL at rest (red lives only on the confirm-page button, spec §7).
+Lifecycle + Kopieren + Löschen are separate forms/links so Enter never fires a mutation.
 {% endcomment %}
 {% block title %}Artikel — kommt in 4.6{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
 {% block body %}
 <main class="wb-stub">
+  {% if is_archivist %}
+  <div class="c-artikel-aktionen">
+    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/bearbeiten">Bearbeiten</a>
+    <form method="post" action="/artikel/{{ ulid }}/kopieren">
+      {% csrf_token %}
+      <button class="c-btn c-btn--subtle" type="submit">Kopieren</button>
+    </form>
+    {% if is_draft %}
+    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/bearbeiten">Veröffentlichen</a>
+    {% else %}
+    <form method="post" action="/artikel/{{ ulid }}/lebenszyklus">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ version }}">
+      <input type="hidden" name="aktion" value="zurueckziehen">
+      <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
+    </form>
+    {% endif %}
+    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/loeschen">Löschen</a>
+  </div>
+  {% endif %}
   <h1>Artikel</h1>
   <p>Die Detailansicht kommt in Teil 4.6.</p>
   <p><a href="/">Zurück zur Suche</a></p>

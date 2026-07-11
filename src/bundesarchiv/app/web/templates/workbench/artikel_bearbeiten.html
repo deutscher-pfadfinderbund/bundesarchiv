@@ -13,10 +13,11 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
 {% block body %}
 <main class="c-form">
 
-  {% if conflict_rows %}
+  {% if conflict %}
   <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
     <h2 class="c-panel-titel" id="konflikt-titel">Inzwischen geändert</h2>
     <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während Sie ihn bearbeitet haben. Bitte prüfen und erneut speichern.</p>
+    {% if conflict_rows %}
     <div class="c-panel-diff-wrap">
       <table class="c-panel-diff">
         <thead><tr><th>Feld</th><th>Ihre Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
@@ -36,6 +37,31 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
         </tbody>
       </table>
     </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is emphasized
+     by WEIGHT only. The required confirm checkbox gates Veröffentlichen (server re-checks it). #}
+  {% if vorschau %}
+  <section class="c-panel c-panel--vorschau" aria-labelledby="vorschau-titel">
+    <h2 class="c-panel-titel" id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
+    <p class="c-panel-zeile">Nach Veröffentlichung sichtbar für: {{ vorschau.audience }}.</p>
+    <p class="c-panel-marken">{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
+    {% if vorschau.public %}<p class="c-panel-zeile c-panel-oeffentlich">Öffentlich sichtbar</p>{% endif %}
+    <p class="c-panel-felder">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
+    <form method="post" action="/artikel/{{ values.ulid }}/lebenszyklus">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ version }}">
+      <input type="hidden" name="aktion" value="veroeffentlichen">
+      <label class="c-panel-bestaetigen">
+        <input type="checkbox" name="geprueft" value="1" required>
+        <span>Ich habe geprüft, wer Einblick erhält.</span>
+      </label>
+      <div class="c-panel-aktionen">
+        <button class="c-btn c-btn--primary" type="submit">Veröffentlichen</button>
+      </div>
+    </form>
   </section>
   {% endif %}
 
@@ -218,14 +244,38 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       {% endfor %}
     </details>
 
-    {# Sticky footer: Speichern first in source (Enter default), Verwerfen subtle #}
+    {# Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
+       Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
+       (spec §7 — the destructive idiom lives on its own page, never inline). #}
     <div class="c-form-footer">
       <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
       <div class="c-form-footer-aktionen">
         <button class="c-btn c-btn--primary" type="submit">Speichern</button>
-        <a class="c-btn c-btn--subtle" href="/artikel/{{ values.ulid }}">Verwerfen</a>
+        {% if values.is_draft %}
+        <a class="c-btn c-btn--subtle" href="/artikel/{{ values.ulid }}/loeschen?verwerfen=1">Verwerfen</a>
+        {% endif %}
       </div>
     </div>
   </form>
+
+  {# Lifecycle control — SEPARATE forms (Enter in the edit form never fires these), adjacent to the
+     footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST /vorschau) that
+     re-renders this page with c-panel--vorschau at top; the panel's own Veröffentlichen (gated by the
+     confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen, no preview. #}
+  <section class="c-form-lebenszyklus">
+    {% if values.is_draft %}
+    <form method="post" action="/artikel/{{ values.ulid }}/vorschau">
+      {% csrf_token %}
+      <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
+    </form>
+    {% else %}
+    <form method="post" action="/artikel/{{ values.ulid }}/lebenszyklus">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ version }}">
+      <input type="hidden" name="aktion" value="zurueckziehen">
+      <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
+    </form>
+    {% endif %}
+  </section>
 </main>
 {% endblock %}
