@@ -13,14 +13,15 @@ from django.urls import path
 
 from bundesarchiv.app.web.browse_views import (
     article_detail_stub,
-    article_new_stub,
     serve_components_css,
+    serve_forms_css,
     serve_htmx,
     serve_layouts_css,
     serve_ledger_pane_js,
     serve_tokens,
     workbench,
 )
+from bundesarchiv.app.web.catalog_views import article_create, article_edit
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
@@ -37,7 +38,9 @@ urlpatterns = [
     path("static/tokens.css", serve_tokens, name="static-tokens"),
     path("static/components.css", serve_components_css, name="static-components"),
     path("static/layouts.css", serve_layouts_css, name="static-layouts"),
-    path("artikel/neu", article_new_stub, name="artikel-neu"),
+    path("static/forms.css", serve_forms_css, name="static-forms"),
+    path("artikel/neu", article_create, name="artikel-neu"),
+    path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>", article_detail_stub, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

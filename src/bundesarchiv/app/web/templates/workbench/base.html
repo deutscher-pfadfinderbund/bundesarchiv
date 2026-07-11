@@ -14,6 +14,7 @@ always links home.
   <link rel="stylesheet" href="/static/tokens.css">
   <link rel="stylesheet" href="/static/components.css">
   <link rel="stylesheet" href="/static/layouts.css">
+  {% block head_extra %}{% endblock %}
 </head>
 <body class="wb{% block body_class %}{% endblock %}">
 <header class="wb-header">

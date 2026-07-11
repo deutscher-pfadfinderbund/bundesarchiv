@@ -1,14 +1,13 @@
-"""Stub-route auth discipline for the workbench (Part 4.5-MVP).
+"""Detail-stub auth discipline for the workbench (Part 4.5-MVP).
 
-Two stub routes are registered now so their URL names are stable for 4.6/4.7, and — critically —
-so their VISIBILITY GATE ships with the workbench, not after it:
+``/artikel/<ulid>`` (``artikel-detail``) is the result-link target, a STUB for 4.6 that registers
+its URL name now and — critically — ships its VISIBILITY GATE with the workbench, not after it. It
+applies the SAME rule the real detail view will: load + resolve the chain + ``can_view``; any deny
+(forbidden article, missing article, malformed ulid, broken chain) collapses to the byte-identical
+404 (existence-hiding).
 
-- ``/artikel/neu`` (``artikel-neu``) — the "Neuer Artikel" target. Archivist-only. A non-Archivist
-  gets the SAME byte-identical 404 the media routes return (existence-hiding: a Member must not learn
-  the cataloging entry point even exists).
-- ``/artikel/<ulid>`` (``artikel-detail``) — the result-link target. Applies the SAME visibility
-  rule it eventually will: load + resolve the chain + ``can_view``; any deny (forbidden article,
-  missing article, malformed ulid, broken chain) collapses to the byte-identical 404.
+(``/artikel/neu`` was a stub here too until Part 4.7 replaced it with the real create form — its
+archivist-gate is now pinned by ``test_catalog_create.py``.)
 
 These are pure request-handling against a local FS store (load + resolve + can_view) — no Postgres,
 so they run with no container (the web/ subtree is exempt from SKIP_PG).
@@ -101,24 +100,6 @@ def _stub_404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[
     headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
     content: bytes = response.content  # type: ignore[attr-defined]  # 404s are non-streaming
     return content, headers
-
-
-# --- /artikel/neu (archivist-gated stub) -----------------------------------------
-
-
-def test_neu_stub_served_to_archivist(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get("/artikel/neu")
-    assert response.status_code == 200
-    assert "4.7" in response.content.decode()  # the German "kommt in 4.7" placeholder
-
-
-@pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_neu_stub_is_byte_identical_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).get("/artikel/neu")
-    assert response.status_code == 404
-    assert _stub_404_shape(response) == _media_404_shape()
 
 
 # --- /artikel/<ulid> (detail stub, can_view gated) -------------------------------

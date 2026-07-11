@@ -1,0 +1,242 @@
+/* Cataloging-form styles (Part 4.7, spec §4/§6). Role tokens from tokens.css ONLY — a hex value
+   here is a defect (design-system.md; pinned by the raw-color sweep in test_components.py). Load
+   order: tokens.css, components.css, then this file (it reuses the atom classes .c-field/.c-input/
+   .c-select/.c-btn/.c-sig and only adds the form column, drawers, sticky footer, field-error and
+   CAS-panel chrome). No new tokens, no new type roles, no motion.
+
+   GRAMMAR (design-system.md, the stamp law applied per-node): the form is flat neutral chrome. The
+   only violet ink is the header Signatur mark (.c-sig, from the atom), inline links, and the focus
+   ring (inherited). State is INVERSION (the primary button), never a tint. The two loud channels are
+   reserved: amber (--draft/--on-draft) for the "ungespeichert" register only, red (--error/
+   --on-error) for field validation + the CAS "Inzwischen geändert" panel. No per-group fills, no
+   card shadows, no colored inputs — that flatness is load-bearing (one loud element per state). */
+
+/* ---- the work column: a single centered editing column (spec §1) ---- */
+
+.c-form {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
+}
+.c-form-titel {
+  margin: 0 0 var(--space-5);
+  font: var(--type-display);
+  color: var(--on-surface);
+}
+
+/* the create step is near-empty: the two required fields are the focal point, so give them air */
+.c-form--neu { max-width: 32rem; }
+.c-form--neu .c-form-felder { display: flex; flex-direction: column; gap: var(--space-4); }
+.c-form--neu .c-field { width: 100%; }
+
+/* ---- the persistent form header (spec §3): h1 Titel + ENTWURF badge + live Signatur mark ---- */
+
+.c-form-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-6);
+}
+.c-form-kopf-titel {
+  margin: 0;
+  font: var(--type-display);
+  color: var(--on-surface);
+}
+.c-form-kopf-marken {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- field: full-width in the column; the label + input come from the atoms ---- */
+
+.c-form .c-field { display: flex; width: 100%; }
+.c-form .c-input,
+.c-form .c-select,
+.c-form textarea.c-input { width: 100%; }
+.c-form-hint {
+  font: var(--type-meta);
+  color: var(--on-surface-variant);
+}
+
+/* ---- field error (spec §6.1: the LIGHT treatment, never the panel) ---- */
+
+.c-field--fehler .c-input,
+.c-field--fehler .c-select,
+.c-field--fehler textarea.c-input {
+  border-color: var(--error);
+}
+.c-field-fehler {
+  font: var(--type-meta);
+  color: var(--error);
+}
+
+/* ---- group drawer: a fieldset whose legend reuses the .c-facet-tab drawer-label silhouette ----
+   (spec §3/§4 — grouping reads as archive drawers). The panel is neutral, square, hairline: no
+   fill, no shadow (flatness is load-bearing). */
+
+.c-form-group {
+  position: relative;
+  margin: calc(1.5rem + var(--space-4)) 0 0;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+}
+.c-form-legend {
+  position: absolute;
+  top: calc(1px - 1.5rem);
+  left: var(--space-3);
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--space-3);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  border: 1px solid var(--outline-variant);
+  border-bottom: none;
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  /* the drawer-label silhouette: one beveled leading corner (same as .c-facet-tab) */
+  corner-shape: bevel;
+  border-radius: var(--radius-m) 0 0 0;
+}
+.c-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.c-form-row + .c-form-row { margin-top: var(--space-4); }
+
+/* ---- the custom bag (Gruppe 7): a <details> drawer reusing wb-facet; two-cell rows ---- */
+
+.c-form-details {
+  margin-top: calc(1.5rem + var(--space-4));
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.c-form-details-summary {
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+.c-form-details[open] .c-form-details-summary { margin-bottom: var(--space-3); }
+.c-form-bag-zeile {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+.c-form-bag-zeile + .c-form-bag-zeile { margin-top: var(--space-3); }
+.c-form-bag-entfernen {
+  /* inline remove link = stamp ink (an interactive text affordance) */
+  font: var(--type-meta);
+  color: var(--primary);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+  white-space: nowrap;
+}
+.c-form-bag-entfernen:hover { text-decoration: underline; }
+
+/* ---- EDTF echo: neutral body text, at most one violet fragment (spec §0) ---- */
+
+.c-form-echo {
+  margin-top: var(--space-1);
+  font: var(--type-meta);
+  color: var(--on-surface-variant);
+}
+
+/* ---- sticky footer action bar (spec §3) ---- */
+
+.c-form-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-container-high);
+  border-top: 1px solid var(--outline-variant);
+}
+/* the create step's footer is not sticky — the page is short (no scroll to pin against) */
+.c-form-footer--neu { position: static; margin-top: 0; padding: var(--space-2) 0 0; }
+.c-form-footer-aktionen {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+/* the dirty register: amber, LEFT side; enhancement-only (JS toggles it) — hidden at rest */
+.c-form-status {
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-draft);
+  background: var(--draft);
+  border: 1px solid var(--on-draft);
+  border-radius: var(--radius-s);
+  padding: calc(var(--space-1) / 2) var(--space-2);
+}
+
+/* ---- panel: shared square hairline base + the konflikt modifier (spec §6.1) ---- */
+
+.c-panel {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+}
+/* the CAS "Inzwischen geändert" panel: red LEFT border + error heading only — NOT a flood fill
+   (spec §6.1; red is spent on the heading, the diff table stays neutral) */
+.c-panel--konflikt { border-left: 3px solid var(--error); }
+.c-panel-titel {
+  margin: 0 0 var(--space-2);
+  font: var(--type-title);
+  color: var(--error);
+}
+.c-panel-hinweis {
+  margin: 0 0 var(--space-4);
+  font: var(--type-body);
+  color: var(--on-surface-variant);
+}
+/* the neutral field diff: changed values in mono; scrolls in its own box on narrow viewports */
+.c-panel-diff-wrap { overflow-x: auto; }
+.c-panel-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--type-meta);
+}
+.c-panel-diff th {
+  text-align: left;
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
+  border-bottom: 1px solid var(--outline-variant);
+}
+.c-panel-diff td {
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-bottom: 1px solid var(--outline-variant);
+  color: var(--on-surface);
+  vertical-align: top;
+}
+.c-panel-diff-feld { color: var(--on-surface-variant); white-space: nowrap; }
+.c-panel-diff-wert { font: var(--type-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- Zurück-zur-Suche header link (the form uses only the wordmark + this) ---- */
+
+.wb-zurueck {
+  margin-left: auto;
+  font: var(--type-meta);
+  color: var(--primary);
+  text-decoration: none;
+}
+.wb-zurueck:hover { text-decoration: underline; }

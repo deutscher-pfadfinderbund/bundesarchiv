@@ -1,0 +1,231 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Full edit form (Part 4.7 Slice B, spec §3/§4/§5/§6.1). Archivist-only (the view gates it). No-JS
+baseline only: one real <form>, native controls, one POST, server re-render preserving every value.
+Field order/grouping follows how an archivist catalogs (spec §3). The header carries the two
+reserved marks once (amber ENTWURF, violet Signatur). The sticky footer's Speichern is first in
+source so Enter submits it; the hidden expected_version rides the form for CAS (ADR 0013). On a
+Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
+{% endcomment %}
+{% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block body %}
+<main class="c-form">
+
+  {% if conflict_rows %}
+  <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
+    <h2 class="c-panel-titel" id="konflikt-titel">Inzwischen geändert</h2>
+    <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während Sie ihn bearbeitet haben. Bitte prüfen und erneut speichern.</p>
+    <div class="c-panel-diff-wrap">
+      <table class="c-panel-diff">
+        <thead><tr><th>Feld</th><th>Ihre Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
+        <tbody>
+          {% for row in conflict_rows %}
+          <tr>
+            <td class="c-panel-diff-feld">{{ row.label }}</td>
+            {% if row.is_sig %}
+            <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
+            <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
+            {% else %}
+            <td class="c-panel-diff-wert">{{ row.mine }}</td>
+            <td class="c-panel-diff-wert">{{ row.theirs }}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <header class="c-form-kopf">
+    <h1 class="c-form-kopf-titel">{{ values.title|default:"Ohne Titel" }}</h1>
+    <span class="c-form-kopf-marken">
+      {% include "components/badge_lifecycle.html" with draft=values.is_draft %}
+      {% include "components/signatur_tab.html" with ref_code=ref_code %}
+    </span>
+  </header>
+
+  <form class="c-form-felder" method="post" action="/artikel/{{ values.ulid }}/bearbeiten">
+    {% csrf_token %}
+    <input type="hidden" name="expected_version" value="{{ version }}">
+
+    {# Gruppe 1 — Kerndaten #}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Kerndaten</legend>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.title %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Titel</span>
+          <input class="c-input" type="text" name="title" value="{{ values.title }}"
+                 {% if autofocus == "title" %}autofocus{% endif %}>
+          {% if errors.title %}<span class="c-field-fehler">{{ errors.title }}</span>{% endif %}
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.collection_id %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Bestand</span>
+          <select class="c-select" name="collection_id"
+                  {% if autofocus == "collection_id" %}autofocus{% endif %}>
+            {% for value, caption in collection_options %}
+            <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
+            {% endfor %}
+          </select>
+          {% if errors.collection_id %}<span class="c-field-fehler">{{ errors.collection_id }}</span>{% endif %}
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Signatur</span>
+          <input class="c-input" type="text" name="ref_code" value="{{ values.ref_code }}"
+                 {% if autofocus == "ref_code" %}autofocus{% endif %}>
+        </label>
+      </div>
+    </fieldset>
+
+    {# Gruppe 2 — Einordnung #}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Einordnung</legend>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.media_type %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Medienart</span>
+          <select class="c-select" name="media_type"
+                  {% if autofocus == "media_type" %}autofocus{% endif %}>
+            {% for value, caption in media_type_options %}
+            <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
+            {% endfor %}
+          </select>
+          {% if errors.media_type %}<span class="c-field-fehler">{{ errors.media_type }}</span>{% endif %}
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.document_type %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Dokumenttyp</span>
+          <select class="c-select" name="document_type"
+                  {% if autofocus == "document_type" %}autofocus{% endif %}>
+            <option value="">— kein Dokumenttyp —</option>
+            {% for group_label, group_options in document_type_groups %}
+            <optgroup label="{{ group_label }}">
+              {% for value, caption in group_options %}
+              <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+          {% if errors.document_type %}<span class="c-field-fehler">{{ errors.document_type }}</span>{% endif %}
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Schlagworte</span>
+          <input class="c-input" type="text" name="tags" value="{{ values.tags }}"
+                 {% if autofocus == "tags" %}autofocus{% endif %}>
+          <span class="c-form-hint">Mehrere durch Komma trennen</span>
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.date %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Datierung (EDTF)</span>
+          <input class="c-input" type="text" name="date" value="{{ values.date }}"
+                 {% if autofocus == "date" %}autofocus{% endif %}>
+          <span class="c-form-hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
+          {% if errors.date %}<span class="c-field-fehler">{{ errors.date }}</span>{% endif %}
+          {% if edtf_echo %}<span class="c-form-echo">{{ edtf_echo }}</span>{% endif %}
+        </label>
+      </div>
+    </fieldset>
+
+    {# Gruppe 3 — Herkunft #}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Herkunft</legend>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Autor</span>
+          <input class="c-input" type="text" name="creator" value="{{ values.creator }}"
+                 {% if autofocus == "creator" %}autofocus{% endif %}>
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Ort</span>
+          <input class="c-input" type="text" name="subject_place" value="{{ values.subject_place }}"
+                 {% if autofocus == "subject_place" %}autofocus{% endif %}>
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Standort</span>
+          <input class="c-input" type="text" name="physical_location" value="{{ values.physical_location }}"
+                 {% if autofocus == "physical_location" %}autofocus{% endif %}>
+          <span class="c-form-hint">Nur intern sichtbar</span>
+        </label>
+      </div>
+    </fieldset>
+
+    {# Gruppe 4 — Beschreibung #}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Beschreibung</legend>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Beschreibung</span>
+          <textarea class="c-input" name="body" rows="10">{{ values.body }}</textarea>
+        </label>
+      </div>
+    </fieldset>
+
+    {# Gruppe 5 — Zugriff #}
+    <fieldset class="c-form-group">
+      <legend class="c-form-legend">Zugriff</legend>
+      <div class="c-form-row">
+        <label class="c-field">
+          <span class="c-field-label">Sichtbarkeit</span>
+          <select class="c-select" name="sichtbarkeit">
+            {% for value, caption in sichtbarkeit_options %}
+            <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="c-form-row">
+        <label class="c-field{% if errors.gruppen %} c-field--fehler{% endif %}">
+          <span class="c-field-label">Gruppen</span>
+          <input class="c-input" type="text" name="gruppen" value="{{ values.gruppen }}"
+                 {% if autofocus == "gruppen" %}autofocus{% endif %}>
+          <span class="c-form-hint">Mehrere durch Komma trennen</span>
+          {% if errors.gruppen %}<span class="c-field-fehler">{{ errors.gruppen }}</span>{% endif %}
+        </label>
+      </div>
+    </fieldset>
+
+    {# Gruppe 7 — Weitere Angaben (custom bag) #}
+    <details class="c-form-details">
+      <summary class="c-form-details-summary">Weitere Angaben</summary>
+      {% if errors.custom %}<p class="c-field-fehler">{{ errors.custom }}</p>{% endif %}
+      {% for key, val in values.custom_rows %}
+      <div class="c-form-bag-zeile">
+        <label class="c-field">
+          <span class="c-field-label">Feld</span>
+          <input class="c-input" type="text" name="custom_key" value="{{ key }}">
+        </label>
+        <label class="c-field">
+          <span class="c-field-label">Wert</span>
+          <input class="c-input" type="text" name="custom_value" value="{{ val }}">
+        </label>
+        {% if key or val %}
+        <button class="c-form-bag-entfernen" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}">Entfernen</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </details>
+
+    {# Sticky footer: Speichern first in source (Enter default), Verwerfen subtle #}
+    <div class="c-form-footer">
+      <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
+      <div class="c-form-footer-aktionen">
+        <button class="c-btn c-btn--primary" type="submit">Speichern</button>
+        <a class="c-btn c-btn--subtle" href="/artikel/{{ values.ulid }}">Verwerfen</a>
+      </div>
+    </div>
+  </form>
+</main>
+{% endblock %}

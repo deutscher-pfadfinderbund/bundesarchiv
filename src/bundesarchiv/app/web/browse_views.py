@@ -441,15 +441,6 @@ def article_detail_stub(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return render(request, "workbench/stub_detail.html", {"ulid": ulid})
 
 
-def article_new_stub(request: HttpRequest) -> HttpResponseBase:
-    """``GET /artikel/neu`` — STUB for 4.7 (the "Neuer Artikel" target). Archivist-only: a
-    non-Archivist gets the media route's byte-identical 404 (existence-hiding — the cataloging entry
-    point must not even be discoverable). Archivist gets a German "kommt in 4.7" placeholder."""
-    if not isinstance(viewer_of(request), Archivist):
-        return _not_found()
-    return render(request, "workbench/stub_new.html", {})
-
-
 def _serve_static(filename: str, content_type: str) -> HttpResponseBase:
     """One vendored static file from the web package's ``static/`` dir, for dev/no-CDN serving.
     Prod serves these via nginx; this keeps ``runserver`` self-contained. Same-origin only — the
@@ -492,3 +483,10 @@ def serve_components_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/components.css`` — the atom component styles (templates/components/), role
     tokens only (load tokens.css first). Pinned raw-color-free by test."""
     return _serve_static("components.css", "text/css")
+
+
+def serve_forms_css(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/forms.css`` — the Part 4.7 cataloging-form styles (the work column, drawers,
+    sticky footer, field errors, CAS panel), role tokens only (load tokens.css + components.css
+    first). Loaded wherever components.css is. Pinned raw-color-free by the same sweep test."""
+    return _serve_static("forms.css", "text/css")

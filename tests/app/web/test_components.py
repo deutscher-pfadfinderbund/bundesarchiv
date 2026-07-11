@@ -23,6 +23,9 @@ from django.urls import Resolver404, resolve
 _WEB = Path(__file__).parents[3] / "src" / "bundesarchiv" / "app" / "web"
 _COMPONENTS_DIR = _WEB / "templates" / "components"
 _COMPONENTS_CSS = _WEB / "static" / "components.css"
+#: The Part 4.7 cataloging-form stylesheet — a component stylesheet under the same roles-only law, so
+#: it joins the raw-color sweep (spec §4/§6 owner decision: one shared file, token terms only).
+_FORMS_CSS = _WEB / "static" / "forms.css"
 
 #: Every atom the design-system brief names — the sweep must see at least these.
 _EXPECTED_ATOMS = frozenset(
@@ -143,7 +146,8 @@ def _component_files() -> list[Path]:
     # Variant stylesheets (static/components-*.css) are components too — every registered AND
     # every on-disk variant css joins the sweep, so an experiment cannot smuggle raw colors.
     variant_css = sorted(_COMPONENTS_CSS.parent.glob("components-*.css"))
-    return [*files, _COMPONENTS_CSS, *variant_css]
+    assert _FORMS_CSS.is_file(), f"forms.css missing from {_FORMS_CSS.parent} (Part 4.7)"
+    return [*files, _COMPONENTS_CSS, _FORMS_CSS, *variant_css]
 
 
 def test_components_carry_no_raw_color_values() -> None:

@@ -97,7 +97,7 @@ def parse_edit_form(
     set of collection ULIDs the archivist may file into — a value outside it is rejected exactly like
     an empty one (no existence oracle on collections either)."""
     errors: FormErrors = {}
-    expected_version = _parse_version(_get(post, "expected_version"))
+    expected_version = parse_version(_get(post, "expected_version"))
 
     title = _get(post, "title").strip()
     if not title:
@@ -153,9 +153,10 @@ def parse_edit_form(
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
 
-def _parse_version(raw: str) -> Version:
+def parse_version(raw: str) -> Version:
     """The hidden ``expected_version`` → int (0 if absent/garbage). A garbage version simply loses the
-    CAS check on save (the store's real version won't match), so it need not be a field error."""
+    CAS check on save (the store's real version won't match), so it need not be a field error. Public
+    so the view's no-JS custom-row re-render path reads the SAME parse (no second copy)."""
     try:
         return int(raw)
     except ValueError:
