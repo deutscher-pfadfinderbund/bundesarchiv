@@ -649,3 +649,77 @@ def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
     assert "wb--vorschau" in body
     closed = _get(corpus_root, Public()).content.decode()
     assert "wb--vorschau" not in closed
+
+
+# --- bulk edit: selection column + bar (Sammelbearbeitung, spec §2) ----------------
+
+
+@pytest.mark.django_db
+def test_archivist_sees_bulk_checkbox_column(corpus_root: Path) -> None:
+    body = _get(corpus_root, Archivist()).content.decode()
+    assert "c-ledger--bulk" in body
+    assert 'name="auswahl"' in body  # row checkboxes
+    assert "Alle auf dieser Seite auswählen" in body  # header sr-only label
+
+
+@pytest.mark.django_db
+def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
+    body = _get(corpus_root, Public()).content.decode()
+    assert "c-ledger--bulk" not in body
+    assert 'name="auswahl"' not in body
+    assert "wb-sammelleiste" not in body
+
+
+@pytest.mark.django_db
+def test_bulk_bar_absent_when_selection_empty(corpus_root: Path) -> None:
+    # signals-once: no "0 ausgewählt" bar with an empty selection
+    body = _get(corpus_root, Archivist()).content.decode()
+    assert "wb-sammelleiste" not in body
+    assert "ausgewählt" not in body
+
+
+@pytest.mark.django_db
+def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
+    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
+    assert "wb-sammelleiste" in body
+    assert "1 ausgewählt" in body
+    assert "Änderung prüfen" in body
+    assert "Feld" in body  # the chooser Feld select
+    # the selected row inverts + its checkbox is checked
+    assert "c-ledger-row--gewaehlt" in body
+    assert f'value="{PANE_PUB_ULID}" checked' in body
+
+
+@pytest.mark.django_db
+def test_selection_survives_pagination_links(corpus_root: Path) -> None:
+    # the next/prev pagination links carry the ?auswahl= selection (no-JS persistence)
+    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}&seite=1").content.decode()
+    assert f"auswahl={PANE_PUB_ULID}" in body
+
+
+@pytest.mark.django_db
+def test_non_archivist_auswahl_param_is_ignored(corpus_root: Path) -> None:
+    # a Public viewer hand-crafting ?auswahl= gets no bar/column (defence-in-depth; the POST route
+    # is independently gated too)
+    body = _get(corpus_root, Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
+    assert "wb-sammelleiste" not in body
+    assert "ausgewählt" not in body
+
+
+@pytest.mark.django_db
+def test_auswahl_aufheben_preserves_active_search(corpus_root: Path) -> None:
+    # Design-gate MED: "Auswahl aufheben" drops the selection but must KEEP the active search — a
+    # bare "?" would wipe the filter. The clear link carries the filters, not auswahl.
+    body = _get(corpus_root, Archivist(), f"q=fahrt&auswahl={PANE_PUB_ULID}").content.decode()
+    clear = body.split('class="wb-sammelleiste-link" href="?', 2)[2].split('"', 1)[0]
+    assert "q=fahrt" in clear  # the search survives
+    assert "auswahl" not in clear  # the selection is dropped
+
+
+@pytest.mark.django_db
+def test_header_select_all_checkbox_hidden_no_js(corpus_root: Path) -> None:
+    # Design-gate LOW-MED: the header select-all checkbox is a dead control no-JS (no name), so it
+    # ships hidden; catalog_bulk.js un-hides it. The no-JS page-select affordance is the bar link.
+    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
+    head = body.split('class="c-ledger-auswahl-alle"', 1)[1].split(">", 1)[0]
+    assert "hidden" in head

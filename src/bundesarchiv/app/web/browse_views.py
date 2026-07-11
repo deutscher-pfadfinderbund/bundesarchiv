@@ -25,7 +25,7 @@ from django.http import FileResponse, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
-from bundesarchiv.app.web import browse
+from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.article_auth import authorize_article, resolve_visible_article
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
@@ -44,6 +44,34 @@ _STATIC_DIR = Path(__file__).parent / "static"
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
 _PANE_PARAM = "artikel"
+
+#: The bulk-edit Feld chooser options: (target, German label). ONE source shared with bulk.py's
+#: allowlist — the placeholder first (empty, server-rejected with "Bitte ein Feld wählen."). Order
+#: follows the spec §1 table. audience/lifecycle/sichtbarkeit are deliberately absent (spec §0.7).
+_BULK_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("", "— Feld wählen —"),
+    ("physical_location", "Standort"),
+    ("creator", "Autor"),
+    ("subject_place", "Ort"),
+    ("media_type", "Medienart"),
+    ("document_type", "Dokumenttyp"),
+    ("Quelle", "Quelle"),
+    ("collection_id", "Sammlungsteil"),
+    ("Querverweis", "Querverweis"),
+    ("Besitzer", "Besitzer"),
+)
+
+
+def _media_type_options() -> tuple[tuple[str, str], ...]:
+    """The Medienart select options (placeholder first, then the vocab) — the bulk drawer reuses the
+    4.7 builder shape."""
+    return (("", "— Medienart wählen —"), *((m, m) for m in vocab.media_types()))
+
+
+def _bulk_collection_options() -> tuple[tuple[str, str], ...]:
+    """The Sammlungsteil (collection) options for the bulk drawer: placeholder first, then every
+    collection as ``(ulid, name)``. A value outside this set is server-rejected like an empty one."""
+    return (("", "— Bestand wählen —"), *sorted(_collection_names().items(), key=lambda kv: kv[1]))
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -72,12 +100,17 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
     pane = _resolve_pane(request, is_archivist=is_archivist)
+    # Bulk-edit selection (archivist-only chrome, spec §2): the multi-valued ?auswahl= carries the
+    # selected ulids across pages. Non-archivists never get the selection column/bar, so their
+    # auswahl is dropped entirely (defence-in-depth — the POST route is independently gated too).
+    auswahl = request.GET.getlist(browse.PARAM_AUSWAHL) if is_archivist else []
     context = _results_context(
         request,
         parsed,
         page,
         is_archivist=is_archivist,
         selected_ulid=pane.ulid if pane is not None else None,
+        auswahl=auswahl,
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
@@ -216,12 +249,14 @@ def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
 
 
 def _ledger_row(
-    hit: SearchHit, *, is_archivist: bool, selected_ulid: str | None
+    hit: SearchHit, *, is_archivist: bool, selected_ulid: str | None, auswahl: frozenset[str]
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
-    logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action are archivist
-    chrome: left EMPTY for non-archivists here (and the ledger component also omits those columns),
-    so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in the pane."""
+    logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action + bulk
+    checkbox are archivist chrome: left EMPTY/False for non-archivists here (and the ledger component
+    also omits those columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row
+    shown in the pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row
+    inverts when its ulid is in it)."""
     return {
         "title": hit.title,
         # BASELINE href = the canonical detail route: it works without JS on every viewport (below
@@ -230,6 +265,7 @@ def _ledger_row(
         # data-artikel hook). No-JS behavior: the detail link everywhere.
         "href": f"/artikel/{hit.ulid}",
         "artikel_ulid": hit.ulid,
+        "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
         "datierung": hit.date_edtf or "",
         "typ": hit.document_type or "",
@@ -239,11 +275,12 @@ def _ledger_row(
         "action_label": "Bearbeiten" if is_archivist else "",
         "action_href": f"/artikel/{hit.ulid}" if is_archivist else "",
         "selected": hit.ulid == selected_ulid,
+        "gewaehlt": is_archivist and hit.ulid in auswahl,
     }
 
 
 def _ledger_rows(
-    page: object, *, is_archivist: bool, selected_ulid: str | None
+    page: object, *, is_archivist: bool, selected_ulid: str | None, auswahl: frozenset[str]
 ) -> tuple[dict[str, object], ...]:
     """The ledger row view-models for the page's SearchHits. The title link's BASELINE points at the
     canonical detail route ``/artikel/<ulid>`` (works with no JS, every viewport); ``ledger_pane.js``
@@ -251,7 +288,8 @@ def _ledger_rows(
     already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
-        _ledger_row(hit, is_archivist=is_archivist, selected_ulid=selected_ulid) for hit in hits
+        _ledger_row(hit, is_archivist=is_archivist, selected_ulid=selected_ulid, auswahl=auswahl)
+        for hit in hits
     )
 
 
@@ -299,6 +337,7 @@ def _results_context(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
+    auswahl: list[str],
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
     sidebar/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
@@ -306,28 +345,60 @@ def _results_context(
     template. No visibility logic — that already happened in ``search``; the ledger's archivist
     chrome is a presentation gate off ``is_archivist``.
 
-    ``artikel`` (the pane selection) is STRIPPED from the link-building params: it is pane state,
-    not search state, so no facet/sort/pager link may carry it. This is also the existence-hiding
-    invariant — a denied/absent/malformed ``artikel`` must leave the page byte-identical to no
-    pane, which it cannot if the raw value rode into every link. Pane selection is tracked
-    separately via ``selected_ulid``."""
-    params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
+    ``artikel`` (pane) and ``auswahl`` (bulk selection) are STRIPPED from the link-building
+    ``params``: neither is search state, so no facet/sort link may carry them. The PAGINATION links
+    re-attach the full multi-valued ``auswahl`` (so paging never drops the selection), and the
+    "Alle auf dieser Seite" link appends this page's ulids — both via the auswahl-preserving
+    helpers. Pane selection is tracked separately via ``selected_ulid``."""
+    params = {
+        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
+    }
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
-    return {
+    auswahl_set = frozenset(auswahl)
+    context: dict[str, object] = {
         "text": parsed.text or "",
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page),
-        "ledger_rows": _ledger_rows(page, is_archivist=is_archivist, selected_ulid=selected_ulid),
+        "ledger_rows": _ledger_rows(
+            page, is_archivist=is_archivist, selected_ulid=selected_ulid, auswahl=auswahl_set
+        ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
         "current_page": parsed.page,
         "has_next": browse.has_next_page(
             page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
         ),
         "has_prev": parsed.page > 1,
-        "next_query": browse.page_query(params, parsed.page + 1),
-        "prev_query": browse.page_query(params, parsed.page - 1),
+        "next_query": browse.page_query_with_auswahl(params, auswahl, parsed.page + 1),
+        "prev_query": browse.page_query_with_auswahl(params, auswahl, parsed.page - 1),
         "total": total,
+    }
+    if is_archivist:
+        context.update(_bulk_bar_context(params, page, auswahl))
+    return context
+
+
+def _bulk_bar_context(
+    params: dict[str, str], page: object, auswahl: list[str]
+) -> dict[str, object]:
+    """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only. The bar renders
+    only when the selection is non-empty (signals-once — no "0 ausgewählt"). ``select_page_query``
+    is the "Alle auf dieser Seite" href (appends this page's ulids). The drawer's Feld options + the
+    value widgets reuse the 4.7 option builders."""
+    hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
+    page_ulids = [h.ulid for h in hits]
+    return {
+        "auswahl": auswahl,
+        "auswahl_count": len(auswahl),
+        "bulk_bar": bool(auswahl),
+        "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
+        # "Auswahl aufheben" drops the selection but KEEPS the active search (params already exclude
+        # auswahl + artikel) — a bare "?" would wipe the filters (design-gate MED finding).
+        "clear_auswahl_query": urlencode({k: v for k, v in params.items() if v}),
+        "bulk_feld_options": _BULK_FELD_OPTIONS,
+        "bulk_media_type_options": _media_type_options(),
+        "bulk_document_type_groups": vocab.grouped_document_type_options(),
+        "bulk_collection_options": _bulk_collection_options(),
     }
 
 

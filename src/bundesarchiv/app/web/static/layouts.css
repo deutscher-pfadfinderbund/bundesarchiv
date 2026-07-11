@@ -138,6 +138,41 @@ body.wb {
 /* the "+ Neuer Artikel" affordance sits in the header (archivist-only, rendered by the view) */
 .wb-neu { white-space: nowrap; }
 
+/* ---- bulk-edit bar (Sammelbearbeitung): docked sticky at the top of the results, pushes content
+   (never floats over rows). Neutral surface; the primary "Änderung prüfen" is the one anchor. ---- */
+.wb-sammelleiste {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+}
+.wb-sammelleiste-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+.wb-sammelleiste-zahl {
+  font: var(--type-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface);
+}
+.wb-sammelleiste-link { color: var(--primary); text-decoration: none; font: var(--type-meta); }
+.wb-sammelleiste-link:hover { text-decoration: underline; }
+/* the chooser drawer: reuses the c-form-group frame; a flex row of Feld + value widget + submit */
+.wb-sammelleiste-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.wb-sammelleiste-aktionen { margin-left: auto; }
+
 /* ---- preview pane: present only when vorschau=1 (server-rendered). ---- */
 .wb-pane { grid-column: pane; }
 .wb-pane-inner {
@@ -219,13 +254,20 @@ body.wb {
   .wb--split-narrow.wb--vorschau .c-ledger { grid-template-columns: 1fr; }
   .wb--split-narrow.wb--vorschau .c-ledger-head { display: none; }
   .wb--split-narrow.wb--vorschau .c-ledger-row {
-    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+    /* lead with the bulk-select track so the checkbox has a home in the pane-open fold too (design
+       gate: it orphaned under the sig tab here). A row without the checkbox column just leaves the
+       min-content track empty. */
+    grid-template-columns: min-content max-content max-content minmax(0, 1fr) max-content;
     grid-template-areas:
-      "sig titel titel meta-r"
-      "sig datum typ   meta-r";
+      "auswahl sig titel titel meta-r"
+      "auswahl sig datum typ   meta-r";
     align-items: start;
     column-gap: var(--space-3);
     row-gap: calc(var(--space-1) / 2);
+  }
+  .wb--split-narrow.wb--vorschau .c-ledger-cell--auswahl {
+    grid-area: auswahl;
+    align-self: center;
   }
   .wb--split-narrow.wb--vorschau .c-ledger-cell--sig { grid-area: sig; align-self: center; }
   .wb--split-narrow.wb--vorschau .c-ledger-cell--titel {

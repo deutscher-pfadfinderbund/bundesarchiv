@@ -1,17 +1,33 @@
 {% comment %}
 The results region — the HTMX swap target (#results) and the page's main landmark. Rendered
-standalone on an HX-Request and embedded in the full page on a plain GET. The toolbar row is gone
-(owner: chips + sort select both died as signals-once duplicates of the headers / sidebar): the
-result count folds into a compact aria-live line, and the ledger register carries everything else.
-Sort is the column headers alone (asc→desc→default cycle, in `columns`); active-filter state +
-removal live only in the sidebar. No visibility logic: every hit is already viewer-scoped by
-search(); the archivist chrome is a presentation gate off is_archivist.
+standalone on an HX-Request and embedded in the full page on a plain GET. Sort is the column headers
+(asc→desc→default cycle); active-filter state lives only in the sidebar. No visibility logic: every
+hit is already viewer-scoped by search(); the archivist chrome is a presentation gate off
+is_archivist.
+
+Bulk edit (Sammelbearbeitung, archivist-only): the ledger's rows + the sticky bulk bar live inside
+ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row checkboxes
+name="auswahl"; the bar renders only when the selection is non-empty (signals-once). Selection
+survives pagination because the prev/next links carry ?auswahl= (built in the view). "Alle auf
+dieser Seite" is a GET link appending this page's ulids. catalog_form.js is not loaded here; the
+workbench's own PE (catalog_bulk.js) toggles the page checkbox + live count.
 {% endcomment %}
 <main class="wb-main" id="results">
   <p class="wb-hitcount" aria-live="polite">{{ total }} Treffer</p>
 
   {% if page.hits %}
-  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist only %}
+  {% if is_archivist %}
+  <form class="wb-sammelform" method="post" action="/artikel/sammelbearbeitung"
+        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    {% csrf_token %}
+    {% if bulk_bar %}
+    {% include "workbench/_sammelleiste.html" %}
+    {% endif %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist bulk=True only %}
+  </form>
+  {% else %}
+  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist bulk=False only %}
+  {% endif %}
   {% else %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}
   {% endif %}

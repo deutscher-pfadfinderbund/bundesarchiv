@@ -69,6 +69,12 @@ _PAIRS: tuple[tuple[str, str, float], ...] = (
     ("error", "on-error", 4.5),
     *((surface, "outline", 3.0) for surface in _SURFACES),
     *((surface, "focus-ring", 3.0) for surface in _SURFACES),
+    # Inversion ground (selected ledger row / active facet / primary button): every cell flips to the
+    # surface ink on the on-surface ground. Pin BOTH the flipped text (incl. a selected draft title +
+    # the visibility badge text) and the badge border against the on-surface ground — the hole the
+    # design gate found (badge + draft title stayed variant/outline on the inverted ground).
+    ("on-surface", "surface", 4.5),  # flipped text on the inverted ground
+    ("on-surface", "surface", 3.0),  # the visibility-badge border on the inverted ground
 )
 
 

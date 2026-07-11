@@ -23,7 +23,12 @@ Composes the signatur_tab + badge atoms. SICHTBARKEIT carries ONE signal per row
 ENTWURF for drafts, the visibility badge otherwise. The narrow density (.c-ledger--narrow) reflows
 the same cells into two lines via CSS grid areas — no markup fork.
 {% endcomment %}
-<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}{% if selected %} c-ledger-row--aktiv{% endif %}" role="row"{% if selected %} aria-current="true"{% endif %}>
+<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}{% if selected %} c-ledger-row--aktiv{% endif %}{% if gewaehlt %} c-ledger-row--gewaehlt{% endif %}" role="row"{% if selected %} aria-current="true"{% endif %}>
+  {% if bulk %}
+  <span class="c-ledger-cell c-ledger-cell--auswahl" role="cell">
+    <input type="checkbox" name="auswahl" value="{{ ulid }}"{% if gewaehlt %} checked{% endif %} aria-label="{{ title }} auswählen">
+  </span>
+  {% endif %}
   <span class="c-ledger-cell c-ledger-cell--sig" role="cell">
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>

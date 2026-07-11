@@ -1,0 +1,69 @@
+{% comment %}
+Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the wb-sammelform
+(the row checkboxes name="auswahl" are the selection source). Docked sticky under the header —
+pushes content, never covers rows. Absent when the selection is empty (the view gates bulk_bar).
+
+Bar: "{n} ausgewählt" (mono) · Auswahl aufheben (clears selection → ledger) · Alle auf dieser Seite
+(GET link appending the page's ulids). Drawer: Feld select + every value widget (no-JS renders all;
+catalog_bulk.js shows only the matching one; the server reads the one matching feld) + Änderung
+prüfen (submit → confirm POST). No loud color; the primary is the one anchor.
+{% endcomment %}
+<div class="wb-sammelleiste">
+  <div class="wb-sammelleiste-status">
+    <span class="wb-sammelleiste-zahl">{{ auswahl_count }} ausgewählt</span>
+    <a class="wb-sammelleiste-link" href="?{{ select_page_query }}">Alle auf dieser Seite</a>
+    <a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>
+  </div>
+
+  <div class="wb-sammelleiste-chooser c-form-group">
+    <label class="c-field">
+      <span class="c-field-label">Feld</span>
+      <select class="c-select" name="feld" data-bulk-feld>
+        {% for value, caption in bulk_feld_options %}
+        <option value="{{ value }}">{{ caption }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {% comment %}All value widgets render (no-JS baseline); the server reads only the one matching the
+    chosen feld. catalog_bulk.js shows just the matching widget. Each is wrapped with a data-bulk-wert
+    hook naming which feld it belongs to.{% endcomment %}
+    <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
+      <span class="c-field-label">Neuer Wert</span>
+      <input class="c-input" type="text" name="wert_text">
+    </label>
+    <label class="c-field" data-bulk-wert="media_type">
+      <span class="c-field-label">Neuer Wert</span>
+      <select class="c-select" name="wert_media_type" data-bulk-media-type>
+        {% for value, caption in bulk_media_type_options %}
+        <option value="{{ value }}">{{ caption }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="c-field" data-bulk-wert="document_type">
+      <span class="c-field-label">Neuer Wert</span>
+      <select class="c-select" name="wert_document_type" id="bulk-dokumenttyp-select">
+        <option value="">— kein Dokumenttyp —</option>
+        {% for group_label, group_options in bulk_document_type_groups %}
+        <optgroup label="{{ group_label }}">
+          {% for value, caption in group_options %}
+          <option value="{{ value }}">{{ caption }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="c-field" data-bulk-wert="collection_id">
+      <span class="c-field-label">Neuer Wert</span>
+      <select class="c-select" name="wert_collection_id">
+        {% for value, caption in bulk_collection_options %}
+        <option value="{{ value }}">{{ caption }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="wb-sammelleiste-aktionen">
+      <button class="c-btn c-btn--primary" type="submit">Änderung prüfen</button>
+    </div>
+  </div>
+</div>

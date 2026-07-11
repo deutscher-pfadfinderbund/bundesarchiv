@@ -371,6 +371,33 @@
   --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
     minmax(5rem, max-content);
 }
+/* bulk edit (archivist): a leading min-content checkbox track before the six archivist columns. */
+.c-ledger--bulk {
+  --c-ledger-cols: min-content minmax(6rem, max-content) minmax(10rem, 1fr)
+    minmax(6rem, max-content) minmax(5rem, max-content) minmax(7rem, max-content)
+    minmax(6rem, max-content);
+}
+.c-ledger-cell--auswahl { display: inline-flex; align-items: center; }
+/* INVERSION for a bulk-selected row — the same stamp grammar as the active facet row / pane row: a
+   solid neutral-ink ground, NOT a tint. The c-sig mark keeps its ink on the inverted ground
+   (contrast-tested via the --aktiv pairing). */
+.c-ledger-row--gewaehlt {
+  background: var(--on-surface);
+}
+.c-ledger-row--gewaehlt .c-ledger-titel,
+.c-ledger-row--gewaehlt .c-ledger-cell--datierung,
+.c-ledger-row--gewaehlt .c-ledger-cell--typ,
+/* a SELECTED draft row: the --entwurf rule would otherwise win the cascade and wash the title on
+   the inverted ground — flip it back to the surface ink like every other selected cell */
+.c-ledger-row--gewaehlt.c-ledger-row--entwurf .c-ledger-titel {
+  color: var(--surface);
+}
+/* the visibility badge on an inverted row: its default on-surface-variant text + outline border
+   both fall under the contrast floor on the ink ground — flip both to surface (contrast-tested) */
+.c-ledger-row--gewaehlt .c-badge--sichtbarkeit {
+  color: var(--surface);
+  border-color: var(--surface);
+}
 /* the rowgroup keeps its ARIA role but leaves the box tree, so the rows become effective grid
    children of .c-ledger and their subgrid inherits the 6 columns (a real wrapper box would break
    the subgrid chain and collapse each row to one column) */

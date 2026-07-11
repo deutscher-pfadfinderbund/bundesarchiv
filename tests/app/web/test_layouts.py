@@ -118,3 +118,13 @@ def test_layout_css_carries_no_raw_color_values() -> None:
         "raw color values in the layout stylesheet (role tokens only, design-system.md): "
         f"{sorted(offenders)}"
     )
+
+
+def test_pane_open_fold_has_a_bulk_select_column() -> None:
+    # Design-gate regression: the pane-open narrow fold (.wb--split-narrow.wb--vorschau) redefines
+    # the row grid; it must include an "auswahl" grid-area or the bulk checkbox orphans under the sig
+    # tab. Pin the area + its rule (red before the fix, green after).
+    css = _LAYOUTS_CSS.read_text(encoding="utf-8")
+    fold = css.split(".wb--split-narrow.wb--vorschau .c-ledger-row", 1)[1].split("}", 1)[0]
+    assert "auswahl sig titel" in fold  # the area appears in both template rows
+    assert ".wb--split-narrow.wb--vorschau .c-ledger-cell--auswahl" in css

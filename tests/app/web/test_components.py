@@ -166,3 +166,24 @@ def test_components_carry_no_raw_color_values() -> None:
         "raw color values in component files (components consume ROLE tokens only, "
         f"design-system.md): {sorted(offenders)}"
     )
+
+
+# --- selected-row inversion flips ALL cells (design-gate regression, spec §2 B) ----
+# The bulk-selected row inverts to an ink ground; every cell must flip to the surface ink or it
+# fails contrast on that ground. The design gate found two cells un-flipped (the visibility badge +
+# a selected draft's title). These pin the CSS rules that flip them — red before the fix, green after.
+
+
+def test_selected_row_flips_visibility_badge_to_surface() -> None:
+    css = _COMPONENTS_CSS.read_text(encoding="utf-8")
+    assert ".c-ledger-row--gewaehlt .c-badge--sichtbarkeit" in css
+    # the badge rule must set both text + border to --surface on the inverted ground
+    badge_block = css.split(".c-ledger-row--gewaehlt .c-badge--sichtbarkeit", 1)[1].split("}", 1)[0]
+    assert "color: var(--surface)" in badge_block
+    assert "border-color: var(--surface)" in badge_block
+
+
+def test_selected_draft_row_title_flips_to_surface() -> None:
+    # a selected DRAFT row's title must flip to --surface (the --entwurf rule must not win the cascade)
+    css = _COMPONENTS_CSS.read_text(encoding="utf-8")
+    assert ".c-ledger-row--gewaehlt.c-ledger-row--entwurf .c-ledger-titel" in css
