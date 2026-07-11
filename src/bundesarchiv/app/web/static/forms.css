@@ -191,6 +191,14 @@
   padding: calc(var(--space-1) / 2) var(--space-2);
 }
 
+/* lifecycle control: a quiet secondary block below the footer (separate forms so Enter never fires
+   a lifecycle action). Spaced off the sticky footer above it; the action itself is a subtle button. */
+.c-form-lebenszyklus {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
 /* ---- panel: shared square hairline base + the konflikt modifier (spec §6.1) ---- */
 
 .c-panel {

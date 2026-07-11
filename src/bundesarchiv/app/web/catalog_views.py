@@ -528,8 +528,10 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
         article_services.hard_delete_article(store, ulid)
         return HttpResponseRedirect("/")
     # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
-    # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it.
-    verwerfen = request.GET.get("verwerfen") == "1"
+    # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
+    # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
+    # not discarded, so it always reads "Artikel löschen?" regardless of the query param.
+    verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
     return render(
         request,
         "workbench/artikel_loeschen.html",

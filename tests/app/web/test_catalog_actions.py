@@ -174,6 +174,19 @@ def test_loeschen_confirm_page_verwerfen_wording(corpus: _Corpus) -> None:
     assert "Entwurf verwerfen" in body
 
 
+def test_loeschen_verwerfen_wording_only_for_drafts(corpus: _Corpus) -> None:
+    # A PUBLISHED article + ?verwerfen=1 is deleted, not discarded — server ignores the param and
+    # shows the plain "Artikel löschen?" wording (behaviour identical, wording honest).
+    with override_settings(**_settings(corpus)):
+        body = (
+            _client_as(Archivist())
+            .get(f"/artikel/{_PUBLISHED}/loeschen?verwerfen=1")
+            .content.decode()
+        )
+    assert "Artikel löschen?" in body
+    assert "Entwurf verwerfen" not in body
+
+
 def test_loeschen_post_hard_deletes_and_redirects_to_workbench(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(f"/artikel/{_PUBLISHED}/loeschen")
