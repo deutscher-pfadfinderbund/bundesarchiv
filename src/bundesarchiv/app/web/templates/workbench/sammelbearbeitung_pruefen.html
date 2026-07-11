@@ -1,0 +1,131 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Bulk-edit confirm page (Sammelbearbeitung state D, spec §2/§7). Archivist-only (the view gates it).
+The interstitial for the highest-consequence action: Feld · Neuer Wert · Betroffen: {n} Artikel ·
+the article list (c-sig + Titel). A Medienart change that orphans Dokumenttypen lists each affected
+row (Dokumenttyp: {alt} → (leer)) under a weight-emphasized "— Achtung" heading (NO loud color) and
+requires dokumenttyp_leeren=1 on commit. The one primary "Auf {n} Artikel anwenden" is the focal
+point. A validation error re-renders here with the verbatim message + the selection preserved.
+Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server session state).
+{% endcomment %}
+{% block title %}Sammelbearbeitung prüfen{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block body %}
+<main class="c-form">
+  <h1 class="c-form-titel">Sammelbearbeitung prüfen</h1>
+
+  {% if fehler %}
+  {% comment %}Validation error (spec §2 C): re-render the chooser drawer with the verbatim error, the
+  selection carried as hidden auswahl inputs, so the archivist fixes the field/value and re-submits
+  from here — the selection is never lost. The back-link also preserves ?auswahl=.{% endcomment %}
+  <form class="wb-sammelform" method="post" action="/artikel/sammelbearbeitung">
+    {% csrf_token %}
+    {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    <p class="c-form-hint">{{ anzahl }} ausgewählt</p>
+    <div class="wb-sammelleiste-chooser c-form-group">
+      <label class="c-field{% if fehler %} c-field--fehler{% endif %}">
+        <span class="c-field-label">Feld</span>
+        <select class="c-select" name="feld" data-bulk-feld>
+          <option value="">— Feld wählen —</option>
+          {% for value, caption in feld_options %}
+          <option value="{{ value }}"{% if value == feld %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
+        <span class="c-field-label">Neuer Wert</span>
+        <input class="c-input" type="text" name="wert_text">
+      </label>
+      <label class="c-field" data-bulk-wert="media_type">
+        <span class="c-field-label">Neuer Wert</span>
+        <select class="c-select" name="wert_media_type" data-bulk-media-type
+                hx-get="/artikel/sammelbearbeitung/dokumenttypen"
+                hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
+          {% for value, caption in media_type_options %}
+          <option value="{{ value }}">{{ caption }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="c-field" data-bulk-wert="document_type">
+        <span class="c-field-label">Neuer Wert</span>
+        <select class="c-select" name="wert_document_type" id="bulk-dokumenttyp-select">
+          <option value="">— kein Dokumenttyp —</option>
+          {% for group_label, group_options in document_type_groups %}
+          <optgroup label="{{ group_label }}">
+            {% for value, caption in group_options %}<option value="{{ value }}">{{ caption }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="c-field" data-bulk-wert="collection_id">
+        <span class="c-field-label">Neuer Wert</span>
+        <select class="c-select" name="wert_collection_id">
+          {% for value, caption in collection_options %}<option value="{{ value }}">{{ caption }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="wb-sammelleiste-aktionen">
+        <button class="c-btn c-btn--primary" type="submit">Änderung prüfen</button>
+      </div>
+    </div>
+    <p class="c-field-fehler">{{ fehler }}</p>
+  </form>
+  <p><a class="wb-zurueck" href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
+  {% else %}
+
+  <section class="c-panel">
+    <p class="c-panel-zeile"><strong>Feld</strong>: {{ feld_label }}</p>
+    <p class="c-panel-zeile"><strong>Neuer Wert</strong>: {{ wert_display }}</p>
+    <p class="c-panel-zeile">Betroffen: {{ anzahl }} Artikel</p>
+  </section>
+
+  {% if orphans %}
+  {% comment %}Orphan case: weight-emphasized heading, NO loud color (spec §7). Per-row listing of
+  the Dokumenttypen that will be cleared; commit requires dokumenttyp_leeren=1.{% endcomment %}
+  <section class="c-panel">
+    <h2 class="c-panel-titel c-panel-achtung">Medienart ändern — Achtung</h2>
+    <p class="c-panel-hinweis">Medienart wird auf „{{ wert }}" gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
+    <ul class="c-bulk-liste">
+      {% for row in orphans %}
+      <li class="c-bulk-zeile">
+        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
+        <span class="c-bulk-titel">{{ row.title }}</span>
+        <span class="c-bulk-orphan">Dokumenttyp: {{ row.alt }} → (leer)</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="c-panel">
+    <ul class="c-bulk-liste">
+      {% for row in artikel_liste %}
+      <li class="c-bulk-zeile">
+        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
+        <span class="c-bulk-titel">{{ row.title }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <div class="c-form-footer c-form-footer--neu">
+    <div class="c-form-footer-aktionen">
+      <form method="post" action="/artikel/sammelbearbeitung">
+        {% csrf_token %}
+        {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+        <input type="hidden" name="feld" value="{{ feld }}">
+        <input type="hidden" name="{{ wert_field }}" value="{{ wert }}">
+        <input type="hidden" name="bestaetigt" value="1">
+        {% if orphans %}
+        <input type="hidden" name="dokumenttyp_leeren" value="1">
+        <button class="c-btn c-btn--primary" type="submit">Medienart setzen, Dokumenttyp leeren</button>
+        {% else %}
+        <button class="c-btn c-btn--primary" type="submit">Auf {{ anzahl }} Artikel anwenden</button>
+        {% endif %}
+      </form>
+      <a class="c-btn c-btn--subtle" href="?{{ abbrechen_query }}">Abbrechen</a>
+    </div>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

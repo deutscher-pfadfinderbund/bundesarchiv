@@ -1,0 +1,61 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+Bulk-edit result page (Sammelbearbeitung state R, spec §2/§7). Archivist-only. The saved COUNT
+carries the successes (signals-once — successes are NOT listed individually). ONLY actionable rows
+appear: conflicts as quiet register rows (c-sig + Titel + on-surface-variant "inzwischen geändert" +
+"Diesen Artikel bearbeiten" link → the 4.7 CAS panel owns the real diff); missing in a "Nicht mehr
+vorhanden:" bucket; doctype-cleared as a neutral sub-note. NO red anywhere — a conflict is a race
+outcome, not an error. Index lag → a quiet role=status line.
+{% endcomment %}
+{% block title %}Sammelbearbeitung{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block body %}
+<main class="c-form">
+  {% if conflict_count %}
+  <h1 class="c-form-titel">Sammelbearbeitung: teilweise abgeschlossen</h1>
+  <p class="c-bulk-summe">{{ saved }} gespeichert · {{ conflict_count }} inzwischen geändert</p>
+  {% else %}
+  <h1 class="c-form-titel">Sammelbearbeitung abgeschlossen</h1>
+  <p class="c-bulk-summe">{{ saved }} Artikel gespeichert.</p>
+  {% endif %}
+
+  <p class="c-form-hint">Feld „{{ feld_label }}" → „{{ wert_display }}"</p>
+
+  {% if index_lagged %}
+  <p class="c-form-hinweis" role="status">Die Suche zeigt einige Änderungen in Kürze.</p>
+  {% endif %}
+
+  {% if doctype_cleared %}
+  <p class="c-form-hint">Bei {{ doctype_cleared|length }} Artikel(n) wurde der Dokumenttyp geleert.</p>
+  {% endif %}
+
+  {% if conflicted %}
+  <section class="c-panel">
+    <p class="c-panel-hinweis">Nicht gespeichert — ein anderer Bearbeiter war schneller:</p>
+    <ul class="c-bulk-liste">
+      {% for row in conflicted %}
+      <li class="c-bulk-zeile">
+        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
+        <span class="c-bulk-titel">{{ row.title }}</span>
+        <span class="c-bulk-konflikt">inzwischen geändert</span>
+        <a class="wb-zurueck" href="/artikel/{{ row.ulid }}/bearbeiten">Diesen Artikel bearbeiten</a>
+      </li>
+      {% endfor %}
+    </ul>
+    <p><a class="wb-zurueck" href="/?{{ erneut_query }}">Diese {{ conflict_count }} erneut auswählen</a></p>
+  </section>
+  {% endif %}
+
+  {% if missing %}
+  <section class="c-panel">
+    <p class="c-panel-hinweis">Nicht mehr vorhanden:</p>
+    <ul class="c-bulk-liste">
+      {% for ulid in missing %}<li class="c-bulk-zeile"><span class="c-bulk-titel">{{ ulid }}</span></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <p><a class="c-btn c-btn--subtle" href="/">Zurück zur Suche</a></p>
+</main>
+{% endblock %}

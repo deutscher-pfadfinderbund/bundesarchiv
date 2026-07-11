@@ -22,6 +22,7 @@ from bundesarchiv.app.web.browse_views import (
     serve_tokens,
     workbench,
 )
+from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
     article_create,
@@ -54,6 +55,12 @@ urlpatterns = [
     path("static/layouts.css", serve_layouts_css, name="static-layouts"),
     path("static/forms.css", serve_forms_css, name="static-forms"),
     path("artikel/neu", article_create, name="artikel-neu"),
+    path(
+        "artikel/sammelbearbeitung/dokumenttypen",
+        bulk_dokumenttypen,
+        name="artikel-sammelbearbeitung-dokumenttypen",
+    ),
+    path("artikel/sammelbearbeitung", article_bulk_edit, name="artikel-sammelbearbeitung"),
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),

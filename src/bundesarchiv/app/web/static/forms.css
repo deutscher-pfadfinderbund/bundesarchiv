@@ -475,3 +475,28 @@
   text-decoration: none;
 }
 .wb-zurueck:hover { text-decoration: underline; }
+
+/* ---- bulk edit (Sammelbearbeitung) confirm + result pages (spec §2 D/R) ---- */
+
+.c-bulk-summe {
+  margin: 0 0 var(--space-2);
+  font: var(--type-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface);
+}
+.c-bulk-liste { list-style: none; margin: 0; padding: 0; }
+.c-bulk-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-1) 0;
+}
+.c-bulk-zeile + .c-bulk-zeile { border-top: 1px solid var(--outline-variant); }
+.c-bulk-titel { font: var(--type-body); color: var(--on-surface); }
+/* the doctype-orphan + conflict sub-marks: quiet on-surface-variant, NEVER red (a race/clear is not
+   an error — spec §7); emphasis by placement only */
+.c-bulk-orphan,
+.c-bulk-konflikt { font: var(--type-meta); color: var(--on-surface-variant); }
+/* the orphan-warning heading: WEIGHT emphasis only, no loud color (spec §7) */
+.c-panel-achtung { color: var(--on-surface); font-weight: 700; }
