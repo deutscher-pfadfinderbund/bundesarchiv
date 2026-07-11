@@ -298,21 +298,21 @@ def _results_context(
     is_archivist: bool,
     selected_ulid: str | None,
 ) -> dict[str, object]:
-    """The template context shared by the full page and the results partial. ``params`` is the raw
-    query dict; every link the sidebar/chips/pagination/ledger need is prebuilt in Python (the
-    template calls no functions with args). No visibility logic — that already happened in
-    ``search``; the ledger's archivist chrome is a presentation gate off ``is_archivist``.
+    """The template context shared by the full page and the results partial. Every link the
+    sidebar/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
+    template calls no functions with args), so the raw query dict itself is never handed to the
+    template. No visibility logic — that already happened in ``search``; the ledger's archivist
+    chrome is a presentation gate off ``is_archivist``.
 
     ``artikel`` (the pane selection) is STRIPPED from the link-building params: it is pane state,
-    not search state, so no facet/sort/chip/pager link may carry it. This is also the existence-
-    hiding invariant — a denied/absent/malformed ``artikel`` must leave the page byte-identical to
-    no pane, which it cannot if the raw value rode into every link. Pane selection is tracked
+    not search state, so no facet/sort/pager link may carry it. This is also the existence-hiding
+    invariant — a denied/absent/malformed ``artikel`` must leave the page byte-identical to no
+    pane, which it cannot if the raw value rode into every link. Pane selection is tracked
     separately via ``selected_ulid``."""
     params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
     return {
-        "params": params,
         "text": parsed.text or "",
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page),
