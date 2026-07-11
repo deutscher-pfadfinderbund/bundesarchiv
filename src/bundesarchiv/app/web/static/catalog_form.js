@@ -16,13 +16,13 @@
   if (form) {
     var status = document.querySelector(".c-form-status");
     if (status) {
+      // { once: true } — the register only needs revealing the first time an edit happens.
       form.addEventListener(
         "input",
-        function markDirty() {
+        function () {
           status.hidden = false;
-          form.removeEventListener("input", markDirty);
         },
-        { once: false }
+        { once: true }
       );
     }
   }

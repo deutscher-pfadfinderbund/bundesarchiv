@@ -165,6 +165,17 @@ def test_datierung_echo_denied_is_404_never_content(corpus: _Corpus, viewer: Vie
     assert b"1962" not in response.content  # no echo leaked
 
 
+def test_datierung_echo_post_is_404(corpus: _Corpus) -> None:
+    # GET-only (a pure transform); a POST must not reach it.
+    with override_settings(**_settings(corpus)):
+        assert (
+            _client_as(Archivist())
+            .post(f"/artikel/{_ULID}/datierung-echo", {"date": "1962"})
+            .status_code
+            == 404
+        )
+
+
 @pytest.mark.parametrize(
     "path",
     [
