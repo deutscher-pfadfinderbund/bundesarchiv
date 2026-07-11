@@ -109,6 +109,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
+    # The active Bestand filter (if any) — the archivist's focused collection. Drives the workbench's
+    # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
+    # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
+    context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
     # The ledger folds narrow while the pane is open (the split-narrow layout); the frame class
     # drives it (and the <1280px media query hides the pane + unfolds the ledger — css owns that).
     context["vorschau"] = pane is not None
@@ -407,10 +411,31 @@ def _results_context(
         "next_query": browse.page_query_with_auswahl(params, auswahl, parsed.page + 1),
         "prev_query": browse.page_query_with_auswahl(params, auswahl, parsed.page - 1),
         "total": total,
+        # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
+        # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
+        # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
+        "leerer_bestand": _only_bestand_filter(parsed) if total == 0 else None,
     }
     if is_archivist:
         context.update(_bulk_bar_context(params, page, auswahl))
     return context
+
+
+def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
+    """The Bestand ulid when the search's ONLY constraint is that collection (no text, no other
+    facet) — else ``None``. Used to pick the Bestand-specific empty state over the generic one."""
+    f = parsed.filters
+    others_empty = (
+        not parsed.text
+        and f.media_type is None
+        and f.document_type is None
+        and f.tag is None
+        and f.decade is None
+        and f.date_from is None
+        and f.date_to is None
+        and not f.dateless
+    )
+    return f.collection if f.collection is not None and others_empty else None
 
 
 def _bulk_bar_context(

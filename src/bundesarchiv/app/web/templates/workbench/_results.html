@@ -29,7 +29,18 @@ workbench's own PE (catalog_bulk.js) toggles the page checkbox + live count.
   {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist bulk=False only %}
   {% endif %}
   {% else %}
+  {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is
+  Bestand-specific + carries an archivist-only "+ Neuer Artikel" link pre-seeded with that Bestand
+  (4.8 item 3) — NOT the generic "remove filters" copy. A non-archivist sees just the sentence.{% endcomment %}
+  {% if leerer_bestand %}
+  <div class="c-empty">
+    <div class="c-empty-zeichen" aria-hidden="true"></div>
+    <p class="c-empty-titel">Noch keine Artikel in diesem Bestand.</p>
+    {% if is_archivist %}<p class="c-empty-hinweis"><a class="c-btn c-btn--primary" href="/artikel/neu?bestand={{ leerer_bestand }}">+ Neuer Artikel</a></p>{% endif %}
+  </div>
+  {% else %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}
+  {% endif %}
   {% endif %}
 
   {% include "components/pagination.html" with current_page=current_page has_prev=has_prev has_next=has_next prev_query=prev_query next_query=next_query only %}

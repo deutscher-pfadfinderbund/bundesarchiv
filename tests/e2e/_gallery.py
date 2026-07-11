@@ -105,6 +105,21 @@ def _reach_detail_draft(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
 
 
+def _reach_bestand_bearbeiten(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # rename form for an existing Bestand — Name editable, parent + Sichtbarkeit read-only (4.8).
+    # Uses the ULID-keyed collection (the route validates a real ULID, not a literal id).
+    page.goto(f"{base}/bestand/{corpus.renamable_ulid}/bearbeiten", wait_until="networkidle")
+
+
+def _reach_bestand_landing(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the post-create landing: the create-article form with the new Bestand pre-selected + the
+    # success hinweis (4.8 create→catalog flow).
+    page.goto(
+        f"{base}/artikel/neu?bestand={corpus.renamable_ulid}&angelegt=Karten",
+        wait_until="networkidle",
+    )
+
+
 #: The canonical states, in a stable order (the gallery is a design contract: same states, same
 #: order, every run). Read-only workbench variants first, then the write surfaces, then the
 #: POST-gated confirm panels. ``draft_ulid`` is a saveable draft (Medienart set); ``published_ulid``
@@ -125,6 +140,16 @@ STATES: tuple[GalleryState, ...] = (
     GalleryState("workbench-bulk", "workbench, bulk selection bar", True, _reach_bulk),
     GalleryState("workbench-public", "workbench as a public visitor", False, _goto("/")),
     GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),
+    GalleryState("bestand-neu", "create a Bestand", True, _goto("/bestand/neu")),
+    GalleryState(
+        "bestand-bearbeiten", "rename a Bestand (Name only)", True, _reach_bestand_bearbeiten
+    ),
+    GalleryState(
+        "bestand-landing",
+        "create-article form after a new Bestand (pre-selected + hinweis)",
+        True,
+        _reach_bestand_landing,
+    ),
     GalleryState("edit-form", "the full edit form (a draft)", True, _reach_edit),
     GalleryState("read-published", "the read view (a published article)", True, _reach_read),
     GalleryState(

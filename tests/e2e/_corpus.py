@@ -39,6 +39,10 @@ def _png(color: tuple[int, int, int]) -> bytes:
 PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
 SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
+# A ULID-keyed collection (unlike the literal "ROOT"/"FOTOS" ids) for the 4.8 rename route + gallery
+# state: /bestand/<ulid>/bearbeiten validates a real ULID (real collections created via the app get
+# one), so the rename state needs a genuine ULID, not a literal.
+RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +55,7 @@ class CorpusHandles:
     published_ulid: str
     second_ulid: str
     published_cover_hash: str
+    renamable_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -66,6 +71,10 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
     collections.save(Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
     collections.save(Collection("AKTEN", "Aktenbestand", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
+    # A ULID-keyed Bestand under FOTOS so the 4.8 rename route/gallery state has a valid-ULID target.
+    collections.save(
+        Collection(RENAMABLE_ULID, "Karten", "FOTOS", Audience(AudienceTier.PUBLIC)), 0
+    )
 
     # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
     # (add_media stores the blobs first; the repository refuses an Article referencing unstored ones).
@@ -140,4 +149,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         published_ulid=PUBLISHED_ULID,
         second_ulid=SECOND_ULID,
         published_cover_hash=cover.content_hash,
+        renamable_ulid=RENAMABLE_ULID,
     )

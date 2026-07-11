@@ -27,7 +27,11 @@ honest too). Multi-line notes MUST use comment blocks — Django's hash-comment 
   Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
   search()/can_view; the /artikel/neu ROUTE is independently gated either way).
   {% endcomment %}
-  {% if is_archivist %}<a class="c-btn c-btn--primary wb-neu" href="/artikel/neu">+ Neuer Artikel</a>{% endif %}
+  {% if is_archivist %}
+  <a class="c-btn c-btn--primary wb-neu" href="/artikel/neu">+ Neuer Artikel</a>
+  <a class="c-btn c-btn--subtle wb-neu-bestand" href="/bestand/neu">+ Neuer Bestand</a>
+  {% if aktiver_bestand %}<a class="c-btn c-btn--subtle wb-bestand-bearbeiten" href="/bestand/{{ aktiver_bestand }}/bearbeiten">Bestand bearbeiten</a>{% endif %}
+  {% endif %}
 {% endblock %}
 {% block body %}
 <div class="wb-frame">

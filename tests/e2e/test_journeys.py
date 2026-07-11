@@ -66,6 +66,31 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
 
 
+# --- create a Bestand (4.8) --------------------------------------------------------
+
+
+def test_create_bestand_then_file_an_article_under_it(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    # + Neuer Bestand → fill Name → Anlegen → LAND on the create-article form (create→catalog is one
+    # flow), the new Bestand pre-selected + a success hinweis. File the first article under it.
+    page.goto(live_workbench + "/")
+    page.get_by_role("link", name="+ Neuer Bestand").click()
+    page.wait_for_url("**/bestand/neu")
+    page.fill('input[name="name"]', "Plakate")
+    page.click('button:has-text("Anlegen")')
+    page.wait_for_url("**/artikel/neu?**")  # 302 to the create-article form, not the workbench
+    expect(page.get_by_text("Bestand „Plakate“ angelegt.")).to_be_visible()  # success hinweis
+    expect(page.locator('select[name="collection_id"]')).to_contain_text("Plakate")
+    page.fill('input[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
+    page.click('button:has-text("Anlegen")')
+    page.wait_for_url("**/bearbeiten**")
+    # now the Bestand has an article, so it appears in the workbench collection facet (indexed name)
+    page.goto(live_workbench + "/")
+    expect(page.locator(".c-facet-label", has_text="Plakate")).to_be_visible()
+
+
 # --- create a draft ----------------------------------------------------------------
 
 
