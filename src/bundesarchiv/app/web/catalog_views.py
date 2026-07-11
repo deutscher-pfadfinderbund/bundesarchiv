@@ -801,6 +801,13 @@ def _preview_fields_label(result: VisibilityPreview) -> str:
 #: error, never a 500.
 _MAX_UPLOAD_BYTES = getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024)
 
+#: How many times a structural media save retries a concurrent version bump before giving up and
+#: telling the archivist to try again (rare: single-app-process, a handful of writers).
+_STRUCTURAL_SAVE_ATTEMPTS = 3
+
+#: The German hinweis shown when a structural media change lost every race (see _structural_save).
+_MEDIEN_KONFLIKT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
+
 
 def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /artikel/<ulid>/medien/verschieben`` — reorder one media entry up/down (``richtung`` =
@@ -813,8 +820,8 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     store, _ = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
-    _structural_save(store, ulid, lambda media: _reordered(media, content_hash, richtung))
-    return _rerender_edit(request, store, ulid)
+    saved = _structural_save(store, ulid, lambda media: _reordered(media, content_hash, richtung))
+    return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
 
 
 def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -828,8 +835,8 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     store, _ = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
-        _structural_save(store, ulid, lambda media: _without(media, content_hash))
-        return _rerender_edit(request, store, ulid)
+        saved = _structural_save(store, ulid, lambda media: _without(media, content_hash))
+        return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
     # step 1: show the inline confirm for this row (no mutation)
     return _rerender_edit(request, store, ulid, entfernen_hash=content_hash)
 
@@ -855,29 +862,34 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     new_refs = [
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
+    saved = True
     if new_refs:
-        _structural_save(store, ulid, lambda media: (*media, *new_refs))
-    return _rerender_edit(request, store, ulid)
+        saved = _structural_save(store, ulid, lambda media: (*media, *new_refs))
+    return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
 
 
 def _structural_save(
     store: ObjectStore,
     ulid: Ulid,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
-) -> None:
+) -> bool:
     """Apply an idempotent structural transform to the article's media tuple and save via the service
-    (canonical write + index sync), retrying ONCE on a concurrent version bump (safe: the transform
+    (canonical write + index sync), retrying on a concurrent version bump (safe: the transform
     re-applies to the winner's fresh media with the same intent). Non-CAS from the form's view — it
-    re-loads the current version rather than trusting the form's expected_version (spec §6.3)."""
+    re-loads the current version rather than trusting the form's expected_version (spec §6.3).
+
+    Returns True on a committed save, False if every attempt lost the race (so the caller surfaces a
+    German hinweis rather than silently pretending the change stuck)."""
     repo = ArticleRepository(store)
-    for _ in range(2):
+    for _ in range(_STRUCTURAL_SAVE_ATTEMPTS):
         stored = repo.load(ulid)
         mutated = replace(stored.article, media=transform(stored.article.media))
         try:
             article_services.save_article(store, mutated, stored.version)
-            return
+            return True
         except Conflict:
             continue  # a concurrent write won; re-load and re-apply the idempotent transform
+    return False
 
 
 def _reordered(

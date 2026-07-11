@@ -155,6 +155,30 @@ def test_verschieben_get_is_404(corpus: _Corpus) -> None:
         )
 
 
+def test_structural_save_conflict_surfaces_hinweis_not_silent(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # If every structural save attempt loses the race, the archivist must SEE a hinweis (not a
+    # silently-unchanged form). Force save_article to always raise Conflict.
+    from bundesarchiv.app import articles
+    from bundesarchiv.persistence.errors import Conflict
+
+    def _always_conflict(*_a: object, **_k: object) -> None:
+        raise Conflict("forced")
+
+    # _structural_save calls save_article via the app.articles module — patch it at the source.
+    monkeypatch.setattr(articles, "save_article", _always_conflict)
+    before = _hashes(corpus)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+        )
+    assert response.status_code == 200
+    assert "bitte erneut versuchen" in response.content.decode().lower()
+    assert _hashes(corpus) == before  # nothing changed
+
+
 # --- remove (two-step) -------------------------------------------------------------
 
 
