@@ -28,6 +28,9 @@ dev = [
     "wsgidav>=4.3.4",
     "cheroot>=11.1.2",
     "types-pyyaml>=6.0.12.20260518",
+    # E2E journey suite + state gallery (Part #26). Dev-only, browser-driven; the ``e2e`` marker
+    # keeps these out of the fast gate (they need a live server + the cached chromium-1228 browser).
+    "pytest-playwright>=0.5",
 ]
 
 [tool.ruff]
@@ -77,3 +80,8 @@ testpaths = ["tests"]
 # use neither, so they still run with no Postgres. Only tests/index touches the DB, gated by
 # tests/index/conftest.py (which fails, not skips, when Postgres is unreachable).
 DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
+# The E2E journey suite (tests/e2e/, Part #26) drives a real browser against a live server — slow and
+# heavyweight, so it is EXCLUDED from the default run (the fast gate + pre-commit) by the `e2e`
+# marker. Run it explicitly with `uv run pytest -m e2e`. All other suites are unaffected.
+markers = ["e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)"]
+addopts = "-m 'not e2e'"
