@@ -163,9 +163,13 @@ body.wb {
   margin-bottom: var(--space-3);
 }
 .wb-pane-schliessen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   color: var(--on-surface-variant);
   text-decoration: none;
-  padding: 0 var(--space-1);
   border-radius: var(--radius-s);
 }
 .wb-pane-schliessen:hover { color: var(--on-surface); }
