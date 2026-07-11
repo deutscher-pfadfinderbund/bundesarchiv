@@ -193,10 +193,7 @@ def _reject(
             "orphans": [],
             "drawer": True,
             "feld_options": tuple((f.target, f.label) for f in bulk.FIELDS),
-            "media_type_options": (
-                ("", "— Medienart wählen —"),
-                *((m, m) for m in vocab.media_types()),
-            ),
+            "media_type_options": vocab.media_type_options(),
             "document_type_groups": vocab.grouped_document_type_options(),
             "collection_options": (
                 ("", "— Bestand wählen —"),

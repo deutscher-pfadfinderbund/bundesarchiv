@@ -29,7 +29,7 @@ from django.shortcuts import render
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.web import catalog, vocab
-from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import VisibilityPreview, preview
 from bundesarchiv.domain.collections import resolve_chain
@@ -372,7 +372,7 @@ def _edit_context(
         "errors": errors,
         "autofocus": autofocus,
         "collection_options": _collection_options(collections),
-        "media_type_options": _media_type_options(),
+        "media_type_options": vocab.media_type_options(),
         "document_type_groups": vocab.grouped_document_type_options(),
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
         "ref_code": values.get("ref_code") or "",
@@ -413,7 +413,7 @@ def _media_rows(
         _MediaRow(
             filename=ref.filename,
             content_hash=ref.content_hash,
-            thumb_url=f"/media/{ulid}/{ref.content_hash}/thumb",
+            thumb_url=thumbnail_url(ulid, ref.content_hash),
             size=_human_size(ref.byte_size),
             caption=ref.caption or "",
             is_cover=i == 0,
@@ -435,12 +435,6 @@ def _human_size(byte_size: int | None) -> str:
             return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} GB"
-
-
-def _media_type_options() -> tuple[tuple[str, str], ...]:
-    """The Medienart select options: the placeholder first (empty, server-rejected), then the
-    vocabulary in order."""
-    return (("", "— Medienart wählen —"), *((m, m) for m in vocab.media_types()))
 
 
 def _edtf_echo(date_value: str) -> str:
@@ -610,16 +604,9 @@ def _diff_value(article: Article, name: str) -> str:
 
 
 def _audience_label(article: Article) -> str:
-    """The stored audience as a human-German label for the CAS diff (inherit / rung / groups)."""
-    if article.audience is None:
-        return "Vom Bestand erben"
-    match article.audience.tier:
-        case AudienceTier.PUBLIC:
-            return "Öffentlich"
-        case AudienceTier.MEMBERS:
-            return "Alle Mitglieder"
-        case AudienceTier.GROUPS:
-            return "Gruppe: " + ", ".join(article.audience.groups)
+    """The stored audience as a human-German label for the CAS diff (inherit / rung / groups) — the
+    shared ``vocab`` formatter fed the article's own audience."""
+    return vocab.sichtbarkeit_label(article.audience)
 
 
 # --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
@@ -785,13 +772,14 @@ def _collection_map(store: ObjectStore) -> dict[Ulid, Collection]:
 
 def _preview_audience_label(result: VisibilityPreview) -> str:
     """The who-gains-sight string for the preview panel (spec §6.2): the widest rung the article
-    would reach after publication, in plain German."""
+    would reach after publication, in plain German. Reuses the shared rung captions so the preview
+    can't drift from the ledger/CAS-diff wording; the ``Niemand`` fallback is preview-specific."""
     if result.public:
-        return "Öffentlich"
+        return vocab.SICHTBARKEIT_PUBLIC
     if result.groups:
-        return "Gruppe: " + ", ".join(result.groups)
+        return vocab.groups_label(result.groups)
     if result.members:
-        return "Alle Mitglieder"
+        return vocab.SICHTBARKEIT_MEMBERS
     return "Niemand (kein Bestand-Zugriff)"
 
 

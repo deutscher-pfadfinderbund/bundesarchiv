@@ -48,6 +48,20 @@ _HASH_LENGTH = 64
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
 
+def media_url(ulid: str, content_hash: str) -> str:
+    """The public wire URL of a blob: ``/media/<ulid>/<content_hash>`` (the ``media`` route). The ONE
+    builder for this shape — the detail view, the preview pane, and the edit-form media manager all
+    call it, so the URL layout has a single home (it is earmarked to change with the Part 7 tiering
+    work). Distinct from ``media.blob_key`` — that builds the store-relative blob key, not the URL."""
+    return f"/media/{ulid}/{content_hash}"
+
+
+def thumbnail_url(ulid: str, content_hash: str) -> str:
+    """The public wire URL of a blob's thumbnail: ``/media/<ulid>/<content_hash>/thumb`` (the
+    ``media-thumb`` route). Same single-source rule as :func:`media_url`."""
+    return f"{media_url(ulid, content_hash)}/thumb"
+
+
 def _canonical_store() -> ObjectStore:
     """The canonical files-store the views read from (ADR 0005). Built per request from settings —
     the same construction as the worker's ``canonical_store``. Monkeypatched in tests."""

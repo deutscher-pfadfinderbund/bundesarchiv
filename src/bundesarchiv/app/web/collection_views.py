@@ -25,12 +25,13 @@ from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
 from bundesarchiv.app import create_collection, save_collection
+from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import Audience, Collection
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
@@ -238,13 +239,6 @@ def _parent_name(store: ObjectStore, parent_id: str | None) -> str:
 
 
 def _sichtbarkeit_label(audience: Audience | None) -> str:
-    """The human Sichtbarkeit label for the read-only display row. ``None`` = inherit (the ADR 0001
-    default); otherwise the rung's caption, with the group list for GROUPS. The strings match the
-    shared 4.7 source (``catalog_views._audience_label`` / ``_SICHTBARKEIT_OPTIONS``) verbatim."""
-    if audience is None:
-        return "Vom Bestand erben"
-    if audience.tier is AudienceTier.PUBLIC:
-        return "Öffentlich"
-    if audience.tier is AudienceTier.MEMBERS:
-        return "Alle Mitglieder"
-    return f"Gruppe: {', '.join(audience.groups)}"
+    """The human Sichtbarkeit label for the read-only display row — the shared ``vocab`` formatter
+    (the SAME one the 4.7 CAS diff uses), so the two screens can never word the ladder differently."""
+    return vocab.sichtbarkeit_label(audience)

@@ -32,7 +32,7 @@ from bundesarchiv.app.web.article_auth import (
     resolve_visible_article,
     resolve_visible_detail,
 )
-from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
 from bundesarchiv.domain.viewer import Archivist
@@ -55,12 +55,6 @@ _BULK_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
     ("", "— Feld wählen —"),
     *((f.target, f.label) for f in bulk.FIELDS),
 )
-
-
-def _media_type_options() -> tuple[tuple[str, str], ...]:
-    """The Medienart select options (placeholder first, then the vocab) — the bulk drawer reuses the
-    4.7 builder shape."""
-    return (("", "— Medienart wählen —"), *((m, m) for m in vocab.media_types()))
 
 
 def _bulk_collection_options() -> tuple[tuple[str, str], ...]:
@@ -182,9 +176,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     if article is None:
         return None  # malformed / absent / denied — all indistinguishable, no pane
     media = tuple(
-        _PaneMedia(
-            caption=m.caption or "", thumb_url=f"/media/{article.ulid}/{m.content_hash}/thumb"
-        )
+        _PaneMedia(caption=m.caption or "", thumb_url=thumbnail_url(article.ulid, m.content_hash))
         for m in article.media
     )
     # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
@@ -249,14 +241,15 @@ def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
     re-derive visibility (that is search()/_viewer_scope). Only the archivist ledger renders this
     (the template gates it), and the data is leak-free on scoped rows by construction (SearchHit
     docstring). ``tier is None`` is an archivist-only row (a fail-closed row that is not a draft) —
-    it has no ladder rung, so it shows nothing here."""
+    it has no ladder rung, so it shows nothing here. The rung captions come from the shared ``vocab``
+    source (the index scope strings differ from the domain enum, so the mapping stays here)."""
     match tier:
         case "PUBLIC":
-            return "Öffentlich"
+            return vocab.SICHTBARKEIT_PUBLIC
         case "MEMBERS":
-            return "Alle Mitglieder"
+            return vocab.SICHTBARKEIT_MEMBERS
         case "GROUPS":
-            return "Gruppe: " + ", ".join(groups)
+            return vocab.groups_label(groups)
         case _:
             return ""
 
@@ -462,7 +455,7 @@ def _bulk_bar_context(
         "has_auswahl": bool(auswahl),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
         "bulk_feld_options": _BULK_FELD_OPTIONS,
-        "bulk_media_type_options": _media_type_options(),
+        "bulk_media_type_options": vocab.media_type_options(),
         "bulk_document_type_groups": vocab.grouped_document_type_options(),
         "bulk_collection_options": _bulk_collection_options(),
     }
@@ -637,8 +630,8 @@ def _detail_media(article: Article) -> tuple[_DetailMedia, ...]:
     return tuple(
         _DetailMedia(
             caption=m.caption or "",
-            thumb_url=f"/media/{article.ulid}/{m.content_hash}/thumb",
-            file_url=f"/media/{article.ulid}/{m.content_hash}",
+            thumb_url=thumbnail_url(article.ulid, m.content_hash),
+            file_url=media_url(article.ulid, m.content_hash),
         )
         for m in article.media
     )

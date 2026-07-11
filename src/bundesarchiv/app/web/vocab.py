@@ -17,6 +17,7 @@ one source with no database:
 """
 
 from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.models import Audience, AudienceTier
 
 #: The fixed-in-code Medienart→Dokumenttyp vocabulary (owner Q1, v1). Insertion order is the render
 #: order of both the Medienart select and the dependent-Dokumenttyp optgroups. German UI values.
@@ -33,6 +34,13 @@ MEDIENART_DOKUMENTTYP: dict[str, tuple[str, ...]] = {
 def media_types() -> tuple[str, ...]:
     """The Medienart values the select offers, in vocabulary order (the mapping's keys)."""
     return tuple(MEDIENART_DOKUMENTTYP)
+
+
+def media_type_options() -> tuple[tuple[str, str], ...]:
+    """The Medienart ``<select>`` options: the placeholder first (empty value, server-rejected), then
+    the vocabulary in order. The 4.7 edit form, the workbench bulk drawer, and the bulk view all
+    render the SAME options from here — one source so the placeholder string never drifts."""
+    return (("", "— Medienart wählen —"), *((m, m) for m in media_types()))
 
 
 def document_types_for(media_type: str) -> tuple[str, ...]:
@@ -59,6 +67,37 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
         (media_type, tuple((t, t) for t in types))
         for media_type, types in MEDIENART_DOKUMENTTYP.items()
     )
+
+
+# --- Sichtbarkeit (audience) German labels -----------------------------------------
+
+#: The German Sichtbarkeit rung captions — the ONE source for the ladder's user-facing words. Every
+#: audience-label helper across the web slice (the archivist ledger, the CAS diff, the publish
+#: preview, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
+#: the strings can never drift between screens. ``SICHTBARKEIT_ERBEN`` is the ADR-0001 inherit default.
+SICHTBARKEIT_ERBEN = "Vom Bestand erben"
+SICHTBARKEIT_PUBLIC = "Öffentlich"
+SICHTBARKEIT_MEMBERS = "Alle Mitglieder"
+
+
+def groups_label(groups: tuple[str, ...]) -> str:
+    """The GROUPS-rung caption: ``Gruppe: <name>, <name>``. The one place the group list is joined."""
+    return "Gruppe: " + ", ".join(groups)
+
+
+def sichtbarkeit_label(audience: Audience | None) -> str:
+    """An ``Audience`` (or ``None`` = inherit) as its human-German Sichtbarkeit caption. Shared by the
+    4.7 CAS diff and the 4.8 read-only Bestand row (both hold an ``Audience | None``); the ledger and
+    the publish preview, which start from other shapes, reuse the same rung strings above."""
+    if audience is None:
+        return SICHTBARKEIT_ERBEN
+    match audience.tier:
+        case AudienceTier.PUBLIC:
+            return SICHTBARKEIT_PUBLIC
+        case AudienceTier.MEMBERS:
+            return SICHTBARKEIT_MEMBERS
+        case AudienceTier.GROUPS:
+            return groups_label(audience.groups)
 
 
 # --- EDTF -> German echo -----------------------------------------------------------
