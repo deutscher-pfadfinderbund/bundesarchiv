@@ -115,10 +115,43 @@ class _Corpus:
             ),
             0,
         )
+        # A single-media record: exactly ONE sheet → the cover Platte renders, but the filmstrip
+        # register is omitted (§1: the cover already shows the only sheet). Pins the ≤1-media boundary.
+        solo = articles.add_media(self.single, "s.png", _png((60, 60, 200)), media_type="image/png")
+        self.single_hash = solo.content_hash
+        articles.save(
+            Article(
+                ulid=self.single,
+                title="Ein Blatt",
+                collection_id="FOTOS",
+                lifecycle=Lifecycle.PUBLISHED,
+                media=(MediaRef(solo.filename, solo.content_hash, caption="Das einzige Blatt"),),
+            ),
+            0,
+        )
+        # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
+        # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
+        evil = articles.add_media(self.markup, "e.png", _png((90, 90, 90)), media_type="image/png")
+        articles.save(
+            Article(
+                ulid=self.markup,
+                title="<script>alert('titel')</script>",
+                collection_id="FOTOS",
+                lifecycle=Lifecycle.PUBLISHED,
+                body="Harmlos.\n\n<script>alert('body')</script>",
+                creator="<b>Autor</b>",
+                media=(
+                    MediaRef(evil.filename, evil.content_hash, caption="<img src=x onerror=1>"),
+                ),
+            ),
+            0,
+        )
 
     pub = new_ulid()
     draft = new_ulid()
     textonly = new_ulid()
+    single = new_ulid()
+    markup = new_ulid()
 
 
 @pytest.fixture
@@ -300,6 +333,36 @@ def test_media_only_record_keeps_the_two_track_grid(corpus: _Corpus) -> None:
     # article has a body, so its grid stays two-track (guards the :not(:has) precondition boundary).
     body = _body(corpus, Public(), corpus.pub)
     assert "l-prosa" in body
+
+
+def test_single_media_record_shows_cover_but_no_filmstrip(corpus: _Corpus) -> None:
+    # §1 media-state boundary: exactly ONE sheet → the cover Platte renders (l-platte present, linking
+    # its full byte route) but the filmstrip register is omitted (l-register absent — the cover IS the
+    # only sheet). The 0-media (textonly) and 2-media (pub) states are pinned elsewhere; this pins the
+    # ≤1 boundary that decides `{% if weitere %}`.
+    body = _body(corpus, Public(), corpus.single)
+    assert "Ein Blatt" in body
+    assert "l-platte" in body  # cover frame present
+    assert f'href="/media/{corpus.single}/{corpus.single_hash}"' in body  # cover links full image
+    assert "l-register" not in body  # no filmstrip for a single sheet
+    assert "Blatt 1 /" not in body  # no register count
+
+
+# --- escaping: free-text values round-trip inert (the leak-surface pin) -------------
+
+
+def test_markup_bearing_fields_render_escaped(corpus: _Corpus) -> None:
+    # The detail template auto-escapes every value (no |safe / mark_safe anywhere). A <script> in the
+    # title, body, creator, or a media caption must round-trip as escaped text — never as live markup
+    # (stored-XSS closed: an archivist-typed field cannot execute in a reader's browser).
+    body = _body(corpus, Public(), corpus.markup)
+    # the payloads appear ESCAPED …
+    assert "&lt;script&gt;alert(&#x27;body&#x27;)&lt;/script&gt;" in body
+    assert "&lt;script&gt;alert(&#x27;titel&#x27;)&lt;/script&gt;" in body
+    assert "&lt;img src=x onerror=1&gt;" in body  # the caption
+    # … and NEVER as executable markup.
+    assert "<script>alert" not in body
+    assert "<img src=x onerror=1>" not in body
 
 
 def test_zurueck_default_when_no_return_query(corpus: _Corpus) -> None:
