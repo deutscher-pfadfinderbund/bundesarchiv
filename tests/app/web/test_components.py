@@ -55,7 +55,13 @@ _DEV = {
 #: Raw color values, any of which in a component file is a defect. Hex needs 3+ hex digits so
 #: demo anchors like href="#" stay legal; the function forms catch oklch/rgb/hsl and their
 #: alpha variants. var(--…) and color-mix(…) do not match — they carry roles, not colors.
-_RAW_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\boklch\(|\brgba?\(|\bhsla?\(", re.IGNORECASE)
+#: The bare CSS named colors black/white are caught too (a color-mix over a role must mix another
+#: role, not a raw color) — but ``(?!-)`` spares ``white-space`` etc. (a named color as a value is
+#: never followed by a hyphen).
+_RAW_COLOR = re.compile(
+    r"#[0-9a-fA-F]{3,8}\b|\boklch\(|\brgba?\(|\bhsla?\(|\b(?:black|white)\b(?!-)",
+    re.IGNORECASE,
+)
 
 
 # --- the dev-only library route ---------------------------------------------------

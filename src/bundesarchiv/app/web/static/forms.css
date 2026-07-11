@@ -280,8 +280,10 @@
   border: 1px solid var(--error);
 }
 .c-btn--gefahr:hover {
-  background: color-mix(in oklab, var(--error), black 12%);
-  border-color: color-mix(in oklab, var(--error), black 12%);
+  /* deepen toward the button's own ink role (role-only mix — no raw color); mirrors the primary
+     button's hover idiom which mixes on-surface toward surface */
+  background: color-mix(in oklab, var(--error), var(--on-error) 12%);
+  border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
 }
 
 /* ---- the delete / discard confirm page (spec §7 states M/N): a centered narrow column, the .c-sig
