@@ -371,3 +371,26 @@ def test_detail_action_row_draft_shows_veroeffentlichen(corpus: _Corpus) -> None
         body = _client_as(Archivist()).get(f"/artikel/{_DRAFT}").content.decode()
     assert "Veröffentlichen" in body
     assert "Als Entwurf zurückziehen" not in body
+
+
+# --- template-comment hygiene (a multi-line {# #} leaks — same rule as the workbench) ----------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        f"/artikel/{_DRAFT}",  # read view
+        f"/artikel/{_DRAFT}/bearbeiten",  # edit form
+        f"/artikel/{_PUBLISHED}/loeschen",  # delete confirm
+    ],
+)
+def test_no_leaked_template_comment(corpus: _Corpus, path: str) -> None:
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(path).content.decode()
+    assert "{#" not in body  # a multi-line {# #} would leak into the rendered page
+
+
+def test_vorschau_no_leaked_template_comment(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).post(f"/artikel/{_DRAFT}/vorschau").content.decode()
+    assert "{#" not in body

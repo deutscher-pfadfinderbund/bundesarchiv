@@ -41,8 +41,9 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
   </section>
   {% endif %}
 
-  {# Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is emphasized
-     by WEIGHT only. The required confirm checkbox gates Veröffentlichen (server re-checks it). #}
+  {% comment %}Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is
+  emphasized by WEIGHT only. The required confirm checkbox gates Veröffentlichen (server re-checks
+  it).{% endcomment %}
   {% if vorschau %}
   <section class="c-panel c-panel--vorschau" aria-labelledby="vorschau-titel">
     <h2 class="c-panel-titel" id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
@@ -244,9 +245,9 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       {% endfor %}
     </details>
 
-    {# Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
-       Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
-       (spec §7 — the destructive idiom lives on its own page, never inline). #}
+    {% comment %}Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
+    Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
+    (spec §7 — the destructive idiom lives on its own page, never inline).{% endcomment %}
     <div class="c-form-footer">
       <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
       <div class="c-form-footer-aktionen">
@@ -258,10 +259,11 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
     </div>
   </form>
 
-  {# Lifecycle control — SEPARATE forms (Enter in the edit form never fires these), adjacent to the
-     footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST /vorschau) that
-     re-renders this page with c-panel--vorschau at top; the panel's own Veröffentlichen (gated by the
-     confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen, no preview. #}
+  {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),
+  adjacent to the footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST
+  /vorschau) that re-renders this page with c-panel--vorschau at top; the panel's own Veröffentlichen
+  (gated by the confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen,
+  no preview.{% endcomment %}
   <section class="c-form-lebenszyklus">
     {% if values.is_draft %}
     <form method="post" action="/artikel/{{ values.ulid }}/vorschau">
