@@ -194,6 +194,39 @@ def test_entfernen_denied_leaves_media(corpus: _Corpus, viewer: Viewer) -> None:
     assert len(corpus.media()) == 2  # nothing removed
 
 
+def test_member_with_valid_csrf_still_gets_byte_identical_404(corpus: _Corpus) -> None:
+    # The real leak-suite concern: an AUTHENTICATED non-archivist can obtain a CSRF token, so CSRF
+    # (which floors an anonymous tokenless POST to 403) must not be the only barrier. A Member who
+    # clears CSRF must still hit the archivist gate's byte-identical 404 — no existence oracle, no
+    # mutation. Seed the csrf cookie via the DB-free dev switcher GET (prod routes are composed into
+    # the dev urlconf), then POST the structural route with a matching token.
+    client = Client(enforce_csrf_checks=True)
+    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
+    client.cookies["dev_viewer"] = signer.sign(encode_viewer(Member(groups=("vorstand",))))
+    dev_settings = {
+        **_settings(corpus),
+        "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
+        "MIDDLEWARE": [
+            "django.middleware.csrf.CsrfViewMiddleware",
+            "bundesarchiv.app.web.dev.DevViewerMiddleware",
+        ],
+    }
+    with override_settings(**dev_settings):
+        client.get("/_dev/viewer/")  # DB-free; renders a form → sets the csrf cookie
+        token = client.cookies["csrftoken"].value
+        response = client.post(
+            f"/artikel/{_ULID}/medien/entfernen",
+            {
+                "entfernen": corpus.ref_b.content_hash,
+                "bestaetigt": "1",
+                "csrfmiddlewaretoken": token,
+            },
+        )
+    assert response.status_code == 404  # the archivist gate, not a 403 and not a leak
+    assert _404_shape(response) == _media_404_shape()
+    assert len(corpus.media()) == 2  # nothing removed
+
+
 # --- upload ------------------------------------------------------------------------
 
 
