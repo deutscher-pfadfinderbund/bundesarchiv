@@ -165,8 +165,15 @@
   background: var(--surface-container-high);
   border-top: 1px solid var(--outline-variant);
 }
-/* the create step's footer is not sticky — the page is short (no scroll to pin against) */
-.c-form-footer--neu { position: static; margin-top: 0; padding: var(--space-2) 0 0; }
+/* the create step's footer is not sticky — the page is short (no scroll to pin against), and it
+   drops the footer bar's fill + top border so the near-empty page stays plain (spec focal-point A) */
+.c-form-footer--neu {
+  position: static;
+  margin-top: 0;
+  padding: var(--space-2) 0 0;
+  background: none;
+  border-top: none;
+}
 .c-form-footer-aktionen {
   display: inline-flex;
   gap: var(--space-2);
