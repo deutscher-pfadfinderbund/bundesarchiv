@@ -413,7 +413,10 @@ def _datum_group(params: dict[str, str], parsed: browse.ParsedQuery, page: objec
 
 
 def _sort_label(sort: str) -> str:
-    """The German label for the active sort (so the ``<select>`` marks the right option)."""
+    """The German sort label for the active ``SortOrder`` — the inverse of ``browse._SORT_BY_LABEL``.
+    Feeds ``_ledger_columns`` active-column detection (the sort <select> is gone; the column headers
+    are the sort control): a header is active when its ``sort_key`` equals this label. Falls to
+    "relevanz" (the default, which has no sortable column)."""
     return next(
         (label for label, order in browse._SORT_BY_LABEL.items() if order == sort), "relevanz"
     )
