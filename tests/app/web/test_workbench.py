@@ -671,11 +671,17 @@ def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_bulk_bar_absent_when_selection_empty(corpus_root: Path) -> None:
-    # signals-once: no "0 ausgewählt" bar with an empty selection
+def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
+    # Cold-start fix (#16 reopen): with an EMPTY selection the bar's AFFORDANCES must render for an
+    # archivist-with-results, so the feature is reachable — the "Änderung prüfen" submit (posts the
+    # checked boxes) + "Alle auf dieser Seite" link. Signals-once still holds: NO "0 ausgewählt"
+    # count and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
-    assert "wb-sammelleiste" not in body
-    assert "ausgewählt" not in body
+    assert "wb-sammelleiste" in body
+    assert "Änderung prüfen" in body
+    assert "Alle auf dieser Seite" in body
+    assert "ausgewählt" not in body  # no status filler
+    assert "Auswahl aufheben" not in body
 
 
 @pytest.mark.django_db

@@ -373,27 +373,37 @@ def _results_context(
 def _bulk_bar_context(
     params: dict[str, str], page: object, auswahl: list[str]
 ) -> dict[str, object]:
-    """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only. The bar renders
-    only when the selection is non-empty (signals-once — no "0 ausgewählt"), so with an EMPTY
-    selection this builds NOTHING beyond the off flag — the option lists (vocab + a collections
-    load) are only computed when the drawer will actually show."""
-    if not auswahl:
-        return {"bulk_bar": False}
+    """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
+
+    The bar's AFFORDANCES render whenever there are hits (cold-start fix, #16): the "Änderung prüfen"
+    submit (POSTs the checked boxes — a zero-check submit hits the existing "Keine Artikel
+    ausgewählt." reject) and the "Alle auf dieser Seite" page-select link, so the feature is reachable
+    with no prior selection. Signals-once still holds for STATUS: ``has_auswahl`` gates the
+    "{n} ausgewählt" count + "Auswahl aufheben" so an empty selection shows no "0 ausgewählt".
+
+    Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
+    the whole results block on ``page.hits``, so this returns the off flag defensively for that case.
+    """
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
+    if not hits:
+        return {"bulk_bar": False}
     page_ulids = [h.ulid for h in hits]
-    return {
+    context: dict[str, object] = {
         "auswahl": auswahl,
-        "auswahl_count": len(auswahl),
         "bulk_bar": True,
+        "has_auswahl": bool(auswahl),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
-        # "Auswahl aufheben" drops the selection but KEEPS the active search (params already exclude
-        # auswahl + artikel) — a bare "?" would wipe the filters (design-gate MED finding).
-        "clear_auswahl_query": urlencode({k: v for k, v in params.items() if v}),
         "bulk_feld_options": _BULK_FELD_OPTIONS,
         "bulk_media_type_options": _media_type_options(),
         "bulk_document_type_groups": vocab.grouped_document_type_options(),
         "bulk_collection_options": _bulk_collection_options(),
     }
+    if auswahl:
+        context["auswahl_count"] = len(auswahl)
+        # "Auswahl aufheben" drops the selection but KEEPS the active search (params already exclude
+        # auswahl + artikel) — a bare "?" would wipe the filters (design-gate MED finding).
+        context["clear_auswahl_query"] = urlencode({k: v for k, v in params.items() if v})
+    return context
 
 
 def _facet_groups(

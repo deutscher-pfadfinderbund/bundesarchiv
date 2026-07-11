@@ -107,6 +107,12 @@ STATES: tuple[GalleryState, ...] = (
         "workbench-filtered", "workbench, tag facet applied", True, _goto("/?schlagwort=sommer")
     ),
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
+    GalleryState(
+        "workbench-bulk-cold",
+        "workbench, bulk bar cold start (affordances, no selection)",
+        True,
+        _goto("/"),
+    ),
     GalleryState("workbench-bulk", "workbench, bulk selection bar", True, _reach_bulk),
     GalleryState("workbench-public", "workbench as a public visitor", False, _goto("/")),
     GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),

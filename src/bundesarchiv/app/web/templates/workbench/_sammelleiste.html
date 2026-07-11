@@ -1,18 +1,24 @@
 {% comment %}
 Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the wb-sammelform
 (the row checkboxes name="auswahl" are the selection source). Docked sticky under the header —
-pushes content, never covers rows. Absent when the selection is empty (the view gates bulk_bar).
+pushes content, never covers rows. The AFFORDANCES render whenever there are hits (cold-start fix,
+#16) so the feature is reachable with no prior selection; the STATUS parts are selection-gated.
 
-Bar: "{n} ausgewählt" (mono) · Auswahl aufheben (clears selection → ledger) · Alle auf dieser Seite
-(GET link appending the page's ulids). Drawer: Feld select + every value widget (no-JS renders all;
-catalog_bulk.js shows only the matching one; the server reads the one matching feld) + Änderung
-prüfen (submit → confirm POST). No loud color; the primary is the one anchor.
+Affordances (always): "Alle auf dieser Seite" (GET link appending the page's ulids) + Feld select +
+every value widget (no-JS renders all; catalog_bulk.js shows only the matching one; the server reads
+the one matching feld) + Änderung prüfen (submit → confirm POST; a zero-check submit hits the
+existing "Keine Artikel ausgewählt." reject). Status (has_auswahl only, signals-once — no "0
+ausgewählt"): "{n} ausgewählt" (mono) + Auswahl aufheben (clears selection → ledger). No loud color;
+the primary is the one anchor.
 {% endcomment %}
 <div class="wb-sammelleiste">
   <div class="wb-sammelleiste-status">
-    <span class="wb-sammelleiste-zahl">{{ auswahl_count }} ausgewählt</span>
+    {% comment %}The count span is ALWAYS present (empty when no selection — no "0 ausgewählt", so
+    signals-once holds) so catalog_bulk.js has a live target to write into on the first tick without
+    an early-return. The server fills it for the no-JS path when a selection exists.{% endcomment %}
+    <span class="wb-sammelleiste-zahl">{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span>
     <a class="wb-sammelleiste-link" href="?{{ select_page_query }}">Alle auf dieser Seite</a>
-    <a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>
+    {% if has_auswahl %}<a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
   </div>
 
   <div class="wb-sammelleiste-chooser c-form-group">

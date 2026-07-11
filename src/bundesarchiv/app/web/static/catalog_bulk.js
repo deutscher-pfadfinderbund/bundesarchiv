@@ -46,13 +46,16 @@
     updateCount();
   });
 
+  // The bar (and its count span) is always in the DOM now (cold-start fix, #16), so the count goes
+  // live on the first tick — no early-return. Empty text at zero keeps signals-once (no "0
+  // ausgewählt"); the "Alle auf dieser Seite" link + "Änderung prüfen" submit are always present, so
+  // a JS user reaches the flow by ticking boxes.
   function updateCount() {
     var zahl = form.querySelector(".wb-sammelleiste-zahl");
-    if (!zahl) return;
     var n = rowBoxes().filter(function (b) {
       return b.checked;
     }).length;
-    zahl.textContent = n + " ausgewählt";
+    zahl.textContent = n > 0 ? n + " ausgewählt" : "";
   }
 
   // 3. Feld chooser: show only the value widget matching the chosen field (no-JS shows all; the

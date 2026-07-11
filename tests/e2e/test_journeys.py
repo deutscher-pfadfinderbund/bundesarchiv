@@ -167,10 +167,29 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # Land on the workbench WITH a selection (?auswahl=) so the docked bar + drawer render — this is
-    # the URL-as-state selection the pagination/select-page links produce. Choose a field, apply.
-    # (NOTE: the bar is absent with an empty selection, so this is the reliable entry for the test;
-    # the first-selection entry-point gap is reported to the lead, not patched in this wave.)
+    # The REAL cold-start path (#16 fix): land with NO selection. The bar's affordances are present
+    # (the fix), so tick two row checkboxes → the live count appears (JS) → choose a field →
+    # Änderung prüfen posts the checked boxes → confirm → apply.
+    page.goto(live_workbench + "/")
+    expect(page.locator(".wb-sammelleiste")).to_be_visible()  # affordances present from cold start
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
+    page.select_option('select[name="feld"]', "creator")
+    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.click('button:has-text("Änderung prüfen")')
+    # the confirm page lists the field + count; apply → the result page
+    expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+    page.click('button:has-text("anwenden")')
+    expect(page.get_by_text("abgeschlossen")).to_be_visible()
+
+
+def test_bulk_url_seeded_selection_still_works(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    # The pagination-persistence path: a selection seeded in the URL (?auswahl=) still renders the
+    # bar with the count + confirm flow. Cheap second assertion so the fix doesn't regress it.
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
@@ -179,10 +198,7 @@ def test_bulk_select_confirm_apply(
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
-    # the confirm page lists the field + count; apply → the result page
     expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
-    page.click('button:has-text("anwenden")')
-    expect(page.get_by_text("abgeschlossen")).to_be_visible()
 
 
 # --- no-JS baseline ----------------------------------------------------------------
