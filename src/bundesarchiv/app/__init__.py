@@ -32,6 +32,9 @@ if TYPE_CHECKING:
         save_article as save_article,
     )
     from bundesarchiv.app.collections import (
+        create_collection as create_collection,
+    )
+    from bundesarchiv.app.collections import (
         save_collection as save_collection,
     )
     from bundesarchiv.app.result import (
@@ -46,6 +49,7 @@ __all__ = [
     "SaveResult",
     "copy_article",
     "create_article",
+    "create_collection",
     "hard_delete_article",
     "save_article",
     "save_collection",
@@ -63,10 +67,10 @@ def __getattr__(name: str) -> Any:
         from bundesarchiv.app import articles
 
         return getattr(articles, name)
-    if name == "save_collection":
-        from bundesarchiv.app.collections import save_collection
+    if name in ("save_collection", "create_collection"):
+        from bundesarchiv.app import collections
 
-        return save_collection
+        return getattr(collections, name)
     if name in ("SaveResult", "CreateResult"):
         from bundesarchiv.app import result
 

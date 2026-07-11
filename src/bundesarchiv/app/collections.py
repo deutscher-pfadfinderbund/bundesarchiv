@@ -10,12 +10,48 @@ a reference subtree-reindex job, and returns ``index_updated=False``.
 monkeypatchable in tests.
 """
 
-from bundesarchiv.app.result import SaveResult
+from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
-from bundesarchiv.domain.models import Collection, Version
+from bundesarchiv.domain import identity
+from bundesarchiv.domain.models import Audience, Collection, Ulid, Version
 from bundesarchiv.index.indexer import index_subtree
 from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+
+def create_collection(
+    store: ObjectStore,
+    *,
+    name: str,
+    parent_id: Ulid | None = None,
+    audience: Audience | None = None,
+) -> CreateResult:
+    """Mint a NEW Collection (fresh ULID), save it at version 0 → v1, then reindex its subtree. A
+    fresh collection is empty (a leaf, no descendants), so setting its audience at creation is safe —
+    no over-exposure is possible (4.8). When ``parent_id`` is given it MUST exist (else ``NotFound``,
+    fail-closed — a new node cannot dangle); a top-level collection passes ``parent_id=None``. A new
+    leaf can never create a cycle, so no cycle guard is needed here (unlike a move, which is deferred).
+    """
+    if parent_id is not None and not _collection_exists(store, parent_id):
+        raise NotFound(f"parent collection {parent_id!r} does not exist")
+    collection = Collection(
+        ulid=identity.new_ulid(), name=name, parent_id=parent_id, audience=audience
+    )
+    new_version = CollectionRepository(store).save(collection, 0)  # 0 = first save -> v1
+    index_updated = _sync_index_subtree(store, collection.ulid)
+    _enqueue_mirror(store, collection.ulid)
+    return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
+
+
+def _collection_exists(store: ObjectStore, ulid: Ulid) -> bool:
+    """Is ``ulid`` a real saved Collection? A targeted load (1 read) rather than a full ``load_all``
+    sweep — the caller maps a miss to the same refusal any invalid parent gets (no existence oracle)."""
+    try:
+        CollectionRepository(store).load(ulid)
+    except NotFound:
+        return False
+    return True
 
 
 def save_collection(

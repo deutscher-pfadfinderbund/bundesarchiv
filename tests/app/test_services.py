@@ -14,6 +14,7 @@ import pytest
 from bundesarchiv.app import (
     copy_article,
     create_article,
+    create_collection,
     hard_delete_article,
     save_article,
     save_collection,
@@ -121,6 +122,46 @@ def test_create_article_mints_ulid_and_indexes(store: InMemoryObjectStore) -> No
     row = ArticleIndex.objects.get(ulid=result.ulid)
     assert row.title == "Neuer Artikel"
     assert row.tier == "PUBLIC"
+
+
+# ---------------------------------------------------------------------------
+# create_collection — mints ulid, saves at v1, validates parent (4.8)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_create_collection_mints_ulid_and_saves_top_level(store: InMemoryObjectStore) -> None:
+    result = create_collection(store, name="Neuer Bestand", parent_id=None)
+    assert result.version == 1
+    stored = CollectionRepository(store).load(result.ulid)
+    assert stored.collection.name == "Neuer Bestand"
+    assert stored.collection.parent_id is None
+    assert stored.collection.audience is None  # inherit by default
+
+
+@pytest.mark.django_db
+def test_create_collection_under_parent_with_audience(store: InMemoryObjectStore) -> None:
+    result = create_collection(
+        store,
+        name="Unterbestand",
+        parent_id="FOTOS",
+        audience=Audience(AudienceTier.MEMBERS),
+    )
+    stored = CollectionRepository(store).load(result.ulid)
+    assert stored.collection.parent_id == "FOTOS"
+    assert stored.collection.audience == Audience(AudienceTier.MEMBERS)
+
+
+@pytest.mark.django_db
+def test_create_collection_rejects_absent_parent(store: InMemoryObjectStore) -> None:
+    # a parent that does not exist must be refused (no oracle, fail closed) — nothing created.
+    from bundesarchiv.persistence.errors import NotFound
+
+    with pytest.raises(NotFound):
+        create_collection(store, name="Waise", parent_id="NOSUCH")
+    # the collection set is unchanged (only the fixture's ROOT + FOTOS)
+    ulids = {c.ulid for c in CollectionRepository(store).load_all()}
+    assert ulids == {"ROOT", "FOTOS"}
 
 
 # ---------------------------------------------------------------------------
