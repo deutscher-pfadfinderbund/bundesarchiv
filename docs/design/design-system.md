@@ -126,7 +126,7 @@ Cards remain for photo-heavy and member-facing contexts.
 | Facet group panels | `surface-container-low`, headings `label`/`on-surface-variant` |
 | Active facet | `primary-container` / `on-primary-container` |
 | Result card | `surface-container-low`, hover `-mid` |
-| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle |
+| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
 | Chips | `primary-container` / `on-primary-container` |
 | Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
 | ENTWURF badge | `draft` / `on-draft`; the Sichtbarkeit value for drafts (shown instead of the visibility badge) |

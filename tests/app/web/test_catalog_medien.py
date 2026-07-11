@@ -376,3 +376,13 @@ def test_edit_form_zero_state_when_no_media(corpus: _Corpus) -> None:
         body = _client_as(Archivist()).get(f"/artikel/{empty}/bearbeiten").content.decode()
     assert "Noch keine Medien" in body
     assert "Das erste hochgeladene Bild wird zum Titelbild." in body
+
+
+def test_upload_controls_belong_to_the_medien_upload_form(corpus: _Corpus) -> None:
+    # fix-wave: the upload file input + button sit inside the Medien drawer but carry
+    # form="medien-upload" (the separate multipart form declared after the main form).
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    assert 'type="file" name="dateien" form="medien-upload"' in body
+    assert '<form id="medien-upload"' in body
+    assert 'enctype="multipart/form-data"' in body

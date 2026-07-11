@@ -70,7 +70,9 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
     <h1 class="c-form-kopf-titel">{{ values.title|default:"Ohne Titel" }}</h1>
     <span class="c-form-kopf-marken">
       {% include "components/badge_lifecycle.html" with draft=values.is_draft %}
-      {% include "components/signatur_tab.html" with ref_code=ref_code %}
+      {% comment %}Edit-header omits the hollow "ohne Signatur" slot — the Signatur INPUT on this same
+      screen carries absence (owner finding, signals-once). Show the mark only when a code exists.{% endcomment %}
+      {% if ref_code %}{% include "components/signatur_tab.html" with ref_code=ref_code %}{% endif %}
     </span>
   </header>
 
@@ -229,7 +231,9 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
     reorder/remove buttons belong to their OWN per-row form (declared after this form, referenced via
     form=) so each carries exactly one unambiguous hash — never the whole register. The FIRST row's
     TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per
-    spec §6.3. Upload is a separate multipart form below.{% endcomment %}
+    spec §6.3. The upload controls sit at the drawer bottom but belong to the separate multipart
+    form#medien-upload (declared after this form) via form= — file inputs support form=, same idiom
+    as the row buttons.{% endcomment %}
     <fieldset class="c-form-group">
       <legend class="c-form-legend">Medien</legend>
       {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
@@ -268,6 +272,10 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
       {% else %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
+      <div class="c-medien-upload">
+        <input class="c-input" type="file" name="dateien" form="medien-upload" multiple>
+        <button class="c-btn c-btn--subtle" type="submit" form="medien-upload">Hinzufügen</button>
+      </div>
     </fieldset>
 
     {# Gruppe 7 — Weitere Angaben (custom bag) #}
@@ -329,12 +337,12 @@ Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-f
   </form>
   {% endfor %}
 
-  {# Upload — a separate multipart form (spec §6.3): native file input, appends at the end #}
-  <form class="c-medien-upload" method="post" enctype="multipart/form-data"
-        action="/artikel/{{ values.ulid }}/medien/hochladen">
+  {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest). Its controls render
+  inside the Medien drawer above via form="medien-upload"; this declares the form (hidden) after the
+  main form. Appends at the end, write-once dedupe.{% endcomment %}
+  <form id="medien-upload" method="post" enctype="multipart/form-data"
+        action="/artikel/{{ values.ulid }}/medien/hochladen" hidden>
     {% csrf_token %}
-    <input class="c-input" type="file" name="dateien" multiple>
-    <button class="c-btn c-btn--subtle" type="submit">Hinzufügen</button>
   </form>
 
   {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),

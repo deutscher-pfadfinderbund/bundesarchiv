@@ -135,6 +135,25 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _Corpus) -> None:
     assert "F 12/3" in body
 
 
+def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> None:
+    # fix-wave (owner finding): the edit header shows the Signatur mark ONLY when a code exists —
+    # absence is carried by the Signatur INPUT on the same screen, not a hollow "ohne Signatur" slot
+    # (signals-once). The hollow slot stays in the ledger + read view, not here.
+    no_sig = "01KX7YT9E3VX0CP3A5Q49RZMWK"
+    ArticleRepository(corpus.store).save(
+        Article(ulid=no_sig, title="Unbetitelt", collection_id="PUB", lifecycle=Lifecycle.DRAFT),
+        0,
+    )
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{no_sig}/bearbeiten").content.decode()
+    # the sr-only "Ohne Signatur" text (rendered by the hollow-slot signatur_tab) must NOT appear —
+    # the edit header omits the slot entirely; the Signatur input carries absence instead
+    assert "Ohne Signatur" not in body
+    assert "c-sig--leer" not in body  # the hollow-slot class is absent
+    # the Signatur input is present and empty
+    assert 'name="ref_code" value=""' in body
+
+
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------
 
 

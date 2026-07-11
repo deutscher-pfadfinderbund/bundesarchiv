@@ -303,12 +303,15 @@
   padding: calc(var(--space-1) / 2) var(--space-2);
 }
 
-/* lifecycle control: a quiet secondary block below the footer (separate forms so Enter never fires
-   a lifecycle action). Spaced off the sticky footer above it; the action itself is a subtle button. */
+/* lifecycle control: reads as a continuation of the sticky footer band — same surface, flush against
+   it (no gap), a subtle action right-aligned. Separate forms so Enter never fires a lifecycle action
+   (spec §6.2). The footer's own hairline top border already separates the pair from the fields. */
 .c-form-lebenszyklus {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-4);
+  margin-top: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  background: var(--surface-container-high);
 }
 
 /* ---- panel: shared square hairline base + the konflikt modifier (spec §6.1) ---- */
