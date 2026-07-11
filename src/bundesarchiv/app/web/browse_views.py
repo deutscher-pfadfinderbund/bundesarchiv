@@ -494,6 +494,13 @@ def serve_ledger_pane_js(request: HttpRequest) -> HttpResponseBase:
     return _serve_static("ledger_pane.js", "application/javascript")
 
 
+def serve_catalog_form_js(request: HttpRequest) -> HttpResponseBase:
+    """``GET /static/catalog_form.js`` — the Part 4.7 cataloging-form enhancement (dirty register,
+    client-side custom-bag add/remove, discrete upload-progress sliver). Enhancement-only: every
+    behaviour has a working no-JS baseline, so an unavailable file degrades cleanly."""
+    return _serve_static("catalog_form.js", "application/javascript")
+
+
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
     sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css

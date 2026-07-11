@@ -262,6 +262,24 @@
   font: var(--type-meta);
   color: var(--error);
 }
+/* upload progress sliver (spec §6.3): a neutral on-surface fill in a surface-container-low track,
+   grown in discrete XHR-reported steps by catalog_form.js — NO easing, NO transition (no-motion
+   law). Zero-width at rest; enhancement-only (absent when JS never paints it). */
+.c-medien-fortschritt {
+  height: 2px;
+  margin-top: var(--space-2);
+  background: var(--surface-container-low);
+}
+.c-medien-fortschritt-fill {
+  width: 0;
+  height: 100%;
+  background: var(--on-surface);
+}
+
+/* in-flight cue for HTMX swaps (spec §5, no-motion): a static opacity dim while a request is in
+   flight — no spinner, no transition. The media drawer + form region dim during their own swap. */
+#medien-drawer.htmx-request,
+.c-form-felder.htmx-request { opacity: 0.6; }
 
 /* ---- EDTF echo: neutral body text, at most one violet fragment (spec §0) ---- */
 

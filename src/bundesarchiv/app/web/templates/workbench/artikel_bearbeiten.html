@@ -8,13 +8,20 @@ source so Enter submits it; the hidden expected_version rides the form for CAS (
 Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">
+<script src="/static/catalog_form.js" defer></script>{% endblock %}
 {% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
 the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.{% endcomment %}
 <main class="c-form" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+{% comment %}#form-region wraps the panels + header + edit form — the save hx-post swaps exactly this
+from the SAME full-page render (hx-select), so validation/conflict/state-H re-renders and their panels
+appear without a partial-render fork. On a successful save the view sends HX-Redirect instead (spec
+§5). The media drawer inside re-renders harmlessly; its own structural POSTs swap #medien-drawer
+only.{% endcomment %}
+<div id="form-region">
 
   {% if conflict %}
   <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
@@ -83,7 +90,13 @@ the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closebloc
     </span>
   </header>
 
-  <form id="bearbeiten-form" class="c-form-felder" method="post" action="/artikel/{{ values.ulid }}/bearbeiten">
+  {% comment %}HTMX (spec §5): the save hx-posts and swaps #form-region (panels + fields) from the
+  same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
+  save gets HX-Redirect to the read view. No-JS baseline is the plain POST + 302.{% endcomment %}
+  <form id="bearbeiten-form" class="c-form-felder" method="post"
+        action="/artikel/{{ values.ulid }}/bearbeiten"
+        hx-post="/artikel/{{ values.ulid }}/bearbeiten"
+        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
@@ -252,7 +265,7 @@ the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closebloc
     spec §6.3. The upload controls sit at the drawer bottom but belong to the separate multipart
     form#medien-upload (declared after this form) via form= — file inputs support form=, same idiom
     as the row buttons.{% endcomment %}
-    <fieldset class="c-form-group">
+    <fieldset class="c-form-group" id="medien-drawer">
       <legend class="c-form-legend">Medien</legend>
       {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
@@ -294,6 +307,12 @@ the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closebloc
         <input class="c-input" type="file" name="dateien" form="medien-upload" multiple>
         <button class="c-btn c-btn--subtle" type="submit" form="medien-upload">Hinzufügen</button>
       </div>
+      {% comment %}Upload progress sliver — enhancement-only (HTMX/XHR paints it via
+      catalog_form.js). Absent in the no-JS baseline; a static track with a discrete on-surface fill,
+      NO easing (spec §6.3).{% endcomment %}
+      <div class="c-medien-fortschritt" aria-hidden="true">
+        <div class="c-medien-fortschritt-fill" id="medien-fortschritt-fill"></div>
+      </div>
     </fieldset>
 
     {# Gruppe 7 — Weitere Angaben (custom bag) #}
@@ -330,36 +349,54 @@ the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closebloc
       </div>
     </div>
   </form>
+  </div>{# /#form-region #}
 
   {% comment %}Per-row media structural forms (spec §6.3) — declared here, referenced by the register
   buttons above via form=. Each carries exactly ONE hash, so a reorder/remove is unambiguous. These
   are non-CAS structural POSTs, separate from the caption metadata save. Upload is its own multipart
-  form. Placed outside the edit form (forms cannot nest) but wired to the rows by id.{% endcomment %}
+  form. Placed outside the edit form (forms cannot nest) but wired to the rows by id.
+
+  HTMX (spec §5): each hx-posts and swaps ONLY the #medien-drawer region, extracted from the SAME
+  full-page render the no-JS baseline produces (hx-select) — no partial-render fork, no new render
+  path. TITELBILD re-stamps automatically because the whole drawer (cover row first) is
+  replaced.{% endcomment %}
   {% for row in media_rows %}
   <form id="verschieben-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/verschieben" hidden>
+        action="/artikel/{{ values.ulid }}/medien/verschieben"
+        hx-post="/artikel/{{ values.ulid }}/medien/verschieben"
+        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
   </form>
   <form id="entfernen-frage-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+        action="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
   </form>
   <form id="entfernen-ja-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+        action="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
     <input type="hidden" name="bestaetigt" value="1">
   </form>
   <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen" hidden>
+        action="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}
   </form>
   {% endfor %}
 
   {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest). Its controls render
   inside the Medien drawer above via form="medien-upload"; this declares the form (hidden) after the
-  main form. Appends at the end, write-once dedupe.{% endcomment %}
+  main form. Appends at the end, write-once dedupe. HTMX swaps the #medien-drawer region from the
+  same full-page render (hx-select); catalog_form.js paints the discrete progress sliver from
+  htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
   <form id="medien-upload" method="post" enctype="multipart/form-data"
-        action="/artikel/{{ values.ulid }}/medien/hochladen" hidden>
+        action="/artikel/{{ values.ulid }}/medien/hochladen"
+        hx-post="/artikel/{{ values.ulid }}/medien/hochladen"
+        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}
   </form>
 
@@ -370,7 +407,10 @@ the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closebloc
   no preview.{% endcomment %}
   <section class="c-form-lebenszyklus">
     {% if values.is_draft %}
-    <form method="post" action="/artikel/{{ values.ulid }}/vorschau">
+    {# HTMX (spec §5): the preview swaps #form-region so c-panel--vorschau appears inline at top. #}
+    <form method="post" action="/artikel/{{ values.ulid }}/vorschau"
+          hx-post="/artikel/{{ values.ulid }}/vorschau"
+          hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
       {% csrf_token %}
       <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
     </form>

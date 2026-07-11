@@ -195,6 +195,51 @@ def test_edit_form_wires_htmx_enhancements(corpus: _Corpus) -> None:
     assert "<optgroup" in body
     # CSRF header for HTMX POSTs
     assert "X-CSRFToken" in body
+    # the PE script is loaded (dirty register, custom-bag, upload progress)
+    assert '<script src="/static/catalog_form.js" defer></script>' in body
+    # media structural POSTs swap only the drawer region from the same full-page render (no fork)
+    assert 'hx-select="#medien-drawer"' in body
+
+
+def test_catalog_form_js_is_served(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        served = _client_as(Archivist()).get("/static/catalog_form.js")
+    assert served.status_code == 200
+    assert served["Content-Type"] == "application/javascript"
+
+
+def test_htmx_save_success_sends_hx_redirect(corpus: _Corpus) -> None:
+    # An HTMX save (HX-Request header) that succeeds returns 204 + HX-Redirect (htmx navigates), not
+    # a 302 — the destination is identical to the no-JS path, only the mechanism differs.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Lagerchronik",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+    assert response.status_code == 204
+    assert response["HX-Redirect"] == f"/artikel/{_ULID}"
+
+
+def test_no_js_save_success_still_302(corpus: _Corpus) -> None:
+    # The no-JS baseline is unchanged: a plain POST (no HX-Request) still 302s.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Lagerchronik",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+            },
+        )
+    assert response.status_code == 302
+    assert response["Location"] == f"/artikel/{_ULID}"
 
 
 # --- state H: index-lag hinweis on the save path -----------------------------------

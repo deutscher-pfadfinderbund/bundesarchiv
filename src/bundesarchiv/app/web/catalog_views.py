@@ -23,7 +23,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
@@ -59,6 +59,18 @@ _SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
     ("members", "Alle Mitglieder"),
     ("groups", "Gruppe(n)"),
 )
+
+
+def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
+    """Redirect to ``location`` — a normal 302 for a plain POST, or a 200 carrying ``HX-Redirect`` for
+    an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
+    a saved form navigates to the read view). One helper so the enhancement never forks the render:
+    the destination is identical, only the mechanism differs by request kind."""
+    if request.headers.get("HX-Request"):
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = location
+        return response
+    return HttpResponseRedirect(location)
 
 
 def _canonical_store() -> ObjectStore:
@@ -224,7 +236,7 @@ def _handle_edit_post(
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
                 return _rerender_edit(request, store, ulid, index_lag=True)
-            return HttpResponseRedirect(f"/artikel/{ulid}")
+            return _redirect(request, f"/artikel/{ulid}")
         case catalog.ConflictOutcome() as conflict:
             context = _edit_context_from_post(
                 request,
@@ -625,7 +637,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     store, stored = gated
     if request.method == "POST":
         article_services.hard_delete_article(store, ulid)
-        return HttpResponseRedirect("/")
+        return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
     # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
     # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
     # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
@@ -676,7 +688,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     outcome = catalog.save_catalog_form(store, mutated, expected_version)
     match outcome:
         case catalog.SavedOutcome():
-            return HttpResponseRedirect(f"/artikel/{ulid}")
+            return _redirect(request, f"/artikel/{ulid}")
         case catalog.ConflictOutcome() as conflict:
             collections = _collections(store)
             context = _edit_context_from_article(

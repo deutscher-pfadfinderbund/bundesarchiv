@@ -21,7 +21,10 @@ page: one POST executes; there is no undo (no Papierkorb this version).
     Ein Papierkorb steht in dieser Version nicht zur Verfügung.
   </p>
   <div class="c-confirm-aktionen">
-    <form method="post" action="{{ action }}">
+    {% comment %}HTMX (spec §5): an htmx submit gets HX-Redirect to the workbench (the view's
+    _redirect helper); the no-JS baseline is the plain POST + 302.{% endcomment %}
+    <form method="post" action="{{ action }}"
+          hx-post="{{ action }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
       {% csrf_token %}
       <button class="c-btn c-btn--gefahr" type="submit">{{ button_label }}</button>
     </form>
