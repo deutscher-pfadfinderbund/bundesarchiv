@@ -22,6 +22,14 @@ services reuse the whole system by swapping one seed line.
   treatment per element class; differences only as systematic modifiers
   (link affordance on sortable heads, one direction glyph on the active
   sort).
+- **Archivist ergonomics rank with the visual laws** (owner, 2026-07-11).
+  This is a weekly work tool: keyboard flow matters (tab order = field
+  order, Enter submits the primary action, autofocus lands where the work
+  starts — Titel on create, Signatur after Kopieren, first error on
+  validation), serial workflows (Kopieren cataloging, bulk edit) get the
+  fewest possible round-trips, and density stays workbench-compact. A
+  design review of archivist screens judges the session, not just the
+  pixels.
 - **Contrast is a tested invariant.** Every role pair carries a minimum WCAG
   ratio, enforced by a CI test in both modes. The test, not the stylesheet,
   is the source of truth for the numbers (same philosophy as the SQL ≡
