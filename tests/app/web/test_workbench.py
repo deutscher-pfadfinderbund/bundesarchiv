@@ -623,6 +623,25 @@ def test_pane_bearbeiten_only_for_archivist(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
+def test_pane_close_link_preserves_query_drops_only_artikel(corpus_root: Path) -> None:
+    # The pane-close ✕ must return to the SAME search (text + facets + sort + page), dropping only
+    # the pane selection (artikel). A bare href="?" would blow away the whole query — regression.
+    body = _get(
+        corpus_root,
+        Public(),
+        f"q=Vorschau&medienart=Foto&artikel={PANE_PUB_ULID}",
+    ).content.decode()
+    assert 'class="wb-pane"' in body  # the pane is open
+    # the close link carries the active search params...
+    assert "q=Vorschau" in body
+    assert "medienart=Foto" in body
+    # ...but never the artikel selection (it is pane state, stripped from the close href)
+    close_href = body.split('class="wb-pane-schliessen" href="', 1)[1].split('"', 1)[0]
+    assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
+    assert "q=Vorschau" in close_href and "medienart=Foto" in close_href
+
+
+@pytest.mark.django_db
 def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
     # Opening the pane puts the frame in the vorschau state (the split-narrow fold is CSS-driven off
     # this body class; the <1280px query unfolds + hides the pane).

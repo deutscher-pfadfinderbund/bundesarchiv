@@ -11,7 +11,7 @@ Below 1280px layouts.css hides the pane; the row links then open the detail stub
   <div class="wb-pane-inner">
     <div class="wb-pane-kopf">
       {% include "components/signatur_tab.html" with ref_code=pane.ref_code only %}
-      <a class="wb-pane-schliessen" href="?" aria-label="Vorschau schließen">✕</a>
+      <a class="wb-pane-schliessen" href="{{ pane.close_href }}" aria-label="Vorschau schließen">✕</a>
     </div>
     <h2 class="wb-pane-titel">{{ pane.title }}</h2>
     {% if pane.datierung or pane.typ %}

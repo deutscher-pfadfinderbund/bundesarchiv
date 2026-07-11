@@ -18,6 +18,7 @@ The workbench is a production route (mounted in ``web.urls``); the detail + neu 
 
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse
@@ -131,6 +132,7 @@ class _Pane:
     media: tuple[_PaneMedia, ...]
     oeffnen_href: str
     bearbeiten_href: str
+    close_href: str
 
 
 def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
@@ -151,6 +153,11 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         )
         for m in article.media
     )
+    # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
+    # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
+    # query (a bare "?" would). artikel is pane state, not search state.
+    close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
+    close_query = urlencode(close_params)
     return _Pane(
         ulid=article.ulid,
         title=article.title,
@@ -161,6 +168,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         oeffnen_href=f"/artikel/{article.ulid}",
         # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
         bearbeiten_href=f"/artikel/{article.ulid}" if is_archivist else "",
+        close_href="?" + close_query if close_query else "?",
     )
 
 
