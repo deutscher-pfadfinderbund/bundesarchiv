@@ -63,35 +63,23 @@ def authorize_article(request: HttpRequest, ulid: str) -> Article | None:
 
 
 def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
-    """Like ``authorize_article`` but returns the Article PROJECTED to the viewer's visible fields
-    (``visible`` = can_view + project), or ``None`` on any deny/absence/malformed/broken-chain — the
-    ONE resolution path for a full-Article RENDER (the preview pane, the 4.6 detail).
+    """The preview pane's resolution: the Article PROJECTED to the viewer's visible fields
+    (``visible`` = can_view + project), or ``None`` on any deny/absence/malformed/broken-chain.
 
-    Same fail-closed order as ``authorize_article``: a malformed ulid, a missing/unreadable article,
-    a broken chain, or a denied viewer all collapse to ``None`` — indistinguishable to the caller, so
-    a rendered pane can never be an existence oracle. The returned Article has ARCHIVIST_ONLY_FIELDS
-    floored for non-archivists, so the render layer cannot leak a floored field even by accident."""
-    if not is_valid_ulid(ulid):
-        return None
-    store = _canonical_store()
-    try:
-        article = ArticleRepository(store).load(ulid).article
-    except ArchiveError:
-        return None
-    viewer = viewer_of(request)
-    try:
-        chain = resolve_chain(article.collection_id, _collections(store))
-    except DomainError:
-        return None
-    return visible(viewer, article, chain)
+    A thin wrapper over ``resolve_visible_detail`` (the ONE full-Article render pipeline): the pane
+    just takes the projected Article and ignores the detail-only extras (chain/version/is_archivist).
+    Keeping one pipeline means the fail-closed order — malformed → absent → broken chain → denied —
+    can never drift between the pane and the detail page."""
+    resolution = resolve_visible_detail(request, ulid)
+    return resolution.article if resolution is not None else None
 
 
 @dataclass(frozen=True, slots=True)
 class DetailResolution:
-    """One resolution of the 4.6 detail path: the ``visible``-projected Article (for the template),
-    its owning Collection ``chain`` (leaf-first, for the Bestand breadcrumb — names are member-safe),
-    its raw ``version`` (the archivist action-row's lifecycle CAS field), and ``is_archivist`` (the
-    presentation gate for the action row + ENTWURF badge). Produced by a SINGLE store load."""
+    """One resolution of the full-Article render path: the ``visible``-projected Article (for the
+    template), its owning Collection ``chain`` (leaf-first, for the 4.6 Bestand breadcrumb — names are
+    member-safe), its raw ``version`` (the archivist action-row's lifecycle CAS field), and
+    ``is_archivist`` (the presentation gate for the action row + ENTWURF badge). One store load."""
 
     article: Article
     chain: ResolvedChain
@@ -100,16 +88,16 @@ class DetailResolution:
 
 
 def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution | None:
-    """The detail page's single entry (spec §8): load ONCE, resolve the chain, ``visible``-project,
-    and read ``.version`` off the same ``LoadedArticle`` — returning the projection + version +
-    is_archivist, or ``None`` on any deny/absence/malformed/broken-chain (the byte-identical 404).
+    """The full-Article render pipeline (spec §8): load ONCE, resolve the chain, ``visible``-project,
+    and read ``.version`` off the same ``LoadedArticle`` — returning the projection + chain + version
+    + is_archivist, or ``None`` on any deny/absence/malformed/broken-chain (the byte-identical 404).
 
-    Same fail-closed order as ``resolve_visible_article`` (which the pane keeps): a malformed ulid, a
+    The ONE resolution path for a rendered full Article — the 4.6 detail view uses it directly;
+    ``resolve_visible_article`` (the pane) wraps it. Fail-closed order: a malformed ulid, a
     missing/unreadable article, a broken chain, or a denied viewer all collapse to ``None`` —
-    indistinguishable, so the rendered detail view is never an existence oracle. This kills the stub's
-    double load (``authorize_article`` + ``_detail_version`` each loaded); the version comes free off
-    the one ``load`` the projection already needs. The version is meaningful only to the archivist
-    CAS field; the caller surfaces it to the template only when ``is_archivist``."""
+    indistinguishable, so a rendered page can never be an existence oracle. This kills the 4.5 stub's
+    double load (it loaded once to authorize, again for the version); the version comes free off the
+    one ``load`` the projection already needs, surfaced to the template only when ``is_archivist``."""
     if not is_valid_ulid(ulid):
         return None
     store = _canonical_store()
