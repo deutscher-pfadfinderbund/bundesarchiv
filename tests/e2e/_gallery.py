@@ -69,12 +69,6 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_load_state("networkidle")
 
 
-def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
-    _reach_bulk_confirm(page, base, corpus)
-    page.click('button:has-text("anwenden")')
-    page.wait_for_load_state("networkidle")
-
-
 def _reach_delete_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
     page.click('a:has-text("Löschen")')
@@ -94,6 +88,21 @@ def _reach_edit(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_read(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
+
+
+def _reach_detail_cover(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the published article WITH media — the cover Platte + filmstrip (a member view: no cookie)
+    page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
+
+
+def _reach_detail_no_media(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the second published article has no media — the no-media rule (title focal, no empty frame)
+    page.goto(f"{base}/artikel/{corpus.second_ulid}", wait_until="networkidle")
+
+
+def _reach_detail_draft(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the draft — archivist-only: ENTWURF badge + action row (the one amber mark)
+    page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
 
 
 #: The canonical states, in a stable order (the gallery is a design contract: same states, same
@@ -118,8 +127,25 @@ STATES: tuple[GalleryState, ...] = (
     GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),
     GalleryState("edit-form", "the full edit form (a draft)", True, _reach_edit),
     GalleryState("read-published", "the read view (a published article)", True, _reach_read),
+    GalleryState(
+        "detail-member-cover",
+        "detail read view, member, with cover + filmstrip",
+        False,
+        _reach_detail_cover,
+    ),
+    GalleryState(
+        "detail-no-media",
+        "detail read view, member, no media (title focal)",
+        False,
+        _reach_detail_no_media,
+    ),
+    GalleryState(
+        "detail-archivist-draft",
+        "detail read view, archivist draft (ENTWURF + action row)",
+        True,
+        _reach_detail_draft,
+    ),
     GalleryState("bulk-confirm", "bulk edit, confirm panel", True, _reach_bulk_confirm),
-    GalleryState("bulk-result", "bulk edit, result page", True, _reach_bulk_result),
     GalleryState("delete-confirm", "delete, confirm page", True, _reach_delete_confirm),
     GalleryState("publish-preview", "publish, over-exposure preview", True, _reach_publish_preview),
 )

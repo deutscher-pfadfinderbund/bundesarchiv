@@ -49,10 +49,12 @@ so a review brief can reference a shot. Override the output dir with
 `BUNDESARCHIV_GALLERY_DIR`.
 
 The states live in `_gallery.py:STATES`: the workbench (empty / results /
-filtered / pane-open / bulk-selection / public), the create + edit forms, the
-read view, and the POST-gated confirm surfaces (bulk-confirm, bulk-result,
-delete-confirm, publish-preview) — the last group reached by driving the
-affordance, so they appear in the gallery too.
+filtered / pane-open / bulk cold-start + selection / public), the create + edit
+forms, the 4.6 detail read view (member with cover + filmstrip / no-media /
+archivist draft), and the POST-gated confirm surfaces (bulk-confirm,
+delete-confirm, publish-preview) — the confirm group reached by driving the
+affordance, so they appear in the gallery too. Read-only states only: no gallery
+render mutates the shared corpus (so every shot shows clean canonical data).
 
 ## Add a journey
 

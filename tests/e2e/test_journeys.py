@@ -40,6 +40,32 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
 
 
+# --- detail read view (4.6) --------------------------------------------------------
+
+
+def test_detail_read_from_search_result(public_page: Page, live_workbench: str) -> None:
+    page = public_page
+    # a member/public visitor: click a result (JS opens the preview pane) → Öffnen → land on the
+    # Lesesaal detail read view. (With JS on, ledger_pane.js turns the row link into a pane open; the
+    # pane's Öffnen is the navigation to /artikel/<ulid>. No-JS, the row link navigates directly.)
+    page.goto(live_workbench + "/")
+    page.locator("a.c-ledger-titel", has_text="Sommerfahrt 1962").click()
+    page.get_by_role("link", name="Öffnen").click()
+    page.wait_for_url("**/artikel/**")
+    # the reading structure: title, record card facts (Signatur + human + mono date), the cover
+    expect(page.locator("h1.l-titel")).to_have_text("Sommerfahrt 1962")
+    expect(page.locator(".l-datierung")).to_have_text("Juli 1962")  # human German under the title
+    expect(page.locator(".l-akte-val--mono").first).to_have_text("1962-07")  # mono machine date
+    expect(page.get_by_text("F 12")).to_be_visible()  # Signatur
+    expect(page.locator(".l-platte-bild")).to_be_visible()  # cover Platte
+    expect(page.locator(".l-strip .l-plate")).to_have_count(2)  # cover + one further plate
+    # a plate links its gated media byte route; Zurück returns to the search
+    href = page.locator(".l-strip .l-plate").first.get_attribute("href")
+    assert href is not None and href.startswith("/media/")
+    page.get_by_text("Zurück zur Suche").click()
+    page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
+
+
 # --- create a draft ----------------------------------------------------------------
 
 

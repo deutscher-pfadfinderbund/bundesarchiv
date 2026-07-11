@@ -7,14 +7,32 @@ covering search/filter, edit, copy, delete, publish-preview, and bulk paths.
 """
 
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 
+from PIL import Image
+
+from bundesarchiv.app import thumbnails
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import (
+    Article,
+    Audience,
+    AudienceTier,
+    Collection,
+    Lifecycle,
+    MediaRef,
+)
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
+
+
+def _png(color: tuple[int, int, int]) -> bytes:
+    buf = BytesIO()
+    Image.new("RGB", (8, 8), color).save(buf, format="PNG")
+    return buf.getvalue()
+
 
 # Fixed valid ULIDs for the articles a journey names (generated once; stable so screenshots + tests
 # reference the same records across runs).
@@ -32,10 +50,15 @@ class CorpusHandles:
     draft_ulid: str
     published_ulid: str
     second_ulid: str
+    published_cover_hash: str
 
 
-def build_corpus(root: Path) -> CorpusHandles:
-    """Build + index the canonical corpus at ``root``. Idempotent per fresh temp dir."""
+def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
+    """Build + index the canonical corpus at ``root``. Idempotent per fresh temp dir.
+
+    When ``thumbnail_root`` is given, the media blobs' WebP thumbnails are pre-generated into it —
+    the worker-side generation the live e2e run has no worker for — so the detail cover + filmstrip
+    <img>s (which point at the /media/.../thumb route) actually render instead of 404ing."""
     store = LocalFsObjectStore(root)
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -44,18 +67,38 @@ def build_corpus(root: Path) -> CorpusHandles:
     collections.save(Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
     collections.save(Collection("AKTEN", "Aktenbestand", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
 
+    # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
+    # (add_media stores the blobs first; the repository refuses an Article referencing unstored ones).
+    cover = articles.add_media(
+        PUBLISHED_ULID, "cover.png", _png((200, 60, 40)), media_type="image/png"
+    )
+    plate = articles.add_media(
+        PUBLISHED_ULID, "plate.png", _png((40, 120, 200)), media_type="image/png"
+    )
     articles.save(
         Article(
             ulid=PUBLISHED_ULID,
             title="Sommerfahrt 1962",
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
+            # A multi-paragraph body so the detail gallery states exercise the prose+card split (a
+            # body-less article would hide the layout bug the design gate found — process fix, §5).
+            body=(
+                "Die Sommerfahrt führte die Gruppe im Juli 1962 in den Harz.\n\n"
+                "Aufgenommen wurden Porträts am Lagerfeuer sowie ein Gruppenbild vor der Hütte.\n\n"
+                "Der Bestand dokumentiert die Ferienlager der frühen 1960er Jahre."
+            ),
             ref_code="F 12",
             media_type="Fotografie",
             document_type="Porträt",
             tags=("fahrt", "sommer"),
-            date=EdtfDate("1962"),
+            date=EdtfDate("1962-07"),
             creator="K. Meyer",
+            subject_place="Harz",
+            media=(
+                MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
+                MediaRef(plate.filename, plate.content_hash, caption="Gruppenbild"),
+            ),
         ),
         0,
     )
@@ -85,10 +128,16 @@ def build_corpus(root: Path) -> CorpusHandles:
     )
 
     indexer.rebuild(store)
+    if thumbnail_root is not None:
+        # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
+        # cover + filmstrip images render instead of the /media/.../thumb route 404ing.
+        for content_hash in (cover.content_hash, plate.content_hash):
+            thumbnails.generate_thumbnail(store, content_hash, thumbnail_root)
     return CorpusHandles(
         fotos_id="FOTOS",
         akten_id="AKTEN",
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,
         second_ulid=SECOND_ULID,
+        published_cover_hash=cover.content_hash,
     )

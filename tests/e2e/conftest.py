@@ -57,20 +57,30 @@ def _e2e_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture
-def _e2e_settings(_e2e_root: Path) -> Iterator[dict[str, object]]:
+def _e2e_thumbs(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The LOCAL derived-thumbnail cache root for ONE journey. Per-test so the corpus builder can
+    pre-generate thumbnail WebPs into it (the worker-side generation the live e2e run has no worker
+    for) and the live server reads the same dir through the settings override — so a detail/pane
+    thumbnail actually renders in the gallery instead of 404ing to a broken <img>."""
+    return tmp_path_factory.mktemp("e2e-thumbs")
+
+
+@pytest.fixture
+def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, object]]:
     """The settings the live server runs under. Composed FROM ``settings_dev`` (the real dev layer:
     its urlconf + middleware) so a change to the dev middleware/urlconf never silently skips this
     suite — only the genuinely per-test values are overridden on top: this test's signing key, its
-    canonical store, and ``DEBUG=False`` (the suite exercises prod-like error handling).
+    canonical store + thumbnail cache, and ``DEBUG=False`` (the suite exercises prod-like handling).
 
-    Views read ``settings.BUNDESARCHIV_CANONICAL_ROOT`` per request, so the session-scoped
-    ``live_server`` thread picks up each test's fresh root through this override.
+    Views read ``settings.BUNDESARCHIV_CANONICAL_ROOT`` / ``BUNDESARCHIV_THUMBNAIL_ROOT`` per request,
+    so the session-scoped ``live_server`` thread picks up each test's fresh dirs through this override.
     """
     settings = {
         "ROOT_URLCONF": settings_dev.ROOT_URLCONF,
         "MIDDLEWARE": settings_dev.MIDDLEWARE,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
+        "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),
         "DEBUG": False,
     }
     with override_settings(**settings):
@@ -80,15 +90,17 @@ def _e2e_settings(_e2e_root: Path) -> Iterator[dict[str, object]]:
 @pytest.fixture
 def e2e_corpus(
     _e2e_root: Path,
+    _e2e_thumbs: Path,
     _e2e_settings: dict[str, object],
     transactional_db: None,
     django_db_blocker: DjangoDbBlocker,
 ) -> CorpusHandles:
     """Build + index the canonical corpus for THIS journey, committed so the live server (a separate
     thread) reads it. Depends on ``transactional_db`` — the same fixture ``live_server`` uses — so the
-    corpus is committed into the shared, per-test-truncated DB the live server queries."""
+    corpus is committed into the shared, per-test-truncated DB the live server queries. Thumbnails are
+    pre-generated into ``_e2e_thumbs`` (no worker in the e2e run) so media <img>s actually render."""
     with django_db_blocker.unblock():
-        return build_corpus(_e2e_root)
+        return build_corpus(_e2e_root, thumbnail_root=_e2e_thumbs)
 
 
 @pytest.fixture
