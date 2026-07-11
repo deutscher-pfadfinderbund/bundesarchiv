@@ -139,5 +139,17 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
 # file); the default 1000 is fine for a v1 item, set explicitly so a large item never trips it.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))
 
+# This project serves its few static assets through explicit routes (serve_*_css/js), NOT
+# django.contrib.staticfiles (not installed). But STATIC_URL/STATIC_ROOT must be valid non-None
+# values: Django 6 defaults STATIC_URL to None, so any code that urlparse()s it — notably the test
+# live-server's static handler — yields BYTES paths and 500s every request; and that handler's fall-
+# through serve() needs a real STATIC_ROOT dir (a None root raises instead of a clean 404-then-
+# fallthrough to our own /static/* routes). Neither enables real static serving here.
+STATIC_URL = "/static/"
+STATIC_ROOT = os.environ.get(
+    "BUNDESARCHIV_STATIC_ROOT",
+    str(Path(__file__).resolve().parent.parent.parent.parent / "var" / "static"),
+)
+
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True

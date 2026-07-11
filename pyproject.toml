@@ -80,8 +80,12 @@ testpaths = ["tests"]
 # use neither, so they still run with no Postgres. Only tests/index touches the DB, gated by
 # tests/index/conftest.py (which fails, not skips, when Postgres is unreachable).
 DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
-# The E2E journey suite (tests/e2e/, Part #26) drives a real browser against a live server — slow and
-# heavyweight, so it is EXCLUDED from the default run (the fast gate + pre-commit) by the `e2e`
-# marker. Run it explicitly with `uv run pytest -m e2e`. All other suites are unaffected.
-markers = ["e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)"]
-addopts = "-m 'not e2e'"
+# The E2E journey suite + state gallery (tests/e2e/, Part #26) drive a real browser against a live
+# server — slow and heavyweight, so both are EXCLUDED from the default run (the fast gate +
+# pre-commit) by their markers. Run them explicitly: `uv run pytest -m e2e` (the journeys),
+# `uv run pytest -m gallery -s` (render the state gallery). All other suites are unaffected.
+markers = [
+    "e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)",
+    "gallery: renders the canonical-state screenshot gallery (excluded from the default run; -m gallery to run)",
+]
+addopts = "-m 'not e2e and not gallery'"

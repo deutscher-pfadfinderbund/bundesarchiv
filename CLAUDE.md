@@ -11,3 +11,7 @@ Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Design-gate / QA brief
+
+Before reviewing any UI change: render the state gallery (`uv run pytest -m gallery -s`) and run the journeys (`uv run pytest -m e2e`), then judge on live `:8000` pages. See `docs/agents/design-gate-brief.md`.
