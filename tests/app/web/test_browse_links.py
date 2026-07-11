@@ -1,13 +1,12 @@
 """URL-as-state link helpers (Part 4.5-MVP, plan §4.5: URL-as-state, forms/links stable).
 
 The workbench's whole state lives in the query string. These pure helpers build the links the
-facet sidebar / chips / pagination / sort control emit, and pin the round-trip: a param set that
+facet sidebar / pagination / sort control emit, and pin the round-trip: a param set that
 ``parse_query`` reads back is exactly what a link that ADDS that facet produces, and removing it
-(chip ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
+(sidebar ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
 """
 
 from bundesarchiv.app.web.browse import (
-    active_chips,
     has_next_page,
     page_query,
     parse_query,
@@ -62,24 +61,6 @@ def test_page_query_sets_seite_preserving_the_rest() -> None:
     assert params["seite"] == "2"
     assert params["q"] == "Lager"
     assert params["medienart"] == "Foto"
-
-
-def test_active_chips_lists_each_set_filter_with_a_remove_query() -> None:
-    params = {"q": "Lager", "medienart": "Foto", "bestand": "LAGER", "seite": "2"}
-    chips = active_chips(params)
-    keys = {c.param for c in chips}
-    # q is text, not a chip; every set filter dimension IS a chip; seite/sort are not chips.
-    assert "medienart" in keys
-    assert "bestand" in keys
-    assert "q" not in keys
-    assert "seite" not in keys
-    foto = next(c for c in chips if c.param == "medienart")
-    assert foto.value == "Foto"
-    assert "medienart" not in _params(foto.remove_query)  # ✕ drops exactly this chip
-
-
-def test_active_chips_empty_when_no_filters() -> None:
-    assert active_chips({"q": "Lager"}) == ()
 
 
 # --- pagination boundary (has_next_page) ------------------------------------------

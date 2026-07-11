@@ -182,9 +182,10 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
 )
 
 # The ledger's column headers: (German label, css-modifier key, sortierung label or None). SIG /
-# TITEL / DATIERUNG are sortable (their sortierung label mirrors browse.SORT_CHOICES minus relevanz,
-# which has no column). TYP is NOT a sortable index column, so it is a plain header (None). SICHTBAR-
-# KEIT + the action gutter are added by the ledger component. Presentation only — sort is browse.
+# TITEL / DATIERUNG are sortable (their sortierung label is a key in browse._SORT_BY_LABEL minus
+# relevanz, which has no column). TYP is NOT a sortable index column, so it is a plain header (None).
+# SICHTBARKEIT + the action gutter are added by the ledger component. Presentation only — sort is
+# browse.
 _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
     ("Sig", "sig", "signatur"),
     ("Titel", "titel", "titel"),

@@ -11,9 +11,9 @@ Two halves:
 - ``parse_query`` — strict-but-total: every field parses to its typed value or falls to that field's
   default (garbage never raises, never 500s — plan §4.5). Text comes from ``q``; the rest build a
   ``SearchFilters`` + sort + page.
-- The link helpers (``with_param`` / ``without_param`` / ``page_query`` / ``active_chips``) — pure
-  query-string algebra the templates emit for facet clicks, removable chips and pagination. Adding
-  or removing a facet resets ``seite`` (the result set changed, so the old page number is stale).
+- The link helpers (``with_param`` / ``without_param`` / ``page_query``) — pure query-string
+  algebra the templates emit for facet clicks, sidebar removal and pagination. Adding or removing a
+  facet resets ``seite`` (the result set changed, so the old page number is stale).
 
 No visibility logic lives here (that is ``search`` / ``can_view``); this module only shuffles
 strings between the URL and ``SearchFilters``.
@@ -54,30 +54,8 @@ _SORT_BY_LABEL: dict[str, SortOrder] = {
 }
 _DEFAULT_SORT: SortOrder = "relevance"
 
-#: The German sort labels + human captions, in display order — the ``<select>`` renders from this.
-SORT_CHOICES: tuple[tuple[str, str], ...] = (
-    ("relevanz", "Relevanz"),
-    ("signatur", "Signatur"),
-    ("datierung", "Datierung"),
-    ("titel", "Titel"),
-)
-
 #: Truthy spellings for the boolean "Ohne Datum" toggle. Anything else (incl. absence) is False.
 _TRUTHY = frozenset({"1", "true", "ja", "on"})
-
-#: The filter dimensions shown as removable chips, in display order: (param key, German label).
-#: ``q`` is deliberately absent — free text is the search field, not a chip. Decade/dateless/date
-#: are included so every active narrowing is one-click-removable (plan §4.5, ideas §1.2).
-_CHIP_DIMENSIONS: tuple[tuple[str, str], ...] = (
-    (PARAM_COLLECTION, "Bestand"),
-    (PARAM_MEDIA_TYPE, "Medienart"),
-    (PARAM_DOCUMENT_TYPE, "Dokumenttyp"),
-    (PARAM_TAG, "Schlagwort"),
-    (PARAM_DECADE, "Jahrzehnt"),
-    (PARAM_DATE_FROM, "von"),
-    (PARAM_DATE_TO, "bis"),
-    (PARAM_DATELESS, "Ohne Datum"),
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,31 +205,3 @@ def has_next_page(*, page: int, page_size: int, hits_on_page: int, total: int) -
     (total=60, page 2 with 10 hits would read 20 < 60 and offer a spurious link to an empty page 3).
     An overshot empty page consumes its full preceding windows, so it also reports no next."""
     return (page - 1) * page_size + hits_on_page < total
-
-
-@dataclass(frozen=True, slots=True)
-class ActiveChip:
-    """One active filter, as a removable chip: its param key, German label, the shown value, and the
-    query string that removes JUST this dimension (the ✕ target)."""
-
-    param: str
-    label: str
-    value: str
-    remove_query: str
-
-
-def active_chips(params: Mapping[str, str]) -> tuple[ActiveChip, ...]:
-    """The active filters as removable chips, in display order. Free text (``q``), sort and page are
-    NOT chips — only the narrowing filter dimensions are. Each chip's ``remove_query`` drops exactly
-    its own dimension, so ✕ is a single reversible step (ideas §1.2)."""
-    cleaned = _clean(params)
-    return tuple(
-        ActiveChip(
-            param=key,
-            label=label,
-            value=cleaned[key],
-            remove_query=without_param(cleaned, key),
-        )
-        for key, label in _CHIP_DIMENSIONS
-        if key in cleaned
-    )
