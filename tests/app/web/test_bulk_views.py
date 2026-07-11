@@ -206,6 +206,36 @@ def test_commit_applies_and_shows_result(corpus: _Corpus) -> None:
     assert corpus.article(_B).creator == "K. Meyer"
 
 
+def test_commit_cas_race_loser_value_not_on_disk(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # CAS honesty (spec §6.7): a bulk apply that loses the race on _A must report _A conflicted and
+    # leave _A's value NOT on disk, while _B still saves. Force save_article to conflict for _A.
+    from bundesarchiv.app import articles
+
+    real_save = articles.save_article
+
+    def _conflict_a(store_: object, article: Article, version: int) -> object:
+        from bundesarchiv.persistence.errors import Conflict
+
+        if article.ulid == _A:
+            raise Conflict("raced")
+        return real_save(store_, article, version)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(articles, "save_article", _conflict_a)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            "/artikel/sammelbearbeitung",
+            {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Bulk", "bestaetigt": "1"},
+        )
+    body = response.content.decode()
+    assert "teilweise abgeschlossen" in body
+    assert "1 gespeichert · 1 inzwischen geändert" in body
+    assert "Foto A" in body  # the loser row is listed (c-sig + Titel)
+    assert corpus.article(_A).creator is None  # loser value NOT on disk
+    assert corpus.article(_B).creator == "Bulk"  # winner stands
+
+
 def test_commit_custom_bag_upsert(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         _client_as(Archivist()).post(
