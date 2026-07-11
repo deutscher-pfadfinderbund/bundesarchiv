@@ -30,24 +30,59 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-#: The predefined Article scalar/collection fields bulk-editable (spec §1). NOT audience/lifecycle.
-_PREDEFINED_FIELDS: frozenset[str] = frozenset(
-    {
-        "physical_location",
-        "creator",
-        "subject_place",
-        "media_type",
-        "document_type",
-        "collection_id",
-    }
+
+@dataclass(frozen=True, slots=True)
+class BulkField:
+    """One bulk-editable field's metadata — the SINGLE source everything else derives from, so the
+    allowlist, the German label, the drawer widget, and the POST value-input name can never drift
+    apart (spec §1). ``value_input`` is the form field the drawer posts the value under (the no-JS
+    drawer renders every widget; the server reads the one matching the chosen field). ``is_custom``
+    routes writes through the custom bag."""
+
+    target: str
+    label: str
+    value_input: str
+    is_custom: bool
+
+
+#: The 9 bulk-editable fields in spec §1 order — the ONE source of truth. audience / lifecycle /
+#: sichtbarkeit are deliberately absent (visibility must pass the per-item over-exposure gate, §0.7).
+#: The plain scalars + custom keys share the one text widget (wert_text); the three selects have
+#: their own. Everything below (ALLOWED_FIELDS, labels, options, value-input map) derives from this.
+FIELDS: tuple[BulkField, ...] = (
+    BulkField("physical_location", "Standort", "wert_text", False),
+    BulkField("creator", "Autor", "wert_text", False),
+    BulkField("subject_place", "Ort", "wert_text", False),
+    BulkField("media_type", "Medienart", "wert_media_type", False),
+    BulkField("document_type", "Dokumenttyp", "wert_document_type", False),
+    BulkField("Quelle", "Quelle", "wert_text", True),
+    BulkField("collection_id", "Sammlungsteil", "wert_collection_id", False),
+    BulkField("Querverweis", "Querverweis", "wert_text", True),
+    BulkField("Besitzer", "Besitzer", "wert_text", True),
 )
 
-#: The custom-bag keys bulk-editable (spec §1). Written through the Article constructor so the
-#: reserved-key guard + sort/dedupe stay the domain's rule.
-_CUSTOM_FIELDS: frozenset[str] = frozenset({"Quelle", "Querverweis", "Besitzer"})
+_BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
 
-#: The full 9-field allowlist. An unknown ``feld`` is refused with ZERO mutation (spec §6.3).
-ALLOWED_FIELDS: frozenset[str] = _PREDEFINED_FIELDS | _CUSTOM_FIELDS
+#: The full 9-field allowlist, derived from FIELDS. An unknown ``feld`` is refused, ZERO mutation
+#: (spec §6.3).
+ALLOWED_FIELDS: frozenset[str] = frozenset(_BY_TARGET)
+
+#: The custom-bag targets (written through the Article constructor so the reserved-key guard +
+#: sort/dedupe stay the domain's rule), derived from FIELDS.
+_CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_custom)
+
+
+def label_of(feld: str) -> str:
+    """The German label for a field target (confirm/result pages show the label, not the key)."""
+    f = _BY_TARGET.get(feld)
+    return f.label if f is not None else feld
+
+
+def value_input_of(feld: str) -> str:
+    """The POST field name the drawer posts this field's value under (spec §2 C). Unknown → the text
+    input (harmless; an unknown feld is refused before the value is read)."""
+    f = _BY_TARGET.get(feld)
+    return f.value_input if f is not None else "wert_text"
 
 
 def is_allowed_field(feld: str) -> bool:

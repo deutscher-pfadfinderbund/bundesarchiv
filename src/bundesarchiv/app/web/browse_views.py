@@ -25,7 +25,7 @@ from django.http import FileResponse, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
-from bundesarchiv.app.web import browse, vocab
+from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.article_auth import authorize_article, resolve_visible_article
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
@@ -45,20 +45,12 @@ _STATIC_DIR = Path(__file__).parent / "static"
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
 _PANE_PARAM = "artikel"
 
-#: The bulk-edit Feld chooser options: (target, German label). ONE source shared with bulk.py's
-#: allowlist — the placeholder first (empty, server-rejected with "Bitte ein Feld wählen."). Order
-#: follows the spec §1 table. audience/lifecycle/sichtbarkeit are deliberately absent (spec §0.7).
+#: The bulk-edit Feld chooser options: (target, German label), DERIVED from bulk.FIELDS (the single
+#: source) so labels/allowlist can never drift. Placeholder first (empty, server-rejected with
+#: "Bitte ein Feld wählen."). audience/lifecycle/sichtbarkeit are absent by construction (spec §0.7).
 _BULK_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
     ("", "— Feld wählen —"),
-    ("physical_location", "Standort"),
-    ("creator", "Autor"),
-    ("subject_place", "Ort"),
-    ("media_type", "Medienart"),
-    ("document_type", "Dokumenttyp"),
-    ("Quelle", "Quelle"),
-    ("collection_id", "Sammlungsteil"),
-    ("Querverweis", "Querverweis"),
-    ("Besitzer", "Besitzer"),
+    *((f.target, f.label) for f in bulk.FIELDS),
 )
 
 
@@ -382,15 +374,17 @@ def _bulk_bar_context(
     params: dict[str, str], page: object, auswahl: list[str]
 ) -> dict[str, object]:
     """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only. The bar renders
-    only when the selection is non-empty (signals-once — no "0 ausgewählt"). ``select_page_query``
-    is the "Alle auf dieser Seite" href (appends this page's ulids). The drawer's Feld options + the
-    value widgets reuse the 4.7 option builders."""
+    only when the selection is non-empty (signals-once — no "0 ausgewählt"), so with an EMPTY
+    selection this builds NOTHING beyond the off flag — the option lists (vocab + a collections
+    load) are only computed when the drawer will actually show."""
+    if not auswahl:
+        return {"bulk_bar": False}
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     page_ulids = [h.ulid for h in hits]
     return {
         "auswahl": auswahl,
         "auswahl_count": len(auswahl),
-        "bulk_bar": bool(auswahl),
+        "bulk_bar": True,
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
         # "Auswahl aufheben" drops the selection but KEEPS the active search (params already exclude
         # auswahl + artikel) — a bare "?" would wipe the filters (design-gate MED finding).

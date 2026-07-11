@@ -34,20 +34,6 @@ from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# The form field carrying the value, per chosen Feld (spec §2 C — the no-JS form renders all widgets;
-# the server reads only the one matching feld). Custom-bag keys + the plain scalars share wert_text.
-_VALUE_FIELD: dict[str, str] = {
-    "physical_location": "wert_text",
-    "creator": "wert_text",
-    "subject_place": "wert_text",
-    "Quelle": "wert_text",
-    "Querverweis": "wert_text",
-    "Besitzer": "wert_text",
-    "media_type": "wert_media_type",
-    "document_type": "wert_document_type",
-    "collection_id": "wert_collection_id",
-}
-
 
 def _canonical_store() -> ObjectStore:
     return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
@@ -61,7 +47,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     store = _canonical_store()
     auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
     feld = request.POST.get("feld", "")
-    wert = request.POST.get(_VALUE_FIELD.get(feld, ""), "")
+    wert = request.POST.get(bulk.value_input_of(feld), "") if bulk.is_allowed_field(feld) else ""
 
     error = _validate(auswahl, feld, store, wert)
     if error is not None:
@@ -138,8 +124,8 @@ def _confirm(
             "auswahl": [a.ulid for a in articles],
             "feld": feld,
             "wert": wert,
-            "wert_field": _VALUE_FIELD.get(feld, "wert_text"),
-            "feld_label": _feld_label(feld),
+            "wert_field": bulk.value_input_of(feld),
+            "feld_label": bulk.label_of(feld),
             "wert_display": bulk.field_display(feld, wert, names),
             "anzahl": len(articles),
             "artikel_liste": [_confirm_row(a) for a in articles],
@@ -154,10 +140,12 @@ def _commit(
 ) -> HttpResponseBase:
     """Run the apply (state R). If the Medienart change orphans any Dokumenttyp, the commit REQUIRES
     ``dokumenttyp_leeren=1`` (server-enforced, geprueft-idiom) — a missing flag re-confirms without
-    writing. Otherwise ``bulk.apply_bulk`` runs and the result page renders."""
+    writing. Otherwise ``bulk.apply_bulk`` runs and the result page renders. The orphan pre-check
+    loads only for a media_type apply (the only field that can orphan) — every other field skips it."""
     if (
-        _needs_leeren_flag(store, auswahl, feld, wert)
+        feld == "media_type"
         and request.POST.get("dokumenttyp_leeren") != "1"
+        and _orphans(_load_all(store, auswahl), feld, wert)
     ):
         return _confirm(request, store, auswahl, feld, wert)  # re-confirm, no write
     outcome = bulk.apply_bulk(store, auswahl, feld, wert)
@@ -166,7 +154,7 @@ def _commit(
         request,
         "workbench/sammelbearbeitung_ergebnis.html",
         {
-            "feld_label": _feld_label(feld),
+            "feld_label": bulk.label_of(feld),
             "wert_display": bulk.field_display(feld, wert, names),
             "saved": outcome.saved,
             "conflicted": outcome.conflicted,
@@ -198,7 +186,7 @@ def _reject(
         {
             "auswahl": auswahl,
             "feld": feld,
-            "feld_label": _feld_label(feld),
+            "feld_label": bulk.label_of(feld),
             "fehler": error,
             "anzahl": len(auswahl),
             "artikel_liste": [],
@@ -217,12 +205,6 @@ def _reject(
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
         },
     )
-
-
-def _needs_leeren_flag(store: ObjectStore, auswahl: list[str], feld: str, wert: str) -> bool:
-    """Whether committing this apply would orphan any Dokumenttyp (spec §3) — the commit then needs
-    the dokumenttyp_leeren confirm flag."""
-    return feld == "media_type" and bool(_orphans(_load_all(store, auswahl), feld, wert))
 
 
 def _orphans(articles: list[Article], feld: str, wert: str) -> list[Article]:
@@ -249,25 +231,6 @@ def _orphan_row(article: Article) -> dict[str, str]:
         "title": article.title,
         "alt": article.document_type or "",
     }
-
-
-def _feld_label(feld: str) -> str:
-    """The German label for a Feld target (the confirm/result page shows the label, not the key)."""
-    return _FELD_LABELS.get(feld, feld)
-
-
-#: Feld target → German label (spec §1). One source; matches the bar's Feld options.
-_FELD_LABELS: dict[str, str] = {
-    "physical_location": "Standort",
-    "creator": "Autor",
-    "subject_place": "Ort",
-    "media_type": "Medienart",
-    "document_type": "Dokumenttyp",
-    "Quelle": "Quelle",
-    "collection_id": "Sammlungsteil",
-    "Querverweis": "Querverweis",
-    "Besitzer": "Besitzer",
-}
 
 
 def _load_all(store: ObjectStore, ulids: list[str]) -> list[Article]:
