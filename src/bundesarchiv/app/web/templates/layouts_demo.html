@@ -12,8 +12,8 @@ hides the pane and returns the ledger to full — layouts.css owns that, not the
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Layout demo: {{ layout_name }} — dev</title>
-  <link rel="stylesheet" href="/static/tokens.css">
-  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="{% url 'static-tokens' %}">
+  <link rel="stylesheet" href="{% url 'static-components' %}">"
   <link rel="stylesheet" href="{{ stylesheet }}">
 </head>
 <body class="wb wb--{{ layout_name }}{% if vorschau %} wb--vorschau{% endif %}">
@@ -24,12 +24,12 @@ hides the pane and returns the ledger to full — layouts.css owns that, not the
   <a href="?vorschau=0"{% if not vorschau %} aria-current="page"{% endif %}>Vorschau zu</a>
   <a href="?vorschau=1"{% if vorschau %} aria-current="page"{% endif %}>Vorschau auf</a>
   <span class="wb-devbar-sep">·</span>
-  <a href="/_dev/components/">← Component library</a>
+  <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
 
 {% comment %} Header bar: wordmark + search field + Neuer Artikel (the real button/input atoms). {% endcomment %}
 <header class="wb-header">
-  <a class="wb-wordmark" href="/_dev/layouts/{{ layout_name }}/">Bundesarchiv</a>
+  <a class="wb-wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
   <form class="wb-search" role="search" method="get" action="">
     {% include "components/input.html" with type="search" name="q" placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
     {% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}

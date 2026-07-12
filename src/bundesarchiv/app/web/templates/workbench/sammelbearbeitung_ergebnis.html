@@ -8,8 +8,8 @@ vorhanden:" bucket; doctype-cleared as a neutral sub-note. NO red anywhere — a
 outcome, not an error. Index lag → a quiet role=status line.
 {% endcomment %}
 {% block title %}Sammelbearbeitung{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form">
   {% if conflict_count %}
@@ -39,11 +39,11 @@ outcome, not an error. Index lag → a quiet role=status line.
         {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
         <span class="c-bulk-titel">{{ row.title }}</span>
         <span class="c-bulk-konflikt">inzwischen geändert</span>
-        <a class="wb-zurueck" href="/artikel/{{ row.ulid }}/bearbeiten">Diesen Artikel bearbeiten</a>
+        <a class="wb-zurueck" href="{% url 'artikel-bearbeiten' row.ulid %}">Diesen Artikel bearbeiten</a>
       </li>
       {% endfor %}
     </ul>
-    <p><a class="wb-zurueck" href="/?{{ erneut_query }}">Diese {{ conflict_count }} erneut auswählen</a></p>
+    <p><a class="wb-zurueck" href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflict_count }} erneut auswählen</a></p>
   </section>
   {% endif %}
 
@@ -56,6 +56,6 @@ outcome, not an error. Index lag → a quiet role=status line.
   </section>
   {% endif %}
 
-  <p><a class="c-btn c-btn--subtle" href="/">Zurück zur Suche</a></p>
+  <p><a class="c-btn c-btn--subtle" href="{% url 'workbench' %}">Zurück zur Suche</a></p>
 </main>
 {% endblock %}

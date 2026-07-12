@@ -25,6 +25,7 @@ from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
+from django.urls import reverse
 
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.article_auth import (
@@ -196,9 +197,9 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         datierung=article.date.value if article.date is not None else "",
         typ=article.document_type or "",
         media=media,
-        oeffnen_href=f"/artikel/{article.ulid}{_zurueck_suffix(search_params)}",
+        oeffnen_href=f"{reverse('artikel-detail', args=[article.ulid])}{_zurueck_suffix(search_params)}",
         # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
-        bearbeiten_href=f"/artikel/{article.ulid}" if is_archivist else "",
+        bearbeiten_href=reverse("artikel-detail", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
@@ -276,7 +277,7 @@ def _ledger_row(
         # ledger_pane.js progressively upgrades this to the ?artikel pane on wide viewports (see the
         # data-artikel hook). No-JS behavior: the detail link everywhere. ?zurueck carries the search
         # back so detail's "Zurück zur Suche" restores it (spec §2).
-        "href": f"/artikel/{hit.ulid}{zurueck}",
+        "href": f"{reverse('artikel-detail', args=[hit.ulid])}{zurueck}",
         "artikel_ulid": hit.ulid,
         "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
@@ -286,7 +287,7 @@ def _ledger_row(
         "visibility": _visibility_label(hit.tier, hit.groups) if is_archivist else "",
         # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
         "action_label": "Bearbeiten" if is_archivist else "",
-        "action_href": f"/artikel/{hit.ulid}" if is_archivist else "",
+        "action_href": reverse("artikel-detail", args=[hit.ulid]) if is_archivist else "",
         "selected": hit.ulid == selected_ulid,
         "gewaehlt": is_archivist and hit.ulid in auswahl,
     }
@@ -586,7 +587,7 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # sanitized through the browse param whitelist (never echoed raw — no reflection/open-redirect,
     # spec §2). Falls back to a bare "/" when absent or nothing survives sanitizing.
     clean = browse.sanitize_query(request.GET.get("zurueck", ""))
-    zurueck_href = f"/?{clean}" if clean else "/"
+    zurueck_href = f"{reverse('workbench')}?{clean}" if clean else reverse("workbench")
     return render(request, "workbench/detail.html", _detail_context(resolution, zurueck_href))
 
 
@@ -648,12 +649,15 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
     media = _detail_media(article)
     crumbs = tuple(
         _DetailCrumb(
-            name=c.name, href=f"/?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}"
+            name=c.name,
+            href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}",
         )
         for c in reversed(resolution.chain.collections)
     )
     tags = tuple(
-        _DetailTag(label=t, href=f"/?{browse.with_param({}, browse.PARAM_TAG, t)}")
+        _DetailTag(
+            label=t, href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_TAG, t)}"
+        )
         for t in article.tags
     )
     return {

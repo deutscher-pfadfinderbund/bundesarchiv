@@ -7,8 +7,8 @@ over-exposure machinery a rename does not). Plain no-JS POST → save_collection
 reindex, so the new name is live in facets) → 302 to the workbench filtered to this Bestand.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form c-form--neu">
   <h1 class="c-form-titel">Bestand bearbeiten</h1>
@@ -21,7 +21,7 @@ reindex, so the new name is live in facets) → 302 to the workbench filtered to
     <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Bestand gespeichert, während Sie ihn bearbeitet haben (jetzt „{{ conflict_name }}“). Bitte prüfen und erneut speichern.</p>
   </section>
   {% endif %}
-  <form class="c-form-felder" method="post" action="/bestand/{{ ulid }}/bearbeiten">
+  <form class="c-form-felder" method="post" action="{% url 'bestand-bearbeiten' ulid %}">"
     {% csrf_token %}
     <label class="c-field{% if errors.name %} c-field--fehler{% endif %}">
       <span class="c-field-label">Name</span>

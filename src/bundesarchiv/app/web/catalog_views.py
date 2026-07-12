@@ -26,6 +26,7 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
+from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.web import catalog, vocab
@@ -131,7 +132,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         errors = _create_errors(title, collection_id, collections)
         if not errors:
             ulid = catalog.new_draft(store, title=title, collection_id=collection_id)
-            return HttpResponseRedirect(f"/artikel/{ulid}/bearbeiten")
+            return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
         return render(
             request,
             "workbench/artikel_neu.html",
@@ -254,7 +255,7 @@ def _handle_edit_post(
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
                 return _rerender_edit(request, store, ulid, index_lag=True)
-            return _redirect(request, f"/artikel/{ulid}")
+            return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
             context = _edit_context_from_post(
                 request,
@@ -624,7 +625,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     store, _ = gated
     copy = article_services.copy_article(store, ulid)
     # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
-    return HttpResponseRedirect(f"/artikel/{copy.ulid}/bearbeiten?fokus=signatur")
+    return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
 
 # --- /artikel/<ulid>/loeschen — delete confirm + execute (Slice C, spec §7) --------
@@ -657,7 +658,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "ref_code": stored.article.ref_code or "",
             "titel_confirm": "Entwurf verwerfen?" if verwerfen else "Artikel löschen?",
             "button_label": "Entwurf verwerfen" if verwerfen else "Endgültig löschen",
-            "action": f"/artikel/{ulid}/loeschen",
+            "action": reverse("artikel-loeschen", args=[ulid]),
         },
     )
 
@@ -693,7 +694,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     outcome = catalog.save_catalog_form(store, mutated, expected_version)
     match outcome:
         case catalog.SavedOutcome():
-            return _redirect(request, f"/artikel/{ulid}")
+            return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
             collections = _collections(store)
             context = _edit_context_from_article(

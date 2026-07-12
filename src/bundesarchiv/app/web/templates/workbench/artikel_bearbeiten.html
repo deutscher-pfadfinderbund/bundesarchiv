@@ -8,9 +8,9 @@ source so Enter submits it; the hidden expected_version rides the form for CAS (
 Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">
-<script src="/static/catalog_form.js" defer></script>{% endblock %}
-{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
+<script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
+{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
@@ -61,7 +61,7 @@ only.{% endcomment %}
     <p class="c-panel-marken">{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
     {% if vorschau.public %}<p class="c-panel-zeile c-panel-oeffentlich">Öffentlich sichtbar</p>{% endif %}
     <p class="c-panel-felder">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
-    <form method="post" action="/artikel/{{ values.ulid }}/lebenszyklus">
+    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="veroeffentlichen">
@@ -94,8 +94,8 @@ only.{% endcomment %}
   same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
   save gets HX-Redirect to the read view. No-JS baseline is the plain POST + 302.{% endcomment %}
   <form id="bearbeiten-form" class="c-form-felder" method="post"
-        action="/artikel/{{ values.ulid }}/bearbeiten"
-        hx-post="/artikel/{{ values.ulid }}/bearbeiten"
+        action="{% url 'artikel-bearbeiten' values.ulid %}"
+        hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
@@ -142,7 +142,7 @@ only.{% endcomment %}
           them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
           server pairing re-validation still stand.{% endcomment %}
           <select class="c-select" name="media_type"
-                  hx-get="/artikel/{{ values.ulid }}/dokumenttypen"
+                  hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
                   hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
                   {% if autofocus == "media_type" %}autofocus{% endif %}>
             {% for value, caption in media_type_options %}
@@ -184,7 +184,7 @@ only.{% endcomment %}
           line below. No-JS baseline unchanged — the echo also renders server-side after any
           submit/reload.{% endcomment %}
           <input class="c-input" type="text" name="date" value="{{ values.date }}"
-                 hx-get="/artikel/{{ values.ulid }}/datierung-echo"
+                 hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
                  hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
                  hx-swap="outerHTML"
                  {% if autofocus == "date" %}autofocus{% endif %}>
@@ -344,7 +344,7 @@ only.{% endcomment %}
       <div class="c-form-footer-aktionen">
         <button class="c-btn c-btn--primary" type="submit">Speichern</button>
         {% if values.is_draft %}
-        <a class="c-btn c-btn--subtle" href="/artikel/{{ values.ulid }}/loeschen?verwerfen=1">Verwerfen</a>
+        <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
         {% endif %}
       </div>
     </div>
@@ -362,27 +362,27 @@ only.{% endcomment %}
   replaced.{% endcomment %}
   {% for row in media_rows %}
   <form id="verschieben-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/verschieben"
-        hx-post="/artikel/{{ values.ulid }}/medien/verschieben"
+        action="{% url 'artikel-medien-verschieben' values.ulid %}"
+        hx-post="{% url 'artikel-medien-verschieben' values.ulid %}"
         hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
   </form>
   <form id="entfernen-frage-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen"
-        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        action="{% url 'artikel-medien-entfernen' values.ulid %}"
+        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
         hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
   </form>
   <form id="entfernen-ja-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen"
-        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        action="{% url 'artikel-medien-entfernen' values.ulid %}"
+        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
         hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
     <input type="hidden" name="bestaetigt" value="1">
   </form>
   <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
-        action="/artikel/{{ values.ulid }}/medien/entfernen"
-        hx-post="/artikel/{{ values.ulid }}/medien/entfernen"
+        action="{% url 'artikel-medien-entfernen' values.ulid %}"
+        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
         hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}
   </form>
@@ -394,8 +394,8 @@ only.{% endcomment %}
   same full-page render (hx-select); catalog_form.js paints the discrete progress sliver from
   htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
   <form id="medien-upload" method="post" enctype="multipart/form-data"
-        action="/artikel/{{ values.ulid }}/medien/hochladen"
-        hx-post="/artikel/{{ values.ulid }}/medien/hochladen"
+        action="{% url 'artikel-medien-hochladen' values.ulid %}"
+        hx-post="{% url 'artikel-medien-hochladen' values.ulid %}"
         hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
     {% csrf_token %}
   </form>
@@ -408,14 +408,14 @@ only.{% endcomment %}
   <section class="c-form-lebenszyklus">
     {% if values.is_draft %}
     {# HTMX (spec §5): the preview swaps #form-region so c-panel--vorschau appears inline at top. #}
-    <form method="post" action="/artikel/{{ values.ulid }}/vorschau"
-          hx-post="/artikel/{{ values.ulid }}/vorschau"
+    <form method="post" action="{% url 'artikel-vorschau' values.ulid %}"
+          hx-post="{% url 'artikel-vorschau' values.ulid %}"
           hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
       {% csrf_token %}
       <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
     </form>
     {% else %}
-    <form method="post" action="/artikel/{{ values.ulid }}/lebenszyklus">
+    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">"
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">

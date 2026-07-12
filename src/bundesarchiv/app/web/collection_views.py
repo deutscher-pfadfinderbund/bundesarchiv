@@ -23,6 +23,7 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
+from django.urls import reverse
 
 from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.web import vocab
@@ -91,7 +92,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
             # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
             query = urlencode({"bestand": result.ulid, "angelegt": name})
-            return HttpResponseRedirect(f"/artikel/neu?{query}")
+            return HttpResponseRedirect(f"{reverse('artikel-neu')}?{query}")
         return render(
             request,
             "workbench/bestand_neu.html",
@@ -180,7 +181,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                 "workbench/bestand_bearbeiten.html",
                 _edit_context(store, winner, name, {}, conflict_name=winner.collection.name),
             )
-        return HttpResponseRedirect(f"/?bestand={ulid}")
+        return HttpResponseRedirect(f"{reverse('workbench')}?bestand={ulid}")
     return render(
         request,
         "workbench/bestand_bearbeiten.html",

@@ -12,7 +12,7 @@ design iterations happen on the real atoms, this template never changes per vari
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Component library — dev</title>
-  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="{% url 'static-tokens' %}">
   <link rel="stylesheet" href="{{ stylesheet }}">
   <style>
     /* Page scaffolding only — role tokens, no raw colors here either. */
@@ -123,9 +123,9 @@ English; the copy inside atoms is product UI German.</p>
 
 <nav class="variants" aria-label="Design variants">
   <span class="vlabel">Variant:</span>
-  <a href="/_dev/components/"{% if not variant %} aria-current="page"{% endif %}>baseline</a>
+  <a href="{% url 'dev-components' %}"{% if not variant %} aria-current="page"{% endif %}>baseline</a>
   {% for name in variant_names %}
-  <a href="/_dev/components/{{ name }}/"{% if name == variant %} aria-current="page"{% endif %}>{{ name }}</a>
+  <a href="{% url 'dev-components-variant' name %}"{% if name == variant %} aria-current="page"{% endif %}>{{ name }}</a>
   {% endfor %}
 </nav>
 

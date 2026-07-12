@@ -7,8 +7,8 @@ c-btn--gefahr (error inversion) appears. Abbrechen is subtle → back to the rea
 page: one POST executes; there is no undo (no Papierkorb this version).
 {% endcomment %}
 {% block title %}{{ titel_confirm }}{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="/artikel/{{ ulid }}">Zurück zum Artikel</a>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="{% url 'artikel-detail' ulid %}">Zurück zum Artikel</a>{% endblock %}
 {% block body %}
 <main class="c-form c-confirm">
   <h1 class="c-confirm-titel">{{ titel_confirm }}</h1>
@@ -28,7 +28,7 @@ page: one POST executes; there is no undo (no Papierkorb this version).
       {% csrf_token %}
       <button class="c-btn c-btn--gefahr" type="submit">{{ button_label }}</button>
     </form>
-    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}">Abbrechen</a>
+    <a class="c-btn c-btn--subtle" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
   </div>
 </main>
 {% endblock %}

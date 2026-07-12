@@ -9,7 +9,7 @@ machine values, and the inline links (spec §0); the human Datierung under the t
 is_archivist. No JS, no HTMX — the app's purest no-JS surface (§7).
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/detail.css">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-detail' %}">{% endblock %}
 {% block body_class %} wb--detail{% endblock %}
 {% block header %}
 <div class="l-topbar">
@@ -25,22 +25,22 @@ is_archivist. No JS, no HTMX — the app's purest no-JS surface (§7).
 <main class="l-blatt">
   {% if is_archivist %}
   <div class="c-artikel-aktionen">
-    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/bearbeiten">Bearbeiten</a>
-    <form method="post" action="/artikel/{{ ulid }}/kopieren">
+    <a class="c-btn c-btn--subtle" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
+    <form method="post" action="{% url 'artikel-kopieren' ulid %}">
       {% csrf_token %}
       <button class="c-btn c-btn--subtle" type="submit">Kopieren</button>
     </form>
     {% if is_draft %}
-    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/bearbeiten">Veröffentlichen</a>
+    <a class="c-btn c-btn--subtle" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>
     {% else %}
-    <form method="post" action="/artikel/{{ ulid }}/lebenszyklus">
+    <form method="post" action="{% url 'artikel-lebenszyklus' ulid %}">"
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">
       <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
     </form>
     {% endif %}
-    <a class="c-btn c-btn--subtle" href="/artikel/{{ ulid }}/loeschen">Löschen</a>
+    <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' ulid %}">Löschen</a>
   </div>
   {% endif %}
 

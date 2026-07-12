@@ -11,18 +11,18 @@ always links home.
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
-  <link rel="stylesheet" href="/static/tokens.css">
-  <link rel="stylesheet" href="/static/components.css">
-  <link rel="stylesheet" href="/static/layouts.css">
+  <link rel="stylesheet" href="{% url 'static-tokens' %}">
+  <link rel="stylesheet" href="{% url 'static-components' %}">
+  <link rel="stylesheet" href="{% url 'static-layouts' %}">"
   {% block head_extra %}{% endblock %}
 </head>
 <body class="wb{% block body_class %}{% endblock %}">
 <header class="wb-header">
-  <a class="wb-wordmark" href="/">Bundesarchiv</a>
+  <a class="wb-wordmark" href="{% url 'workbench' %}">Bundesarchiv</a>
   {% block header %}{% endblock %}
 </header>
 {% block body %}{% endblock %}
-<script src="/static/htmx.min.js" defer></script>
-<script src="/static/ledger_pane.js" defer></script>
+<script src="{% url 'static-htmx' %}" defer></script>
+<script src="{% url 'static-ledger-pane' %}" defer></script>
 </body>
 </html>

@@ -9,8 +9,8 @@ point. A validation error re-renders here with the verbatim message + the select
 Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server session state).
 {% endcomment %}
 {% block title %}Sammelbearbeitung prüfen{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/forms.css">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="/">Zurück zur Suche</a>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form">
   <h1 class="c-form-titel">Sammelbearbeitung prüfen</h1>
@@ -19,7 +19,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
   {% comment %}Validation error (spec §2 C): re-render the chooser drawer with the verbatim error, the
   selection carried as hidden auswahl inputs, so the archivist fixes the field/value and re-submits
   from here — the selection is never lost. The back-link also preserves ?auswahl=.{% endcomment %}
-  <form class="wb-sammelform" method="post" action="/artikel/sammelbearbeitung">
+  <form class="wb-sammelform" method="post" action="{% url 'artikel-sammelbearbeitung' %}">"
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
     <p class="c-form-hint">{{ anzahl }} ausgewählt</p>
@@ -40,7 +40,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
       <label class="c-field" data-bulk-wert="media_type">
         <span class="c-field-label">Neuer Wert</span>
         <select class="c-select" name="wert_media_type" data-bulk-media-type
-                hx-get="/artikel/sammelbearbeitung/dokumenttypen"
+                hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
                 hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
           {% for value, caption in media_type_options %}
           <option value="{{ value }}">{{ caption }}</option>
