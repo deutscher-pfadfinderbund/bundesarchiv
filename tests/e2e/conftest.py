@@ -75,7 +75,7 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
     Views read ``settings.BUNDESARCHIV_CANONICAL_ROOT`` / ``BUNDESARCHIV_THUMBNAIL_ROOT`` per request,
     so the session-scoped ``live_server`` thread picks up each test's fresh dirs through this override.
     """
-    settings = {
+    settings: dict[str, object] = {
         "ROOT_URLCONF": settings_dev.ROOT_URLCONF,
         "MIDDLEWARE": settings_dev.MIDDLEWARE,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,

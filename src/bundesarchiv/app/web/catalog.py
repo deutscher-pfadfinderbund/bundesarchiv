@@ -19,6 +19,7 @@ tests and a ``QueryDict`` in the view without knowing which it holds.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from typing import Protocol, runtime_checkable
 
 from bundesarchiv.app import articles
 from bundesarchiv.app.result import SaveResult
@@ -61,12 +62,19 @@ class ParseResult:
     expected_version: Version
 
 
+@runtime_checkable
+class _HasGetlist(Protocol):
+    """Structural stand-in for ``QueryDict.getlist`` — keeps this module Django-import-free while
+    letting the multi-value read stay fully typed (no ``getattr``/``Any`` escape hatch)."""
+
+    def getlist(self, key: str, /) -> list[str]: ...
+
+
 def _getlist(post: Mapping[str, object], key: str) -> list[str]:
     """Read a multi-valued form field as a list of strings, working for both a Django ``QueryDict``
     (``.getlist``) and a plain ``dict[str, list[str]]`` (tests). An absent key yields ``[]``."""
-    getlist = getattr(post, "getlist", None)
-    if callable(getlist):
-        return list(getlist(key))
+    if isinstance(post, _HasGetlist):
+        return list(post.getlist(key))
     value = post.get(key)
     if value is None:
         return []

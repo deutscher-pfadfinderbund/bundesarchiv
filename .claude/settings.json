@@ -13,6 +13,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -e '.stop_hook_active == true' >/dev/null 2>&1 && exit 0; uv run pyrefly check >&2 || exit 2",
+            "timeout": 30,
+            "statusMessage": "pyrefly type check"
+          }
+        ]
+      }
     ]
   }
 }

@@ -1,5 +1,9 @@
 # Hooks run through `uv run` so they use the project env (no duplicate dep envs,
 # no rev pinning to drift). Install once with: pre-commit install
+# Two stages: commit = fast (uv-lock, ruff, pyrefly ~1s); push = the full gate
+# (mypy strict + test suite ~30s). Writer agents still run the full gate per
+# commit by discipline (writer-brief); the push hook is the human safety net.
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
@@ -17,14 +21,23 @@ repos:
       - id: ruff-format
   - repo: local
     hooks:
+      # Fail-fast type check (~0.2s) before the slow gate below. Second opinion only —
+      # mypy stays canonical; noise policy lives at [tool.pyrefly] in pyproject.toml.
+      - id: pyrefly
+        name: pyrefly
+        entry: uv run pyrefly check
+        language: system
+        pass_filenames: false
       - id: mypy
         name: mypy
         entry: uv run mypy
         language: system
         pass_filenames: false
+        stages: [pre-push]
       - id: pytest
         name: pytest
         entry: uv run pytest
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-push]
