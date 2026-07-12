@@ -1,3 +1,15 @@
+## Dev environment
+
+- Search database (Postgres, host port 5434) runs via Apple's `container`
+  CLI, `docker` only when `container` is not installed. (`docker-compose.yml` is a VPS deploy artifact):
+  `container system start && container start bundesarchiv-pg`
+  (first-time setup: see README).
+- Full gate (run before every commit; all must pass):
+  `uv run ruff check && uv run ruff format --check . && uv run mypy && uv run pytest`
+- Fast type check (~0.2s second opinion; zero-error policy): `uv run pyrefly check`
+- Dev server: `DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`
+- E2E/gallery (excluded from default run): `uv run pytest -m e2e`, `uv run pytest -m gallery -s`
+
 ## Agent skills
 
 ### Issue tracker
