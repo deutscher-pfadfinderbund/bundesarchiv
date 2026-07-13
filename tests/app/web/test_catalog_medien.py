@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
@@ -162,6 +163,30 @@ def test_verschieben_get_is_404(corpus: _Corpus) -> None:
         assert (
             _client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben").status_code == 404
         )
+
+
+def test_verschieben_against_deleted_article_is_byte_identical_404(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # _load_gated passes (the article existed at gate time), but the article is hard-deleted before
+    # _structural_save's own re-load runs — that re-load must not surface an uncaught 500.
+    from bundesarchiv.app.web import catalog_views
+
+    real_gated = catalog_views._load_gated
+
+    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
+        gated = real_gated(request, ulid)
+        ArticleRepository(corpus.store).hard_delete(_ULID)
+        return gated
+
+    monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+        )
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
 
 
 def test_structural_save_conflict_surfaces_hinweis_not_silent(

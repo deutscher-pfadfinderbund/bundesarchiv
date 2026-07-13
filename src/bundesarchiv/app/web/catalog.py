@@ -11,7 +11,9 @@ Conflict-catch site (ADR 0013) is a thin shell:
   form save (ADR 0013): it calls ``save_article(store, article, expected_version)`` directly (never
   ``update()``), and on ``Conflict`` re-loads the winner and returns a ``ConflictOutcome`` carrying
   the current version + winner article so the view re-renders the "Inzwischen geändert" panel with
-  the archivist's just-submitted values preserved and a refreshed ``expected_version``.
+  the archivist's just-submitted values preserved and a refreshed ``expected_version``. If that
+  re-load instead finds the article gone (a stale save racing a hard delete, not a concurrent edit),
+  it returns ``DeletedOutcome`` so the view collapses to the byte-identical 404 instead of a 500.
 
 The Django coupling is a single ``getlist`` helper so the parser can be driven by a plain dict in
 tests and a ``QueryDict`` in the view without knowing which it holds.
@@ -34,7 +36,7 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.persistence.errors import Conflict
+from bundesarchiv.persistence.errors import ArchiveError, Conflict
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
@@ -276,7 +278,16 @@ class ConflictOutcome:
     submitted: Article
 
 
-type SaveOutcome = SavedOutcome | ConflictOutcome
+@dataclass(frozen=True, slots=True)
+class DeletedOutcome:
+    """The article was hard-deleted between the view's initial load and this save: the CAS check
+    reads the store's version as 0 (``_current_version`` on a missing article) and raises
+    ``Conflict``, but the Conflict handler's re-load then finds nothing at all — a stale save racing
+    a deletion, not a concurrent edit. The view maps this to the byte-identical 404 (existence-hiding:
+    the article no longer exists, so it must be indistinguishable from one that never did)."""
+
+
+type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 
 
 def save_catalog_form(
@@ -286,11 +297,16 @@ def save_catalog_form(
     directly (never the retrying ``update()``): on success returns a ``SavedOutcome``; on ``Conflict``
     re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
     winner and the archivist's submitted article, so the view preserves the just-typed values and
-    refreshes ``expected_version`` to the current version (the next Speichern then wins)."""
+    refreshes ``expected_version`` to the current version (the next Speichern then wins). If that
+    re-load instead finds the article hard-deleted (the Conflict was a deletion, not a concurrent
+    edit), returns ``DeletedOutcome`` so the view 404s instead of letting the load failure propagate."""
     try:
         result = articles.save_article(store, article, expected_version)
     except Conflict:
-        stored = ArticleRepository(store).load(article.ulid)
+        try:
+            stored = ArticleRepository(store).load(article.ulid)
+        except ArchiveError:
+            return DeletedOutcome()
         return ConflictOutcome(
             winner=stored.article, current_version=stored.version, submitted=article
         )

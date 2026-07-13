@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
+from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
@@ -298,6 +299,36 @@ def test_lifecycle_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/lebenszyklus")
     assert response.status_code == 404
+
+
+def test_lifecycle_stale_save_against_deleted_article_is_byte_identical_404(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The archivist's gate/load passes (as it would right after a GET), but the article is
+    # hard-deleted before THIS POST's save runs — the race window between the view's initial
+    # gate/load and `save_catalog_form`'s own re-load on Conflict. The Conflict handler's re-load
+    # then hits NotFound — that must collapse to the SAME 404 as an absent article, never a 500.
+    from bundesarchiv.app.web import catalog_views
+
+    real_gated = catalog_views._load_gated
+
+    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
+        gated = real_gated(request, ulid)
+        ArticleRepository(corpus.store).hard_delete(_DRAFT)
+        return gated
+
+    monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_DRAFT}/lebenszyklus",
+            {
+                "aktion": "veroeffentlichen",
+                "geprueft": "1",
+                "expected_version": str(corpus.draft_version),
+            },
+        )
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
 
 
 # --- Vorschau (the highest-risk oracle) --------------------------------------------

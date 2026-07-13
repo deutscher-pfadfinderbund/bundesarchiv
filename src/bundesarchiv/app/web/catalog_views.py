@@ -267,6 +267,10 @@ def _handle_edit_post(
                 conflict=conflict,
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
+        case catalog.DeletedOutcome():
+            # A stale save raced a hard delete, not a concurrent edit — the article is gone, so this
+            # collapses to the same 404 as an absent article (existence-hiding).
+            return _not_found()
 
 
 def _rerender_with_custom_removed(
@@ -703,6 +707,10 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
             context["conflict"] = True
             context["conflict_rows"] = _conflict_rows(mutated, conflict.winner)
             return render(request, "workbench/artikel_bearbeiten.html", context)
+        case catalog.DeletedOutcome():
+            # A stale save raced a hard delete, not a concurrent edit — collapse to the byte-identical
+            # 404 (existence-hiding), never let the load failure propagate as a 500.
+            return _not_found()
 
 
 def _lifecycle_for(aktion: str) -> Lifecycle | None:
@@ -845,6 +853,8 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
     saved = _structural_save(store, ulid, lambda media: _reordered(media, content_hash, richtung))
+    if saved is None:
+        return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
     return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
 
 
@@ -860,6 +870,8 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
         saved = _structural_save(store, ulid, lambda media: _without(media, content_hash))
+        if saved is None:
+            return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
         return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
     # step 1: show the inline confirm for this row (no mutation)
     return _rerender_edit(request, store, ulid, entfernen_hash=content_hash)
@@ -886,9 +898,11 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     new_refs = [
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
-    saved = True
+    saved: bool | None = True
     if new_refs:
         saved = _structural_save(store, ulid, lambda media: (*media, *new_refs))
+    if saved is None:
+        return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
     return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
 
 
@@ -896,17 +910,22 @@ def _structural_save(
     store: ObjectStore,
     ulid: Ulid,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
-) -> bool:
+) -> bool | None:
     """Apply an idempotent structural transform to the article's media tuple and save via the service
     (canonical write + index sync), retrying on a concurrent version bump (safe: the transform
     re-applies to the winner's fresh media with the same intent). Non-CAS from the form's view — it
     re-loads the current version rather than trusting the form's expected_version (spec §6.3).
 
     Returns True on a committed save, False if every attempt lost the race (so the caller surfaces a
-    German hinweis rather than silently pretending the change stuck)."""
+    German hinweis rather than silently pretending the change stuck), or None if the article was
+    hard-deleted underneath (the initial gate saw it, but THIS re-load — the same deleted-underneath
+    window ``save_catalog_form`` guards against — does not; the caller 404s instead of a hinweis)."""
     repo = ArticleRepository(store)
     for _ in range(_STRUCTURAL_SAVE_ATTEMPTS):
-        stored = repo.load(ulid)
+        try:
+            stored = repo.load(ulid)
+        except ArchiveError:
+            return None
         mutated = replace(stored.article, media=transform(stored.article.media))
         try:
             article_services.save_article(store, mutated, stored.version)
@@ -950,8 +969,13 @@ def _rerender_edit(
     """Re-render the edit form after a structural media change (or the remove-confirm step, or a
     saved-but-index-lagged metadata save). Re-loads the article so the register + fields reflect the
     just-applied change. ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler``
-    surfaces an upload error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis."""
-    stored = ArticleRepository(store).load(ulid)
+    surfaces an upload error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis.
+    If the article was hard-deleted underneath (the initial gate saw it, but this re-load does not),
+    collapses to the byte-identical 404 rather than letting the load failure propagate."""
+    try:
+        stored = ArticleRepository(store).load(ulid)
+    except ArchiveError:
+        return _not_found()
     collections = _collections(store)
     context = _edit_context_from_article(
         stored.article,

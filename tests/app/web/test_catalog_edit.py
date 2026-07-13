@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
+from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
@@ -285,6 +286,34 @@ def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _Corpus) 
         )
     assert retry.status_code == 302
     assert ArticleRepository(corpus.store).load(_ULID).article.title == "Verlierer"
+
+
+# --- POST: stale save against a hard-deleted article -------------------------------
+
+
+def test_stale_save_against_deleted_article_is_byte_identical_404(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The archivist opened the form at version 1 (the gate passes and loads the article); an
+    # archivist hard-deletes it before THIS POST's save runs — the exact race window between the
+    # view's initial gate/load and `save_catalog_form`'s own re-load on Conflict. `_current_version`
+    # then reads 0 for the missing article, so `save_article` raises Conflict (0 != 1); the Conflict
+    # handler's re-load hits NotFound. That must collapse to the SAME 404 as an absent article, never
+    # an uncaught 500.
+    from bundesarchiv.app.web import catalog_views
+
+    real_gated = catalog_views._load_gated
+
+    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
+        gated = real_gated(request, ulid)
+        ArticleRepository(corpus.store).hard_delete(_ULID)
+        return gated
+
+    monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
+    assert response.status_code == 404
+    assert _404_shape(response) == _media_404_shape()
 
 
 # --- autofocus (spec §5) -----------------------------------------------------------
