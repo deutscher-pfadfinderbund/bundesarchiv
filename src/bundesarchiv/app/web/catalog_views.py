@@ -229,7 +229,7 @@ def _handle_edit_post(
     row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
     metadata save preserves them (only captions update; media structure is its own POSTs)."""
     if "custom_entfernen" in request.POST:
-        return _rerender_with_custom_removed(request, ulid, collections)
+        return _rerender_with_custom_removed(request, ulid, collections, current.media)
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -244,7 +244,7 @@ def _handle_edit_post(
             result,
             collections,
             autofocus=_first_error_field(result.errors),
-            media=current.media,
+            media=catalog._apply_captions(request.POST, current.media),
         )
         return render(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
@@ -263,7 +263,7 @@ def _handle_edit_post(
                 result,
                 collections,
                 autofocus="speichern",
-                media=conflict.winner.media,
+                media=catalog._apply_captions(request.POST, conflict.winner.media),
                 conflict=conflict,
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
@@ -274,11 +274,16 @@ def _handle_edit_post(
 
 
 def _rerender_with_custom_removed(
-    request: HttpRequest, ulid: Ulid, collections: tuple[Collection, ...]
+    request: HttpRequest,
+    ulid: Ulid,
+    collections: tuple[Collection, ...],
+    current_media: tuple[MediaRef, ...],
 ) -> HttpResponseBase:
     """The no-JS custom-row removal: drop the row whose index rode the ``custom_entfernen`` submit,
     then re-render the form with every OTHER value preserved and NO save (spec §5). A bad index is a
-    no-op (nothing removed) — total, never raises."""
+    no-op (nothing removed) — total, never raises. The media register rides along too (spec
+    values-preserved-verbatim): ``current_media`` with the POSTed captions applied, same rule as the
+    validation-error/conflict re-renders."""
     values = _post_to_form_values(request, ulid)
     try:
         index = int(request.POST.get("custom_entfernen", ""))
@@ -291,7 +296,8 @@ def _rerender_with_custom_removed(
         rows.append(("", ""))  # keep the always-present empty add-row
     values["custom_rows"] = rows
     version = catalog.parse_version(request.POST.get("expected_version", ""))
-    context = _edit_context(values, version, collections, errors={}, autofocus="")
+    media = catalog._apply_captions(request.POST, current_media)
+    context = _edit_context(values, version, collections, errors={}, autofocus="", media=media)
     return render(request, "workbench/artikel_bearbeiten.html", context)
 
 

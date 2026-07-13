@@ -439,3 +439,84 @@ def test_upload_controls_belong_to_the_medien_upload_form(corpus: _Corpus) -> No
     assert 'type="file" name="dateien" form="medien-upload"' in body
     assert '<form id="medien-upload"' in body
     assert 'enctype="multipart/form-data"' in body
+
+
+# --- values-preserved-verbatim: error/conflict re-renders keep typed captions ------
+
+
+def test_validation_error_re_render_keeps_typed_caption(corpus: _Corpus) -> None:
+    # A validation error (empty title) must NOT fall back to the stored caption in the
+    # re-rendered media register — the archivist's just-typed caption survives.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "",  # invalid -> state F re-render
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+                f"caption[{corpus.ref_a.content_hash}]": "Meine neue Unterschrift",
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Titel ist erforderlich." in body
+    assert 'value="Meine neue Unterschrift"' in body
+    assert 'value="Titelbild"' not in body  # the stale stored caption, not just duplicated
+    # nothing saved
+    assert corpus.media() == (corpus.ref_a, corpus.ref_b)
+
+
+def test_conflict_re_render_keeps_typed_caption(corpus: _Corpus) -> None:
+    archivist = _client_as(Archivist())
+    with override_settings(**_settings(corpus)):
+        winner = archivist.post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Gewinner",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+            },
+        )
+        assert winner.status_code == 302
+        loser = archivist.post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Verlierer",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),  # stale -> Conflict -> state G
+                f"caption[{corpus.ref_a.content_hash}]": "Gelöschte Unterschrift",
+            },
+        )
+    assert loser.status_code == 200
+    body = loser.content.decode()
+    assert "Inzwischen geändert" in body  # the conflict panel heading
+    assert 'value="Gelöschte Unterschrift"' in body
+
+
+def test_custom_entfernen_keeps_media_register_and_typed_caption(corpus: _Corpus) -> None:
+    # The no-JS custom-row removal re-render must NOT drop the whole Medien drawer.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                "title": "Lagerchronik",
+                "collection_id": "PUB",
+                "media_type": "Fotografie",
+                "expected_version": str(corpus.version),
+                f"caption[{corpus.ref_a.content_hash}]": "Frisch getippt",
+                "custom_key": ["Fotograf"],
+                "custom_value": ["Meyer"],
+                "custom_entfernen": "0",
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    drawer = _medien_drawer_region(body)
+    assert "cover.jpg" in drawer  # the media register is still present
+    assert "zweite.jpg" in drawer
+    assert 'value="Frisch getippt"' in drawer  # and carries the typed caption
+    # nothing saved (removal is a re-render, not a save)
+    assert corpus.media() == (corpus.ref_a, corpus.ref_b)
