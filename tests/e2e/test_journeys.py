@@ -129,6 +129,28 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     assert "/bearbeiten" not in page.url
 
 
+# --- dirty register (PE) -----------------------------------------------------------
+
+
+def test_dirty_register_covers_fields_outside_the_form_subtree(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    # Custom-bag (and caption) fields are form= ASSOCIATED with #bearbeiten-form but sit outside its
+    # DOM subtree (the #medien-drawer split) — the dirty register must still see their first edit.
+    edit_url = _create_draft(page, live_workbench, "E2E Ungespeichert")
+    page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip
+    expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
+    page.click('summary:has-text("Weitere Angaben")')
+    page.fill('input[name="custom_key"]', "Quelle")
+    expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
+    # and the plain path still works: a Gruppe-1 field inside the form reveals it too
+    page.goto(edit_url)
+    expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
+    page.fill('input[name="title"]', "E2E Ungespeichert 2")
+    expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
+
+
 # --- CAS conflict (two contexts) ---------------------------------------------------
 
 

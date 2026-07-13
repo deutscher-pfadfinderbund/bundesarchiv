@@ -9,23 +9,18 @@
 (function () {
   "use strict";
 
-  var form = document.getElementById("bearbeiten-form");
-
   // 1. Dirty register — reveal the amber "Nicht gespeicherte Änderungen" chip on the first edit.
-  // No-JS can't detect dirtiness, so the baseline hides the chip (hidden attr); JS unhides it once.
-  if (form) {
+  // No-JS can't detect dirtiness, so the baseline hides the chip (hidden attr); JS unhides it.
+  // Listen on the document and match the field's form OWNER, not DOM ancestry: caption and
+  // custom-bag fields sit OUTSIDE #bearbeiten-form's subtree (the #medien-drawer fieldset holds the
+  // real per-row forms, and forms cannot nest) but still ride its save via form= — an edit there is
+  // just as unsaved. Re-querying by id also keeps working after an hx #form-region swap.
+  document.addEventListener("input", function (event) {
+    var field = event.target;
+    if (!field.form || field.form.id !== "bearbeiten-form") return;
     var status = document.querySelector(".c-form-status");
-    if (status) {
-      // { once: true } — the register only needs revealing the first time an edit happens.
-      form.addEventListener(
-        "input",
-        function () {
-          status.hidden = false;
-        },
-        { once: true }
-      );
-    }
-  }
+    if (status) status.hidden = false;
+  });
 
   // 2. Custom bag — client-side add/remove of key/value rows. Baseline: the always-present trailing
   // empty row is the "add" affordance and empties drop server-side; this just spares a round-trip.

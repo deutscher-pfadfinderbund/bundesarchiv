@@ -257,14 +257,29 @@ only.{% endcomment %}
       </div>
     </fieldset>
 
+    {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
+    real <form> children (the per-row structural forms), and forms cannot nest — so the drawer
+    cannot be a descendant of #bearbeiten-form. Gruppe 7 + the footer resume right after the drawer,
+    in original visual position, wired back to #bearbeiten-form via form= on each field so Speichern
+    and the custom-bag still ride this form's single POST.{% endcomment %}
+  </form>
+
     {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar. Caption inputs
-    ride THIS form's save (save_article — captions are README front matter, ADR 0015). Each row's
-    reorder/remove buttons belong to their OWN per-row form (declared after this form, referenced via
-    form=) so each carries exactly one unambiguous hash — never the whole register. The FIRST row's
-    TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per
-    spec §6.3. The upload controls sit at the drawer bottom but belong to the separate multipart
-    form#medien-upload (declared after this form) via form= — file inputs support form=, same idiom
-    as the row buttons.{% endcomment %}
+    carry form="bearbeiten-form" so they ride THAT form's save (save_article — captions are README
+    front matter, ADR 0015) despite the drawer sitting outside it. Each row's reorder/remove buttons
+    belong to their OWN per-row form (declared below, inside this fieldset, referenced via form=) so
+    each carries exactly one unambiguous hash — never the whole register. The FIRST row's TITELBILD
+    cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per spec §6.3.
+    The upload controls sit at the drawer bottom but belong to the separate multipart
+    form#medien-upload (declared below, inside this fieldset) via form= — file inputs support form=,
+    same idiom as the row buttons.
+
+    HTMX (spec §5): every structural POST below hx-posts and swaps ONLY this #medien-drawer region,
+    extracted from the SAME full-page render the no-JS baseline produces (hx-select) — no
+    partial-render fork, no new render path. Its own hidden per-row + upload forms are declared as
+    SIBLINGS inside the fieldset (forms cannot nest) so a swap delivers fresh forms for the CURRENT
+    row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
+    automatically because the whole drawer (cover row first) is replaced.{% endcomment %}
     <fieldset class="c-form-group" id="medien-drawer">
       <legend class="c-form-legend">Medien</legend>
       {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
@@ -281,7 +296,7 @@ only.{% endcomment %}
           <label class="c-field">
             <span class="c-visually-hidden">Bildunterschrift</span>
             <input class="c-input" type="text" name="caption[{{ row.content_hash }}]"
-                   value="{{ row.caption }}" aria-label="Bildunterschrift">
+                   value="{{ row.caption }}" aria-label="Bildunterschrift" form="bearbeiten-form">
           </label>
           <span class="c-medien-reihenfolge">
             <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
@@ -313,7 +328,55 @@ only.{% endcomment %}
       <div class="c-medien-fortschritt" aria-hidden="true">
         <div class="c-medien-fortschritt-fill" id="medien-fortschritt-fill"></div>
       </div>
+
+      {% comment %}Per-row media structural forms (spec §6.3) — SIBLINGS of the row markup above
+      inside this fieldset, referenced by the register buttons via form=. Each carries exactly ONE
+      hash, so a reorder/remove is unambiguous. Non-CAS structural POSTs, separate from the caption
+      metadata save.{% endcomment %}
+      {% for row in media_rows %}
+      <form id="verschieben-{{ row.content_hash }}" method="post"
+            action="{% url 'artikel-medien-verschieben' values.ulid %}"
+            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}"
+            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+        {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
+      </form>
+      <form id="entfernen-frage-{{ row.content_hash }}" method="post"
+            action="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+        {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
+      </form>
+      <form id="entfernen-ja-{{ row.content_hash }}" method="post"
+            action="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+        {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
+        <input type="hidden" name="bestaetigt" value="1">
+      </form>
+      <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
+            action="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+        {% csrf_token %}
+      </form>
+      {% endfor %}
+
+      {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest), a SIBLING of
+      the per-row forms above inside the fieldset so it too survives the #medien-drawer swap. Its
+      controls render inside this drawer via form="medien-upload" — file inputs support form=, same
+      idiom as the row buttons. Appends at the end, write-once dedupe. catalog_form.js paints the
+      discrete progress sliver from htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
+      <form id="medien-upload" method="post" enctype="multipart/form-data"
+            action="{% url 'artikel-medien-hochladen' values.ulid %}"
+            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}"
+            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+        {% csrf_token %}
+      </form>
     </fieldset>
+
+    {% comment %}bearbeiten-form has no open tag here — Gruppe 7 + the footer are the SAME form as
+    Gruppe 1-5 above, wired via form="bearbeiten-form" on every field (the drawer above physically
+    splits the DOM but not the submission).{% endcomment %}
 
     {# Gruppe 7 — Weitere Angaben (custom bag) #}
     <details class="c-form-details">
@@ -323,14 +386,14 @@ only.{% endcomment %}
       <div class="c-form-bag-zeile">
         <label class="c-field">
           <span class="c-field-label">Feld</span>
-          <input class="c-input" type="text" name="custom_key" value="{{ key }}">
+          <input class="c-input" type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
         </label>
         <label class="c-field">
           <span class="c-field-label">Wert</span>
-          <input class="c-input" type="text" name="custom_value" value="{{ val }}">
+          <input class="c-input" type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
         </label>
         {% if key or val %}
-        <button class="c-form-bag-entfernen" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}">Entfernen</button>
+        <button class="c-form-bag-entfernen" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
         {% endif %}
       </div>
       {% endfor %}
@@ -342,63 +405,13 @@ only.{% endcomment %}
     <div class="c-form-footer">
       <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
       <div class="c-form-footer-aktionen">
-        <button class="c-btn c-btn--primary" type="submit">Speichern</button>
+        <button class="c-btn c-btn--primary" type="submit" form="bearbeiten-form">Speichern</button>
         {% if values.is_draft %}
         <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
         {% endif %}
       </div>
     </div>
-  </form>
   </div>{# /#form-region #}
-
-  {% comment %}Per-row media structural forms (spec §6.3) — declared here, referenced by the register
-  buttons above via form=. Each carries exactly ONE hash, so a reorder/remove is unambiguous. These
-  are non-CAS structural POSTs, separate from the caption metadata save. Upload is its own multipart
-  form. Placed outside the edit form (forms cannot nest) but wired to the rows by id.
-
-  HTMX (spec §5): each hx-posts and swaps ONLY the #medien-drawer region, extracted from the SAME
-  full-page render the no-JS baseline produces (hx-select) — no partial-render fork, no new render
-  path. TITELBILD re-stamps automatically because the whole drawer (cover row first) is
-  replaced.{% endcomment %}
-  {% for row in media_rows %}
-  <form id="verschieben-{{ row.content_hash }}" method="post"
-        action="{% url 'artikel-medien-verschieben' values.ulid %}"
-        hx-post="{% url 'artikel-medien-verschieben' values.ulid %}"
-        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
-    {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
-  </form>
-  <form id="entfernen-frage-{{ row.content_hash }}" method="post"
-        action="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
-    {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
-  </form>
-  <form id="entfernen-ja-{{ row.content_hash }}" method="post"
-        action="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
-    {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
-    <input type="hidden" name="bestaetigt" value="1">
-  </form>
-  <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
-        action="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
-    {% csrf_token %}
-  </form>
-  {% endfor %}
-
-  {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest). Its controls render
-  inside the Medien drawer above via form="medien-upload"; this declares the form (hidden) after the
-  main form. Appends at the end, write-once dedupe. HTMX swaps the #medien-drawer region from the
-  same full-page render (hx-select); catalog_form.js paints the discrete progress sliver from
-  htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
-  <form id="medien-upload" method="post" enctype="multipart/form-data"
-        action="{% url 'artikel-medien-hochladen' values.ulid %}"
-        hx-post="{% url 'artikel-medien-hochladen' values.ulid %}"
-        hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
-    {% csrf_token %}
-  </form>
 
   {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),
   adjacent to the footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST

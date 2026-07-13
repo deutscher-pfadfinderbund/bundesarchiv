@@ -107,6 +107,15 @@ def _hashes(corpus: _Corpus) -> list[str]:
     return [m.content_hash for m in corpus.media()]
 
 
+def _medien_drawer_region(body: str) -> str:
+    # Mirrors what htmx's hx-select="#medien-drawer" extracts client-side from the full-page
+    # response: the <fieldset id="medien-drawer"> element, start tag through its matching close.
+    start = body.index('id="medien-drawer"')
+    open_tag_start = body.rindex("<fieldset", 0, start)
+    end = body.index("</fieldset>", start) + len("</fieldset>")
+    return body[open_tag_start:end]
+
+
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
@@ -296,6 +305,25 @@ def test_hochladen_oversize_is_clean_error_not_500(corpus: _Corpus) -> None:
     assert response.status_code == 200  # a clean re-render, not a 500
     assert "Datei zu groß" in response.content.decode()
     assert len(corpus.media()) == 2  # nothing attached
+
+
+def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _Corpus) -> None:
+    # fix-wave: the per-row hidden forms (verschieben-<hash>, entfernen-*-<hash>) must live INSIDE
+    # #medien-drawer so an htmx swap (hx-select="#medien-drawer") delivers fresh forms for the
+    # CURRENT row set. Upload a second file, then check the swapped-in region — not the whole page
+    # — carries a verschieben-<hash> form for BOTH the pre-existing and the newly appended row.
+    upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    drawer = _medien_drawer_region(body)
+    hashes_after = _hashes(corpus)
+    assert len(hashes_after) == 3  # the new row is really there
+    for content_hash in hashes_after:
+        assert f'id="verschieben-{content_hash}"' in drawer
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
