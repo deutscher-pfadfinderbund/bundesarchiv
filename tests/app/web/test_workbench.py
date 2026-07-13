@@ -428,6 +428,22 @@ def test_entwurf_badge_and_bearbeiten_only_for_archivist(corpus_root: Path) -> N
         assert "c-badge--entwurf" not in body, f"[{label}] ENTWURF badge chrome leaked"
 
 
+# --- Task 11: htmx failures are visible (responseError/sendError) ----------------
+
+
+@pytest.mark.django_db
+def test_htmx_error_banner_ships_on_every_page(corpus_root: Path) -> None:
+    # A failed hx-POST (500, network down) must not fail silently: a document-level listener on
+    # htmx:responseError/htmx:sendError reveals a dismissible, announced banner. Pinned via
+    # base.html (every workbench page carries it), not tied to one screen.
+    body = _get(corpus_root, Public()).content.decode()
+    assert "htmx:responseError" in body
+    assert "htmx:sendError" in body
+    assert "Aktion fehlgeschlagen. Bitte erneut versuchen." in body
+    assert 'role="alert"' in body
+    assert 'aria-live="assertive"' in body
+
+
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
 
 

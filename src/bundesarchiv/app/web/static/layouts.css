@@ -72,6 +72,28 @@ body.wb {
 }
 .wb-search .c-input { flex: 1 1 auto; min-width: 0; }
 
+/* ---- global htmx failure banner (Task 11): hidden by default, revealed by the responseError/
+   sendError listener in base.html. Error role tokens only — a failed request, not a form field. */
+.wb-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--error);
+  color: var(--on-error);
+}
+.wb-error-banner-text { margin: 0; font: var(--type-body); }
+.wb-error-banner-close {
+  background: none;
+  border: none;
+  color: var(--on-error);
+  font: var(--type-title);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-1);
+}
+
 /* ---- page frame: sidebar · main · (pane). CSS grid; the pane column exists only when open. ---- */
 .wb-frame {
   display: grid;

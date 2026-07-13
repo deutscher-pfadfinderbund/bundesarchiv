@@ -22,7 +22,36 @@ always links home.
   {% block header %}{% endblock %}
 </header>
 {% block body %}{% endblock %}
+<div class="wb-error-banner" role="alert" aria-live="assertive" hidden>
+  <p class="wb-error-banner-text">Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
+  <button type="button" class="wb-error-banner-close" aria-label="Meldung schließen">&times;</button>
+</div>
 <script src="{% url 'static-htmx' %}" defer></script>
 <script src="{% url 'static-ledger-pane' %}" defer></script>
+<script>
+  // htmx failures otherwise fail silently (no swap happens, nothing tells the archivist the POST
+  // was lost) — one document-level listener on the two htmx failure events reveals the shared
+  // banner. No retry, no toast framework: dismiss (button or a fresh success) hides it again.
+  (function () {
+    "use strict";
+    document.addEventListener("DOMContentLoaded", function () {
+      var banner = document.querySelector(".wb-error-banner");
+      if (!banner) return;
+      var closeBtn = banner.querySelector(".wb-error-banner-close");
+      document.body.addEventListener("htmx:responseError", function () {
+        banner.hidden = false;
+      });
+      document.body.addEventListener("htmx:sendError", function () {
+        banner.hidden = false;
+      });
+      document.body.addEventListener("htmx:afterRequest", function (event) {
+        if (event.detail.successful) banner.hidden = true;
+      });
+      closeBtn.addEventListener("click", function () {
+        banner.hidden = true;
+      });
+    });
+  })();
+</script>
 </body>
 </html>
