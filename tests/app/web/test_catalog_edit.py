@@ -349,3 +349,66 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _Corpus) -> None:
     assert 'value="Meyer"' not in body  # the removed row's value is gone
     # nothing was saved (removal is a re-render, not a save)
     assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
+
+
+# --- POST re-render fidelity: lifecycle + custom-row accumulation ------------------
+
+
+def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _Corpus) -> None:
+    # fix-wave: `_post_to_form_values` hardcoded is_draft=True, so a PUBLISHED article's
+    # validation-error re-render wrongly showed the ENTWURF badge.
+    published = "01KX7YT9E3VX0CP3A5Q49RZMWP"
+    ArticleRepository(corpus.store).save(
+        Article(
+            ulid=published,
+            title="Veröffentlicht",
+            collection_id="PUB",
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code="F 99/1",
+        ),
+        0,
+    )
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{published}/bearbeiten",
+            {
+                **_valid_post(corpus, expected_version="0"),
+                "title": "",  # invalid -> validation error re-render (state F)
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Titel ist erforderlich." in body  # confirms we hit the error re-render
+    assert 'class="c-badge c-badge--entwurf"' not in body  # no ENTWURF badge for PUBLISHED
+
+
+def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Corpus) -> None:
+    # fix-wave: the POSTed custom rows already include the trailing blank add-row; unconditionally
+    # appending another produced +1 blank row per error re-render.
+    with override_settings(**_settings(corpus)):
+        first = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title=""),
+                "custom_key": ["Fotograf", ""],
+                "custom_value": ["Meyer", ""],
+            },
+        )
+        assert first.status_code == 200
+        first_body = first.content.decode()
+        first_blank_pairs = first_body.count('name="custom_key" value=""')
+        assert first_blank_pairs == 1  # exactly one trailing blank row, not two
+
+        # re-POST the re-rendered form's own fields (still invalid) — the count must not grow
+        second = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title=""),
+                "custom_key": ["Fotograf", ""],
+                "custom_value": ["Meyer", ""],
+            },
+        )
+    assert second.status_code == 200
+    second_body = second.content.decode()
+    second_blank_pairs = second_body.count('name="custom_key" value=""')
+    assert second_blank_pairs == 1

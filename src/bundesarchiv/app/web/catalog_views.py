@@ -229,7 +229,9 @@ def _handle_edit_post(
     row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
     metadata save preserves them (only captions update; media structure is its own POSTs)."""
     if "custom_entfernen" in request.POST:
-        return _rerender_with_custom_removed(request, ulid, collections, current.media)
+        return _rerender_with_custom_removed(
+            request, ulid, collections, current.media, current.lifecycle
+        )
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -245,6 +247,7 @@ def _handle_edit_post(
             collections,
             autofocus=_first_error_field(result.errors),
             media=catalog._apply_captions(request.POST, current.media),
+            lifecycle=current.lifecycle,
         )
         return render(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
@@ -265,6 +268,7 @@ def _handle_edit_post(
                 autofocus="speichern",
                 media=catalog._apply_captions(request.POST, conflict.winner.media),
                 conflict=conflict,
+                lifecycle=conflict.winner.lifecycle,
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
@@ -278,13 +282,15 @@ def _rerender_with_custom_removed(
     ulid: Ulid,
     collections: tuple[Collection, ...],
     current_media: tuple[MediaRef, ...],
+    current_lifecycle: Lifecycle,
 ) -> HttpResponseBase:
     """The no-JS custom-row removal: drop the row whose index rode the ``custom_entfernen`` submit,
     then re-render the form with every OTHER value preserved and NO save (spec §5). A bad index is a
     no-op (nothing removed) — total, never raises. The media register rides along too (spec
     values-preserved-verbatim): ``current_media`` with the POSTed captions applied, same rule as the
-    validation-error/conflict re-renders."""
-    values = _post_to_form_values(request, ulid)
+    validation-error/conflict re-renders. ``current_lifecycle`` keeps the ENTWURF badge honest — this
+    is a re-render, never a save, so the article's real lifecycle never changes underneath it."""
+    values = _post_to_form_values(request, ulid, current_lifecycle)
     try:
         index = int(request.POST.get("custom_entfernen", ""))
     except ValueError:
@@ -345,13 +351,17 @@ def _edit_context_from_post(
     *,
     autofocus: str,
     media: tuple[MediaRef, ...],
+    lifecycle: Lifecycle,
     conflict: catalog.ConflictOutcome | None = None,
 ) -> dict[str, object]:
     """The edit form context re-seeded from the raw POST (state F/G): the archivist's just-typed
     values are preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to
     the winner's current version and the neutral diff rows are attached (spec §6.1). ``media`` is the
-    stored media (structure isn't POSTed via the main form), so the register renders correctly."""
-    values = _post_to_form_values(request, ulid)
+    stored media (structure isn't POSTed via the main form), so the register renders correctly.
+    ``lifecycle`` is the article's actual current lifecycle (the validation-error caller's ``current``,
+    the conflict caller's ``conflict.winner`` — the persisted truth, never the loser's guess) so the
+    ENTWURF badge never lies for a PUBLISHED article."""
+    values = _post_to_form_values(request, ulid, lifecycle)
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(
         values, version, collections, errors=result.errors, autofocus=autofocus, media=media
@@ -483,13 +493,19 @@ def _article_to_form_values(article: Article) -> dict[str, object]:
     }
 
 
-def _post_to_form_values(request: HttpRequest, ulid: Ulid) -> dict[str, object]:
+def _post_to_form_values(
+    request: HttpRequest, ulid: Ulid, lifecycle: Lifecycle
+) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
-    so the archivist never loses input; custom rows echo back what was typed plus one empty row."""
+    so the archivist never loses input; custom rows echo back what was typed plus exactly one trailing
+    empty row (the POSTed rows already carry the previous render's blank row, so a fully-blank pair is
+    dropped before the one guaranteed empty row is added back — same guard as the removal path).
+    ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed."""
     post = request.POST
     keys = post.getlist("custom_key")
     vals = post.getlist("custom_value")
-    rows = [*zip(keys, vals, strict=False), ("", "")]
+    rows = [pair for pair in zip(keys, vals, strict=False) if pair != ("", "")]
+    rows.append(("", ""))
     return {
         "ulid": ulid,
         "title": post.get("title", ""),
@@ -506,7 +522,7 @@ def _post_to_form_values(request: HttpRequest, ulid: Ulid) -> dict[str, object]:
         "sichtbarkeit": post.get("sichtbarkeit", ""),
         "gruppen": post.get("gruppen", ""),
         "custom_rows": rows,
-        "is_draft": True,  # Slice A+B: articles under edit are drafts
+        "is_draft": lifecycle.name == "DRAFT",
     }
 
 
