@@ -276,6 +276,33 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     assert ArticleRepository(store).load("01FOTO").version == 2
 
 
+@pytest.mark.django_db
+def test_save_article_swallows_enqueue_failure_after_index_failure(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Queue-down at enqueue time must not fail a request whose canonical write already stood: when
+    BOTH the synchronous index update AND the retry enqueue raise, save_article still succeeds with
+    index_updated=False and no exception escapes (mirrors _enqueue_mirror_keys' swallow policy)."""
+    import bundesarchiv.app.articles as articles_mod
+
+    def boom(_store: object, _ulid: str) -> None:
+        raise RuntimeError("index down")
+
+    def enqueue_boom(_ulid: str) -> None:
+        raise RuntimeError("queue down")
+
+    monkeypatch.setattr(articles_mod, "index_article", boom)
+    monkeypatch.setattr(articles_mod, "enqueue_reindex_article", enqueue_boom)
+
+    articles = ArticleRepository(store)
+    stored = articles.load("01FOTO")
+    result = save_article(store, stored.article, stored.version)
+
+    assert result.index_updated is False
+    assert result.version == 2  # canonical write STOOD despite both failures
+    assert ArticleRepository(store).load("01FOTO").version == 2
+
+
 # ---------------------------------------------------------------------------
 # THE ADVERSARIAL STALENESS GATE — article unpublish (rebuild FORBIDDEN)
 # ---------------------------------------------------------------------------

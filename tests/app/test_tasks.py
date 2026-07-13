@@ -256,6 +256,54 @@ def test_mirror_reconcile_task_is_noop_when_mirror_unset(monkeypatch: pytest.Mon
     assert summary == {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
 
 
+def test_mirror_push_task_closes_the_mirror_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """mirror_store() builds a fresh httpx.Client per job; the job must close it on completion so
+    the connection pool never leaks, even though the push itself never raises."""
+    import httpx
+
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app import mirror as mirror_mod
+    from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
+
+    canonical = InMemoryObjectStore()
+    canonical.write_atomic("articles/01A/README.md", b"body")
+    client = httpx.Client(base_url="http://mirror.invalid/")
+    mirror_target = WebDavObjectStore(client)
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror_target)
+    monkeypatch.setattr(mirror_mod, "push_key", lambda *_args, **_kw: None)
+
+    tasks_mod.mirror_push.func(key="articles/01A/README.md")
+
+    assert client.is_closed
+
+
+def test_mirror_reconcile_task_closes_the_mirror_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same client-lifetime guarantee for the periodic reconcile sweep."""
+    import httpx
+
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app import mirror as mirror_mod
+    from bundesarchiv.app.mirror import ReconcileSummary
+    from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
+
+    canonical = InMemoryObjectStore()
+    canonical.write_atomic("articles/01A/README.md", b"body")
+    client = httpx.Client(base_url="http://mirror.invalid/")
+    mirror_target = WebDavObjectStore(client)
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror_target)
+    monkeypatch.setattr(
+        mirror_mod,
+        "reconcile",
+        lambda *_args, **_kw: ReconcileSummary(pushed=0, deleted=0, failed=0),
+    )
+
+    tasks_mod.mirror_reconcile.func()
+
+    assert client.is_closed
+
+
 def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     """The enqueue wrapper the app services call: when the mirror is unset it must NOT defer a job
     (no queue churn for a feature that is off)."""

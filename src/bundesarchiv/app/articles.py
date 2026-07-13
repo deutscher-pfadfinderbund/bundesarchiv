@@ -180,6 +180,15 @@ def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:
     try:
         index_article(store, ulid)
     except Exception:  # the canonical write stood; the sync index is best-effort, retry via queue
-        enqueue_reindex_article(ulid)
+        _enqueue_reindex(ulid)
         return False
     return True
+
+
+def _enqueue_reindex(ulid: Ulid) -> None:
+    """Enqueue a reindex retry job, swallowing any enqueue failure (the retry is a convenience —
+    a failed enqueue never fails the canonical write; the periodic full rebuild heals it)."""
+    try:
+        enqueue_reindex_article(ulid)
+    except Exception:  # queue down / misconfigured -> index lag heals at the next full rebuild
+        return

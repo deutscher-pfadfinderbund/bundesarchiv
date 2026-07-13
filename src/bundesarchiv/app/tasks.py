@@ -118,7 +118,10 @@ def mirror_push(key: str) -> None:
     mirror_target = mirror_store()
     if mirror_target is None:
         return  # mirror unset -> clean no-op
-    mirror.push_key(canonical_store(), mirror_target, key)
+    try:
+        mirror.push_key(canonical_store(), mirror_target, key)
+    finally:
+        _close_mirror(mirror_target)  # release the per-job httpx.Client even when the push raises
 
 
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
@@ -133,8 +136,19 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
     mirror_target = mirror_store()
     if mirror_target is None:
         return {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
-    summary = mirror.reconcile(canonical_store(), mirror_target)
+    try:
+        summary = mirror.reconcile(canonical_store(), mirror_target)
+    finally:
+        _close_mirror(mirror_target)  # release the per-job httpx.Client even when the sweep raises
     return {"pushed": summary.pushed, "deleted": summary.deleted, "failed": summary.failed}
+
+
+def _close_mirror(store: ObjectStore) -> None:
+    """Close ``store``'s underlying transport when it owns one (currently only
+    ``WebDavObjectStore``'s injected ``httpx.Client``). A no-op for stores with no client to
+    release, so tests may inject a plain ``ObjectStore`` fake without implementing ``close``."""
+    if isinstance(store, WebDavObjectStore):
+        store.close()
 
 
 # --- enqueue wrappers the app services call --------------------------------------

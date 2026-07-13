@@ -39,11 +39,16 @@ class _Resource(enum.Enum):
 
 
 class WebDavObjectStore:
-    """Stores each blob as a WebDAV resource under the client's `base_url`."""
+    """Stores each blob as a WebDAV resource under the client's `base_url`. Owns the client's
+    lifetime: call `close()` when done with the store."""
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
         self._root_path = urlsplit(str(client.base_url)).path
+
+    def close(self) -> None:
+        """Close the underlying `httpx.Client`, releasing its connection pool."""
+        self._client.close()
 
     def read(self, key: str) -> bytes:
         validate_key(key)
