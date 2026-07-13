@@ -258,9 +258,22 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _get(root: Path, viewer: Viewer, query: str = "", *, hx: bool = False) -> HttpResponse:
+def _get(
+    root: Path,
+    viewer: Viewer,
+    query: str = "",
+    *,
+    hx: bool = False,
+    history_restore: bool = False,
+) -> HttpResponse:
     path = "/" + (("?" + query) if query else "")
-    headers = {"HX-Request": "true"} if hx else None
+    headers: dict[str, str] | None = None
+    if hx or history_restore:
+        headers = {}
+        if hx:
+            headers["HX-Request"] = "true"
+        if history_restore:
+            headers["HX-History-Restore-Request"] = "true"
     with override_settings(**_settings(root)):
         response = _client_as(viewer).get(path, headers=headers)
     return cast(HttpResponse, response)
@@ -321,6 +334,18 @@ def test_hx_request_renders_only_results_partial(corpus_root: Path) -> None:
     assert 'id="results"' in body  # the swap target
     assert "<html" not in body  # NOT the full page — just the region
     assert "Neuer Artikel" not in body  # topbar is outside the partial
+
+
+@pytest.mark.django_db
+def test_history_restore_request_renders_full_page(corpus_root: Path) -> None:
+    # htmx history restoration sends BOTH HX-Request AND HX-History-Restore-Request, and expects a
+    # FULL page (it replaces the whole document) — not the chrome-less _results.html fragment a
+    # plain HX-Request gets. Without the fix, this response body starts at <main id="results"> and
+    # never renders <html lang="de">, leaving a Back-button restore chrome-less.
+    response = _get(corpus_root, Public(), "q=Foto", hx=True, history_restore=True)
+    body = response.content.decode()
+    assert '<html lang="de">' in body  # full page, not the bare fragment
+    assert not body.lstrip().startswith("<main")  # NOT the bare _results.html fragment
 
 
 # --- template hygiene + archivist chrome ------------------------------------------

@@ -68,9 +68,12 @@ def workbench(request: HttpRequest) -> HttpResponse:
     """``GET /`` — the workbench: search field, results, facet sidebar, "Neuer Artikel" button.
 
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
-    ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On an
-    ``HX-Request`` only the results region renders (same data, same partial) — the no-JS full page
-    and the HTMX swap are one code path."""
+    ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
+    plain ``HX-Request`` only the results region renders (same data, same partial) — the no-JS full
+    page and the HTMX swap are one code path. A history-restore request (``HX-Request`` PLUS
+    ``HX-History-Restore-Request``) always gets the full page: htmx replaces the whole document on
+    a Back-button restore after a cache miss, so returning the bare partial there would leave the
+    page chrome-less."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
     # Presentation-only chrome flag: the templates hide archivist affordances (SICHTBARKEIT column,
@@ -111,6 +114,11 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # The ledger folds narrow while the pane is open (the split-narrow layout); the frame class
     # drives it (and the <1280px media query hides the pane + unfolds the ledger — css owns that).
     context["vorschau"] = pane is not None
+    # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
+    # the whole document on a Back-button restore (a cache miss), so this branch must win over the
+    # plain HX-Request check below — otherwise the restore renders the chrome-less results partial.
+    if request.headers.get("HX-History-Restore-Request"):
+        return render(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
