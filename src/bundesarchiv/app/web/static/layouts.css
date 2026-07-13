@@ -72,8 +72,7 @@ body.wb {
 }
 .wb-search .c-input { flex: 1 1 auto; min-width: 0; }
 
-/* ---- global htmx failure banner (Task 11): hidden by default, revealed by the responseError/
-   sendError listener in base.html. Error role tokens only — a failed request, not a form field. */
+/* ---- global htmx failure banner (Task 11): revealed by the failure listener in base.html. */
 .wb-error-banner {
   display: flex;
   align-items: center;

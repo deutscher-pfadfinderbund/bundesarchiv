@@ -136,7 +136,7 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # Custom-bag (and caption) fields are form= ASSOCIATED with #bearbeiten-form but sit outside its
+    # Custom-bag fields are form= ASSOCIATED with #bearbeiten-form but sit outside its
     # DOM subtree (the #medien-drawer split) — the dirty register must still see their first edit.
     edit_url = _create_draft(page, live_workbench, "E2E Ungespeichert")
     page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip

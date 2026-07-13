@@ -335,8 +335,8 @@ def test_hochladen_oversize_is_clean_error_not_500(corpus: _Corpus) -> None:
 def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _Corpus) -> None:
     # fix-wave: the per-row hidden forms (verschieben-<hash>, entfernen-*-<hash>) must live INSIDE
     # #medien-drawer so an htmx swap (hx-select="#medien-drawer") delivers fresh forms for the
-    # CURRENT row set. Upload a second file, then check the swapped-in region — not the whole page
-    # — carries a verschieben-<hash> form for BOTH the pre-existing and the newly appended row.
+    # CURRENT row set. The fixture seeds 2 rows, so uploading a third brings the count to 3; check
+    # the swapped-in region — not the whole page — carries a verschieben-<hash> form for all 3 rows.
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(

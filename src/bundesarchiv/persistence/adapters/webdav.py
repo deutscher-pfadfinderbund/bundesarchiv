@@ -47,7 +47,6 @@ class WebDavObjectStore:
         self._root_path = urlsplit(str(client.base_url)).path
 
     def close(self) -> None:
-        """Close the underlying `httpx.Client`, releasing its connection pool."""
         self._client.close()
 
     def read(self, key: str) -> bytes:

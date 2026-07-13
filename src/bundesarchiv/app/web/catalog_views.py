@@ -272,8 +272,7 @@ def _handle_edit_post(
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
-            # A stale save raced a hard delete, not a concurrent edit — the article is gone, so this
-            # collapses to the same 404 as an absent article (existence-hiding).
+            # hard-deleted underneath the save — collapse to the byte-identical 404
             return _not_found()
 
 
@@ -291,9 +290,7 @@ def _rerender_with_custom_removed(
     runs; popping after filtering would shift positions and drop the wrong row whenever an earlier row
     was blanked in the browser. A bad index is a no-op (nothing removed) — total, never raises. The
     media register rides along too (spec values-preserved-verbatim): ``current_media`` with the
-    POSTed captions applied, same rule as the validation-error/conflict re-renders.
-    ``current_lifecycle`` keeps the ENTWURF badge honest — this is a re-render, never a save, so the
-    article's real lifecycle never changes underneath it."""
+    POSTed captions applied, same rule as the validation-error/conflict re-renders."""
     post = request.POST
     raw_rows = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
     try:
@@ -362,10 +359,7 @@ def _edit_context_from_post(
     """The edit form context re-seeded from the raw POST (state F/G): the archivist's just-typed
     values are preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to
     the winner's current version and the neutral diff rows are attached (spec §6.1). ``media`` is the
-    stored media (structure isn't POSTed via the main form), so the register renders correctly.
-    ``lifecycle`` is the article's actual current lifecycle (the validation-error caller's ``current``,
-    the conflict caller's ``conflict.winner`` — the persisted truth, never the loser's guess) so the
-    ENTWURF badge never lies for a PUBLISHED article."""
+    stored media (structure isn't POSTed via the main form), so the register renders correctly."""
     values = _post_to_form_values(request, ulid, lifecycle)
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(
@@ -502,9 +496,7 @@ def _post_to_form_values(
     request: HttpRequest, ulid: Ulid, lifecycle: Lifecycle
 ) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
-    so the archivist never loses input; custom rows echo back what was typed plus exactly one trailing
-    empty row (the POSTed rows already carry the previous render's blank row, so a fully-blank pair is
-    dropped before the one guaranteed empty row is added back — same guard as the removal path).
+    so the archivist never loses input; custom rows carry exactly one trailing blank pair.
     ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed."""
     post = request.POST
     keys = post.getlist("custom_key")
@@ -735,8 +727,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
             context["conflict_rows"] = _conflict_rows(mutated, conflict.winner)
             return render(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
-            # A stale save raced a hard delete, not a concurrent edit — collapse to the byte-identical
-            # 404 (existence-hiding), never let the load failure propagate as a 500.
+            # hard-deleted underneath the save — collapse to the byte-identical 404
             return _not_found()
 
 

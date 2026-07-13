@@ -71,9 +71,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
     plain ``HX-Request`` only the results region renders (same data, same partial) — the no-JS full
     page and the HTMX swap are one code path. A history-restore request (``HX-Request`` PLUS
-    ``HX-History-Restore-Request``) always gets the full page: htmx replaces the whole document on
-    a Back-button restore after a cache miss, so returning the bare partial there would leave the
-    page chrome-less."""
+    ``HX-History-Restore-Request``) gets the full page — htmx swaps the whole document on a
+    Back-button restore."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
     # Presentation-only chrome flag: the templates hide archivist affordances (SICHTBARKEIT column,

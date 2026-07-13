@@ -144,9 +144,7 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
 
 
 def _close_mirror(store: ObjectStore) -> None:
-    """Close ``store``'s underlying transport when it owns one (currently only
-    ``WebDavObjectStore``'s injected ``httpx.Client``). A no-op for stores with no client to
-    release, so tests may inject a plain ``ObjectStore`` fake without implementing ``close``."""
+    """Close the store's owned transport if any — a no-op, so test fakes need no ``close``."""
     if isinstance(store, WebDavObjectStore):
         store.close()
 

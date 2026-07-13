@@ -430,7 +430,8 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Co
         first_blank_pairs = first_body.count('name="custom_key" value=""')
         assert first_blank_pairs == 1  # exactly one trailing blank row, not two
 
-        # re-POST the re-rendered form's own fields (still invalid) — the count must not grow
+        # re-send the same hand-built payload (the first assertion pinned it equivalent to the
+        # re-rendered form) — the blank-row count must not grow
         second = _client_as(Archivist()).post(
             f"/artikel/{_ULID}/bearbeiten",
             {

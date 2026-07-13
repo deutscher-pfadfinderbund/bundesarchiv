@@ -14,10 +14,10 @@ from bundesarchiv.app.web.layouts_demo import layout_demo, serve_layout_styleshe
 
 # Prod routes first (included verbatim), then the dev-only routes: an explicit /favicon.ico -> 404
 # (the browser probes for it; without a route DEBUG's technical-404 page crashes on the empty dev
-# SECRET_KEY and surfaces as a 500 — see dev.favicon), the viewer switcher (dev.py reverses this
-# pattern by name — "dev-switch-viewer" — rather than hardcoding the path), the component library
-# (baseline + whitelisted design variants), the layout demos (whitelisted full workbench layouts),
-# and the two dev-only stylesheet routes — all unreachable in prod by absence of this URLconf.
+# SECRET_KEY and surfaces as a 500 — see dev.favicon), the viewer switcher (reversed by name in
+# dev.py), the component library (baseline + whitelisted design variants), the layout demos
+# (whitelisted full workbench layouts), and the two dev-only stylesheet routes — all unreachable
+# in prod by absence of this URLconf.
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("favicon.ico", favicon, name="dev-favicon"),

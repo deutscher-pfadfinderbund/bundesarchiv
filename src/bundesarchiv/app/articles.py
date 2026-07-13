@@ -186,9 +186,8 @@ def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:
 
 
 def _enqueue_reindex(ulid: Ulid) -> None:
-    """Enqueue a reindex retry job, swallowing any enqueue failure (the retry is a convenience —
-    a failed enqueue never fails the canonical write; the periodic full rebuild heals it)."""
+    """Enqueue a reindex retry, swallowing failure — the periodic full rebuild heals the lag."""
     try:
         enqueue_reindex_article(ulid)
-    except Exception:  # queue down / misconfigured -> index lag heals at the next full rebuild
+    except Exception:
         return

@@ -55,9 +55,10 @@ otherwise).
 ## Language
 
 Product UI copy is **German** (per the `CONTEXT.md` glossary — English code
-identifiers, German UI labels). Everything development-facing — code, routes,
-dev pages, commit messages, docs, comments — is **English**. "Findbuch" is
-banned from UI copy (archaic).
+identifiers, German UI labels). The register is informal **du** (never Sie);
+neutral infinitive imperatives are fine. Everything development-facing — code,
+routes, dev pages, commit messages, docs, comments — is **English**. "Findbuch"
+is banned from UI copy (archaic).
 
 ## Clean history within your own wave
 

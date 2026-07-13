@@ -29,9 +29,7 @@ always links home.
 <script src="{% url 'static-htmx' %}" defer></script>
 <script src="{% url 'static-ledger-pane' %}" defer></script>
 <script>
-  // htmx failures otherwise fail silently (no swap happens, nothing tells the archivist the POST
-  // was lost) — one document-level listener on the two htmx failure events reveals the shared
-  // banner. No retry, no toast framework: dismiss (button or a fresh success) hides it again.
+  // htmx failures are otherwise silent — one document-level listener on both failure events reveals the banner; dismiss or a fresh success hides it.
   (function () {
     "use strict";
     document.addEventListener("DOMContentLoaded", function () {

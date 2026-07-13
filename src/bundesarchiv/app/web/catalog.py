@@ -132,7 +132,7 @@ def parse_edit_form(
     media_type = _none_if_blank(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():
         errors["media_type"] = "Medienart ist erforderlich."
-        media_type = None  # invalid value never reaches the built Article (select tampering)
+        media_type = None
 
     document_type = _none_if_blank(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
@@ -285,11 +285,9 @@ class ConflictOutcome:
 
 @dataclass(frozen=True, slots=True)
 class DeletedOutcome:
-    """The article was hard-deleted between the view's initial load and this save: the CAS check
-    reads the store's version as 0 (``_current_version`` on a missing article) and raises
-    ``Conflict``, but the Conflict handler's re-load then finds nothing at all — a stale save racing
-    a deletion, not a concurrent edit. The view maps this to the byte-identical 404 (existence-hiding:
-    the article no longer exists, so it must be indistinguishable from one that never did)."""
+    """The article was hard-deleted between the view's initial load and this save — a stale save
+    racing a deletion, not a concurrent edit. The view collapses this to the byte-identical 404
+    (existence-hiding)."""
 
 
 type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome

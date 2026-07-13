@@ -213,7 +213,7 @@ def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) 
         if feld == "document_type" and not vocab.is_valid_pair(
             stored.article.media_type, mutated.document_type
         ):
-            conflicted.append(row)  # media_type changed under us since the caller's validation
+            conflicted.append(row)
             continue
         cleared = (
             feld == "media_type"
