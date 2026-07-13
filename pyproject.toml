@@ -48,6 +48,10 @@ typeCheckingMode = "standard"
 # false positives get a targeted per-path error toggle below, never inline ignore litter.
 [tool.pyrefly]
 project-includes = ["src", "tests"]
+# Ignore files off: the repo-level exclude for .claude/worktrees/ blanks out nested agent
+# worktrees (pyrefly matches it against the main-root layout, unlike git). Safe because
+# project-includes above already bounds the scan to src/ and tests/.
+use-ignore-files = false
 # Repo root first so `tests.*` resolves the same way mypy's explicit_package_bases does.
 search-path = [".", "src"]
 
