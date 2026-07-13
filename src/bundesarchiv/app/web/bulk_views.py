@@ -51,7 +51,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 
     error = _validate(auswahl, feld, store, wert)
     if error is not None:
-        return _reject(request, store, auswahl, feld, error)
+        return _reject(request, store, auswahl, feld, wert, error)
 
     if request.POST.get("bestaetigt") == "1":
         return _commit(request, store, auswahl, feld, wert)
@@ -168,13 +168,14 @@ def _commit(
 
 
 def _reject(
-    request: HttpRequest, store: ObjectStore, auswahl: list[str], feld: str, error: str
+    request: HttpRequest, store: ObjectStore, auswahl: list[str], feld: str, wert: str, error: str
 ) -> HttpResponseBase:
     """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the Feld chooser
-    drawer (Feld select + value widgets, the chosen field pre-selected) with the verbatim error as a
-    c-field-fehler, and the selection carried as hidden ``auswahl`` inputs. The archivist fixes the
-    field/value and re-submits from here — the selection is never lost, and the back-link to the
-    ledger also carries ?auswahl= so leaving doesn't drop it either.
+    drawer (Feld select + value widgets, the chosen field pre-selected, the submitted wert re-echoed
+    into its widget verbatim — even when invalid) with the verbatim error as a c-field-fehler, and the
+    selection carried as hidden ``auswahl`` inputs. The archivist fixes the field/value and
+    re-submits from here — the selection is never lost, and the back-link to the ledger also carries
+    ?auswahl= so leaving doesn't drop it either.
 
     (Not the full ledger+drawer in-context: the confirm POST does not carry the search query, so a
     ledger re-render would silently drop the archivist's filter and might not show the selected rows
@@ -186,6 +187,7 @@ def _reject(
         {
             "auswahl": auswahl,
             "feld": feld,
+            "wert": wert,
             "feld_label": bulk.label_of(feld),
             "fehler": error,
             "anzahl": len(auswahl),

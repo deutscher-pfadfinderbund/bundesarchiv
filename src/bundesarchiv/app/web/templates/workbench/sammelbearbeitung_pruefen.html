@@ -35,7 +35,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
       </label>
       <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
         <span class="c-field-label">Neuer Wert</span>
-        <input class="c-input" type="text" name="wert_text">
+        <input class="c-input" type="text" name="wert_text" value="{{ wert }}">
       </label>
       <label class="c-field" data-bulk-wert="media_type">
         <span class="c-field-label">Neuer Wert</span>
@@ -43,7 +43,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
                 hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
                 hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
           {% for value, caption in media_type_options %}
-          <option value="{{ value }}">{{ caption }}</option>
+          <option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>
           {% endfor %}
         </select>
       </label>
@@ -53,7 +53,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
           <option value="">— kein Dokumenttyp —</option>
           {% for group_label, group_options in document_type_groups %}
           <optgroup label="{{ group_label }}">
-            {% for value, caption in group_options %}<option value="{{ value }}">{{ caption }}</option>{% endfor %}
+            {% for value, caption in group_options %}<option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>{% endfor %}
           </optgroup>
           {% endfor %}
         </select>
@@ -61,7 +61,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
       <label class="c-field" data-bulk-wert="collection_id">
         <span class="c-field-label">Neuer Wert</span>
         <select class="c-select" name="wert_collection_id">
-          {% for value, caption in collection_options %}<option value="{{ value }}">{{ caption }}</option>{% endfor %}
+          {% for value, caption in collection_options %}<option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>{% endfor %}
         </select>
       </label>
       <div class="wb-sammelleiste-aktionen">

@@ -145,6 +145,39 @@ def test_validation_error_re_renders_drawer_with_selection_preserved(corpus: _Co
     assert f'name="auswahl" value="{_B}"' in body
 
 
+def test_document_type_mismatch_re_render_preserves_submitted_value(corpus: _Corpus) -> None:
+    # Values-preserved-verbatim (global constraint): a rejected wert must be echoed back into its
+    # widget, not just its feld. Porträt is a Fotografie-only Dokumenttyp; _A has no media_type, so
+    # the dependent-pair check rejects it (spec §3) — the drawer must re-select Porträt.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            "/artikel/sammelbearbeitung",
+            {
+                "auswahl": [_A],
+                "feld": "document_type",
+                "wert_document_type": "Porträt",
+                "bestaetigt": "1",
+            },
+        )
+    body = response.content.decode()
+    assert "gehört nicht zur Medienart aller ausgewählten Artikel" in body  # verbatim error
+    assert '<option value="Porträt" selected>' in body  # the rejected value stays selected
+
+
+def test_empty_selection_re_render_preserves_submitted_text_value(corpus: _Corpus) -> None:
+    # Values-preserved-verbatim (global constraint), TEXT-widget path: feld=creator is valid/allowed,
+    # so wert survives to _reject even though the empty auswahl is what rejects the apply. The text
+    # input must echo the submitted value via value="...", not just pre-select the field.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            "/artikel/sammelbearbeitung",
+            {"feld": "creator", "wert_text": "Quisenberry-Zephyroth", "bestaetigt": "1"},
+        )
+    body = response.content.decode()
+    assert "Keine Artikel ausgewählt." in body  # verbatim error
+    assert 'name="wert_text" value="Quisenberry-Zephyroth"' in body  # the text widget echoes it
+
+
 def test_collection_value_outside_set_same_as_empty(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(
