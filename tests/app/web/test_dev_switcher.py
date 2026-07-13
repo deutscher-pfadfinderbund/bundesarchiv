@@ -19,9 +19,13 @@ import pytest
 from django.test import Client, RequestFactory, override_settings
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 
-from bundesarchiv.app.web.dev import SWITCHER_PATH
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.viewer import Archivist, Member, Public
+
+#: The switcher's route as a raw path literal — needed ONLY where a test must exercise `resolve()`
+#: under a URLconf where `reverse("dev-switch-viewer")` itself would already raise (the point of that
+#: test); everywhere else in this file the dev URLconf is active and `reverse()` is used instead.
+_SWITCHER_PATH = "/_dev/viewer/"
 
 _DEV = {
     "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
@@ -36,7 +40,7 @@ _DEV = {
 
 @override_settings(**_DEV)
 def test_switcher_get_renders_form() -> None:
-    response = Client().get(SWITCHER_PATH)
+    response = Client().get(reverse("dev-switch-viewer"))
     assert response.status_code == 200
     body = response.content.decode()
     assert 'name="kind"' in body or "name=kind" in body
@@ -46,7 +50,9 @@ def test_switcher_get_renders_form() -> None:
 @override_settings(**_DEV)
 def test_switcher_post_member_roundtrips_to_viewer_of() -> None:
     client = Client()
-    response = client.post(SWITCHER_PATH, {"kind": "member", "groups": "vorstand, archiv-ag"})
+    response = client.post(
+        reverse("dev-switch-viewer"), {"kind": "member", "groups": "vorstand, archiv-ag"}
+    )
     assert response.status_code == 302  # redirect back to the switcher
     # The signed cookie is now on the client; a fresh request through viewer_of must decode it.
     request = RequestFactory().get("/")
@@ -57,7 +63,7 @@ def test_switcher_post_member_roundtrips_to_viewer_of() -> None:
 @override_settings(**_DEV)
 def test_switcher_post_archivist_roundtrips() -> None:
     client = Client()
-    client.post(SWITCHER_PATH, {"kind": "archivist"})
+    client.post(reverse("dev-switch-viewer"), {"kind": "archivist"})
     request = RequestFactory().get("/")
     request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
     assert viewer_of(request) == Archivist()
@@ -66,7 +72,7 @@ def test_switcher_post_archivist_roundtrips() -> None:
 @override_settings(**_DEV)
 def test_switcher_post_public_roundtrips() -> None:
     client = Client()
-    client.post(SWITCHER_PATH, {"kind": "public"})
+    client.post(reverse("dev-switch-viewer"), {"kind": "public"})
     request = RequestFactory().get("/")
     request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
     assert viewer_of(request) == Public()
@@ -77,18 +83,20 @@ def test_switcher_post_carries_csrf_token_so_it_works_under_enforcement() -> Non
     # With CsrfViewMiddleware now active in dev, the switcher's hand-rolled form must carry the token.
     # Enforce CSRF: GET the form (seeds the cookie + renders the hidden token), then POST with it.
     client = Client(enforce_csrf_checks=True)
-    client.get(SWITCHER_PATH)
+    client.get(reverse("dev-switch-viewer"))
     token = client.cookies["csrftoken"].value
-    response = client.post(SWITCHER_PATH, {"kind": "archivist", "csrfmiddlewaretoken": token})
+    response = client.post(
+        reverse("dev-switch-viewer"), {"kind": "archivist", "csrfmiddlewaretoken": token}
+    )
     assert response.status_code == 302  # accepted (a missing token would be 403)
 
 
 @override_settings(**_DEV)
 def test_middleware_attaches_viewer_to_request() -> None:
     client = Client()
-    client.post(SWITCHER_PATH, {"kind": "archivist"})
+    client.post(reverse("dev-switch-viewer"), {"kind": "archivist"})
     # A subsequent GET runs through DevViewerMiddleware, which sets request.viewer used by the form.
-    response = client.get(SWITCHER_PATH)
+    response = client.get(reverse("dev-switch-viewer"))
     assert "Archivar" in response.content.decode()
 
 
@@ -156,7 +164,7 @@ def test_switcher_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
     # the switcher path 404s and its name is unreversible — the concrete "does not resolve"
     # assertion the prod-safety spec calls for.
     with pytest.raises(Resolver404):
-        resolve(SWITCHER_PATH)
+        resolve(_SWITCHER_PATH)
     with pytest.raises(NoReverseMatch):
         reverse("dev-switch-viewer")
 

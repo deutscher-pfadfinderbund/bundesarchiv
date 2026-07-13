@@ -9,6 +9,7 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 (see ``conftest.py``).
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -325,8 +326,11 @@ def test_validation_re_render_autofocuses_first_errored_field(corpus: _Corpus) -
             f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="")
         )
     body = response.content.decode()
-    # the Titel input carries autofocus (first errored field)
-    assert 'name="title" value=""\n' in body or 'name="title" value="" autofocus' in body
+    # the Titel <input> itself carries autofocus (first errored field) — anchored to the element,
+    # not merely present somewhere in the document, so a dropped/emptied autofocus context fails this.
+    title_input = re.search(r'<input[^>]*\bname="title"[^>]*>', body)
+    assert title_input is not None
+    assert "autofocus" in title_input.group()
 
 
 # --- no-JS custom-row removal ------------------------------------------------------

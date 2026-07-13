@@ -21,6 +21,7 @@ from django.http import (
     HttpResponseRedirect,
 )
 from django.middleware.csrf import get_token
+from django.urls import reverse
 
 from bundesarchiv.app.web.viewers import (
     _DEV_VIEWER_MAX_AGE,
@@ -30,9 +31,6 @@ from bundesarchiv.app.web.viewers import (
     viewer_of,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-
-#: The switcher's own path (dev URLconf mounts it; nothing in prod references it).
-SWITCHER_PATH = "/_dev/viewer/"
 
 
 def favicon(request: HttpRequest) -> HttpResponse:
@@ -83,9 +81,9 @@ def switch_viewer(request: HttpRequest) -> HttpResponse:
         if (
             signer is None
         ):  # defensive: this view only runs under settings_dev, which defines the key
-            return HttpResponseRedirect(SWITCHER_PATH)
+            return HttpResponseRedirect(reverse("dev-switch-viewer"))
         signed = signer.sign(encode_viewer(_viewer_from_post(request)))
-        response = HttpResponseRedirect(SWITCHER_PATH)
+        response = HttpResponseRedirect(reverse("dev-switch-viewer"))
         response.set_cookie(
             DEV_VIEWER_COOKIE, signed, max_age=_DEV_VIEWER_MAX_AGE, httponly=True, samesite="Lax"
         )
@@ -118,7 +116,7 @@ def _render_form(current: Viewer, *, csrf_token: str) -> str:
         '<main class="wb-stub">'
         "<h1>Betrachter wechseln (nur Entwicklung)</h1>"
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
-        f'<form method=post action="{SWITCHER_PATH}">'
+        f'<form method=post action="{reverse("dev-switch-viewer")}">'
         f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">'
         "<p><label><input type=radio name=kind value=archivist> Archivar</label></p>"
         "<p><label><input type=radio name=kind value=member checked> Mitglied</label>"
