@@ -285,21 +285,26 @@ def _rerender_with_custom_removed(
     current_lifecycle: Lifecycle,
 ) -> HttpResponseBase:
     """The no-JS custom-row removal: drop the row whose index rode the ``custom_entfernen`` submit,
-    then re-render the form with every OTHER value preserved and NO save (spec §5). A bad index is a
-    no-op (nothing removed) — total, never raises. The media register rides along too (spec
-    values-preserved-verbatim): ``current_media`` with the POSTed captions applied, same rule as the
-    validation-error/conflict re-renders. ``current_lifecycle`` keeps the ENTWURF badge honest — this
-    is a re-render, never a save, so the article's real lifecycle never changes underneath it."""
-    values = _post_to_form_values(request, ulid, current_lifecycle)
+    then re-render the form with every OTHER value preserved and NO save (spec §5). The index names a
+    position in the RAW POST's ``custom_key``/``custom_value`` lists — what the Entfernen button
+    actually submitted — so it is popped there, BEFORE ``_post_to_form_values``' blank-row filtering
+    runs; popping after filtering would shift positions and drop the wrong row whenever an earlier row
+    was blanked in the browser. A bad index is a no-op (nothing removed) — total, never raises. The
+    media register rides along too (spec values-preserved-verbatim): ``current_media`` with the
+    POSTed captions applied, same rule as the validation-error/conflict re-renders.
+    ``current_lifecycle`` keeps the ENTWURF badge honest — this is a re-render, never a save, so the
+    article's real lifecycle never changes underneath it."""
+    post = request.POST
+    raw_rows = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
     try:
-        index = int(request.POST.get("custom_entfernen", ""))
+        index = int(post.get("custom_entfernen", ""))
     except ValueError:
         index = -1
-    rows = list(values["custom_rows"])  # type: ignore[call-overload]
-    if 0 <= index < len(rows):
-        rows.pop(index)
-    if ("", "") not in rows:
-        rows.append(("", ""))  # keep the always-present empty add-row
+    if 0 <= index < len(raw_rows):
+        raw_rows.pop(index)
+    rows = [pair for pair in raw_rows if pair != ("", "")]
+    rows.append(("", ""))  # keep the always-present empty add-row
+    values = _post_to_form_values(request, ulid, current_lifecycle)
     values["custom_rows"] = rows
     version = catalog.parse_version(request.POST.get("expected_version", ""))
     media = catalog._apply_captions(request.POST, current_media)

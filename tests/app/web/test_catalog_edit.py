@@ -355,6 +355,33 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _Corpus) -> None:
     assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
 
 
+def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
+    corpus: _Corpus,
+) -> None:
+    # A blanked-out earlier row shifts positions once `_post_to_form_values` drops it — but
+    # `custom_entfernen` names a position in the RAW POST lists (what the Entfernen button actually
+    # submitted), not in that filtered result. Rows A/B/C, A blanked, Entfernen on B (raw index 1)
+    # must drop B and keep C — not drop C because the filtered list only has two entries left.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus),
+                "custom_key": ["", "Bkey", "Ckey", ""],
+                "custom_value": ["", "Bval", "Cval", ""],
+                "custom_entfernen": "1",
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'value="Bkey"' not in body  # the removed row is gone
+    assert 'value="Bval"' not in body
+    assert 'value="Ckey"' in body  # the surviving row is preserved
+    assert 'value="Cval"' in body
+    # nothing was saved (removal is a re-render, not a save)
+    assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
+
+
 # --- POST re-render fidelity: lifecycle + custom-row accumulation ------------------
 
 
