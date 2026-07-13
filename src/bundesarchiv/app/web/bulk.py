@@ -1,5 +1,5 @@
-"""The bulk-edit (Sammelbearbeitung) core: field allowlist, per-article application, and the ONE
-bulk Conflict catch (spec §0/§1/§3/§4).
+"""The bulk-edit (Sammelbearbeitung) core: field allowlist, per-article application, and the CAS
+loop's write-time guards (spec §0/§1/§3/§4).
 
 Two layers, split so the leak-sensitive rules are pure and unit-testable and the CAS loop is a thin
 shell over the real ``save_article`` service:
@@ -15,9 +15,12 @@ shell over the real ``save_article`` service:
   media_type before any write; one mismatch rejects the whole apply (all-or-nothing, fail-closed).
 - ``apply_bulk`` — per selected ulid independently: fresh load at CURRENT version (bulk never carries
   stale versions — the archivist never opened these), apply the field, ``save_article`` at the loaded
-  version. ``Conflict`` → bucket ``conflicted`` (NO retry — a field overwrite is not idempotent-safe,
-  the human re-applies). Load failure → bucket ``missing``. The loop NEVER aborts early; every
-  attempted ulid lands in exactly one bucket (``saved + conflicted + missing == distinct auswahl``).
+  version. A ``document_type`` apply re-checks ``vocab.is_valid_pair`` against the FRESHLY-LOADED
+  media_type (the confirm page validated a possibly-stale one; a mismatch here is a concurrent
+  modification, not a rules bug). That mismatch and any ``ArchiveError`` the save raises (``Conflict``
+  included) both bucket ``conflicted`` (NO retry — a field overwrite is not idempotent-safe, the
+  human re-applies). Load failure → bucket ``missing``. The loop NEVER aborts early; every attempted
+  ulid lands in exactly one bucket (``saved + conflicted + missing == distinct auswahl``).
 """
 
 from collections.abc import Mapping, Sequence
@@ -26,7 +29,7 @@ from dataclasses import dataclass, replace
 from bundesarchiv.app import articles
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Article, Ulid
-from bundesarchiv.persistence.errors import ArchiveError, Conflict
+from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
@@ -186,10 +189,13 @@ class BulkOutcome:
 
 def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) -> BulkOutcome:
     """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4). Per ulid: fresh load at the
-    CURRENT version, apply the field, ``save_article`` at the loaded version. ``Conflict`` → the
-    ``conflicted`` bucket (NO retry). A load failure → the ``missing`` bucket. The loop never aborts
-    early; every DISTINCT ulid lands in exactly one bucket. Caller has already validated the field +
-    dependent pair; this only executes and reports."""
+    CURRENT version, apply the field, ``save_article`` at the loaded version. A ``document_type``
+    apply re-checks the pair against the FRESHLY-LOADED media_type — a mismatch is a concurrent
+    modification since the caller's validation, and buckets ``conflicted`` without saving. Any
+    ``ArchiveError`` the save raises (``Conflict`` included) buckets ``conflicted`` too (NO retry). A
+    load failure → the ``missing`` bucket. The loop never aborts early; every DISTINCT ulid lands in
+    exactly one bucket. Caller has already validated the field + dependent pair against its OWN
+    load; this re-validates against the current store state and executes."""
     repo = ArticleRepository(store)
     saved = 0
     conflicted: list[BulkRow] = []
@@ -204,6 +210,11 @@ def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) 
             continue
         row = BulkRow(ulid=ulid, ref_code=stored.article.ref_code or "", title=stored.article.title)
         mutated = apply_field(stored.article, feld, wert)
+        if feld == "document_type" and not vocab.is_valid_pair(
+            stored.article.media_type, mutated.document_type
+        ):
+            conflicted.append(row)  # media_type changed under us since the caller's validation
+            continue
         cleared = (
             feld == "media_type"
             and stored.article.document_type is not None
@@ -211,7 +222,7 @@ def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) 
         )
         try:
             result = articles.save_article(store, mutated, stored.version)
-        except Conflict:
+        except ArchiveError:
             conflicted.append(row)
             continue
         saved += 1
