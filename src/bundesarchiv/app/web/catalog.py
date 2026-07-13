@@ -130,12 +130,17 @@ def parse_edit_form(
         errors["collection_id"] = "Bitte einen Bestand wählen."
 
     media_type = _none_if_blank(_get(post, "media_type"))
-    if media_type is None:
+    if media_type is None or media_type not in vocab.media_types():
         errors["media_type"] = "Medienart ist erforderlich."
+        media_type = None  # invalid value never reaches the built Article (select tampering)
 
     document_type = _none_if_blank(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
-        errors["document_type"] = f'Dieser Dokumenttyp gehört nicht zu „{media_type}".'
+        errors["document_type"] = (
+            "Bitte zuerst eine Medienart wählen."
+            if media_type is None
+            else f'Dieser Dokumenttyp gehört nicht zu „{media_type}".'
+        )
 
     date, date_error = _parse_date(_get(post, "date"))
     if date_error is not None:

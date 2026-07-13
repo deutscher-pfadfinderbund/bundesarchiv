@@ -137,6 +137,14 @@ def test_missing_media_type_is_a_field_error() -> None:
     assert result.errors["media_type"] == "Medienart ist erforderlich."
 
 
+def test_media_type_not_in_vocabulary_is_a_field_error() -> None:
+    # A value outside vocab.media_types() can only arrive via select tampering (no <option> for
+    # it) — rejected exactly like empty, same string, and no article is built from it.
+    result = _parse(_post(media_type="Quatsch"))
+    assert result.article is None
+    assert result.errors["media_type"] == "Medienart ist erforderlich."
+
+
 # --- dependent-vocab pairing -------------------------------------------------------
 
 
@@ -148,6 +156,20 @@ def test_document_type_not_belonging_to_media_type_is_rejected() -> None:
 def test_document_type_belonging_to_media_type_is_accepted() -> None:
     result = _parse(_post(media_type="Fotografie", document_type="Porträt"))
     assert result.errors == {}
+
+
+def test_document_type_without_media_type_asks_for_media_type_first() -> None:
+    # Missing media_type + a chosen document_type must not interpolate None into the
+    # pair-mismatch string — it gets its own, more helpful message instead.
+    result = _parse(_post(media_type="", document_type="Urkunde"))
+    assert result.errors["document_type"] == "Bitte zuerst eine Medienart wählen."
+    assert "None" not in " ".join(result.errors.values())
+
+
+def test_document_type_with_invalid_media_type_asks_for_media_type_first() -> None:
+    result = _parse(_post(media_type="Quatsch", document_type="Urkunde"))
+    assert result.errors["document_type"] == "Bitte zuerst eine Medienart wählen."
+    assert "None" not in " ".join(result.errors.values())
 
 
 # --- EDTF ---------------------------------------------------------------------------
