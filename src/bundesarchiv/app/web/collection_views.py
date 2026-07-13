@@ -27,12 +27,12 @@ from django.urls import reverse
 
 from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.web import vocab
-from bundesarchiv.app.web.catalog import FormErrors, _parse_audience
+from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Audience, Collection
+from bundesarchiv.domain.models import Audience, Collection, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
@@ -154,7 +154,9 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
     visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
     absent ulid all collapse to the byte-identical 404. POST saves the renamed Collection under CAS
-    (via ``save_collection``, which reindexes the subtree so the new name is live in facets); a blank
+    at the form's hidden ``expected_version`` (parity with the article form, ADR 0013) — never the
+    POST-time stored version, which would let a rename that raced another rename silently win (lost
+    update). ``save_collection`` reindexes the subtree so the new name is live in facets; a blank
     Name re-renders with the verbatim error, unchanged."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
@@ -162,15 +164,18 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     store, stored = gated
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
+        expected_version = parse_version(request.POST.get("expected_version", ""))
         if not name:
             return render(
                 request,
                 "workbench/bestand_bearbeiten.html",
-                _edit_context(store, stored, name, {"name": "Name ist erforderlich."}),
+                _edit_context(
+                    store, stored, name, {"name": "Name ist erforderlich."}, expected_version
+                ),
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
         try:
-            save_collection(store, replace(stored.collection, name=name), stored.version)
+            save_collection(store, replace(stored.collection, name=name), expected_version)
         except Conflict:
             # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
             # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
@@ -179,13 +184,20 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return render(
                 request,
                 "workbench/bestand_bearbeiten.html",
-                _edit_context(store, winner, name, {}, conflict_name=winner.collection.name),
+                _edit_context(
+                    store,
+                    winner,
+                    name,
+                    {},
+                    winner.version,
+                    conflict_name=winner.collection.name,
+                ),
             )
         return HttpResponseRedirect(f"{reverse('workbench')}?bestand={ulid}")
     return render(
         request,
         "workbench/bestand_bearbeiten.html",
-        _edit_context(store, stored, stored.collection.name, {}),
+        _edit_context(store, stored, stored.collection.name, {}, stored.version),
     )
 
 
@@ -210,12 +222,16 @@ def _edit_context(
     stored: StoredCollection,
     name: str,
     errors: FormErrors,
+    version: Version,
     conflict_name: str | None = None,
 ) -> dict[str, object]:
     """The rename form's context: the editable Name (preserved on re-render) + the READ-ONLY parent
     name + Sichtbarkeit label as quiet display strings (this slice edits neither). Autofocus on Name.
-    ``conflict_name`` (the winner's name after a racing rename) drives the "Inzwischen geändert"
-    panel — None on the normal path."""
+    ``version`` seeds the hidden ``expected_version`` (parity with the article form, ADR 0013) — on
+    the normal path the version just loaded; on a Conflict re-render, the winner's fresh version, so
+    the next Speichern targets the current state instead of racing again. ``conflict_name`` (the
+    winner's name after a racing rename) drives the "Inzwischen geändert" panel — None on the normal
+    path."""
     collection = stored.collection
     return {
         "ulid": collection.ulid,
@@ -223,6 +239,7 @@ def _edit_context(
         "parent_display": _parent_name(store, collection.parent_id),
         "sichtbarkeit_display": _sichtbarkeit_label(collection.audience),
         "errors": errors,
+        "version": version,
         "conflict_name": conflict_name,
     }
 

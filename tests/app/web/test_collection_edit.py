@@ -7,6 +7,7 @@ otherwise); a malformed/absent ulid is the same 404. POST saves under CAS and re
 facets — pinned by a test.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -122,7 +123,7 @@ def test_get_renders_name_field_and_readonly_rows(root: Path) -> None:
 def test_post_renames_and_redirects(root: Path) -> None:
     with override_settings(**_settings(root)):
         response = _client_as(Archivist()).post(
-            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder"}
+            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
         )
     assert response.status_code == 302
     assert _name_of(root, FOTOS) == "Lichtbilder"
@@ -131,7 +132,9 @@ def test_post_renames_and_redirects(root: Path) -> None:
 @pytest.mark.django_db
 def test_post_blank_name_re_renders_with_error_unchanged(root: Path) -> None:
     with override_settings(**_settings(root)):
-        response = _client_as(Archivist()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": ""})
+        response = _client_as(Archivist()).post(
+            f"/bestand/{FOTOS}/bearbeiten", {"name": "", "expected_version": "1"}
+        )
     assert response.status_code == 200
     assert "Name ist erforderlich." in response.content.decode()
     assert _name_of(root, FOTOS) == "Fotografien"  # unchanged
@@ -143,7 +146,9 @@ def test_rename_shows_new_name_in_workbench_facets(root: Path) -> None:
     # ancestors reindex + the live name resolution).
     with override_settings(**_settings(root)):
         client = _client_as(Archivist())
-        client.post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder"})
+        client.post(
+            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
+        )
         body = client.get("/").content.decode()
     assert "Lichtbilder" in body  # the renamed Bestand's new name in the facet sidebar
     assert "Fotografien" not in body  # the old name is gone
@@ -163,6 +168,74 @@ def test_readonly_sichtbarkeit_uses_shared_source_strings(root: Path) -> None:
 
 
 # --- racing rename: Conflict → the "Inzwischen geändert" panel (security LOW) --------
+
+
+def _expected_version_of(body: str) -> str:
+    match = re.search(r'name="expected_version" value="(\d*)"', body)
+    assert match is not None, (
+        "GET must seed a hidden expected_version (parity with the article form)"
+    )
+    return match.group(1)
+
+
+@pytest.mark.django_db
+def test_get_seeds_hidden_expected_version(root: Path) -> None:
+    with override_settings(**_settings(root)):
+        body = _client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    assert _expected_version_of(body) == "1"  # FOTOS was saved once in the fixture -> v1
+
+
+@pytest.mark.django_db
+def test_stale_expected_version_loses_the_race_and_preserves_input(root: Path) -> None:
+    # The genuine race the brief describes: the form is GET'd at v1, a CONCURRENT rename (a second
+    # archivist, or this same one in another tab) bumps the store to v2, and the ORIGINAL stale form
+    # then POSTs expected_version=1. The CAS check must reject that stale version — a rename that
+    # raced another rename must NOT silently win (lost update) — and re-render the "Inzwischen
+    # geändert" panel with the winner's name shown and the submitted name preserved.
+    with override_settings(**_settings(root)):
+        client = _client_as(Archivist())
+        get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+        stale_version = _expected_version_of(get_body)
+        assert stale_version == "1"
+
+        # a concurrent rename lands first (its own fresh GET+POST at v1), bumping the store to v2
+        client.post(
+            f"/bestand/{FOTOS}/bearbeiten",
+            {"name": "Lichtbilder", "expected_version": stale_version},
+        )
+        assert _name_of(root, FOTOS) == "Lichtbilder"
+
+        # the ORIGINAL stale form now POSTs, still carrying expected_version=1
+        response = client.post(
+            f"/bestand/{FOTOS}/bearbeiten",
+            {"name": "Gestohlen", "expected_version": stale_version},
+        )
+    assert response.status_code == 200  # not a 500, and NOT a redirect (no save happened)
+    body = response.content.decode()
+    assert "Inzwischen geändert" in body  # the conflict panel
+    assert "Lichtbilder" in body  # the winner's name is shown
+    assert 'value="Gestohlen"' in body  # the just-submitted (losing) name is preserved in the input
+    assert _expected_version_of(body) == "2"  # refreshed to the winner's version
+    assert (
+        _name_of(root, FOTOS) == "Lichtbilder"
+    )  # the stale rename never took effect (no lost update)
+
+
+@pytest.mark.django_db
+def test_matching_expected_version_still_saves_and_redirects(root: Path) -> None:
+    # Pin: a fresh rename (matching version) still saves and redirects, now that expected_version
+    # rides the form.
+    with override_settings(**_settings(root)):
+        client = _client_as(Archivist())
+        get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+        version = _expected_version_of(get_body)
+        response = client.post(
+            f"/bestand/{FOTOS}/bearbeiten",
+            {"name": "Lichtbilder", "expected_version": version},
+        )
+    assert response.status_code == 302
+    assert response["Location"] == f"/?bestand={FOTOS}"
+    assert _name_of(root, FOTOS) == "Lichtbilder"
 
 
 @pytest.mark.django_db

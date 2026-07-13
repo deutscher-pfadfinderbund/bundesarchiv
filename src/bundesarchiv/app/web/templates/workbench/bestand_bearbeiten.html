@@ -21,8 +21,9 @@ reindex, so the new name is live in facets) → 302 to the workbench filtered to
     <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Bestand gespeichert, während Sie ihn bearbeitet haben (jetzt „{{ conflict_name }}“). Bitte prüfen und erneut speichern.</p>
   </section>
   {% endif %}
-  <form class="c-form-felder" method="post" action="{% url 'bestand-bearbeiten' ulid %}">"
+  <form class="c-form-felder" method="post" action="{% url 'bestand-bearbeiten' ulid %}">
     {% csrf_token %}
+    <input type="hidden" name="expected_version" value="{{ version }}">
     <label class="c-field{% if errors.name %} c-field--fehler{% endif %}">
       <span class="c-field-label">Name</span>
       <input class="c-input" type="text" name="name" value="{{ name }}" autofocus>
