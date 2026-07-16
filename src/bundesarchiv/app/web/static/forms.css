@@ -305,7 +305,14 @@
 
 .c-form-footer {
   position: sticky;
-  bottom: 0;
+  /* Docks at the viewport bottom normally. The global htmx-error banner (layouts.css,
+     .wb-error-banner) is ALSO viewport-bottom-fixed, so a revealed banner would stack directly over
+     this footer, occluding Speichern exactly when a failed save needs a retry (design-gate finding,
+     fix-wave 2026-07-17). base.html's failure-listener JS measures the banner's real rendered height
+     (it can wrap to two lines) into --wb-error-banner-height on reveal/dismiss; lifting by that
+     amount keeps Speichern clickable while the error shows. 0px — both the fallback and the value
+     while the banner sits [hidden] — reproduces the old plain `bottom: 0` exactly. */
+  bottom: var(--wb-error-banner-height, 0px);
   display: flex;
   align-items: center;
   gap: var(--space-3);

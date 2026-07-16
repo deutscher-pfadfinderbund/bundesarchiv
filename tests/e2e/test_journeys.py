@@ -10,7 +10,7 @@ loop · Löschen confirm · publish preview gate · bulk select→confirm→part
 """
 
 import pytest
-from playwright.sync_api import Browser, Page, expect
+from playwright.sync_api import Browser, Page, Route, expect
 from tests.e2e._corpus import CorpusHandles
 
 pytestmark = pytest.mark.e2e
@@ -127,6 +127,58 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     # save 302s to the read view (the detail stub in this slice)
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
     assert "/bearbeiten" not in page.url
+
+
+def test_failed_save_banner_leaves_speichern_clickable(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    # A failed save reveals the global error banner, fixed at the viewport bottom — the SAME edge the
+    # sticky footer's Speichern docks at. The banner must lift the footer, never cover it: the retry
+    # button has to stay clickable exactly when the archivist needs it (design-gate finding).
+    _create_draft(page, live_workbench, "E2E Fehlschlag")
+
+    def fail_saves(route: Route) -> None:
+        # abort only the save POSTs; the edit page's own GET (same URL) must keep loading normally
+        if route.request.method == "POST":
+            route.abort()
+        else:
+            route.fallback()
+
+    page.route("**/bearbeiten", fail_saves)
+    page.click('button:has-text("Speichern")')  # htmx sendError → the banner reveals
+    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
+    # THE assertion, at the natural post-failure scroll position (footer stuck at the viewport
+    # bottom, exactly where the banner sits): a real browser hit-test at Speichern's center must
+    # reach the button, and the footer must sit clear above the banner. A bare page.click cannot
+    # pin this — Playwright's actionability retry rescues an occluded sticky-bottom element by
+    # scrolling the page to the very bottom, where the footer un-sticks above the banner and the
+    # click lands anyway (verified against the unfixed CSS).
+    state = page.evaluate(
+        """() => {
+        const banner = document.querySelector('.wb-error-banner');
+        const btn = document.querySelector('.c-form-footer .c-btn--primary');
+        const footer = document.querySelector('.c-form-footer');
+        const b = banner.getBoundingClientRect();
+        const f = footer.getBoundingClientRect();
+        const r = btn.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return {
+            speichernHit: btn === hit || btn.contains(hit),
+            footerBottom: f.bottom,
+            bannerTop: b.top,
+        };
+    }"""
+    )
+    assert state["speichernHit"], "the error banner paints over Speichern (hit-test misses)"
+    assert state["footerBottom"] <= state["bannerTop"] + 1, (
+        f"the sticky footer overlaps the banner: footer bottom {state['footerBottom']}px "
+        f"vs banner top {state['bannerTop']}px"
+    )
+    # and the retry itself works end to end: the second Speichern fires another save while the
+    # banner stays visible through it (the error is never sacrificed to keep the button clickable)
+    page.click('button:has-text("Speichern")', timeout=5000)
+    expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
 
 
 # --- dirty register (PE) -----------------------------------------------------------

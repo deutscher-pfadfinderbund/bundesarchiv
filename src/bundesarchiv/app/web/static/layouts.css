@@ -72,8 +72,22 @@ body.wb {
 }
 .wb-search .c-input { flex: 1 1 auto; min-width: 0; }
 
-/* ---- global htmx failure banner (Task 11): revealed by the failure listener in base.html. */
+/* ---- global htmx failure banner (Task 11): revealed by the failure listener in base.html.
+   Viewport-fixed at the bottom (fix-wave 2026-07-16): it used to sit in normal flow as the last
+   <body> child, landing below the fold on any page taller than the viewport. No bevel — a
+   full-width chrome bar draws no cut corner (that signature is reserved for cards/tabs).
+   The unconditional `display: flex` below always outranks the `hidden` attribute's own native
+   `display: none` (equal specificity, author origin wins the tie) — harmless while the banner sat
+   inert at the end of the document, but a real click-interceptor now that it is viewport-fixed. The
+   `[hidden]` override restores the attribute's actual hiding effect. Being viewport-bottom-fixed also
+   means a reveal can stack it over other bottom-docked sticky chrome (e.g. forms.css
+   .c-form-footer) — that companion fix lifts such chrome by the banner's measured height; see
+   base.html's failure-listener JS and the --wb-error-banner-height var in forms.css. */
 .wb-error-banner {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 10; /* above the sticky bulk-edit bar (z-index: 1) and everything else in-flow */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -82,6 +96,7 @@ body.wb {
   background: var(--error);
   color: var(--on-error);
 }
+.wb-error-banner[hidden] { display: none; }
 .wb-error-banner-text { margin: 0; font: var(--type-body); }
 .wb-error-banner-close {
   background: none;
