@@ -9,6 +9,10 @@
 - Fast type check (~0.2s second opinion; zero-error policy): `uv run pyrefly check`
 - Dev server: `DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`
 - E2E/gallery (excluded from default run): `uv run pytest -m e2e`, `uv run pytest -m gallery -s`
+- CSS changes touching position/overlay on `hidden`-gated elements: run the
+  e2e suite, not just the gallery — snapshots render but never click
+  (regression class: fixed-position banner whose `display` rule overrode
+  `[hidden]` and intercepted clicks).
 
 ## Agent skills
 
