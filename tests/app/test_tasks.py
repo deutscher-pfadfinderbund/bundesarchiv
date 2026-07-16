@@ -306,26 +306,57 @@ def test_mirror_reconcile_task_closes_the_mirror_client(monkeypatch: pytest.Monk
 
 def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     """The enqueue wrapper the app services call: when the mirror is unset it must NOT defer a job
-    (no queue churn for a feature that is off)."""
+    (no queue churn for a feature that is off). Drives the real settings predicate (GH #20: the
+    enqueue path no longer goes through ``mirror_store()`` at all)."""
     import bundesarchiv.app.tasks as tasks_mod
 
     deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
     monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
 
-    tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
+        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
 
     assert deferred == []
 
 
 def test_enqueue_mirror_push_defers_when_mirror_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drives the real settings predicate (GH #20: the enqueue path no longer goes through
+    ``mirror_store()`` at all — see ``test_enqueue_mirror_push_never_builds_a_client`` for the
+    zero-client-construction pin)."""
     import bundesarchiv.app.tasks as tasks_mod
 
     deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: InMemoryObjectStore())
     monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
 
-    tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
+        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+
+    assert deferred == ["articles/01A/README.md"]
+
+
+def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GH #20: the enqueue path must answer "is mirroring on" from settings alone — it must never
+    construct a fresh ``httpx.Client`` (eager SSL-context load) just to throw it away. Only
+    ``mirror_push`` itself, once actually run, may build one."""
+    import httpx
+
+    import bundesarchiv.app.tasks as tasks_mod
+
+    def _boom(*_args: object, **_kw: object) -> None:
+        raise AssertionError("client built on enqueue path")
+
+    deferred: list[str] = []
+    # Patch the shared ``httpx`` module object tasks.py imported (``import httpx``, not
+    # ``from httpx import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
+    monkeypatch.setattr(httpx, "Client", _boom)
+    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
+
+    with override_settings(
+        BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/",
+        BUNDESARCHIV_MIRROR_DAV_USER="u",
+        BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
+    ):
+        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
 
     assert deferred == ["articles/01A/README.md"]
 

@@ -46,6 +46,13 @@ def canonical_store() -> ObjectStore:
     return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
 
 
+def _mirror_configured() -> bool:
+    """Whether a WebDAV mirror is configured (Part 4.9) — the settings predicate shared by
+    ``mirror_store()`` and ``enqueue_mirror_push``, so the enqueue path can answer "is mirroring on"
+    without building a client (and its eager SSL-context load) just to throw it away."""
+    return bool(settings.BUNDESARCHIV_MIRROR_DAV_URL)
+
+
 def mirror_store() -> ObjectStore | None:
     """Build the WebDAV mirror store from settings, or None when no mirror is configured (Part 4.9).
 
@@ -174,8 +181,12 @@ def enqueue_mirror_push(key: str) -> None:
     """Enqueue a ``mirror_push`` reference job for ONE canonical key (Part 4.9). The app services
     call this AFTER a canonical write, for every key they touched — the mirror replay is async and
     never blocks the request. A clean no-op when no mirror is configured (do not churn the queue for
-    a feature that is off). Reference-only: the job carries the key and re-reads canonical at run."""
-    if mirror_store() is None:
+    a feature that is off). Reference-only: the job carries the key and re-reads canonical at run.
+
+    Checks ``_mirror_configured()`` rather than ``mirror_store()`` so this path never constructs a
+    client (GH #20): building one only to discard it leaked a fresh ``httpx.Client`` — with its
+    eager SSL-context load — on every canonical write when mirroring is configured."""
+    if not _mirror_configured():
         return  # mirror unset -> nothing to enqueue
     mirror_push.defer(key=key)
 
