@@ -193,7 +193,6 @@ def _reject(
             "anzahl": len(auswahl),
             "artikel_liste": [],
             "orphans": [],
-            "drawer": True,
             "feld_options": tuple((f.target, f.label) for f in bulk.FIELDS),
             "media_type_options": vocab.media_type_options(),
             "document_type_groups": vocab.grouped_document_type_options(),
