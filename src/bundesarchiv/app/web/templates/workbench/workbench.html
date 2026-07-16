@@ -17,7 +17,7 @@ honest too). Multi-line notes MUST use comment blocks — Django's hash-comment 
   URL; without JS the form still submits normally to "/". The atoms carry the styling.
   {% endcomment %}
   <form class="wb-search" role="search" method="get" action="{% url 'workbench' %}"
-        hx-get="{% url 'workbench' %}" hx-target="#results" hx-select="#results" hx-swap="outerHTML"
+        hx-get="{% url 'workbench' %}" hx-target="#results" hx-swap="outerHTML"
         hx-indicator="#results" hx-push-url="true"
         hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
     {% include "components/input.html" with type="search" name="q" value=text placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
