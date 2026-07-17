@@ -30,11 +30,12 @@ from bundesarchiv.domain.models import (
     Collection,
     Lifecycle,
     MediaRef,
+    Version,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.persistence.repository import ArticleRepository, Stored
 
 _DEV_KEY = "test-catalog-medien-key"
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
@@ -211,6 +212,45 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
     assert response.status_code == 200
     assert "bitte erneut versuchen" in response.content.decode().lower()
     assert _hashes(corpus) == before  # nothing changed
+
+
+def test_verschieben_reads_article_from_disk_exactly_once_pin(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Load-count pin (issue #2, P3+P2): a successful verschieben POST reads the article from disk
+    exactly ONCE total — the auth gate's own load. ``_structural_save``'s first attempt must reuse
+    that already-gated ``Stored`` (no re-load before the save call), and the post-save re-render must
+    be fed the ``Stored`` ``_structural_save`` returns (no re-load after). Counts real
+    ``ArticleRepository.load``/``.save`` calls (a spy that calls through — no mocking the unit under
+    test)."""
+    load_calls: list[str] = []
+    original_load = ArticleRepository.load
+
+    def counting_load(self: ArticleRepository, ulid: str) -> Stored:
+        load_calls.append(ulid)
+        return original_load(self, ulid)
+
+    monkeypatch.setattr(ArticleRepository, "load", counting_load)
+
+    reads_before_save: list[int] = []
+    original_save = ArticleRepository.save
+
+    def counting_save(
+        self: ArticleRepository, article: Article, expected_version: Version
+    ) -> Version:
+        reads_before_save.append(len(load_calls))  # snapshot the read count AT the save call
+        return original_save(self, article, expected_version)
+
+    monkeypatch.setattr(ArticleRepository, "save", counting_save)
+
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/verschieben",
+            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+        )
+    assert response.status_code == 200
+    assert reads_before_save == [1]  # exactly 1 read (the gate's) before the save call
+    assert len(load_calls) == 1  # and none after — the re-render reuses the post-save Stored
 
 
 # --- remove (two-step) -------------------------------------------------------------

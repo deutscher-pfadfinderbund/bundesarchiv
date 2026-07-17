@@ -21,6 +21,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Literal
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
@@ -257,7 +258,16 @@ def _handle_edit_post(
             # retry job was enqueued — re-render (not 302) with the quiet index-lag hinweis so the
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
-                return _rerender_edit(request, store, ulid, index_lag=True)
+                # A genuinely post-save Stored (the just-saved article at its new version) + the
+                # collections already in scope (:223) — _rerender_edit re-loads neither (P2).
+                return _rerender_edit(
+                    request,
+                    store,
+                    ulid,
+                    stored=Stored(article=result.article, version=save_result.version),
+                    collections=collections,
+                    index_lag=True,
+                )
             return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
             context = _edit_context_from_post(
@@ -867,13 +877,13 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, _ = gated
+    store, stored = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
-    saved = _structural_save(store, ulid, lambda media: _reordered(media, content_hash, richtung))
-    if saved is None:
-        return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
-    return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
+    result = _structural_save(
+        store, ulid, stored, lambda media: _reordered(media, content_hash, richtung)
+    )
+    return _structural_response(request, store, ulid, result)
 
 
 def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -884,15 +894,14 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, _ = gated
+    store, stored = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
-        saved = _structural_save(store, ulid, lambda media: _without(media, content_hash))
-        if saved is None:
-            return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
-        return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
-    # step 1: show the inline confirm for this row (no mutation)
-    return _rerender_edit(request, store, ulid, entfernen_hash=content_hash)
+        result = _structural_save(store, ulid, stored, lambda media: _without(media, content_hash))
+        return _structural_response(request, store, ulid, result)
+    # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
+    # current, so no re-load here either)
+    return _rerender_edit(request, store, ulid, stored=stored, entfernen_hash=content_hash)
 
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -905,7 +914,7 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, _ = gated
+    store, stored = gated
     files = request.FILES.getlist("dateien")
     oversize = any(f.size is not None and f.size > _MAX_UPLOAD_BYTES for f in files)
     if oversize:
@@ -916,41 +925,63 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     new_refs = [
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
-    saved: bool | None = True
     if new_refs:
-        saved = _structural_save(store, ulid, lambda media: (*media, *new_refs))
-    if saved is None:
-        return _not_found()  # hard-deleted underneath — not a hinweis-worthy conflict
-    return _rerender_edit(request, store, ulid, medien_fehler="" if saved else _MEDIEN_KONFLIKT)
+        result = _structural_save(store, ulid, stored, lambda media: (*media, *new_refs))
+        return _structural_response(request, store, ulid, result)
+    return _rerender_edit(request, store, ulid, stored=stored)  # no files posted — plain re-render
 
 
 def _structural_save(
     store: ObjectStore,
     ulid: Ulid,
+    stored: Stored,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
-) -> bool | None:
+) -> Stored | Literal["conflict"] | None:
     """Apply an idempotent structural transform to the article's media tuple and save via the service
     (canonical write + index sync), retrying on a concurrent version bump (safe: the transform
     re-applies to the winner's fresh media with the same intent). Non-CAS from the form's view — it
     re-loads the current version rather than trusting the form's expected_version (spec §6.3).
 
-    Returns True on a committed save, False if every attempt lost the race (so the caller surfaces a
-    German hinweis rather than silently pretending the change stuck), or None if the article was
-    hard-deleted underneath (the initial gate saw it, but THIS re-load — the same deleted-underneath
-    window ``save_catalog_form`` guards against — does not; the caller 404s instead of a hinweis)."""
-    repo = ArticleRepository(store)
-    for _ in range(_STRUCTURAL_SAVE_ATTEMPTS):
+    The FIRST attempt reuses the caller's already-gated ``stored`` (no re-load — the auth gate just
+    loaded it); only a ``Conflict`` retry re-loads, preserving the retry design and attempt count.
+
+    Returns the post-save ``Stored`` on a committed save (so the caller can re-render without a
+    further load), ``"conflict"`` if every attempt lost the race (so the caller surfaces a German
+    hinweis rather than silently pretending the change stuck), or ``None`` if the article was
+    hard-deleted underneath (the initial gate saw it, but a retry's re-load — the same deleted-
+    underneath window ``save_catalog_form`` guards against — does not; the caller 404s instead of a
+    hinweis)."""
+    current = stored
+    for attempt in range(_STRUCTURAL_SAVE_ATTEMPTS):
+        if attempt > 0:
+            try:
+                current = ArticleRepository(store).load(ulid)
+            except ArchiveError:
+                return None
+        mutated = replace(current.article, media=transform(current.article.media))
         try:
-            stored = repo.load(ulid)
-        except ArchiveError:
-            return None
-        mutated = replace(stored.article, media=transform(stored.article.media))
-        try:
-            article_services.save_article(store, mutated, stored.version)
-            return True
+            result = article_services.save_article(store, mutated, current.version)
+            return Stored(article=mutated, version=result.version)
         except Conflict:
             continue  # a concurrent write won; re-load and re-apply the idempotent transform
-    return False
+    return "conflict"
+
+
+def _structural_response(
+    request: HttpRequest,
+    store: ObjectStore,
+    ulid: Ulid,
+    result: Stored | Literal["conflict"] | None,
+) -> HttpResponseBase:
+    """Map a ``_structural_save`` outcome to its response, shared by all three structural routes:
+    hard-deleted underneath → the byte-identical 404 (not a hinweis-worthy conflict); every attempt
+    lost the race → the edit form with the konflikt hinweis; committed → the edit form fed the
+    post-save ``Stored`` (no re-load)."""
+    if result is None:
+        return _not_found()
+    if isinstance(result, str):
+        return _rerender_edit(request, store, ulid, medien_fehler=_MEDIEN_KONFLIKT)
+    return _rerender_edit(request, store, ulid, stored=result)
 
 
 def _reordered(
@@ -980,21 +1011,29 @@ def _rerender_edit(
     store: ObjectStore,
     ulid: Ulid,
     *,
+    stored: Stored | None = None,
+    collections: tuple[Collection, ...] | None = None,
     entfernen_hash: str = "",
     medien_fehler: str = "",
     index_lag: bool = False,
 ) -> HttpResponseBase:
     """Re-render the edit form after a structural media change (or the remove-confirm step, or a
-    saved-but-index-lagged metadata save). Re-loads the article so the register + fields reflect the
-    just-applied change. ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler``
-    surfaces an upload error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis.
-    If the article was hard-deleted underneath (the initial gate saw it, but this re-load does not),
-    collapses to the byte-identical 404 rather than letting the load failure propagate."""
-    try:
-        stored = ArticleRepository(store).load(ulid)
-    except ArchiveError:
-        return _not_found()
-    collections = _collections(store)
+    saved-but-index-lagged metadata save). ``stored``/``collections`` let a caller that already has
+    the current state hand it over instead of paying for a re-load here (P2, issue #2 perf): pass the
+    post-save ``Stored`` a structural save just produced, or the ``collections`` already in scope on
+    the index-lag save path. Either omitted loads fresh, so ``entfernen_hash``'s show-confirm call
+    (no save happened) and any future caller without the state in scope still work unchanged.
+    ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler`` surfaces an upload
+    error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis. If ``stored`` is
+    omitted and the article was hard-deleted underneath (the initial gate saw it, but this re-load
+    does not), collapses to the byte-identical 404 rather than letting the load failure propagate."""
+    if stored is None:
+        try:
+            stored = ArticleRepository(store).load(ulid)
+        except ArchiveError:
+            return _not_found()
+    if collections is None:
+        collections = _collections(store)
     context = _edit_context_from_article(
         stored.article,
         stored.version,

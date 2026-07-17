@@ -204,6 +204,49 @@ def test_edit_post_saves_and_redirects_to_read_view(corpus: _Corpus) -> None:
     assert stored.version == corpus.version + 1
 
 
+def test_index_lag_rerender_reuses_saved_state_no_reload_pin(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Load-count pin (issue #2, P2): the ADR-0014 index-lag re-render must reuse the just-saved
+    Article + the already-in-scope collections instead of reloading either from disk. Force the
+    synchronous index update to fail (state H) and count real ``ArticleRepository.load`` /
+    ``CollectionRepository.load_all`` calls across the whole POST: exactly 1 each (the initial gate
+    load / the initial ``_collections(store)`` call in ``article_edit``), none more from the
+    re-render. Counting spies call through — no mocking the unit under test."""
+    from bundesarchiv.app import articles
+
+    monkeypatch.setattr(
+        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
+    )
+
+    load_calls: list[str] = []
+    original_load = ArticleRepository.load
+
+    def counting_load(self: ArticleRepository, ulid: str) -> object:
+        load_calls.append(ulid)
+        return original_load(self, ulid)
+
+    monkeypatch.setattr(ArticleRepository, "load", counting_load)
+
+    load_all_calls: list[None] = []
+    original_load_all = CollectionRepository.load_all
+
+    def counting_load_all(self: CollectionRepository) -> tuple[Collection, ...]:
+        load_all_calls.append(None)
+        return original_load_all(self)
+
+    monkeypatch.setattr(CollectionRepository, "load_all", counting_load_all)
+
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Lagerchronik")
+        )
+    assert response.status_code == 200  # re-render carrying the hinweis, not a 302
+    assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
+    assert len(load_calls) == 1  # the initial gate load only
+    assert len(load_all_calls) == 1  # the initial _collections(store) call only
+
+
 def test_edit_post_empties_optional_to_none(corpus: _Corpus) -> None:
     # Clearing the Signatur field must store None, not "" (the "" -> None boundary, spec §8).
     with override_settings(**_settings(corpus)):
