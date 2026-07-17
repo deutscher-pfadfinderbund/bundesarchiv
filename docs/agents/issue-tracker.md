@@ -13,6 +13,17 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
+## Issue hygiene
+
+- **One bug per issue.** Never batch several bugs into one collector issue; split
+  them and cross-link by number.
+- **Bodies are self-contained.** Everything needed to understand and act on the
+  issue lives in the body itself: full description, reproduction or evidence,
+  options considered, decision if one was made. Never point at a gitignored
+  local file (`*.local.*`), a session artifact, or "the ledger" as the source
+  of substance — those are invisible on GitHub and die with sessions. Local
+  files may mirror an issue for dedup purposes; they never replace it.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
