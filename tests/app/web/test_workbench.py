@@ -13,12 +13,15 @@ on teardown (the shared ``indexed_corpus`` isolation mechanism).
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
+from urllib.parse import quote
 
 import pytest
 from django.core import signing
 from django.http import HttpResponse
 from django.test import Client, override_settings
 
+from bundesarchiv.app.web import browse
+from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
@@ -506,6 +509,82 @@ def test_active_date_range_removable_in_datum_group(corpus_root: Path) -> None:
     assert "entfernen" in body
 
 
+# --- search form keeps active facet filters (GH #21) ------------------------------
+
+
+def _search_form_html(body: str) -> str:
+    """The ``<form class="wb-search">``'s own markup, isolated from the sidebar/ledger — so an
+    assertion here can never accidentally match a facet link or pagination href that happens to
+    carry the same param/value elsewhere on the page."""
+    return body.split('<form class="wb-search"', 1)[1].split("</form>", 1)[0]
+
+
+@pytest.mark.django_db
+def test_search_form_echoes_every_active_filter_as_hidden_input(corpus_root: Path) -> None:
+    # Typing a NEW q must refine WITHIN the active filter scope: the form carries every active
+    # filter param as a hidden input, with its exact current value. seite is the one deliberate
+    # exception (a new search resets to page 1); q stays the single live input, never also hidden.
+    query = (
+        "q=Fahrt&bestand=FOTOS&medienart=Foto&dokumenttyp=Fotografie&schlagwort=fahrten"
+        "&jahrzehnt=1960&ohne_datum=1&von=1960-01-01&bis=1969-12-31&sortierung=-signatur&seite=2"
+    )
+    form_html = _search_form_html(_get(corpus_root, Public(), query).content.decode())
+    assert form_html.count('name="q"') == 1  # the live input only — never duplicated as hidden
+    for name, value in [
+        ("bestand", "FOTOS"),
+        ("medienart", "Foto"),
+        ("dokumenttyp", "Fotografie"),
+        ("schlagwort", "fahrten"),
+        ("jahrzehnt", "1960"),
+        ("ohne_datum", "1"),
+        ("von", "1960-01-01"),
+        ("bis", "1969-12-31"),
+        ("sortierung", "-signatur"),
+    ]:
+        assert f'type="hidden" name="{name}" value="{value}"' in form_html
+    assert (
+        'name="seite"' not in form_html
+    )  # deliberately NOT echoed — a new search resets to page 1
+
+
+def test_form_filter_params_track_every_browse_search_param() -> None:
+    # Drift pin: the form's echo list must stay exactly browse's search-state vocabulary minus q
+    # (the live input) and seite (a new search resets to page 1). A search param added to
+    # browse._SEARCH_PARAMS but forgotten in _FORM_FILTER_PARAMS would silently reintroduce
+    # GH #21 (the form dropping that filter) with every markup test still green.
+    assert set(_FORM_FILTER_PARAMS) == browse._SEARCH_PARAMS - {browse.PARAM_Q, browse.PARAM_PAGE}
+    assert len(_FORM_FILTER_PARAMS) == len(set(_FORM_FILTER_PARAMS))  # no duplicate hidden inputs
+
+
+@pytest.mark.django_db
+def test_search_form_has_no_hidden_inputs_when_no_filter_is_active(corpus_root: Path) -> None:
+    # No active filter → zero hidden inputs (today's markup, unchanged) — q alone never adds one.
+    form_html = _search_form_html(_get(corpus_root, Public(), "q=Fahrt").content.decode())
+    assert 'type="hidden"' not in form_html
+
+
+@pytest.mark.django_db
+def test_search_form_hidden_input_values_are_html_escaped(corpus_root: Path) -> None:
+    # A filter value rides straight from the query string into an HTML attribute — Django's default
+    # auto-escape (not `|safe`) must hold: &, " and an umlaut all render safely, one pinned value.
+    raw_value = 'Bär & "Söhne"'
+    body = _get(corpus_root, Public(), "schlagwort=" + quote(raw_value)).content.decode()
+    form_html = _search_form_html(body)
+    assert 'name="schlagwort" value="Bär &amp; &quot;Söhne&quot;"' in form_html
+    assert raw_value not in form_html  # the raw, unescaped value never appears
+
+
+@pytest.mark.django_db
+def test_round_trip_q_and_bestand_both_filter_results(corpus_root: Path) -> None:
+    # The server side of the loop the form now closes: a GET carrying BOTH q and an active filter
+    # narrows by both together (not just markup) — proves the request the completed form emits
+    # actually works. "Fahrt" matches only FOTOS-collection articles; AKTEN has none.
+    empty = _get(corpus_root, Public(), "q=Fahrt&bestand=AKTEN").content.decode()
+    assert "0 Treffer" in empty
+    both = _get(corpus_root, Public(), "q=Fahrt&bestand=FOTOS").content.decode()
+    assert "Fahrtenbericht" in both
+
+
 # --- long Signaturen: the SIG mark sizes to content, never truncates --------------
 
 
@@ -527,8 +606,9 @@ def test_sort_headers_cycle_asc_desc_default(corpus_root: Path) -> None:
     desc = _get(corpus_root, Public(), "sortierung=-signatur").content.decode()
     # active-desc header offers clearing the sort (default/Relevanz) — no sortierung in its href.
     assert "▼" in desc  # the descending glyph is shown on the active column
-    # and there is no sort <select> anywhere (headers are the only sort control)
-    assert 'name="sortierung"' not in desc
+    # and there is no sort <select> anywhere — headers are the only sort CONTROL (the search form's
+    # hidden `name="sortierung"` input, added by GH #21, merely echoes the active sort; it is not one).
+    assert "<select" not in desc
 
 
 # --- param injection: garbage → 200 defaults, never 500 --------------------------

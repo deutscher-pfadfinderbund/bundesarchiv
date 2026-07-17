@@ -17,7 +17,7 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -370,6 +370,30 @@ def _ledger_columns(
     return tuple(cols)
 
 
+#: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
+#: render order. Every ``browse`` search-state key EXCEPT ``q`` (the form's own live input, never
+#: duplicated as hidden) and ``seite`` (a new search deliberately resets to page 1 — kept as-is).
+_FORM_FILTER_PARAMS: tuple[str, ...] = (
+    browse.PARAM_COLLECTION,
+    browse.PARAM_MEDIA_TYPE,
+    browse.PARAM_DOCUMENT_TYPE,
+    browse.PARAM_TAG,
+    browse.PARAM_DECADE,
+    browse.PARAM_DATELESS,
+    browse.PARAM_DATE_FROM,
+    browse.PARAM_DATE_TO,
+    browse.PARAM_SORT,
+)
+
+
+def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
+    """The active filter params as ``(key, value)`` pairs for the search form's hidden inputs — read
+    from the SAME ``params`` mapping the facet/sort/pagination links below build from, so the form
+    and the sidebar can never drift out of sync (GH #21: typing refines WITHIN the active filter
+    scope). A blank or absent param is omitted entirely — never an empty-value hidden input."""
+    return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
+
+
 def _results_context(
     request: HttpRequest,
     parsed: browse.ParsedQuery,
@@ -405,6 +429,9 @@ def _results_context(
     zurueck = _zurueck_suffix(params)
     context: dict[str, object] = {
         "text": parsed.text or "",
+        # The search form's hidden inputs (GH #21) — every active filter, so typing a new q keeps
+        # refining WITHIN the current filter scope instead of silently dropping it.
+        "filter_params": _form_filters(params),
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page, names),
         "ledger_rows": _ledger_rows(

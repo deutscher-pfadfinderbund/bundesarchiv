@@ -14,14 +14,17 @@ honest too). Multi-line notes MUST use comment blocks — Django's hash-comment 
 {% block header %}
   {% comment %}
   GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
-  URL; without JS the form still submits normally to "/". The atoms carry the styling.
+  URL; without JS the form still submits normally to "/". The atoms carry the styling. The hidden
+  inputs (GH #21) carry every ACTIVE facet/sort filter, so typing q refines WITHIN that scope
+  instead of dropping it — seite is deliberately excluded (a new search resets to page 1).
   {% endcomment %}
   <form class="wb-search" role="search" method="get" action="{% url 'workbench' %}"
         hx-get="{% url 'workbench' %}" hx-target="#results" hx-swap="outerHTML"
         hx-indicator="#results" hx-push-url="true"
         hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
     {% include "components/input.html" with type="search" name="q" value=text placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
-    {% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
+    {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}{% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
   </form>
   {% comment %}
   Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
