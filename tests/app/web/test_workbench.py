@@ -789,3 +789,46 @@ def test_catalog_bulk_js_served(corpus_root: Path) -> None:
         served = _client_as(Archivist()).get("/static/catalog_bulk.js")
     assert served.status_code == 200
     assert served["Content-Type"] == "application/javascript"
+
+
+# --- load-count pins: collections loaded at most once per request (issue #2 P1) ---
+
+
+def _count_load_all(monkeypatch: pytest.MonkeyPatch) -> list[None]:
+    """Spy on ``CollectionRepository.load_all`` — counts real calls and calls through (no mocking
+    the unit under test)."""
+    calls: list[None] = []
+    original = CollectionRepository.load_all
+
+    def counting(self: CollectionRepository) -> tuple[Collection, ...]:
+        calls.append(None)
+        return original(self)
+
+    monkeypatch.setattr(CollectionRepository, "load_all", counting)
+    return calls
+
+
+@pytest.mark.django_db
+def test_archivist_workbench_get_loads_collections_exactly_once_pin(
+    corpus_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An archivist page with hits needs collection names TWICE (facet labels + the bulk drawer's
+    # Bestand options) but must LOAD them once — both consumers share one per-request load.
+    calls = _count_load_all(monkeypatch)
+    body = _get(corpus_root, Archivist()).content.decode()
+    assert "Fotografien" in body  # the facet labels resolved
+    assert "— Bestand wählen —" in body  # and the bulk drawer options rendered
+    assert len(calls) == 1
+
+
+@pytest.mark.django_db
+def test_zero_hit_workbench_get_loads_collections_zero_times_pin(
+    corpus_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Laziness must survive the shared-load fix: a zero-hit page (no collection facet counts, no
+    # bulk bar) resolved no names before and must still load ZERO times.
+    calls = _count_load_all(monkeypatch)
+    response = _get(corpus_root, Archivist(), "q=xyzzyplugh")
+    assert response.status_code == 200
+    assert "0 Treffer" in response.content.decode()
+    assert len(calls) == 0

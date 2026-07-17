@@ -17,7 +17,9 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -49,6 +51,11 @@ _STATIC_DIR = Path(__file__).parent / "static"
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
 _PANE_PARAM = "artikel"
 
+#: The shared per-request collection-names loader (a memoized zero-arg callable): built once in
+#: ``_results_context`` and passed to both consumers, so the names load at most once per request —
+#: and not at all on a page that resolves none (issue #2 P1).
+type _NamesLoader = Callable[[], dict[Ulid, str]]
+
 #: The bulk-edit Feld chooser options: (target, German label), DERIVED from bulk.FIELDS (the single
 #: source) so labels/allowlist can never drift. Placeholder first (empty, server-rejected with
 #: "Bitte ein Feld wählen."). audience/lifecycle/sichtbarkeit are absent by construction (spec §0.7).
@@ -58,10 +65,10 @@ _BULK_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _bulk_collection_options() -> tuple[tuple[str, str], ...]:
+def _bulk_collection_options(names: _NamesLoader) -> tuple[tuple[str, str], ...]:
     """The Sammlungsteil (collection) options for the bulk drawer: placeholder first, then every
     collection as ``(ulid, name)``. A value outside this set is server-rejected like an empty one."""
-    return (("", "— Bestand wählen —"), *sorted(_collection_names().items(), key=lambda kv: kv[1]))
+    return (("", "— Bestand wählen —"), *sorted(names().items(), key=lambda kv: kv[1]))
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -389,13 +396,17 @@ def _results_context(
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
     auswahl_set = frozenset(auswahl)
+    # The ONE per-request collection-names load, memoized and shared by its two consumers (the
+    # Bestand facet labels + the bulk drawer's options) — and LAZY: a page that resolves no names
+    # (zero hits, no collection counts, non-archivist) never loads at all (issue #2 P1, pinned).
+    names = cache(_collection_names)
     # The ?zurueck= suffix every detail link carries: the current search (params already excludes
     # artikel + auswahl), so the detail page's "Zurück zur Suche" restores it. Empty when no search.
     zurueck = _zurueck_suffix(params)
     context: dict[str, object] = {
         "text": parsed.text or "",
         "page": page,
-        "facet_groups": _facet_groups(params, parsed, page),
+        "facet_groups": _facet_groups(params, parsed, page, names),
         "ledger_rows": _ledger_rows(
             page,
             is_archivist=is_archivist,
@@ -418,7 +429,7 @@ def _results_context(
         "leerer_bestand": _only_bestand_filter(parsed) if total == 0 else None,
     }
     if is_archivist:
-        context.update(_bulk_bar_context(params, page, auswahl))
+        context.update(_bulk_bar_context(params, page, auswahl, names))
     return context
 
 
@@ -440,7 +451,10 @@ def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
 
 
 def _bulk_bar_context(
-    params: dict[str, str], page: object, auswahl: list[str]
+    params: dict[str, str],
+    page: object,
+    auswahl: list[str],
+    names: _NamesLoader,
 ) -> dict[str, object]:
     """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
 
@@ -465,7 +479,7 @@ def _bulk_bar_context(
         "bulk_feld_options": _BULK_FELD_OPTIONS,
         "bulk_media_type_options": vocab.media_type_options(),
         "bulk_document_type_groups": vocab.grouped_document_type_options(),
-        "bulk_collection_options": _bulk_collection_options(),
+        "bulk_collection_options": _bulk_collection_options(names),
     }
     if auswahl:
         context["auswahl_count"] = len(auswahl)
@@ -476,13 +490,16 @@ def _bulk_bar_context(
 
 
 def _facet_groups(
-    params: dict[str, str], parsed: browse.ParsedQuery, page: object
+    params: dict[str, str],
+    parsed: browse.ParsedQuery,
+    page: object,
+    names: _NamesLoader,
 ) -> tuple[_FacetGroup, ...]:
     """Build every sidebar facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
-    collection group resolves ULID facet values to Collection names (via ``load_all``) and is marked
-    ``direct``; the "Ohne Datum" bucket is a single toggle item."""
+    collection group resolves ULID facet values to Collection names (via ``names``, the shared
+    per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
     facets = page.facets  # type: ignore[attr-defined]
-    groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()))]
+    groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()), names)]
     groups += [
         _FacetGroup(heading, _facet_items(params, param, facets.get(key, ())))
         for key, param, heading in _FACET_GROUPS
@@ -515,12 +532,17 @@ def _facet_items(
     return tuple(items)
 
 
-def _collection_group(params: dict[str, str], counts: tuple[FacetCount, ...]) -> _FacetGroup:
+def _collection_group(
+    params: dict[str, str],
+    counts: tuple[FacetCount, ...],
+    names: _NamesLoader,
+) -> _FacetGroup:
     """The Bestand facet: ULIDs resolved to Collection names. Counts are SUBTREE counts (the query
     facets over ``collection_ancestors``), so the number matches what clicking the (subtree) filter
     yields — a bare right-aligned count like every other group (the old "direkt:" hedge is gone).
-    Empty ``counts`` yields an empty group (dropped by ``_facet_groups``)."""
-    labels = _collection_names() if counts else {}
+    Empty ``counts`` yields an empty group (dropped by ``_facet_groups``) — and resolves no names,
+    keeping the shared load lazy."""
+    labels = names() if counts else {}
     return _FacetGroup(
         "Bestand",
         _facet_items(params, browse.PARAM_COLLECTION, counts, labels=labels),
