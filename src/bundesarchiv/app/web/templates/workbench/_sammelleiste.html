@@ -17,7 +17,10 @@ the primary is the one anchor.
     signals-once holds) so catalog_bulk.js has a live target to write into on the first tick without
     an early-return. The server fills it for the no-JS path when a selection exists.{% endcomment %}
     <span class="wb-sammelleiste-zahl">{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span>
-    <a class="wb-sammelleiste-link" href="?{{ select_page_query }}">Alle auf dieser Seite</a>
+    {% comment %}data-bulk-alle: catalog_bulk.js (GH #22) folds unsubmitted ticks into this link's
+    ?auswahl= so it keeps meaning "current selection ∪ this page". "Auswahl aufheben" below must
+    NEVER carry the hook — its purpose is clearing the selection.{% endcomment %}
+    <a class="wb-sammelleiste-link" href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
     {% if has_auswahl %}<a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
   </div>
 

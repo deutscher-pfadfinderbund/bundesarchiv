@@ -844,6 +844,18 @@ def test_auswahl_aufheben_preserves_active_search(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
+def test_alle_link_carries_the_js_rewrite_hook(corpus_root: Path) -> None:
+    # GH #22: catalog_bulk.js folds unsubmitted ticks into the selection-carrying links; it finds
+    # "Alle auf dieser Seite" by the data-bulk-alle hook. "Auswahl aufheben" must NEVER carry it —
+    # its purpose is clearing, and a rewrite would resurrect the selection.
+    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
+    alle = body.split(">Alle auf dieser Seite<", 1)[0].rsplit("<a ", 1)[1]
+    assert "data-bulk-alle" in alle
+    aufheben = body.split(">Auswahl aufheben<", 1)[0].rsplit("<a ", 1)[1]
+    assert "data-bulk-alle" not in aufheben
+
+
+@pytest.mark.django_db
 def test_header_select_all_checkbox_hidden_no_js(corpus_root: Path) -> None:
     # Design-gate LOW-MED: the header select-all checkbox is a dead control no-JS (no name), so it
     # ships hidden; catalog_bulk.js un-hides it. The no-JS page-select affordance is the bar link.

@@ -1,6 +1,8 @@
 {% comment %}
-Numbered pagination. Params: current_page; has_prev/has_next; prev_query/next_query (GET query
-strings — URL-as-state, plain links, no JS). Renders nothing on a single page.
+Prev/next pagination. Params: current_page; has_prev/has_next; prev_query/next_query (GET query
+strings — URL-as-state, plain links). Renders nothing on a single page. On the workbench,
+catalog_bulk.js (GH #22) rewrites ONLY the ?auswahl= params of the rel=prev/next links so an
+unsubmitted bulk selection survives paging; the rest of each href keeps its server-built value.
 {% endcomment %}
 {% if has_prev or has_next %}
 <nav class="c-pager" aria-label="Seiten">

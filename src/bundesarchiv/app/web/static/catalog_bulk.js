@@ -1,8 +1,9 @@
 // Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
 // baseline works without it (page-select is the "Alle auf dieser Seite" link; every value widget
 // renders and the server reads the matching one; the bar visibility + count come from the server
-// off ?auswahl=). Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
-// separately) handles the dependent-Dokumenttyp swap; this covers what HTMX can't express.
+// off ?auswahl=; paging carries the URL-borne selection, so fresh ticks need a submit first — this
+// file lifts that limit, GH #22). Self-contained, same-origin, no framework (dormancy rule). HTMX
+// (loaded separately) handles the dependent-Dokumenttyp swap; this covers what HTMX can't express.
 (function () {
   "use strict";
 
@@ -34,6 +35,7 @@
         box.closest(".c-ledger-row").classList.toggle("c-ledger-row--gewaehlt", box.checked);
       });
       updateCount();
+      rewriteSelectionLinks();
     });
   }
 
@@ -44,6 +46,7 @@
       .closest(".c-ledger-row")
       .classList.toggle("c-ledger-row--gewaehlt", event.target.checked);
     updateCount();
+    rewriteSelectionLinks();
   });
 
   // The bar (and its count span) is always in the DOM now (cold-start fix, #16), so the count goes
@@ -73,5 +76,52 @@
     feld.addEventListener("change", sync);
     sync();
   }
+
+  // 4. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
+  // links + "Alle auf dieser Seite" on every change, so unsubmitted ticks/unticks survive paging
+  // while the URL stays the canonical shareable state. Per link, from its own href: drop this
+  // page's ulids from ?auswahl= (fresh unticks stick), keep the rest (other pages' selections),
+  // append the added set. "Auswahl aufheben" is NEVER rewritten — its purpose is clearing.
+  function rewriteSelectionLinks() {
+    var boxes = rowBoxes();
+    var pageUlids = boxes.map(function (b) {
+      return b.value;
+    });
+    var checked = boxes
+      .filter(function (b) {
+        return b.checked;
+      })
+      .map(function (b) {
+        return b.value;
+      });
+    var results = form.closest("#results") || document;
+    var pagers = results.querySelectorAll('.c-pager a[rel="prev"], .c-pager a[rel="next"]');
+    Array.prototype.forEach.call(pagers, function (link) {
+      rewriteAuswahl(link, pageUlids, checked);
+    });
+    // "Alle auf dieser Seite" re-adds the FULL page set (checked ⊆ page, which the union absorbs),
+    // so it keeps meaning "current selection ∪ this page" — never shrunk to just the ticked rows.
+    var alleLink = form.querySelector("[data-bulk-alle]");
+    if (alleLink) rewriteAuswahl(alleLink, pageUlids, pageUlids);
+  }
+
+  // Rewrite ONLY the auswahl params of one link, from its own href: every non-auswahl param keeps
+  // its place and decoded value (re-serialization may normalize percent-encoding — the server parses
+  // both spellings identically), the auswahl list becomes (href's list − this page's ulids) + add.
+  function rewriteAuswahl(link, pageUlids, add) {
+    var url = new URL(link.getAttribute("href"), window.location.href);
+    var kept = url.searchParams.getAll("auswahl").filter(function (u) {
+      return pageUlids.indexOf(u) === -1;
+    });
+    url.searchParams.delete("auswahl");
+    kept.concat(add).forEach(function (u) {
+      url.searchParams.append("auswahl", u);
+    });
+    link.setAttribute("href", "?" + url.searchParams.toString());
+  }
+
+  // Fold once at wire time too: back/forward navigation restores checkbox state without firing
+  // change events, and the server-rendered links only carry the URL-borne selection.
+  rewriteSelectionLinks();
   }
 })();

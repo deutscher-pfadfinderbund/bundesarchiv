@@ -7,10 +7,12 @@ is_archivist.
 
 Bulk edit (Sammelbearbeitung, archivist-only): the ledger's rows + the sticky bulk bar live inside
 ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row checkboxes
-name="auswahl"; the bar renders only when the selection is non-empty (signals-once). Selection
-survives pagination because the prev/next links carry ?auswahl= (built in the view). "Alle auf
-dieser Seite" is a GET link appending this page's ulids. catalog_form.js is not loaded here; the
-workbench's own PE (catalog_bulk.js) toggles the page checkbox + live count.
+name="auswahl"; the bar's affordances render whenever there are hits (cold-start fix, #16).
+Selection survives pagination in two layers: the view bakes the URL-borne ?auswahl= into the
+prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) folds UNSUBMITTED
+ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
+selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first. catalog_form.js
+is not loaded here; the workbench's own PE (catalog_bulk.js) also drives the page checkbox + count.
 {% endcomment %}
 <main class="wb-main" id="results">
   <p class="wb-hitcount" aria-live="polite">{{ total }} Treffer</p>

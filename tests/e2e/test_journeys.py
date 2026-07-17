@@ -9,8 +9,12 @@ Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two c
 loop · Löschen confirm · publish preview gate · bulk select→confirm→partial result.
 """
 
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 from playwright.sync_api import Browser, Page, Route, expect
+from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
 
 pytestmark = pytest.mark.e2e
@@ -324,6 +328,78 @@ def test_bulk_url_seeded_selection_still_works(
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+
+
+def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
+    """Grow the canonical corpus past one page (PAGE_SIZE=50): 60 extra published articles with
+    fixed ULIDs sorting AFTER the canonical ones (browse order is ulid), then re-index so the live
+    server actually paginates. 63 archivist-visible hits → page 1 holds the canonical articles."""
+    from bundesarchiv.domain.models import Article, Lifecycle
+    from bundesarchiv.index import indexer
+    from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    store = LocalFsObjectStore(root)
+    articles = ArticleRepository(store)
+    for i in range(60):
+        articles.save(
+            Article(
+                ulid=f"01KXE2EPAGE{i:015d}",  # valid Crockford base32, > the canonical 01KX8N…
+                title=f"Seitenfüller {i:02d}",
+                collection_id="FOTOS",
+                lifecycle=Lifecycle.PUBLISHED,
+                media_type="Fotografie",
+            ),
+            0,
+        )
+    with blocker.unblock():
+        indexer.rebuild(store)
+
+
+def _auswahl_in_url(page: Page) -> list[str]:
+    return parse_qs(urlparse(page.url).query).get("auswahl", [])
+
+
+def test_bulk_fresh_ticks_survive_paging(
+    archivist_page: Page,
+    live_workbench: str,
+    e2e_corpus: CorpusHandles,
+    _e2e_root: Path,
+    django_db_blocker: DjangoDbBlocker,
+) -> None:
+    # GH #22: UNSUBMITTED ticks/unticks must survive paging. catalog_bulk.js folds the live checkbox
+    # state into the prev/next + "Alle auf dieser Seite" links on every change, so the URL stays the
+    # canonical shareable state — the landed page renders exactly as a cold visit to it would.
+    _seed_second_page(_e2e_root, django_db_blocker)
+    page = archivist_page
+    # land with a URL-seeded selection (the no-JS-persisted baseline state)
+    page.goto(live_workbench + f"/?auswahl={e2e_corpus.published_ulid}")
+    seeded = page.locator(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    expect(seeded).to_be_checked()
+    # a fresh tick + a fresh UNTICK of the URL-seeded item — both unsubmitted, DOM-only
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    seeded.uncheck()
+    # "Auswahl aufheben" is NEVER rewritten — its purpose is clearing the selection
+    aufheben_href = page.locator('a:has-text("Auswahl aufheben")').get_attribute("href")
+    assert "auswahl" not in (aufheben_href or "")
+    page.click('a[rel="next"]')
+    page.wait_for_url("**seite=2**")
+    # the URL carries the fresh state: the tick travelled, the untick stuck
+    assert e2e_corpus.second_ulid in _auswahl_in_url(page)
+    assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
+    # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
+    page2_box = page.locator('input[name="auswahl"]').first
+    page2_ulid = page2_box.get_attribute("value")
+    page2_box.check()
+    page.click('a[rel="prev"]')
+    page.wait_for_url("**seite=1**")
+    # page 1 re-renders the selection from the URL alone: tick survived, untick survived
+    expect(page.locator(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')).to_be_checked()
+    expect(
+        page.locator(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    ).not_to_be_checked()
+    assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
+    assert e2e_corpus.second_ulid in _auswahl_in_url(page)
 
 
 # --- no-JS baseline ----------------------------------------------------------------
