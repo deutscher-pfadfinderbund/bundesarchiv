@@ -6,14 +6,14 @@ context. English dev chrome; German product copy inside the atoms. The page fram
 states via ?vorschau=0|1 (no JS): the pane is present only when vorschau=1. When it opens, the
 ledger folds to its narrow two-line density (the split-narrow layout). Below 1280px a media query
 hides the pane and returns the ledger to full — layouts.css owns that, not the view.
-{% endcomment %}<!doctype html>
+{% endcomment %}{% load static %}<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Layout demo: {{ layout_name }} — dev</title>
-  <link rel="stylesheet" href="{% url 'static-tokens' %}">
-  <link rel="stylesheet" href="{% url 'static-components' %}">"
+  <link rel="stylesheet" href="{% static 'tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'components.css' %}">
   <link rel="stylesheet" href="{{ stylesheet }}">
 </head>
 <body class="wb wb--{{ layout_name }}{% if vorschau %} wb--vorschau{% endif %}">

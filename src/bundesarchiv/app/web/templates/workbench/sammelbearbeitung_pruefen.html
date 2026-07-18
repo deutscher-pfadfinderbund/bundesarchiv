@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Bulk-edit confirm page (Sammelbearbeitung state D, spec §2/§7). Archivist-only (the view gates it).
 The interstitial for the highest-consequence action: Feld · Neuer Wert · Betroffen: {n} Artikel ·
@@ -9,7 +10,7 @@ point. A validation error re-renders here with the verbatim message + the select
 Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server session state).
 {% endcomment %}
 {% block title %}Sammelbearbeitung prüfen{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form">

@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Create-Bestand form (Part 4.8, archivist-only — the view gates it). The 4.7 form grammar wholesale:
 Name (required, autofocus) + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is safe (a fresh
@@ -7,7 +8,7 @@ filtered to the new Bestand. Validation re-renders here with the verbatim error 
 Anlegen is first-in-source so Enter submits it.
 {% endcomment %}
 {% block title %}Neuer Bestand{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form c-form--neu">

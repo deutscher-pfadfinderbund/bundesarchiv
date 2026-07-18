@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Full edit form (Part 4.7 Slice B, spec §3/§4/§5/§6.1). Archivist-only (the view gates it). No-JS
 baseline only: one real <form>, native controls, one POST, server re-render preserving every value.
@@ -8,8 +9,8 @@ source so Enter submits it; the hidden expected_version rides the form for CAS (
 Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
-<script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">
+<script src="{% static 'catalog_form.js' %}" defer></script>{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via

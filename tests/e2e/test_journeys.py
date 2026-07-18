@@ -44,6 +44,21 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
 
 
+def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
+    # Guard against silent unstyling (ADR 0016): the workbench references its CSS/JS via {% static %};
+    # prove every one of those URLs serves 200 through the live server. A 404'd stylesheet would
+    # render an unstyled page that the gallery's size-only assertion cannot catch.
+    page = public_page
+    page.goto(live_workbench + "/")
+    refs = page.eval_on_selector_all(
+        "link[rel=stylesheet], script[src]", "els => els.map(e => e.href || e.src)"
+    )
+    static_urls = [u for u in refs if "/static/" in u]
+    assert static_urls, "the workbench references no /static/ assets"
+    for url in static_urls:
+        assert page.request.get(url).status == 200, url
+
+
 # --- detail read view (4.6) --------------------------------------------------------
 
 

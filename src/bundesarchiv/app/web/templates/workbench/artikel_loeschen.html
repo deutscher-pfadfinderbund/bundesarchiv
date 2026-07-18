@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Delete / discard confirm page (Part 4.7 Slice C, spec §7 state M). Archivist-only (the view gates
 it). Shows the .c-sig mark + Titel so the archivist confirms WHICH record before an irreversible
@@ -7,7 +8,7 @@ c-btn--gefahr (error inversion) appears. Abbrechen is subtle → back to the rea
 page: one POST executes; there is no undo (no Papierkorb this version).
 {% endcomment %}
 {% block title %}{{ titel_confirm }}{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'artikel-detail' ulid %}">Zurück zum Artikel</a>{% endblock %}
 {% block body %}
 <main class="c-form c-confirm">

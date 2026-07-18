@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Bulk-edit result page (Sammelbearbeitung state R, spec §2/§7). Archivist-only. The saved COUNT
 carries the successes (signals-once — successes are NOT listed individually). ONLY actionable rows
@@ -8,7 +9,7 @@ vorhanden:" bucket; doctype-cleared as a neutral sub-note. NO red anywhere — a
 outcome, not an error. Index lag → a quiet role=status line.
 {% endcomment %}
 {% block title %}Sammelbearbeitung{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form">

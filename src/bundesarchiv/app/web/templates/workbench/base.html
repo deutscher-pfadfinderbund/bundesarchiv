@@ -5,15 +5,15 @@ BINDING). Styling is the design-system stack — tokens.css (roles), components.
 layouts.css (the workbench frame) — each self-contained, no external requests. The header block
 carries screen-specific chrome (the workbench's search form); the wordmark is always present and
 always links home.
-{% endcomment %}<!doctype html>
+{% endcomment %}{% load static %}<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
-  <link rel="stylesheet" href="{% url 'static-tokens' %}">
-  <link rel="stylesheet" href="{% url 'static-components' %}">
-  <link rel="stylesheet" href="{% url 'static-layouts' %}">"
+  <link rel="stylesheet" href="{% static 'tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'components.css' %}">
+  <link rel="stylesheet" href="{% static 'layouts.css' %}">
   {% block head_extra %}{% endblock %}
 </head>
 <body class="wb{% block body_class %}{% endblock %}">
@@ -26,8 +26,8 @@ always links home.
   <p class="wb-error-banner-text">Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
   <button type="button" class="wb-error-banner-close" aria-label="Meldung schließen">&times;</button>
 </div>
-<script src="{% url 'static-htmx' %}" defer></script>
-<script src="{% url 'static-ledger-pane' %}" defer></script>
+<script src="{% static 'htmx.min.js' %}" defer></script>
+<script src="{% static 'ledger_pane.js' %}" defer></script>
 <script>
   // htmx failures are otherwise silent — one document-level listener on both failure events reveals the banner; dismiss or a fresh success hides it.
   // The banner is viewport-bottom-fixed (layouts.css), same as bottom-docked sticky chrome like the

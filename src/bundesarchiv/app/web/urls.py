@@ -11,19 +11,7 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 
 from django.urls import path
 
-from bundesarchiv.app.web.browse_views import (
-    article_detail,
-    serve_catalog_bulk_js,
-    serve_catalog_form_js,
-    serve_components_css,
-    serve_detail_css,
-    serve_forms_css,
-    serve_htmx,
-    serve_layouts_css,
-    serve_ledger_pane_js,
-    serve_tokens,
-    workbench,
-)
+from bundesarchiv.app.web.browse_views import article_detail, workbench
 from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
@@ -50,15 +38,8 @@ from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 #: ``<str:ulid>`` capture (``neu`` is not a valid ULID anyway, but ordering makes intent explicit).
 urlpatterns = [
     path("", workbench, name="workbench"),
-    path("static/htmx.min.js", serve_htmx, name="static-htmx"),
-    path("static/ledger_pane.js", serve_ledger_pane_js, name="static-ledger-pane"),
-    path("static/catalog_form.js", serve_catalog_form_js, name="static-catalog-form"),
-    path("static/catalog_bulk.js", serve_catalog_bulk_js, name="static-catalog-bulk"),
-    path("static/tokens.css", serve_tokens, name="static-tokens"),
-    path("static/components.css", serve_components_css, name="static-components"),
-    path("static/layouts.css", serve_layouts_css, name="static-layouts"),
-    path("static/forms.css", serve_forms_css, name="static-forms"),
-    path("static/detail.css", serve_detail_css, name="static-detail"),
+    # /static/* is served by WhiteNoise middleware (ADR 0016), not the urlconf — hence no routes
+    # here and no leak-matrix contract rows; see test_static_assets.py for the public-by-design pin.
     path("artikel/neu", article_create, name="artikel-neu"),
     path("bestand/neu", collection_create, name="bestand-neu"),
     path("bestand/<str:ulid>/bearbeiten", collection_edit, name="bestand-bearbeiten"),

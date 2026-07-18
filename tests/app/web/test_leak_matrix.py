@@ -14,7 +14,12 @@ route names. A future route added to ``urls.py`` without a matrix entry FAILS
 
 Method note (contract-shaping fact, verified in the views): no route uses a method guard, so a
 disallowed method is NOT a 405 — the POST-only routes 404 on GET and the GET-only routes 404 on POST
-via the same shared 404 helper. The static/dev routes are the exception: they ignore method entirely.
+via the same shared 404 helper. The dev routes are the exception: they ignore method entirely.
+
+Static assets (CSS/JS) are NOT in this matrix: ``/static/*`` is served by WhiteNoise middleware
+(ADR 0016), never the urlconf, so the exhaustiveness gate below cannot see it. Its public-by-design
+contract — every asset served to every tier, an *uncollected* path tier-invariant, no directory
+escape — is pinned separately in ``test_static_assets.py``.
 
 Dev-only routes (``dev_urls.py``) are covered by their own prod-by-absence assertions here:
 ``test_dev_routes_absent_from_prod_urlconf`` proves each is a ``Resolver404`` under the prod urlconf.
@@ -204,26 +209,6 @@ def _p_root(_c: _Corpus) -> str:
     return "/"
 
 
-#: Each static route's literal path (the route names carry no captures — a plain constant per route).
-_STATIC_PATHS = {
-    "static-htmx": "/static/htmx.min.js",
-    "static-ledger-pane": "/static/ledger_pane.js",
-    "static-catalog-form": "/static/catalog_form.js",
-    "static-catalog-bulk": "/static/catalog_bulk.js",
-    "static-tokens": "/static/tokens.css",
-    "static-components": "/static/components.css",
-    "static-layouts": "/static/layouts.css",
-    "static-forms": "/static/forms.css",
-    "static-detail": "/static/detail.css",
-}
-
-
-def _p_static(name: str) -> Callable[[_Corpus], str]:
-    """The path-builder for a static route: a corpus-independent constant lookup by route name."""
-    path = _STATIC_PATHS[name]
-    return lambda _c: path
-
-
 def _p_artikel_neu(_c: _Corpus) -> str:
     return "/artikel/neu"
 
@@ -299,7 +284,9 @@ def _p_media_thumb(c: _Corpus) -> str:
 # The exhaustive contract — ONE entry per prod route name. Keeping it a dict keyed by route name lets
 # ``test_contract_covers_every_prod_route`` assert exhaustiveness against the urlconf.
 _CONTRACT: dict[str, Route] = {
-    # Open pages/assets — 200 for every tier, method-blind (no guard). Never a deny path here.
+    # Open page — 200 for every tier, method-blind (no guard). Never a deny path here. (Static
+    # assets are NOT here: /static/* is served by WhiteNoise middleware, not the urlconf — its
+    # public-by-design contract is pinned in test_static_assets.py, ADR 0016.)
     "workbench": Route(
         build_path=_p_root,
         get_nonarch=OK,
@@ -308,17 +295,6 @@ _CONTRACT: dict[str, Route] = {
         post_arch=OK,
         stub_search=True,
     ),
-    # Static assets: identical tier-blind contract per route, generated rather than repeated.
-    **{
-        name: Route(
-            build_path=_p_static(name),
-            get_nonarch=OK,
-            get_arch=OK,
-            post_nonarch=OK,
-            post_arch=OK,
-        )
-        for name in _STATIC_PATHS
-    },
     # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.
     "artikel-neu": Route(

@@ -87,7 +87,11 @@ ROOT_URLCONF = "bundesarchiv.app.web.urls"
 # default, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a Django session),
 # no auth/admin. This bends the "tiny settings, no middleware" stance (ADR 0004) for a real security
 # hole; subject to owner ratification, and the 4.10 hardening gate revisits the middleware surface.
+# WhiteNoise serves /static/* (ADR 0016) and short-circuits before CsrfViewMiddleware, so it must
+# sit as early as possible. No SecurityMiddleware yet (issue #6); when it lands it goes ABOVE this
+# line (WhiteNoise's documented position is directly after SecurityMiddleware).
 MIDDLEWARE = [
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
 ]
 
