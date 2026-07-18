@@ -39,11 +39,20 @@ the BREACH caveat).
 
 ## Consequences
 
-- In the route × tier leak matrix, the `/static/` prefix is a
-  public-by-design allowlist with one sanity row. The byte-identical-404 law
-  is untouched — it protects articles and collections, never assets.
+- `/static/*` is served by WhiteNoise middleware, not the URLconf, so the
+  route × tier leak matrix (which walks the URLconf) never sees it. Its
+  public-by-design contract lives in its own test: a fail-loud whitelist of
+  the asset set, tier-invariance of an uncollected path (no existence oracle),
+  and directory-traversal containment. The byte-identical-404 law is untouched
+  — it protects articles and collections, never assets.
 - The manifest storage makes `{% static %}` **raise** for any file missing
   from the manifest: dead asset references fail loudly instead of 404ing
-  silently. Dev-only variant stylesheets stay on their `/_dev/` routes outside
-  the manifest.
-- `collectstatic` becomes a deploy step.
+  silently. This fail-loud is enforced in the **test gate** (which runs under
+  the manifest storage), not on the dev `runserver`: dev overrides to the
+  non-manifest backend so `runserver` needs no `collectstatic`, which trades
+  dev-side fail-loud for zero-friction iteration. The parity the ADR defends —
+  *WhiteNoise* serving in dev, not nginx — holds (WhiteNoise is in the dev
+  middleware too). Dev-only variant stylesheets stay on their `/_dev/` routes
+  outside the manifest.
+- `collectstatic` becomes a deploy step (and a session fixture in the test
+  gate, so the manifest exists for `{% static %}` and WhiteNoise to resolve).
