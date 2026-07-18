@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Rename-Bestand form (Part 4.8 SLIM, archivist-only — the view gates it). The Name field is the ONLY
 editable control; Eltern-Bestand + Sichtbarkeit render as quiet READ-ONLY display rows with one hint,
@@ -7,7 +8,7 @@ over-exposure machinery a rename does not). Plain no-JS POST → save_collection
 reindex, so the new name is live in facets) → 302 to the workbench filtered to this Bestand.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form c-form--neu">

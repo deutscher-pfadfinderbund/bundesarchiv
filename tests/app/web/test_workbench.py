@@ -10,12 +10,14 @@ These need Postgres (they call ``search``); the ``corpus`` fixture indexes once 
 on teardown (the shared ``indexed_corpus`` isolation mechanism).
 """
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
 from urllib.parse import quote
 
 import pytest
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core import signing
 from django.http import HttpResponse
 from django.test import Client, override_settings
@@ -657,14 +659,15 @@ def test_ledger_row_href_is_the_canonical_detail_route(corpus_root: Path) -> Non
 
 @pytest.mark.django_db
 def test_ledger_pane_enhancement_script_is_loaded_and_served(corpus_root: Path) -> None:
-    # The enhancement is a deferred static script (same mechanism as htmx); the no-JS baseline works
+    # The enhancement is a deferred static script served by WhiteNoise via {% static %} (ADR 0016) —
+    # the page references the manifest-hashed URL, and that URL serves; the no-JS baseline works
     # without it, so it degrades cleanly if unavailable.
     body = _get(corpus_root, Public()).content.decode()
-    assert '<script src="/static/ledger_pane.js" defer></script>' in body
+    assert re.search(r'<script src="/static/ledger_pane\.[0-9a-f]{8,}\.js" defer></script>', body)
     with override_settings(**_settings(corpus_root)):
-        served = _client_as(Public()).get("/static/ledger_pane.js")
+        served = _client_as(Public()).get(staticfiles_storage.url("ledger_pane.js"))
     assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
+    assert served["Content-Type"].startswith("text/javascript")
 
 
 # --- absence renders as absence: no em-dash placeholders in the ledger ------------------
@@ -871,16 +874,16 @@ def test_bulk_bar_wires_htmx_and_csrf(corpus_root: Path) -> None:
     assert "X-CSRFToken" in body
     assert 'hx-get="/artikel/sammelbearbeitung/dokumenttypen"' in body
     assert 'hx-target="#bulk-dokumenttyp-select"' in body
-    # the PE script is loaded
-    assert '<script src="/static/catalog_bulk.js" defer></script>' in body
+    # the PE script is loaded (manifest-hashed via {% static %}, ADR 0016)
+    assert re.search(r'<script src="/static/catalog_bulk\.[0-9a-f]{8,}\.js" defer></script>', body)
 
 
 @pytest.mark.django_db
 def test_catalog_bulk_js_served(corpus_root: Path) -> None:
     with override_settings(**_settings(corpus_root)):
-        served = _client_as(Archivist()).get("/static/catalog_bulk.js")
+        served = _client_as(Archivist()).get(staticfiles_storage.url("catalog_bulk.js"))
     assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
+    assert served["Content-Type"].startswith("text/javascript")
 
 
 # --- load-count pins: collections loaded at most once per request (issue #2 P1) ---

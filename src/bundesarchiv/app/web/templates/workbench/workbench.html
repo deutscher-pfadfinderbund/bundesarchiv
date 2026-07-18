@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 The workbench full page (Part 4.5, rebuilt on the design system — the split-narrow layout). A plain
 GET renders this whole page; an HX-Request GET renders only _results.html into #results. Both share
@@ -7,7 +8,7 @@ GETs to "/" with param q, so the URL always reflects the state (hx-push-url keep
 honest too). Multi-line notes MUST use comment blocks — Django's hash-comment syntax is single-line.
 {% endcomment %}
 {% block title %}Suche — Bundesarchiv{% endblock %}
-{% block head_extra %}<script src="{% url 'static-catalog-bulk' %}" defer></script>{% endblock %}
+{% block head_extra %}<script src="{% static 'catalog_bulk.js' %}" defer></script>{% endblock %}
 {% comment %} split-narrow always; wb--vorschau when the pane is open folds the ledger (layouts.css,
 ≥1280px) and grows the pane column. <1280px the media query hides the pane + unfolds. {% endcomment %}
 {% block body_class %} wb--split-narrow{% if vorschau %} wb--vorschau{% endif %}{% endblock %}

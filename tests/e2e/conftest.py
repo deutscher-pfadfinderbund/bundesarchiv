@@ -78,6 +78,11 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
     settings: dict[str, object] = {
         "ROOT_URLCONF": settings_dev.ROOT_URLCONF,
         "MIDDLEWARE": settings_dev.MIDDLEWARE,
+        # The non-manifest staticfiles backend (as dev/runserver uses) so {% static %} emits plain
+        # unhashed /static/ URLs that live_server's StaticFilesHandler serves from the finders — no
+        # collectstatic in the e2e run. Without this the process-wide manifest storage (prod settings)
+        # would make {% static %} raise or emit hashed URLs the finder handler can't resolve (ADR 0016).
+        "STORAGES": settings_dev.STORAGES,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),

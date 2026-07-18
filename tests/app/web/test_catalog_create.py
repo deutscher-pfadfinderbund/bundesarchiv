@@ -7,9 +7,11 @@ point must not be discoverable). Validation state B re-renders the form with the
 preserved values, no create.
 """
 
+import re
 from pathlib import Path
 
 import pytest
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core import signing
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
@@ -87,15 +89,16 @@ def test_create_form_renders_for_archivist(corpus: _Corpus) -> None:
     assert "Mitglieder" in body
     # autofocus lands on Titel (spec §5/§8)
     assert "autofocus" in body
-    # the form stylesheet is linked (loaded wherever components.css is, spec §4/§6)
-    assert '<link rel="stylesheet" href="/static/forms.css">' in body
+    # the form stylesheet is linked (loaded wherever components.css is, spec §4/§6) — manifest-hashed
+    # via {% static %} (ADR 0016)
+    assert re.search(r'<link rel="stylesheet" href="/static/forms\.[0-9a-f]{8,}\.css">', body)
 
 
 def test_forms_css_is_served(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        served = _client_as(Archivist()).get("/static/forms.css")
+        served = _client_as(Archivist()).get(staticfiles_storage.url("forms.css"))
     assert served.status_code == 200
-    assert served["Content-Type"] == "text/css"
+    assert served["Content-Type"].startswith("text/css")
 
 
 # --- GET/POST: archivist gate (both methods) --------------------------------------

@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Create step (Part 4.7 Slice A, spec §2/§1 focal-point A). Archivist-only (the view gates it). The
 minimal create form: Titel + Bestand — the two required fields are the ONE loud focal point on a
@@ -7,7 +8,7 @@ re-renders here with the verbatim error + preserved values. Autofocus (server-co
 Titel (or the first errored field). Speichern is first-in-source so Enter submits it.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'forms.css' %}">{% endblock %}
 {% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 <main class="c-form c-form--neu">

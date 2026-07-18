@@ -93,8 +93,11 @@ def test_component_library_route_does_not_resolve_under_prod_urlconf() -> None:
 
 @override_settings(**_DEV)
 def test_baseline_links_the_baseline_stylesheet() -> None:
+    # The baseline links the production components.css through {% static %} → a manifest-hashed URL
+    # (ADR 0016). The variant stylesheets keep their /_dev/static/ route (tested below); only the
+    # baseline is a real asset. WhiteNoise-serving of the asset is covered in test_static_assets.py.
     body = Client().get("/_dev/components/").content.decode()
-    assert '<link rel="stylesheet" href="/static/components.css">' in body
+    assert re.search(r'<link rel="stylesheet" href="/static/components\.[0-9a-f]{8,}\.css">', body)
 
 
 @override_settings(**_DEV)

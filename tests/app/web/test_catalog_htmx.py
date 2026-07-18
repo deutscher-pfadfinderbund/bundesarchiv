@@ -11,9 +11,11 @@ and must NEVER render partial content for a non-archivist (content-absence asser
 4.10 leak suite). Pure transforms; no mutation. Plus the state-H index-lag hinweis on the save path.
 """
 
+import re
 from pathlib import Path
 
 import pytest
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core import signing
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
@@ -206,17 +208,18 @@ def test_edit_form_wires_htmx_enhancements(corpus: _Corpus) -> None:
     assert "<optgroup" in body
     # CSRF header for HTMX POSTs
     assert "X-CSRFToken" in body
-    # the PE script is loaded (dirty register, custom-bag, upload progress)
-    assert '<script src="/static/catalog_form.js" defer></script>' in body
+    # the PE script is loaded (dirty register, custom-bag, upload progress) — manifest-hashed via
+    # {% static %} (ADR 0016)
+    assert re.search(r'<script src="/static/catalog_form\.[0-9a-f]{8,}\.js" defer></script>', body)
     # media structural POSTs swap only the drawer region from the same full-page render (no fork)
     assert 'hx-select="#medien-drawer"' in body
 
 
 def test_catalog_form_js_is_served(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        served = _client_as(Archivist()).get("/static/catalog_form.js")
+        served = _client_as(Archivist()).get(staticfiles_storage.url("catalog_form.js"))
     assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
+    assert served["Content-Type"].startswith("text/javascript")
 
 
 def test_htmx_save_success_sends_hx_redirect(corpus: _Corpus) -> None:

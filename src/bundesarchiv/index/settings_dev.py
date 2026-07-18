@@ -35,6 +35,7 @@ ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 # write forms are protected in dev exactly as in prod (the dev switcher + every {% csrf_token %} form
 # carry the token); DevViewerMiddleware then attaches request.viewer for the views below.
 MIDDLEWARE = [
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]

@@ -21,6 +21,7 @@ UI copy). Sample data below is inert demo fixture data — no store, no index, n
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
+from django.templatetags.static import static
 
 from bundesarchiv.app.web.browse_views import _serve_static
 
@@ -195,7 +196,9 @@ def component_library(request: HttpRequest, variant: str | None = None) -> HttpR
     so what iterates is the design system itself. Unknown variant → 404 (whitelist, never a path
     interpolation). Never mounted in production."""
     if variant is None:
-        stylesheet = "/static/components.css"
+        stylesheet = static(
+            "components.css"
+        )  # baseline is a production asset (WhiteNoise, ADR 0016)
     else:
         filename = VARIANTS.get(variant)
         if filename is None:
