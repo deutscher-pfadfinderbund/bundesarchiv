@@ -19,6 +19,20 @@ from collections.abc import Iterator
 import pytest
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _collect_static_assets() -> None:
+    """Build STATIC_ROOT + the staticfiles manifest once per session so {% static %} resolves and
+    WhiteNoise serves the collected tree (ADR 0016). The web tests run under prod settings (manifest
+    storage), where {% static %} RAISES without a manifest — collectstatic builds it. Writes to
+    STATIC_ROOT (``var/static``, gitignored); ``--clear`` drops orphans from a prior asset set.
+    collectstatic populates the in-process ``staticfiles_storage`` singleton, so no reset is needed;
+    autouse+session guarantees it runs before the first web test builds a client + WhiteNoise reads
+    STATIC_ROOT."""
+    from django.core.management import call_command
+
+    call_command("collectstatic", "--no-input", "--clear", verbosity=0)
+
+
 @pytest.fixture(autouse=True)
 def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """No-op the index write and every worker enqueue on ``app.articles`` for the duration of a web
