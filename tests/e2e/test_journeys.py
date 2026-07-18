@@ -971,6 +971,19 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     expect(public_page.locator("details.menu")).to_have_count(0)
 
 
+def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
+    # A 404'd stylesheet renders an unstyled page the gallery's size-only assertion cannot catch.
+    page = public_page
+    page.goto(live_workbench + "/")
+    refs = page.eval_on_selector_all(
+        "link[rel=stylesheet], script[src]", "els => els.map(e => e.href || e.src)"
+    )
+    static_urls = [u for u in refs if "/static/" in u]
+    assert static_urls, "the workbench references no /static/ assets"
+    for url in static_urls:
+        assert page.request.get(url).status == 200, url
+
+
 # --- detail read view (4.6) --------------------------------------------------------
 
 

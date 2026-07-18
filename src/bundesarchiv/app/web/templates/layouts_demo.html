@@ -1,3 +1,4 @@
+{% load static %}
 {% comment %}
 Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL archivist-workbench
 composition built from the REAL partials (components/facet_group, components/ledger,
@@ -13,8 +14,8 @@ media query hides the pane — layouts.css owns that, not the view.
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Layout demo: {{ layout_name }} — dev</title>
-  <link rel="stylesheet" href="{% url 'static-tokens' %}">
-  <link rel="stylesheet" href="{% url 'static-components' %}">
+  <link rel="stylesheet" href="{% static "tokens.css" %}">
+  <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{{ stylesheet }}">
   <style>
     /* dev chrome only (English, development-facing) — role tokens, no raw colors */

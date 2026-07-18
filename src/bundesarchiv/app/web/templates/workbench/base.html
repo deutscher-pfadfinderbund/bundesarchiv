@@ -1,3 +1,4 @@
+{% load static %}
 {% comment %}
 Base layout for the archivist workbench (Part 4.5, rebuilt on the design system). German UI.
 Progressive enhancement: htmx is loaded but every screen works without it (the no-JS baseline is
@@ -11,9 +12,9 @@ the wordmark is always present and always links home.
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
-  <link rel="stylesheet" href="{% url 'static-tokens' %}">
-  <link rel="stylesheet" href="{% url 'static-components' %}">
-  <link rel="stylesheet" href="{% url 'static-layouts' %}">
+  <link rel="stylesheet" href="{% static "tokens.css" %}">
+  <link rel="stylesheet" href="{% static "components.css" %}">
+  <link rel="stylesheet" href="{% static "layouts.css" %}">
   {% block head_extra %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -26,7 +27,7 @@ the wordmark is always present and always links home.
   <p>Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
   <button type="button" aria-label="Meldung schließen">&times;</button>
 </div>
-<script src="{% url 'static-htmx' %}" defer></script>
+<script src="{% static "htmx.min.js" %}" defer></script>
 <script>
   // htmx failures are otherwise silent — one document-level listener on both failure events reveals
   // the banner; dismiss or a fresh success hides it by setting [hidden], which the modes-layer CSS

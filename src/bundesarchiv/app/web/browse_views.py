@@ -44,7 +44,7 @@ from bundesarchiv.index.query import FacetCount, SearchHit
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 
-#: The vendored htmx file (served by the dev static route; prod serves it via nginx/whitenoise).
+#: The web package's static/ dir — prod serves it via WhiteNoise (ADR 0016); this path is dev-only.
 _STATIC_DIR = Path(__file__).parent / "static"
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
@@ -799,64 +799,8 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
 
 
 def _serve_static(filename: str, content_type: str) -> HttpResponseBase:
-    """One vendored static file from the web package's ``static/`` dir, for dev/no-CDN serving.
-    Prod serves these via nginx; this keeps ``runserver`` self-contained. Same-origin only — the
-    stylesheet/script are self-contained by design (no external requests, dormancy rule)."""
+    """One file from the web package's ``static/`` dir — dev-only (``/_dev/static/*``), same-origin."""
     path = _STATIC_DIR / filename
     if not path.is_file():
         return _not_found()
     return FileResponse(path.open("rb"), content_type=content_type)
-
-
-def serve_htmx(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/htmx.min.js`` — the vendored htmx (the enhancement layer degrades to the
-    no-JS baseline if the file is ever unavailable, so this is best-effort)."""
-    return _serve_static("htmx.min.js", "application/javascript")
-
-
-def serve_catalog_form_js(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/catalog_form.js`` — the Part 4.7 cataloging-form enhancement (dirty register,
-    client-side custom-bag add/remove, discrete upload-progress sliver). Enhancement-only: every
-    behaviour has a working no-JS baseline, so an unavailable file degrades cleanly."""
-    return _serve_static("catalog_form.js", "application/javascript")
-
-
-def serve_catalog_bulk_js(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/catalog_bulk.js`` — the bulk-edit (Sammelbearbeitung) enhancement: the header
-    select-all-on-page checkbox, live selection count, and the Feld→widget show/hide. Enhancement-
-    only (the no-JS baseline is the select-page link + all-widgets-rendered), degrades cleanly."""
-    return _serve_static("catalog_bulk.js", "application/javascript")
-
-
-def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
-    filter rail, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
-    first); graduated from the dev layout demo into production. Self-contained, no external
-    requests."""
-    return _serve_static("layouts.css", "text/css")
-
-
-def serve_tokens(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/tokens.css`` — the design-system token layers (docs/design/design-system.md):
-    seed, reference ramps, roles + non-color tokens. Self-contained."""
-    return _serve_static("tokens.css", "text/css")
-
-
-def serve_components_css(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/components.css`` — the atom component styles (templates/components/), role
-    tokens only (load tokens.css first)."""
-    return _serve_static("components.css", "text/css")
-
-
-def serve_forms_css(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/forms.css`` — the Part 4.7 cataloging-form styles (the work column, drawers,
-    sticky footer, field errors, CAS panel), role tokens only (load tokens.css + components.css
-    first). Loaded wherever components.css is."""
-    return _serve_static("forms.css", "text/css")
-
-
-def serve_detail_css(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/detail.css`` — the Part 4.6 Lesesaal detail-page styles (the reading column,
-    cover Platte, record card, filmstrip), role tokens only (load tokens.css + components.css first).
-    One shared file for the read view (§11 Q2 decision)."""
-    return _serve_static("detail.css", "text/css")

@@ -18,6 +18,7 @@ UI copy). Sample data below is inert demo fixture data — no store, no index, n
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.templatetags.static import static
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
 _MODES = ("light", "dark")
@@ -170,7 +171,7 @@ def component_library(request: HttpRequest) -> HttpResponse:
         request,
         "components_demo.html",
         {
-            "stylesheet": "/static/components.css",
+            "stylesheet": static("components.css"),
             "modes": _MODES,
             "sort_options": _SORT_OPTIONS,
             "facet_items_bestand": _FACET_ITEMS_BESTAND,
