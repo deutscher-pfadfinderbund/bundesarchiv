@@ -135,3 +135,8 @@ Named example of overkill: the "color math" namespace
 - **UI ruling:** the owner is not yet happy with the UI — "agents always make
   it very complicated." Simplicity is a requirement, not a style preference:
   UI waves should remove complexity before adding capability.
+- **UI construction ruling (2026-08-05):** modern (2026) semantic HTML as the
+  basis; sensible components built up in a hierarchy (atoms → molecules →
+  layouts → pages); no ad-hoc or redundant components; anything special is
+  deliberate; consistency is paramount. Codified as "Construction law" in
+  `docs/design/design-system.md`.

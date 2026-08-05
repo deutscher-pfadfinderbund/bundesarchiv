@@ -4,6 +4,34 @@ Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
 no formal acceptance step. Governs all web UI from Part 4 on. Sibling DPB
 services reuse the whole system by swapping one seed line.
 
+## Construction law (owner, 2026-08-05)
+
+How UI gets BUILT — these rank with the visual laws below. Background: agents
+tend to fill gaps with invented chrome and ad-hoc markup; these rules make
+simplicity checkable instead of a matter of taste.
+
+- **Semantic HTML (2026) is the basis.** Native elements and their built-in
+  behavior first (`form`, `fieldset`, `dialog`, `details`, `nav`, `table`,
+  `output`, …); a div-plus-CSS reconstruction of something HTML already
+  provides is a defect. Deviate from browser-plain only where a law here or
+  the spec demands it.
+- **Component hierarchy, reuse-first.** Atoms (`templates/components/`,
+  `c-*`) → molecules → layouts (`l-*`) → pages. New UI composes existing
+  components; no ad-hoc one-off markup where a component exists, and no
+  redundant near-duplicate components. If something genuinely new is needed,
+  it is added DELIBERATELY: named, filed in the hierarchy, mapped here — or
+  it doesn't ship.
+- **Provenance.** Every visible element traces to a named archivist wish
+  (`docs/requirements/`), an owner ruling, or a spec section
+  (`docs/design/part-4-web.md`). No element exists "for completeness."
+- **Consistency beats novelty.** The same action looks and behaves the same
+  everywhere; one pattern per problem. A second variant of an existing
+  pattern needs an owner ruling, not an agent's judgment call.
+- **UI waves end at the design gate, judged on pixels.** Deliverable is
+  before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
+  owner's verdict — agent prose about the UI is not acceptance. Subtraction-
+  first: prefer waves that only remove.
+
 ## Principles
 
 - **Roles, not colors.** Components reference role tokens (`--surface`,

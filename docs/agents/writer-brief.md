@@ -55,6 +55,15 @@ entry (`tests/app/web/test_leak_matrix.py` — the exhaustiveness assertion fail
 otherwise), and unauthorized content must stay filtered out of search results,
 listings, and facet counts.
 
+## UI work
+
+UI is built under the Construction law in `docs/design/design-system.md`
+(owner, 2026-08-05): semantic HTML first, compose existing components
+(atoms → molecules → layouts → pages), no ad-hoc or redundant components,
+every visible element traces to a wish/ruling/spec section, one pattern per
+problem. A UI wave ends with before/after gallery renders for the owner's
+verdict — never with prose claiming the UI is good.
+
 ## Language
 
 Product UI copy is **German** (per the `CONTEXT.md` glossary — English code
