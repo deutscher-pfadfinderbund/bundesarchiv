@@ -20,6 +20,7 @@ import pytest
 from django.core import signing
 from django.http import HttpRequest
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
@@ -122,7 +123,7 @@ def test_kopieren_creates_draft_copy_and_redirects_to_its_edit_form(corpus: _Cor
 def test_kopieren_denied_creates_nothing(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(f"/artikel/{_PUBLISHED}/kopieren")
-    assert response.status_code == 404
+    assert_denied(response)
     assert _other_ulids(corpus) == set()  # nothing created
 
 
@@ -130,7 +131,7 @@ def test_kopieren_get_is_404(corpus: _Corpus) -> None:
     # a copy is a mutation — GET must not create.
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{_PUBLISHED}/kopieren")
-    assert response.status_code == 404
+    assert_denied(response)
     assert _other_ulids(corpus) == set()
 
 
@@ -184,7 +185,7 @@ def test_loeschen_post_hard_deletes_and_redirects_to_workbench(corpus: _Corpus) 
 def test_loeschen_denied_leaves_article(corpus: _Corpus, viewer: Viewer, method: str) -> None:
     with override_settings(**_settings(corpus)):
         response = getattr(_client_as(viewer), method)(f"/artikel/{_PUBLISHED}/loeschen")
-    assert response.status_code == 404
+    assert_denied(response)
     # the article still exists (the deny prevented the delete)
     assert ArticleRepository(corpus.store).load(_PUBLISHED).article.title == "Sommerfahrt 1962"
 
@@ -235,7 +236,7 @@ def test_lifecycle_unknown_aktion_is_404_no_mutation(corpus: _Corpus) -> None:
             f"/artikel/{_DRAFT}/lebenszyklus",
             {"aktion": "sabotage", "expected_version": str(corpus.draft_version)},
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
 
 
@@ -271,14 +272,14 @@ def test_lifecycle_denied_leaves_lifecycle(corpus: _Corpus, viewer: Viewer) -> N
                 "expected_version": str(corpus.draft_version),
             },
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
 
 
 def test_lifecycle_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/lebenszyklus")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 def test_lifecycle_stale_save_against_deleted_article_is_404(
@@ -307,7 +308,7 @@ def test_lifecycle_stale_save_against_deleted_article_is_404(
                 "expected_version": str(corpus.draft_version),
             },
         )
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- Vorschau (the highest-risk oracle) --------------------------------------------
@@ -331,7 +332,7 @@ def test_vorschau_denied_is_404_never_widget(corpus: _Corpus, viewer: Viewer) ->
     # barrier. A non-archivist must get a 404 and NEVER the widget content.
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(f"/artikel/{_DRAFT}/vorschau")
-    assert response.status_code == 404
+    assert_denied(response)
     body = response.content.decode()
     assert "Einblick" not in body  # no widget content leaked
     assert "Sichtbare Felder" not in body
@@ -340,7 +341,7 @@ def test_vorschau_denied_is_404_never_widget(corpus: _Corpus, viewer: Viewer) ->
 def test_vorschau_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/vorschau")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- malformed / absent ulid across every new route --------------------------------
@@ -359,7 +360,7 @@ def test_vorschau_get_is_404(corpus: _Corpus) -> None:
 def test_malformed_or_absent_ulid_is_404(corpus: _Corpus, path: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(path)
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- read-view action row ----------------------------------------------------------

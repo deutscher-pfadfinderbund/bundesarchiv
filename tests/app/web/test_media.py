@@ -24,6 +24,7 @@ import pytest
 from django.core import signing
 from django.test import Client, override_settings
 from PIL import Image
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web import media as media_seam
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -181,7 +182,7 @@ def test_original_per_tier_grid(
             f"articles/{corpus.ulid_by_tier[tier]}/media/{corpus.hash_by_tier[tier]}"
         )
     else:
-        assert response.status_code == 404, f"{tier}/{viewer_name} must be 404"
+        assert_denied(response, f"{tier}/{viewer_name}")
 
 
 @pytest.mark.parametrize(("tier", "viewer_name", "allowed"), list(_grid()))
@@ -199,7 +200,7 @@ def test_thumbnail_per_tier_grid(
         assert response.status_code == 200, f"thumb {tier}/{viewer_name} should be served"
         assert response["Content-Type"] == "image/webp"
     else:
-        assert response.status_code == 404, f"thumb {tier}/{viewer_name} must be 404"
+        assert_denied(response, f"thumb {tier}/{viewer_name}")
 
 
 # --- 404 across every deny reason ---------------------------------------------------
@@ -245,7 +246,7 @@ def test_authz_denies_before_any_blob_lookup(
     monkeypatch.setattr("bundesarchiv.app.web.media.media_response", recorder)
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(corpus.url("members"))
-    assert response.status_code == 404
+    assert_denied(response)
     assert reached == [], "the seam (blob lookup) was reached for a forbidden article"
 
 
@@ -261,7 +262,7 @@ def test_authz_denies_before_lookup_for_thumbnail(
     monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(corpus.url("members", thumb=True))
-    assert response.status_code == 404
+    assert_denied(response)
     assert reached == []
 
 
@@ -282,7 +283,7 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _Corpus)
 def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX="/_protected")):
         response = _client_as(Public()).get(corpus.url("members"))
-    assert response.status_code == 404
+    assert_denied(response)
     assert "X-Accel-Redirect" not in response
 
 

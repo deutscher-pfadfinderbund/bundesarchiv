@@ -30,8 +30,9 @@ _CONFIG = "bundesarchiv_german"
 
 
 @pytest.fixture
-def cursor(_pg_guard: None, db: None) -> Iterator[CursorWrapper]:
-    """A live cursor on the test database (guarded like every DB fixture, tests/conftest.py)."""
+def cursor(db: None) -> Iterator[CursorWrapper]:
+    """A live cursor on the test database (``db`` already runs the reachability guard via the
+    ``django_db_setup`` override in tests/conftest.py)."""
     from django.db import connection
 
     with connection.cursor() as cur:

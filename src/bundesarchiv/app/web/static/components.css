@@ -1,5 +1,5 @@
 /* Component atoms (templates/components/*.html) — styles consume ROLE tokens from tokens.css
-   ONLY (design-system.md: "a hex value in a component style is a defect"; pinned by test).
+   ONLY (design-system.md: "a hex value in a component style is a defect").
    Load order: tokens.css first, then this file. No external requests, no raw color values;
    the only color functions allowed are var() over roles and color-mix() OVER roles.
 

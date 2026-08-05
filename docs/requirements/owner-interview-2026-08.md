@@ -86,10 +86,12 @@ Consequences:
 - **Keep** (real leak prevention, inside the owner's testing razor):
   filtering unauthorized content out of search results, listings, and facet
   counts (`tests/index/test_leaks*.py` concept).
-- **Drop**: the byte-identical response discipline, the route × tier leak
-  matrix (`tests/app/web/test_leak_matrix.py`, 671 lines), and the
-  anonymous-redirect byte-uniformity contract in ADR 0018. Supersede the
-  relevant parts of ADR 0001/0012/0018 with a short amendment.
+- **Drop**: the byte-identical response discipline (the byte-for-byte deny
+  comparisons in the route × tier leak matrix and the per-route tests) and
+  the anonymous-redirect byte-uniformity contract in ADR 0018. The matrix
+  itself survives slimmed — its status assertions and exhaustiveness gate
+  are leak prevention (see `docs/plans/test-audit-2026-08.md`). Supersede
+  the relevant parts of ADR 0001/0012/0018 with a short amendment.
 
 ## Testing philosophy (standing directive)
 

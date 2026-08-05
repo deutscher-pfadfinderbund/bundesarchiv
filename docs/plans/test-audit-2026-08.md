@@ -164,14 +164,10 @@ test_incremental's duplicate idempotence test (~10).
 
 ## Deletion ripples
 
-- `test_layouts.py` imports `_RAW_COLOR` from `test_components.py` — the
-  four design files go in one commit.
-- Stale references to the deleted files/sweeps: `docs/design/design-system.md`,
-  `.interface-design/system.md`, header comments in `tokens.css`,
-  `forms.css`, `detail.css`.
-- `tests/index/conftest.py` loses the `pg_connection` fixture;
-  `test_fts_german.py`'s cursor fixture must rebase onto `db`.
-- ADR wording follow-ups already tracked in the interview doc (relaxed 404).
+All handled in the same waves (fixture rebase, stale "pinned by test"
+references in design docs / CSS headers / src docstrings, and the standing
+agent briefs' byte-identical-404 and house-idiom sections). Still open: the
+ADR 0001/0012/0018 wording amendments tracked in the interview doc.
 
 ## Recurring patterns (for future writer waves)
 

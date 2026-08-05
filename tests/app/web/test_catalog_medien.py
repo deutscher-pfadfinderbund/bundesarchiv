@@ -20,6 +20,7 @@ from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
@@ -137,15 +138,13 @@ def test_verschieben_denied_leaves_order(corpus: _Corpus, viewer: Viewer) -> Non
             f"/artikel/{_ULID}/medien/verschieben",
             {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert _hashes(corpus) == before  # order unchanged
 
 
 def test_verschieben_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        assert (
-            _client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben").status_code == 404
-        )
+        assert_denied(_client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben"))
 
 
 def test_verschieben_against_deleted_article_is_404(
@@ -168,7 +167,7 @@ def test_verschieben_against_deleted_article_is_404(
             f"/artikel/{_ULID}/medien/verschieben",
             {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
         )
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 def test_structural_save_conflict_surfaces_hinweis_not_silent(
@@ -229,7 +228,7 @@ def test_entfernen_denied_leaves_media(corpus: _Corpus, viewer: Viewer) -> None:
             f"/artikel/{_ULID}/medien/entfernen",
             {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert len(corpus.media()) == 2  # nothing removed
 
 
@@ -261,7 +260,7 @@ def test_member_with_valid_csrf_still_gets_404(corpus: _Corpus) -> None:
                 "csrfmiddlewaretoken": token,
             },
         )
-    assert response.status_code == 404  # the archivist gate, not a 403 and not a leak
+    assert_denied(response)  # the archivist gate, not a 403 and not a leak
     assert len(corpus.media()) == 2  # nothing removed
 
 
@@ -338,7 +337,7 @@ def test_hochladen_denied_attaches_nothing(corpus: _Corpus, viewer: Viewer) -> N
         response = _client_as(viewer).post(
             f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert len(corpus.media()) == 2  # nothing attached
 
 

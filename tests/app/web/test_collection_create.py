@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Audience, AudienceTier, Collection
@@ -62,7 +63,7 @@ def _collections(root: Path) -> tuple[Collection, ...]:
 def test_non_archivist_gets_404(root: Path, viewer: Viewer | None, method: str) -> None:
     with override_settings(**_settings(root)):
         response = getattr(_client_as(viewer), method)("/bestand/neu")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 @pytest.mark.django_db

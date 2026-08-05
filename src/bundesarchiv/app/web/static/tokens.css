@@ -7,8 +7,8 @@
    - ramp entries:  --<name>: oklch(from var(--seed) <L> <C|c> h);   (relative, seed hue)
                     --<name>: oklch(<L> <C> <H>);                    (absolute, semantic hues)
    - role entries:  --<role>: light-dark(var(--<light-ramp>), var(--<dark-ramp>));
-   The exact L/C values are an implementation detail PINNED BY THE CONTRAST TEST (the spec's
-   pair table is the contract); edit them only with that gate green in both modes. */
+   The exact L/C values are an implementation detail (the spec's pair table in
+   design-system.md is the contract); judge edits at the design gate, both modes. */
 
 :root {
   /* ==================================================================
@@ -24,9 +24,9 @@
      color syntax; nothing below this layer mixes color by hand.
 
      Tonal ramp: the seed's hue at fixed L steps, chroma capped low so
-     the violet reads as ink. Every entry stays inside sRGB gamut (the
-     contrast test resolves colors the way a browser does; an
-     out-of-gamut token would drift from what ships).
+     the violet reads as ink. Every entry stays inside sRGB gamut (an
+     out-of-gamut token would render clamped, drifting from the value
+     written here).
      ================================================================== */
   --tone-25: oklch(from var(--seed) 0.25 0.035 h);
   --tone-32: oklch(from var(--seed) 0.32 0.045 h);

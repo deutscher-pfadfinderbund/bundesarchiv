@@ -3,20 +3,18 @@
 Every per-route test already pins its own contract; this suite is the STRUCTURAL backstop that no
 route escapes the discipline. It walks the PRODUCTION urlconf (``bundesarchiv.app.web.urls``) and,
 for every route, asserts the exact status an anonymous / Public / Member(with & without a matching
-group) / Archivist viewer gets under both GET and POST. A deny is simply its status code — 404,
-with no leaked content (the byte-identical-404 law was relaxed by the owner, 2026-08); each
-route's own tests pin that a deny changes/reveals nothing.
+group) / Archivist viewer gets under both GET and POST. A deny is ``assert_denied`` — a plain 404
+revealing nothing (the byte-identical-404 law was relaxed by the owner, 2026-08); each route's own
+tests pin that a deny additionally changes nothing.
 
-The invariant that makes this a GATE, not a snapshot:
-
-- **Exhaustiveness.** ``_CONTRACT`` carries one explicit entry per route name; the suite asserts the
-  contract's key set EQUALS the urlconf's route names. A future route added to ``urls.py`` without a
-  matrix entry FAILS ``test_contract_covers_every_prod_route`` — you cannot ship a route the leak
-  matrix has never seen.
+The invariant that makes this a GATE, not a snapshot, is **exhaustiveness**: ``_CONTRACT`` carries
+one explicit entry per route name, and the suite asserts the contract's key set EQUALS the urlconf's
+route names. A future route added to ``urls.py`` without a matrix entry FAILS
+``test_contract_covers_every_prod_route`` — you cannot ship a route the leak matrix has never seen.
 
 Method note (contract-shaping fact, verified in the views): no route uses a method guard, so a
 disallowed method is NOT a 405 — the POST-only routes 404 on GET and the GET-only routes 404 on POST
-via the same ``_not_found``. The static/dev routes are the exception: they ignore method entirely.
+via the same shared 404 helper. The static/dev routes are the exception: they ignore method entirely.
 
 Dev-only routes (``dev_urls.py``) are covered by their own prod-by-absence assertions here:
 ``test_dev_routes_absent_from_prod_urlconf`` proves each is a ``Resolver404`` under the prod urlconf.
@@ -34,6 +32,7 @@ from django.core import signing
 from django.test import Client, override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
@@ -115,9 +114,9 @@ class _Corpus:
 
 @pytest.fixture
 def corpus(tmp_path: Path) -> _Corpus:
-    c = _Corpus(tmp_path / "canonical", tmp_path / "thumbnails")
-    c.generate_thumbnail()
-    return c
+    # No thumbnail here: only the media-thumb route's allowed probes read it (the test generates
+    # it for that route alone) — everything else would pay the PIL round-trip for nothing.
+    return _Corpus(tmp_path / "canonical", tmp_path / "thumbnails")
 
 
 def _settings(corpus: _Corpus, **extra: object) -> dict[str, object]:
@@ -309,69 +308,17 @@ _CONTRACT: dict[str, Route] = {
         post_arch=OK,
         stub_search=True,
     ),
-    "static-htmx": Route(
-        build_path=_p_static("static-htmx"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-ledger-pane": Route(
-        build_path=_p_static("static-ledger-pane"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-catalog-form": Route(
-        build_path=_p_static("static-catalog-form"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-catalog-bulk": Route(
-        build_path=_p_static("static-catalog-bulk"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-tokens": Route(
-        build_path=_p_static("static-tokens"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-components": Route(
-        build_path=_p_static("static-components"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-layouts": Route(
-        build_path=_p_static("static-layouts"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-forms": Route(
-        build_path=_p_static("static-forms"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
-    "static-detail": Route(
-        build_path=_p_static("static-detail"),
-        get_nonarch=OK,
-        get_arch=OK,
-        post_nonarch=OK,
-        post_arch=OK,
-    ),
+    # Static assets: identical tier-blind contract per route, generated rather than repeated.
+    **{
+        name: Route(
+            build_path=_p_static(name),
+            get_nonarch=OK,
+            get_arch=OK,
+            post_nonarch=OK,
+            post_arch=OK,
+        )
+        for name in _STATIC_PATHS
+    },
     # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.
     "artikel-neu": Route(
@@ -546,11 +493,18 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
 # --- the matrix -----------------------------------------------------------------------------------
 
 
+def _tier_invariant(route: Route) -> bool:
+    """A route whose contract declares the SAME status for every tier x method cell (and no
+    tier-sensitive resolution) has exactly one distinct cell — one probe proves it. Derived from
+    the declared statuses, so a future route with any tier-varying cell is probed in full."""
+    statuses = {route.get_nonarch, route.get_arch, route.post_nonarch, route.post_arch}
+    return len(statuses) == 1 and not route.tier_sensitive
+
+
 def _matrix_cases() -> Iterator[tuple[str, str, str]]:
-    for name in _CONTRACT:
-        if name in _STATIC_PATHS:
-            # Static assets carry no per-tier behavior (200 for everyone, method-blind): one probe
-            # (Public GET → 200) suffices. The routes stay in _CONTRACT so the exhaustiveness gate
+    for name, route in _CONTRACT.items():
+        if _tier_invariant(route):
+            # One probe (Public GET) — the routes stay in _CONTRACT so the exhaustiveness gate
             # still covers them.
             yield name, "public", "GET"
             continue
@@ -572,6 +526,8 @@ def test_route_tier_matrix(
 ) -> None:
     route = _CONTRACT[name]
     expected = _expected_for(route, tier, method)
+    if name == "media-thumb":
+        corpus.generate_thumbnail()
     path = route.build_path(corpus)
     data: dict[str, object] = route.post_data
     if name in _POST_DATA_BUILDERS:
@@ -586,9 +542,12 @@ def test_route_tier_matrix(
     with override_settings(**_settings(corpus)):
         client = _client(tier)
         response = client.post(path, data=data) if method == "POST" else client.get(path)
-    assert response.status_code == expected, (
-        f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
-    )
+    if expected == FOUR_OH_FOUR:
+        assert_denied(response, f"{method} {name} as {tier}")
+    else:
+        assert response.status_code == expected, (
+            f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
+        )
 
 
 # --- structural: the contract is exhaustive against the urlconf -----------------------------------

@@ -12,7 +12,7 @@ Two halves:
 
 The scope seam itself (``_scope_columns`` / ``_viewer_scope``) is the single place
 viewer-visibility meets SQL; equivalence to ``domain.access.can_view`` is pinned by Task 9's
-``test_equivalence.py``. Here we pin the write-side column mapping and the seam's shape.
+``test_equivalence.py``. Here we pin the write-side column mapping.
 """
 
 import datetime
@@ -30,10 +30,8 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     MediaRef,
 )
-from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES
-from bundesarchiv.index.scope import _viewer_scope
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -285,16 +283,6 @@ def test_build_row_ancestors_are_leaf_to_root_including_own_collection() -> None
     row = indexer.build_row(article, _chain(leaf, mid, root), cap_year=_CAP_YEAR)
     assert row["collection_ancestors"] == ["LEAF", "MID", "ROOT"]
     assert row["collection_id"] == "LEAF"
-
-
-# ===========================================================================
-# Scope seam — read side smoke (the real proof of the seam is test_equivalence).
-# ===========================================================================
-
-
-def test_viewer_scope_archivist_is_unconstrained() -> None:
-    q = _viewer_scope(Archivist())
-    assert not q  # an empty Q matches everything
 
 
 # ===========================================================================

@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
@@ -78,7 +79,7 @@ def test_bulk_denied_is_404_and_writes_nothing(corpus: _Corpus, viewer: Viewer) 
             "/artikel/sammelbearbeitung",
             {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Gekapert", "bestaetigt": "1"},
         )
-    assert response.status_code == 404
+    assert_denied(response)
     # nothing mutated
     assert corpus.article(_A).creator is None
     assert corpus.article(_B).creator is None
@@ -86,7 +87,7 @@ def test_bulk_denied_is_404_and_writes_nothing(corpus: _Corpus, viewer: Viewer) 
 
 def test_bulk_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        assert _client_as(Archivist()).get("/artikel/sammelbearbeitung").status_code == 404
+        assert_denied(_client_as(Archivist()).get("/artikel/sammelbearbeitung"))
 
 
 @pytest.mark.parametrize("feld", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit"])
@@ -377,7 +378,7 @@ def test_bulk_dokumenttypen_denied_never_content(corpus: _Corpus, viewer: Viewer
         response = _client_as(viewer).get(
             "/artikel/sammelbearbeitung/dokumenttypen?media_type=Fotografie"
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert b"Portr" not in response.content
 
 

@@ -15,6 +15,7 @@ import pytest
 from django.core import signing
 from django.http import HttpRequest
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
@@ -142,20 +143,15 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> 
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------
 
 
-@pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_edit_get_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).get(f"/artikel/{_ULID}/bearbeiten")
-    assert response.status_code == 404
-
-
+# (The GET deny is the leak matrix's cell for this route — only the POST twin adds the
+# nothing-was-changed side-effect assert the matrix can't see.)
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
 def test_edit_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(
             f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gekapert")
         )
-    assert response.status_code == 404
+    assert_denied(response)
     # the non-archivist POST changed nothing
     assert ArticleRepository(corpus.store).load(_ULID).article.title == "Wanderfahrt 1962"
 
@@ -164,7 +160,7 @@ def test_edit_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> 
 def test_edit_malformed_or_absent_ulid_is_404(corpus: _Corpus, ulid: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- POST: save success + read-view redirect ---------------------------------------
@@ -293,7 +289,7 @@ def test_stale_save_against_deleted_article_is_404(
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- no-JS custom-row removal ------------------------------------------------------

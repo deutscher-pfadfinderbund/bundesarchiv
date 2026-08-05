@@ -85,8 +85,8 @@ Each role declares its light and dark value in one place:
 | `outline` vs adjacent surfaces | — | 3:1 |
 | `focus-ring` vs all surfaces | — | 3:1 |
 
-Initial L values are an implementation detail pinned by the contrast test;
-the table's pairs and minimums are the contract. The four `surface-container`
+Initial L values are an implementation detail; the table's pairs and
+minimums are the contract, judged at the design gate. The four `surface-container`
 steps are the elevation ramp (page → panel → card → raised) in both modes.
 
 Semantic notes:
@@ -160,7 +160,7 @@ never at the cost of the core.
 
 ## Migration plan
 
-1. `tokens.css` (all three layers) + contrast test. No visual change yet.
+1. `tokens.css` (all three layers). No visual change yet.
 2. Restyle the workbench stylesheet to consume roles only; parity-check
    against the approved round-3 mock (dark) and its light-mode derivation.
 3. Every later screen (4.7 form, 4.8 collections, 4.6 detail) consumes roles

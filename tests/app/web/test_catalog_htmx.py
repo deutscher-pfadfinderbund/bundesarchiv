@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
@@ -95,7 +96,7 @@ def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: _Corp
 def test_dokumenttypen_denied_is_404_never_content(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{_ULID}/dokumenttypen?medienart=Fotografie")
-    assert response.status_code == 404
+    assert_denied(response)
     assert b"Portr" not in response.content  # no partial content leaked
 
 
@@ -140,7 +141,7 @@ def test_datierung_echo_invalid_is_empty(corpus: _Corpus) -> None:
 def test_datierung_echo_denied_is_404_never_content(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{_ULID}/datierung-echo?date=1962")
-    assert response.status_code == 404
+    assert_denied(response)
     assert b"1962" not in response.content  # no echo leaked
 
 
@@ -165,7 +166,7 @@ def test_datierung_echo_post_is_404(corpus: _Corpus) -> None:
 def test_htmx_endpoints_malformed_or_absent_ulid_is_404(corpus: _Corpus, path: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(path)
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 # --- HTMX save path (no-JS baseline unchanged) --------------------------------------

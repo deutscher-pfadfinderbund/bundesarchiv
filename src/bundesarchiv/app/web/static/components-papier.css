@@ -1,7 +1,7 @@
 /* Component atoms — design VARIANT "papier" (/_dev/components/papier/, dev-only).
    A full standalone alternative to components.css over the SAME tokens.css roles: role tokens
    only, no raw color values; color functions limited to var() over roles and color-mix() OVER
-   roles (pinned by the components sweep test, which covers components-*.css).
+   roles (design-system.md, "Roles, not colors").
 
    PAPIER = the stamp color law + quiet materiality (owner: "slightly tinted sheets of paper …
    beveled edges — real, but modern"). Cards, facet panels and the empty state read as CUT

@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Audience, AudienceTier, Collection
@@ -74,18 +75,13 @@ def test_create_form_renders_for_archivist(corpus: _Corpus) -> None:
 # --- GET/POST: archivist gate (both methods) --------------------------------------
 
 
-@pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_create_get_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).get("/artikel/neu")
-    assert response.status_code == 404
-
-
+# (The GET deny is the leak matrix's cell for this route — only the POST twin adds the
+# nothing-was-created side-effect assert the matrix can't see.)
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
 def test_create_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post("/artikel/neu", {"title": "X", "collection_id": "PUB"})
-    assert response.status_code == 404
+    assert_denied(response)
     # nothing was created
     assert list(ArticleRepository(corpus.store).list_ulids()) == []
 

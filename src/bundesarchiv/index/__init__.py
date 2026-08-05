@@ -31,8 +31,7 @@ if TYPE_CHECKING:
         search as search,
     )
 
-# Order is the fixed public contract (Task 4 brief); the architecture test pins this exact
-# sequence. Do not let isort/RUF022 resort it.
+# Order is the documented public contract (Task 4 brief); keep it grouped by concept, not sorted.
 __all__ = ["rebuild", "search", "SearchPage", "SearchHit", "SearchFilters"]  # noqa: RUF022
 
 # The public names ``search`` / ``SearchPage`` / ``SearchHit`` / ``SearchFilters`` live in

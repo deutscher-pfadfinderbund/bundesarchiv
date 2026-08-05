@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.edtf import EdtfDate
@@ -225,7 +226,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Co
 def test_draft_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{corpus.draft}")
-    assert response.status_code == 404  # denied — indistinguishable status from a nonexistent ulid
+    assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
 
 
 def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _Corpus) -> None:

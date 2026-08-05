@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
@@ -99,13 +100,13 @@ def test_detail_stub_denies_forbidden_article_with_404(corpus: _Corpus) -> None:
     # A members-only article, viewed as Public → 404, like a nonexistent one (existence-hiding).
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(f"/artikel/{corpus.ulid_by_tier['members']}")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 def test_detail_stub_denies_draft_to_member(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Member(groups=())).get(f"/artikel/{corpus.ulid_by_tier['draft']}")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 def test_detail_stub_archivist_sees_draft(corpus: _Corpus) -> None:
@@ -121,4 +122,4 @@ def test_detail_stub_archivist_sees_draft(corpus: _Corpus) -> None:
 def test_detail_stub_malformed_or_missing_is_404(corpus: _Corpus, ulid: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{ulid}")
-    assert response.status_code == 404
+    assert_denied(response)
