@@ -90,7 +90,7 @@ Consequences:
   comparisons in the route × tier leak matrix and the per-route tests) and
   the anonymous-redirect byte-uniformity contract in ADR 0018. The matrix
   itself survives slimmed — its status assertions and exhaustiveness gate
-  are leak prevention (see `docs/plans/test-audit-2026-08.md`). Supersede
+  are leak prevention (see `tests/CLAUDE.md`). Supersede
   the relevant parts of ADR 0001/0012/0018 with a short amendment.
 
 ## Testing philosophy (standing directive)
@@ -105,7 +105,7 @@ Named example of overkill: the "color math" namespace
 
 ## Migration (blocks deployment 2, not deployment 1)
 
-- The old system's pg dump is inspected; `docs/plans/migration-feasibility.md`
+- The old system's pg dump is inspected; `docs/design/migration-feasibility.md`
   is verified against the real dump (2,485 rows in
   `tests/test_data/archive_items.txt`) and is treated as correct.
 - Still needed from the old system: the `document_type` lookup table export,

@@ -28,6 +28,14 @@ Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Binding requirements
+
+Owner rulings live in `docs/requirements/` (`archivist-wishes-2025.md`, `owner-interview-2026-08.md` — access model, rollout stages, storage). Check them before inferring scope or requirements.
+
+### Testing razor
+
+Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data (owner ruling 2026-08). The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.
+
 ### Design-gate / QA brief
 
 Before reviewing any UI change: render the state gallery (`uv run pytest -m gallery -s`) and run the journeys (`uv run pytest -m e2e`), then judge on live `:8000` pages. See `docs/agents/design-gate-brief.md`.

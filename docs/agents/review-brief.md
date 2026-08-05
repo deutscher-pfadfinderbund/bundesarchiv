@@ -26,8 +26,8 @@ Read `REVIEW-LEDGER.md.local` first; never re-report anything listed there.
    `mirror_store` monkeypatch). Check what a test actually runs before citing
    it as coverage.
 6. **Propose a pin for repeating defect classes — but only inside the testing
-   razor** (domain-relevant / data-loss / data-leak; see the recurring
-   anti-patterns in `docs/plans/test-audit-2026-08.md`). House idiom:
+   razor** (domain-relevant / data-loss / data-leak; see the do-not-write
+   list in `tests/CLAUDE.md`). House idiom:
    {# #}-hygiene grep-tests. Style sweeps and load-count pins were removed in
    the 2026-08 audit as overkill — do not propose them again.
 

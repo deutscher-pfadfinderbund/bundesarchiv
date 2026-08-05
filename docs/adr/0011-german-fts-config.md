@@ -7,7 +7,7 @@ umlaut folding, stemming, and — as an aspiration — compound splitting (so *F
 would also match *Fahrt*). Task 4 baked the Debian `hunspell-de-de` dictionary into the
 image and proved it loads (`Häuser` → {häuser, haus}), but also found that stock `de_de`
 does not split *Fahrtenbericht*. This spike measured the real behaviour against a corpus of
-50 real DPB titles (see [migration-feasibility appendix §6](../plans/migration-feasibility.md))
+50 real DPB titles (see [migration-feasibility appendix §6](../design/migration-feasibility.md))
 and gates the v1 text-search configuration. All numbers below are from Postgres 18.4 in the
 project container. No production code was written; the SQL here is applied in Task 6.
 

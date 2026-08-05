@@ -14,11 +14,10 @@ from django.test import Client, override_settings
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
 _DEV_KEY = "test-bestand-entry-key"
 FOTOS = new_ulid()
@@ -28,15 +27,8 @@ FOTOS = new_ulid()
 def root(tmp_path: Path) -> Path:
     store = LocalFsObjectStore(tmp_path / "canonical")
     collections = CollectionRepository(store)
-    articles = ArticleRepository(store)
     collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
     collections.save(Collection(FOTOS, "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-    articles.save(
-        Article(
-            ulid=new_ulid(), title="Ein Foto", collection_id=FOTOS, lifecycle=Lifecycle.PUBLISHED
-        ),
-        0,
-    )
     return tmp_path / "canonical"
 
 

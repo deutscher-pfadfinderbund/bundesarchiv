@@ -63,6 +63,13 @@ neutral infinitive imperatives are fine. Everything development-facing — code,
 routes, dev pages, commit messages, docs, comments — is **English**. "Findbuch"
 is banned from UI copy (archaic).
 
+## Standing law changes update the briefs in the same wave
+
+When a ruling changes standing law (a testing rule, a contract like the deny
+shape, a workflow), update the agent briefs (`CLAUDE.md`, `docs/agents/`,
+`tests/CLAUDE.md`) in the same wave as the code. A brief that contradicts the
+code regenerates the old behavior in the next wave.
+
 ## Clean history within your own wave
 
 Wave-internal fixes land as `git commit --fixup <sha>` and fold at wave end,
