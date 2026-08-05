@@ -165,20 +165,6 @@ def test_mirror_store_is_none_when_url_unset(monkeypatch: pytest.MonkeyPatch) ->
         assert tasks_mod.mirror_store() is None
 
 
-def test_mirror_store_built_from_settings_when_url_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    """URL set -> a WebDavObjectStore over an httpx client at the configured base_url + credentials."""
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
-
-    with override_settings(
-        BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/",
-        BUNDESARCHIV_MIRROR_DAV_USER="u",
-        BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
-    ):
-        store = tasks_mod.mirror_store()
-    assert isinstance(store, WebDavObjectStore)
-
-
 def test_mirror_push_task_replays_key_to_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
     """The mirror_push reference job re-reads the CURRENT canonical bytes and writes to the mirror."""
     import bundesarchiv.app.tasks as tasks_mod
@@ -254,54 +240,6 @@ def test_mirror_reconcile_task_is_noop_when_mirror_unset(monkeypatch: pytest.Mon
     summary = tasks_mod.mirror_reconcile.func()
 
     assert summary == {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
-
-
-def test_mirror_push_task_closes_the_mirror_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    """mirror_store() builds a fresh httpx.Client per job; the job must close it on completion so
-    the connection pool never leaks, even though the push itself never raises."""
-    import httpx
-
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.app import mirror as mirror_mod
-    from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
-
-    canonical = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-    client = httpx.Client(base_url="http://mirror.invalid/")
-    mirror_target = WebDavObjectStore(client)
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror_target)
-    monkeypatch.setattr(mirror_mod, "push_key", lambda *_args, **_kw: None)
-
-    tasks_mod.mirror_push.func(key="articles/01A/README.md")
-
-    assert client.is_closed
-
-
-def test_mirror_reconcile_task_closes_the_mirror_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Same client-lifetime guarantee for the periodic reconcile sweep."""
-    import httpx
-
-    import bundesarchiv.app.tasks as tasks_mod
-    from bundesarchiv.app import mirror as mirror_mod
-    from bundesarchiv.app.mirror import ReconcileSummary
-    from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
-
-    canonical = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-    client = httpx.Client(base_url="http://mirror.invalid/")
-    mirror_target = WebDavObjectStore(client)
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror_target)
-    monkeypatch.setattr(
-        mirror_mod,
-        "reconcile",
-        lambda *_args, **_kw: ReconcileSummary(pushed=0, deleted=0, failed=0),
-    )
-
-    tasks_mod.mirror_reconcile.func()
-
-    assert client.is_closed
 
 
 def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:

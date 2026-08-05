@@ -33,6 +33,8 @@ _UNREACHABLE_HINT = (
     "  container run -d --name bundesarchiv-pg -p 5434:5432 "
     "-e POSTGRES_DB=bundesarchiv -e POSTGRES_PASSWORD=postgres bundesarchiv-postgres\n"
     "or (Docker VPS path): docker compose up -d\n"
+    "No container runtime (cloud sandbox)? bash scripts/dev-pg-cloud.sh (idempotent — also\n"
+    "the fix when a sandbox reclaimed a previously running server mid-session).\n"
     "To skip the DB-backed suites instead: BUNDESARCHIV_SKIP_PG=1"
 )
 

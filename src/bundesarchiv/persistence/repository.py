@@ -21,7 +21,7 @@ signalling the save took effect.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
 Snapshots (.snapshots/) and the per-Article lock object are deferred (single-writer
-v1); see docs/plans/part-1-persistence.md.
+v1, ADR 0013).
 """
 
 import hashlib

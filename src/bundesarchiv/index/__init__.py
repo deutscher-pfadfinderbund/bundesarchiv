@@ -8,11 +8,8 @@ queries over it. The public interface is deliberately tiny:
 - ``search(viewer, ...)`` — viewer-scoped, field-floor-aware query (Task 8).
 - ``SearchPage`` / ``SearchHit`` / ``SearchFilters`` — the frozen result/query types.
 
-Nothing outside this package may import ``bundesarchiv.index`` and nothing inside
-``domain``/``persistence`` may import Django (tests/index/test_architecture.py pins both).
-
-The names below are stubs; Tasks 6-8 fill them in. They exist now so the public
-interface is fixed and the architecture test can assert ``__all__``.
+Nothing outside ``app`` may import ``bundesarchiv.index`` and nothing inside
+``domain``/``persistence`` may import Django (layering convention, enforced in review).
 """
 
 from typing import TYPE_CHECKING, Any
@@ -34,8 +31,7 @@ if TYPE_CHECKING:
         search as search,
     )
 
-# Order is the fixed public contract (Task 4 brief); the architecture test pins this exact
-# sequence. Do not let isort/RUF022 resort it.
+# Order is the documented public contract (Task 4 brief); keep it grouped by concept, not sorted.
 __all__ = ["rebuild", "search", "SearchPage", "SearchHit", "SearchFilters"]  # noqa: RUF022
 
 # The public names ``search`` / ``SearchPage`` / ``SearchHit`` / ``SearchFilters`` live in

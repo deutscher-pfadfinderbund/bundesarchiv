@@ -3,7 +3,7 @@
 import pytest
 
 from bundesarchiv.domain.identity import create_article, is_valid_ulid, new_ulid, slugify
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import Lifecycle
 
 
 def test_new_ulid_is_a_valid_unique_26_char_ulid() -> None:
@@ -36,24 +36,6 @@ def test_create_article_mints_a_valid_unique_ulid() -> None:
     assert article.lifecycle is Lifecycle.DRAFT  # a new Article starts as a Draft
     assert article.audience is None  # inherit by default
     assert create_article(title="x", collection_id="c").ulid != article.ulid  # minted fresh
-
-
-def test_create_article_passes_through_optional_fields() -> None:
-    article = create_article(
-        title="t",
-        collection_id="c",
-        lifecycle=Lifecycle.PUBLISHED,
-        audience=Audience(AudienceTier.PUBLIC),
-        ref_code="Foto-1955/007",
-    )
-    assert article.lifecycle is Lifecycle.PUBLISHED
-    assert article.audience == Audience(AudienceTier.PUBLIC)
-    assert article.ref_code == "Foto-1955/007"
-
-
-def test_create_article_carries_custom_metadata() -> None:
-    article = create_article(title="t", collection_id="c", custom=(("herkunft", "x"),))
-    assert article.custom == (("herkunft", "x"),)
 
 
 @pytest.mark.parametrize(

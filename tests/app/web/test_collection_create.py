@@ -1,6 +1,6 @@
 """The 4.8 create-Bestand form (`/bestand/neu`, `collection_create`).
 
-Archivist-gated both methods (byte-identical 404 otherwise — no existence oracle). GET renders the
+Archivist-gated both methods (plain 404 otherwise, nothing created). GET renders the
 minimal form (Name + Eltern-Bestand + Sichtbarkeit); POST validates (Name required, parent must be a
 real collection or the empty top-level option, GROUPS-iff), creates the Collection, and 302s to the
 workbench. Setting audience at creation is safe (a fresh collection is empty). Reuses the 4.7 form
@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Audience, AudienceTier, Collection
@@ -59,13 +60,10 @@ def _collections(root: Path) -> tuple[Collection, ...]:
 
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=())])
 @pytest.mark.parametrize("method", ["get", "post"])
-def test_non_archivist_gets_byte_identical_404(
-    root: Path, viewer: Viewer | None, method: str
-) -> None:
+def test_non_archivist_gets_404(root: Path, viewer: Viewer | None, method: str) -> None:
     with override_settings(**_settings(root)):
         response = getattr(_client_as(viewer), method)("/bestand/neu")
-    assert response.status_code == 404
-    assert response.content == b""
+    assert_denied(response)
 
 
 @pytest.mark.django_db

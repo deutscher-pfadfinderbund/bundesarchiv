@@ -25,9 +25,11 @@ Read `REVIEW-LEDGER.md.local` first; never re-report anything listed there.
    review does not exercise it (the #20 client leak sat behind a
    `mirror_store` monkeypatch). Check what a test actually runs before citing
    it as coverage.
-6. **Propose a pin for repeating defect classes.** House idiom: grep-tests and
-   counting fixtures ({# #}-hygiene, named-color sweep, per-route load-count
-   pins). A class-level pin beats re-finding instances.
+6. **Propose a pin for repeating defect classes — but only inside the testing
+   razor** (domain-relevant / data-loss / data-leak; see the do-not-write
+   list in `tests/CLAUDE.md`). House idiom:
+   {# #}-hygiene grep-tests. Style sweeps and load-count pins were removed in
+   the 2026-08 audit as overkill — do not propose them again.
 
 ## Conduct
 

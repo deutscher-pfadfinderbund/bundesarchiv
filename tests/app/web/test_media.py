@@ -1,15 +1,16 @@
 """The media leak suite (Part 4.3, plan §4.10 seed) — authorized media serving via the seam.
 
 This is the review-critical suite: it proves the classic direct-media leak is closed. Every media
-and thumbnail byte is served ONLY where ``can_view`` allows, and every denial/absence is a
-byte-identical 404 that leaks nothing about existence.
+and thumbnail byte is served ONLY where ``can_view`` allows, and every denial/absence is a plain
+404 that leaks nothing about existence (the byte-identical-404 law was relaxed by the owner,
+2026-08 — a deny is its status code, with no leaked content).
 
 Structure:
 - A fixture corpus of Articles across every tier (public / members / groups / draft /
   archivist-only), each carrying one real image blob, on a ``LocalFsObjectStore`` under a tmp root.
 - The per-tier grid: original + thumb URLs against [Public, Member(wrong group), Member(right
   group), Archivist] -> 200 iff ``can_view`` says so, everything else 404.
-- Byte-identical 404s across five distinct denial/absence reasons.
+- A 404 for each of five distinct denial/absence reasons.
 - Authz-before-existence: the blob lookup at the seam is never reached for a forbidden article.
 - X-Accel mode and dev-streaming mode.
 - The thumbnail job (JPEG/PNG generate, text no-op, idempotent, output location).
@@ -23,6 +24,7 @@ import pytest
 from django.core import signing
 from django.test import Client, override_settings
 from PIL import Image
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web import media as media_seam
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -180,7 +182,7 @@ def test_original_per_tier_grid(
             f"articles/{corpus.ulid_by_tier[tier]}/media/{corpus.hash_by_tier[tier]}"
         )
     else:
-        assert response.status_code == 404, f"{tier}/{viewer_name} must be 404"
+        assert_denied(response, f"{tier}/{viewer_name}")
 
 
 @pytest.mark.parametrize(("tier", "viewer_name", "allowed"), list(_grid()))
@@ -198,20 +200,13 @@ def test_thumbnail_per_tier_grid(
         assert response.status_code == 200, f"thumb {tier}/{viewer_name} should be served"
         assert response["Content-Type"] == "image/webp"
     else:
-        assert response.status_code == 404, f"thumb {tier}/{viewer_name} must be 404"
+        assert_denied(response, f"thumb {tier}/{viewer_name}")
 
 
-# --- byte-identical 404s ----------------------------------------------------------
+# --- 404 across every deny reason ---------------------------------------------------
 
 
-def _header_set(response: object) -> set[tuple[str, str]]:
-    # Every header EXCEPT ones a test harness/date stamps per-response; the invariant is the app's
-    # own header set, which must not vary with the 404 reason.
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return {(k, v) for k, v in response.items() if k not in volatile}  # type: ignore[attr-defined]
-
-
-def test_byte_identical_404s_across_all_reasons(corpus: _Corpus) -> None:
+def test_404_across_all_deny_reasons(corpus: _Corpus) -> None:
     good_hash = corpus.hash_by_tier["members"]
     real_ulid = corpus.ulid_by_tier["members"]
     responses = {}
@@ -232,10 +227,6 @@ def test_byte_identical_404s_across_all_reasons(corpus: _Corpus) -> None:
         responses["missing_thumb"] = _client_as(Archivist()).get(corpus.url("members", thumb=True))
     statuses = {name: r.status_code for name, r in responses.items()}
     assert set(statuses.values()) == {404}, statuses
-    bodies = {name: r.content for name, r in responses.items()}
-    assert len(set(bodies.values())) == 1, f"bodies differ: {bodies}"
-    header_sets = {name: frozenset(_header_set(r)) for name, r in responses.items()}
-    assert len(set(header_sets.values())) == 1, f"header sets differ: {header_sets}"
 
 
 # --- authz-before-existence -------------------------------------------------------
@@ -255,7 +246,7 @@ def test_authz_denies_before_any_blob_lookup(
     monkeypatch.setattr("bundesarchiv.app.web.media.media_response", recorder)
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(corpus.url("members"))
-    assert response.status_code == 404
+    assert_denied(response)
     assert reached == [], "the seam (blob lookup) was reached for a forbidden article"
 
 
@@ -271,7 +262,7 @@ def test_authz_denies_before_lookup_for_thumbnail(
     monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(corpus.url("members", thumb=True))
-    assert response.status_code == 404
+    assert_denied(response)
     assert reached == []
 
 
@@ -292,7 +283,7 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _Corpus)
 def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX="/_protected")):
         response = _client_as(Public()).get(corpus.url("members"))
-    assert response.status_code == 404
+    assert_denied(response)
     assert "X-Accel-Redirect" not in response
 
 

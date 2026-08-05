@@ -48,34 +48,26 @@ def test_switcher_get_renders_form() -> None:
 
 
 @override_settings(**_DEV)
-def test_switcher_post_member_roundtrips_to_viewer_of() -> None:
+@pytest.mark.parametrize(
+    ("post_data", "expected"),
+    [
+        (
+            {"kind": "member", "groups": "vorstand, archiv-ag"},
+            Member(groups=("vorstand", "archiv-ag")),
+        ),
+        ({"kind": "archivist"}, Archivist()),
+        ({"kind": "public"}, Public()),
+    ],
+    ids=["member", "archivist", "public"],
+)
+def test_switcher_post_roundtrips_to_viewer_of(post_data: dict[str, str], expected: object) -> None:
     client = Client()
-    response = client.post(
-        reverse("dev-switch-viewer"), {"kind": "member", "groups": "vorstand, archiv-ag"}
-    )
+    response = client.post(reverse("dev-switch-viewer"), post_data)
     assert response.status_code == 302  # redirect back to the switcher
     # The signed cookie is now on the client; a fresh request through viewer_of must decode it.
     request = RequestFactory().get("/")
     request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
-    assert viewer_of(request) == Member(groups=("vorstand", "archiv-ag"))
-
-
-@override_settings(**_DEV)
-def test_switcher_post_archivist_roundtrips() -> None:
-    client = Client()
-    client.post(reverse("dev-switch-viewer"), {"kind": "archivist"})
-    request = RequestFactory().get("/")
-    request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
-    assert viewer_of(request) == Archivist()
-
-
-@override_settings(**_DEV)
-def test_switcher_post_public_roundtrips() -> None:
-    client = Client()
-    client.post(reverse("dev-switch-viewer"), {"kind": "public"})
-    request = RequestFactory().get("/")
-    request.COOKIES.update({k: c.value for k, c in client.cookies.items()})
-    assert viewer_of(request) == Public()
+    assert viewer_of(request) == expected
 
 
 @override_settings(**_DEV)
@@ -98,29 +90,6 @@ def test_middleware_attaches_viewer_to_request() -> None:
     # A subsequent GET runs through DevViewerMiddleware, which sets request.viewer used by the form.
     response = client.get(reverse("dev-switch-viewer"))
     assert "Archivar" in response.content.decode()
-
-
-# --- /favicon.ico: an honest 404, never the debug-page 500 -----------------------------------
-
-
-@override_settings(**_DEV, DEBUG=True)
-def test_favicon_returns_a_clean_404_under_debug() -> None:
-    # The browser auto-probes /favicon.ico. There is no favicon asset, so without the dev-only shim
-    # a request under DEBUG falls to Django's technical-404 debug page — which reads SECRET_KEY while
-    # rendering, and dev leaves it empty, so the probe surfaced as a 500. The explicit route answers
-    # the route directly, before the debug handler ever runs. DEBUG=True reproduces the broken path
-    # (a plain 404 handled by our view, never the debug renderer).
-    response = Client().get("/favicon.ico")
-    assert response.status_code == 404
-
-
-def test_favicon_route_lives_only_in_the_dev_urlconf() -> None:
-    # The favicon shim exists ONLY in the dev URLconf; prod already 404s cleanly and must not grow
-    # the route (unreachable in prod by absence, like the switcher).
-    dev_urls = importlib.import_module("bundesarchiv.app.web.dev_urls")
-    prod_urls = importlib.import_module("bundesarchiv.app.web.urls")
-    assert any(getattr(p, "name", None) == "dev-favicon" for p in dev_urls.urlpatterns)
-    assert not any(getattr(p, "name", None) == "dev-favicon" for p in prod_urls.urlpatterns)
 
 
 # --- prod-safety: the dev mechanism is unreachable under production settings -----------------

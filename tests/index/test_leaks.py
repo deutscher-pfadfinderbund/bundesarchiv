@@ -26,7 +26,6 @@ Channels covered:
 Runs against the shared corpus (``tests/index/fixtures.py``), indexed ONCE per module.
 """
 
-import dataclasses
 from collections.abc import Iterator
 
 import pytest
@@ -511,12 +510,3 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "media",
     ):
         assert floored not in field_names, f"floored field {floored!r} leaked into SearchHit"
-
-
-def test_search_hit_field_names_match_projection_via_dataclasses() -> None:
-    """The same floor asserted through ``dataclasses.fields`` (the public API), so the guard does
-    not depend on the private ``__dataclass_fields__`` attribute alone."""
-    names = {f.name for f in dataclasses.fields(SearchHit)}
-    assert "physical_location" not in names
-    assert "custom" not in names
-    assert "archivist_text" not in names

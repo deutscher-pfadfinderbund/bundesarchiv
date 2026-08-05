@@ -1,0 +1,71 @@
+# PARKED: this session's GitHub credentials lack the `workflow` scope, so this file
+# cannot be pushed to .github/workflows/ from here. To activate CI:
+#     git mv .github/ci.yml .github/workflows/ci.yml && git commit && git push
+# (or grant the Claude GitHub App workflow permission and ask an agent to move it).
+#
+# Simple CI: one job, the full gate from CLAUDE.md.
+#   uv run ruff check && uv run ruff format --check . && uv run mypy && uv run pytest
+# plus `uv run pyrefly check` (zero-error policy). Each command is its own step
+# so a failure is readable at a glance.
+#
+# pytest needs Postgres on localhost:5434 with the German Hunspell dictionary —
+# the repo ships that image (docker/postgres/Dockerfile), so we build and run it
+# as a plain step (a `services:` block can't build a local Dockerfile). The
+# default pytest run already deselects the e2e/gallery markers; no browsers here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # uv installs the pinned Python (.python-version: 3.14) itself.
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build and start Postgres (German Hunspell dict)
+        run: |
+          docker build -t bundesarchiv-postgres docker/postgres/
+          docker run -d --name pg -p 5434:5432 \
+            -e POSTGRES_DB=bundesarchiv \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            bundesarchiv-postgres
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec pg pg_isready -U postgres -d bundesarchiv; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Postgres did not become ready in time" >&2
+          docker logs pg >&2
+          exit 1
+
+      - name: ruff check
+        run: uv run ruff check
+
+      - name: ruff format
+        run: uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy
+
+      - name: pyrefly
+        run: uv run pyrefly check
+
+      - name: pytest
+        run: uv run pytest

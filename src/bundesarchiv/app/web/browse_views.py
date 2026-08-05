@@ -786,32 +786,32 @@ def serve_catalog_bulk_js(request: HttpRequest) -> HttpResponseBase:
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
     sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
-    first); graduated from the dev layout demo into production. Self-contained, no external requests;
-    raw-color-free by test."""
+    first); graduated from the dev layout demo into production. Self-contained, no external
+    requests."""
     return _serve_static("layouts.css", "text/css")
 
 
 def serve_tokens(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/tokens.css`` — the design-system token layers (docs/design/design-system.md):
-    seed, reference ramps, roles + non-color tokens. Self-contained; gated by the contrast test."""
+    seed, reference ramps, roles + non-color tokens. Self-contained."""
     return _serve_static("tokens.css", "text/css")
 
 
 def serve_components_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/components.css`` — the atom component styles (templates/components/), role
-    tokens only (load tokens.css first). Pinned raw-color-free by test."""
+    tokens only (load tokens.css first)."""
     return _serve_static("components.css", "text/css")
 
 
 def serve_forms_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/forms.css`` — the Part 4.7 cataloging-form styles (the work column, drawers,
     sticky footer, field errors, CAS panel), role tokens only (load tokens.css + components.css
-    first). Loaded wherever components.css is. Pinned raw-color-free by the same sweep test."""
+    first). Loaded wherever components.css is."""
     return _serve_static("forms.css", "text/css")
 
 
 def serve_detail_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/detail.css`` — the Part 4.6 Lesesaal detail-page styles (the reading column,
     cover Platte, record card, filmstrip), role tokens only (load tokens.css + components.css first).
-    One shared file for the read view (§11 Q2 decision). Pinned raw-color-free by the same sweep."""
+    One shared file for the read view (§11 Q2 decision)."""
     return _serve_static("detail.css", "text/css")

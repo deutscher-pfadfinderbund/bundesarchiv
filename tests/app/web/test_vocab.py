@@ -18,17 +18,6 @@ from bundesarchiv.domain.edtf import EdtfDate
 # --- the Medienart -> Dokumenttyp mapping ------------------------------------------
 
 
-def test_media_types_is_the_vocab_top_level() -> None:
-    # Every Medienart the select offers is a key of the mapping (one source, no drift).
-    assert set(vocab.media_types()) == set(vocab.MEDIENART_DOKUMENTTYP)
-
-
-def test_document_types_for_a_known_media_type() -> None:
-    for media_type in vocab.media_types():
-        types = vocab.document_types_for(media_type)
-        assert types == vocab.MEDIENART_DOKUMENTTYP[media_type]
-
-
 def test_document_types_for_unknown_media_type_is_empty() -> None:
     assert vocab.document_types_for("gibt-es-nicht") == ()
     assert vocab.document_types_for("") == ()
@@ -58,15 +47,6 @@ def test_is_valid_pair_allows_no_document_type() -> None:
 def test_is_valid_pair_rejects_a_document_type_without_a_media_type() -> None:
     # A Dokumenttyp with no Medienart is a mismatched pair (no media type owns it).
     assert not vocab.is_valid_pair(None, "Brief")
-
-
-def test_grouped_options_are_optgroup_shaped() -> None:
-    # select_grouped needs (media_type_label, ((value, caption), ...)) tuples for <optgroup>s.
-    grouped = vocab.grouped_document_type_options()
-    labels = [label for label, _ in grouped]
-    assert labels == list(vocab.media_types())
-    for label, options in grouped:
-        assert options == tuple((t, t) for t in vocab.MEDIENART_DOKUMENTTYP[label])
 
 
 # --- EDTF -> German echo -----------------------------------------------------------

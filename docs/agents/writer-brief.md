@@ -42,15 +42,27 @@ worker enqueue, via the autouse conftest fixture) and nothing else — the
 canonical write + CAS path stays real. Distrust a test that mostly asserts
 against its own mocks.
 
-## The byte-identical-404 law
+## The deny contract
 
-Every deny / absence / malformed-param / disallowed-method on a prod route
-returns the SAME 404: `media_views._not_found()` (empty body, `content_type=""`,
-constant header set). A forbidden thing is indistinguishable from a missing one
-(existence-hiding, plan §4.3). Never grow a distinguishable 404 on a prod route —
-the leak matrix (`tests/app/web/test_leak_matrix.py`) pins this for every route,
-and any new route must earn a matrix entry (the exhaustiveness assertion fails
-otherwise).
+Every deny / absence / malformed-param / disallowed-method on a prod route is a
+plain 404 that reveals and changes nothing. (The old byte-identical-404 law was
+relaxed by the owner, 2026-08 — see `docs/requirements/owner-interview-2026-08.md`;
+the shared empty `_not_found()` remains the implementation convention, but tests
+no longer compare response bytes.) In tests, a deny is
+`tests/app/web/_asserts.assert_denied` (status 404 + empty body) plus a
+nothing-was-written assert on write routes. Any new route must earn a leak-matrix
+entry (`tests/app/web/test_leak_matrix.py` — the exhaustiveness assertion fails
+otherwise), and unauthorized content must stay filtered out of search results,
+listings, and facet counts.
+
+## UI work
+
+UI is built under the Construction law in `docs/design/design-system.md`
+(owner, 2026-08-05): semantic HTML first, compose existing components
+(atoms → molecules → layouts → pages), no ad-hoc or redundant components,
+every visible element traces to a wish/ruling/spec section, one pattern per
+problem. A UI wave ends with before/after gallery renders for the owner's
+verdict — never with prose claiming the UI is good.
 
 ## Language
 
@@ -59,6 +71,13 @@ identifiers, German UI labels). The register is informal **du** (never Sie);
 neutral infinitive imperatives are fine. Everything development-facing — code,
 routes, dev pages, commit messages, docs, comments — is **English**. "Findbuch"
 is banned from UI copy (archaic).
+
+## Standing law changes update the briefs in the same wave
+
+When a ruling changes standing law (a testing rule, a contract like the deny
+shape, a workflow), update the agent briefs (`CLAUDE.md`, `docs/agents/`,
+`tests/CLAUDE.md`) in the same wave as the code. A brief that contradicts the
+code regenerates the old behavior in the next wave.
 
 ## Clean history within your own wave
 

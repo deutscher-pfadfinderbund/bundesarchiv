@@ -2,7 +2,7 @@
 
 POST /artikel/sammelbearbeitung: archivist-gated, POST-only. Phase 1 (no bestaetigt) → confirm page;
 phase 2 (bestaetigt=1) → apply + result page. The deny suite (spec §6) is the load-bearing part
-(mutation-tested): non-archivist → byte-identical 404 with ZERO writes; GET → 404; feld allowlist;
+(mutation-tested): non-archivist → 404 with ZERO writes; GET → 404; feld allowlist;
 dependent-pair server-enforced; orphan dokumenttyp_leeren server-enforced. The write path is real;
 only index + queue seams are stubbed (conftest.py).
 """
@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
@@ -66,21 +66,6 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
-
-
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
@@ -94,8 +79,7 @@ def test_bulk_denied_is_404_and_writes_nothing(corpus: _Corpus, viewer: Viewer) 
             "/artikel/sammelbearbeitung",
             {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Gekapert", "bestaetigt": "1"},
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
     # nothing mutated
     assert corpus.article(_A).creator is None
     assert corpus.article(_B).creator is None
@@ -103,7 +87,7 @@ def test_bulk_denied_is_404_and_writes_nothing(corpus: _Corpus, viewer: Viewer) 
 
 def test_bulk_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        assert _client_as(Archivist()).get("/artikel/sammelbearbeitung").status_code == 404
+        assert_denied(_client_as(Archivist()).get("/artikel/sammelbearbeitung"))
 
 
 @pytest.mark.parametrize("feld", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit"])
@@ -394,7 +378,7 @@ def test_bulk_dokumenttypen_denied_never_content(corpus: _Corpus, viewer: Viewer
         response = _client_as(viewer).get(
             "/artikel/sammelbearbeitung/dokumenttypen?media_type=Fotografie"
         )
-    assert response.status_code == 404
+    assert_denied(response)
     assert b"Portr" not in response.content
 
 

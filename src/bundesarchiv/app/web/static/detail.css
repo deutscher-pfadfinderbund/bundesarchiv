@@ -1,5 +1,5 @@
 /* Part 4.6 — Artikel DETAIL read view (the Lesesaal). Role tokens ONLY; a raw color here is a defect
-   (pinned by the raw-color sweep, test_components.py). Loads after tokens.css + components.css.
+   (design-system.md, "Roles, not colors"). Loads after tokens.css + components.css.
 
    Grammar (spec §0): violet ink appears ONLY on the Signatur (.c-sig, from the atom), the mono
    machine values (.l-akte-val--mono, .l-register-zahl), and the inline links; the human Datierung

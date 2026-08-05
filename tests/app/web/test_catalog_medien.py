@@ -8,8 +8,8 @@ Three structural POST routes plus the caption metadata save:
   a clean German error not a 500. The blob persists BEFORE the README references it.
 - captions ride the main edit-form save (``save_article``), README round-trip, ``"" → None``.
 
-SECURITY (mutation-tested): every structural route archivist-gated, POST-only → byte-identical 404
-for Member/Public/anon; the deny tests assert the media tuple is UNCHANGED. The write path is real;
+SECURITY (mutation-tested): every structural route archivist-gated, POST-only → 404 for
+Member/Public/anon; the deny tests assert the media tuple is UNCHANGED. The write path is real;
 only index + queue seams are stubbed (conftest.py).
 """
 
@@ -19,8 +19,8 @@ import pytest
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
@@ -30,12 +30,11 @@ from bundesarchiv.domain.models import (
     Collection,
     Lifecycle,
     MediaRef,
-    Version,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository, Stored
+from bundesarchiv.persistence.repository import ArticleRepository
 
 _DEV_KEY = "test-catalog-medien-key"
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
@@ -90,21 +89,6 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
-
-
 def _hashes(corpus: _Corpus) -> list[str]:
     return [m.content_hash for m in corpus.media()]
 
@@ -154,19 +138,16 @@ def test_verschieben_denied_leaves_order(corpus: _Corpus, viewer: Viewer) -> Non
             f"/artikel/{_ULID}/medien/verschieben",
             {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
     assert _hashes(corpus) == before  # order unchanged
 
 
 def test_verschieben_get_is_404(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        assert (
-            _client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben").status_code == 404
-        )
+        assert_denied(_client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben"))
 
 
-def test_verschieben_against_deleted_article_is_byte_identical_404(
+def test_verschieben_against_deleted_article_is_404(
     corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # _load_gated passes (the article existed at gate time), but the article is hard-deleted before
@@ -186,8 +167,7 @@ def test_verschieben_against_deleted_article_is_byte_identical_404(
             f"/artikel/{_ULID}/medien/verschieben",
             {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
 
 
 def test_structural_save_conflict_surfaces_hinweis_not_silent(
@@ -212,45 +192,6 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
     assert response.status_code == 200
     assert "bitte erneut versuchen" in response.content.decode().lower()
     assert _hashes(corpus) == before  # nothing changed
-
-
-def test_verschieben_reads_article_from_disk_exactly_once_pin(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Load-count pin (issue #2, P3+P2): a successful verschieben POST reads the article from disk
-    exactly ONCE total — the auth gate's own load. ``_structural_save``'s first attempt must reuse
-    that already-gated ``Stored`` (no re-load before the save call), and the post-save re-render must
-    be fed the ``Stored`` ``_structural_save`` returns (no re-load after). Counts real
-    ``ArticleRepository.load``/``.save`` calls (a spy that calls through — no mocking the unit under
-    test)."""
-    load_calls: list[str] = []
-    original_load = ArticleRepository.load
-
-    def counting_load(self: ArticleRepository, ulid: str) -> Stored:
-        load_calls.append(ulid)
-        return original_load(self, ulid)
-
-    monkeypatch.setattr(ArticleRepository, "load", counting_load)
-
-    reads_before_save: list[int] = []
-    original_save = ArticleRepository.save
-
-    def counting_save(
-        self: ArticleRepository, article: Article, expected_version: Version
-    ) -> Version:
-        reads_before_save.append(len(load_calls))  # snapshot the read count AT the save call
-        return original_save(self, article, expected_version)
-
-    monkeypatch.setattr(ArticleRepository, "save", counting_save)
-
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/medien/verschieben",
-            {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
-        )
-    assert response.status_code == 200
-    assert reads_before_save == [1]  # exactly 1 read (the gate's) before the save call
-    assert len(load_calls) == 1  # and none after — the re-render reuses the post-save Stored
 
 
 # --- remove (two-step) -------------------------------------------------------------
@@ -287,15 +228,14 @@ def test_entfernen_denied_leaves_media(corpus: _Corpus, viewer: Viewer) -> None:
             f"/artikel/{_ULID}/medien/entfernen",
             {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
     assert len(corpus.media()) == 2  # nothing removed
 
 
-def test_member_with_valid_csrf_still_gets_byte_identical_404(corpus: _Corpus) -> None:
+def test_member_with_valid_csrf_still_gets_404(corpus: _Corpus) -> None:
     # The real leak-suite concern: an AUTHENTICATED non-archivist can obtain a CSRF token, so CSRF
     # (which floors an anonymous tokenless POST to 403) must not be the only barrier. A Member who
-    # clears CSRF must still hit the archivist gate's byte-identical 404 — no existence oracle, no
+    # clears CSRF must still hit the archivist gate's 404 — no existence oracle, no
     # mutation. Seed the csrf cookie via the DB-free dev switcher GET (prod routes are composed into
     # the dev urlconf), then POST the structural route with a matching token.
     client = Client(enforce_csrf_checks=True)
@@ -320,8 +260,7 @@ def test_member_with_valid_csrf_still_gets_byte_identical_404(corpus: _Corpus) -
                 "csrfmiddlewaretoken": token,
             },
         )
-    assert response.status_code == 404  # the archivist gate, not a 403 and not a leak
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)  # the archivist gate, not a 403 and not a leak
     assert len(corpus.media()) == 2  # nothing removed
 
 
@@ -398,8 +337,7 @@ def test_hochladen_denied_attaches_nothing(corpus: _Corpus, viewer: Viewer) -> N
         response = _client_as(viewer).post(
             f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
     assert len(corpus.media()) == 2  # nothing attached
 
 
@@ -458,27 +396,6 @@ def test_edit_form_renders_media_register_with_cover_stamp(corpus: _Corpus) -> N
     assert "Titelbild" in body  # the cover stamp label
     assert "cover.jpg" in body  # the filename
     assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL
-
-
-def test_edit_form_zero_state_when_no_media(corpus: _Corpus) -> None:
-    # a fresh article with no media shows the teaching zero-state
-    repo = ArticleRepository(corpus.store)
-    empty = "01KX7YT9E3VX0CP3A5Q49RZMWK"
-    repo.save(Article(ulid=empty, title="Leer", collection_id="PUB", lifecycle=Lifecycle.DRAFT), 0)
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{empty}/bearbeiten").content.decode()
-    assert "Noch keine Medien" in body
-    assert "Das erste hochgeladene Bild wird zum Titelbild." in body
-
-
-def test_upload_controls_belong_to_the_medien_upload_form(corpus: _Corpus) -> None:
-    # fix-wave: the upload file input + button sit inside the Medien drawer but carry
-    # form="medien-upload" (the separate multipart form declared after the main form).
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    assert 'type="file" name="dateien" form="medien-upload"' in body
-    assert '<form id="medien-upload"' in body
-    assert 'enctype="multipart/form-data"' in body
 
 
 # --- values-preserved-verbatim: error/conflict re-renders keep typed captions ------

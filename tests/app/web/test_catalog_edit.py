@@ -1,22 +1,21 @@
 """The full edit form ``/artikel/<ulid>/bearbeiten`` (Part 4.7 Slice B, spec §2/§3/§6.1/§8).
 
 GET seeds the form from the stored Article; POST parses + saves under CAS (ADR 0013) and 302s to the
-read view. Both methods are archivist-gated to the media route's byte-identical 404 for Member /
-Public / anonymous, and for a malformed or absent ulid (existence-hiding). Validation re-renders
+read view. Both methods are archivist-gated to a 404 for Member / Public / anonymous, and for a
+malformed or absent ulid (existence-hiding). Validation re-renders
 state F (verbatim error, preserved values). A raced concurrent save re-renders state G — the
 "Inzwischen geändert" panel — with the loser's input preserved and a refreshed ``expected_version``.
 The whole write path is REAL (repository + README + CAS); only the index + queue seams are stubbed
 (see ``conftest.py``).
 """
 
-import re
 from pathlib import Path
 
 import pytest
 from django.core import signing
 from django.http import HttpRequest
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
@@ -75,21 +74,6 @@ def _client_as(viewer: Viewer) -> Client:
     signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
     client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
     return client
-
-
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
 
 
 def _valid_post(corpus: _Corpus, **overrides: str) -> dict[str, str]:
@@ -159,32 +143,24 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> 
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------
 
 
+# (The GET deny is the leak matrix's cell for this route — only the POST twin adds the
+# nothing-was-changed side-effect assert the matrix can't see.)
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_edit_get_is_byte_identical_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).get(f"/artikel/{_ULID}/bearbeiten")
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
-
-
-@pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_edit_post_is_byte_identical_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
+def test_edit_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(
             f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gekapert")
         )
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
     # the non-archivist POST changed nothing
     assert ArticleRepository(corpus.store).load(_ULID).article.title == "Wanderfahrt 1962"
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
-def test_edit_malformed_or_absent_ulid_is_byte_identical_404(corpus: _Corpus, ulid: str) -> None:
+def test_edit_malformed_or_absent_ulid_is_404(corpus: _Corpus, ulid: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten")
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
+    assert_denied(response)
 
 
 # --- POST: save success + read-view redirect ---------------------------------------
@@ -202,49 +178,6 @@ def test_edit_post_saves_and_redirects_to_read_view(corpus: _Corpus) -> None:
     assert stored.article.title == "Neuer Titel"
     assert stored.article.creator == "Kurt Meyer"
     assert stored.version == corpus.version + 1
-
-
-def test_index_lag_rerender_reuses_saved_state_no_reload_pin(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Load-count pin (issue #2, P2): the ADR-0014 index-lag re-render must reuse the just-saved
-    Article + the already-in-scope collections instead of reloading either from disk. Force the
-    synchronous index update to fail (state H) and count real ``ArticleRepository.load`` /
-    ``CollectionRepository.load_all`` calls across the whole POST: exactly 1 each (the initial gate
-    load / the initial ``_collections(store)`` call in ``article_edit``), none more from the
-    re-render. Counting spies call through — no mocking the unit under test."""
-    from bundesarchiv.app import articles
-
-    monkeypatch.setattr(
-        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
-    )
-
-    load_calls: list[str] = []
-    original_load = ArticleRepository.load
-
-    def counting_load(self: ArticleRepository, ulid: str) -> object:
-        load_calls.append(ulid)
-        return original_load(self, ulid)
-
-    monkeypatch.setattr(ArticleRepository, "load", counting_load)
-
-    load_all_calls: list[None] = []
-    original_load_all = CollectionRepository.load_all
-
-    def counting_load_all(self: CollectionRepository) -> tuple[Collection, ...]:
-        load_all_calls.append(None)
-        return original_load_all(self)
-
-    monkeypatch.setattr(CollectionRepository, "load_all", counting_load_all)
-
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Lagerchronik")
-        )
-    assert response.status_code == 200  # re-render carrying the hinweis, not a 302
-    assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
-    assert len(load_calls) == 1  # the initial gate load only
-    assert len(load_all_calls) == 1  # the initial _collections(store) call only
 
 
 def test_edit_post_empties_optional_to_none(corpus: _Corpus) -> None:
@@ -335,7 +268,7 @@ def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _Corpus) 
 # --- POST: stale save against a hard-deleted article -------------------------------
 
 
-def test_stale_save_against_deleted_article_is_byte_identical_404(
+def test_stale_save_against_deleted_article_is_404(
     corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The archivist opened the form at version 1 (the gate passes and loads the article); an
@@ -356,24 +289,7 @@ def test_stale_save_against_deleted_article_is_byte_identical_404(
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
-    assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
-
-
-# --- autofocus (spec §5) -----------------------------------------------------------
-
-
-def test_validation_re_render_autofocuses_first_errored_field(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="")
-        )
-    body = response.content.decode()
-    # the Titel <input> itself carries autofocus (first errored field) — anchored to the element,
-    # not merely present somewhere in the document, so a dropped/emptied autofocus context fails this.
-    title_input = re.search(r'<input[^>]*\bname="title"[^>]*>', body)
-    assert title_input is not None
-    assert "autofocus" in title_input.group()
+    assert_denied(response)
 
 
 # --- no-JS custom-row removal ------------------------------------------------------

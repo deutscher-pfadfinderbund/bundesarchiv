@@ -49,12 +49,9 @@ RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 class CorpusHandles:
     """What the journeys reference in the built corpus."""
 
-    fotos_id: str
-    akten_id: str
     draft_ulid: str
     published_ulid: str
     second_ulid: str
-    published_cover_hash: str
     renamable_ulid: str
 
 
@@ -143,11 +140,8 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         for content_hash in (cover.content_hash, plate.content_hash):
             thumbnails.generate_thumbnail(store, content_hash, thumbnail_root)
     return CorpusHandles(
-        fotos_id="FOTOS",
-        akten_id="AKTEN",
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,
         second_ulid=SECOND_ULID,
-        published_cover_hash=cover.content_hash,
         renamable_ulid=RENAMABLE_ULID,
     )

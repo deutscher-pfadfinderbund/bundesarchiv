@@ -1,6 +1,6 @@
 /* Dev-only workbench LAYOUT frame (/_dev/layouts/<name>/, layouts_demo.py). Role tokens ONLY
-   (tokens.css), no raw color values — same law as components.css and pinned by the raw-color sweep
-   (test_layouts.py). Load order: tokens.css, components.css (the atoms), then this file. This file
+   (tokens.css), no raw color values — same law as components.css.
+   Load order: tokens.css, components.css (the atoms), then this file. This file
    owns ONLY the page frame (grid, header, sidebar, pane) and the two per-layout state behaviors;
    the atoms style themselves. Stamp grammar holds: violet lives only on the atoms' marks; the
    frame chrome is pure neutral. Bevel restraint: the frame adds NO bevels (the cut corner belongs

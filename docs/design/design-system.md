@@ -4,11 +4,49 @@ Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
 no formal acceptance step. Governs all web UI from Part 4 on. Sibling DPB
 services reuse the whole system by swapping one seed line.
 
+## Construction law (owner, 2026-08-05)
+
+How UI gets BUILT — these rank with the visual laws below. Background: agents
+tend to fill gaps with invented chrome and ad-hoc markup; these rules make
+simplicity checkable instead of a matter of taste.
+
+- **Semantic HTML (2026) is the basis.** Native elements and their built-in
+  behavior first (`form`, `fieldset`, `dialog`, `details`, `nav`, `table`,
+  `output`, …); a div-plus-CSS reconstruction of something HTML already
+  provides is a defect. Deviate from browser-plain only where a law here or
+  the spec demands it.
+- **Component hierarchy, reuse-first.** Atoms (`templates/components/`) →
+  molecules → layouts → pages. New UI composes existing
+  components; no ad-hoc one-off markup where a component exists, and no
+  redundant near-duplicate components. If something genuinely new is needed,
+  it is added DELIBERATELY: named, filed in the hierarchy, mapped here — or
+  it doesn't ship.
+- **Provenance.** Every visible element traces to a named archivist wish
+  (`docs/requirements/`), an owner ruling, or a spec section
+  (`docs/design/part-4-web.md`). No element exists "for completeness."
+- **Consistency beats novelty.** The same action looks and behaves the same
+  everywhere; one pattern per problem. A second variant of an existing
+  pattern needs an owner ruling, not an agent's judgment call.
+- **CSS: the cascade, not a class taxonomy** (owner, 2026-08-05; Tailwind
+  considered and rejected — no Node build step, and utility soup fights the
+  semantic-HTML basis). Style semantic elements in scoped contexts using
+  modern native CSS (nesting, `@scope`, `@layer`, `:where()` for
+  low-specificity defaults); consistency comes from the custom-property
+  tokens (the three layers above), which stay the single source of visual
+  truth. Classes only where semantics cannot discriminate, named for
+  meaning. The legacy `c-*`/`l-*` prefix taxonomy is DEPRECATED — do not
+  extend it; it dissolves in one deliberate rework wave (no piecemeal
+  migration: two coexisting class systems is the worst state).
+- **UI waves end at the design gate, judged on pixels.** Deliverable is
+  before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
+  owner's verdict — agent prose about the UI is not acceptance. Subtraction-
+  first: prefer waves that only remove.
+
 ## Principles
 
 - **Roles, not colors.** Components reference role tokens (`--surface`,
   `--on-primary`, …). Only the reference layer mixes color. A hex value in a
-  component style is a defect (pinned by the raw-color sweep test).
+  component style is a defect (convention; reviewed at the design gate).
 - **The stamp grammar** (owner, 2026-07-10) is the color-application law:
   the seed tint appears ONLY on archival marks — Signatur codes, mono
   counts/dates, links, the focus ring. All other chrome is neutral;
@@ -85,8 +123,8 @@ Each role declares its light and dark value in one place:
 | `outline` vs adjacent surfaces | — | 3:1 |
 | `focus-ring` vs all surfaces | — | 3:1 |
 
-Initial L values are an implementation detail pinned by the contrast test;
-the table's pairs and minimums are the contract. The four `surface-container`
+Initial L values are an implementation detail; the table's pairs and
+minimums are the contract, judged at the design gate. The four `surface-container`
 steps are the elevation ramp (page → panel → card → raised) in both modes.
 
 Semantic notes:
@@ -142,12 +180,13 @@ Cards remain for photo-heavy and member-facing contexts.
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 
-## Contrast test
+## Contrast
 
-`tests/app/web/test_design_tokens.py`: parses `tokens.css`, resolves every
-role to sRGB for both modes (small color-math helper or a dev-only
-dependency), computes WCAG ratios for every pair in the table above, fails
-under the stated minimum. Gates run it like any other test.
+Contrast for the pairs in the table above is judged at the design gate
+(gallery renders every state in both modes). The automated WCAG contrast
+test was removed in the 2026-08 test audit — colors are chosen once; the
+tokens file is the single place they change, and a change goes through the
+design gate anyway.
 
 ## Extensions (optional, non-integral)
 
@@ -159,7 +198,7 @@ never at the cost of the core.
 
 ## Migration plan
 
-1. `tokens.css` (all three layers) + contrast test. No visual change yet.
+1. `tokens.css` (all three layers). No visual change yet.
 2. Restyle the workbench stylesheet to consume roles only; parity-check
    against the approved round-3 mock (dark) and its light-mode derivation.
 3. Every later screen (4.7 form, 4.8 collections, 4.6 detail) consumes roles

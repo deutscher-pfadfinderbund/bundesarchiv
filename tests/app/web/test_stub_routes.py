@@ -3,8 +3,8 @@
 ``/artikel/<ulid>`` (``artikel-detail``) is the result-link target, a STUB for 4.6 that registers
 its URL name now and — critically — ships its VISIBILITY GATE with the workbench, not after it. It
 applies the SAME rule the real detail view will: load + resolve the chain + ``can_view``; any deny
-(forbidden article, missing article, malformed ulid, broken chain) collapses to the byte-identical
-404 (existence-hiding).
+(forbidden article, missing article, malformed ulid, broken chain) collapses to a plain 404 with
+no leaked content (existence-hiding; the byte-identical-404 law was relaxed by the owner, 2026-08).
 
 (``/artikel/neu`` was a stub here too until Part 4.7 replaced it with the real create form — its
 archivist-gate is now pinned by ``test_catalog_create.py``.)
@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
@@ -84,24 +84,6 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    """The byte-identical 404 the media route emits, captured directly from ``media_views`` so the
-    stubs are pinned to the SAME shape (not a copy that could drift)."""
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in r.items() if k not in volatile)
-    return r.content, headers
-
-
-def _stub_404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]  # 404s are non-streaming
-    return content, headers
-
-
 # --- /artikel/<ulid> (detail stub, can_view gated) -------------------------------
 
 
@@ -114,18 +96,17 @@ def test_detail_served_when_can_view(corpus: _Corpus) -> None:
     assert "public Artikel" in response.content.decode()  # the article's title renders
 
 
-def test_detail_stub_denies_forbidden_article_as_byte_identical_404(corpus: _Corpus) -> None:
-    # A members-only article, viewed as Public → the SAME 404 as a nonexistent one (existence-hiding).
+def test_detail_stub_denies_forbidden_article_with_404(corpus: _Corpus) -> None:
+    # A members-only article, viewed as Public → 404, like a nonexistent one (existence-hiding).
     with override_settings(**_settings(corpus)):
         response = _client_as(Public()).get(f"/artikel/{corpus.ulid_by_tier['members']}")
-    assert response.status_code == 404
-    assert _stub_404_shape(response) == _media_404_shape()
+    assert_denied(response)
 
 
 def test_detail_stub_denies_draft_to_member(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Member(groups=())).get(f"/artikel/{corpus.ulid_by_tier['draft']}")
-    assert response.status_code == 404
+    assert_denied(response)
 
 
 def test_detail_stub_archivist_sees_draft(corpus: _Corpus) -> None:
@@ -138,8 +119,7 @@ def test_detail_stub_archivist_sees_draft(corpus: _Corpus) -> None:
     "ulid",
     ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"],  # malformed, then well-formed-but-absent
 )
-def test_detail_stub_malformed_or_missing_is_byte_identical_404(corpus: _Corpus, ulid: str) -> None:
+def test_detail_stub_malformed_or_missing_is_404(corpus: _Corpus, ulid: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(f"/artikel/{ulid}")
-    assert response.status_code == 404
-    assert _stub_404_shape(response) == _media_404_shape()
+    assert_denied(response)

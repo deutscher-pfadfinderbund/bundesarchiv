@@ -20,7 +20,7 @@ Chosen because the application is **server-render-shaped** (CRUD + faceted searc
 
 **Update 2026-07-05 — prototype confirmation (Part 4.0):** the cataloging form was
 built twice (HTMX and Datastar, identical feature set) against the real service
-layer; see `docs/plans/prototype-4.0-memo.md`. Owner confirmed HTMX. Deciding
+layer; see `docs/design/prototype-4.0-memo.md`. Owner confirmed HTMX. Deciding
 facts: upload progress is impossible over Datastar's fetch-based actions (a
 categorical gap for an upload-heavy archive), the Datastar variant needed ~45
 lines of hand-rolled SSE plumbing for one-shot responses, and its v1.0

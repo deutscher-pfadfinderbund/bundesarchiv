@@ -14,11 +14,10 @@ from django.test import Client, override_settings
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
 _DEV_KEY = "test-bestand-entry-key"
 FOTOS = new_ulid()
@@ -28,15 +27,8 @@ FOTOS = new_ulid()
 def root(tmp_path: Path) -> Path:
     store = LocalFsObjectStore(tmp_path / "canonical")
     collections = CollectionRepository(store)
-    articles = ArticleRepository(store)
     collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
     collections.save(Collection(FOTOS, "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-    articles.save(
-        Article(
-            ulid=new_ulid(), title="Ein Foto", collection_id=FOTOS, lifecycle=Lifecycle.PUBLISHED
-        ),
-        0,
-    )
     return tmp_path / "canonical"
 
 
@@ -91,35 +83,3 @@ def test_public_never_gets_edit_affordance(root: Path) -> None:
     with override_settings(**_settings(root)):
         body = _client_as(Public()).get(f"/?bestand={FOTOS}").content.decode()
     assert "/bearbeiten" not in body
-
-
-# --- honest empty state for a collection-filtered zero-hit workbench (item 3) --------
-
-_EMPTY_BESTAND = "01KX939S67DNGH0AB53HNXGB9C"  # a valid ULID with no articles under it
-
-
-@pytest.mark.django_db
-def test_bestand_empty_state_copy_for_archivist(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get(f"/?bestand={_EMPTY_BESTAND}").content.decode()
-    assert "Noch keine Artikel in diesem Bestand." in body
-    assert "Entferne einzelne Filter" not in body  # the generic copy must not show here
-    # archivist gets a "+ Neuer Artikel" link pre-seeded with this Bestand
-    assert f"/artikel/neu?bestand={_EMPTY_BESTAND}" in body
-
-
-@pytest.mark.django_db
-def test_bestand_empty_state_copy_for_public_no_create_link(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Public()).get(f"/?bestand={_EMPTY_BESTAND}").content.decode()
-    assert "Noch keine Artikel in diesem Bestand." in body
-    assert "/artikel/neu" not in body  # non-archivist sees just the plain sentence
-
-
-@pytest.mark.django_db
-def test_generic_empty_state_when_search_has_other_filters(root: Path) -> None:
-    # a zero-hit search that is NOT purely a bestand filter keeps the generic copy.
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get("/?q=nichtsda").content.decode()
-    assert "Entferne einzelne Filter" in body
-    assert "Noch keine Artikel in diesem Bestand." not in body
