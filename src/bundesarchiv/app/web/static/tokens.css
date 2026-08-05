@@ -2,7 +2,7 @@
    NO component styles in this file. Consumers reference ROLE tokens only; a hex value in a
    component style is a defect (spec principle "Roles, not colors").
 
-   Format contract (tests/app/web/test_design_tokens.py parses this file):
+   Format contract (keep the layers machine-readable):
    - the seed:      --seed: oklch(<L> <C> <H>);
    - ramp entries:  --<name>: oklch(from var(--seed) <L> <C|c> h);   (relative, seed hue)
                     --<name>: oklch(<L> <C> <H>);                    (absolute, semantic hues)

@@ -8,11 +8,8 @@ queries over it. The public interface is deliberately tiny:
 - ``search(viewer, ...)`` — viewer-scoped, field-floor-aware query (Task 8).
 - ``SearchPage`` / ``SearchHit`` / ``SearchFilters`` — the frozen result/query types.
 
-Nothing outside this package may import ``bundesarchiv.index`` and nothing inside
-``domain``/``persistence`` may import Django (tests/index/test_architecture.py pins both).
-
-The names below are stubs; Tasks 6-8 fill them in. They exist now so the public
-interface is fixed and the architecture test can assert ``__all__``.
+Nothing outside ``app`` may import ``bundesarchiv.index`` and nothing inside
+``domain``/``persistence`` may import Django (layering convention, enforced in review).
 """
 
 from typing import TYPE_CHECKING, Any

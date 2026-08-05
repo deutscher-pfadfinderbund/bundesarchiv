@@ -1,5 +1,5 @@
 /* Cataloging-form styles (Part 4.7, spec §4/§6). Role tokens from tokens.css ONLY — a hex value
-   here is a defect (design-system.md; pinned by the raw-color sweep in test_components.py). Load
+   here is a defect (design-system.md, "Roles, not colors"). Load
    order: tokens.css, components.css, then this file (it reuses the atom classes .c-field/.c-input/
    .c-select/.c-btn/.c-sig and only adds the form column, drawers, sticky footer, field-error and
    CAS-panel chrome). No new tokens, no new type roles, no motion.

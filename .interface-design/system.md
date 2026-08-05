@@ -21,8 +21,8 @@ ink on paper stock, stamped marks, no decoration.
 - **No motion**: no transitions/animations — this tool is used 100×/day.
   Busy states are static (e.g. opacity dim).
 - **Roles, not colors**: components reference role tokens only; a raw hex in
-  component CSS is a defect (swept by test). Contrast is a tested invariant
-  (`tests/app/web/test_design_tokens.py`, both modes).
+  component CSS is a defect. Contrast is checked by eye at the design gate
+  (gallery renders both modes).
 - **Modern CSS floor**: OKLCH relative colors, `light-dark()`,
   `corner-shape: bevel`. No fallbacks.
 

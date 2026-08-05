@@ -32,8 +32,8 @@ _COLLATION = "de_numeric"
 
 
 @pytest.fixture
-def cursor(pg_connection: object) -> Iterator[CursorWrapper]:
-    """A live cursor on the test database (see ``tests/index/conftest.py``)."""
+def cursor(_pg_guard: None, db: None) -> Iterator[CursorWrapper]:
+    """A live cursor on the test database (guarded like every DB fixture, tests/conftest.py)."""
     from django.db import connection
 
     with connection.cursor() as cur:

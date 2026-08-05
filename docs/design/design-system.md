@@ -8,7 +8,7 @@ services reuse the whole system by swapping one seed line.
 
 - **Roles, not colors.** Components reference role tokens (`--surface`,
   `--on-primary`, …). Only the reference layer mixes color. A hex value in a
-  component style is a defect (pinned by the raw-color sweep test).
+  component style is a defect (convention; reviewed at the design gate).
 - **The stamp grammar** (owner, 2026-07-10) is the color-application law:
   the seed tint appears ONLY on archival marks — Signatur codes, mono
   counts/dates, links, the focus ring. All other chrome is neutral;
@@ -142,12 +142,13 @@ Cards remain for photo-heavy and member-facing contexts.
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 
-## Contrast test
+## Contrast
 
-`tests/app/web/test_design_tokens.py`: parses `tokens.css`, resolves every
-role to sRGB for both modes (small color-math helper or a dev-only
-dependency), computes WCAG ratios for every pair in the table above, fails
-under the stated minimum. Gates run it like any other test.
+Contrast for the pairs in the table above is judged at the design gate
+(gallery renders every state in both modes). The automated WCAG contrast
+test was removed in the 2026-08 test audit — colors are chosen once; the
+tokens file is the single place they change, and a change goes through the
+design gate anyway.
 
 ## Extensions (optional, non-integral)
 
