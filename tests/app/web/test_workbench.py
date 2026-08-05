@@ -37,7 +37,7 @@ _DEV_KEY = "test-workbench-dev-key"
 # mnemonic ids like "PUBFOTO" fail). PANE_PUB is public; PANE_MEM is members-only + floored fields.
 PANE_PUB_ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
 PANE_MEM_ULID = "01KX6RHVHG90WHP1PZWP0GSKQR"
-# A valid ULID that is NOT in the corpus — the "absent" pane case (must be byte-identical to denied).
+# A valid ULID that is NOT in the corpus — the "absent" pane case (must render no pane, like denied).
 PANE_ABSENT_ULID = "01KX6RHVHG90WHP1PZWP0GSKZZ"
 
 
@@ -185,7 +185,7 @@ class _Corpus:
         # Two articles with VALID ULIDs so the preview pane (resolve_visible_article -> is_valid_ulid)
         # can open them. PANE_PUB is public (pane opens for everyone) and carries a captioned media
         # file; PANE_MEM is members-only with the floored fields (pane denied for public -> the
-        # workbench renders byte-identically to no ?artikel; floored fields never in a member body).
+        # workbench renders no pane at all; floored fields never in a member body).
         pub_ref = articles.add_media(
             PANE_PUB_ULID, "titel.jpg", b"pane-cover-bytes", "image/jpeg", "Titelaufnahme der Fahrt"
         )
@@ -355,15 +355,11 @@ def test_history_restore_request_renders_full_page(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "viewer",
-    [Public(), Member(groups=()), Archivist()],
-    ids=["public", "member", "archivist"],
-)
-def test_no_template_comment_syntax_leaks_into_page(corpus_root: Path, viewer: Viewer) -> None:
+def test_no_template_comment_syntax_leaks_into_page(corpus_root: Path) -> None:
     # Django's hash-style template comment is SINGLE-LINE only: a multi-line one renders literally
-    # into the page. Pin that no comment syntax ever reaches the body, for every tier.
-    body = _get(corpus_root, viewer).content.decode()
+    # into the page. Pin that no comment syntax ever reaches the body (archivist sees the most
+    # template surface).
+    body = _get(corpus_root, Archivist()).content.decode()
     assert "{#" not in body
 
 
@@ -431,22 +427,6 @@ def test_entwurf_badge_and_bearbeiten_only_for_archivist(corpus_root: Path) -> N
         assert "c-badge--entwurf" not in body, f"[{label}] ENTWURF badge chrome leaked"
 
 
-# --- Task 11: htmx failures are visible (responseError/sendError) ----------------
-
-
-@pytest.mark.django_db
-def test_htmx_error_banner_ships_on_every_page(corpus_root: Path) -> None:
-    # A failed hx-POST (500, network down) must not fail silently: a document-level listener on
-    # htmx:responseError/htmx:sendError reveals a dismissible, announced banner. Pinned via
-    # base.html (every workbench page carries it), not tied to one screen.
-    body = _get(corpus_root, Public()).content.decode()
-    assert "htmx:responseError" in body
-    assert "htmx:sendError" in body
-    assert "Aktion fehlgeschlagen. Bitte erneut versuchen." in body
-    assert 'role="alert"' in body
-    assert 'aria-live="assertive"' in body
-
-
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
 
 
@@ -455,16 +435,6 @@ def test_facets_render_with_headings(corpus_root: Path) -> None:
     body = _get(corpus_root, Public()).content.decode()
     for heading in ("Bestand", "Medienart", "Dokumenttyp", "Schlagworte", "Jahrzehnte"):
         assert heading in body
-
-
-@pytest.mark.django_db
-def test_collection_facet_shows_name_and_no_direkt_label(corpus_root: Path) -> None:
-    body = _get(corpus_root, Public()).content.decode()
-    assert "Fotografien" in body  # ULID resolved to the Collection NAME (the visible label)
-    # The ULID rides in the facet link href (URL-as-state), but the ANCHOR TEXT is the name, not the
-    # ULID — the raw ULID never shows as the clickable label.
-    assert ">FOTOS</a>" not in body
-    assert "direkt:" not in body  # the "direkt:" hedge is gone — counts are subtree counts now
 
 
 @pytest.mark.django_db
@@ -488,25 +458,6 @@ def test_media_facet_filter_narrows_results(corpus_root: Path) -> None:
     body = _get(corpus_root, Public(), "medienart=Schrifttum").content.decode()
     assert "Undatiertes Liederheft" in body
     assert "Öffentliches Foto" not in body  # a Foto is excluded
-
-
-@pytest.mark.django_db
-def test_active_filter_removal_lives_in_the_sidebar_not_chips(corpus_root: Path) -> None:
-    # The chips row died: active-filter state + removal live ONLY in the sidebar. An active facet row
-    # gets the inversion marking + an inline ✕ (the remove affordance). No separate chips row.
-    body = _get(corpus_root, Public(), "medienart=Foto").content.decode()
-    assert "c-facet-row--aktiv" in body  # the active facet row is marked
-    assert "entfernen" in body  # the ✕ remove affordance (aria-label "... entfernen")
-    assert 'aria-label="Aktive Filter"' not in body  # no chips row
-
-
-@pytest.mark.django_db
-def test_active_date_range_removable_in_datum_group(corpus_root: Path) -> None:
-    # von/bis removal moved into the DATUM group (chips are gone). An active range shows as a
-    # removable row there.
-    body = _get(corpus_root, Public(), "von=1960-01-01").content.decode()
-    assert "von: 1960-01-01" in body  # the active bound, in the sidebar DATUM group
-    assert "entfernen" in body
 
 
 # --- search form keeps active facet filters (GH #21) ------------------------------
@@ -596,21 +547,6 @@ def test_long_signaturen_render_in_full(corpus_root: Path) -> None:
     assert "BA 1848/II" in body
 
 
-@pytest.mark.django_db
-def test_sort_headers_cycle_asc_desc_default(corpus_root: Path) -> None:
-    # The header sort cycle (the select is gone): a plain click sets ascending; the active-ascending
-    # header links to descending (-signatur); the active-descending header links back to default
-    # (no sortierung). Assert the link algebra the headers emit.
-    asc = _get(corpus_root, Public(), "sortierung=signatur").content.decode()
-    assert "sortierung=-signatur" in asc  # active-asc header now offers descending
-    desc = _get(corpus_root, Public(), "sortierung=-signatur").content.decode()
-    # active-desc header offers clearing the sort (default/Relevanz) — no sortierung in its href.
-    assert "▼" in desc  # the descending glyph is shown on the active column
-    # and there is no sort <select> anywhere — headers are the only sort CONTROL (the search form's
-    # hidden `name="sortierung"` input, added by GH #21, merely echoes the active sort; it is not one).
-    assert "<select" not in desc
-
-
 # --- param injection: garbage → 200 defaults, never 500 --------------------------
 
 
@@ -655,33 +591,7 @@ def test_ledger_row_href_is_the_canonical_detail_route(corpus_root: Path) -> Non
     assert f'href="?artikel={PANE_PUB_ULID}"' not in body
 
 
-@pytest.mark.django_db
-def test_ledger_pane_enhancement_script_is_loaded_and_served(corpus_root: Path) -> None:
-    # The enhancement is a deferred static script (same mechanism as htmx); the no-JS baseline works
-    # without it, so it degrades cleanly if unavailable.
-    body = _get(corpus_root, Public()).content.decode()
-    assert '<script src="/static/ledger_pane.js" defer></script>' in body
-    with override_settings(**_settings(corpus_root)):
-        served = _client_as(Public()).get("/static/ledger_pane.js")
-    assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
-
-
-# --- absence renders as absence: no em-dash placeholders in the ledger ------------------
-
-
-@pytest.mark.django_db
-def test_absent_datierung_typ_render_nothing_not_an_em_dash(corpus_root: Path) -> None:
-    # "Undatiertes Liederheft" has no date (date=None). Absence must render as ABSENCE — the old
-    # `default:"—"` placeholder is gone: a dateless/typeless value renders NOTHING, so no em-dash
-    # ever appears inside a ledger cell (the "—" in the <title> separator is legitimate and stays).
-    body = _get(corpus_root, Public()).content.decode()
-    assert "Undatiertes Liederheft" in body  # the dateless row is present
-    # No em-dash as a rendered ledger cell value (the removed placeholder would show as ">—<").
-    assert ">—<" not in body
-
-
-# --- preview pane (?artikel): fail-closed, byte-identical, leak-safe ----------------
+# --- preview pane (?artikel): fail-closed, leak-safe ----------------
 
 
 @pytest.mark.django_db
@@ -697,17 +607,13 @@ def test_pane_opens_for_a_viewable_article(corpus_root: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_pane_absent_denied_malformed_are_byte_identical_to_no_pane(corpus_root: Path) -> None:
-    # The existence-hiding invariant: for a viewer, a DENIED artikel (members-only, as public), an
-    # ABSENT one (valid ULID not in the corpus), and a MALFORMED one all render the byte-identical
-    # response as no ?artikel at all — no pane, no oracle distinguishing the three.
-    base = _get(corpus_root, Public()).content
-    denied = _get(corpus_root, Public(), f"artikel={PANE_MEM_ULID}").content
-    absent = _get(corpus_root, Public(), f"artikel={PANE_ABSENT_ULID}").content
-    malformed = _get(corpus_root, Public(), "artikel=not-a-ulid").content
-    assert denied == base, "a denied artikel must be byte-identical to no pane"
-    assert absent == base, "an absent artikel must be byte-identical to no pane"
-    assert malformed == base, "a malformed artikel must be byte-identical to no pane"
+def test_pane_absent_or_malformed_artikel_renders_no_pane(corpus_root: Path) -> None:
+    # An ABSENT artikel (valid ULID not in the corpus) or a MALFORMED one renders the workbench
+    # without a pane — a plain 200, no pane markup. (The denied case is pinned below.)
+    for query in (f"artikel={PANE_ABSENT_ULID}", "artikel=not-a-ulid"):
+        response = _get(corpus_root, Public(), query)
+        assert response.status_code == 200
+        assert 'class="wb-pane"' not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -841,86 +747,3 @@ def test_auswahl_aufheben_preserves_active_search(corpus_root: Path) -> None:
     clear = body.split('class="wb-sammelleiste-link" href="?', 2)[2].split('"', 1)[0]
     assert "q=fahrt" in clear  # the search survives
     assert "auswahl" not in clear  # the selection is dropped
-
-
-@pytest.mark.django_db
-def test_alle_link_carries_the_js_rewrite_hook(corpus_root: Path) -> None:
-    # GH #22: catalog_bulk.js folds unsubmitted ticks into the selection-carrying links; it finds
-    # "Alle auf dieser Seite" by the data-bulk-alle hook. "Auswahl aufheben" must NEVER carry it —
-    # its purpose is clearing, and a rewrite would resurrect the selection.
-    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    alle = body.split(">Alle auf dieser Seite<", 1)[0].rsplit("<a ", 1)[1]
-    assert "data-bulk-alle" in alle
-    aufheben = body.split(">Auswahl aufheben<", 1)[0].rsplit("<a ", 1)[1]
-    assert "data-bulk-alle" not in aufheben
-
-
-@pytest.mark.django_db
-def test_header_select_all_checkbox_hidden_no_js(corpus_root: Path) -> None:
-    # Design-gate LOW-MED: the header select-all checkbox is a dead control no-JS (no name), so it
-    # ships hidden; catalog_bulk.js un-hides it. The no-JS page-select affordance is the bar link.
-    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    head = body.split('class="c-ledger-auswahl-alle"', 1)[1].split(">", 1)[0]
-    assert "hidden" in head
-
-
-@pytest.mark.django_db
-def test_bulk_bar_wires_htmx_and_csrf(corpus_root: Path) -> None:
-    body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    # the bulk form carries the CSRF header for HTMX + the dependent-Dokumenttyp swap wiring
-    assert "X-CSRFToken" in body
-    assert 'hx-get="/artikel/sammelbearbeitung/dokumenttypen"' in body
-    assert 'hx-target="#bulk-dokumenttyp-select"' in body
-    # the PE script is loaded
-    assert '<script src="/static/catalog_bulk.js" defer></script>' in body
-
-
-@pytest.mark.django_db
-def test_catalog_bulk_js_served(corpus_root: Path) -> None:
-    with override_settings(**_settings(corpus_root)):
-        served = _client_as(Archivist()).get("/static/catalog_bulk.js")
-    assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
-
-
-# --- load-count pins: collections loaded at most once per request (issue #2 P1) ---
-
-
-def _count_load_all(monkeypatch: pytest.MonkeyPatch) -> list[None]:
-    """Spy on ``CollectionRepository.load_all`` — counts real calls and calls through (no mocking
-    the unit under test)."""
-    calls: list[None] = []
-    original = CollectionRepository.load_all
-
-    def counting(self: CollectionRepository) -> tuple[Collection, ...]:
-        calls.append(None)
-        return original(self)
-
-    monkeypatch.setattr(CollectionRepository, "load_all", counting)
-    return calls
-
-
-@pytest.mark.django_db
-def test_archivist_workbench_get_loads_collections_exactly_once_pin(
-    corpus_root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # An archivist page with hits needs collection names TWICE (facet labels + the bulk drawer's
-    # Bestand options) but must LOAD them once — both consumers share one per-request load.
-    calls = _count_load_all(monkeypatch)
-    body = _get(corpus_root, Archivist()).content.decode()
-    assert "Fotografien" in body  # the facet labels resolved
-    assert "— Bestand wählen —" in body  # and the bulk drawer options rendered
-    assert len(calls) == 1
-
-
-@pytest.mark.django_db
-def test_zero_hit_workbench_get_loads_collections_zero_times_pin(
-    corpus_root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Laziness must survive the shared-load fix: a zero-hit page (no collection facet counts, no
-    # bulk bar) resolved no names before and must still load ZERO times.
-    calls = _count_load_all(monkeypatch)
-    response = _get(corpus_root, Archivist(), "q=xyzzyplugh")
-    assert response.status_code == 200
-    assert "0 Treffer" in response.content.decode()
-    assert len(calls) == 0

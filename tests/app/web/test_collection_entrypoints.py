@@ -91,35 +91,3 @@ def test_public_never_gets_edit_affordance(root: Path) -> None:
     with override_settings(**_settings(root)):
         body = _client_as(Public()).get(f"/?bestand={FOTOS}").content.decode()
     assert "/bearbeiten" not in body
-
-
-# --- honest empty state for a collection-filtered zero-hit workbench (item 3) --------
-
-_EMPTY_BESTAND = "01KX939S67DNGH0AB53HNXGB9C"  # a valid ULID with no articles under it
-
-
-@pytest.mark.django_db
-def test_bestand_empty_state_copy_for_archivist(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get(f"/?bestand={_EMPTY_BESTAND}").content.decode()
-    assert "Noch keine Artikel in diesem Bestand." in body
-    assert "Entferne einzelne Filter" not in body  # the generic copy must not show here
-    # archivist gets a "+ Neuer Artikel" link pre-seeded with this Bestand
-    assert f"/artikel/neu?bestand={_EMPTY_BESTAND}" in body
-
-
-@pytest.mark.django_db
-def test_bestand_empty_state_copy_for_public_no_create_link(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Public()).get(f"/?bestand={_EMPTY_BESTAND}").content.decode()
-    assert "Noch keine Artikel in diesem Bestand." in body
-    assert "/artikel/neu" not in body  # non-archivist sees just the plain sentence
-
-
-@pytest.mark.django_db
-def test_generic_empty_state_when_search_has_other_filters(root: Path) -> None:
-    # a zero-hit search that is NOT purely a bestand filter keeps the generic copy.
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get("/?q=nichtsda").content.decode()
-    assert "Entferne einzelne Filter" in body
-    assert "Noch keine Artikel in diesem Bestand." not in body

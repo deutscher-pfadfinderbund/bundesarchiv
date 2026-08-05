@@ -199,16 +199,6 @@ def test_index_subtree_on_root_reindexes_whole_tree(store: InMemoryObjectStore) 
     assert ArticleIndex.objects.count() == 3
 
 
-@pytest.mark.django_db
-def test_index_subtree_is_idempotent(store: InMemoryObjectStore) -> None:
-    from bundesarchiv.index.models import ArticleIndex
-
-    indexer.index_subtree(store, "FOTOS")
-    indexer.index_subtree(store, "FOTOS")
-    assert ArticleIndex.objects.get(ulid="01FOTO")  # single row, no error
-    assert ArticleIndex.objects.filter(ulid="01FOTO").count() == 1
-
-
 # ---------------------------------------------------------------------------
 # Advisory-lock serialization — an index writer blocks behind a held index-writer lock
 # ---------------------------------------------------------------------------

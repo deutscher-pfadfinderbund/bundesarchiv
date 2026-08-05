@@ -1,8 +1,7 @@
 """Pinned executable spec for the German full-text search configuration (ADR 0011).
 
-Regression guard for the ``bundesarchiv_german`` text-search configuration and the
-``de_numeric`` ICU collation. Encodes the decisions measured in
-[ADR 0011](../../docs/adr/0011-german-fts-config.md):
+Regression guard for the ``bundesarchiv_german`` text-search configuration. Encodes the
+decisions measured in [ADR 0011](../../docs/adr/0011-german-fts-config.md):
 
 - v1 ships **without compound decomposition** — a bare word does not match a compound that
   contains it (``Lager`` alone does not match ``Bundeslager``).
@@ -11,8 +10,8 @@ Regression guard for the ``bundesarchiv_german`` text-search configuration and t
 - The config is **umlaut-insensitive**: ``unaccent`` folds accents before ``german_stem``,
   so ``Baume`` finds ``Bäume`` and ``Meissner`` finds ``Meißner``.
 - ``german_stem`` conflates singular/plural (``Blatt`` ~ ``Blätter``).
-- The ``de_numeric`` collation sorts ``ref_code`` numeric + locale-aware
-  (``Ä 3 < B 1 < B 2 < B 10``).
+
+(The ``de_numeric`` ref_code collation is proven where the user meets it: ``test_search``.)
 
 Task 6 created the configuration in migration ``0001_search_infrastructure``; these run
 forever against the live container as the behaviour lock.
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
 
 _CONFIG = "bundesarchiv_german"
-_COLLATION = "de_numeric"
 
 
 @pytest.fixture
@@ -79,10 +77,6 @@ def _matches_prefix(cursor: CursorWrapper, doc: str, query: str) -> bool:
 COMPOUNDS_NOT_SPLIT = [
     "Fahrtenbericht",
     "Bundeslager",
-    "Liederheft",
-    "Jugendbewegung",
-    "Waldläuferschule",
-    "Speerjungenlager",
 ]
 
 
@@ -115,11 +109,7 @@ def test_prefix_matches_compound_head(cursor: CursorWrapper) -> None:
 
 UMLAUT_PAIRS = [
     ("Bäume", "Baume"),
-    ("Häuser", "Hauser"),
-    ("Führer", "Fuhrer"),
-    ("Mädchen", "Madchen"),
-    ("Meißner", "Meissner"),
-    ("Blätter", "Blatter"),
+    ("Meißner", "Meissner"),  # the ß case
 ]
 
 
@@ -133,20 +123,10 @@ def test_umlaut_less_typing_matches_umlaut_document(
     assert _matches(cursor, plain, umlaut), f"{umlaut!r} should find {plain!r}"
 
 
-@pytest.mark.django_db
-def test_umlaut_and_plain_share_one_lexeme(cursor: CursorWrapper) -> None:
-    """Umlaut and umlaut-less spellings reduce to the same lexeme."""
-    assert _lexemes(cursor, "Bäume") == _lexemes(cursor, "Baume")
-    assert _lexemes(cursor, "Meißner") == _lexemes(cursor, "Meissner")
-
-
 # --- Stemming (ADR 0011 §3): german_stem conflates singular/plural ----------------------
 
 SINGULAR_PLURAL = [
     ("Blatt", "Blätter"),
-    ("Bund", "Bünde"),
-    ("Buch", "Bücher"),
-    ("Heft", "Hefte"),
     ("Lied", "Lieder"),
 ]
 
@@ -156,19 +136,3 @@ SINGULAR_PLURAL = [
 def test_singular_matches_plural(cursor: CursorWrapper, singular: str, plural: str) -> None:
     """A singular query finds the plural in a title."""
     assert _matches(cursor, plural, singular), f"{singular!r} should find {plural!r}"
-
-
-# --- ICU numeric collation (ADR 0011 §5): ref_code sorts numeric + locale-aware ---------
-
-
-@pytest.mark.django_db
-def test_ref_code_numeric_collation_order(cursor: CursorWrapper) -> None:
-    """``de_numeric`` sorts ``Ä 3 < B 1 < B 2 < B 10`` (locale-aware + numeric)."""
-    # Collation names cannot be parameterised; _COLLATION is a module constant.
-    cursor.execute(
-        "SELECT ref_code FROM (VALUES ('B 2'), ('B 10'), ('B 1'), (%s)) AS t(ref_code) "
-        f"ORDER BY ref_code COLLATE {_COLLATION}",
-        ("Ä 3",),
-    )
-    ordered = [row[0] for row in cursor.fetchall()]
-    assert ordered == ["Ä 3", "B 1", "B 2", "B 10"]

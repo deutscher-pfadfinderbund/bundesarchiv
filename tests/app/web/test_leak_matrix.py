@@ -3,18 +3,16 @@
 Every per-route test already pins its own contract; this suite is the STRUCTURAL backstop that no
 route escapes the discipline. It walks the PRODUCTION urlconf (``bundesarchiv.app.web.urls``) and,
 for every route, asserts the exact status an anonymous / Public / Member(with & without a matching
-group) / Archivist viewer gets under both GET and POST, plus that every deny is the byte-identical
-404 the media route emits (``media_views._not_found`` — empty body, ``content_type=""``).
+group) / Archivist viewer gets under both GET and POST. A deny is simply its status code — 404,
+with no leaked content (the byte-identical-404 law was relaxed by the owner, 2026-08); each
+route's own tests pin that a deny changes/reveals nothing.
 
-Two invariants make this a GATE, not a snapshot:
+The invariant that makes this a GATE, not a snapshot:
 
 - **Exhaustiveness.** ``_CONTRACT`` carries one explicit entry per route name; the suite asserts the
   contract's key set EQUALS the urlconf's route names. A future route added to ``urls.py`` without a
   matrix entry FAILS ``test_contract_covers_every_prod_route`` — you cannot ship a route the leak
   matrix has never seen.
-- **Deny-shape uniformity.** Every non-served response the contract marks ``FOUR_OH_FOUR`` is
-  asserted byte-and-header identical to the media route's ``_not_found()`` (captured live, never
-  copied), so a route can never grow a distinguishable 404 (an existence oracle).
 
 Method note (contract-shaping fact, verified in the views): no route uses a method guard, so a
 disallowed method is NOT a 405 — the POST-only routes 404 on GET and the GET-only routes 404 on POST
@@ -33,12 +31,10 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
 
-from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
@@ -149,8 +145,8 @@ _TIERS: dict[str, Viewer | None] = {
 }
 
 #: The tiers that are NOT the trusted Archivist — every catalog/collection/bulk write route denies
-#: all of these identically (the byte-identical 404), and the media/detail routes deny all but the
-#: matching-group Member on the GROUPS-tier corpus article.
+#: all of these with a 404, and the media/detail routes deny all but the matching-group Member on
+#: the GROUPS-tier corpus article.
 _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
 
 
@@ -165,28 +161,10 @@ def _client(tier: str) -> Client:
     return client
 
 
-# --- deny-shape capture (pinned to the live media 404, never copied) ------------------------------
-
-_VOLATILE = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-
-
-def _shape(response: HttpResponseBase) -> tuple[int, bytes, frozenset[tuple[str, str]]]:
-    headers = frozenset((k, v) for k, v in response.items() if k not in _VOLATILE)
-    content: bytes = response.content  # type: ignore[attr-defined]  # 404s/renders are non-streaming
-    return response.status_code, content, headers
-
-
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    r = _not_found()
-    _, content, headers = _shape(r)
-    return content, headers
-
-
 # --- the contract: expected status per route x method, and how to reach each -----------------------
 
 # Status classes. A route entry declares, for each of GET and POST, the expected status for a
-# NON-archivist and for the Archivist. FOUR_OH_FOUR additionally means "assert byte-identical to the
-# media 404" wherever it appears (the deny-shape invariant).
+# NON-archivist and for the Archivist.
 FOUR_OH_FOUR = 404
 OK = 200
 REDIRECT = 302
@@ -394,8 +372,8 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=OK,
         post_arch=OK,
     ),
-    # Archivist-only cataloging/collection routes — every non-archivist gets the byte-identical 404
-    # on BOTH methods; the archivist status depends on the route's own method contract.
+    # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
+    # the archivist status depends on the route's own method contract.
     "artikel-neu": Route(
         build_path=_p_artikel_neu,
         get_nonarch=FOUR_OH_FOUR,
@@ -504,8 +482,8 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
-    # Read routes — group-sensitive. Non-matching tiers get the byte-identical 404; the matching-group
-    # Member and Archivist get 200. Method-blind (POST runs the GET path).
+    # Read routes — group-sensitive. Non-matching tiers get a 404; the matching-group Member and
+    # Archivist get 200. Method-blind (POST runs the GET path).
     "artikel-detail": Route(
         build_path=_p_detail,
         get_nonarch=FOUR_OH_FOUR,
@@ -570,6 +548,12 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
 
 def _matrix_cases() -> Iterator[tuple[str, str, str]]:
     for name in _CONTRACT:
+        if name in _STATIC_PATHS:
+            # Static assets carry no per-tier behavior (200 for everyone, method-blind): one probe
+            # (Public GET → 200) suffices. The routes stay in _CONTRACT so the exhaustiveness gate
+            # still covers them.
+            yield name, "public", "GET"
+            continue
         for tier in _TIERS:
             for method in ("GET", "POST"):
                 yield name, tier, method
@@ -605,12 +589,6 @@ def test_route_tier_matrix(
     assert response.status_code == expected, (
         f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
     )
-    # Deny-shape invariant: any 404 the contract declares must be the byte-identical media 404.
-    if expected == FOUR_OH_FOUR:
-        _, content, headers = _shape(response)
-        assert (content, headers) == _media_404_shape(), (
-            f"{method} {name} as {tier}: 404 is not byte-identical to the media 404"
-        )
 
 
 # --- structural: the contract is exhaustive against the urlconf -----------------------------------

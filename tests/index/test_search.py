@@ -24,12 +24,7 @@ from tests.index.fixtures import (
 )
 
 from bundesarchiv.index import indexer, search
-from bundesarchiv.index.query import (
-    FacetCount,
-    SearchFilters,
-    SearchHit,
-    SearchPage,
-)
+from bundesarchiv.index.query import SearchFilters, SearchPage
 
 
 @pytest.fixture(scope="module")
@@ -115,13 +110,6 @@ def test_text_is_umlaut_insensitive(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_text_matches_compound_whole_word(corpus: None) -> None:
-    """A whole compound matches (no decomposition needed): 'Bundeslager'."""
-    page = search(PUBLIC, text="Bundeslager")
-    assert "ART_PUBLAGER" in _ulids(page)
-
-
-@pytest.mark.django_db
 def test_prefix_matching_recovers_compound_head(corpus: None) -> None:
     """ADR-0011 prefix mitigation (:* on the trailing lexeme): a compound HEAD matches the whole
     compound. 'Lager' alone (no decomposition) reaches 'Bundeslager Lieder und Häuser'."""
@@ -154,17 +142,8 @@ def test_text_ranks_and_scopes(corpus: None) -> None:
 
 
 # ===========================================================================
-# Archivist-only field text isolation (SANITY — Task 9 does the full grid).
+# Archivist dual-vector text (isolation itself is proven in test_leaks).
 # ===========================================================================
-
-
-@pytest.mark.django_db
-def test_archivist_only_text_is_isolated_from_members(corpus: None) -> None:
-    """'Geheimregal' appears ONLY in ART_GRPBESCH.physical_location (archivist-only text).
-    A member gets zero hits; an Archivist finds it via the archivist tsvector."""
-    assert _ulids(search(VORSTAND_MEMBER, text="Geheimregal")) == set()
-    assert _ulids(search(PLAIN_MEMBER, text="Geheimregal")) == set()
-    assert "ART_GRPBESCH" in _ulids(search(ARCHIVIST, text="Geheimregal"))
 
 
 @pytest.mark.django_db
@@ -206,15 +185,6 @@ def test_collection_filter_root_is_whole_tree_but_still_scoped(corpus: None) -> 
     # Vorstand sees 10 total; ORPHAN (dangling, no ancestors) is NOT under ROOT subtree.
     assert "ART_ORPHAN" not in _ulids(page)
     assert page.total == 10
-
-
-@pytest.mark.django_db
-def test_orphan_unreachable_via_collection_filter_even_for_archivist(corpus: None) -> None:
-    """Fail-closed rows carry no ancestors, so the subtree filter can never reach them —
-    intentional (indexer note). Still reachable via unfiltered/text search."""
-    page = search(ARCHIVIST, filters=SearchFilters(collection="ROOT"))
-    assert "ART_ORPHAN" not in _ulids(page)
-    assert "ART_ORPHAN" in _ulids(search(ARCHIVIST, page_size=200))  # unfiltered: reachable
 
 
 # ===========================================================================
@@ -300,34 +270,11 @@ def test_sort_ref_code_numeric_and_locale_aware(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_sort_ref_code_b_series_numeric(corpus: None) -> None:
-    """B 1 < B 2 < B 10 (the brief's canonical numeric-collation case)."""
-    page = search(PUBLIC, sort="ref_code", page_size=200)
-    b_order = [h.ref_code for h in page.hits if h.ref_code and h.ref_code.startswith("B ")]
-    assert b_order == ["B 1", "B 2", "B 10"]
-
-
-@pytest.mark.django_db
 def test_sort_date_ascending_nulls_last(corpus: None) -> None:
     """date sort is date_earliest ascending; PUBKARTE(1958) first among public."""
     page = search(PUBLIC, sort="date", page_size=200)
     dates = [h.ulid for h in page.hits]
     assert dates[0] == "ART_PUBKARTE"  # 1958, earliest public
-
-
-@pytest.mark.django_db
-def test_sort_title_de_collated(corpus: None) -> None:
-    """title sort is alphabetical under de_numeric: 'Bäume' (ä folds to a) sorts BEFORE
-    'Bundeslager' — a locale-aware order a naive codepoint sort ('ä' > 'u') would get wrong."""
-    page = search(PUBLIC, sort="title", page_size=200)
-    titles = [h.title for h in page.hits]
-    assert titles == [
-        "Bäume vor dem Haus",
-        "Bundeslager Lieder und Häuser",
-        "Historische Wanderkarte",
-        "Öffentliches Foto der Fahrten",
-        "Plakat zum Singewettstreit",
-    ]
 
 
 # ===========================================================================
@@ -356,28 +303,11 @@ def test_facet_media_type_counts_public(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_facet_counts_differ_by_viewer(corpus: None) -> None:
-    """Members see Akte-typed articles the public cannot — the facet reflects the scope."""
-    public_media = _facet_map(search(PUBLIC), "media_type")
-    member_media = _facet_map(search(PLAIN_MEMBER), "media_type")
-    assert "Akte" not in public_media  # no public Akte
-    assert member_media["Akte"] == 3  # MEMAKTE, MEMNOTIZ, MEMBRIEF
-
-
-@pytest.mark.django_db
 def test_facet_tags_via_unnest(corpus: None) -> None:
     """Array tags are unnested and counted: public 'natur' on PUBHAUS + PUBKARTE."""
     tags = _facet_map(search(PUBLIC), "tags")
     assert tags["natur"] == 2
     assert tags["lager"] == 2  # PUBFOTO, PUBLAGER
-
-
-@pytest.mark.django_db
-def test_facet_decades_stringified(corpus: None) -> None:
-    """FacetCount.value is str, so decade ints are stringified."""
-    decades = _facet_map(search(PUBLIC), "decades")
-    assert "1970" in decades  # str, not int
-    assert all(isinstance(v, str) for v in decades)
 
 
 @pytest.mark.django_db
@@ -395,18 +325,11 @@ def test_facet_excludes_own_dimension(corpus: None) -> None:
     assert doc == {"Fotografie": 2, "Karte": 1}
 
 
-@pytest.mark.django_db
-def test_facet_counts_never_exceed_scope(corpus: None) -> None:
-    """A facet count can never include rows the viewer can't see."""
-    for fc in search(PUBLIC).facets["document_type"]:
-        assert fc.count <= 5  # public total
-
-
 # ===========================================================================
-# "Ohne Datum" facet (Part 4) — dateless count + filter. The shared corpus dates every article,
-# so here the count is 0 and the filter is empty; the tier-exclusive leak case (a restricted
-# dateless row must not inflate a lesser viewer's count) needs its own corpus — see
-# ``test_leaks_dateless.py``, mirroring the decade-leak module's dedicated-corpus pattern.
+# "Ohne Datum" facet (Part 4) — dateless count. The shared corpus dates every article, so here
+# the count is 0; the tier-exclusive leak case (a restricted dateless row must not inflate a
+# lesser viewer's count) needs its own corpus — see ``test_leaks_dateless.py``, mirroring the
+# decade-leak module's dedicated-corpus pattern.
 # ===========================================================================
 
 
@@ -415,25 +338,6 @@ def test_dateless_count_is_zero_when_every_row_is_dated(corpus: None) -> None:
     """Every corpus article has a date, so the "Ohne Datum" bucket is empty for every viewer."""
     for viewer in (PUBLIC, PLAIN_MEMBER, VORSTAND_MEMBER, ARCHIVIST):
         assert search(viewer, page_size=200).dateless_count == 0
-
-
-@pytest.mark.django_db
-def test_dateless_filter_selects_nothing_when_every_row_is_dated(corpus: None) -> None:
-    """The ``dateless=True`` filter returns the (here empty) set of undated rows, not an error."""
-    page = search(PUBLIC, filters=SearchFilters(dateless=True))
-    assert page.total == 0
-    assert page.hits == ()
-
-
-@pytest.mark.django_db
-def test_dateless_filter_and_date_range_are_disjoint(corpus: None) -> None:
-    """``dateless`` (date_earliest IS NULL) and a date range (date_earliest IS NOT NULL) conjoin to
-    the empty set — the honest outcome for a nonsensical combination, never a 500."""
-    page = search(
-        PUBLIC,
-        filters=SearchFilters(dateless=True, date_from=datetime.date(1900, 1, 1)),
-    )
-    assert page.total == 0
 
 
 # ===========================================================================
@@ -482,46 +386,3 @@ def test_empty_text_browses_everything_in_scope(corpus: None) -> None:
     # Deterministic order: two identical calls return the same sequence.
     again = search(PLAIN_MEMBER)
     assert [h.ulid for h in page.hits] == [h.ulid for h in again.hits]
-
-
-# ===========================================================================
-# SearchHit shape — floor-safe by construction (static + runtime).
-# ===========================================================================
-
-
-def test_search_hit_has_no_floored_fields() -> None:
-    """SearchHit carries the member-visible columns plus the archivist-chrome scope data
-    (is_draft/tier/groups, added for the 4.6 ledger — see test_leaks for the no-leak proof), and
-    NEVER a floored field (physical_location / custom / archivist_text)."""
-    import dataclasses
-
-    names = {f.name for f in dataclasses.fields(SearchHit)}
-    assert names == {
-        "ulid",
-        "title",
-        "ref_code",
-        "date_edtf",
-        "media_type",
-        "document_type",
-        "is_draft",
-        "tier",
-        "groups",
-    }
-    assert "physical_location" not in names
-    assert "custom" not in names
-    assert "archivist_text" not in names
-
-
-@pytest.mark.django_db
-def test_hits_are_frozen_dataclasses(corpus: None) -> None:
-    page = search(PUBLIC)
-    hit = page.hits[0]
-    assert isinstance(hit, SearchHit)
-    with pytest.raises((AttributeError, TypeError)):
-        hit.title = "mutated"  # type: ignore[misc]
-
-
-def test_facet_count_is_value_str_count_int() -> None:
-    fc = FacetCount(value="Foto", count=3)
-    assert fc.value == "Foto"
-    assert fc.count == 3

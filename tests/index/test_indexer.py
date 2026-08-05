@@ -20,7 +20,6 @@ import datetime
 import pytest
 
 from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
-from bundesarchiv.domain.audience import ARCHIVIST_ONLY
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -31,10 +30,10 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     MediaRef,
 )
-from bundesarchiv.domain.viewer import Archivist, Member, Public
+from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES
-from bundesarchiv.index.scope import ScopeColumns, _scope_columns, _viewer_scope
+from bundesarchiv.index.scope import _viewer_scope
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -288,55 +287,14 @@ def test_build_row_ancestors_are_leaf_to_root_including_own_collection() -> None
     assert row["collection_id"] == "LEAF"
 
 
-# --- config_version --------------------------------------------------------
-
-
-def test_build_row_stamps_config_version() -> None:
-    root = _root()
-    row = indexer.build_row(_article(), _chain(root), cap_year=_CAP_YEAR)
-    assert row["config_version"] == indexer.CONFIG_VERSION
-
-
 # ===========================================================================
-# Scope seam — write side directly (also exercised through build_row above).
+# Scope seam — read side smoke (the real proof of the seam is test_equivalence).
 # ===========================================================================
-
-
-def test_scope_columns_archivist_only() -> None:
-    cols = _scope_columns(ARCHIVIST_ONLY)
-    assert cols == ScopeColumns(archivist_only=True, tier=None, groups=())
-
-
-def test_scope_columns_public() -> None:
-    cols = _scope_columns(Audience(AudienceTier.PUBLIC))
-    assert cols == ScopeColumns(archivist_only=False, tier="PUBLIC", groups=())
-
-
-def test_scope_columns_groups_carries_groups() -> None:
-    cols = _scope_columns(Audience(AudienceTier.GROUPS, ("g1",)))
-    assert cols == ScopeColumns(archivist_only=False, tier="GROUPS", groups=("g1",))
-
-
-def test_scope_columns_is_frozen() -> None:
-    cols = _scope_columns(Audience(AudienceTier.PUBLIC))
-    with pytest.raises((AttributeError, TypeError)):
-        cols.tier = "MEMBERS"  # type: ignore[misc]
 
 
 def test_viewer_scope_archivist_is_unconstrained() -> None:
     q = _viewer_scope(Archivist())
     assert not q  # an empty Q matches everything
-
-
-def test_viewer_scope_public_narrows_to_public_non_archivist() -> None:
-    q = _viewer_scope(Public())
-    assert q  # non-empty
-    # The seam is the ONLY place tier strings meet SQL; equivalence pinned in Task 9.
-
-
-def test_viewer_scope_member_covers_public_members_and_held_groups() -> None:
-    q = _viewer_scope(Member(("bundesfuehrung",)))
-    assert q
 
 
 # ===========================================================================

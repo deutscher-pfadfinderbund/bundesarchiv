@@ -2,7 +2,7 @@
 
 POST /artikel/sammelbearbeitung: archivist-gated, POST-only. Phase 1 (no bestaetigt) → confirm page;
 phase 2 (bestaetigt=1) → apply + result page. The deny suite (spec §6) is the load-bearing part
-(mutation-tested): non-archivist → byte-identical 404 with ZERO writes; GET → 404; feld allowlist;
+(mutation-tested): non-archivist → 404 with ZERO writes; GET → 404; feld allowlist;
 dependent-pair server-enforced; orphan dokumenttyp_leeren server-enforced. The write path is real;
 only index + queue seams are stubbed (conftest.py).
 """
@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -66,21 +65,6 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
-
-
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
@@ -95,7 +79,6 @@ def test_bulk_denied_is_404_and_writes_nothing(corpus: _Corpus, viewer: Viewer) 
             {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Gekapert", "bestaetigt": "1"},
         )
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     # nothing mutated
     assert corpus.article(_A).creator is None
     assert corpus.article(_B).creator is None

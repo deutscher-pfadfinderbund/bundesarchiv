@@ -1,8 +1,8 @@
 """The 4.8 rename-Bestand form (`/bestand/<ulid>/bearbeiten`, `collection_edit`).
 
 SLIM rename: Name field ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY display rows with one
-hint — moving + changing visibility are deferred. Archivist-gated both methods (byte-identical 404
-otherwise); a malformed/absent ulid is the same 404. POST saves under CAS and reindexes the subtree
+hint — moving + changing visibility are deferred. Archivist-gated both methods (404 otherwise);
+a malformed/absent ulid is likewise a 404. POST saves under CAS and reindexes the subtree
 (the name is live in facets on the next render). A renamed Bestand shows its new name in workbench
 facets — pinned by a test.
 """
@@ -77,13 +77,10 @@ def _name_of(root: Path, ulid: str) -> str:
 
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=())])
 @pytest.mark.parametrize("method", ["get", "post"])
-def test_non_archivist_gets_byte_identical_404(
-    root: Path, viewer: Viewer | None, method: str
-) -> None:
+def test_non_archivist_gets_404(root: Path, viewer: Viewer | None, method: str) -> None:
     with override_settings(**_settings(root)):
         response = getattr(_client_as(viewer), method)(f"/bestand/{FOTOS}/bearbeiten")
     assert response.status_code == 404
-    assert response.content == b""
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])

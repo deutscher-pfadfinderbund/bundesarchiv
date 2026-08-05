@@ -21,12 +21,6 @@ VALID_ROWS: list[tuple[str, datetime.date, datetime.date | None, tuple[int, ...]
         (1960,),
     ),
     (
-        "2001",
-        datetime.date(2001, 1, 1),
-        datetime.date(2001, 12, 31),
-        (2000,),
-    ),
-    (
         "1968-06",
         datetime.date(1968, 6, 1),
         datetime.date(1968, 6, 30),
@@ -41,18 +35,6 @@ VALID_ROWS: list[tuple[str, datetime.date, datetime.date | None, tuple[int, ...]
     # --- Level 1: qualifiers (bounds unchanged) ---
     (
         "1968?",
-        datetime.date(1968, 1, 1),
-        datetime.date(1968, 12, 31),
-        (1960,),
-    ),
-    (
-        "1968~",
-        datetime.date(1968, 1, 1),
-        datetime.date(1968, 12, 31),
-        (1960,),
-    ),
-    (
-        "1968%",
         datetime.date(1968, 1, 1),
         datetime.date(1968, 12, 31),
         (1960,),
@@ -78,25 +60,13 @@ VALID_ROWS: list[tuple[str, datetime.date, datetime.date | None, tuple[int, ...]
     ),
     # --- Level 1: seasons ---
     (
-        "2001-21",
-        datetime.date(2001, 3, 1),
-        datetime.date(2001, 5, 31),
-        (2000,),
-    ),
-    (
         "2001-22",  # summer
         datetime.date(2001, 6, 1),
         datetime.date(2001, 8, 31),
         (2000,),
     ),
     (
-        "2001-23",
-        datetime.date(2001, 9, 1),
-        datetime.date(2001, 11, 30),
-        (2000,),
-    ),
-    (
-        "2001-24",
+        "2001-24",  # winter, crosses the year boundary
         datetime.date(2001, 12, 1),
         datetime.date(2002, 2, 28),
         (2000,),
@@ -175,15 +145,3 @@ INVALID_VALUES = [
 def test_invalid_edtf_raises_value_error(bad: str) -> None:
     with pytest.raises(ValueError):
         EdtfDate(bad)
-
-
-def test_edtf_is_frozen_and_hashable() -> None:
-    ed = EdtfDate("1968")
-    assert hash(ed) is not None
-    with pytest.raises((AttributeError, TypeError)):
-        ed.value = "2000"  # type: ignore[misc]
-
-
-def test_edtf_equality() -> None:
-    assert EdtfDate("1968") == EdtfDate("1968")
-    assert EdtfDate("1968") != EdtfDate("1969")

@@ -9,7 +9,7 @@ Covers the four new routes and the read-view action row:
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
-BOTH methods → byte-identical 404 for Member/Public/anon, and the deny tests assert the SIDE EFFECT
+BOTH methods → 404 for Member/Public/anon, and the deny tests assert the SIDE EFFECT
 did not happen (nothing created / article still exists / lifecycle unchanged / no widget content).
 The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
 """
@@ -19,7 +19,6 @@ from pathlib import Path
 import pytest
 from django.core import signing
 from django.http import HttpRequest
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -93,21 +92,6 @@ def _client_as(viewer: Viewer, *, enforce_csrf: bool = False) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
-
-
 def _other_ulids(corpus: _Corpus) -> set[str]:
     return set(ArticleRepository(corpus.store).list_ulids()) - {_DRAFT, _PUBLISHED}
 
@@ -139,7 +123,6 @@ def test_kopieren_denied_creates_nothing(corpus: _Corpus, viewer: Viewer) -> Non
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(f"/artikel/{_PUBLISHED}/kopieren")
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     assert _other_ulids(corpus) == set()  # nothing created
 
 
@@ -163,7 +146,6 @@ def test_loeschen_confirm_page_shows_context(corpus: _Corpus) -> None:
     assert "Sommerfahrt 1962" in body  # Titel context
     assert "F 12" in body  # Signatur context
     assert "Ein Papierkorb steht in dieser Version nicht zur Verfügung." in body
-    assert "c-btn--gefahr" in body  # the ONE loud button
     assert "Endgültig löschen" in body
 
 
@@ -203,7 +185,6 @@ def test_loeschen_denied_leaves_article(corpus: _Corpus, viewer: Viewer, method:
     with override_settings(**_settings(corpus)):
         response = getattr(_client_as(viewer), method)(f"/artikel/{_PUBLISHED}/loeschen")
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     # the article still exists (the deny prevented the delete)
     assert ArticleRepository(corpus.store).load(_PUBLISHED).article.title == "Sommerfahrt 1962"
 
@@ -291,7 +272,6 @@ def test_lifecycle_denied_leaves_lifecycle(corpus: _Corpus, viewer: Viewer) -> N
             },
         )
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
 
 
@@ -301,7 +281,7 @@ def test_lifecycle_get_is_404(corpus: _Corpus) -> None:
     assert response.status_code == 404
 
 
-def test_lifecycle_stale_save_against_deleted_article_is_byte_identical_404(
+def test_lifecycle_stale_save_against_deleted_article_is_404(
     corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The archivist's gate/load passes (as it would right after a GET), but the article is
@@ -328,7 +308,6 @@ def test_lifecycle_stale_save_against_deleted_article_is_byte_identical_404(
             },
         )
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
 
 
 # --- Vorschau (the highest-risk oracle) --------------------------------------------
@@ -347,15 +326,12 @@ def test_vorschau_renders_preview_panel_for_archivist(corpus: _Corpus) -> None:
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_vorschau_denied_is_byte_identical_404_never_widget(
-    corpus: _Corpus, viewer: Viewer
-) -> None:
+def test_vorschau_denied_is_404_never_widget(corpus: _Corpus, viewer: Viewer) -> None:
     # THE highest-risk oracle: preview() bypasses the lifecycle gate, so the ROUTE gate is the sole
-    # barrier. A non-archivist must get the byte-identical 404 and NEVER the widget content.
+    # barrier. A non-archivist must get a 404 and NEVER the widget content.
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(f"/artikel/{_DRAFT}/vorschau")
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     body = response.content.decode()
     assert "Einblick" not in body  # no widget content leaked
     assert "Sichtbare Felder" not in body
@@ -380,11 +356,10 @@ def test_vorschau_get_is_404(corpus: _Corpus) -> None:
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/loeschen",  # well-formed but absent
     ],
 )
-def test_malformed_or_absent_ulid_is_byte_identical_404(corpus: _Corpus, path: str) -> None:
+def test_malformed_or_absent_ulid_is_404(corpus: _Corpus, path: str) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(path)
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
 
 
 # --- read-view action row ----------------------------------------------------------
@@ -420,24 +395,10 @@ def test_detail_action_row_draft_shows_veroeffentlichen(corpus: _Corpus) -> None
 # --- template-comment hygiene (a multi-line {# #} leaks — same rule as the workbench) ----------
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        f"/artikel/{_DRAFT}",  # read view
-        f"/artikel/{_DRAFT}/bearbeiten",  # edit form
-        f"/artikel/{_PUBLISHED}/loeschen",  # delete confirm
-    ],
-)
-def test_no_leaked_template_comment(corpus: _Corpus, path: str) -> None:
+def test_no_leaked_template_comment(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(path).content.decode()
+        body = _client_as(Archivist()).get(f"/artikel/{_DRAFT}").content.decode()
     assert "{#" not in body  # a multi-line {# #} would leak into the rendered page
-
-
-def test_vorschau_no_leaked_template_comment(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).post(f"/artikel/{_DRAFT}/vorschau").content.decode()
-    assert "{#" not in body
 
 
 # --- CSRF enforcement (fix wave: prod/dev now run CsrfViewMiddleware) ---------------

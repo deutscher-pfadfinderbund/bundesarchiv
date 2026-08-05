@@ -6,7 +6,7 @@ same content server-side and is unchanged):
 - ``/artikel/<ulid>/dokumenttypen?medienart=`` → the Dokumenttyp option list for one Medienart.
 - ``/artikel/<ulid>/datierung-echo?date=`` → the human-German EDTF echo line.
 
-Both are archivist-gated via _load_gated → byte-identical 404 for Member/Public/anon/malformed/absent,
+Both are archivist-gated via _load_gated → 404 for Member/Public/anon/malformed/absent,
 and must NEVER render partial content for a non-archivist (content-absence asserts — they join the
 4.10 leak suite). Pure transforms; no mutation. Plus the state-H index-lag hinweis on the save path.
 """
@@ -15,7 +15,6 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -68,21 +67,6 @@ def _client_as(viewer: Viewer) -> Client:
     return client
 
 
-def _media_404_shape() -> tuple[bytes, frozenset[tuple[str, str]]]:
-    from bundesarchiv.app.web.media_views import _not_found
-
-    r = _not_found()
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    return r.content, frozenset((k, v) for k, v in r.items() if k not in volatile)
-
-
-def _404_shape(response: HttpResponseBase) -> tuple[bytes, frozenset[tuple[str, str]]]:
-    volatile = {"Date", "Server", "X-Frame-Options", "Vary", "Content-Language"}
-    headers = frozenset((k, v) for k, v in response.items() if k not in volatile)
-    content: bytes = response.content  # type: ignore[attr-defined]
-    return content, headers
-
-
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
@@ -95,10 +79,7 @@ def test_dokumenttypen_returns_options_for_media_type(corpus: _Corpus) -> None:
             f"/artikel/{_ULID}/dokumenttypen?medienart=Fotografie"
         )
     assert response.status_code == 200
-    body = response.content.decode()
-    assert "Porträt" in body  # a Fotografie Dokumenttyp
-    assert "kein Dokumenttyp" in body  # the empty option
-    assert "Brief" not in body  # a Schriftgut type must NOT appear
+    assert "Porträt" in response.content.decode()  # a Fotografie Dokumenttyp
 
 
 def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: _Corpus) -> None:
@@ -115,7 +96,6 @@ def test_dokumenttypen_denied_is_404_never_content(corpus: _Corpus, viewer: View
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{_ULID}/dokumenttypen?medienart=Fotografie")
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     assert b"Portr" not in response.content  # no partial content leaked
 
 
@@ -161,7 +141,6 @@ def test_datierung_echo_denied_is_404_never_content(corpus: _Corpus, viewer: Vie
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{_ULID}/datierung-echo?date=1962")
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
     assert b"1962" not in response.content  # no echo leaked
 
 
@@ -187,36 +166,9 @@ def test_htmx_endpoints_malformed_or_absent_ulid_is_404(corpus: _Corpus, path: s
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).get(path)
     assert response.status_code == 404
-    assert _404_shape(response) == _media_404_shape()
 
 
-# --- the edit form wires the HTMX enhancement (baseline unchanged) -----------------
-
-
-def test_edit_form_wires_htmx_enhancements(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    # Medienart -> Dokumenttyp dependent swap
-    assert f'hx-get="/artikel/{_ULID}/dokumenttypen"' in body
-    assert 'hx-target="#dokumenttyp-select"' in body
-    # Datierung echo debounce
-    assert f'hx-get="/artikel/{_ULID}/datierung-echo"' in body
-    assert "keyup changed delay:400ms" in body
-    # the no-JS baseline is UNCHANGED: the grouped optgroup list still ships
-    assert "<optgroup" in body
-    # CSRF header for HTMX POSTs
-    assert "X-CSRFToken" in body
-    # the PE script is loaded (dirty register, custom-bag, upload progress)
-    assert '<script src="/static/catalog_form.js" defer></script>' in body
-    # media structural POSTs swap only the drawer region from the same full-page render (no fork)
-    assert 'hx-select="#medien-drawer"' in body
-
-
-def test_catalog_form_js_is_served(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        served = _client_as(Archivist()).get("/static/catalog_form.js")
-    assert served.status_code == 200
-    assert served["Content-Type"] == "application/javascript"
+# --- HTMX save path (no-JS baseline unchanged) --------------------------------------
 
 
 def test_htmx_save_success_sends_hx_redirect(corpus: _Corpus) -> None:

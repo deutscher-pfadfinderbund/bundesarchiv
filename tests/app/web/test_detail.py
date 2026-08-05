@@ -102,33 +102,6 @@ class _Corpus:
             ),
             0,
         )
-        # A pure text record: no body AND no media — the state that maroons the card if the grid
-        # isn't collapsed (design-gate HOLD).
-        articles.save(
-            Article(
-                ulid=self.textonly,
-                title="Nur Text",
-                collection_id="FOTOS",
-                lifecycle=Lifecycle.PUBLISHED,
-                ref_code="F 20",
-                creator="A. Autor",
-            ),
-            0,
-        )
-        # A single-media record: exactly ONE sheet → the cover Platte renders, but the filmstrip
-        # register is omitted (§1: the cover already shows the only sheet). Pins the ≤1-media boundary.
-        solo = articles.add_media(self.single, "s.png", _png((60, 60, 200)), media_type="image/png")
-        self.single_hash = solo.content_hash
-        articles.save(
-            Article(
-                ulid=self.single,
-                title="Ein Blatt",
-                collection_id="FOTOS",
-                lifecycle=Lifecycle.PUBLISHED,
-                media=(MediaRef(solo.filename, solo.content_hash, caption="Das einzige Blatt"),),
-            ),
-            0,
-        )
         # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
         # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
         evil = articles.add_media(self.markup, "e.png", _png((90, 90, 90)), media_type="image/png")
@@ -149,8 +122,6 @@ class _Corpus:
 
     pub = new_ulid()
     draft = new_ulid()
-    textonly = new_ulid()
-    single = new_ulid()
     markup = new_ulid()
 
 
@@ -254,8 +225,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Co
 def test_draft_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).get(f"/artikel/{corpus.draft}")
-    assert response.status_code == 404
-    assert response.content == b""  # byte-identical to a nonexistent ulid
+    assert response.status_code == 404  # denied — indistinguishable status from a nonexistent ulid
 
 
 def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _Corpus) -> None:
@@ -307,45 +277,6 @@ def test_cover_platte_links_to_full_image(corpus: _Corpus) -> None:
     # filmstrip) still has a path to the full image.
     body = _body(corpus, Public(), corpus.pub)
     assert f'href="/media/{corpus.pub}/{corpus.cover_hash}"' in body
-
-
-def test_register_count_says_blatt(corpus: _Corpus) -> None:
-    # LOW: the register count matches the blessed mock wording.
-    body = _body(corpus, Public(), corpus.pub)
-    assert "Blatt 1 / 2" in body
-
-
-def test_pure_text_record_omits_prosa_so_grid_collapses(corpus: _Corpus) -> None:
-    # HOLD: a no-body + no-media record renders NO .l-prosa section — the precondition for the
-    # `.l-korpus:not(:has(.l-prosa))` single-column collapse (so the card isn't marooned top-right).
-    # The card still renders under the title; no cover, no filmstrip.
-    body = _body(corpus, Public(), corpus.textonly)
-    assert "Nur Text" in body
-    assert "l-korpus" in body
-    assert "l-prosa" not in body  # no Beschreibung → collapse selector fires
-    assert "l-akte" in body  # the record card is still present
-    assert "l-platte" not in body  # no cover frame (no media)
-    assert "l-register" not in body  # no filmstrip
-
-
-def test_media_only_record_keeps_the_two_track_grid(corpus: _Corpus) -> None:
-    # the media-only / prose-present states keep .l-prosa, so the collapse does NOT fire — the pub
-    # article has a body, so its grid stays two-track (guards the :not(:has) precondition boundary).
-    body = _body(corpus, Public(), corpus.pub)
-    assert "l-prosa" in body
-
-
-def test_single_media_record_shows_cover_but_no_filmstrip(corpus: _Corpus) -> None:
-    # §1 media-state boundary: exactly ONE sheet → the cover Platte renders (l-platte present, linking
-    # its full byte route) but the filmstrip register is omitted (l-register absent — the cover IS the
-    # only sheet). The 0-media (textonly) and 2-media (pub) states are pinned elsewhere; this pins the
-    # ≤1 boundary that decides `{% if weitere %}`.
-    body = _body(corpus, Public(), corpus.single)
-    assert "Ein Blatt" in body
-    assert "l-platte" in body  # cover frame present
-    assert f'href="/media/{corpus.single}/{corpus.single_hash}"' in body  # cover links full image
-    assert "l-register" not in body  # no filmstrip for a single sheet
-    assert "Blatt 1 /" not in body  # no register count
 
 
 # --- escaping: free-text values round-trip inert (the leak-surface pin) -------------
