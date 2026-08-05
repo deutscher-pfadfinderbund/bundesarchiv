@@ -119,3 +119,19 @@ Named example of overkill: the "color math" namespace
 - Design intent confirmed: the archive server only hosts ephemeral data;
   **the files (media + Markdown) are the only thing that must never be
   lost** — the search index is disposable and rebuildable by design.
+
+## Addendum (owner, 2026-08-05, post-audit)
+
+- **Backup ruling:** the WebDAV store on the StorageBox is the primary backup
+  solution — the file tree is deliberately simple precisely so a full backup
+  is nothing more than downloading it as a zip. This resolves the open
+  "interim backup story" consequence above: run the WebDAV mirror against the
+  StorageBox from day one.
+- **No strict deadline** for the preview deployments.
+- **Auth is the large blocker** for deployment 1 — ADR 0018 is designed but
+  not built (only the dev viewer-switcher exists).
+- **WhiteNoise (ADR 0016) is not merged and maybe not complete** — static
+  files are still hand-served views.
+- **UI ruling:** the owner is not yet happy with the UI — "agents always make
+  it very complicated." Simplicity is a requirement, not a style preference:
+  UI waves should remove complexity before adding capability.
