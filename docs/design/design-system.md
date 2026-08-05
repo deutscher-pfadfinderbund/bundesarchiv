@@ -15,8 +15,8 @@ simplicity checkable instead of a matter of taste.
   `output`, …); a div-plus-CSS reconstruction of something HTML already
   provides is a defect. Deviate from browser-plain only where a law here or
   the spec demands it.
-- **Component hierarchy, reuse-first.** Atoms (`templates/components/`,
-  `c-*`) → molecules → layouts (`l-*`) → pages. New UI composes existing
+- **Component hierarchy, reuse-first.** Atoms (`templates/components/`) →
+  molecules → layouts → pages. New UI composes existing
   components; no ad-hoc one-off markup where a component exists, and no
   redundant near-duplicate components. If something genuinely new is needed,
   it is added DELIBERATELY: named, filed in the hierarchy, mapped here — or
@@ -27,6 +27,16 @@ simplicity checkable instead of a matter of taste.
 - **Consistency beats novelty.** The same action looks and behaves the same
   everywhere; one pattern per problem. A second variant of an existing
   pattern needs an owner ruling, not an agent's judgment call.
+- **CSS: the cascade, not a class taxonomy** (owner, 2026-08-05; Tailwind
+  considered and rejected — no Node build step, and utility soup fights the
+  semantic-HTML basis). Style semantic elements in scoped contexts using
+  modern native CSS (nesting, `@scope`, `@layer`, `:where()` for
+  low-specificity defaults); consistency comes from the custom-property
+  tokens (the three layers above), which stay the single source of visual
+  truth. Classes only where semantics cannot discriminate, named for
+  meaning. The legacy `c-*`/`l-*` prefix taxonomy is DEPRECATED — do not
+  extend it; it dissolves in one deliberate rework wave (no piecemeal
+  migration: two coexisting class systems is the worst state).
 - **UI waves end at the design gate, judged on pixels.** Deliverable is
   before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-

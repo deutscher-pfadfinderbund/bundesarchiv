@@ -140,3 +140,8 @@ Named example of overkill: the "color math" namespace
   layouts → pages); no ad-hoc or redundant components; anything special is
   deliberate; consistency is paramount. Codified as "Construction law" in
   `docs/design/design-system.md`.
+- **CSS methodology ruling (2026-08-05):** not fond of the `c-*`/`l-*`
+  classes — either full Tailwind or proper use of the cascade; preference is
+  modular and flexible, consistent through variables. Resolved to: modern
+  cascade-based CSS over the existing custom-property tokens; the prefix
+  taxonomy is deprecated, dissolved in one deliberate rework wave.
