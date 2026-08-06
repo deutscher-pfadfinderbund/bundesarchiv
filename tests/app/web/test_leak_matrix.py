@@ -590,9 +590,7 @@ _DEV_ONLY_PATHS = (
     "/favicon.ico",
     "/_dev/viewer/",
     "/_dev/components/",
-    "/_dev/components/papier/",
     "/_dev/layouts/split-narrow/",
-    "/_dev/static/components.css",
     "/_dev/layouts/static/layouts.css",
 )
 
