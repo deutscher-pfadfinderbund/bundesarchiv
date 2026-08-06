@@ -289,7 +289,7 @@
 
   /* ---- dev viewer-switcher stub (dev.py): a plain centered column ---- */
   .stub {
-    max-width: 40rem;
+    max-width: 40rem; /* dev-only reading width — one structural size, no token fits */
     margin: var(--space-6) auto;
     padding: 0 var(--space-4);
   }

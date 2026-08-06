@@ -143,8 +143,7 @@
 @layer components {
   /* ---- EDTF echo: neutral meta text under the Datierung field (spec §0) ---- */
   .echo {
-    margin-top: var(--space-1);
-    font: var(--type-meta);
+    font: var(--type-meta); /* sits inside label.field — the field's gap owns the spacing (C4) */
     color: var(--on-surface-variant);
   }
 
@@ -182,12 +181,14 @@
     border-radius: var(--radius-s);
     background: var(--surface-container-low);
   }
-  /* datei: filename (mono ink data mark) + byte size (quiet) */
+  /* datei: filename (mono ink data mark) + byte size (quiet) — its own little stack (C4) */
   .file {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-1) / 2);
   }
   .file > span {
-    display: block;
     font: var(--type-mono);
     color: var(--primary);
     overflow: hidden;
@@ -201,8 +202,7 @@
   /* the TITELBILD cover mark — INVERSION (register row 3), never amber/violet/tint: a solid
      neutral-ink stamp, like the active facet row and the primary button. */
   .titelbild {
-    display: inline-block;
-    margin-top: calc(var(--space-1) / 2);
+    align-self: flex-start;
     padding: 0 var(--space-1);
     background: var(--on-surface);
     color: var(--surface);
