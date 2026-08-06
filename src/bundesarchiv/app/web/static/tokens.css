@@ -10,6 +10,16 @@
    The exact L/C values are an implementation detail (the spec's pair table in
    design-system.md is the contract); judge edits at the design gate, both modes. */
 
+/* The cascade architecture (design-review-law.md appendix F): every stylesheet contributes to one
+   of these layers. tokens.css loads FIRST on every page, so this declaration fixes the order for
+   the whole app: tokens < elements (bare semantic HTML) < components (classed structures) <
+   compositions (page frames, view arrangements) < modes (deliberate global overrides + future
+   mode remaps such as prefers-contrast). Later layers win — a composition may tune a component,
+   and modes outrank everything by design. */
+@layer tokens, elements, components, compositions, modes;
+
+@layer tokens {
+
 :root {
   /* ==================================================================
      Layer 1 — seed. The ONLY line a sibling DPB service changes.
@@ -100,6 +110,20 @@
   --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
   --focus-ring: light-dark(var(--tone-50), var(--tone-78));
 
+  /* Sheet material (cue-register row 8 — the papier recipe promoted to baseline, owner
+     2026-08-06): sheet-like containers (facet panels, confirm panels, the empty state, result
+     cards if they return) read as cut sheets on the gray desk — a whisper of seed tint mixed
+     OVER --primary-container (high lightness, so the sheet tints without darkening; retints
+     automatically with a sibling service's seed), a hairline edge, and EXACTLY ONE depth cue:
+     the 2px lower edge (--sheet-edge, the thickness of the sheet). Root-level DERIVED tokens by
+     design (themability law): a future `prefers-contrast: more` block remaps these four to the
+     plain container roles and zeroes --sheet-edge — zero component changes. */
+  --sheet: color-mix(in oklab, var(--surface-container-low), var(--primary-container) 30%);
+  --sheet-lowest: color-mix(in oklab, var(--surface-container-lowest), var(--primary-container) 25%);
+  --sheet-high: color-mix(in oklab, var(--surface-container-high), var(--primary-container) 35%);
+  --sheet-hover: color-mix(in oklab, var(--surface-container-mid), var(--primary-container) 30%);
+  --sheet-edge: 2px;
+
   /* ==================================================================
      Non-color tokens.
      ================================================================== */
@@ -143,4 +167,13 @@
   --radius-s: 4px;
   --radius-m: 6px;
   --bevel: 12px;
+
+  /* Named non-spacing dimensions (design-review-law.md C5): the ONLY licensed sources for these
+     three recurring values. A bare px/rem literal in component CSS is an S3 defect unless a
+     comment names why no token fits. */
+  --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕) */
+  --hairline: 1px; /* the hairline edge — a contrast mode may thicken it globally */
+  --state-border: 3px; /* the state-marking left border (e.g. the CAS conflict panel) */
 }
+
+} /* @layer tokens */
