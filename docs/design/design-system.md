@@ -71,7 +71,9 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    A cascade rework is exactly the known regression class in `CLAUDE.md`
    (position/overlay rules on `hidden`-gated elements intercepting
    clicks), so the wave's gate is the e2e journeys, not gallery renders
-   alone.
+   alone. An axe-core pass over the journey pages rides along (carried
+   from issue #9) — the semantic-HTML upgrade is the moment to measure
+   and fix the a11y crop.
 
 Success criterion: net-negative diff in CSS lines and unique class names
 (169 classes / ~2,344 CSS lines at charter time), zero visual regressions

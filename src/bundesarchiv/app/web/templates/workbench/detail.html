@@ -33,7 +33,7 @@ is_archivist. No JS, no HTMX — the app's purest no-JS surface (§7).
     {% if is_draft %}
     <a class="c-btn c-btn--subtle" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>
     {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' ulid %}">"
+    <form method="post" action="{% url 'artikel-lebenszyklus' ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">

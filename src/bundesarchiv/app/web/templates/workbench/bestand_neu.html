@@ -12,7 +12,7 @@ Anlegen is first-in-source so Enter submits it.
 {% block body %}
 <main class="c-form c-form--neu">
   <h1 class="c-form-titel">Neuer Bestand</h1>
-  <form class="c-form-felder" method="post" action="{% url 'bestand-neu' %}">"
+  <form class="c-form-felder" method="post" action="{% url 'bestand-neu' %}">
     {% csrf_token %}
     <label class="c-field{% if errors.name %} c-field--fehler{% endif %}">
       <span class="c-field-label">Name</span>

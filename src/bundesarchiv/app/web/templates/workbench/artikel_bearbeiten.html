@@ -428,7 +428,7 @@ only.{% endcomment %}
       <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
     </form>
     {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">"
+    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">
