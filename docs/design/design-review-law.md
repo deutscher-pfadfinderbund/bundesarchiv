@@ -10,6 +10,15 @@ Rules first, fixes later (owner ruling): existing CSS is *measured* against
 this document; bringing it into compliance is the rework wave's job, not a
 side effect of a review.
 
+**Framework vs. contents (owner, 2026-08-06):** this document is first and
+foremost a framework for agents. The *mechanisms* are binding — the
+catechism, the register discipline (cues need rows, rows are owner
+decisions), the cascade rules, themability, the availability tiers. The
+*contents* — which register rows exist, the material, the motion
+vocabulary — are the CURRENT design state: owner-changeable at any time,
+final design up for debate. An agent may never change contents on its own;
+an owner may always.
+
 **Unit of review:** a component is the triple **template + its dedicated CSS
 block + all live usages**. A verdict names which part it applies to. Tracing
 live callers is in scope — a component cannot be judged without its citizens.
@@ -127,8 +136,11 @@ only it:
   paper moves on a desk. It need not be "realistic" paper; it must carry the
   feeling. Never decorative or idle, never blocking, always honoring
   `prefers-reduced-motion`. Forbidden verbs: zoom, bounce, ripple, parallax.
-- **Icons: text-first.** No icon font, no icon-only buttons; the existing
-  marks (✕, arrows) are typography.
+- **Icons: permitted; text-first is the current default, not a ban**
+  (owner, 2026-08-06). Adopting icons is a register decision: ONE
+  consistent set, one register row naming where icons live. Binding part
+  regardless of the choice: every icon-only control carries an accessible
+  name (a11y floor), and no per-agent ad-hoc icon picks.
 - **Viewport targets:** archivist surfaces desktop-first (their real
   workplace); the reader view phone-first (member links arrive via
   chat/mail).
