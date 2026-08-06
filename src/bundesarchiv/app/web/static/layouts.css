@@ -237,6 +237,56 @@
     color: var(--on-surface-variant);
   }
 
+  /* ---- the work/reading column: ONE centered-column composition for every non-workbench
+     screen (create/edit/confirm forms, the detail reader). Width is the column's own knob
+     (law C3): 52rem default, .narrow for near-empty pages, .wide for the reading sheet. ---- */
+  .column {
+    --column-width: 52rem;
+    max-width: var(--column-width);
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
+  }
+  .column.narrow {
+    --column-width: 34rem;
+    padding-bottom: var(--space-8);
+  }
+  .column.wide {
+    --column-width: 72rem;
+    padding-bottom: var(--space-8);
+  }
+  .column h1 {
+    margin: 0 0 var(--space-5);
+    font: var(--type-display);
+    color: var(--on-surface);
+  }
+  /* the persistent screen header: h1 / context + the reserved marks, once */
+  .column header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+  .column header h1 {
+    margin: 0;
+  }
+  .column header > span {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* a confirm page names WHICH record: the quoted title next to its Signatur mark */
+  .column header strong {
+    font: var(--type-title);
+    color: var(--on-surface);
+  }
+  .column > p {
+    margin: 0 0 var(--space-4);
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+  }
+
   /* ---- dev viewer-switcher stub (dev.py): a plain centered column ---- */
   .stub {
     max-width: 40rem;

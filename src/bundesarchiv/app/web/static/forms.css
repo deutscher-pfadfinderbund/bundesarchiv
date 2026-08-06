@@ -11,51 +11,6 @@
    5). No per-group fills, no card shadows — that flatness is load-bearing. */
 
 @layer compositions {
-  /* ---- the work column: a single centered editing column (spec §1). Widths are the column's
-     own knobs (law C3): 52rem default, .narrow for the near-empty create/confirm pages. ---- */
-  .column {
-    --column-width: 52rem;
-    max-width: var(--column-width);
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
-  }
-  .column.narrow {
-    --column-width: 34rem;
-    padding-bottom: var(--space-8);
-  }
-  .column h1 {
-    margin: 0 0 var(--space-5);
-    font: var(--type-display);
-    color: var(--on-surface);
-  }
-  /* the persistent screen header (spec §3): h1 / context + the reserved marks, once */
-  .column header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    margin-bottom: var(--space-6);
-  }
-  .column header h1 {
-    margin: 0;
-  }
-  .column header > span {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  /* the confirm page names WHICH record: the quoted title next to its Signatur mark */
-  .column header strong {
-    font: var(--type-title);
-    color: var(--on-surface);
-  }
-  .column > p {
-    margin: 0 0 var(--space-4);
-    font: var(--type-body);
-    color: var(--on-surface-variant);
-  }
-
   /* the create step is near-empty: the two required fields are the focal point */
   .column.narrow form {
     display: flex;

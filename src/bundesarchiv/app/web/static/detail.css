@@ -1,264 +1,218 @@
-/* Part 4.6 — Artikel DETAIL read view (the Lesesaal). Role tokens ONLY; a raw color here is a defect
-   (design-system.md, "Roles, not colors"). Loads after tokens.css + components.css.
+/* Part 4.6 — Artikel DETAIL read view (the Lesesaal): the reading sheet composition and its two
+   components (the record card, the plate register). Role tokens ONLY; a raw color here is a
+   defect. Loads after tokens.css + components.css + layouts.css (which owns the shared .column).
 
-   Grammar (spec §0): violet ink appears ONLY on the Signatur (.c-sig, from the atom), the mono
-   machine values (.l-akte-val--mono, .l-register-zahl), and the inline links; the human Datierung
-   under the title is NEUTRAL body text (signals-once — the machine value carries the ink mark). No
-   loud color anywhere on a member view; state is ink INVERSION, never a tint wash. */
+   Grammar (spec §0): violet ink appears ONLY on the Signatur (.c-sig), the mono machine values
+   (dd.mono, the Blatt count) and the inline links; the human Datierung under the title is NEUTRAL
+   body text (signals-once — the machine value carries the ink mark). No loud color anywhere on a
+   member view; the active plate is a neutral-ink INVERSION frame, never a tint. */
 
-/* Topbar: return link + Bestand breadcrumb, in base.html's always-present header. */
-.wb--detail .wb-header {
-  gap: var(--space-4);
-}
-.l-topbar {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-.l-zurueck,
-.l-bestand a {
-  color: var(--on-surface-variant);
-  text-decoration: none;
-}
-.l-zurueck:hover,
-.l-bestand a:hover {
-  color: var(--primary);
-}
-.l-bestand a {
-  color: var(--primary);
-}
-.l-bestand-sep {
-  color: var(--on-surface-variant);
-  margin-inline: var(--space-1);
-}
-
-/* The reading column: a single centered column on paper. The cover is the only wide element. */
-.l-blatt {
-  max-width: 72rem;
-  margin-inline: auto;
-  padding: var(--space-6) var(--space-4) var(--space-8);
-  background: var(--surface);
-}
-
-/* Action row (archivist) — a quiet secondary cluster, top-right of the column. */
-.wb--detail .c-artikel-aktionen {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-/* Cover Platte — THE focal point: a paper-mounted photo with a hairline and the index-card bevel on
-   the top-right corner (the one shape signature). */
-.l-platte {
-  margin: 0 0 var(--space-5);
-  padding: var(--space-3);
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-m);
-  corner-shape: bevel;
-  border-top-right-radius: var(--bevel);
-}
-.l-platte-link {
-  display: block;
-}
-.l-platte-bild {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: var(--radius-s);
-}
-.l-platte-cap {
-  margin-top: var(--space-2);
-  color: var(--on-surface-variant);
-  font: var(--type-meta);
-}
-
-/* Title block: display title, human Datierung as NEUTRAL prose (not violet — §0/§10). */
-.l-kopf {
-  margin-bottom: var(--space-5);
-}
-.l-titel {
-  margin: 0;
-  font: var(--type-display);
-  color: var(--on-surface);
-}
-.l-datierung {
-  margin: var(--space-1) 0 0;
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-
-/* Body split: prose left (~65ch), record card right; folds to one column narrow. */
-.l-korpus {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
-  gap: var(--space-6);
-  align-items: start;
-}
-/* Pure text record — no Beschreibung prose (and, with no media, nothing above but the title): the
-   two-track grid would maroon the card top-right beside an empty prose column ("far from what it
-   refers to"). Collapse to a single ≤40rem column so the card sits directly under the title as one
-   cohesive block (design-gate HOLD, gate option a). */
-.l-korpus:not(:has(.l-prosa)) {
-  grid-template-columns: minmax(0, 40rem);
-}
-.l-korpus:not(:has(.l-prosa)) .l-akte {
-  grid-column: 1;
-}
-.l-prosa {
-  max-width: 65ch;
-}
-.l-abschnitt-h {
-  margin: 0 0 var(--space-2);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.l-beschreibung {
-  margin: 0 0 var(--space-3);
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-
-/* Record card (Katalogeintrag): a quiet register of facts, sticky on wide. Pinned to the 20rem
-   right track (grid-column 2) so a body-less article — the pure text record — keeps the card at its
-   rail width instead of stretching it across the empty 1fr prose track (design-gate MED). */
-.l-akte {
-  grid-column: 2;
-  position: sticky;
-  top: var(--space-4);
-  padding: var(--space-4);
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-m);
-}
-.l-akte-h {
-  margin: 0 0 var(--space-3);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.l-akte-sig {
-  margin-bottom: var(--space-3);
-}
-.l-akte-reihe {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-1) 0;
-}
-.l-akte-key {
-  font: var(--type-label);
-  color: var(--on-surface-variant);
-}
-.l-akte-val {
-  font: var(--type-meta);
-  color: var(--on-surface);
-  text-align: right;
-}
-.l-akte-val--mono {
-  font: var(--type-mono);
-  color: var(--primary);
-}
-.l-akte-val a {
-  color: var(--primary);
-  text-decoration: none;
-}
-.l-akte-val a:hover {
-  text-decoration: underline;
-}
-/* Archivist-only rows carry a quiet neutral "Nur intern" hint — NO loud color (§0 law trap). */
-.l-akte-intern {
-  font: var(--type-mono-meta);
-  color: var(--on-surface-variant);
-}
-/* The card's Bestand row is a mobile fallback — hidden when the topbar breadcrumb is shown. */
-.l-akte-reihe--bestand {
-  display: none;
-}
-
-/* Schlagworte: ink-text links on neutral paper, no tint fill. */
-.l-schlag {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  justify-content: flex-end;
-}
-.l-schlag-wort {
-  padding: 0 var(--space-2);
-  background: var(--surface-container-lowest);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  color: var(--primary);
-  font: var(--type-meta);
-  text-decoration: none;
-}
-
-/* Plate register (filmstrip): horizontal strip that scrolls inside its own box — the page never
-   scrolls sideways. The active plate (the cover) is a neutral-ink INVERSION frame, not a tint. */
-.l-register {
-  margin-top: var(--space-6);
-}
-.l-register-h {
-  margin: 0 0 var(--space-2);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.l-register-zahl {
-  font: var(--type-mono-meta);
-  color: var(--primary);
-}
-.l-strip {
-  display: flex;
-  gap: var(--space-3);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-}
-.l-plate {
-  flex: 0 0 auto;
-  width: 9rem;
-  text-decoration: none;
-  color: var(--on-surface-variant);
-}
-.l-plate-bild {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.l-plate--aktiv .l-plate-bild {
-  outline: 2px solid var(--on-surface);
-  outline-offset: 2px;
-}
-.l-plate-cap {
-  display: block;
-  margin-top: var(--space-1);
-  font: var(--type-mono-meta);
-}
-
-/* Narrow fold: record card under the prose (single column); breadcrumb hides very narrow, and the
-   card's leaf-Bestand row appears to keep the filing (§3). */
-@media (max-width: 900px) {
-  .l-korpus {
-    grid-template-columns: minmax(0, 1fr);
+@layer compositions {
+  /* Bestand breadcrumb in the page header (next to the Zurück link) */
+  body > header nav a {
+    color: var(--primary);
   }
-  .l-akte {
-    grid-column: 1;  /* single column in the fold — no track 2 to pin to */
-    position: static;
+  body > header nav span {
+    color: var(--on-surface-variant);
+    margin-inline: var(--space-1);
+  }
+
+  /* the title block: display title, human Datierung as NEUTRAL prose below it (§0/§10) */
+  .column.wide header {
+    display: block;
+    margin-bottom: var(--space-5);
+  }
+  .column.wide header h1 {
+    margin: 0;
+  }
+  .column.wide header p {
+    margin: var(--space-1) 0 0;
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+
+  /* archivist action row: a quiet secondary cluster, top-right of the column */
+  .column.wide > .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--space-4);
+  }
+
+  /* body split: prose left (~65ch), record card right; folds to one column narrow */
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: var(--space-6);
+    align-items: start;
+  }
+  /* Pure text record — no Beschreibung prose: the two-track grid would maroon the card top-right
+     beside an empty prose column. Collapse to a single ≤40rem column so the card sits directly
+     under the title as one cohesive block (design-gate HOLD, gate option a). */
+  .split:not(:has(.prose)) {
+    grid-template-columns: minmax(0, 40rem);
+  }
+  .split:not(:has(.prose)) .facts {
+    grid-column: 1;
+  }
+  .prose {
+    max-width: 65ch;
+  }
+  .split h2 {
+    margin: 0 0 var(--space-2);
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .prose p {
+    margin: 0 0 var(--space-3);
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+
+  /* narrow fold: record card under the prose (single column); the breadcrumb hides very narrow
+     and the card's leaf-Bestand fallback row appears so the filing is never wholly lost (§3) */
+  @media (max-width: 900px) {
+    .split {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .facts {
+      grid-column: 1;
+      position: static;
+    }
+  }
+  @media (max-width: 560px) {
+    body > header nav {
+      display: none;
+    }
+    .facts .fallback {
+      display: flex;
+    }
   }
 }
-@media (max-width: 560px) {
-  .l-bestand {
+
+@layer components {
+  /* ---- cover Platte — THE focal point: a paper-mounted photo with a hairline edge. No bevel:
+     the cut is licensed solely on .c-sig (register row 1). ---- */
+  .column figure {
+    margin: 0 0 var(--space-5);
+    padding: var(--space-3);
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-m);
+  }
+  .column figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-s);
+  }
+  .column figcaption {
+    margin-top: var(--space-2);
+    color: var(--on-surface-variant);
+    font: var(--type-meta);
+  }
+
+  /* ---- record card (Katalogeintrag): a quiet register of facts as a <dl>, sticky on wide.
+     Pinned to the 20rem right track so a body-less article keeps it at rail width. ---- */
+  .facts {
+    grid-column: 2;
+    position: sticky;
+    top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-m);
+  }
+  .facts > div {
+    margin-bottom: var(--space-3);
+  }
+  .facts dl {
+    margin: 0;
+  }
+  .facts dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+  }
+  .facts dt {
+    font: var(--type-label);
+    color: var(--on-surface-variant);
+  }
+  .facts dd {
+    margin: 0;
+    font: var(--type-meta);
+    color: var(--on-surface);
+    text-align: right;
+  }
+  .facts dd.mono {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+  }
+  /* archivist-only rows carry a quiet neutral "Nur intern" hint — NO loud color (§0 law trap) */
+  .facts small {
+    font: var(--type-mono-meta);
+    color: var(--on-surface-variant);
+  }
+  /* Schlagworte: ink-text links on the card, right-aligned like every value */
+  .facts .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+    justify-content: flex-end;
+  }
+  /* the card's Bestand row is a mobile fallback — hidden while the breadcrumb shows */
+  .facts .fallback {
     display: none;
   }
-  .l-akte-reihe--bestand {
+
+  /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the
+     page never scrolls sideways. The active plate (the cover) carries aria-current and a
+     neutral-ink INVERSION frame (register row 3). ---- */
+  .filmstrip {
+    margin-top: var(--space-6);
+  }
+  .filmstrip h2 {
+    margin: 0 0 var(--space-2);
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .filmstrip h2 span {
+    font: var(--type-mono-meta);
+    color: var(--primary);
+  }
+  .filmstrip > div {
     display: flex;
+    gap: var(--space-3);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+  }
+  .filmstrip a {
+    flex: 0 0 auto;
+    width: 9rem; /* one plate width — the strip's own rhythm, no token fits */
+    color: var(--on-surface-variant);
+  }
+  .filmstrip a:hover {
+    text-decoration: none;
+  }
+  .filmstrip img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+  }
+  .filmstrip a[aria-current] img {
+    outline: 2px solid var(--on-surface);
+    outline-offset: 2px;
+  }
+  .filmstrip a > span {
+    display: block;
+    margin-top: var(--space-1);
+    font: var(--type-mono-meta);
   }
 }

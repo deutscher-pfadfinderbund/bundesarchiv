@@ -1,123 +1,124 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-Artikel DETAIL read view (Part 4.6, the Lesesaal). ONE template fed a visible-projected Article: the
-archivist-only rows (Standort, Weitere Angaben) are floored to None/() by project() before they reach
-here, so the same {% if value %} guard that omits an absent field also omits a floored one — there is
-NO member/archivist fork (spec §4/§10). Violet ink is permitted ONLY on the Signatur, the mono
-machine values, and the inline links (spec §0); the human Datierung under the title stays neutral
-(signals-once — violet marks the machine value once). The action row + ENTWURF badge render only for
-is_archivist. No JS, no HTMX — the app's purest no-JS surface (§7).
+Artikel DETAIL read view (Part 4.6, the Lesesaal). ONE template fed a visible-projected Article:
+the archivist-only rows (Standort, Weitere Angaben) are floored to None/() by project() before
+they reach here, so the same {% if value %} guard that omits an absent field also omits a floored
+one — there is NO member/archivist fork (spec §4/§10). Violet ink is permitted ONLY on the
+Signatur, the mono machine values, and the inline links (spec §0); the human Datierung under the
+title stays neutral (signals-once — violet marks the machine value once). The action row +
+ENTWURF badge render only for is_archivist. The record card is a real <dl> (one fact, one row).
+No JS, no HTMX — the app's purest no-JS surface (§7).
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-detail' %}">{% endblock %}
-{% block body_class %} wb--detail{% endblock %}
 {% block header %}
-<div class="l-topbar">
-  <a class="l-zurueck" href="{{ zurueck_href }}">Zurück zur Suche</a>
-  {% if crumbs %}
-  <nav class="l-bestand" aria-label="Bestand">
-    {% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% if not forloop.last %}<span class="l-bestand-sep" aria-hidden="true">›</span>{% endif %}{% endfor %}
-  </nav>
-  {% endif %}
-</div>
+<a class="back" href="{{ zurueck_href }}">Zurück zur Suche</a>
+{% if crumbs %}
+<nav aria-label="Bestand">
+  {% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% if not forloop.last %}<span aria-hidden="true">›</span>{% endif %}{% endfor %}
+</nav>
+{% endif %}
 {% endblock %}
 {% block body %}
-<main class="l-blatt">
+<main class="column wide">
   {% if is_archivist %}
-  <div class="c-artikel-aktionen">
-    <a class="c-btn c-btn--subtle" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
+  <div class="actions">
+    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
     <form method="post" action="{% url 'artikel-kopieren' ulid %}">
       {% csrf_token %}
-      <button class="c-btn c-btn--subtle" type="submit">Kopieren</button>
+      <button type="submit">Kopieren</button>
     </form>
     {% if is_draft %}
-    <a class="c-btn c-btn--subtle" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>
+    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>
     {% else %}
     <form method="post" action="{% url 'artikel-lebenszyklus' ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">
-      <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
+      <button type="submit">Als Entwurf zurückziehen</button>
     </form>
     {% endif %}
-    <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' ulid %}">Löschen</a>
+    <a class="button" href="{% url 'artikel-loeschen' ulid %}">Löschen</a>
   </div>
   {% endif %}
 
   {% comment %}Cover Platte — the ONE focal point. Omitted entirely when there is no media (§1
   no-media rule: no empty frame, the title becomes the focus). The image links its full gated byte
-  route (opens the native full-size view) — so a single-media article, which has no filmstrip, still
-  has a path to the full image (design-gate LOW-MED). No-JS native.{% endcomment %}
+  route (opens the native full-size view) — so a single-media article, which has no filmstrip,
+  still has a path to the full image (design-gate LOW-MED). No-JS native.{% endcomment %}
   {% if cover %}
-  <figure class="l-platte">
-    <a class="l-platte-link" href="{{ cover.file_url }}"><img class="l-platte-bild" src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
-    {% if cover.caption %}<figcaption class="l-platte-cap">{{ cover.caption }}</figcaption>{% endif %}
+  <figure>
+    <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
+    {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
   </figure>
   {% endif %}
 
-  <header class="l-kopf">
-    <h1 class="l-titel">{{ title }}{% if is_draft %} {% include "components/badge_lifecycle.html" with draft=is_draft only %}{% endif %}</h1>
-    {% if datierung_prose %}<p class="l-datierung">{{ datierung_prose }}</p>{% endif %}
+  <header>
+    <h1>{{ title }}{% if is_draft %} {% include "components/badge_lifecycle.html" with draft=is_draft only %}{% endif %}</h1>
+    {% if datierung_prose %}<p>{{ datierung_prose }}</p>{% endif %}
   </header>
 
-  <div class="l-korpus">
+  <div class="split">
     {% if body_paragraphs %}
-    <section class="l-prosa">
-      <h2 class="l-abschnitt-h">Beschreibung</h2>
-      {% for absatz in body_paragraphs %}<p class="l-beschreibung">{{ absatz }}</p>{% endfor %}
+    <section class="prose">
+      <h2>Beschreibung</h2>
+      {% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}
     </section>
     {% endif %}
 
-    <aside class="l-akte">
-      <h2 class="l-akte-h">Katalogeintrag</h2>
-      <div class="l-akte-sig">{% include "components/signatur_tab.html" with ref_code=ref_code only %}</div>
+    <aside class="facts">
+      <h2>Katalogeintrag</h2>
+      <div>{% include "components/signatur_tab.html" with ref_code=ref_code only %}</div>
 
-      {% if datierung_mono %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Datierung</span><span class="l-akte-val l-akte-val--mono">{{ datierung_mono }}</span></div>
-      {% endif %}
-      {% if typ %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Typ</span><span class="l-akte-val">{{ typ }}</span></div>
-      {% endif %}
-      {% if creator %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Autor</span><span class="l-akte-val">{{ creator }}</span></div>
-      {% endif %}
-      {% if ort %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Ort</span><span class="l-akte-val">{{ ort }}</span></div>
-      {% endif %}
-      {% comment %}Bestand row appears only when the topbar breadcrumb is hidden (≤560px, css) — it
-      shows just the leaf as a link so the filing is never wholly lost on mobile (§3 signals-once:
-      the chain lives in the topbar on wide, this row on narrow).{% endcomment %}
-      {% if leaf_bestand %}
-      <div class="l-akte-reihe l-akte-reihe--bestand"><span class="l-akte-key">Bestand</span><span class="l-akte-val"><a href="{{ leaf_bestand.href }}">{{ leaf_bestand.name }}</a></span></div>
-      {% endif %}
-      {% if umfang %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Umfang</span><span class="l-akte-val l-akte-val--mono">{{ umfang }} Blatt</span></div>
-      {% endif %}
-      {% if tags %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Schlagworte</span><span class="l-schlag">{% for tag in tags %}<a class="l-schlag-wort" href="{{ tag.href }}">{{ tag.label }}</a>{% endfor %}</span></div>
-      {% endif %}
+      <dl>
+        {% if datierung_mono %}
+        <div><dt>Datierung</dt><dd class="mono">{{ datierung_mono }}</dd></div>
+        {% endif %}
+        {% if typ %}
+        <div><dt>Typ</dt><dd>{{ typ }}</dd></div>
+        {% endif %}
+        {% if creator %}
+        <div><dt>Autor</dt><dd>{{ creator }}</dd></div>
+        {% endif %}
+        {% if ort %}
+        <div><dt>Ort</dt><dd>{{ ort }}</dd></div>
+        {% endif %}
+        {% comment %}Bestand row appears only when the topbar breadcrumb is hidden (≤560px, css) —
+        it shows just the leaf as a link so the filing is never wholly lost on mobile (§3
+        signals-once: the chain lives in the topbar on wide, this row on narrow).{% endcomment %}
+        {% if leaf_bestand %}
+        <div class="fallback"><dt>Bestand</dt><dd><a href="{{ leaf_bestand.href }}">{{ leaf_bestand.name }}</a></dd></div>
+        {% endif %}
+        {% if umfang %}
+        <div><dt>Umfang</dt><dd class="mono">{{ umfang }} Blatt</dd></div>
+        {% endif %}
+        {% if tags %}
+        <div><dt>Schlagworte</dt><dd class="tags">{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% endfor %}</dd></div>
+        {% endif %}
 
-      {% comment %}Archivist-only rows: floored to None/() for members by project(), so this {% if %}
-      simply skips for them — no fork. Quiet neutral chrome, NO loud color (§0 law trap).{% endcomment %}
-      {% if standort %}
-      <div class="l-akte-reihe"><span class="l-akte-key">Standort</span><span class="l-akte-val">{{ standort }} <span class="l-akte-intern">Nur intern</span></span></div>
-      {% endif %}
-      {% for key, value in custom %}
-      <div class="l-akte-reihe"><span class="l-akte-key">{{ key }}</span><span class="l-akte-val">{{ value }} <span class="l-akte-intern">Nur intern</span></span></div>
-      {% endfor %}
+        {% comment %}Archivist-only rows: floored to None/() for members by project(), so this
+        {% if %} simply skips for them — no fork. Quiet neutral chrome, NO loud color.{% endcomment %}
+        {% if standort %}
+        <div><dt>Standort</dt><dd>{{ standort }} <small>Nur intern</small></dd></div>
+        {% endif %}
+        {% for key, value in custom %}
+        <div><dt>{{ key }}</dt><dd>{{ value }} <small>Nur intern</small></dd></div>
+        {% endfor %}
+      </dl>
     </aside>
   </div>
 
-  {% comment %}Plate register — further sheets beyond the cover. Omitted when ≤1 media (§1: the cover
-  already shows the only sheet). Each plate links its full gated byte route (opens native image).
-  The active plate (the cover, always Blatt 1) carries the neutral-ink inversion frame.{% endcomment %}
+  {% comment %}Plate register — further sheets beyond the cover. Omitted when ≤1 media (§1: the
+  cover already shows the only sheet). Each plate links its full gated byte route (opens native
+  image). The active plate (the cover, always Blatt 1) carries aria-current + the neutral-ink
+  inversion frame.{% endcomment %}
   {% if weitere %}
-  <section class="l-register">
-    <h2 class="l-register-h">Weitere Aufnahmen <span class="l-register-zahl">Blatt 1 / {{ umfang }}</span></h2>
-    <div class="l-strip">
-      <a class="l-plate l-plate--aktiv" href="{{ cover.file_url }}"><img class="l-plate-bild" src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
+  <section class="filmstrip">
+    <h2>Weitere Aufnahmen <span>Blatt 1 / {{ umfang }}</span></h2>
+    <div>
+      <a href="{{ cover.file_url }}" aria-current="true"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
       {% for plate in weitere %}
-      <a class="l-plate" href="{{ plate.file_url }}"><img class="l-plate-bild" src="{{ plate.thumb_url }}" alt="{{ plate.caption }}" loading="lazy">{% if plate.caption %}<span class="l-plate-cap">{{ plate.caption }}</span>{% endif %}</a>
+      <a href="{{ plate.file_url }}"><img src="{{ plate.thumb_url }}" alt="{{ plate.caption }}" loading="lazy">{% if plate.caption %}<span>{{ plate.caption }}</span>{% endif %}</a>
       {% endfor %}
     </div>
   </section>

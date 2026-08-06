@@ -369,7 +369,7 @@ def test_malformed_or_absent_ulid_is_404(corpus: _Corpus, path: str) -> None:
 def test_detail_action_row_present_for_archivist(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).get(f"/artikel/{_PUBLISHED}").content.decode()
-    assert "c-artikel-aktionen" in body
+    assert 'class="actions"' in body
     assert f"/artikel/{_PUBLISHED}/bearbeiten" in body
     assert f"/artikel/{_PUBLISHED}/kopieren" in body
     assert f"/artikel/{_PUBLISHED}/loeschen" in body
@@ -381,7 +381,7 @@ def test_detail_action_row_absent_for_non_archivist(corpus: _Corpus) -> None:
     # PUB is public, so Public can VIEW the published article — but the action row must be ABSENT.
     with override_settings(**_settings(corpus)):
         body = _client_as(Public()).get(f"/artikel/{_PUBLISHED}").content.decode()
-    assert "c-artikel-aktionen" not in body
+    assert 'class="actions"' not in body
     assert "/kopieren" not in body
     assert "/loeschen" not in body
 
