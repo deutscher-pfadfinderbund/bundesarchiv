@@ -78,5 +78,7 @@ non-empty PNG.
 - `conftest.py` — fixtures (per-test corpus, live server, viewer cookies, pages).
 - `_corpus.py` — `build_corpus` + the fixed ULIDs the journeys reference.
 - `test_journeys.py` — the journeys.
+- `test_a11y.py` — the axe-core WCAG 2.2 AA pass over the journey pages.
 - `_gallery.py` — the state list + `render_all`.
 - `test_gallery.py` — the gallery entry point + smoke test.
+- `vendor/` — the vendored axe-core (MPL-2.0; pages are offline-only by design).
