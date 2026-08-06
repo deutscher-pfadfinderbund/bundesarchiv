@@ -395,35 +395,17 @@
     font-size: 0.85em; /* the direction glyph rides the label's own size — relative by nature */
   }
 
-  /* every cell sits on its named line (absent optional cells leave holes, not drift) */
+  /* body cells — each sits on its named line (absent optional cells leave holes, not drift) */
   .ledger .auswahl {
     grid-column: auswahl;
+    display: inline-flex;
+    align-items: center;
   }
   .ledger .sig {
     grid-column: sig;
   }
   .ledger .titel {
     grid-column: titel;
-  }
-  .ledger .datierung {
-    grid-column: datum;
-  }
-  .ledger .typ {
-    grid-column: typ;
-  }
-  .ledger .sichtbarkeit {
-    grid-column: sicht;
-  }
-  .ledger .aktion {
-    grid-column: aktion;
-  }
-
-  /* body cells */
-  .ledger .auswahl {
-    display: inline-flex;
-    align-items: center;
-  }
-  .ledger .titel {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -436,20 +418,24 @@
     color: var(--primary);
   }
   .ledger .datierung {
+    grid-column: datum;
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
     color: var(--primary); /* mono date = ink data (row 2) */
   }
   .ledger .typ {
+    grid-column: typ;
     font: var(--type-meta);
     color: var(--on-surface-variant);
   }
   .ledger .sichtbarkeit {
+    grid-column: sicht;
     display: inline-flex;
     flex-wrap: wrap;
     gap: var(--space-1);
   }
   .ledger .aktion {
+    grid-column: aktion;
     text-align: right;
   }
   /* the row action is quiet until the row is hovered / keyboard-focused */
