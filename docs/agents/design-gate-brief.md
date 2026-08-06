@@ -37,7 +37,10 @@ purpose.
 ## 3. Then judge on live pages
 
 The gallery is the supplement, not the verdict. Final judgment — interact,
-resize, both modes — happens on the live `:8000` pages. Restart the dev server
+resize, both modes — happens on the live `:8000` pages. Judge against the
+review catechism and cue register in `docs/design/design-review-law.md`
+(questions 2–4 and 6–8 are the human half; the lintable subset becomes a
+test in the rework wave). Restart the dev server
 after ANY commit (`:8000` runs `--noreload` and serves stale code otherwise),
 then review the URLs the change touches.
 

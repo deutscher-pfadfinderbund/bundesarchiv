@@ -4,6 +4,11 @@ Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
 no formal acceptance step. Governs all web UI from Part 4 on. Sibling DPB
 services reuse the whole system by swapping one seed line.
 
+**Enforceable half:** `design-review-law.md` (same directory) — the review
+catechism, the cue register (the ONLY licensed visual cues, MAY-only), the
+cascade rules, and the lintable subset. Owner-ratified 2026-08-06; reviews
+and the design gate run against it.
+
 ## Construction law (owner, 2026-08-05)
 
 How UI gets BUILT — these rank with the visual laws below. Background: agents
