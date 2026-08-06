@@ -13,7 +13,7 @@ Titel (or the first errored field). Speichern is first-in-source so Enter submit
 <main class="c-form c-form--neu">
   <h1 class="c-form-titel">Neuer Artikel</h1>
   {% if angelegt %}<p class="c-form-hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
-  <form class="c-form-felder" method="post" action="{% url 'artikel-neu' %}">"
+  <form class="c-form-felder" method="post" action="{% url 'artikel-neu' %}">
     {% csrf_token %}
     <label class="c-field{% if errors.title %} c-field--fehler{% endif %}">
       <span class="c-field-label">Titel</span>
