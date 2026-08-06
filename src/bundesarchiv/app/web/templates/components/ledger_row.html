@@ -7,42 +7,42 @@ One ledger row — a result register line. Params (via {% include with %}):
 - ref_code           — Signatur; empty/absent renders the hollow "ohne Signatur" slot (SIG column),
                        independent of lifecycle — a draft WITH a ref_code shows its code normally.
 - datierung          — mono date string (DATIERUNG column); absent renders NOTHING (no placeholder)
-- typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In the
-                       narrow fold the "·" separator only appears BETWEEN a present datierung and typ
-                       (css adjacent-sibling rule), so an absent value leaves no dangling separator
-                       and a row with neither shows no second line.
+- typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In
+                       the narrow fold the "·" separator only appears BETWEEN a present datierung
+                       and typ (css adjacent-sibling rule), so absence dangles nothing.
 - draft (bool)       — a draft shows the ENTWURF badge in the SICHTBARKEIT column INSTEAD of the
                        visibility badge (a draft's effective visibility is archivists-only).
 - visibility         — human-German visibility text (SICHTBARKEIT column, published rows only)
 - action_label/href  — the row action (e.g. "Bearbeiten"), revealed on hover/focus-within
 - archivist (bool)   — archivist chrome; when false the SICHTBARKEIT + action cells are omitted
                        entirely (members/public never receive that data or that column)
-- selected (bool)    — this row is the one shown in the preview pane; marked by inversion
+- selected (bool)    — this row is shown in the preview pane; aria-current marks it (law C2)
+- bulk / gewaehlt    — the selection checkbox cell / its server-rendered checked state. The row's
+                       inversion styling derives from the checkbox itself (CSS :has).
 
 Composes the signatur_tab + badge atoms. SICHTBARKEIT carries ONE signal per row, exactly once:
-ENTWURF for drafts, the visibility badge otherwise. The narrow density (.c-ledger--narrow) reflows
-the same cells into two lines via CSS grid areas — no markup fork.
+ENTWURF for drafts, the visibility badge otherwise.
 {% endcomment %}
-<div class="c-ledger-row{% if draft %} c-ledger-row--entwurf{% endif %}{% if selected %} c-ledger-row--aktiv{% endif %}{% if gewaehlt %} c-ledger-row--gewaehlt{% endif %}" role="row"{% if selected %} aria-current="true"{% endif %}>
+<div role="row"{% if selected %} aria-current="true"{% endif %}>
   {% if bulk %}
-  <span class="c-ledger-cell c-ledger-cell--auswahl" role="cell">
+  <span class="auswahl" role="cell">
     <input type="checkbox" name="auswahl" value="{{ ulid }}"{% if gewaehlt %} checked{% endif %} aria-label="{{ title }} auswählen">
   </span>
   {% endif %}
-  <span class="c-ledger-cell c-ledger-cell--sig" role="cell">
+  <span class="sig" role="cell">
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
-  <span class="c-ledger-cell c-ledger-cell--titel" role="cell">
-    <a class="c-ledger-titel" href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>
+  <span class="titel" role="cell">
+    <a href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>
   </span>
-  {% if datierung %}<span class="c-ledger-cell c-ledger-cell--datierung" role="cell">{{ datierung }}</span>{% endif %}
-  {% if typ %}<span class="c-ledger-cell c-ledger-cell--typ" role="cell">{{ typ }}</span>{% endif %}
+  {% if datierung %}<span class="datierung" role="cell">{{ datierung }}</span>{% endif %}
+  {% if typ %}<span class="typ" role="cell">{{ typ }}</span>{% endif %}
   {% if archivist %}
-  <span class="c-ledger-cell c-ledger-cell--sichtbarkeit" role="cell">
+  <span class="sichtbarkeit" role="cell">
     {% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% elif visibility %}{% include "components/badge_visibility.html" with text=visibility only %}{% endif %}
   </span>
-  <span class="c-ledger-cell c-ledger-cell--aktion" role="cell">
-    {% if action_label %}<a class="c-btn c-btn--subtle c-ledger-aktion" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+  <span class="aktion" role="cell">
+    {% if action_label %}<a class="button" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
   </span>
   {% endif %}
 </div>

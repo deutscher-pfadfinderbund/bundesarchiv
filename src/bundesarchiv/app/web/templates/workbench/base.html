@@ -1,10 +1,10 @@
 {% comment %}
 Base layout for the archivist workbench (Part 4.5, rebuilt on the design system). German UI.
 Progressive enhancement: htmx is loaded but every screen works without it (the no-JS baseline is
-BINDING). Styling is the design-system stack — tokens.css (roles), components.css (atoms),
-layouts.css (the workbench frame) — each self-contained, no external requests. The header block
-carries screen-specific chrome (the workbench's search form); the wordmark is always present and
-always links home.
+BINDING). Styling is the design-system stack — tokens.css (roles + the @layer order),
+components.css (elements + components), layouts.css (the compositions) — each self-contained, no
+external requests. The header block carries screen-specific chrome (the workbench's search form);
+the wordmark is always present and always links home.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -16,35 +16,36 @@ always links home.
   <link rel="stylesheet" href="{% url 'static-layouts' %}">
   {% block head_extra %}{% endblock %}
 </head>
-<body class="wb{% block body_class %}{% endblock %}">
-<header class="wb-header">
-  <a class="wb-wordmark" href="{% url 'workbench' %}">Bundesarchiv</a>
+<body class="{% block body_class %}{% endblock %}">
+<header>
+  <a class="wordmark" href="{% url 'workbench' %}">Bundesarchiv</a>
   {% block header %}{% endblock %}
 </header>
 {% block body %}{% endblock %}
-<div class="wb-error-banner" role="alert" aria-live="assertive" hidden>
-  <p class="wb-error-banner-text">Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
-  <button type="button" class="wb-error-banner-close" aria-label="Meldung schließen">&times;</button>
+<div class="error-banner" role="alert" aria-live="assertive" hidden>
+  <p>Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
+  <button type="button" aria-label="Meldung schließen">&times;</button>
 </div>
 <script src="{% url 'static-htmx' %}" defer></script>
 <script src="{% url 'static-ledger-pane' %}" defer></script>
 <script>
-  // htmx failures are otherwise silent — one document-level listener on both failure events reveals the banner; dismiss or a fresh success hides it.
-  // The banner is viewport-bottom-fixed (layouts.css), same as bottom-docked sticky chrome like the
-  // edit form's .c-form-footer — so a reveal must also lift that chrome, or it occludes Speichern
-  // exactly when the archivist needs to retry (design-gate fix-wave). Measure the banner's REAL
-  // rendered height (it wraps to two lines on a narrow viewport) into a CSS var rather than guessing
-  // a pixel number; forms.css reads it via `bottom: var(--wb-error-banner-height, 0px)`, so 0px both
-  // while [hidden] and as the fallback reproduces the old plain `bottom: 0` exactly.
+  // htmx failures are otherwise silent — one document-level listener on both failure events reveals
+  // the banner; dismiss or a fresh success hides it (by setting [hidden], which the modes-layer CSS
+  // makes absolute). The banner is viewport-bottom-fixed (layouts.css), same as bottom-docked sticky
+  // chrome like the edit form's sticky footer — so a reveal must also lift that chrome, or it
+  // occludes Speichern exactly when the archivist needs to retry (design-gate fix-wave). Measure the
+  // banner's REAL rendered height (it wraps to two lines on a narrow viewport) into a CSS var rather
+  // than guessing a pixel number; forms.css reads it via `bottom: var(--banner-offset, 0px)`,
+  // so 0px both while [hidden] and as the fallback reproduces a plain `bottom: 0` exactly.
   (function () {
     "use strict";
     document.addEventListener("DOMContentLoaded", function () {
-      var banner = document.querySelector(".wb-error-banner");
+      var banner = document.querySelector(".error-banner");
       if (!banner) return;
-      var closeBtn = banner.querySelector(".wb-error-banner-close");
+      var closeBtn = banner.querySelector("button");
       function syncBannerHeight() {
         document.documentElement.style.setProperty(
-          "--wb-error-banner-height",
+          "--banner-offset",
           banner.hidden ? "0px" : banner.offsetHeight + "px"
         );
       }

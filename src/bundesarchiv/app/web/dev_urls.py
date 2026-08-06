@@ -8,23 +8,21 @@ switcher route this module adds is unreachable in production by absence, not by 
 
 from django.urls import include, path
 
-from bundesarchiv.app.web.components_demo import component_library, serve_variant_stylesheet
+from bundesarchiv.app.web.components_demo import component_library
 from bundesarchiv.app.web.dev import favicon, switch_viewer
 from bundesarchiv.app.web.layouts_demo import layout_demo, serve_layout_stylesheet
 
 # Prod routes first (included verbatim), then the dev-only routes: an explicit /favicon.ico -> 404
 # (the browser probes for it; without a route DEBUG's technical-404 page crashes on the empty dev
 # SECRET_KEY and surfaces as a 500 — see dev.favicon), the viewer switcher (reversed by name in
-# dev.py), the component library (baseline + whitelisted design variants), the layout demos
-# (whitelisted full workbench layouts), and the two dev-only stylesheet routes — all unreachable
-# in prod by absence of this URLconf.
+# dev.py), the component library (the ONE baseline — the variant toggle died with the papier cut,
+# owner 2026-08-06), the layout demos (whitelisted full workbench layouts), and the dev-only layout
+# stylesheet route — all unreachable in prod by absence of this URLconf.
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("favicon.ico", favicon, name="dev-favicon"),
     path("_dev/viewer/", switch_viewer, name="dev-switch-viewer"),
     path("_dev/components/", component_library, name="dev-components"),
-    path("_dev/components/<str:variant>/", component_library, name="dev-components-variant"),
     path("_dev/layouts/<str:name>/", layout_demo, name="dev-layout"),
-    path("_dev/static/<str:filename>", serve_variant_stylesheet, name="dev-variant-css"),
     path("_dev/layouts/static/<str:filename>", serve_layout_stylesheet, name="dev-layout-css"),
 ]

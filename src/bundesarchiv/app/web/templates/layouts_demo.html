@@ -1,11 +1,12 @@
 {% comment %}
 Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL archivist-workbench
-layout composed from the real atom partials (templates/components/) over static German demo
-context. English dev chrome; German product copy inside the atoms. The page frame is a CSS grid
-(layouts.css): facet sidebar · main (chips + sort + ledger) · preview pane. Two server-rendered
-states via ?vorschau=0|1 (no JS): the pane is present only when vorschau=1. When it opens, the
-ledger folds to its narrow two-line density (the split-narrow layout). Below 1280px a media query
-hides the pane and returns the ledger to full — layouts.css owns that, not the view.
+composition built from the REAL partials (components/facet_group, components/ledger,
+workbench/_pane) over static German demo context — lockstep with the live app by construction.
+English dev chrome; German product copy inside the components. The page frame is the CSS grid
+from layouts.css: facet sidebar · main (hitcount + ledger) · preview pane. Two server-rendered
+states via ?vorschau=0|1 (no JS): the pane column exists only when vorschau=1; the ledger
+re-densifies by itself (it is a size container). Below 1280px a media query hides the pane —
+layouts.css owns that, not the view.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -15,82 +16,78 @@ hides the pane and returns the ledger to full — layouts.css owns that, not the
   <link rel="stylesheet" href="{% url 'static-tokens' %}">
   <link rel="stylesheet" href="{% url 'static-components' %}">
   <link rel="stylesheet" href="{{ stylesheet }}">
+  <style>
+    /* dev chrome only (English, development-facing) — role tokens, no raw colors */
+    .devbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-4);
+      background: var(--surface-container-lowest);
+      border-bottom: 1px solid var(--outline-variant);
+      font: var(--type-mono-meta);
+    }
+    .devbar b {
+      font: var(--type-label);
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+    .devbar a {
+      color: var(--on-surface);
+      padding: 0.1rem var(--space-2);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-s);
+    }
+    .devbar a:hover { border-color: var(--outline); text-decoration: none; }
+    .devbar a[aria-current="page"] {
+      background: var(--on-surface);
+      color: var(--surface);
+      border-color: var(--on-surface);
+    }
+  </style>
 </head>
-<body class="wb wb--{{ layout_name }}{% if vorschau %} wb--vorschau{% endif %}">
+<body class="workbench{% if vorschau %} vorschau{% endif %}">
 
 {% comment %} English dev chrome: pane-state toggle + back to the component library. {% endcomment %}
-<nav class="wb-devbar" aria-label="Dev navigation">
-  <span class="wb-devbar-label">{{ layout_name }}</span>
+<nav class="devbar" aria-label="Dev navigation">
+  <b>{{ layout_name }}</b>
   <a href="?vorschau=0"{% if not vorschau %} aria-current="page"{% endif %}>Vorschau zu</a>
   <a href="?vorschau=1"{% if vorschau %} aria-current="page"{% endif %}>Vorschau auf</a>
-  <span class="wb-devbar-sep">·</span>
+  <span>·</span>
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
 
-{% comment %} Header bar: wordmark + search field + Neuer Artikel (the real button/input atoms). {% endcomment %}
-<header class="wb-header">
-  <a class="wb-wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
-  <form class="wb-search" role="search" method="get" action="">
-    {% include "components/input.html" with type="search" name="q" placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
-    {% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
+{% comment %} Header bar: wordmark + search + Neuer Artikel (bare semantic elements, like the
+real workbench header). {% endcomment %}
+<header>
+  <a class="wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
+  <form role="search" method="get" action="">
+    <input type="search" name="q" placeholder="Archiv durchsuchen…" aria-label="Suche">
+    <button class="primary" type="submit">Suchen</button>
   </form>
-  {% include "components/button.html" with variant="primary" label="+ Neuer Artikel" only %}
+  <a class="button primary" href="#demo-neu">+ Neuer Artikel</a>
 </header>
 
-<div class="wb-frame">
+<div class="frame">
 
-  {% comment %} Facet sidebar — sticky; collapsible <details> groups (no-JS). Stays full in
-  split-narrow when the pane opens (the ledger folds instead). {% endcomment %}
-  <aside class="wb-sidebar" aria-label="Facetten">
-    <div class="wb-facets">
-      {% for group in facet_groups %}
-      <details class="wb-facet"{% if group.open %} open{% endif %}>
-        <summary class="wb-facet-summary">{{ group.heading }}</summary>
-        <ul class="c-facet-list">
-          {% for item in group.items %}
-          <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
-            <a href="?{{ item.query }}{% if vorschau %}&vorschau=1{% endif %}">{{ item.label }}</a>
-            <span class="c-facet-count">{% if group.direct %}direkt: {% endif %}{{ item.count }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-      </details>
-      {% endfor %}
-    </div>
+  {% comment %} Facet sidebar — sticky; the REAL facet_group component per group. {% endcomment %}
+  <aside class="sidebar" aria-label="Facetten">
+    {% for group in facet_groups %}
+    {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
+    {% endfor %}
   </aside>
 
-  {% comment %} Main column: chips row, sort select, then the ledger results. {% endcomment %}
-  <main class="wb-main">
-    <div class="wb-controls">
-      <div class="wb-chips">
-        {% include "components/chip.html" with label="Schlagwort" value="sommer" remove_query="q=" only %}
-      </div>
-      <div class="wb-sort">
-        {% include "components/select.html" with name="sortierung" label="Sortierung" options=sort_options selected="signatur" only %}
-      </div>
-    </div>
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=True only %}
+  {% comment %} Main column: hitcount, then the ledger results. {% endcomment %}
+  <main>
+    <p aria-live="polite">{{ ledger_rows|length }} Treffer</p>
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
   </main>
 
-  {% comment %} Preview pane — present only when vorschau=1; hidden below 1280px by layouts.css. {% endcomment %}
-  {% if vorschau %}
-  <aside class="wb-pane" aria-label="Vorschau">
-    <div class="wb-pane-inner">
-      <div class="wb-pane-bild" aria-hidden="true"></div>
-      <div class="wb-pane-kopf">
-        {% include "components/signatur_tab.html" with ref_code=preview.ref_code only %}
-        {% include "components/badge_visibility.html" with text=preview.visibility only %}
-      </div>
-      <h2 class="wb-pane-titel">{{ preview.title }}</h2>
-      <p class="wb-pane-meta"><span>{{ preview.datierung }}</span><span>{{ preview.typ }}</span></p>
-      <p class="wb-pane-text">{{ preview.beschreibung }}</p>
-      <div class="wb-pane-aktionen">
-        {% include "components/button.html" with variant="subtle" label="Bearbeiten" only %}
-        {% include "components/button.html" with variant="primary" label="Öffnen" only %}
-      </div>
-    </div>
-  </aside>
-  {% endif %}
+  {% comment %} Preview pane — the REAL workbench partial over demo context; present only when
+  vorschau=1; hidden below 1280px by layouts.css. {% endcomment %}
+  {% if vorschau %}{% include "workbench/_pane.html" with pane=preview only %}{% endif %}
 
 </div>
 </body>

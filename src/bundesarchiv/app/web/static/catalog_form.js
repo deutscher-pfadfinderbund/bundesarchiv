@@ -9,8 +9,9 @@
 (function () {
   "use strict";
 
-  // 1. Dirty register — reveal the amber "Nicht gespeicherte Änderungen" chip on the first edit.
-  // No-JS can't detect dirtiness, so the baseline hides the chip (hidden attr); JS unhides it.
+  // 1. Dirty register — reveal the neutral "Nicht gespeicherte Änderungen" badge on the first
+  // edit (amber is licensed only on the ENTWURF badge — cue-register row 4). No-JS can't detect
+  // dirtiness, so the baseline hides the badge (hidden attr); JS unhides it.
   // Listen on the document and match the field's form OWNER, not DOM ancestry: caption and
   // custom-bag fields sit OUTSIDE #bearbeiten-form's subtree (the #medien-drawer fieldset holds the
   // real per-row forms, and forms cannot nest) but still ride its save via form= — an edit there is
@@ -18,19 +19,19 @@
   document.addEventListener("input", function (event) {
     var field = event.target;
     if (!field.form || field.form.id !== "bearbeiten-form") return;
-    var status = document.querySelector(".c-form-status");
+    var status = document.getElementById("dirty-flag");
     if (status) status.hidden = false;
   });
 
   // 2. Custom bag — client-side add/remove of key/value rows. Baseline: the always-present trailing
   // empty row is the "add" affordance and empties drop server-side; this just spares a round-trip.
-  var bag = document.querySelector(".c-form-details");
+  var bag = document.getElementById("custom-bag");
   if (bag) {
     bag.addEventListener("input", function (event) {
       // typing into the LAST row's key/value grows a fresh empty row (so there's always one spare)
-      var row = event.target.closest(".c-form-bag-zeile");
+      var row = event.target.closest(".bag-row");
       if (!row) return;
-      var rows = bag.querySelectorAll(".c-form-bag-zeile");
+      var rows = bag.querySelectorAll(".bag-row");
       if (row === rows[rows.length - 1] && event.target.value !== "") {
         var clone = row.cloneNode(true);
         clone.querySelectorAll("input").forEach(function (i) {
@@ -41,10 +42,10 @@
     });
     bag.addEventListener("click", function (event) {
       // a client-side remove link on a row clears + drops it (baseline: the server drops empties)
-      if (!event.target.matches(".c-form-bag-entfernen")) return;
+      if (!event.target.matches('button[name="custom_entfernen"]')) return;
       event.preventDefault();
-      var row = event.target.closest(".c-form-bag-zeile");
-      var rows = bag.querySelectorAll(".c-form-bag-zeile");
+      var row = event.target.closest(".bag-row");
+      var rows = bag.querySelectorAll(".bag-row");
       if (row && rows.length > 1) row.remove();
       else if (row)
         row.querySelectorAll("input").forEach(function (i) {

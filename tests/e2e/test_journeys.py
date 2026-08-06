@@ -53,18 +53,18 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     # Lesesaal detail read view. (With JS on, ledger_pane.js turns the row link into a pane open; the
     # pane's Öffnen is the navigation to /artikel/<ulid>. No-JS, the row link navigates directly.)
     page.goto(live_workbench + "/")
-    page.locator("a.c-ledger-titel", has_text="Sommerfahrt 1962").click()
+    page.locator(".ledger .titel a", has_text="Sommerfahrt 1962").click()
     page.get_by_role("link", name="Öffnen").click()
     page.wait_for_url("**/artikel/**")
     # the reading structure: title, record card facts (Signatur + human + mono date), the cover
-    expect(page.locator("h1.l-titel")).to_have_text("Sommerfahrt 1962")
-    expect(page.locator(".l-datierung")).to_have_text("Juli 1962")  # human German under the title
-    expect(page.locator(".l-akte-val--mono").first).to_have_text("1962-07")  # mono machine date
+    expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
+    expect(page.locator("main header p")).to_have_text("Juli 1962")  # human German under the title
+    expect(page.locator(".facts dd.mono").first).to_have_text("1962-07")  # mono machine date
     expect(page.get_by_text("F 12")).to_be_visible()  # Signatur
-    expect(page.locator(".l-platte-bild")).to_be_visible()  # cover Platte
-    expect(page.locator(".l-strip .l-plate")).to_have_count(2)  # cover + one further plate
+    expect(page.locator("main figure img")).to_be_visible()  # cover Platte
+    expect(page.locator(".filmstrip > div > a")).to_have_count(2)  # cover + one further plate
     # a plate links its gated media byte route; Zurück returns to the search
-    href = page.locator(".l-strip .l-plate").first.get_attribute("href")
+    href = page.locator(".filmstrip > div > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
     page.get_by_text("Zurück zur Suche").click()
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
@@ -92,7 +92,7 @@ def test_create_bestand_then_file_an_article_under_it(
     page.wait_for_url("**/bearbeiten**")
     # now the Bestand has an article, so it appears in the workbench collection facet (indexed name)
     page.goto(live_workbench + "/")
-    expect(page.locator(".c-facet-label", has_text="Plakate")).to_be_visible()
+    expect(page.locator(".facet a", has_text="Plakate")).to_be_visible()
 
 
 # --- create a draft ----------------------------------------------------------------
@@ -160,9 +160,9 @@ def test_failed_save_banner_leaves_speichern_clickable(
     # click lands anyway (verified against the unfixed CSS).
     state = page.evaluate(
         """() => {
-        const banner = document.querySelector('.wb-error-banner');
-        const btn = document.querySelector('.c-form-footer .c-btn--primary');
-        const footer = document.querySelector('.c-form-footer');
+        const banner = document.querySelector('.error-banner');
+        const btn = document.querySelector('footer.sticky button.primary');
+        const footer = document.querySelector('footer.sticky');
         const b = banner.getBoundingClientRect();
         const f = footer.getBoundingClientRect();
         const r = btn.getBoundingClientRect();
@@ -265,11 +265,11 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Zu Löschen")
     ulid = page.url.split("/artikel/")[1].split("/")[0]
-    # from the read view, Löschen → the confirm page (the ONE red c-btn--gefahr), then delete
+    # from the read view, Löschen → the confirm page (the ONE red button.danger), then delete
     page.goto(live_workbench + f"/artikel/{ulid}")
     page.click('a:has-text("Löschen")')
     expect(page.get_by_text("Artikel löschen?")).to_be_visible()
-    expect(page.locator(".c-btn--gefahr")).to_be_visible()
+    expect(page.locator("button.danger")).to_be_visible()
     page.click('button:has-text("Endgültig löschen")')
     page.wait_for_url(
         lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/"))
@@ -300,7 +300,7 @@ def test_bulk_select_confirm_apply(
     # (the fix), so tick two row checkboxes → the live count appears (JS) → choose a field →
     # Änderung prüfen posts the checked boxes → confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator(".wb-sammelleiste")).to_be_visible()  # affordances present from cold start
+    expect(page.locator(".bulkbar")).to_be_visible()  # affordances present from cold start
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
@@ -322,7 +322,7 @@ def test_bulk_url_seeded_selection_still_works(
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
-    expect(page.locator(".wb-sammelleiste")).to_be_visible()
+    expect(page.locator(".bulkbar")).to_be_visible()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")

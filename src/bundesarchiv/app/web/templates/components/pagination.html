@@ -5,9 +5,9 @@ catalog_bulk.js (GH #22) rewrites ONLY the ?auswahl= params of the rel=prev/next
 unsubmitted bulk selection survives paging; the rest of each href keeps its server-built value.
 {% endcomment %}
 {% if has_prev or has_next %}
-<nav class="c-pager" aria-label="Seiten">
+<nav class="pager" aria-label="Seiten">
   {% if has_prev %}<a href="?{{ prev_query }}" rel="prev">← Zurück</a>{% endif %}
-  <span class="c-pager-stand">Seite {{ current_page }}</span>
+  <span>Seite {{ current_page }}</span>
   {% if has_next %}<a href="?{{ next_query }}" rel="next">Weiter →</a>{% endif %}
 </nav>
 {% endif %}

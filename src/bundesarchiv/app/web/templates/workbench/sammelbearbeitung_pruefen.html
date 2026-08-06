@@ -10,36 +10,38 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
 {% endcomment %}
 {% block title %}Sammelbearbeitung prüfen{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
-<main class="c-form">
-  <h1 class="c-form-titel">Sammelbearbeitung prüfen</h1>
+<main class="column">
+  <h1>Sammelbearbeitung prüfen</h1>
 
   {% if fehler %}
-  {% comment %}Validation error (spec §2 C): re-render the chooser drawer with the verbatim error, the
-  selection carried as hidden auswahl inputs, so the archivist fixes the field/value and re-submits
-  from here — the selection is never lost. The back-link also preserves ?auswahl=.{% endcomment %}
-  <form class="wb-sammelform" method="post" action="{% url 'artikel-sammelbearbeitung' %}">
+  {% comment %}Validation error (spec §2 C): re-render the chooser drawer with the verbatim error,
+  the selection carried as hidden auswahl inputs, so the archivist fixes the field/value and
+  re-submits from here — the selection is never lost. The back-link also preserves ?auswahl=.
+  The chooser's one-visible-value-widget behavior is the same CSS :has rule as the workbench bar
+  (layouts.css).{% endcomment %}
+  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
-    <p class="c-form-hint">{{ anzahl }} ausgewählt</p>
-    <div class="wb-sammelleiste-chooser c-form-group">
-      <label class="c-field{% if fehler %} c-field--fehler{% endif %}">
-        <span class="c-field-label">Feld</span>
-        <select class="c-select" name="feld" data-bulk-feld>
+    <p class="hint">{{ anzahl }} ausgewählt</p>
+    <div class="chooser">
+      <label class="field">
+        <span>Feld</span>
+        <select name="feld">
           <option value="">— Feld wählen —</option>
           {% for value, caption in feld_options %}
           <option value="{{ value }}"{% if value == feld %} selected{% endif %}>{{ caption }}</option>
           {% endfor %}
         </select>
       </label>
-      <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
-        <span class="c-field-label">Neuer Wert</span>
-        <input class="c-input" type="text" name="wert_text" value="{{ wert }}">
+      <label class="field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
+        <span>Neuer Wert</span>
+        <input type="text" name="wert_text" value="{{ wert }}">
       </label>
-      <label class="c-field" data-bulk-wert="media_type">
-        <span class="c-field-label">Neuer Wert</span>
-        <select class="c-select" name="wert_media_type" data-bulk-media-type
+      <label class="field" data-bulk-wert="media_type">
+        <span>Neuer Wert</span>
+        <select name="wert_media_type"
                 hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
                 hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
           {% for value, caption in media_type_options %}
@@ -47,9 +49,9 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
           {% endfor %}
         </select>
       </label>
-      <label class="c-field" data-bulk-wert="document_type">
-        <span class="c-field-label">Neuer Wert</span>
-        <select class="c-select" name="wert_document_type" id="bulk-dokumenttyp-select">
+      <label class="field" data-bulk-wert="document_type">
+        <span>Neuer Wert</span>
+        <select name="wert_document_type" id="bulk-dokumenttyp-select">
           <option value="">— kein Dokumenttyp —</option>
           {% for group_label, group_options in document_type_groups %}
           <optgroup label="{{ group_label }}">
@@ -58,58 +60,58 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
           {% endfor %}
         </select>
       </label>
-      <label class="c-field" data-bulk-wert="collection_id">
-        <span class="c-field-label">Neuer Wert</span>
-        <select class="c-select" name="wert_collection_id">
+      <label class="field" data-bulk-wert="collection_id">
+        <span>Neuer Wert</span>
+        <select name="wert_collection_id">
           {% for value, caption in collection_options %}<option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>{% endfor %}
         </select>
       </label>
-      <div class="wb-sammelleiste-aktionen">
-        <button class="c-btn c-btn--primary" type="submit">Änderung prüfen</button>
+      <div class="actions">
+        <button class="primary" type="submit">Änderung prüfen</button>
       </div>
     </div>
-    <p class="c-field-fehler">{{ fehler }}</p>
+    <p class="error">{{ fehler }}</p>
   </form>
-  <p><a class="wb-zurueck" href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
+  <p><a href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
   {% else %}
 
-  <section class="c-panel">
-    <p class="c-panel-zeile"><strong>Feld</strong>: {{ feld_label }}</p>
-    <p class="c-panel-zeile"><strong>Neuer Wert</strong>: {{ wert_display }}</p>
-    <p class="c-panel-zeile">Betroffen: {{ anzahl }} Artikel</p>
+  <section class="panel">
+    <p><strong>Feld</strong>: {{ feld_label }}</p>
+    <p><strong>Neuer Wert</strong>: {{ wert_display }}</p>
+    <p>Betroffen: {{ anzahl }} Artikel</p>
   </section>
 
   {% if orphans %}
   {% comment %}Orphan case: weight-emphasized heading, NO loud color (spec §7). Per-row listing of
   the Dokumenttypen that will be cleared; commit requires dokumenttyp_leeren=1.{% endcomment %}
-  <section class="c-panel">
-    <h2 class="c-panel-titel c-panel-achtung">Medienart ändern — Achtung</h2>
-    <p class="c-panel-hinweis">Medienart wird auf „{{ wert }}" gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
-    <ul class="c-bulk-liste">
+  <section class="panel">
+    <h2>Medienart ändern — Achtung</h2>
+    <p>Medienart wird auf „{{ wert }}" gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
+    <ul>
       {% for row in orphans %}
-      <li class="c-bulk-zeile">
+      <li>
         {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
-        <span class="c-bulk-titel">{{ row.title }}</span>
-        <span class="c-bulk-orphan">Dokumenttyp: {{ row.alt }} → (leer)</span>
+        <span>{{ row.title }}</span>
+        <small>Dokumenttyp: {{ row.alt }} → (leer)</small>
       </li>
       {% endfor %}
     </ul>
   </section>
   {% endif %}
 
-  <section class="c-panel">
-    <ul class="c-bulk-liste">
+  <section class="panel">
+    <ul>
       {% for row in artikel_liste %}
-      <li class="c-bulk-zeile">
+      <li>
         {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
-        <span class="c-bulk-titel">{{ row.title }}</span>
+        <span>{{ row.title }}</span>
       </li>
       {% endfor %}
     </ul>
   </section>
 
-  <div class="c-form-footer c-form-footer--neu">
-    <div class="c-form-footer-aktionen">
+  <footer>
+    <div class="actions">
       <form method="post" action="/artikel/sammelbearbeitung">
         {% csrf_token %}
         {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
@@ -118,14 +120,14 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
         <input type="hidden" name="bestaetigt" value="1">
         {% if orphans %}
         <input type="hidden" name="dokumenttyp_leeren" value="1">
-        <button class="c-btn c-btn--primary" type="submit">Medienart setzen, Dokumenttyp leeren</button>
+        <button class="primary" type="submit">Medienart setzen, Dokumenttyp leeren</button>
         {% else %}
-        <button class="c-btn c-btn--primary" type="submit">Auf {{ anzahl }} Artikel anwenden</button>
+        <button class="primary" type="submit">Auf {{ anzahl }} Artikel anwenden</button>
         {% endif %}
       </form>
-      <a class="c-btn c-btn--subtle" href="?{{ abbrechen_query }}">Abbrechen</a>
+      <a class="button" href="?{{ abbrechen_query }}">Abbrechen</a>
     </div>
-  </div>
+  </footer>
   {% endif %}
 </main>
 {% endblock %}

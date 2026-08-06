@@ -117,9 +117,13 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
     # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
-    # The ledger folds narrow while the pane is open (the split-narrow layout); the frame class
-    # drives it (and the <1280px media query hides the pane + unfolds the ledger — css owns that).
+    # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
+    # the ledger re-densifies by itself — it is a size container (components.css).
     context["vorschau"] = pane is not None
+    # Design-gate density switch (rework-wave charter item 5, TEMPORARY until the owner picks):
+    # ?fold=columns renders the stable-anatomy column-drop candidate instead of the mail-client
+    # fold. Presentation only; the losing variant and this param die at the gate verdict.
+    context["fold_variante"] = "columns" if request.GET.get("fold") == "columns" else ""
     # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
     # plain HX-Request check below — otherwise the restore renders the chrome-less results partial.

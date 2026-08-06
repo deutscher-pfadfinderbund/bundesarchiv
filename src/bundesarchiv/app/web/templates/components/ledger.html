@@ -1,55 +1,49 @@
 {% comment %}
-Ledger organism — the results register. A dense, aligned alternative to the card list. Params:
+Ledger — the results register (the one result-list view; it renders in the full workbench column
+and beside the open pane as the SAME component, adapting to its container). Params:
 - rows      — list of dicts, each carrying a ledger_row's params (title, href, ref_code,
-              datierung, typ, draft, visibility, action_label, action_href)
+              datierung, typ, draft, visibility, action_label, action_href, selected, gewaehlt)
 - columns   — list of column headers {label, key, sortable, [query, active, order]}. Sortable heads
-              (sortable=True) are links whose href is the header's NEXT sort state (asc→desc→default
-              cycle, computed in the view); the active column shows ▲ (asc) / ▼ (desc). Non-sortable
-              heads (sortable=False, e.g. Typ) are plain labels. URL-as-state, no JS — the sort
-              control IS the headers (there is no sort select).
-- narrow (bool) — density mode: full (aligned columns, default) vs narrow (two-line compact rows,
-              the mail-client fold: line 1 = SIG + Titel, line 2 = Datierung · Typ). The class swap
-              is the ONLY difference — same rows, CSS reflows the grid.
-- archivist (bool) — archivist chrome. When true (default), the SICHTBARKEIT column (visibility
-              badge / ENTWURF) and the row action gutter render. For members/public it is FALSE, so
-              those two columns are omitted entirely (header + every row cell), and the grid drops
-              to the four member-visible columns. This is presentation gating; the SICHTBARKEIT data
-              itself never rides to a non-archivist (search()/SearchHit already scope the rows).
+              are links whose href is the header's NEXT sort state (asc→desc→default cycle,
+              computed in the view); the active column shows ▲/▼. URL-as-state, no JS — the sort
+              control IS the headers.
+- archivist (bool) — archivist chrome: the SICHTBARKEIT column (visibility badge / ENTWURF) and
+              the row action gutter. For members/public it is FALSE, so those cells are omitted
+              entirely and the grid drops to the four member-visible tracks (class "member").
+              Presentation gating only — search()/SearchHit already scope the rows.
+- bulk (bool) — the leading selection-checkbox track (class "bulk"); rows carry name="auswahl"
+              checkboxes. A checked row inverts via CSS :has — no class, no JS.
+- fold      — optional narrow-density variant switch (design-gate candidate, charter item 5):
+              unset = the mail-client two-line fold; "columns" = stable anatomy, low-priority
+              columns drop as the register narrows. The owner picks on pixels; then this param
+              and the losing CSS die.
 
-Every column head — sortable or not — uses the ONE label type role (small-caps, letterspaced,
-on-surface-variant), identical size/case/weight/color. The only systematic modifiers on that base:
-sortable heads get the link affordance (ink + underline on HOVER, stamp-grammar link rule); the
-active sort column gets exactly one direction glyph (▲/▼), never a different font treatment. Body
-marks (SIG codes, Datierung) carry ink per the stamp grammar; everything else is neutral chrome.
+The root div is the size container the density rules query; the inner [role=table] grid scrolls
+in its own box if it still overflows (the page body never scrolls sideways). Every column head
+uses the ONE label treatment; body marks (SIG codes, Datierung) carry ink per the stamp grammar.
 {% endcomment %}
-<div class="c-ledger{% if narrow %} c-ledger--narrow{% endif %}{% if not archivist %} c-ledger--ohne-chrome{% endif %}{% if bulk %} c-ledger--bulk{% endif %}" role="table" aria-label="Trefferliste">
-  <div class="c-ledger-head" role="row">
-    {% comment %} The leading bulk-select column (archivist-only, spec §2): a min-content checkbox
-    track. The header checkbox (JS-toggled) selects the page; sr-only label names it. Native, neutral
-    (no accent tint — grammar). Absent when bulk is off. {% endcomment %}
-    {% if bulk %}
-    <span class="c-ledger-cell c-ledger-cell--auswahl c-ledger-h" role="columnheader">
-      {% comment %}Dead no-JS (no name; JS-only), so hidden by default — catalog_bulk.js un-hides it
-      on init. The no-JS "Alle auf dieser Seite" link in the bar is the page-select affordance.{% endcomment %}
-      <input type="checkbox" class="c-ledger-auswahl-alle" aria-label="Alle auf dieser Seite auswählen" hidden>
-    </span>
-    {% endif %}
-    {% comment %} aria-sort is constrained to the valid tokens only — an active column emits
-    ascending/descending strictly (never an interpolated garbage value from a hand-edited sort
-    param); a non-active/non-sortable column omits it (= "none"). {% endcomment %}
-    {% for col in columns %}
-    <span class="c-ledger-cell c-ledger-cell--{{ col.key }} c-ledger-h" role="columnheader"{% if col.active %}{% if col.order == "desc" %} aria-sort="descending"{% else %} aria-sort="ascending"{% endif %}{% endif %}>
-      {% if col.sortable %}<a class="c-ledger-sort" href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span class="c-ledger-sort-pfeil" aria-hidden="true">{% if col.order == "desc" %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
-    </span>
-    {% endfor %}
-    {% if archivist %}
-    <span class="c-ledger-cell c-ledger-cell--sichtbarkeit c-ledger-h" role="columnheader">Sichtbarkeit</span>
-    <span class="c-ledger-cell c-ledger-cell--aktion c-ledger-h" role="columnheader"><span class="c-visually-hidden">Aktion</span></span>
-    {% endif %}
-  </div>
-  <div class="c-ledger-body" role="rowgroup">
-    {% for row in rows %}
-    {% include "components/ledger_row.html" with title=row.title href=row.href artikel_ulid=row.artikel_ulid ulid=row.ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected bulk=bulk gewaehlt=row.gewaehlt only %}
-    {% endfor %}
+<div class="ledger{% if bulk %} bulk{% endif %}{% if not archivist %} member{% endif %}"{% if fold %} data-fold="{{ fold }}"{% endif %}>
+  <div role="table" aria-label="Trefferliste">
+    <div role="row">
+      {% if bulk %}
+      <span class="auswahl" role="columnheader"><span class="visually-hidden">Auswahl</span></span>
+      {% endif %}
+      {% comment %} aria-sort is constrained to the valid tokens only — an active column emits
+      ascending/descending strictly; a non-active/non-sortable column omits it (= "none"). {% endcomment %}
+      {% for col in columns %}
+      <span class="{{ col.key }}" role="columnheader"{% if col.active %}{% if col.order == "desc" %} aria-sort="descending"{% else %} aria-sort="ascending"{% endif %}{% endif %}>
+        {% if col.sortable %}<a href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span aria-hidden="true">{% if col.order == "desc" %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
+      </span>
+      {% endfor %}
+      {% if archivist %}
+      <span class="sichtbarkeit" role="columnheader">Sichtbarkeit</span>
+      <span class="aktion" role="columnheader"><span class="visually-hidden">Aktion</span></span>
+      {% endif %}
+    </div>
+    <div role="rowgroup">
+      {% for row in rows %}
+      {% include "components/ledger_row.html" with title=row.title href=row.href artikel_ulid=row.artikel_ulid ulid=row.ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft visibility=row.visibility action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected bulk=bulk gewaehlt=row.gewaehlt only %}
+      {% endfor %}
+    </div>
   </div>
 </div>

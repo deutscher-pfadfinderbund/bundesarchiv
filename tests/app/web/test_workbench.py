@@ -424,7 +424,7 @@ def test_entwurf_badge_and_bearbeiten_only_for_archivist(corpus_root: Path) -> N
         body = _get(corpus_root, viewer).content.decode()
         assert "Bearbeiten" not in body, f"[{label}] Bearbeiten action leaked"
         # The draft ROW is already scope-hidden; this pins the BADGE chrome is gone too.
-        assert "c-badge--entwurf" not in body, f"[{label}] ENTWURF badge chrome leaked"
+        assert 'class="badge entwurf"' not in body, f"[{label}] ENTWURF badge chrome leaked"
 
 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
@@ -464,10 +464,10 @@ def test_media_facet_filter_narrows_results(corpus_root: Path) -> None:
 
 
 def _search_form_html(body: str) -> str:
-    """The ``<form class="wb-search">``'s own markup, isolated from the sidebar/ledger — so an
-    assertion here can never accidentally match a facet link or pagination href that happens to
-    carry the same param/value elsewhere on the page."""
-    return body.split('<form class="wb-search"', 1)[1].split("</form>", 1)[0]
+    """The header search form's own markup (``<form role="search">``), isolated from the sidebar/
+    ledger — so an assertion here can never accidentally match a facet link or pagination href
+    that happens to carry the same param/value elsewhere on the page."""
+    return body.split('<form role="search"', 1)[1].split("</form>", 1)[0]
 
 
 @pytest.mark.django_db
@@ -599,11 +599,11 @@ def test_pane_opens_for_a_viewable_article(corpus_root: Path) -> None:
     # A public article's pane opens for the public viewer: its title + Signatur + Öffnen appear, and
     # the row is marked selected.
     body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert 'class="wb-pane"' in body
+    assert 'class="pane"' in body
     assert "Vorschau Sommerfahrt" in body
     assert "Titelaufnahme der Fahrt" in body  # the media caption
     assert "Öffnen" in body
-    assert "c-ledger-row--aktiv" in body  # the selected row is marked
+    assert '<div role="row" aria-current="true">' in body  # the selected row is marked
 
 
 @pytest.mark.django_db
@@ -613,7 +613,7 @@ def test_pane_absent_or_malformed_artikel_renders_no_pane(corpus_root: Path) -> 
     for query in (f"artikel={PANE_ABSENT_ULID}", "artikel=not-a-ulid"):
         response = _get(corpus_root, Public(), query)
         assert response.status_code == 200
-        assert 'class="wb-pane"' not in response.content.decode()
+        assert 'class="pane"' not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -621,7 +621,7 @@ def test_pane_denied_for_member_only_article_as_public(corpus_root: Path) -> Non
     # Public cannot open the members-only article's pane at all (no pane markup, no title, no floored
     # fields) — the deny is total.
     body = _get(corpus_root, Public(), f"artikel={PANE_MEM_ULID}").content.decode()
-    assert 'class="wb-pane"' not in body
+    assert 'class="pane"' not in body
     assert "Vorschau Mitgliederakte" not in body
     assert "Panzerschrank" not in body  # floored physical_location never appears
     assert "geheimnis" not in body  # floored custom key never appears
@@ -632,7 +632,7 @@ def test_pane_floored_fields_absent_even_for_member_who_can_view(corpus_root: Pa
     # A member CAN open the members-only article's pane, but its floored fields are projected away
     # (visible() = can_view + project) — the pane view-model is built from the floored copy.
     body = _get(corpus_root, Member(groups=()), f"artikel={PANE_MEM_ULID}").content.decode()
-    assert 'class="wb-pane"' in body
+    assert 'class="pane"' in body
     assert "Vorschau Mitgliederakte" in body  # the member sees the article
     assert "Panzerschrank" not in body  # ...but never its physical_location
     assert "Panzernachlass" not in body  # ...nor its custom value
@@ -658,24 +658,24 @@ def test_pane_close_link_preserves_query_drops_only_artikel(corpus_root: Path) -
         Public(),
         f"q=Vorschau&medienart=Foto&artikel={PANE_PUB_ULID}",
     ).content.decode()
-    assert 'class="wb-pane"' in body  # the pane is open
+    assert 'class="pane"' in body  # the pane is open
     # the close link carries the active search params...
     assert "q=Vorschau" in body
     assert "medienart=Foto" in body
     # ...but never the artikel selection (it is pane state, stripped from the close href)
-    close_href = body.split('class="wb-pane-schliessen" href="', 1)[1].split('"', 1)[0]
+    close_href = body.split(' aria-label="Vorschau schließen"', 1)[0].rsplit('href="', 1)[1]
     assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
     assert "q=Vorschau" in close_href and "medienart=Foto" in close_href
 
 
 @pytest.mark.django_db
-def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
-    # Opening the pane puts the frame in the vorschau state (the split-narrow fold is CSS-driven off
-    # this body class; the <1280px query unfolds + hides the pane).
+def test_pane_open_marks_the_vorschau_state(corpus_root: Path) -> None:
+    # Opening the pane puts the body in the vorschau state (the pane frame column is CSS-driven off
+    # this body class ≥1280px; the ledger re-densifies by itself — it is a size container).
     body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert "wb--vorschau" in body
+    assert '<body class="workbench vorschau">' in body
     closed = _get(corpus_root, Public()).content.decode()
-    assert "wb--vorschau" not in closed
+    assert '<body class="workbench">' in closed
 
 
 # --- bulk edit: selection column + bar (Sammelbearbeitung, spec §2) ----------------
@@ -684,17 +684,17 @@ def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_archivist_sees_bulk_checkbox_column(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist()).content.decode()
-    assert "c-ledger--bulk" in body
+    assert 'class="ledger bulk"' in body
     assert 'name="auswahl"' in body  # row checkboxes
-    assert "Alle auf dieser Seite auswählen" in body  # header sr-only label
+    assert '<span class="visually-hidden">Auswahl</span>' in body  # the sr-only column header
 
 
 @pytest.mark.django_db
 def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
     body = _get(corpus_root, Public()).content.decode()
-    assert "c-ledger--bulk" not in body
+    assert 'class="ledger bulk"' not in body
     assert 'name="auswahl"' not in body
-    assert "wb-sammelleiste" not in body
+    assert 'class="bulkbar"' not in body
 
 
 @pytest.mark.django_db
@@ -704,7 +704,7 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
     # checked boxes) + "Alle auf dieser Seite" link. Signals-once still holds: NO "0 ausgewählt"
     # count and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
-    assert "wb-sammelleiste" in body
+    assert 'class="bulkbar"' in body
     assert "Änderung prüfen" in body
     assert "Alle auf dieser Seite" in body
     assert "ausgewählt" not in body  # no status filler
@@ -714,12 +714,11 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "wb-sammelleiste" in body
+    assert 'class="bulkbar"' in body
     assert "1 ausgewählt" in body
     assert "Änderung prüfen" in body
     assert "Feld" in body  # the chooser Feld select
-    # the selected row inverts + its checkbox is checked
-    assert "c-ledger-row--gewaehlt" in body
+    # the selected row's checkbox is checked (its inversion styling derives from it via CSS :has)
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
@@ -735,7 +734,7 @@ def test_non_archivist_auswahl_param_is_ignored(corpus_root: Path) -> None:
     # a Public viewer hand-crafting ?auswahl= gets no bar/column (defence-in-depth; the POST route
     # is independently gated too)
     body = _get(corpus_root, Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "wb-sammelleiste" not in body
+    assert 'class="bulkbar"' not in body
     assert "ausgewählt" not in body
 
 
@@ -744,6 +743,6 @@ def test_auswahl_aufheben_preserves_active_search(corpus_root: Path) -> None:
     # Design-gate MED: "Auswahl aufheben" drops the selection but must KEEP the active search — a
     # bare "?" would wipe the filter. The clear link carries the filters, not auswahl.
     body = _get(corpus_root, Archivist(), f"q=fahrt&auswahl={PANE_PUB_ULID}").content.decode()
-    clear = body.split('class="wb-sammelleiste-link" href="?', 2)[2].split('"', 1)[0]
+    clear = body.split(">Auswahl aufheben<", 1)[0].rsplit('href="?', 1)[1].split('"', 1)[0]
     assert "q=fahrt" in clear  # the search survives
     assert "auswahl" not in clear  # the selection is dropped
