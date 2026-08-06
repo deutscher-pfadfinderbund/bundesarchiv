@@ -1,521 +1,390 @@
-/* Cataloging-form styles (Part 4.7, spec §4/§6). Role tokens from tokens.css ONLY — a hex value
-   here is a defect (design-system.md, "Roles, not colors"). Load
-   order: tokens.css, components.css, then this file (it reuses the atom classes .c-field/.c-input/
-   .c-select/.c-btn/.c-sig and only adds the form column, drawers, sticky footer, field-error and
-   CAS-panel chrome). No new tokens, no new type roles, no motion.
+/* The editing views (Part 4.7/4.8 + the confirm surfaces): the work column, group drawers, media
+   register, sticky footer, field errors and the CAS panel. Role tokens ONLY (tokens.css) — a raw
+   color here is a defect. Load order: tokens, components, layouts, then this file. Semantic HTML
+   carries the structure (form/fieldset/legend/details/dl/table); classes appear only where
+   semantics cannot discriminate (law C1).
 
-   GRAMMAR (design-system.md, the stamp law applied per-node): the form is flat neutral chrome. The
-   only violet ink is the header Signatur mark (.c-sig, from the atom), inline links, and the focus
-   ring (inherited). State is INVERSION (the primary button), never a tint. The two loud channels are
-   reserved: amber (--draft/--on-draft) for the "ungespeichert" register only, red (--error/
-   --on-error) for field validation + the CAS "Inzwischen geändert" panel. No per-group fills, no
-   card shadows, no colored inputs — that flatness is load-bearing (one loud element per state). */
+   GRAMMAR (the stamp law applied per-node): the form is flat neutral chrome. The only violet ink
+   is the header Signatur mark (.c-sig), inline links, mono data and the focus ring (inherited).
+   State is INVERSION (the primary button), never a tint. The loud channels stay reserved: red
+   (--error/--on-error) for field validation + the CAS "Inzwischen geändert" panel (register row
+   5). No per-group fills, no card shadows — that flatness is load-bearing. */
 
-/* ---- the work column: a single centered editing column (spec §1) ---- */
+@layer compositions {
+  /* ---- the work column: a single centered editing column (spec §1). Widths are the column's
+     own knobs (law C3): 52rem default, .narrow for the near-empty create/confirm pages. ---- */
+  .column {
+    --column-width: 52rem;
+    max-width: var(--column-width);
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
+  }
+  .column.narrow {
+    --column-width: 34rem;
+    padding-bottom: var(--space-8);
+  }
+  .column h1 {
+    margin: 0 0 var(--space-5);
+    font: var(--type-display);
+    color: var(--on-surface);
+  }
+  /* the persistent screen header (spec §3): h1 / context + the reserved marks, once */
+  .column header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+  .column header h1 {
+    margin: 0;
+  }
+  .column header > span {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* the confirm page names WHICH record: the quoted title next to its Signatur mark */
+  .column header strong {
+    font: var(--type-title);
+    color: var(--on-surface);
+  }
+  .column > p {
+    margin: 0 0 var(--space-4);
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+  }
 
-.c-form {
-  max-width: 52rem;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
-}
-.c-form-titel {
-  margin: 0 0 var(--space-5);
-  font: var(--type-display);
-  color: var(--on-surface);
-}
+  /* the create step is near-empty: the two required fields are the focal point */
+  .column.narrow form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
 
-/* the create step is near-empty: the two required fields are the focal point, so give them air */
-.c-form--neu { max-width: 32rem; }
-.c-form--neu .c-form-felder { display: flex; flex-direction: column; gap: var(--space-4); }
-.c-form--neu .c-field { width: 100%; }
+  /* fields fill the column */
+  .column .field {
+    display: flex;
+    width: 100%;
+  }
+  .column :is(input, select, textarea):not([type="checkbox"], [type="file"]) {
+    width: 100%;
+  }
 
-/* ---- the persistent form header (spec §3): h1 Titel + ENTWURF badge + live Signatur mark ---- */
+  /* ---- group drawer: a fieldset whose legend is the floating drawer label (spec §3/§4 —
+     grouping reads as archive drawers). Neutral, square, hairline: no fill, no shadow. The
+     composition owns the clearance above each drawer (the legend floats into it). ---- */
+  .column fieldset {
+    --tab-height: 1.5rem; /* the drawer-label tab's height — the legend + clearance share it */
+    position: relative;
+    margin: calc(var(--tab-height) + var(--space-4)) 0 0;
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .column legend {
+    position: absolute;
+    top: calc(var(--hairline) - var(--tab-height));
+    left: var(--space-3);
+    height: var(--tab-height);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-3);
+    background: var(--surface-container-high);
+    color: var(--on-surface-variant);
+    border: var(--hairline) solid var(--outline-variant);
+    border-bottom: none;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    /* rounded leading corner only — the bevel cut is licensed solely on .c-sig (register row 1) */
+    border-radius: var(--radius-m) 0 0 0;
+  }
 
-.c-form-kopf {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-6);
-}
-.c-form-kopf-titel {
-  margin: 0;
-  font: var(--type-display);
-  color: var(--on-surface);
-}
-.c-form-kopf-marken {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
+  /* ---- the custom bag (Gruppe 7): a <details> drawer of key/value pairs ---- */
+  .column details {
+    margin-top: calc(var(--space-6) + var(--space-1));
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+  .column details[open] summary {
+    margin-bottom: var(--space-3);
+  }
+  .bag-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+    gap: var(--space-3);
+  }
+  .bag-row + .bag-row {
+    margin-top: var(--space-3);
+  }
+  .bag-row button {
+    white-space: nowrap;
+  }
 
-/* ---- field: full-width in the column; the label + input come from the atoms ---- */
+  /* ---- read-only facts (4.8 rename: parent + Sichtbarkeit shown, not editable): a <dl>. The
+     dashed baseline reads as a printed record fact — clearly NOT an input. ---- */
+  .column dl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+  }
+  .column dt {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .column dd {
+    margin: 0;
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+    padding: var(--space-1) 0;
+    border-bottom: var(--hairline) dashed var(--outline-variant);
+  }
 
-.c-form .c-field { display: flex; width: 100%; }
-.c-form .c-input,
-.c-form .c-select,
-.c-form textarea.c-input { width: 100%; }
-.c-form-hint {
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-/* state-H index-lag hinweis (ADR 0014): quiet on-surface-variant body — NOT loud (the save
-   succeeded; only search lags). Sits above the form header after a saved-but-lagged POST. */
-.c-form-hinweis {
-  margin: 0 0 var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
+  /* ---- footer action bar (spec §3): plain on short pages, .sticky on the edit form. .sticky
+     docks at the viewport bottom; a revealed error banner lifts it by its measured height
+     (--banner-offset, set by base.html's failure listener) so Speichern stays clickable. ---- */
+  .column footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .column footer.sticky {
+    position: sticky;
+    bottom: var(--banner-offset, 0px);
+    margin-top: var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-container-high);
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  .column footer .actions {
+    margin-left: auto;
+  }
 
-/* ---- field error (spec §6.1: the LIGHT treatment, never the panel) ---- */
+  /* lifecycle control: a continuation of the sticky footer band — same surface, flush against it.
+     Separate forms so Enter never fires a lifecycle action (spec §6.2). */
+  .lifecycle {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 var(--space-4) var(--space-3);
+    background: var(--surface-container-high);
+  }
 
-.c-field--fehler .c-input,
-.c-field--fehler .c-select,
-.c-field--fehler textarea.c-input {
-  border-color: var(--error);
-}
-.c-field-fehler {
-  font: var(--type-meta);
-  color: var(--error);
-}
-
-/* Read-only display rows (4.8 rename: parent + Sichtbarkeit shown, not editable). The dashed
-   baseline reads as a printed record fact — clearly NOT an input (no box, no fill). */
-.c-field--nurlesen {
-  gap: calc(var(--space-1) / 2);
-}
-.c-field-wert {
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-  padding: var(--space-1) 0;
-  border-bottom: 1px dashed var(--outline-variant);
-}
-
-/* ---- group drawer: a fieldset whose legend reuses the .c-facet-tab drawer-label silhouette ----
-   (spec §3/§4 — grouping reads as archive drawers). The panel is neutral, square, hairline: no
-   fill, no shadow (flatness is load-bearing). */
-
-.c-form-group {
-  position: relative;
-  margin: calc(1.5rem + var(--space-4)) 0 0;
-  padding: var(--space-5) var(--space-4) var(--space-4);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.c-form-legend {
-  position: absolute;
-  top: calc(1px - 1.5rem);
-  left: var(--space-3);
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 0 var(--space-3);
-  background: var(--surface-container-high);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  border-bottom: none;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  /* the drawer-label silhouette: one beveled leading corner (same as .c-facet-tab) */
-  corner-shape: bevel;
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-form-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.c-form-row + .c-form-row { margin-top: var(--space-4); }
-
-/* ---- the custom bag (Gruppe 7): a <details> drawer reusing wb-facet; two-cell rows ---- */
-
-.c-form-details {
-  margin-top: calc(1.5rem + var(--space-4));
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-.c-form-details-summary {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-  cursor: pointer;
-}
-.c-form-details[open] .c-form-details-summary { margin-bottom: var(--space-3); }
-.c-form-bag-zeile {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  align-items: end;
-  gap: var(--space-3);
-}
-.c-form-bag-zeile + .c-form-bag-zeile { margin-top: var(--space-3); }
-.c-form-bag-entfernen {
-  /* inline remove link = stamp ink (an interactive text affordance) */
-  font: var(--type-meta);
-  color: var(--primary);
-  text-decoration: none;
-  padding: var(--space-1) 0;
-  white-space: nowrap;
-}
-.c-form-bag-entfernen:hover { text-decoration: underline; }
-
-/* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register the
-   archivist already knows — NOT a bespoke system. Row: [thumb][datei][caption][reorder][remove].
-   The whole register is ONE grid; each row is a subgrid row on the shared tracks. Scrolls in its own
-   box on narrow viewports (the page body never scrolls sideways). ---- */
-
-.c-medien {
-  --c-medien-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content max-content;
-  display: grid;
-  grid-template-columns: var(--c-medien-cols);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  overflow-x: auto;
-}
-.c-medien-zeile {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-.c-medien-zeile + .c-medien-zeile { border-top: 1px solid var(--outline-variant); }
-/* the cover row may sit a hair raised (spec §6.3) — a position cue, still neutral */
-.c-medien-zeile--cover { background: var(--surface-container-mid); }
-
-/* thumb: gated image or a dashed placeholder; neutral border, small radius */
-.c-medien-thumb {
-  width: 3rem;
-  height: 3rem;
-  object-fit: cover;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  background: var(--surface-container-low);
+  /* the composition owns the space between stacked panels and the form region */
+  .column .panel {
+    margin-bottom: var(--space-6);
+  }
 }
 
-/* datei: filename (mono ink data mark) + byte size (mono-meta, quiet) */
-.c-medien-datei { min-width: 0; }
-.c-medien-name {
-  display: block;
-  font: var(--type-mono);
-  color: var(--primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-medien-groesse { font: var(--type-mono-meta); color: var(--on-surface-variant); }
+@layer components {
+  /* ---- EDTF echo: neutral meta text under the Datierung field (spec §0) ---- */
+  .echo {
+    margin-top: var(--space-1);
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
 
-/* the TITELBILD cover mark — INVERSION, not tint (spec §6.3, the single most likely grammar
-   violation): a solid NEUTRAL-INK stamp (on-surface bg, surface fg), like the active facet row and
-   the primary button. NOT amber, NOT violet. A position-state, expressed as a pressed stamp. */
-.c-medien-titelbild {
-  display: inline-block;
-  margin-top: calc(var(--space-1) / 2);
-  padding: 0 var(--space-1);
-  background: var(--on-surface);
-  color: var(--surface);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  border-radius: var(--radius-s);
-}
+  /* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register
+     the archivist already knows. Row: [thumb][datei][caption][reorder][remove]. Scrolls in its
+     own box on narrow viewports (the page body never scrolls sideways). ---- */
+  .media {
+    --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content max-content;
+    display: grid;
+    grid-template-columns: var(--media-cols);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    overflow-x: auto;
+  }
+  .media > div {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  .media > div + div {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  /* the cover row sits a hair raised (spec §6.3) — a position cue, still neutral */
+  .media > div.cover {
+    background: var(--surface-container-mid);
+  }
+  .media img {
+    width: 3rem; /* the register thumbnail box — one structural size, no token fits */
+    height: 3rem; /* (same box) */
+    object-fit: cover;
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    background: var(--surface-container-low);
+  }
+  /* datei: filename (mono ink data mark) + byte size (quiet) */
+  .file {
+    min-width: 0;
+  }
+  .file > span {
+    display: block;
+    font: var(--type-mono);
+    color: var(--primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file small {
+    font: var(--type-mono-meta);
+    color: var(--on-surface-variant);
+  }
+  /* the TITELBILD cover mark — INVERSION (register row 3), never amber/violet/tint: a solid
+     neutral-ink stamp, like the active facet row and the primary button. */
+  .titelbild {
+    display: inline-block;
+    margin-top: calc(var(--space-1) / 2);
+    padding: 0 var(--space-1);
+    background: var(--on-surface);
+    color: var(--surface);
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    border-radius: var(--radius-s);
+  }
+  .move {
+    display: inline-flex;
+    gap: var(--space-2);
+    white-space: nowrap;
+  }
+  .confirm {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  .upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* upload progress sliver (spec §6.3): a neutral fill grown in discrete XHR-reported steps by
+     catalog_form.js — NO easing (no-motion law). Zero-width at rest; enhancement-only. */
+  .progress {
+    height: 2px; /* the sliver's own thickness — a hairline reads too faint over the track */
+    background: var(--surface-container-low);
+  }
+  .progress > div {
+    width: 0;
+    height: 100%;
+    background: var(--on-surface);
+  }
 
-/* reorder: nach oben / nach unten inline links (stamp ink); disabled at the ends */
-.c-medien-reihenfolge {
-  display: inline-flex;
-  gap: var(--space-2);
-  white-space: nowrap;
-}
-.c-medien-pfeil {
-  font: var(--type-meta);
-  color: var(--primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-}
-.c-medien-pfeil:hover { text-decoration: underline; }
-.c-medien-pfeil:disabled { color: var(--on-surface-variant); cursor: default; text-decoration: none; }
+  /* in-flight cue for HTMX swaps (spec §5, no-motion): a static opacity dim, no spinner */
+  #medien-drawer.htmx-request,
+  #form-region form.htmx-request {
+    opacity: 0.6;
+  }
 
-/* remove: inline link, two-step confirm re-render */
-.c-medien-entfernen {
-  font: var(--type-meta);
-  color: var(--primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-  white-space: nowrap;
-}
-.c-medien-entfernen:hover { text-decoration: underline; }
-.c-medien-confirm {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
+  /* ---- panel: shared sheet base (register row 8 — confirm panels are sheet-like containers);
+     .konflikt is the CAS "Inzwischen geändert" case (spec §6.1): red LEFT border + error heading
+     only — NOT a flood fill; the diff stays neutral. The over-exposure preview panel shares the
+     base with a neutral heading — confirming who-gains-sight is neither draft nor error
+     (emphasis by WEIGHT only, spec §6.2). ---- */
+  .panel {
+    padding: var(--space-4);
+    background: var(--sheet);
+    border: var(--hairline) solid var(--outline-variant);
+    border-bottom-width: var(--sheet-edge);
+    border-radius: var(--radius-s);
+  }
+  .panel.konflikt {
+    border-left: var(--state-border) solid var(--error);
+  }
+  .panel h2 {
+    margin: 0 0 var(--space-2);
+    font: var(--type-title);
+    color: var(--on-surface);
+  }
+  .panel.konflikt h2 {
+    color: var(--error);
+  }
+  .panel p {
+    margin: 0 0 var(--space-2);
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  /* the required confirm checkbox row gates the enabled Veröffentlichen (spec §6.2) */
+  .panel label {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  /* register rows inside a panel (bulk confirm/result lists): c-sig + Titel + quiet sub-marks */
+  .panel ul {
+    list-style: none;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+  }
+  .panel li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-1) 0;
+  }
+  .panel li + li {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  .panel small {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  /* the neutral field diff: changed values in mono; scrolls in its own box on narrow viewports */
+  .diff {
+    overflow-x: auto;
+  }
+  .diff table {
+    width: 100%;
+    border-collapse: collapse;
+    font: var(--type-meta);
+  }
+  .diff th {
+    text-align: left;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    padding: var(--space-1) var(--space-3) var(--space-1) 0;
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  .diff td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border-bottom: var(--hairline) solid var(--outline-variant);
+    vertical-align: top;
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface);
+  }
+  .diff td:first-child {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
 
-/* upload row + error line below the register */
-.c-medien-upload {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  /* the saved-count line on the bulk result page: mono data */
+  .count {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface);
+  }
 }
-.c-medien-fehler {
-  margin-top: var(--space-2);
-  font: var(--type-meta);
-  color: var(--error);
-}
-/* upload progress sliver (spec §6.3): a neutral on-surface fill in a surface-container-low track,
-   grown in discrete XHR-reported steps by catalog_form.js — NO easing, NO transition (no-motion
-   law). Zero-width at rest; enhancement-only (absent when JS never paints it). */
-.c-medien-fortschritt {
-  height: 2px;
-  margin-top: var(--space-2);
-  background: var(--surface-container-low);
-}
-.c-medien-fortschritt-fill {
-  width: 0;
-  height: 100%;
-  background: var(--on-surface);
-}
-
-/* in-flight cue for HTMX swaps (spec §5, no-motion): a static opacity dim while a request is in
-   flight — no spinner, no transition. The media drawer + form region dim during their own swap. */
-#medien-drawer.htmx-request,
-.c-form-felder.htmx-request { opacity: 0.6; }
-
-/* ---- EDTF echo: neutral body text, at most one violet fragment (spec §0) ---- */
-
-.c-form-echo {
-  margin-top: var(--space-1);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-
-/* ---- sticky footer action bar (spec §3) ---- */
-
-.c-form-footer {
-  position: sticky;
-  /* Docks at the viewport bottom normally. The global htmx-error banner (layouts.css,
-     .wb-error-banner) is ALSO viewport-bottom-fixed, so a revealed banner would stack directly over
-     this footer, occluding Speichern exactly when a failed save needs a retry (design-gate finding,
-     fix-wave 2026-07-17). base.html's failure-listener JS measures the banner's real rendered height
-     (it can wrap to two lines) into --banner-offset on reveal/dismiss; lifting by that
-     amount keeps Speichern clickable while the error shows. 0px — both the fallback and the value
-     while the banner sits [hidden] — reproduces the old plain `bottom: 0` exactly. */
-  bottom: var(--banner-offset, 0px);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-container-high);
-  border-top: 1px solid var(--outline-variant);
-}
-/* the create step's footer is not sticky — the page is short (no scroll to pin against), and it
-   drops the footer bar's fill + top border so the near-empty page stays plain (spec focal-point A) */
-.c-form-footer--neu {
-  position: static;
-  margin-top: 0;
-  padding: var(--space-2) 0 0;
-  background: none;
-  border-top: none;
-}
-.c-form-footer-aktionen {
-  display: inline-flex;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-/* the dirty register: amber, LEFT side; enhancement-only (JS toggles it) — hidden at rest */
-.c-form-status {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-draft);
-  background: var(--draft);
-  border: 1px solid var(--on-draft);
-  border-radius: var(--radius-s);
-  padding: calc(var(--space-1) / 2) var(--space-2);
-}
-
-/* lifecycle control: reads as a continuation of the sticky footer band — same surface, flush against
-   it (no gap), a subtle action right-aligned. Separate forms so Enter never fires a lifecycle action
-   (spec §6.2). The footer's own hairline top border already separates the pair from the fields. */
-.c-form-lebenszyklus {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0;
-  padding: 0 var(--space-4) var(--space-3);
-  background: var(--surface-container-high);
-}
-
-/* ---- panel: shared square hairline base + the konflikt modifier (spec §6.1) ---- */
-
-.c-panel {
-  margin-bottom: var(--space-6);
-  padding: var(--space-4);
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-/* the CAS "Inzwischen geändert" panel: red LEFT border + error heading only — NOT a flood fill
-   (spec §6.1; red is spent on the heading, the diff table stays neutral) */
-.c-panel--konflikt { border-left: 3px solid var(--error); }
-.c-panel-titel {
-  margin: 0 0 var(--space-2);
-  font: var(--type-title);
-  color: var(--error);
-}
-.c-panel-hinweis {
-  margin: 0 0 var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-/* the neutral field diff: changed values in mono; scrolls in its own box on narrow viewports */
-.c-panel-diff-wrap { overflow-x: auto; }
-.c-panel-diff {
-  width: 100%;
-  border-collapse: collapse;
-  font: var(--type-meta);
-}
-.c-panel-diff th {
-  text-align: left;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-  padding: var(--space-1) var(--space-3) var(--space-1) 0;
-  border-bottom: 1px solid var(--outline-variant);
-}
-.c-panel-diff td {
-  padding: var(--space-2) var(--space-3) var(--space-2) 0;
-  border-bottom: 1px solid var(--outline-variant);
-  color: var(--on-surface);
-  vertical-align: top;
-}
-.c-panel-diff-feld { color: var(--on-surface-variant); white-space: nowrap; }
-.c-panel-diff-wert { font: var(--type-mono); font-variant-numeric: tabular-nums; }
-
-/* the over-exposure preview panel (spec §6.2): NEUTRAL chrome, NO loud color — confirming
-   who-gains-sight is neither draft nor error, so emphasis is by WEIGHT only (inventing a warning
-   color here is the subtlest law trap). It shares the .c-panel base; the heading stays on-surface. */
-.c-panel--vorschau .c-panel-titel { color: var(--on-surface); }
-.c-panel-zeile {
-  margin: 0 0 var(--space-2);
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-.c-panel-marken {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-/* the loudest case (public) is emphasized by WEIGHT alone — never a color (spec §6.2) */
-.c-panel-oeffentlich { font-weight: 600; }
-.c-panel-felder {
-  margin: 0 0 var(--space-4);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-/* the required confirm checkbox row gates the enabled Veröffentlichen (spec §6.2) */
-.c-panel-bestaetigen {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-.c-panel-aktionen { display: inline-flex; gap: var(--space-2); }
-
-/* ---- c-btn--gefahr: the ONE destructive filled variant (spec §7). Error INVERSION (--error /
-   --on-error), used ONLY on the delete/discard CONFIRM button — never on a read-view trigger (that
-   would spend the loud channel on a non-error and desensitize the CAS panel). ---- */
-.c-btn--gefahr {
-  background: var(--error);
-  color: var(--on-error);
-  border: 1px solid var(--error);
-}
-.c-btn--gefahr:hover {
-  /* deepen toward the button's own ink role (role-only mix — no raw color); mirrors the primary
-     button's hover idiom which mixes on-surface toward surface */
-  background: color-mix(in oklab, var(--error), var(--on-error) 12%);
-  border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
-}
-
-/* ---- the delete / discard confirm page (spec §7 states M/N): a centered narrow column, the .c-sig
-   + Titel context, the danger button the ONE loud element ---- */
-.c-confirm { max-width: 34rem; }
-.c-confirm-titel { margin: 0 0 var(--space-4); font: var(--type-display); color: var(--on-surface); }
-.c-confirm-kontext {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.c-confirm-kontext-titel { font: var(--type-title); color: var(--on-surface); }
-.c-confirm-text {
-  margin: 0 0 var(--space-6);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-.c-confirm-aktionen { display: inline-flex; gap: var(--space-2); }
-
-/* ---- the read-view archivist action row (spec §7): top-of-column, right-aligned, subtle buttons.
-   Löschen stays NEUTRAL at rest here (never red — red only on the confirm-page button). ---- */
-.c-artikel-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-/* lifecycle actions are their own forms (Enter never fires a destructive/lifecycle action) but sit
-   inline in the row */
-.c-artikel-aktionen form { display: inline; margin: 0; }
-
-/* ---- Zurück-zur-Suche header link (the form uses only the wordmark + this) ---- */
-
-.wb-zurueck {
-  margin-left: auto;
-  font: var(--type-meta);
-  color: var(--primary);
-  text-decoration: none;
-}
-.wb-zurueck:hover { text-decoration: underline; }
-
-/* ---- bulk edit (Sammelbearbeitung) confirm + result pages (spec §2 D/R) ---- */
-
-.c-bulk-summe {
-  margin: 0 0 var(--space-2);
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface);
-}
-.c-bulk-liste { list-style: none; margin: 0; padding: 0; }
-.c-bulk-zeile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-1) 0;
-}
-.c-bulk-zeile + .c-bulk-zeile { border-top: 1px solid var(--outline-variant); }
-.c-bulk-titel { font: var(--type-body); color: var(--on-surface); }
-/* the doctype-orphan + conflict sub-marks: quiet on-surface-variant, NEVER red (a race/clear is not
-   an error — spec §7); emphasis by placement only */
-.c-bulk-orphan,
-.c-bulk-konflikt { font: var(--type-meta); color: var(--on-surface-variant); }
-/* the orphan-warning heading: WEIGHT emphasis only, no loud color (spec §7) */
-.c-panel-achtung { color: var(--on-surface); font-weight: 700; }

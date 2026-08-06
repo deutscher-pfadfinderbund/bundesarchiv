@@ -392,7 +392,7 @@ def test_edit_save_preserves_media_when_no_caption_change(corpus: _Corpus) -> No
 def test_edit_form_renders_media_register_with_cover_stamp(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    assert "c-medien" in body
+    assert 'class="media"' in body
     assert "Titelbild" in body  # the cover stamp label
     assert "cover.jpg" in body  # the filename
     assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL

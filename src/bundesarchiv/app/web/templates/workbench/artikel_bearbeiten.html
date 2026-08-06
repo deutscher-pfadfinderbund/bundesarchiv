@@ -5,17 +5,17 @@ baseline only: one real <form>, native controls, one POST, server re-render pres
 Field order/grouping follows how an archivist catalogs (spec §3). The header carries the two
 reserved marks once (amber ENTWURF, violet Signatur). The sticky footer's Speichern is first in
 source so Enter submits it; the hidden expected_version rides the form for CAS (ADR 0013). On a
-Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
+Conflict the panel.konflikt renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
 <script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
-{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
 the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.{% endcomment %}
-<main class="c-form" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<main class="column" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 {% comment %}#form-region wraps the panels + header + edit form — the save hx-post swaps exactly this
 from the SAME full-page render (hx-select), so validation/conflict/state-H re-renders and their panels
 appear without a partial-render fork. On a successful save the view sends HX-Redirect instead (spec
@@ -24,23 +24,23 @@ only.{% endcomment %}
 <div id="form-region">
 
   {% if conflict %}
-  <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
-    <h2 class="c-panel-titel" id="konflikt-titel">Inzwischen geändert</h2>
-    <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
+  <section class="panel konflikt" aria-labelledby="konflikt-titel">
+    <h2 id="konflikt-titel">Inzwischen geändert</h2>
+    <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
     {% if conflict_rows %}
-    <div class="c-panel-diff-wrap">
-      <table class="c-panel-diff">
+    <div class="diff">
+      <table>
         <thead><tr><th>Feld</th><th>Deine Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
         <tbody>
           {% for row in conflict_rows %}
           <tr>
-            <td class="c-panel-diff-feld">{{ row.label }}</td>
+            <td>{{ row.label }}</td>
             {% if row.is_sig %}
             <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
             <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
             {% else %}
-            <td class="c-panel-diff-wert">{{ row.mine }}</td>
-            <td class="c-panel-diff-wert">{{ row.theirs }}</td>
+            <td>{{ row.mine }}</td>
+            <td>{{ row.theirs }}</td>
             {% endif %}
           </tr>
           {% endfor %}
@@ -52,37 +52,37 @@ only.{% endcomment %}
   {% endif %}
 
   {% comment %}Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is
-  emphasized by WEIGHT only. The required confirm checkbox gates Veröffentlichen (server re-checks
-  it).{% endcomment %}
+  emphasized by WEIGHT only (a bare <strong>). The required confirm checkbox gates Veröffentlichen
+  (server re-checks it).{% endcomment %}
   {% if vorschau %}
-  <section class="c-panel c-panel--vorschau" aria-labelledby="vorschau-titel">
-    <h2 class="c-panel-titel" id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
-    <p class="c-panel-zeile">Nach Veröffentlichung sichtbar für: {{ vorschau.audience }}.</p>
-    <p class="c-panel-marken">{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
-    {% if vorschau.public %}<p class="c-panel-zeile c-panel-oeffentlich">Öffentlich sichtbar</p>{% endif %}
-    <p class="c-panel-felder">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
+  <section class="panel" aria-labelledby="vorschau-titel">
+    <h2 id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
+    <p>Nach Veröffentlichung sichtbar für: {{ vorschau.audience }}.</p>
+    <p>{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
+    {% if vorschau.public %}<p><strong>Öffentlich sichtbar</strong></p>{% endif %}
+    <p class="hint">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
     <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="veroeffentlichen">
-      <label class="c-panel-bestaetigen">
+      <label>
         <input type="checkbox" name="geprueft" value="1" required>
         <span>Ich habe geprüft, wer Einblick erhält.</span>
       </label>
-      <div class="c-panel-aktionen">
-        <button class="c-btn c-btn--primary" type="submit">Veröffentlichen</button>
+      <div class="actions">
+        <button class="primary" type="submit">Veröffentlichen</button>
       </div>
     </form>
   </section>
   {% endif %}
 
-  {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet on-surface-variant
-  hinweis — NOT loud (it is not an error; the save succeeded).{% endcomment %}
-  {% if index_lag %}<p class="c-form-hinweis" role="status">{{ index_lag }}</p>{% endif %}
+  {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet hinweis — NOT loud
+  (it is not an error; the save succeeded).{% endcomment %}
+  {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
 
-  <header class="c-form-kopf">
-    <h1 class="c-form-kopf-titel">{{ values.title|default:"Ohne Titel" }}</h1>
-    <span class="c-form-kopf-marken">
+  <header>
+    <h1>{{ values.title|default:"Ohne Titel" }}</h1>
+    <span>
       {% include "components/badge_lifecycle.html" with draft=values.is_draft %}
       {% comment %}Edit-header omits the hollow "ohne Signatur" slot — the Signatur INPUT on this same
       screen carries absence (owner finding, signals-once). Show the mark only when a code exists.{% endcomment %}
@@ -93,7 +93,7 @@ only.{% endcomment %}
   {% comment %}HTMX (spec §5): the save hx-posts and swaps #form-region (panels + fields) from the
   same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
   save gets HX-Redirect to the read view. No-JS baseline is the plain POST + 302.{% endcomment %}
-  <form id="bearbeiten-form" class="c-form-felder" method="post"
+  <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
@@ -101,160 +101,134 @@ only.{% endcomment %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
     {# Gruppe 1 — Kerndaten #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Kerndaten</legend>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.title %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Titel</span>
-          <input class="c-input" type="text" name="title" value="{{ values.title }}"
-                 {% if autofocus == "title" %}autofocus{% endif %}>
-          {% if errors.title %}<span class="c-field-fehler">{{ errors.title }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.collection_id %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Bestand</span>
-          <select class="c-select" name="collection_id"
-                  {% if autofocus == "collection_id" %}autofocus{% endif %}>
-            {% for value, caption in collection_options %}
-            <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </select>
-          {% if errors.collection_id %}<span class="c-field-fehler">{{ errors.collection_id }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Signatur</span>
-          <input class="c-input" type="text" name="ref_code" value="{{ values.ref_code }}"
-                 {% if autofocus == "ref_code" %}autofocus{% endif %}>
-        </label>
-      </div>
+    <fieldset>
+      <legend>Kerndaten</legend>
+      <label class="field">
+        <span>Titel</span>
+        <input type="text" name="title" value="{{ values.title }}"
+               {% if autofocus == "title" %}autofocus{% endif %}>
+        {% if errors.title %}<span class="error">{{ errors.title }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Bestand</span>
+        <select name="collection_id"
+                {% if autofocus == "collection_id" %}autofocus{% endif %}>
+          {% for value, caption in collection_options %}
+          <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.collection_id %}<span class="error">{{ errors.collection_id }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Signatur</span>
+        <input type="text" name="ref_code" value="{{ values.ref_code }}"
+               {% if autofocus == "ref_code" %}autofocus{% endif %}>
+      </label>
     </fieldset>
 
     {# Gruppe 2 — Einordnung #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Einordnung</legend>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.media_type %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Medienart</span>
-          {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
-          them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
-          server pairing re-validation still stand.{% endcomment %}
-          <select class="c-select" name="media_type"
-                  hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
-                  hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
-                  {% if autofocus == "media_type" %}autofocus{% endif %}>
-            {% for value, caption in media_type_options %}
-            <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
+    <fieldset>
+      <legend>Einordnung</legend>
+      <label class="field">
+        <span>Medienart</span>
+        {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
+        them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
+        server pairing re-validation still stand.{% endcomment %}
+        <select name="media_type"
+                hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
+                hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
+                {% if autofocus == "media_type" %}autofocus{% endif %}>
+          {% for value, caption in media_type_options %}
+          <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.media_type %}<span class="error">{{ errors.media_type }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Dokumenttyp</span>
+        <select id="dokumenttyp-select" name="document_type"
+                {% if autofocus == "document_type" %}autofocus{% endif %}>
+          <option value="">— kein Dokumenttyp —</option>
+          {% for group_label, group_options in document_type_groups %}
+          <optgroup label="{{ group_label }}">
+            {% for value, caption in group_options %}
+            <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
             {% endfor %}
-          </select>
-          {% if errors.media_type %}<span class="c-field-fehler">{{ errors.media_type }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.document_type %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Dokumenttyp</span>
-          <select class="c-select" id="dokumenttyp-select" name="document_type"
-                  {% if autofocus == "document_type" %}autofocus{% endif %}>
-            <option value="">— kein Dokumenttyp —</option>
-            {% for group_label, group_options in document_type_groups %}
-            <optgroup label="{{ group_label }}">
-              {% for value, caption in group_options %}
-              <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
-              {% endfor %}
-            </optgroup>
-            {% endfor %}
-          </select>
-          {% if errors.document_type %}<span class="c-field-fehler">{{ errors.document_type }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Schlagworte</span>
-          <input class="c-input" type="text" name="tags" value="{{ values.tags }}"
-                 {% if autofocus == "tags" %}autofocus{% endif %}>
-          <span class="c-form-hint">Mehrere durch Komma trennen</span>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.date %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Datierung (EDTF)</span>
-          {% comment %}HTMX (spec §5): debounced keyup fetches the human-German echo and swaps the
-          line below. No-JS baseline unchanged — the echo also renders server-side after any
-          submit/reload.{% endcomment %}
-          <input class="c-input" type="text" name="date" value="{{ values.date }}"
-                 hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
-                 hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
-                 hx-swap="outerHTML"
-                 {% if autofocus == "date" %}autofocus{% endif %}>
-          <span class="c-form-hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
-          {% if errors.date %}<span class="c-field-fehler">{{ errors.date }}</span>{% endif %}
-          {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
-        </label>
-      </div>
+          </optgroup>
+          {% endfor %}
+        </select>
+        {% if errors.document_type %}<span class="error">{{ errors.document_type }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Schlagworte</span>
+        <input type="text" name="tags" value="{{ values.tags }}"
+               {% if autofocus == "tags" %}autofocus{% endif %}>
+        <span class="hint">Mehrere durch Komma trennen</span>
+      </label>
+      <label class="field">
+        <span>Datierung (EDTF)</span>
+        {% comment %}HTMX (spec §5): debounced keyup fetches the human-German echo and swaps the
+        line below. No-JS baseline unchanged — the echo also renders server-side after any
+        submit/reload.{% endcomment %}
+        <input type="text" name="date" value="{{ values.date }}"
+               hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
+               hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
+               hx-swap="outerHTML"
+               {% if autofocus == "date" %}autofocus{% endif %}>
+        <span class="hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
+        {% if errors.date %}<span class="error">{{ errors.date }}</span>{% endif %}
+        {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
+      </label>
     </fieldset>
 
     {# Gruppe 3 — Herkunft #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Herkunft</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Autor</span>
-          <input class="c-input" type="text" name="creator" value="{{ values.creator }}"
-                 {% if autofocus == "creator" %}autofocus{% endif %}>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Ort</span>
-          <input class="c-input" type="text" name="subject_place" value="{{ values.subject_place }}"
-                 {% if autofocus == "subject_place" %}autofocus{% endif %}>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Standort</span>
-          <input class="c-input" type="text" name="physical_location" value="{{ values.physical_location }}"
-                 {% if autofocus == "physical_location" %}autofocus{% endif %}>
-          <span class="c-form-hint">Nur intern sichtbar</span>
-        </label>
-      </div>
+    <fieldset>
+      <legend>Herkunft</legend>
+      <label class="field">
+        <span>Autor</span>
+        <input type="text" name="creator" value="{{ values.creator }}"
+               {% if autofocus == "creator" %}autofocus{% endif %}>
+      </label>
+      <label class="field">
+        <span>Ort</span>
+        <input type="text" name="subject_place" value="{{ values.subject_place }}"
+               {% if autofocus == "subject_place" %}autofocus{% endif %}>
+      </label>
+      <label class="field">
+        <span>Standort</span>
+        <input type="text" name="physical_location" value="{{ values.physical_location }}"
+               {% if autofocus == "physical_location" %}autofocus{% endif %}>
+        <span class="hint">Nur intern sichtbar</span>
+      </label>
     </fieldset>
 
     {# Gruppe 4 — Beschreibung #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Beschreibung</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Beschreibung</span>
-          <textarea class="c-input" name="body" rows="10">{{ values.body }}</textarea>
-        </label>
-      </div>
+    <fieldset>
+      <legend>Beschreibung</legend>
+      <label class="field">
+        <span>Beschreibung</span>
+        <textarea name="body" rows="10">{{ values.body }}</textarea>
+      </label>
     </fieldset>
 
     {# Gruppe 5 — Zugriff #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Zugriff</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Sichtbarkeit</span>
-          <select class="c-select" name="sichtbarkeit">
-            {% for value, caption in sichtbarkeit_options %}
-            <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.gruppen %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Gruppen</span>
-          <input class="c-input" type="text" name="gruppen" value="{{ values.gruppen }}"
-                 {% if autofocus == "gruppen" %}autofocus{% endif %}>
-          <span class="c-form-hint">Mehrere durch Komma trennen</span>
-          {% if errors.gruppen %}<span class="c-field-fehler">{{ errors.gruppen }}</span>{% endif %}
-        </label>
-      </div>
+    <fieldset>
+      <legend>Zugriff</legend>
+      <label class="field">
+        <span>Sichtbarkeit</span>
+        <select name="sichtbarkeit">
+          {% for value, caption in sichtbarkeit_options %}
+          <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>Gruppen</span>
+        <input type="text" name="gruppen" value="{{ values.gruppen }}"
+               {% if autofocus == "gruppen" %}autofocus{% endif %}>
+        <span class="hint">Mehrere durch Komma trennen</span>
+        {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
+      </label>
     </fieldset>
 
     {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
@@ -280,37 +254,37 @@ only.{% endcomment %}
     SIBLINGS inside the fieldset (forms cannot nest) so a swap delivers fresh forms for the CURRENT
     row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
     automatically because the whole drawer (cover row first) is replaced.{% endcomment %}
-    <fieldset class="c-form-group" id="medien-drawer">
-      <legend class="c-form-legend">Medien</legend>
-      {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
+    <fieldset id="medien-drawer">
+      <legend>Medien</legend>
+      {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
-      <div class="c-medien">
+      <div class="media">
         {% for row in media_rows %}
-        <div class="c-medien-zeile{% if row.is_cover %} c-medien-zeile--cover{% endif %}">
-          <img class="c-medien-thumb" src="{{ row.thumb_url }}" alt="" loading="lazy">
-          <span class="c-medien-datei">
-            <span class="c-medien-name">{{ row.filename }}</span>
-            {% if row.size %}<span class="c-medien-groesse">{{ row.size }}</span>{% endif %}
-            {% if row.is_cover %}<span class="c-medien-titelbild">Titelbild</span>{% endif %}
+        <div{% if row.is_cover %} class="cover"{% endif %}>
+          <img src="{{ row.thumb_url }}" alt="" loading="lazy">
+          <span class="file">
+            <span>{{ row.filename }}</span>
+            {% if row.size %}<small>{{ row.size }}</small>{% endif %}
+            {% if row.is_cover %}<span class="titelbild">Titelbild</span>{% endif %}
           </span>
-          <label class="c-field">
+          <label class="field">
             <span class="visually-hidden">Bildunterschrift</span>
-            <input class="c-input" type="text" name="caption[{{ row.content_hash }}]"
+            <input type="text" name="caption[{{ row.content_hash }}]"
                    value="{{ row.caption }}" aria-label="Bildunterschrift" form="bearbeiten-form">
           </label>
-          <span class="c-medien-reihenfolge">
-            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
+          <span class="move">
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
                     name="richtung" value="hoch"{% if row.is_first %} disabled{% endif %}>nach oben</button>
-            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
                     name="richtung" value="runter"{% if row.is_last %} disabled{% endif %}>nach unten</button>
           </span>
           {% if row.confirm_remove %}
-          <span class="c-medien-confirm">Wirklich entfernen?
-            <button class="c-medien-entfernen" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
-            <button class="c-medien-entfernen" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
+          <span class="confirm">Wirklich entfernen?
+            <button class="link" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
+            <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
-          <button class="c-medien-entfernen" type="submit" form="entfernen-frage-{{ row.content_hash }}">Entfernen</button>
+          <button class="link" type="submit" form="entfernen-frage-{{ row.content_hash }}">Entfernen</button>
           {% endif %}
         </div>
         {% endfor %}
@@ -318,15 +292,15 @@ only.{% endcomment %}
       {% else %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
-      <div class="c-medien-upload">
-        <input class="c-input" type="file" name="dateien" form="medien-upload" multiple>
-        <button class="c-btn c-btn--subtle" type="submit" form="medien-upload">Hinzufügen</button>
+      <div class="upload">
+        <input type="file" name="dateien" form="medien-upload" multiple>
+        <button type="submit" form="medien-upload">Hinzufügen</button>
       </div>
       {% comment %}Upload progress sliver — enhancement-only (HTMX/XHR paints it via
       catalog_form.js). Absent in the no-JS baseline; a static track with a discrete on-surface fill,
       NO easing (spec §6.3).{% endcomment %}
-      <div class="c-medien-fortschritt" aria-hidden="true">
-        <div class="c-medien-fortschritt-fill" id="medien-fortschritt-fill"></div>
+      <div class="progress" aria-hidden="true">
+        <div id="medien-fortschritt-fill"></div>
       </div>
 
       {% comment %}Per-row media structural forms (spec §6.3) — SIBLINGS of the row markup above
@@ -379,21 +353,21 @@ only.{% endcomment %}
     splits the DOM but not the submission).{% endcomment %}
 
     {# Gruppe 7 — Weitere Angaben (custom bag) #}
-    <details class="c-form-details">
-      <summary class="c-form-details-summary">Weitere Angaben</summary>
-      {% if errors.custom %}<p class="c-field-fehler">{{ errors.custom }}</p>{% endif %}
+    <details id="custom-bag">
+      <summary>Weitere Angaben</summary>
+      {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
-      <div class="c-form-bag-zeile">
-        <label class="c-field">
-          <span class="c-field-label">Feld</span>
-          <input class="c-input" type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
+      <div class="bag-row">
+        <label class="field">
+          <span>Feld</span>
+          <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
         </label>
-        <label class="c-field">
-          <span class="c-field-label">Wert</span>
-          <input class="c-input" type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
+        <label class="field">
+          <span>Wert</span>
+          <input type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
         </label>
         {% if key or val %}
-        <button class="c-form-bag-entfernen" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
+        <button class="link" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
         {% endif %}
       </div>
       {% endfor %}
@@ -401,38 +375,40 @@ only.{% endcomment %}
 
     {% comment %}Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
     Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
-    (spec §7 — the destructive idiom lives on its own page, never inline).{% endcomment %}
-    <div class="c-form-footer">
-      <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
-      <div class="c-form-footer-aktionen">
-        <button class="c-btn c-btn--primary" type="submit" form="bearbeiten-form">Speichern</button>
+    (spec §7 — the destructive idiom lives on its own page, never inline). The dirty register is a
+    neutral <output> badge (amber is licensed ONLY on the ENTWURF badge, register row 4) —
+    enhancement-only, JS reveals it on the first edit.{% endcomment %}
+    <footer class="sticky">
+      <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
+      <div class="actions">
+        <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
         {% if values.is_draft %}
-        <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
+        <a class="button" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
         {% endif %}
       </div>
-    </div>
+    </footer>
   </div>{# /#form-region #}
 
   {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),
   adjacent to the footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST
-  /vorschau) that re-renders this page with c-panel--vorschau at top; the panel's own Veröffentlichen
+  /vorschau) that re-renders this page with the preview panel at top; the panel's own Veröffentlichen
   (gated by the confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen,
   no preview.{% endcomment %}
-  <section class="c-form-lebenszyklus">
+  <section class="lifecycle">
     {% if values.is_draft %}
-    {# HTMX (spec §5): the preview swaps #form-region so c-panel--vorschau appears inline at top. #}
+    {# HTMX (spec §5): the preview swaps #form-region so the preview panel appears inline at top. #}
     <form method="post" action="{% url 'artikel-vorschau' values.ulid %}"
           hx-post="{% url 'artikel-vorschau' values.ulid %}"
           hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
       {% csrf_token %}
-      <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
+      <button type="submit">Veröffentlichen</button>
     </form>
     {% else %}
     <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
       {% csrf_token %}
       <input type="hidden" name="expected_version" value="{{ version }}">
       <input type="hidden" name="aktion" value="zurueckziehen">
-      <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
+      <button type="submit">Als Entwurf zurückziehen</button>
     </form>
     {% endif %}
   </section>

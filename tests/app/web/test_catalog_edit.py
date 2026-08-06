@@ -369,7 +369,7 @@ def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _C
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body  # confirms we hit the error re-render
-    assert 'class="c-badge c-badge--entwurf"' not in body  # no ENTWURF badge for PUBLISHED
+    assert 'class="badge entwurf"' not in body  # no ENTWURF badge for PUBLISHED
 
 
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Corpus) -> None:
