@@ -1,6 +1,6 @@
 {% comment %}
-Lifecycle badge. Param: draft (bool). Renders ONLY for drafts — the ENTWURF mark (draft role, the
-one warm hue). A published item gets NO lifecycle marker (owner de-redundancy, 2026-07-10): v1
+Lifecycle badge. Param: draft (bool). Renders ONLY for drafts — the ENTWURF mark (cue-register
+row 4, the one amber). A published item gets NO lifecycle marker (row 7 — quiet default): v1
 lifecycle is binary, so "Veröffentlicht" carried no information. Absence = published.
 {% endcomment %}
-{% if draft %}<span class="c-badge c-badge--entwurf">Entwurf</span>{% endif %}
+{% if draft %}<span class="badge entwurf">Entwurf</span>{% endif %}

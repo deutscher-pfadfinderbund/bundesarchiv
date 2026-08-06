@@ -1,540 +1,600 @@
-/* Component atoms (templates/components/*.html) — styles consume ROLE tokens from tokens.css
-   ONLY (design-system.md: "a hex value in a component style is a defect").
-   Load order: tokens.css first, then this file. No external requests, no raw color values;
-   the only color functions allowed are var() over roles and color-mix() OVER roles.
+/* Elements + components (design-review-law.md; the three-layer composition model).
+   Role tokens from tokens.css ONLY — a raw color here is a defect ("Roles, not colors").
+   Load order: tokens.css (declares the @layer order) first, then this file. No external requests;
+   the only color functions are var() over roles and color-mix() OVER roles.
 
    GRAMMAR (duotone stamp — spec law, design-system.md): the archive is gray paper; the accent is
-   stamp ink. Violet (--primary / --on-primary-container) appears ONLY on the archive's MARKS — the
-   Signatur tab's code, mono counts/dates, and inline interactive text (links). Every other piece of
-   chrome is PURE NEUTRAL: buttons, inputs, chips, panels, cards, badges, empty state carry no hue.
-   Selection/active states are INVERSION (swap fg/bg to a solid neutral-ink block, like a stamp
-   pressed down), never a tonal tint wash. draft=amber and error=red keep loud semantic marks so
-   lifecycle and errors stay instantly visible. If an element is not a mark, it gets no hue. Corners:
-   square or --radius-s everywhere; the ONE beveled corner survives only on the card's index cut and
-   the Signatur/drawer-tab leading corner. (Was two files — components-stamp.css folded in here since
-   the stamp grammar is spec law; components-papier.css remains the one dev materiality variant.) */
+   stamp ink. Violet (--primary) appears ONLY on the archive's MARKS — the Signatur code, mono
+   counts/dates, and inline interactive text (links). Chrome is neutral; selection/active states
+   are INVERSION (cue-register row 3), never a tint wash. draft=amber (row 4, the ENTWURF badge
+   only) and error=red (row 5) are the loud channels. Sheet material (row 8): facet panels,
+   confirm panels and the empty state read as cut sheets — --sheet* tokens, hairline edge, the one
+   2px lower edge. The bevel cut (row 1) survives ONLY on the register-licensed .c-sig; those
+   selector names (.c-sig, .c-sig-code) are pinned BY the register and outlive the retired c-*
+   taxonomy. */
 
-/* ---- focus: the one global interaction invariant (3:1 on every surface, gated) ---- */
+/* ============================================================
+   ELEMENTS — semantic HTML styled directly. A class appears only
+   where semantics cannot discriminate (law C1).
+   ============================================================ */
+@layer elements {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
+  /* focus: the one global interaction invariant (3:1 on every surface) */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 
-/* ---- corners: cut ONLY where it carries meaning (owner restraint, 2026-07-10) ----
-   The bevel is a meaning-bearing signature, not a house radius: it survives ONLY on the card's
-   big index cut and the Signatur/drawer tabs' leading corner. Everything else is square or
-   --radius-s rounded. Native corner-shape: bevel lets the browser draw the cut, so borders and
-   fills follow it automatically (no clip-path, no hairline hacks). Older browsers ignore
-   corner-shape and render rounded corners — accepted, no fallback. */
+  /* inline interactive text = stamp ink (cue-register row 2) */
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
 
-.c-card,
-.c-sig,
-.c-facet-tab {
-  corner-shape: bevel;
-}
+  /* Buttons: flat, dense, hairline-bordered. The bare element is the subtle default; a link
+     acting as a button opts in via .button. Variants are the two licensed deviations: .primary =
+     neutral-ink INVERSION (row 3 — a filled button is chrome, not a mark), .danger = the ONE
+     destructive filled variant (error inversion, forms spec §7 — confirm pages only). */
+  :is(button, a.button) {
+    display: inline-block;
+    font: var(--type-meta);
+    padding: var(--space-1) var(--space-3);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  :is(button, a.button):hover {
+    background: var(--surface-container-high);
+    text-decoration: none;
+  }
+  :is(button, a.button).primary {
+    background: var(--on-surface);
+    color: var(--surface);
+    border-color: var(--on-surface);
+  }
+  :is(button, a.button).primary:hover {
+    background: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
+    border-color: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
+  }
+  button.danger {
+    background: var(--error);
+    color: var(--on-error);
+    border-color: var(--error);
+  }
+  button.danger:hover {
+    /* deepen toward the button's own ink role (role-only mix — no raw color) */
+    background: color-mix(in oklab, var(--error), var(--on-error) 12%);
+    border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
+  }
+  /* a button that reads as an inline text affordance (reorder, entfernen, banner ✕) */
+  button.link {
+    background: none;
+    border: none;
+    padding: var(--space-1) 0;
+    font: var(--type-meta);
+    color: var(--primary);
+  }
+  button.link:hover {
+    background: none;
+    text-decoration: underline;
+  }
+  button.link:disabled {
+    color: var(--on-surface-variant);
+    cursor: default;
+    text-decoration: none;
+  }
 
-/* ---- button: flat, dense, hairline-bordered ---- */
+  /* Fields: squarer, hairline, dense. Checkboxes/radios/files keep their native rendering. */
+  textarea,
+  select,
+  input:not([type="checkbox"], [type="radio"], [type="file"]) {
+    font: var(--type-meta);
+    color: var(--on-surface);
+    background: var(--surface-container-lowest);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    padding: var(--space-1) var(--space-2);
+  }
+  input[type="file"] {
+    font: var(--type-meta);
+    color: var(--on-surface);
+  }
+  ::placeholder {
+    color: var(--on-surface-variant);
+  }
+  /* focus deepens the neutral border in addition to the ink ring */
+  :is(textarea, select, input):focus-visible {
+    border-color: var(--on-surface);
+  }
 
-.c-btn {
-  display: inline-block;
-  font: var(--type-meta);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-s);
-  cursor: pointer;
-  text-decoration: none;
-}
-.c-btn--subtle {
-  background: var(--surface-container-low);
-  color: var(--on-surface);
-  border: 1px solid var(--outline);
-}
-.c-btn--subtle:hover { background: var(--surface-container-high); }
-.c-btn--primary {
-  /* inversion: paper text stamped onto ink-neutral — a filled button is chrome, not a mark */
-  background: var(--on-surface);
-  color: var(--surface);
-  border: 1px solid var(--on-surface);
-}
-.c-btn--primary:hover {
-  background: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
-  border-color: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
-}
+  /* A labeled field: <label class="field"><span>Titel</span><input …></label>. The class exists
+     because semantics cannot discriminate a stacked labeled field from an inline checkbox label. */
+  .field {
+    display: inline-flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--on-surface);
+  }
+  .field > span:first-child {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  /* validation: the error line (verbatim German message) + the red control border derive from ONE
+     source — the .error node's presence (no drift between text and border) */
+  .error {
+    font: var(--type-meta);
+    color: var(--error);
+  }
+  .field:has(.error) :is(input, select, textarea) {
+    border-color: var(--error);
+  }
+  .hint {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
 
-/* ---- field label + input + select: squarer, hairline, dense ---- */
-
-.c-field {
-  display: inline-flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  color: var(--on-surface);
-}
-.c-field-label {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.c-input,
-.c-select {
-  font: var(--type-meta);
-  color: var(--on-surface);
-  background: var(--surface-container-lowest);
-  border: 1px solid var(--outline);
-  border-radius: var(--radius-s);
-  padding: var(--space-1) var(--space-2);
-}
-.c-input::placeholder { color: var(--on-surface-variant); }
-/* focus deepens the neutral border in addition to the ink ring */
-.c-input:focus-visible,
-.c-select:focus-visible { border-color: var(--on-surface); }
-
-/* ---- removable filter chip: a filter is a MARK -> its text is stamp ink, but the fill stays
-   neutral paper (no tonal wash). Hover on the X inverts. ---- */
-
-.c-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font: var(--type-mono-meta);
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-container-low);
-  color: var(--primary);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: calc(var(--space-1) / 2) var(--space-1) calc(var(--space-1) / 2) var(--space-2);
-}
-.c-chip-x {
-  color: var(--on-surface-variant);
-  text-decoration: none;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-s);
-}
-.c-chip-x:hover {
-  /* inversion: the removal target stamps solid */
-  background: var(--on-surface);
-  color: var(--surface);
-}
-
-/* ---- badges (lifecycle + visibility): small flat marks ---- */
-
-.c-badge {
-  display: inline-block;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  padding: calc(var(--space-1) / 2) var(--space-2);
-  border-radius: var(--radius-s);
-  white-space: nowrap;
-}
-.c-badge--entwurf {
-  /* the one warm mark — drafts pop (spec semantic note) */
-  background: var(--draft);
-  color: var(--on-draft);
-  border: 1px solid var(--on-draft);
-}
-.c-badge--sichtbarkeit {
-  background: transparent;
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline);
-}
-
-/* ---- Signatur tab: the archive's primary MARK. Ink text on gray paper, NOT a tinted fill.
-   One beveled leading corner (the drawer-label silhouette). ---- */
-
-.c-sig {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  max-width: 100%;
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-container-low);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  /* the drawer-label silhouette: one beveled leading corner */
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-sig-code {
-  /* the actual signature = stamp ink */
-  color: var(--primary);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-sig--leer {
-  /* "ohne Signatur": the hollow dashed slot — SAME silhouette as the filled tab (the dashed border
-     follows the bevel), so filed vs unfiled reads as stamped tab vs empty slot */
-  background: transparent;
-  border: 1px dashed var(--outline-variant);
-}
-.c-sig--leer .c-sig-code {
-  /* unfiled: no ink, hollow slot */
-  color: var(--on-surface-variant);
-  font-weight: 400;
+  /* disclosure headings (facet groups, the custom bag) share the one label treatment */
+  summary {
+    cursor: pointer;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
 }
 
-/* ---- facet group panel with drawer-label tab ---- */
+/* ============================================================
+   COMPONENTS — named structures (atoms/molecules with real anatomy).
+   ============================================================ */
+@layer components {
+  /* screen-reader-only text (accessible names for icon-only/quiet controls) */
+  .visually-hidden {
+    position: absolute;
+    width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
+    height: 1px; /* (same) */
+    padding: 0;
+    margin: -1px; /* (same) */
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 
-.c-facet {
-  position: relative;
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s); /* panels stay square-ish — the bevel belongs to the tab */
-  padding: var(--space-3);
-  margin-top: calc(1.5rem + var(--space-2));
-}
-.c-facet-tab {
-  position: absolute;
-  top: calc(1px - 1.5rem);
-  left: var(--space-3);
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 0 var(--space-3);
-  background: var(--surface-container-high);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  border-bottom: none;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  /* drawer-label silhouette: one beveled leading corner */
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-facet-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.c-facet-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-left: 3px solid transparent;
-  border-radius: var(--radius-s);
-}
-.c-facet-row a {
-  /* inline interactive text = stamp ink */
-  color: var(--primary);
-  text-decoration: none;
-}
-.c-facet-row a:hover { text-decoration: underline; }
-.c-facet-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.c-facet-count {
-  /* mono count = ink data */
-  font: var(--type-mono-meta);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface-variant);
-  white-space: nowrap;
-}
-/* the remove ✕ on an active row — the one place a filter is cleared (the chips row is gone) */
-.c-facet-remove {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  border-radius: var(--radius-s);
-}
-/* INVERSION: the selected row is stamped solid neutral ink — a highlight, not a tint */
-.c-facet-row--aktiv {
-  background: var(--on-surface);
-  border-left-color: var(--on-surface);
-}
-.c-facet-row--aktiv a,
-.c-facet-row--aktiv .c-facet-count,
-.c-facet-row--aktiv .c-facet-remove {
-  color: var(--surface);
-  font-weight: 600;
+  /* ---- action cluster: ONE pattern for a row of related action buttons (pane, read view,
+     confirm pages, form footer) — consistency beats novelty ---- */
+  .actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline */
+  .actions form {
+    display: inline;
+    margin: 0;
+  }
+
+  /* ---- badges: small flat marks. Neutral outline by default (visibility); the ENTWURF badge is
+     the ONE amber mark (cue-register row 4). Published renders NO badge (row 7). ---- */
+  .badge {
+    display: inline-block;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    padding: calc(var(--space-1) / 2) var(--space-2);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
+  .badge.entwurf {
+    background: var(--draft);
+    color: var(--on-draft);
+    border-color: var(--on-draft);
+  }
+
+  /* ---- Signatur tab: the archive's primary MARK. Ink code on gray paper; ONE beveled leading
+     corner (cue-register row 1 — .c-sig/.c-sig-code are the register's licensed selector names,
+     kept verbatim). Absent ref_code renders the hollow dashed slot (row 6). ---- */
+  .c-sig {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    max-width: 100%;
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    background: var(--surface-container-low);
+    color: var(--on-surface-variant);
+    border: var(--hairline) solid var(--outline-variant);
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+    corner-shape: bevel;
+    border-radius: var(--radius-m) 0 0 0;
+  }
+  .c-sig-code {
+    color: var(--primary);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .c-sig--leer {
+    background: transparent;
+    border-style: dashed;
+  }
+  .c-sig--leer .c-sig-code {
+    color: var(--on-surface-variant);
+    font-weight: 400;
+  }
+
+  /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> panel of
+     value rows. Sheet material (row 8): sheet tint, hairline edge, the 2px lower edge. The active
+     row is read from aria-current on its link (law C2) and marked by INVERSION (row 3); it carries
+     the remove ✕ (the one place a filter is cleared), inactive rows carry the bare count. ---- */
+  .facet {
+    background: var(--sheet);
+    border: var(--hairline) solid var(--outline-variant);
+    border-bottom-width: var(--sheet-edge);
+    border-radius: var(--radius-s);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+  .facet summary {
+    padding: var(--space-1) 0;
+    list-style-position: inside;
+  }
+  .facet ul {
+    list-style: none;
+    margin: var(--space-1) 0 0;
+    padding: 0;
+  }
+  .facet li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-s);
+  }
+  .facet li > a {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .facet li > span {
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
+  .facet .remove {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    border-radius: var(--radius-s);
+  }
+  .facet li:has(> [aria-current]) {
+    background: var(--on-surface);
+  }
+  .facet li:has(> [aria-current]) :is(a, span) {
+    color: var(--surface);
+    font-weight: 600;
+  }
+
+  /* ---- ledger: the results register (dense aligned rows). The root is a size container, so the
+     register adapts to the COLUMN it sits in (law C2), not the viewport: when the pane opens (or
+     the page narrows) the available inline size shrinks and the density switches by itself.
+     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · SICHTBARKEIT · action gutter; the
+     member register omits the last two entirely. All rows are subgrid rows on shared tracks.
+     Two narrow densities, the owner picks at the design gate (charter item 5):
+       default            — the mail-client fold: two-line rows, header hidden;
+       [data-fold="columns"] — stable anatomy, low-priority columns drop as the register narrows. */
+  .ledger {
+    container-type: inline-size;
+  }
+  .ledger > [role="table"] {
+    /* the shared column tracks (a named local dimension set, law C3/C5); --lead is the optional
+       bulk-checkbox track, prepended via the empty-fallback idiom. Tracks carry line names and
+       every cell is placed on its own line (below), so a row with an ABSENT value keeps every
+       other cell in its column instead of auto-flowing leftward. */
+    --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+      [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
+      [sicht] minmax(7rem, max-content) [aktion] minmax(6rem, max-content);
+    display: grid;
+    grid-template-columns: var(--lead, ) var(--cols);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    overflow-x: auto;
+  }
+  .ledger.member > [role="table"] {
+    /* member/public: no SICHTBARKEIT, no action gutter — four tracks, cells omitted in markup */
+    --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+      [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content);
+  }
+  .ledger.bulk > [role="table"] {
+    --lead: [auswahl] min-content;
+  }
+  /* the rowgroup keeps its ARIA role but leaves the box tree, so rows subgrid onto the tracks */
+  .ledger [role="rowgroup"] {
+    display: contents;
+  }
+  .ledger [role="row"] {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  /* the header row is the [role=table]'s direct child; body rows live in the rowgroup */
+  .ledger [role="table"] > [role="row"] {
+    background: var(--surface-container-high);
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  .ledger [role="rowgroup"] [role="row"] + [role="row"] {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  .ledger [role="rowgroup"] [role="row"]:hover,
+  .ledger [role="rowgroup"] [role="row"]:focus-within {
+    background: var(--surface-container-mid);
+  }
+  /* the row shown in the preview pane (aria-current, law C2): a persistent NEUTRAL highlight,
+     distinct from hover */
+  .ledger [role="row"][aria-current],
+  .ledger [role="row"][aria-current]:hover {
+    background: var(--surface-container-high);
+  }
+  /* a bulk-selected row: INVERSION (row 3), read live from its own checkbox — no class, no JS */
+  .ledger [role="row"]:has(.auswahl input:checked) {
+    background: var(--on-surface);
+  }
+  .ledger [role="row"]:has(.auswahl input:checked) :is(.titel a, .datierung, .typ) {
+    color: var(--surface);
+  }
+  .ledger [role="row"]:has(.auswahl input:checked) .badge {
+    color: var(--surface);
+    border-color: var(--surface);
+  }
+
+  .ledger :is([role="cell"], [role="columnheader"]) {
+    min-width: 0;
+  }
+  /* header cells: ONE treatment for every column head — the label role, identical for all.
+     Sortable heads differ ONLY by the link affordance; the active sort shows one glyph. */
+  .ledger [role="columnheader"] {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .ledger [role="columnheader"] a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(var(--space-1) / 2);
+    color: inherit;
+  }
+  .ledger [role="columnheader"] a:hover {
+    color: var(--primary);
+  }
+  .ledger [role="columnheader"] a > span {
+    font-size: 0.85em; /* the direction glyph rides the label's own size — relative by nature */
+  }
+
+  /* every cell sits on its named line (absent optional cells leave holes, not drift) */
+  .ledger .auswahl {
+    grid-column: auswahl;
+  }
+  .ledger .sig {
+    grid-column: sig;
+  }
+  .ledger .titel {
+    grid-column: titel;
+  }
+  .ledger .datierung {
+    grid-column: datum;
+  }
+  .ledger .typ {
+    grid-column: typ;
+  }
+  .ledger .sichtbarkeit {
+    grid-column: sicht;
+  }
+  .ledger .aktion {
+    grid-column: aktion;
+  }
+
+  /* body cells */
+  .ledger .auswahl {
+    display: inline-flex;
+    align-items: center;
+  }
+  .ledger .titel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ledger .titel a {
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  .ledger .titel a:hover {
+    color: var(--primary);
+  }
+  .ledger .datierung {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--primary); /* mono date = ink data (row 2) */
+  }
+  .ledger .typ {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  .ledger .sichtbarkeit {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .ledger .aktion {
+    text-align: right;
+  }
+  /* the row action is quiet until the row is hovered / keyboard-focused */
+  .ledger .aktion a {
+    opacity: 0;
+  }
+  .ledger [role="row"]:is(:hover, :focus-within) .aktion a,
+  .ledger .aktion a:focus-visible {
+    opacity: 1;
+  }
+
+  /* narrow density, DEFAULT variant — the mail-client fold: header hidden, each row two lines.
+     Line 1: SIG + Titel; line 2: Datierung · Typ; Sichtbarkeit rides the right edge; the bulk
+     checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
+     BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. */
+  @container (max-width: 48rem) {
+    .ledger:not([data-fold="columns"]) > [role="table"] {
+      grid-template-columns: 1fr;
+    }
+    .ledger:not([data-fold="columns"]) [role="table"] > [role="row"] {
+      display: none;
+    }
+    .ledger:not([data-fold="columns"]) [role="rowgroup"] [role="row"] {
+      grid-template-columns: min-content max-content max-content minmax(0, 1fr) max-content;
+      grid-template-areas:
+        "auswahl sig titel titel meta"
+        "auswahl sig datum typ   meta";
+      align-items: start;
+      column-gap: var(--space-3);
+      row-gap: calc(var(--space-1) / 2);
+    }
+    .ledger:not([data-fold="columns"]) .auswahl {
+      grid-area: auswahl;
+      align-self: center;
+    }
+    .ledger:not([data-fold="columns"]) .sig {
+      grid-area: sig;
+      align-self: center;
+    }
+    .ledger:not([data-fold="columns"]) .titel {
+      grid-area: titel;
+      align-self: center;
+      white-space: normal;
+    }
+    .ledger:not([data-fold="columns"]) .datierung {
+      grid-area: datum;
+      font: var(--type-mono-meta);
+    }
+    .ledger:not([data-fold="columns"]) .typ {
+      grid-area: typ;
+      font: var(--type-mono-meta);
+    }
+    .ledger:not([data-fold="columns"]) .datierung + .typ::before {
+      content: "· ";
+    }
+    .ledger:not([data-fold="columns"]) .sichtbarkeit {
+      grid-area: meta;
+      align-self: center;
+      justify-content: flex-end;
+    }
+    /* the action gutter collapses — the row itself is the affordance in this density */
+    .ledger:not([data-fold="columns"]) .aktion {
+      display: none;
+    }
+  }
+
+  /* narrow density, CANDIDATE variant (design-gate item 5): stable row anatomy — the register
+     keeps one line per row and sheds low-priority columns instead. Drop order: Typ, then
+     Datierung, then Sichtbarkeit; SIG + Titel + action survive to the last step. */
+  @container (max-width: 60rem) {
+    .ledger[data-fold="columns"] > [role="table"] {
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+        [datum] minmax(6rem, max-content) [sicht] minmax(7rem, max-content)
+        [aktion] minmax(6rem, max-content);
+    }
+    .ledger[data-fold="columns"] .typ {
+      display: none;
+    }
+  }
+  @container (max-width: 52rem) {
+    .ledger[data-fold="columns"] > [role="table"] {
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+        [sicht] minmax(7rem, max-content) [aktion] minmax(6rem, max-content);
+    }
+    .ledger[data-fold="columns"] .datierung {
+      display: none;
+    }
+  }
+  @container (max-width: 42rem) {
+    .ledger[data-fold="columns"] > [role="table"] {
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+        [aktion] minmax(6rem, max-content);
+    }
+    .ledger[data-fold="columns"] .sichtbarkeit {
+      display: none;
+    }
+  }
+
+  /* ---- pagination: plain prev/next links (element ink), the mono current-page stand ---- */
+  .pager {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    justify-content: center;
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  .pager > span {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface); /* the current-page stand = data */
+  }
+
+  /* ---- honest empty state: a hollow slot (row 6 dashed) on the quietest sheet (row 8).
+     .zeichen is the extension slot (Kohte / Waldläuferzeichen later, additive only). ---- */
+  .empty-state {
+    padding: var(--space-6);
+    text-align: center;
+    background: var(--sheet-lowest);
+    border: var(--hairline) dashed var(--outline-variant);
+    border-radius: var(--radius-s);
+    color: var(--on-surface);
+  }
+  .empty-state > p {
+    margin: 0 0 var(--space-1);
+    font: var(--type-title);
+  }
+  .empty-state > p + p {
+    margin: 0;
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+  }
 }
 
-/* ---- result card: the index-card cut, drawn natively ---- */
-
-.c-card {
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  /* big beveled index cut top-right (--bevel), small bevels elsewhere — the border follows
-     the cut automatically, which is the whole point of corner-shape */
-  border-radius: var(--radius-s) var(--bevel) var(--radius-s) var(--radius-s);
-  padding: var(--space-4);
-}
-.c-card:hover { background: var(--surface-container-mid); }
-.c-card-kopf {
-  display: flex;
-  flex-wrap: wrap; /* narrow viewports: badges drop under the Signatur tab, never overflow */
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-2);
-  padding-right: calc(var(--bevel) + var(--space-1));
-}
-.c-card-badges {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.c-card-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
-.c-card-titel a {
-  /* the title link: neutral at rest (it is a heading, not data), ink on interaction */
-  color: var(--on-surface);
-  text-decoration: none;
-}
-.c-card-titel a:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-.c-card-meta {
-  /* mono meta (Signatur/Datierung) = ink data */
-  margin: 0;
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--primary);
-}
-.c-card-meta span + span::before {
-  content: " · ";
-  color: var(--on-surface-variant);
-}
-.c-card-aktionen {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--outline-variant);
-}
-
-/* ---- pagination ---- */
-
-.c-pager {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
-  justify-content: center;
-  margin-top: var(--space-4);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-.c-pager a {
-  color: var(--primary);
-  text-decoration: none;
-}
-.c-pager a:hover { text-decoration: underline; }
-.c-pager-stand {
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface); /* the current-page stand = ink data */
-}
-
-/* ---- honest empty state (carries the extension slot) ---- */
-
-.c-empty {
-  padding: var(--space-6);
-  text-align: center;
-  background: var(--surface-container-lowest);
-  border: 1px dashed var(--outline-variant);
-  border-radius: var(--radius-s);
-  color: var(--on-surface);
-}
-/* .c-empty-zeichen is the extension slot (Kohte / Waldläuferzeichen later, additive only) — the
-   template keeps the class hook; no style rule until there is something to draw. */
-.c-empty-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
-.c-empty-hinweis {
-  margin: 0;
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-
-/* ---- ledger: the results register (dense aligned rows) ----
-   The whole ledger is ONE grid; the header and every row are subgrid rows spanning all columns, so
-   every cell lines up on the same tracks (no per-row width drift). Columns: SIG · TITEL (fills) ·
-   DATIERUNG · TYP · SICHTBARKEIT · action gutter. When the container is narrower than the columns
-   need (e.g. the split-narrow pane demo, or the component library's narrow probe), the ledger
-   scrolls horizontally inside its own box — the page body never scrolls sideways. The narrow
-   density reflows the SAME cells into two lines with zero markup fork. */
-
-.c-ledger {
-  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
-    minmax(5rem, max-content) minmax(7rem, max-content) minmax(6rem, max-content);
-  display: grid;
-  grid-template-columns: var(--c-ledger-cols);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  overflow-x: auto;
-}
-/* member/public: no SICHTBARKEIT + no action gutter — the grid drops to the four member-visible
-   columns (SIG · TITEL · DATIERUNG · TYP). Those cells are omitted from the markup entirely. */
-.c-ledger--ohne-chrome {
-  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
-    minmax(5rem, max-content);
-}
-/* bulk edit (archivist): a leading min-content checkbox track before the six archivist columns. */
-.c-ledger--bulk {
-  --c-ledger-cols: min-content minmax(6rem, max-content) minmax(10rem, 1fr)
-    minmax(6rem, max-content) minmax(5rem, max-content) minmax(7rem, max-content)
-    minmax(6rem, max-content);
-}
-.c-ledger-cell--auswahl { display: inline-flex; align-items: center; }
-/* INVERSION for a bulk-selected row — the same stamp grammar as the active facet row / pane row: a
-   solid neutral-ink ground, NOT a tint. The c-sig mark keeps its ink on the inverted ground
-   (contrast-tested via the --aktiv pairing). */
-.c-ledger-row--gewaehlt {
-  background: var(--on-surface);
-}
-.c-ledger-row--gewaehlt .c-ledger-titel,
-.c-ledger-row--gewaehlt .c-ledger-cell--datierung,
-.c-ledger-row--gewaehlt .c-ledger-cell--typ,
-/* a SELECTED draft row: the --entwurf rule would otherwise win the cascade and wash the title on
-   the inverted ground — flip it back to the surface ink like every other selected cell */
-.c-ledger-row--gewaehlt.c-ledger-row--entwurf .c-ledger-titel {
-  color: var(--surface);
-}
-/* the visibility badge on an inverted row: its default on-surface-variant text + outline border
-   both fall under the contrast floor on the ink ground — flip both to surface (contrast-tested) */
-.c-ledger-row--gewaehlt .c-badge--sichtbarkeit {
-  color: var(--surface);
-  border-color: var(--surface);
-}
-/* the rowgroup keeps its ARIA role but leaves the box tree, so the rows become effective grid
-   children of .c-ledger and their subgrid inherits the 6 columns (a real wrapper box would break
-   the subgrid chain and collapse each row to one column) */
-.c-ledger-body { display: contents; }
-.c-ledger-head,
-.c-ledger-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-.c-ledger-head {
-  background: var(--surface-container-high);
-  border-bottom: 1px solid var(--outline-variant);
-}
-.c-ledger-row + .c-ledger-row { border-top: 1px solid var(--outline-variant); }
-.c-ledger-row:hover,
-.c-ledger-row:focus-within { background: var(--surface-container-mid); }
-/* selected row (the one shown in the preview pane): a persistent highlight, distinct from hover. */
-.c-ledger-row--aktiv,
-.c-ledger-row--aktiv:hover { background: var(--surface-container-high); }
-
-.c-ledger-cell { min-width: 0; }
-
-/* header cells: ONE treatment for every column head — the label role, identical for all. */
-.c-ledger-h {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-/* sortable head: the same label base (inherits font/tracking/case/color from .c-ledger-h); the
-   ONLY difference is the link affordance — ink + underline on hover (stamp-grammar link rule). */
-.c-ledger-sort {
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(var(--space-1) / 2);
-  color: inherit;
-  text-decoration: none;
-}
-.c-ledger-sort:hover { color: var(--primary); text-decoration: underline; }
-/* active sort: exactly one marker — the direction glyph — never a different font/weight/color. */
-.c-ledger-sort-pfeil { font-size: 0.85em; }
-
-/* body cells */
-.c-ledger-titel {
-  font: var(--type-body);
-  color: var(--on-surface);
-  text-decoration: none;
-}
-.c-ledger-titel:hover { color: var(--primary); text-decoration: underline; }
-.c-ledger-cell--titel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-ledger-cell--datierung {
-  /* mono date = ink data */
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--primary);
-}
-.c-ledger-cell--typ {
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-.c-ledger-cell--sichtbarkeit {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-.c-ledger-cell--aktion { text-align: right; }
-/* the row action is quiet until the row is hovered / keyboard-focused */
-.c-ledger-aktion { opacity: 0; }
-.c-ledger-row:hover .c-ledger-aktion,
-.c-ledger-row:focus-within .c-ledger-aktion { opacity: 1; }
-.c-ledger-aktion:focus-visible { opacity: 1; }
-
-/* draft row: quiet, the sig slot reads as the hollow unfiled tab (handled by signatur_tab) */
-.c-ledger-row--entwurf .c-ledger-titel { color: var(--on-surface-variant); }
-
-/* narrow density — the mail-client fold: header hidden, each row two lines. Line 1: SIG + Titel.
-   Line 2: Datierung · Typ (the fold, one line via a shared grid track). Sichtbarkeit rides the
-   right edge across both lines. The row drops out of the ledger subgrid and becomes its own grid
-   so it can lay the cells out on two lines; the outer ledger stays a 1-col grid in this mode. */
-.c-ledger--narrow { grid-template-columns: 1fr; }
-.c-ledger--narrow .c-ledger-head { display: none; }
-.c-ledger--narrow .c-ledger-row {
-  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
-  grid-template-areas:
-    "sig titel titel meta-r"
-    "sig datum typ   meta-r";
-  align-items: start;
-  column-gap: var(--space-3);
-  row-gap: calc(var(--space-1) / 2);
-}
-.c-ledger--narrow .c-ledger-cell--sig { grid-area: sig; align-self: center; }
-.c-ledger--narrow .c-ledger-cell--titel {
-  grid-area: titel;
-  align-self: center;
-  white-space: normal;
-}
-/* the fold: Datierung and Typ sit side by side on line 2, each in its own track. The "·" separator
-   is printed by Typ ONLY when a Datierung cell immediately precedes it (adjacent-sibling rule): an
-   absent value (its cell is not rendered at all) leaves no dangling separator, and a row with
-   neither value drops its whole second line (both grid areas empty → the row auto-sizes away). */
-.c-ledger--narrow .c-ledger-cell--datierung {
-  grid-area: datum;
-  font: var(--type-mono-meta);
-  color: var(--primary); /* mono date = ink data */
-}
-.c-ledger--narrow .c-ledger-cell--typ {
-  grid-area: typ;
-  font: var(--type-mono-meta);
-  color: var(--on-surface-variant);
-}
-.c-ledger--narrow .c-ledger-cell--datierung + .c-ledger-cell--typ::before { content: "· "; }
-.c-ledger--narrow .c-ledger-cell--sichtbarkeit {
-  grid-area: meta-r;
-  align-self: center;
-  justify-content: flex-end;
-}
-/* the action gutter collapses in narrow mode — the row is the affordance (whole card clickable in
-   real use); the demo keeps Bearbeiten reachable via the titel link + preview pane */
-.c-ledger--narrow .c-ledger-cell--aktion { display: none; }
-
-/* screen-reader-only label (the action column header carries no visible text) */
-.c-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* ============================================================
+   MODES — deliberate global overrides + future mode remaps
+   (a prefers-contrast: more block retints tokens here, zero
+   component changes — themability law).
+   ============================================================ */
+@layer modes {
+  /* The one sanctioned !important (legacy-blacklist carve-out: "deliberate @layer override"):
+     no author display rule may ever un-hide a [hidden] element again. Kills the recorded
+     regression class — a fixed-position element whose display rule overrode [hidden] and
+     intercepted clicks. JS reveals by REMOVING the attribute, so enhancement still works. */
+  [hidden] {
+    display: none !important;
+  }
 }

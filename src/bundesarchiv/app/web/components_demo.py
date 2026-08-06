@@ -35,11 +35,6 @@ _FACET_ITEMS_BESTAND = (
     {"label": "Vorstandsunterlagen", "count": 3, "query": "bestand=VORSTAND", "active": False},
 )
 
-_FACET_ITEMS_SCHLAGWORTE = (
-    {"label": "sommer", "count": 12, "query": "schlagwort=sommer", "active": False},
-    {"label": "fahrt", "count": 7, "query": "schlagwort=fahrt", "active": False},
-)
-
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
 #: carries a ref_code (lifecycle is decoupled from the sig slot) and shows the ENTWURF badge as its
 #: sole SICHTBARKEIT signal.
@@ -166,6 +161,12 @@ _SWATCH_SURFACE_RAMP = (
     ("surface-container-mid", "on-surface"),
     ("surface-container-high", "on-surface"),
 )
+_SWATCH_SHEETS = (
+    ("sheet-lowest", "on-surface"),
+    ("sheet", "on-surface"),
+    ("sheet-high", "on-surface"),
+    ("sheet-hover", "on-surface"),
+)
 _SWATCH_PAIRS = (
     ("primary", "on-primary"),
     ("primary-container", "on-primary-container"),
@@ -186,10 +187,9 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "modes": _MODES,
             "sort_options": _SORT_OPTIONS,
             "facet_items_bestand": _FACET_ITEMS_BESTAND,
-            "facet_items_schlagworte": _FACET_ITEMS_SCHLAGWORTE,
             "swatch_surface_ramp": _SWATCH_SURFACE_RAMP,
+            "swatch_sheets": _SWATCH_SHEETS,
             "swatch_pairs": _SWATCH_PAIRS,
-            "card_meta": ("Signatur F 12", "Datierung 1962-22", "Foto"),
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
         },

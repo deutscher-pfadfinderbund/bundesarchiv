@@ -3,14 +3,14 @@
 Referenced ONLY from ``dev_urls`` (the same discipline as the component library and the viewer
 switcher): production settings never mount this, so it is unreachable in prod by absence of a code
 path, not by a flag. Each page renders a FULL archivist-workbench layout composed from the REAL
-atom partials (templates/components/) over static German demo context defined here — no store, no
-index, no viewer. The layouts iterate the PAGE FRAME (header + chips + sort + facet sidebar +
-ledger + preview pane), not the atoms.
+partials (components/facet_group, components/ledger, workbench/_pane) over static German demo
+context defined here — no store, no index, no viewer; lockstep with the live app by construction.
+The layouts iterate the PAGE FRAME (header + facet sidebar + ledger + preview pane).
 
 ONE layout, whitelisted (unknown name → 404, never a path interpolation):
 - ``split-narrow`` — when the preview pane is open the facet sidebar stays full and the ledger
-                     folds to its narrow two-line density (owner's pick over the rejected
-                     "split-rail", whose collapsed-rail state read as confusing and useless).
+                     re-densifies by itself (it is a size container; owner's pick over the
+                     rejected "split-rail", whose collapsed-rail state read as confusing).
 
 Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
 (default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
@@ -183,19 +183,11 @@ _LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
     {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
-_SORT_OPTIONS = (
-    ("relevanz", "Relevanz"),
-    ("signatur", "Signatur"),
-    ("datierung", "Datierung"),
-    ("titel", "Titel"),
-)
-
 #: Facet sidebar groups; items match facet_group.html's contract (label, count, query, active).
 #: ``open`` seeds each <details> group's initial expanded/collapsed state.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",
-        "direct": True,
         "open": True,
         "items": (
             {"label": "Fotografien", "count": 24, "query": "bestand=FOTOS", "active": False},
@@ -210,7 +202,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Dokumenttyp",
-        "direct": False,
         "open": True,
         "items": (
             {"label": "Foto", "count": 31, "query": "typ=foto", "active": False},
@@ -220,7 +211,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Schlagworte",
-        "direct": False,
         "open": False,
         "items": (
             {"label": "sommer", "count": 12, "query": "schlagwort=sommer", "active": True},
@@ -230,7 +220,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Jahrzehnte",
-        "direct": False,
         "open": False,
         "items": (
             {"label": "1950er", "count": 6, "query": "jahrzehnt=1950", "active": False},
@@ -241,17 +230,18 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
 )
 
-#: The static preview shown in the pane (the first result). Plausible article projection.
+#: The static preview shown in the pane (the first result) — the REAL ``workbench/_pane.html``
+#: renders it, so the keys mirror the pane view-model's contract (browse_views._Pane). No media →
+#: the hollow placeholder.
 _PREVIEW = {
     "title": "Sommerfahrt 1962",
     "ref_code": "F 12",
     "datierung": "1962",
     "typ": "Foto",
-    "visibility": "Öffentlich",
-    "beschreibung": (
-        "Schwarzweiß-Aufnahme der Sommerfahrt 1962 an der Ostsee. Gruppe am Lagerplatz, "
-        "Kohte im Hintergrund. Übernahme aus dem Nachlass, Kiste 3."
-    ),
+    "media": (),
+    "close_href": "?vorschau=0",
+    "oeffnen_href": "#demo-detail",
+    "bearbeiten_href": "#demo-edit",
 }
 
 
@@ -272,7 +262,6 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "stylesheet": f"/_dev/layouts/static/{LAYOUT_STYLESHEET}",
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
-            "sort_options": _SORT_OPTIONS,
             "facet_groups": _FACET_GROUPS,
             "preview": _PREVIEW,
         },

@@ -1,44 +1,46 @@
 {% comment %}
 The results region — the HTMX swap target (#results) and the page's main landmark. Rendered
-standalone on an HX-Request and embedded in the full page on a plain GET. Sort is the column headers
-(asc→desc→default cycle); active-filter state lives only in the sidebar. No visibility logic: every
-hit is already viewer-scoped by search(); the archivist chrome is a presentation gate off
-is_archivist.
+standalone on an HX-Request and embedded in the full page on a plain GET. Sort is the column
+headers (asc→desc→default cycle); active-filter state lives only in the sidebar. No visibility
+logic: every hit is already viewer-scoped by search(); the archivist chrome is a presentation
+gate off is_archivist.
 
 Bulk edit (Sammelbearbeitung, archivist-only): the ledger's rows + the sticky bulk bar live inside
-ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row checkboxes
-name="auswahl"; the bar's affordances render whenever there are hits (cold-start fix, #16).
-Selection survives pagination in two layers: the view bakes the URL-borne ?auswahl= into the
+ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row
+checkboxes name="auswahl"; the bar's affordances render whenever there are hits (cold-start fix,
+#16). Selection survives pagination in two layers: the view bakes the URL-borne ?auswahl= into the
 prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) folds UNSUBMITTED
 ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
-selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first. catalog_form.js
-is not loaded here; the workbench's own PE (catalog_bulk.js) also drives the page checkbox + count.
+selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first.
+
+fold_variante threads the design-gate density switch (charter item 5) into the ledger: unset =
+the mail-client fold; "columns" = the stable-anatomy column-drop candidate (?fold=columns).
 {% endcomment %}
-<main class="wb-main" id="results">
-  <p class="wb-hitcount" aria-live="polite">{{ total }} Treffer</p>
+<main id="results">
+  <p aria-live="polite">{{ total }} Treffer</p>
 
   {% if page.hits %}
   {% if is_archivist %}
-  <form class="wb-sammelform" method="post" action="{% url 'artikel-sammelbearbeitung' %}"
+  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% csrf_token %}
     {% if bulk_bar %}
     {% include "workbench/_sammelleiste.html" %}
     {% endif %}
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist bulk=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=True fold=fold_variante only %}
   </form>
   {% else %}
-  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns narrow=False archivist=is_archivist bulk=False only %}
+  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=False fold=fold_variante only %}
   {% endif %}
   {% else %}
   {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is
   Bestand-specific + carries an archivist-only "+ Neuer Artikel" link pre-seeded with that Bestand
   (4.8 item 3) — NOT the generic "remove filters" copy. A non-archivist sees just the sentence.{% endcomment %}
   {% if leerer_bestand %}
-  <div class="c-empty">
-    <div class="c-empty-zeichen" aria-hidden="true"></div>
-    <p class="c-empty-titel">Noch keine Artikel in diesem Bestand.</p>
-    {% if is_archivist %}<p class="c-empty-hinweis"><a class="c-btn c-btn--primary" href="{% url 'artikel-neu' %}?bestand={{ leerer_bestand }}">+ Neuer Artikel</a></p>{% endif %}
+  <div class="empty-state">
+    <div class="zeichen" aria-hidden="true"></div>
+    <p>Noch keine Artikel in diesem Bestand.</p>
+    {% if is_archivist %}<p><a class="button primary" href="{% url 'artikel-neu' %}?bestand={{ leerer_bestand }}">+ Neuer Artikel</a></p>{% endif %}
   </div>
   {% else %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}

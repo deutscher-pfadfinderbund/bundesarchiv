@@ -1,360 +1,314 @@
-/* Dev-only workbench LAYOUT frame (/_dev/layouts/<name>/, layouts_demo.py). Role tokens ONLY
-   (tokens.css), no raw color values — same law as components.css.
-   Load order: tokens.css, components.css (the atoms), then this file. This file
-   owns ONLY the page frame (grid, header, sidebar, pane) and the two per-layout state behaviors;
-   the atoms style themselves. Stamp grammar holds: violet lives only on the atoms' marks; the
-   frame chrome is pure neutral. Bevel restraint: the frame adds NO bevels (the cut corner belongs
-   to the card/sig/drawer-tab atoms alone). */
+/* Compositions — the workbench page frame (header · facet sidebar · results · preview pane) and
+   the global page chrome every screen shares. Role tokens ONLY (tokens.css); the components style
+   themselves (components.css). Load order: tokens, components, then this file. Stamp grammar
+   holds: violet lives only on the components' marks; the frame chrome is pure neutral, no bevels
+   (the cut corner belongs to the .c-sig mark alone). Compositions own the BETWEEN (law C4):
+   the gaps here come from grid/flex gap, not from component margins. */
 
-* { box-sizing: border-box; }
-body.wb {
-  margin: 0;
-  background: var(--surface);
-  color: var(--on-surface);
-  font: var(--type-body);
-}
-
-/* ---- dev chrome bar (English, development-facing) ---- */
-.wb-devbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-4);
-  background: var(--surface-container-lowest);
-  border-bottom: 1px solid var(--outline-variant);
-  font: var(--type-mono-meta);
-}
-.wb-devbar-label {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.wb-devbar-sep { color: var(--outline); }
-.wb-devbar a {
-  color: var(--on-surface);
-  text-decoration: none;
-  padding: 0.1rem var(--space-2);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.wb-devbar a:hover { border-color: var(--outline); }
-.wb-devbar a[aria-current="page"] {
-  /* inversion: the active choice stamps solid neutral (stamp grammar — no tint) */
-  background: var(--on-surface);
-  color: var(--surface);
-  border-color: var(--on-surface);
+@layer elements {
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--on-surface);
+    font: var(--type-body);
+  }
 }
 
-/* ---- header bar: wordmark + search + Neuer Artikel ---- */
-.wb-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-container-high);
-  border-bottom: 1px solid var(--outline-variant);
-}
-.wb-wordmark {
-  font: var(--type-display);
-  color: var(--on-surface);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.wb-search {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex: 1 1 20rem;
-  min-width: 0;
-}
-.wb-search .c-input { flex: 1 1 auto; min-width: 0; }
-
-/* ---- global htmx failure banner (Task 11): revealed by the failure listener in base.html.
-   Viewport-fixed at the bottom (fix-wave 2026-07-16): it used to sit in normal flow as the last
-   <body> child, landing below the fold on any page taller than the viewport. No bevel — a
-   full-width chrome bar draws no cut corner (that signature is reserved for cards/tabs).
-   The unconditional `display: flex` below always outranks the `hidden` attribute's own native
-   `display: none` (equal specificity, author origin wins the tie) — harmless while the banner sat
-   inert at the end of the document, but a real click-interceptor now that it is viewport-fixed. The
-   `[hidden]` override restores the attribute's actual hiding effect. Being viewport-bottom-fixed also
-   means a reveal can stack it over other bottom-docked sticky chrome (e.g. forms.css
-   .c-form-footer) — that companion fix lifts such chrome by the banner's measured height; see
-   base.html's failure-listener JS and the --wb-error-banner-height var in forms.css. */
-.wb-error-banner {
-  position: fixed;
-  inset-block-end: 0;
-  inset-inline: 0;
-  z-index: 10; /* above the sticky bulk-edit bar (z-index: 1) and everything else in-flow */
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: var(--error);
-  color: var(--on-error);
-}
-.wb-error-banner[hidden] { display: none; }
-.wb-error-banner-text { margin: 0; font: var(--type-body); }
-.wb-error-banner-close {
-  background: none;
-  border: none;
-  color: var(--on-error);
-  font: var(--type-title);
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 var(--space-1);
-}
-
-/* ---- page frame: sidebar · main · (pane). CSS grid; the pane column exists only when open. ---- */
-.wb-frame {
-  display: grid;
-  grid-template-columns: [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-4);
-  padding: var(--space-4);
-}
-
-/* ---- facet sidebar: sticky, collapsible groups. Stays full when the pane opens. ---- */
-.wb-sidebar {
-  position: sticky;
-  top: var(--space-4);
-  grid-column: sidebar;
-}
-.wb-facets { display: flex; flex-direction: column; gap: var(--space-3); }
-
-/* collapsible facet group (no-JS via <details>/<summary>) — reuses the atoms' .c-facet-* row
-   classes for the list so the stamp grammar applies; the frame owns only the disclosure shell. */
-.wb-facet {
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: var(--space-2) var(--space-3) var(--space-3);
-}
-.wb-facet-summary {
-  cursor: pointer;
-  padding: var(--space-1) 0;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-  list-style-position: inside;
-}
-.wb-facet[open] .wb-facet-summary { margin-bottom: var(--space-1); }
-.wb-facet .c-facet-list { margin-top: var(--space-1); }
-
-/* ---- stub / simple centered card (detail + neu placeholders, dev switcher) ---- */
-.wb-stub {
-  max-width: 40rem;
-  margin: var(--space-6) auto;
-  padding: 0 var(--space-4);
-}
-.wb-stub h1 { font: var(--type-display); margin: 0 0 var(--space-3); }
-.wb-stub p { color: var(--on-surface-variant); }
-.wb-stub a { color: var(--primary); }
-
-/* ---- main column: chips + sort controls, then the ledger ---- */
-.wb-main { grid-column: main; min-width: 0; }
-/* HTMX in-flight: dim the results region while a swap is pending (htmx toggles .htmx-request on the
-   requesting element). Static opacity only — NO transition/animation (no-motion is design law). */
-#results.htmx-request { opacity: 0.6; }
-.wb-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.wb-hitcount { margin: 0; font: var(--type-meta); color: var(--on-surface-variant); }
-.wb-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-.wb-sort { display: flex; align-items: flex-end; gap: var(--space-2); }
-/* the "+ Neuer Artikel" affordance sits in the header (archivist-only, rendered by the view) */
-.wb-neu { white-space: nowrap; }
-
-/* ---- bulk-edit bar (Sammelbearbeitung): docked sticky at the top of the results, pushes content
-   (never floats over rows). Neutral surface; the primary "Änderung prüfen" is the one anchor. ---- */
-.wb-sammelleiste {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  background: var(--surface-container-high);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.wb-sammelleiste-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-4);
-}
-.wb-sammelleiste-zahl {
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface);
-}
-.wb-sammelleiste-link { color: var(--primary); text-decoration: none; font: var(--type-meta); }
-.wb-sammelleiste-link:hover { text-decoration: underline; }
-/* the chooser drawer: reuses the c-form-group frame; a flex row of Feld + value widget + submit */
-.wb-sammelleiste-chooser {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-}
-.wb-sammelleiste-aktionen { margin-left: auto; }
-
-/* ---- preview pane: present only when vorschau=1 (server-rendered). ---- */
-.wb-pane { grid-column: pane; }
-.wb-pane-inner {
-  position: sticky;
-  top: var(--space-4);
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: var(--space-4);
-}
-.wb-pane-kopf {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.wb-pane-schliessen {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  color: var(--on-surface-variant);
-  text-decoration: none;
-  border-radius: var(--radius-s);
-}
-.wb-pane-schliessen:hover { color: var(--on-surface); }
-.wb-pane-titel { margin: 0 0 var(--space-1); font: var(--type-title); color: var(--on-surface); }
-.wb-pane-meta {
-  margin: 0 0 var(--space-3);
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--primary); /* mono meta = ink data (stamp grammar) */
-}
-.wb-pane-meta span + span::before { content: " · "; color: var(--on-surface-variant); }
-/* media list — cover first (ADR 0015). Each thumbnail via the gated /media/.../thumb route; the
-   caption sits under its image. An article with no media shows one quiet empty placeholder. */
-.wb-pane-medien {
-  list-style: none;
-  margin: 0 0 var(--space-4);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.wb-pane-medium { min-width: 0; }
-.wb-pane-bild {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: var(--surface-container-lowest);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.wb-pane-bild--leer {
-  margin-bottom: var(--space-4);
-  border-style: dashed;
-}
-.wb-pane-caption { margin: var(--space-1) 0 0; font: var(--type-meta); color: var(--on-surface-variant); }
-.wb-pane-aktionen { display: flex; gap: var(--space-2); }
-
-/* ============================================================
-   Two-state layouts, ≥1280px only. Below the breakpoint the pane is hidden and the ledger returns
-   to full/no-pane (see the media query at the bottom) — so all pane/rail/fold reshaping lives
-   inside this min-width guard.
-   ============================================================ */
-@media (min-width: 1280px) {
-  /* pane open: the frame grows a third column; the sidebar stays full. */
-  .wb--vorschau .wb-frame {
-    grid-template-columns:
-      [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr) [pane] minmax(20rem, 26rem);
+@layer compositions {
+  /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
+  body > header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-container-high);
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  .wordmark {
+    font: var(--type-display);
+    color: var(--on-surface);
+    white-space: nowrap;
+  }
+  .wordmark:hover {
+    text-decoration: none;
+  }
+  header [role="search"] {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex: 1 1 20rem; /* the search field is the header's one growing track */
+    min-width: 0;
+  }
+  header [role="search"] input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* the return-to-work link; on screens whose header holds nothing else it docks right */
+  .back {
+    font: var(--type-meta);
+  }
+  header > .back:last-child {
+    margin-left: auto;
   }
 
-  /* split-narrow + pane open: the ledger folds to its narrow two-line density. These rules mirror
-     components.css .c-ledger--narrow but are state-driven (no class) and live behind this
-     breakpoint, so below 1280px the ledger is full again automatically. */
-  .wb--split-narrow.wb--vorschau .c-ledger { grid-template-columns: 1fr; }
-  .wb--split-narrow.wb--vorschau .c-ledger-head { display: none; }
-  .wb--split-narrow.wb--vorschau .c-ledger-row {
-    /* lead with the bulk-select track so the checkbox has a home in the pane-open fold too (design
-       gate: it orphaned under the sig tab here). A row without the checkbox column just leaves the
-       min-content track empty. */
-    grid-template-columns: min-content max-content max-content minmax(0, 1fr) max-content;
-    grid-template-areas:
-      "auswahl sig titel titel meta-r"
-      "auswahl sig datum typ   meta-r";
+  /* ---- page frame: sidebar · main · (pane). The pane column exists only while ?artikel is
+     resolved (body.vorschau) on a viewport wide enough to show it. ---- */
+  .frame {
+    --sidebar-col: minmax(14rem, 16rem); /* named frame tracks (law C3/C5) */
+    --pane-col: minmax(20rem, 26rem);
+    display: grid;
+    grid-template-columns: [sidebar] var(--sidebar-col) [main] minmax(0, 1fr);
     align-items: start;
-    column-gap: var(--space-3);
-    row-gap: calc(var(--space-1) / 2);
+    gap: var(--space-4);
+    padding: var(--space-4);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--auswahl {
-    grid-area: auswahl;
-    align-self: center;
+
+  /* facet sidebar: sticky; a stack of collapsible facet groups (the components style themselves) */
+  .sidebar {
+    grid-column: sidebar;
+    position: sticky;
+    top: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--sig { grid-area: sig; align-self: center; }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--titel {
-    grid-area: titel;
-    align-self: center;
-    white-space: normal;
+
+  /* main results column: a stack of hitcount · (bulk form ·) ledger · pager */
+  .frame main {
+    grid-column: main;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--datierung {
-    grid-area: datum;
-    font: var(--type-mono-meta);
-  }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--typ {
-    grid-area: typ;
-    font: var(--type-mono-meta);
+  .frame main > p {
+    margin: 0;
+    font: var(--type-meta);
     color: var(--on-surface-variant);
   }
-  /* "·" only between a present Datierung and Typ (adjacent-sibling rule); an absent cell is not
-     rendered, so no dangling separator and a value-less row drops its second line. */
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--datierung + .c-ledger-cell--typ::before {
-    content: "· ";
+  /* the bulk form wraps bar + ledger; it stacks them like the column it sits in */
+  .frame main form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  /* HTMX in-flight: dim the results while a swap is pending — static opacity, NO motion */
+  #results.htmx-request {
+    opacity: 0.6;
+  }
+
+  /* ---- bulk-edit bar (Sammelbearbeitung): docked sticky at the top of the results, pushes
+     content (never floats over rows). Neutral; the primary "Änderung prüfen" is the one anchor. */
+  .bulkbar {
+    position: sticky;
+    top: 0;
+    z-index: 1; /* above the rows it pushes past, below the error banner */
+    padding: var(--space-3);
+    background: var(--surface-container-high);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+  }
+  .bulkbar > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+  }
+  .bulkbar output {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .bulkbar a {
+    font: var(--type-meta);
+  }
+
+  /* the Feld → value chooser (also the re-render on the bulk confirm page). Exactly ONE value
+     widget is visible: the one whose data-bulk-wert tokens contain the chosen Feld — derived in
+     CSS from the select's own :checked option (no JS; the no-JS baseline gets the same behavior;
+     legacy blacklist: JS for state CSS can express). The value list mirrors bulk.FIELDS — a new
+     bulk field needs its token here. */
+  .chooser {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .chooser .actions {
+    margin-left: auto;
+  }
+  .chooser [data-bulk-wert] {
+    display: none;
+  }
+  .chooser:has([name="feld"] option:checked[value="physical_location"])
+    [data-bulk-wert~="physical_location"],
+  .chooser:has([name="feld"] option:checked[value="creator"]) [data-bulk-wert~="creator"],
+  .chooser:has([name="feld"] option:checked[value="subject_place"])
+    [data-bulk-wert~="subject_place"],
+  .chooser:has([name="feld"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"],
+  .chooser:has([name="feld"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"],
+  .chooser:has([name="feld"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"],
+  .chooser:has([name="feld"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"],
+  .chooser:has([name="feld"] option:checked[value="document_type"])
+    [data-bulk-wert~="document_type"],
+  .chooser:has([name="feld"] option:checked[value="collection_id"])
+    [data-bulk-wert~="collection_id"] {
+    display: inline-flex;
+  }
+
+  /* ---- preview pane: present only when ?artikel resolves (server-rendered) ---- */
+  .pane {
+    grid-column: pane;
+  }
+  .pane > div {
+    position: sticky;
+    top: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    padding: var(--space-4);
+  }
+  .pane :is(h2, p, ul) {
+    margin: 0;
+  }
+  .pane header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-3);
+  }
+  /* the ✕ close link: quiet, touch-target sized */
+  .pane header > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    color: var(--on-surface-variant);
+    border-radius: var(--radius-s);
+  }
+  .pane header > a:hover {
+    color: var(--on-surface);
+    text-decoration: none;
+  }
+  .pane h2 {
+    font: var(--type-title);
+    color: var(--on-surface);
+  }
+  .pane h2 + p {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--primary); /* mono meta = ink data (stamp grammar) */
+  }
+  .pane h2 + p span + span::before {
+    content: " · ";
     color: var(--on-surface-variant);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--sichtbarkeit {
-    grid-area: meta-r;
-    align-self: center;
-    justify-content: flex-end;
+  /* media list — cover first (ADR 0015); an article with no media shows one hollow placeholder */
+  .pane ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
   }
-  .wb--split-narrow.wb--vorschau .c-ledger-cell--aktion { display: none; }
-}
-
-/* ============================================================
-   Below 1280px: the pane is hidden entirely and the ledger is always full/no-pane. The frame
-   drops back to sidebar · main regardless of vorschau, so a bookmarked ?vorschau=1 still reads
-   sensibly on a narrow screen.
-   ============================================================ */
-@media (max-width: 1279.98px) {
-  .wb-pane { display: none; }
-  .wb--vorschau .wb-frame {
-    grid-template-columns: [sidebar] minmax(14rem, 16rem) [main] minmax(0, 1fr);
+  .pane li {
+    min-width: 0;
   }
-}
+  .pane :is(img, .hollow) {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--surface-container-lowest);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+  }
+  .pane .hollow {
+    border-style: dashed;
+  }
+  .pane li p {
+    margin-top: var(--space-1);
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
 
-/* very narrow: sidebar stacks above the main column (single column frame). The frame collapses to
-   one 1fr track, so the children's named grid-column placements (sidebar/main/pane) must reset —
-   otherwise their vanished named lines resolve to implicit tracks after 1fr and orphan the content
-   right of a dead gutter (body scrolls sideways). Span every child across the single column. */
-@media (max-width: 720px) {
-  .wb-frame,
-  .wb--vorschau .wb-frame { grid-template-columns: 1fr; }
-  .wb-sidebar,
-  .wb-main,
-  .wb-pane { grid-column: 1 / -1; }
-  .wb-sidebar { position: static; }
+  /* ---- dev viewer-switcher stub (dev.py): a plain centered column ---- */
+  .stub {
+    max-width: 40rem;
+    margin: var(--space-6) auto;
+    padding: 0 var(--space-4);
+  }
+  .stub h1 {
+    font: var(--type-display);
+    margin: 0 0 var(--space-3);
+  }
+  .stub p {
+    color: var(--on-surface-variant);
+  }
+
+  /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by the failure
+     listener in base.html. Hiding is the modes-layer [hidden] rule (which outranks this display),
+     so the banner can never intercept clicks while hidden — the recorded regression class. A
+     reveal lifts bottom-docked sticky chrome by the banner's measured height (see base.html's
+     listener and --error-banner-height in forms.css). ---- */
+  .error-banner {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: 10; /* above the sticky bulk bar and everything in-flow */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--error);
+    color: var(--on-error);
+  }
+  .error-banner p {
+    margin: 0;
+    font: var(--type-body);
+  }
+  .error-banner button {
+    background: none;
+    border: none;
+    color: var(--on-error);
+    font: var(--type-title);
+    line-height: 1;
+    padding: 0 var(--space-1);
+  }
+
+  /* ============================================================
+     Viewport composition switches. ≥1280px the open pane adds a third frame column (the ledger
+     re-densifies by ITSELF — it is a size container). Below, the pane vanishes and rows navigate
+     to the detail page; very narrow stacks sidebar over results.
+     ============================================================ */
+  @media (min-width: 1280px) {
+    body.vorschau .frame {
+      grid-template-columns:
+        [sidebar] var(--sidebar-col) [main] minmax(0, 1fr) [pane] var(--pane-col);
+    }
+  }
+  @media (max-width: 1279.98px) {
+    .pane {
+      display: none;
+    }
+  }
+  @media (max-width: 720px) {
+    .frame {
+      grid-template-columns: 1fr;
+    }
+    .sidebar,
+    .frame main,
+    .pane {
+      grid-column: 1 / -1;
+    }
+    .sidebar {
+      position: static;
+    }
+  }
 }

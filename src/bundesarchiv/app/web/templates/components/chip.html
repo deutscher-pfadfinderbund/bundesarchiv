@@ -1,5 +1,0 @@
-{% comment %}
-Removable filter chip. Params: label, value, remove_query (the query string that drops exactly
-this filter — URL-as-state; the ✕ is a plain link, no JS).
-{% endcomment %}
-<span class="c-chip">{{ label }}: {{ value }}<a class="c-chip-x" href="?{{ remove_query }}" aria-label="{{ label }} entfernen">✕</a></span>

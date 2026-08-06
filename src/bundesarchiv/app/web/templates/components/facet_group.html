@@ -1,16 +1,23 @@
 {% comment %}
-Facet group panel with a drawer-label tab heading. Params: heading; items — each with .label,
-.count, .query (the GET query string the row links to) and .active; direct (bool) labels counts
-"direkt:" (the collection facet's direct-membership honesty).
+Facet group — the ONE facet-panel implementation (used by the workbench sidebar, the layout demo
+and the component library alike; the former hand-forked copies died in the rework wave). A
+collapsible <details> sheet (cue-register row 8 material) of value rows. Params:
+- heading — the group's German heading (the <summary>)
+- items   — each with .label, .count, .query (the GET query string the row links to), .active
+- open    — initial expanded state (bool)
+Each value is a plain GET link (URL-as-state, no JS). An ACTIVE row carries aria-current on its
+link (state lives on the attribute, law C2 — CSS marks the row by inversion from it) and an
+inline ✕ remove link — the one place a filter is cleared; clicking either link clears it.
+Inactive rows show the bare count.
 {% endcomment %}
-<section class="c-facet">
-  <h3 class="c-facet-tab">{{ heading }}</h3>
-  <ul class="c-facet-list">
+<details class="facet"{% if open %} open{% endif %}>
+  <summary>{{ heading }}</summary>
+  <ul>
     {% for item in items %}
-    <li class="c-facet-row{% if item.active %} c-facet-row--aktiv{% endif %}">
-      <a href="?{{ item.query }}">{{ item.label }}</a>
-      <span class="c-facet-count">{% if direct %}direkt: {% endif %}{{ item.count }}</span>
+    <li>
+      <a href="?{{ item.query }}"{% if item.active %} aria-current="true"{% endif %}>{{ item.label }}</a>
+      {% if item.active %}<a class="remove" href="?{{ item.query }}" aria-label="{{ item.label }} entfernen">✕</a>{% else %}<span>{{ item.count }}</span>{% endif %}
     </li>
     {% endfor %}
   </ul>
-</section>
+</details>

@@ -1,49 +1,49 @@
 {% comment %}
-Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the wb-sammelform
+Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the results form
 (the row checkboxes name="auswahl" are the selection source). Docked sticky under the header —
-pushes content, never covers rows. The AFFORDANCES render whenever there are hits (cold-start fix,
-#16) so the feature is reachable with no prior selection; the STATUS parts are selection-gated.
+pushes content, never covers rows. The AFFORDANCES render whenever there are hits (cold-start
+fix, #16) so the feature is reachable with no prior selection; the STATUS parts are
+selection-gated.
 
-Affordances (always): "Alle auf dieser Seite" (GET link appending the page's ulids) + Feld select +
-every value widget (no-JS renders all; catalog_bulk.js shows only the matching one; the server reads
-the one matching feld) + Änderung prüfen (submit → confirm POST; a zero-check submit hits the
-existing "Keine Artikel ausgewählt." reject). Status (has_auswahl only, signals-once — no "0
-ausgewählt"): "{n} ausgewählt" (mono) + Auswahl aufheben (clears selection → ledger). No loud color;
-the primary is the one anchor.
+Affordances (always): "Alle auf dieser Seite" (GET link appending the page's ulids) + the Feld
+select + Änderung prüfen (submit → confirm POST; a zero-check submit hits the existing "Keine
+Artikel ausgewählt." reject). Exactly ONE value widget shows — the one matching the chosen Feld —
+via CSS :has over the select's own checked option (layouts.css .chooser; no JS, identical no-JS
+behavior; the server reads only the matching widget either way). Status (has_auswahl only,
+signals-once — no "0 ausgewählt"): "{n} ausgewählt" in the live <output> + Auswahl aufheben.
+No loud color; the primary is the one anchor.
 {% endcomment %}
-<div class="wb-sammelleiste">
-  <div class="wb-sammelleiste-status">
-    {% comment %}The count span is ALWAYS present (empty when no selection — no "0 ausgewählt", so
-    signals-once holds) so catalog_bulk.js has a live target to write into on the first tick without
-    an early-return. The server fills it for the no-JS path when a selection exists.{% endcomment %}
-    <span class="wb-sammelleiste-zahl">{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span>
+<div class="bulkbar">
+  <div>
+    {% comment %}The <output> is ALWAYS present (empty when no selection) so catalog_bulk.js has a
+    live target to write into on the first tick. The server fills it for the no-JS path.{% endcomment %}
+    <output>{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</output>
     {% comment %}data-bulk-alle: catalog_bulk.js (GH #22) folds unsubmitted ticks into this link's
     ?auswahl= so it keeps meaning "current selection ∪ this page". "Auswahl aufheben" below must
     NEVER carry the hook — its purpose is clearing the selection.{% endcomment %}
-    <a class="wb-sammelleiste-link" href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
-    {% if has_auswahl %}<a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
+    <a href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
+    {% if has_auswahl %}<a href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
   </div>
 
-  <div class="wb-sammelleiste-chooser c-form-group">
-    <label class="c-field">
-      <span class="c-field-label">Feld</span>
-      <select class="c-select" name="feld" data-bulk-feld>
+  <div class="chooser">
+    <label class="field">
+      <span>Feld</span>
+      <select name="feld">
         {% for value, caption in bulk_feld_options %}
         <option value="{{ value }}">{{ caption }}</option>
         {% endfor %}
       </select>
     </label>
 
-    {% comment %}All value widgets render (no-JS baseline); the server reads only the one matching the
-    chosen feld. catalog_bulk.js shows just the matching widget. Each is wrapped with a data-bulk-wert
-    hook naming which feld it belongs to.{% endcomment %}
-    <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
-      <span class="c-field-label">Neuer Wert</span>
-      <input class="c-input" type="text" name="wert_text">
+    {% comment %}All value widgets are in the DOM (the server reads the one matching the chosen
+    feld); CSS shows only that one. data-bulk-wert names which felder a widget belongs to.{% endcomment %}
+    <label class="field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
+      <span>Neuer Wert</span>
+      <input type="text" name="wert_text">
     </label>
-    <label class="c-field" data-bulk-wert="media_type">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_media_type" data-bulk-media-type
+    <label class="field" data-bulk-wert="media_type">
+      <span>Neuer Wert</span>
+      <select name="wert_media_type"
               hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
               hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
         {% for value, caption in bulk_media_type_options %}
@@ -51,9 +51,9 @@ the primary is the one anchor.
         {% endfor %}
       </select>
     </label>
-    <label class="c-field" data-bulk-wert="document_type">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_document_type" id="bulk-dokumenttyp-select">
+    <label class="field" data-bulk-wert="document_type">
+      <span>Neuer Wert</span>
+      <select name="wert_document_type" id="bulk-dokumenttyp-select">
         <option value="">— kein Dokumenttyp —</option>
         {% for group_label, group_options in bulk_document_type_groups %}
         <optgroup label="{{ group_label }}">
@@ -64,17 +64,17 @@ the primary is the one anchor.
         {% endfor %}
       </select>
     </label>
-    <label class="c-field" data-bulk-wert="collection_id">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_collection_id">
+    <label class="field" data-bulk-wert="collection_id">
+      <span>Neuer Wert</span>
+      <select name="wert_collection_id">
         {% for value, caption in bulk_collection_options %}
         <option value="{{ value }}">{{ caption }}</option>
         {% endfor %}
       </select>
     </label>
 
-    <div class="wb-sammelleiste-aktionen">
-      <button class="c-btn c-btn--primary" type="submit">Änderung prüfen</button>
+    <div class="actions">
+      <button class="primary" type="submit">Änderung prüfen</button>
     </div>
   </div>
 </div>
