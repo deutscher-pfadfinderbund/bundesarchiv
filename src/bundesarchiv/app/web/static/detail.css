@@ -41,7 +41,7 @@
   /* body split: prose left (~65ch), record card right; folds to one column narrow */
   .split {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-columns: minmax(0, 1fr) 20rem; /* the record-card rail — one structural track */
     gap: var(--space-6);
     align-items: start;
   }
@@ -49,7 +49,7 @@
      beside an empty prose column. Collapse to a single ≤40rem column so the card sits directly
      under the title as one cohesive block (design-gate HOLD, gate option a). */
   .split:not(:has(.prose)) {
-    grid-template-columns: minmax(0, 40rem);
+    grid-template-columns: minmax(0, 40rem); /* one cohesive block under the title (gate ruling) */
   }
   .split:not(:has(.prose)) .facts {
     grid-column: 1;
@@ -68,6 +68,11 @@
     margin: 0 0 var(--space-3);
     font: var(--type-body);
     color: var(--on-surface);
+  }
+
+  /* the composition owns the space above the plate register (C4) */
+  .column .filmstrip {
+    margin-top: var(--space-6);
   }
 
   /* narrow fold: record card under the prose (single column); the breadcrumb hides very narrow
@@ -171,9 +176,6 @@
   /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the
      page never scrolls sideways. The active plate (the cover) carries aria-current and a
      neutral-ink INVERSION frame (register row 3). ---- */
-  .filmstrip {
-    margin-top: var(--space-6);
-  }
   .filmstrip h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
@@ -207,8 +209,8 @@
     border-radius: var(--radius-s);
   }
   .filmstrip a[aria-current] img {
-    outline: 2px solid var(--on-surface);
-    outline-offset: 2px;
+    outline: 2px solid var(--on-surface); /* the focus-ring geometry, in neutral ink (row 3) */
+    outline-offset: 2px; /* (same) */
   }
   .filmstrip a > span {
     display: block;

@@ -293,7 +293,7 @@ only.{% endcomment %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
       <div class="upload">
-        <input type="file" name="dateien" form="medien-upload" multiple>
+        <input type="file" name="dateien" form="medien-upload" multiple aria-label="Dateien auswählen">
         <button type="submit" form="medien-upload">Hinzufügen</button>
       </div>
       {% comment %}Upload progress sliver — enhancement-only (HTMX/XHR paints it via

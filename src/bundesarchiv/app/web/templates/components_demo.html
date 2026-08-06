@@ -98,7 +98,9 @@ components; this storyboard updates in lockstep with them.
     }
     .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
     .sig-narrow { max-width: 9rem; }
-    /* density probes: the ledger is a size container — constraining its box IS the demo */
+    /* density probes: the ledger is a size container — constraining its box IS the demo.
+       .probe-stack stacks the two modes so a wide sample keeps a wide container. */
+    .probe-stack { grid-template-columns: 1fr; }
     .probe-mid { max-width: 50rem; }
     .probe-narrow { max-width: 40rem; }
     @media (max-width: 640px) {
@@ -265,7 +267,7 @@ components; this storyboard updates in lockstep with them.
 <code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — the active row inverts (aria-current) and carries the remove ✕</code>
 
 <h2>Ledger — full density</h2>
-<div class="probe">
+<div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
@@ -287,7 +289,7 @@ components; this storyboard updates in lockstep with them.
 <code class="doc">the ledger is a size container — under 48rem it folds to two-line rows by itself (no param, no viewport query)</code>
 
 <h2>Ledger — narrow container (column-drop candidate, fold="columns")</h2>
-<div class="probe">
+<div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="probe-mid">

@@ -54,6 +54,16 @@ def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/?artikel={corpus.published_ulid}", wait_until="networkidle")
 
 
+def _reach_pane_columndrop(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the design-gate candidate (charter item 5): ?fold=columns keeps stable row anatomy and drops
+    # low-priority columns instead of folding — rendered alongside the default for the verdict
+    page.goto(f"{base}/?artikel={corpus.published_ulid}&fold=columns", wait_until="networkidle")
+
+
+def _reach_results_columndrop(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/?fold=columns", wait_until="networkidle")
+
+
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
@@ -131,6 +141,18 @@ STATES: tuple[GalleryState, ...] = (
         "workbench-filtered", "workbench, tag facet applied", True, _goto("/?schlagwort=sommer")
     ),
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
+    GalleryState(
+        "workbench-pane-columndrop",
+        "workbench, pane open, column-drop density candidate (?fold=columns — gate item 5)",
+        True,
+        _reach_pane_columndrop,
+    ),
+    GalleryState(
+        "workbench-columndrop",
+        "workbench, no pane, column-drop density candidate (narrow widths show the drops)",
+        True,
+        _reach_results_columndrop,
+    ),
     GalleryState(
         "workbench-bulk-cold",
         "workbench, bulk bar cold start (affordances, no selection)",
