@@ -145,3 +145,28 @@ Named example of overkill: the "color math" namespace
   modular and flexible, consistent through variables. Resolved to: modern
   cascade-based CSS over the existing custom-property tokens; the prefix
   taxonomy is deprecated, dissolved in one deliberate rework wave.
+
+## UI-system interview (owner, 2026-08-06)
+
+Round 2, scoping the CSS/markup rework wave. Rulings:
+
+- **The wave may touch markup.** Semantic-HTML upgrades are in scope — a
+  native element replacing a div construction is part of the same wave, so
+  the cascade styles real semantics instead of re-labelled divs.
+- **The papier variant is cut.** `components-papier.css` (~513 lines) is
+  reachable only via the components-demo toggle, never by the live app; a
+  second visual theme doubles every styling decision for nothing. Delete in
+  the wave.
+- **Bare-element wrapper components dissolve.** An include that renders one
+  native element (`button.html`, `input.html`, `select.html`) is more
+  complex than the tag; with the cascade styling elements directly these
+  wrappers go. Atoms survive only when they bundle real structure
+  (signatur_tab, facet_group, ledger_row, pagination, …).
+- **Demo pages stay** — "it's like a storyboard." `components_demo` /
+  `layouts_demo` are the living styleguide and MUST be updated in the same
+  wave as any component change (lockstep, or they rot into stale docs).
+- **The mail-client fold is under review.** The owner asked why the results
+  table changes shape when a row opens the pane (the 2026-07-10 fold
+  ruling). Candidate replacement: stable row anatomy, low-priority columns
+  drop as the table narrows. Decide at the design gate on before/after
+  renders — not settled here.

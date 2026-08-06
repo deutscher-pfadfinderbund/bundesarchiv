@@ -42,6 +42,35 @@ simplicity checkable instead of a matter of taste.
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-
   first: prefer waves that only remove.
 
+## Rework-wave charter (owner interview, 2026-08-06)
+
+The one deliberate wave that dissolves the `c-*`/`l-*` taxonomy. Scope
+rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
+
+1. **Markup may change.** Where a native element replaces a div
+   construction, replace it in the same wave (`<dl>` for the Akte
+   key/value rows, `<fieldset>`, `<search>`, `<nav>`, …) — the cascade
+   must style real semantics, not re-labelled divs. Classes survive only
+   where semantics cannot discriminate, named for meaning.
+2. **Delete `components-papier.css`** and the components-demo variant
+   toggle. One look; the papier experiment is over.
+3. **Dissolve bare-element wrapper components** (`button.html`,
+   `input.html`, `select.html`) into plain semantic HTML styled by the
+   cascade. Structural atoms stay (signatur_tab, facet_group, ledger_row,
+   pagination, …).
+4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
+   stay, and every component change updates them in the same wave —
+   lockstep is the price of keeping them.
+5. **Fold vs column-drop at the gate.** Render the pane-open ledger both
+   ways — the existing two-line fold and a stable-anatomy variant where
+   low-priority columns drop as the table narrows — and the owner picks
+   on pixels. The 2026-07-10 fold ruling stands until then.
+
+Success criterion: net-negative diff in CSS lines and unique class names
+(169 classes / ~2,344 CSS lines at charter time), zero visual regressions
+outside the deliberately changed states, gallery renders as the verdict
+medium.
+
 ## Principles
 
 - **Roles, not colors.** Components reference role tokens (`--surface`,
