@@ -94,8 +94,29 @@ then two-cut bevels are forbidden like any unregistered cue.
    fits**; a bare literal is an S3 defect.
 6. **Deviation = registration.** A new cue means a new cue-register row
    (an owner decision) before any styling exists.
+7. **One renderer per fact type.** A date, a Signatur, a count renders
+   through exactly one template filter/include. Divergent spellings of the
+   same fact ("Juli 1962" vs "1962-22") are impossible when only one place
+   turns the fact into text. (Owner, 2026-08-06 — supersedes the planned
+   copy law; the doubling defect class dies with one-implementation-per-view
+   plus this rule.)
 
-## D. Lintable subset
+## D. One-line rulings (owner, 2026-08-06)
+
+- **Motion: licensed, desk-plane only.** Motion may explain a spatial change
+  — a sheet slides in/out on the desk plane (translate + settle), the way
+  paper moves on a desk. It need not be "realistic" paper; it must carry the
+  feeling. Never decorative or idle, never blocking, always honoring
+  `prefers-reduced-motion`. Forbidden verbs: zoom, bounce, ripple, parallax.
+- **Icons: text-first.** No icon font, no icon-only buttons; the existing
+  marks (✕, arrows) are typography.
+- **Viewport targets:** archivist surfaces desktop-first (their real
+  workplace); the reader view phone-first (member links arrive via
+  chat/mail).
+- **A11y floor: WCAG 2.2 AA**, enforced by the axe-core pass riding the
+  rework wave.
+
+## E. Lintable subset
 
 The machine-checkable slice of B and C, to become a design-lint test in the
 rework wave:
