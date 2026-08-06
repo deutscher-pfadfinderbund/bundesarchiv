@@ -151,3 +151,32 @@ rework wave:
 What the lint cannot check — composition, alignment, one-fact-one-place —
 is the design gate's checklist: catechism questions 2–4 and 6–8, judged on
 the state gallery and live pages (`docs/agents/design-gate-brief.md`).
+
+## F. Modern CSS baseline (owner, 2026-08-06)
+
+Counterweight to agent training bias toward legacy CSS: the toolkit is
+pinned, availability tier follows consequence of failure. The test is
+"does the feature's absence break task completion?"
+
+**Availability tiers:**
+- **Functional** (absence breaks the task): **Baseline widely available**
+  only. Today that includes `@layer`, `:has()`, container (size) queries,
+  `<dialog>`, `<details>`, `light-dark()`, `color-mix()`/oklch, nesting,
+  `:user-invalid`.
+- **Non-functional / progressive enhancement** (absence degrades
+  gracefully): **Baseline newly available** allowed. View transitions
+  (the desk-plane motion mechanism — degrades to an instant swap),
+  `@starting-style` + `transition-behavior: allow-discrete`, `popover`
+  (as enhancement over a functional fallback), style queries,
+  `field-sizing`, `text-wrap: balance/pretty`.
+- **Pre-Baseline decoration**: allowed ONLY where the un-supported
+  rendering is automatically acceptable with zero fallback code —
+  the `corner-shape` precedent (older browsers draw rounded corners,
+  accepted). Anchor positioning sits here until Baseline: enhancement
+  only, never load-bearing.
+
+**Legacy blacklist** (defects, not style choices): float/clearfix layout;
+JS for state `:has()`/`details`/`popover`/CSS can express; `!important`
+outside a deliberate `@layer` override; px media queries for component
+adaptation where a container query belongs; div-buttons and other
+re-implemented native elements (restates construction law).
