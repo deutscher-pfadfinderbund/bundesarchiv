@@ -64,6 +64,8 @@ adding a row first, and rows are owner decisions.
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published/normal state renders no badge | — |
 
+| 8 | Paper sheet material (owner ruling 2026-08-06: "paper material, but not the generic Google Material look") | Sheet-like containers only (result cards, facet panels, confirm panels, empty state): a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the 2px lower edge, the thickness of the sheet. This is the papier recipe promoted to baseline; the separate variant file still dies in the wave. | forbidden — and the Material-Design vocabulary is forbidden everywhere: no elevation `box-shadow` stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
+
 **Reserved (recorded, NOT licensed):** trapezoid tab — both top corners cut —
 for a future register-tab component used as **view navigation** (owner,
 2026-08-06). Gets its own row if and when that component is approved; until

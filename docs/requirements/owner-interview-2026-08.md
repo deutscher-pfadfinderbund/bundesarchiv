@@ -165,6 +165,17 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
 - **Demo pages stay** — "it's like a storyboard." `components_demo` /
   `layouts_demo` are the living styleguide and MUST be updated in the same
   wave as any component change (lockstep, or they rot into stale docs).
+- **Materiality ruling: paper material — "but not like the generic Google
+  Material look".** The system reads as cut sheets on the gray desk, not as
+  floating elevated surfaces: seed-tinted sheets, hairline edges, one 2px
+  thickness cue; no shadow stacks, no ripple, no gradients-as-lighting, no
+  textures. The papier variant FILE is still cut (one theme only); its
+  recipe is promoted to the baseline (cue-register row 8,
+  `docs/design/design-review-law.md`).
+- **Bevel ruling:** single cut, leading (top-left) corner, drawer-tab family
+  only (`.c-sig`, `.c-facet-tab`). Trapezoid (both top corners) is reserved
+  for a possible future register-tab component for view navigation — not
+  licensed until that component is approved.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns
