@@ -101,6 +101,25 @@ then two-cut bevels are forbidden like any unregistered cue.
    copy law; the doubling defect class dies with one-implementation-per-view
    plus this rule.)
 
+## Themability law (owner, 2026-08-06)
+
+The design must stay changeable. The lever is the role-token layer, and
+only it:
+
+- **Component CSS is mode- and theme-blind.** It consumes role tokens;
+  it never knows which mode resolved them. (This is why "no raw hex" is
+  law, not taste.)
+- **A redesign is a retint of `tokens.css`.** If changing the look requires
+  touching component CSS, the token layer has a hole — that hole is the
+  defect, fix it there.
+- **A mode is a token remap.** Light/dark exist today (`light-dark()` per
+  role). A **high-contrast mode** is the planned third: a
+  `@media (prefers-contrast: more)` block remapping the same roles (harder
+  ink, no sheet tint, thicker `--hairline`) — zero component changes.
+  Windows forced-colors is respected by not fighting system colors.
+- Sibling DPB services retheme by swapping the one seed line (existing law,
+  restated — same lever).
+
 ## D. One-line rulings (owner, 2026-08-06)
 
 - **Motion: licensed, desk-plane only.** Motion may explain a spatial change
