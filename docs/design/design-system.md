@@ -15,12 +15,29 @@ simplicity checkable instead of a matter of taste.
   `output`, …); a div-plus-CSS reconstruction of something HTML already
   provides is a defect. Deviate from browser-plain only where a law here or
   the spec demands it.
-- **Component hierarchy, reuse-first.** Atoms (`templates/components/`) →
-  molecules → layouts → pages. New UI composes existing
-  components; no ad-hoc one-off markup where a component exists, and no
-  redundant near-duplicate components. If something genuinely new is needed,
-  it is added DELIBERATELY: named, filed in the hierarchy, mapped here — or
-  it doesn't ship.
+- **Composition model, three layers** (owner, 2026-08-06; replaces the
+  earlier atoms→molecules→layouts→pages ladder):
+  1. **Components** — atoms/molecules (`templates/components/`), semantic
+     HTML first. Reuse-first: no ad-hoc one-off markup where a component
+     exists, no redundant near-duplicates; anything genuinely new is added
+     DELIBERATELY — named, filed, mapped here — or it doesn't ship.
+  2. **Views** — self-contained work surfaces (facet panel, result ledger,
+     article reader, edit form, confirm panel). Viewport-agnostic: a view
+     adapts to its CONTAINER (`@container`), never to the screen. One
+     implementation per view — the reader in the workbench pane and on the
+     detail page is the SAME view, composed differently.
+  3. **Compositions** — arrangements of views per available space, built
+     from a small set of reusable CSS layout primitives (Every Layout
+     style: Sidebar, Stack, Cover, …). Desktop composes several views;
+     narrow shows one at a time with navigation between them.
+
+  **Precedent rule:** a new view copies the nearest approved view and
+  changes the minimum. Deviating from precedent needs an owner ruling —
+  the approved views are the framework; there is no separate screen spec.
+
+  References: Every Layout (Pickering/Bell — composition primitives),
+  CSS container queries (view adaptivity; inside the browser floor),
+  Atomic Design (Frost — terminology: view ≈ organism).
 - **Provenance.** Every visible element traces to a named archivist wish
   (`docs/requirements/`), an owner ruling, or a spec section
   (`docs/design/part-4-web.md`). No element exists "for completeness."
@@ -51,7 +68,10 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    construction, replace it in the same wave (`<dl>` for the Akte
    key/value rows, `<fieldset>`, `<search>`, `<nav>`, …) — the cascade
    must style real semantics, not re-labelled divs. Classes survive only
-   where semantics cannot discriminate, named for meaning.
+   where semantics cannot discriminate, named for meaning. The target
+   structure is the three-layer composition model above: the taxonomy
+   dissolves into components + views + composition primitives, and the
+   pane/detail-page duality becomes one reader view in two compositions.
 2. **Delete `components-papier.css`** and the components-demo variant
    toggle. One look; the papier experiment is over.
 3. **Dissolve bare-element wrapper components** (`button.html`,
