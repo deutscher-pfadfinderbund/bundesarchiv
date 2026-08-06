@@ -65,6 +65,13 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    ways — the existing two-line fold and a stable-anatomy variant where
    low-priority columns drop as the table narrows — and the owner picks
    on pixels. The 2026-07-10 fold ruling stands until then.
+6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
+   selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
+   `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
+   A cascade rework is exactly the known regression class in `CLAUDE.md`
+   (position/overlay rules on `hidden`-gated elements intercepting
+   clicks), so the wave's gate is the e2e journeys, not gallery renders
+   alone.
 
 Success criterion: net-negative diff in CSS lines and unique class names
 (169 classes / ~2,344 CSS lines at charter time), zero visual regressions
