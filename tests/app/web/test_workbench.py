@@ -751,7 +751,8 @@ def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
     assert "1 ausgewählt" in body  # the count rides the always-visible summary line
     assert "Änderung prüfen" in body
     assert "Feld" in body  # the chooser Feld select
-    # the selected row's checkbox is checked (its inversion styling derives from it via CSS :has)
+    # the selected row's checkbox is checked — the checked box IS the selection mark
+    # (owner 2026-08-07: no inversion bar; unchecked boxes reveal on hover)
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
