@@ -69,9 +69,11 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2) var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--surface-container-low);
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    /* no band, no rule (owner rail-wave verdict 2026-08-07: "lighter, more air below the
+       navbar") — the rail sits directly on the desk; the dropdown BUTTONS keep their own
+       hairline (components.css .facet > summary). The block padding is the rail's breathing
+       room between the header's double rule and the results. */
+    padding: var(--space-4) var(--space-4) var(--space-2);
   }
 
   /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
