@@ -354,7 +354,10 @@
     box-shadow: var(--overlay-shadow);
   }
   .facet > ul {
-    inset-inline-start: 0; /* the rail's leading edge — the panels all drop from one place */
+    /* the row's LEADING edge (the enhancement below refines this to the trigger where anchor
+       positioning exists); with one drop point the rail's groups share a `name` so two panels can
+       never hide each other — components/facet_group.html */
+    inset-inline-start: 0;
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
     /* the dropped panel is a transient OVERLAY, not part of the rail's control row — the rail's
        compact --control-height must not reach in (the compact license covers chips + their ✕
@@ -763,11 +766,10 @@
      (6rem) + Datierung floor 84 (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
      (two --touch-target icons + gap) + 5 gaps × 12 + row padding 24 ≈ 514px ≈ 32rem — below that
      even the FULLY TIGHTENED one-line row cannot fit, so hiding (the fold) is necessary, never
-     premature. The threshold also sits BELOW the narrowest
-     pane-open container — the pane switch (layouts.css) is an 80rem viewport query (pane ≤26rem
-     + gap + frame padding leaves main ≥ ~51rem), both sides sharing the rem unit, so row anatomy
-     never changes with pane state (decision 1) at any root font size — only a genuinely
-     phone-narrow container may fold. */
+     premature. The threshold also sits BELOW the narrowest pane-open container — the pane switch
+     (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
+     ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
+     (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;

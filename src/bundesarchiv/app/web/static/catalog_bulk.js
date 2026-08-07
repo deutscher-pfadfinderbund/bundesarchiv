@@ -4,13 +4,14 @@
 // ticks need a submit first — this file lifts that limit, GH #22). PROGRESSIVE visibility
 // (owner 2026-08-07, reverses the #16 cold-start ruling): the server always renders the
 // disclosure VISIBLE (so a no-JS archivist can reach "Alle auf dieser Seite"); with JS this
-// file hides it via the [hidden] attribute while the TOTAL selection count is 0 — this page's
-// live checkboxes PLUS the off-page URL-borne selection the server hands over in
-// data-bulk-offpage (learning G.25: an enhancement may only hide what it can account for; a
-// box-counting client hid a live cross-page selection) — and reveals it the moment the total
-// reaches 1 — hiding rides the modes-layer `[hidden] { display: none
-// !important }` rule, so no display rule can ever make the hidden disclosure intercept clicks
-// (the recorded regression class). Row inversion and the Feld→value-widget switch are pure CSS
+// file hides it via the [hidden] attribute while the TOTAL selection count is 0 and reveals it
+// the moment that total reaches 1. TOTAL, not this page's ticks: it is the live checkboxes here
+// PLUS the off-page URL-borne selection the server hands over in data-bulk-offpage (learning
+// G.25 — an enhancement may only hide what it can account for; a box-counting client hid a live
+// cross-page selection and stranded the archivist). Hiding rides the modes-layer
+// `[hidden] { display: none !important }` rule, so no display rule can ever make the hidden
+// disclosure intercept clicks (the recorded regression class). Row inversion and the
+// Feld→value-widget switch are pure CSS
 // (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
 // blacklist defect. Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
 // separately) handles the dependent-Dokumenttyp swap.
@@ -31,8 +32,13 @@
   // stays attached.
   document.body.addEventListener("htmx:historyRestore", reinit);
 
+  // the bulk form currently in the document (absent for non-archivists and on the zero-hit page)
+  function resultsForm() {
+    return document.querySelector("#results > form");
+  }
+
   function init() {
-    var form = document.querySelector("#results > form");
+    var form = resultsForm();
     if (!form || form.dataset.bulkBound === "1") return;
     form.dataset.bulkBound = "1";
     wire(form);
@@ -42,7 +48,7 @@
   // closing sync re-derive count + visibility + link state from what is ACTUALLY in the DOM.
   // Idempotent like init(): the flag goes back up immediately.
   function reinit() {
-    var form = document.querySelector("#results > form");
+    var form = resultsForm();
     if (form) delete form.dataset.bulkBound;
     init();
   }
