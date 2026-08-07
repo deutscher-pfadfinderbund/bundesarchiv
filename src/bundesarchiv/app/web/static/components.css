@@ -531,12 +531,14 @@
     }
   }
 
-  /* the LAST RESORT under the phone-width container query: the two-line fold — header hidden,
-     SIG + Titel over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track
-     when absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling
-     rule), so absence dangles nothing. Declared AFTER the drop steps so its display rules win
-     inside the overlapping range. */
-  @container (max-width: 48rem) {
+  /* the LAST RESORT at phone-width containers: the two-line fold — header hidden, SIG + Titel
+     over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track when
+     absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling rule),
+     so absence dangles nothing. Declared AFTER the drop steps so its display rules win inside
+     the overlapping range. The threshold sits BELOW the narrowest pane-open container (a
+     1280px viewport with the pane ≈ 34rem): row anatomy must never change with pane state
+     (decision 1) — only a genuinely phone-narrow container may fold. */
+  @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
     }

@@ -89,9 +89,10 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
 5. **Fold vs column-drop at the gate.** SETTLED (owner verdict 2026-08-07,
    on pixels): column-drop won and is THE width behavior — low-priority
    columns drop as the ledger's container narrows (Typ, then Datierung);
-   the two-line fold survives only under the ~48rem container query as the
-   phone-width last resort. The `?fold` switch, the pane-open fold and the
-   losing CSS are gone; row anatomy never changes with pane state.
+   the two-line fold survives only under the phone-width ~32rem container
+   query (kept below the narrowest pane-open container) as the last
+   resort. The `?fold` switch, the pane-open fold and the losing CSS are
+   gone; row anatomy never changes with pane state.
 6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
    selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
    `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
@@ -227,7 +228,8 @@ ENTWURF mark rides the title, owner 2026-08-07), preview pane right. Pane
 state lives in the URL, server-rendered — zero JS required. Width is the
 only density input (2026-08-07 verdict): columns drop as the ledger's
 container narrows (Typ, then Datierung); the two-line fold survives only
-under the ~48rem container query as the phone-width last resort. Below
+under the phone-width ~32rem container query (kept below the narrowest
+pane-open container) as the last resort. Below
 1280px the pane disappears and rows navigate to the detail page (the
 canonical permalink). Cards remain for photo-heavy and member-facing
 contexts.

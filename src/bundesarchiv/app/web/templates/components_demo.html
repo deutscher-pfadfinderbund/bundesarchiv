@@ -103,7 +103,7 @@ components; this storyboard updates in lockstep with them.
     .probe-stack { grid-template-columns: 1fr; }
     .probe-mid { max-width: 56rem; }   /* drop step 1: Typ gone (≤60rem) */
     .probe-low { max-width: 50rem; }   /* drop step 2: Datierung gone too (≤52rem) */
-    .probe-narrow { max-width: 40rem; } /* the fold (≤48rem) */
+    .probe-narrow { max-width: 30rem; } /* the fold (≤32rem) */
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -330,7 +330,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">under the ~48rem container query the register folds to two-line rows — the phone-width last resort, the only place row anatomy changes</code>
+<code class="doc">under the phone-width ~32rem container query the register folds to two-line rows — the last resort, the only place row anatomy changes (the threshold sits below the narrowest pane-open container, so opening the pane never folds)</code>
 
 <h2>Pagination</h2>
 <div class="probe">
