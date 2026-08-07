@@ -21,12 +21,30 @@
   // + bar), so the enhancement survives a live search. Idempotent: a data-flag guards double-binding.
   document.addEventListener("DOMContentLoaded", init);
   document.body.addEventListener("htmx:afterSwap", init);
+  // A history restore (Back after a hx-push-url search) is its OWN lifecycle event: htmx 2.0.4
+  // replaces the body from its snapshot and fires ONLY htmx:historyRestore — never afterSwap — so
+  // the plain init above never runs. Worse, the snapshot was serialized WITH this enhancement's
+  // leftovers: the bound flag (an attribute, so it survives), the disclosure's [hidden] state and
+  // the count text, while the checkbox ticks (properties) do not. The restored page therefore came
+  // back with a stale count over a dead form. Re-init from the restored state instead (learning
+  // G.25). document.body itself survives the restore (htmx swaps its innerHTML), so this listener
+  // stays attached.
+  document.body.addEventListener("htmx:historyRestore", reinit);
 
   function init() {
     var form = document.querySelector("#results > form");
     if (!form || form.dataset.bulkBound === "1") return;
     form.dataset.bulkBound = "1";
     wire(form);
+  }
+
+  // Drop the restored snapshot's bound flag so init() wires the fresh nodes, then let wire()'s own
+  // closing sync re-derive count + visibility + link state from what is ACTUALLY in the DOM.
+  // Idempotent like init(): the flag goes back up immediately.
+  function reinit() {
+    var form = document.querySelector("#results > form");
+    if (form) delete form.dataset.bulkBound;
+    init();
   }
 
   function wire(form) {

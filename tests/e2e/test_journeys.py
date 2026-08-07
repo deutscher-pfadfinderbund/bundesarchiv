@@ -631,6 +631,33 @@ def test_bulk_url_seeded_selection_still_works(
     expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
 
 
+def test_bulk_enhancement_survives_a_history_restore(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Learning G.25, second half: htmx 2.0.4 restores a cached page WITHOUT firing afterSwap —
+    # only htmx:historyRestore — and the snapshot it restores was serialized WITH the enhancement's
+    # own leftovers: data-bulk-bound="1" on the form, the [hidden] state and the count text as they
+    # stood at snapshot time. Checkbox ticks are properties and do NOT survive the snapshot, so
+    # after search-then-Back the disclosure claimed "2 ausgewählt" over an empty selection and the
+    # bound-guard left the form dead. The restore must re-init from the ACTUAL restored state.
+    page = archivist_page
+    page.goto(live_workbench + "/")
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()
+    # a live search: hx-push-url snapshots the current page into htmx's history cache first
+    page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+    page.wait_for_url("**q=Sommerfahrt**")
+    page.go_back()
+    page.wait_for_url(lambda url: "q=Sommerfahrt" not in url)
+    # the restored page states the URL's selection (none), never the snapshot's stale count
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
+    expect(page.locator("details.bulk")).to_be_hidden()
+    # ...and the enhancement is WIRED again: a fresh tick moves the live count
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    expect(page.get_by_text("1 ausgewählt")).to_be_visible()
+
+
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
     """Grow the canonical corpus past one page (PAGE_SIZE=50): 60 extra published articles with
     fixed ULIDs sorting AFTER the canonical ones (browse order is ulid), then re-index so the live
