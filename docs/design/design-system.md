@@ -87,12 +87,17 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    stay, and every component change updates them in the same wave —
    lockstep is the price of keeping them.
 5. **Fold vs column-drop at the gate.** SETTLED (owner verdict 2026-08-07,
-   on pixels): column-drop won and is THE width behavior — low-priority
-   columns drop as the ledger's container narrows (Typ, then Datierung);
-   the two-line fold survives only under the phone-width ~32rem container
+   on pixels): column-drop won over the fold as THE width behavior; the
+   two-line fold survives only under the phone-width ~32rem container
    query (kept below the narrowest pane-open container) as the last
    resort. The `?fold` switch, the pane-open fold and the losing CSS are
-   gone; row anatomy never changes with pane state.
+   gone; row anatomy never changes with pane state. *Addendum (owner,
+   2026-08-07 round 2 — law C11 "intrinsic first"):* the drop steps
+   themselves died the same day — their 60/52rem thresholds were invented
+   and hid columns with space to spare (learning G.23). The width behavior
+   is now INTRINSIC: mono columns sit at max-content, the Titel absorbs
+   slack and ellipsizes first, every column stays visible above the fold;
+   the ~32rem fold threshold carries its C9 content arithmetic.
 6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
    selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
    `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
@@ -230,11 +235,18 @@ The rail is the PRIMARY filter interaction (owner 2026-08-07, exploration
 under the header holding a native `<details>` dropdown per facet group
 (the dropped panels float on the one overlay shadow, register row 12 —
 owner 2026-08-07) plus the active filters as inversion
-chips (register row 3), each with a labeled remove ✕. The rail itself sits
+chips (register row 3), each with a labeled remove ✕, then the clear-all
+link and the right-aligned "N Treffer" count ending the line (law C10,
+round-2 correction 2026-08-07: status rides the occupied band — the
+status-only toolrow died; the Sammelbearbeitung disclosure sits directly
+above the ledger and collapses entirely when hidden). The rail itself sits
 bare on the desk — no background band, no bottom rule (rail-wave verdict
-2026-08-07). Every filter stays a
+2026-08-07) — and, like the header, is a CONTROL ROW: it sets the one
+`--control-height` knob every control on the line consumes (law C8; the
+compact value, tokens.css). Every filter stays a
 plain GET link; the rail lives outside `#results`, so filter clicks
-re-render it with fresh counts (same mechanism the sidebar used). On
+re-render it with fresh counts (same mechanism the sidebar used; the
+htmx q-swap refreshes the count out-of-band). On
 narrow viewports the rail wraps — results are never buried under stacked
 panels.
 
@@ -246,12 +258,14 @@ toolbar; one label-role header treatment; no Sichtbarkeit column —
 ÖFFENTLICH renders nothing and the ENTWURF mark rides the title, owner
 2026-08-07), preview pane right. Pane state lives in the URL,
 server-rendered — zero JS required. Width is the only density input
-(2026-08-07 verdict): columns drop as the ledger's container narrows (Typ,
-then Datierung); the two-line fold survives only under the phone-width
-~32rem container query (kept below the narrowest pane-open container) as
-the last resort. Below 1280px the pane disappears and rows navigate to the
-detail page (the canonical permalink). Cards remain for photo-heavy and
-member-facing contexts.
+(2026-08-07 verdict), absorbed intrinsically (law C11, same-day round-2
+correction): the mono columns tighten to content, the Titel ellipsizes
+first, and every column stays visible down to the two-line fold under the
+phone-width ~32rem container query (C9-derived arithmetic at the query;
+kept below the narrowest pane-open container) — the last resort. Below
+1280px the pane disappears and rows navigate to the detail page (the
+canonical permalink). Cards remain for photo-heavy and member-facing
+contexts.
 
 ## Component mapping (workbench)
 
@@ -263,7 +277,8 @@ member-facing contexts.
 | Active facet | inversion (`on-surface`/`surface`) — the dropdown's active row and the rail chip (register row 3) |
 | Result card | `surface-container-low`, hover `-mid` |
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
-| Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕ |
+| Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕; height = the rail's `--control-height` knob (law C8), never its own |
+| Treffer count | ends the filter-rail line, right-aligned (law C10 — no status-only band): `mono-meta`, muted, `aria-live=polite`; one renderer (`workbench/_trefferzahl.html`, law C7), refreshed out-of-band on htmx swaps |
 | Header actions | QUIET (owner 2026-08-07, rail round 2 — Mock B): "Suchen" is the plain hairline button; the create actions live in the ONE "+ Neu …" disclosure (`details.menu`) — quiet hairline summary, panel floating on `--overlay-shadow` (register row 12); "Bestand bearbeiten" joins the panel only while a Bestand filter is active. `.primary` inversion survives on form submits (Anlegen, Speichern, Veröffentlichen, Änderung prüfen) |
 | ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
 | Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); the badge component survives only on the publish over-exposure preview |

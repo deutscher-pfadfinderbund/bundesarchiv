@@ -457,13 +457,16 @@
      rule (hairline in the darker --outline vs the body's --outline-variant), and the Signatur
      column closes on the ONE licensed vertical margin rule (register row 11). The root is a
      size container, so the register adapts to the COLUMN it sits in (law C2), not the viewport:
-     when the pane opens (or the page narrows) the available inline size shrinks and the density
-     switches by itself. Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row-action
+     when the pane opens (or the page narrows) the available inline size shrinks and the tracks
+     tighten by themselves. Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row-action
      toolbar — the same five tracks for every viewer (Bearbeiten renders only where a row
      supplies its href). All rows are subgrid rows on shared tracks. WIDTH is the only density
-     input (owner verdict 2026-08-07, charter item 5 settled — column-drop won): low-priority
-     columns drop as the container narrows (Typ, then Datierung); the two-line fold below is the
-     phone-width LAST RESORT only. Row anatomy never changes with pane state. */
+     input (owner verdict 2026-08-07), and the adaptation is INTRINSIC (law C11, owner correction
+     the same day — the invented 60/52rem drop steps died, G.23): the short mono columns sit at
+     max-content, the Titel absorbs all slack (1fr) and ellipsizes first down to its floor, so
+     EVERY column stays visible at every width above the fold. The two-line fold below is the
+     phone-width LAST RESORT and the ONE modal width change; its threshold derives per C9 (see
+     the fold block). Row anatomy never changes with pane state. */
   .ledger {
     container-type: inline-size;
   }
@@ -471,12 +474,16 @@
     /* the shared column tracks (a named local dimension set, law C3/C5); --lead is the optional
        bulk-checkbox track, prepended via the empty-fallback idiom. Tracks carry line names and
        every cell is placed on its own line (below), so a row with an ABSENT value keeps every
-       other cell in its column instead of auto-flowing leftward. The SIG track is content-tight
-       (owner rail-wave verdict 2026-08-07: left-aligned and narrower) — max-content sizes to the
-       longest Signatur on the page, so realistic codes ("BA 1848/II") never truncate and the
-       row-11 margin rule closes right after the column. */
-    --cols: [sig] max-content [titel] minmax(10rem, 1fr)
-      [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
+       other cell in its column instead of auto-flowing leftward. INTRINSIC sizing (law C11):
+       SIG, DATIERUNG, TYP are short mono/meta values and sit at max-content — they tighten to
+       their widest content (for Datierung that is usually its own header label) instead of
+       holding invented floors; the SIG track thereby never truncates realistic codes
+       ("BA 1848/II") and the row-11 margin rule closes right after the column. TITEL is the one
+       elastic track: it takes all slack and gives it back first (ellipsis), down to a 6rem
+       floor — the largest floor at which the full six-track anatomy still fits a 32rem (512px)
+       container, the fold boundary (C9 arithmetic at the fold block below: 512px − ~417px of
+       siblings/gaps/padding ≈ 95px ≈ 6rem). */
+    --cols: [sig] max-content [titel] minmax(6rem, 1fr) [datum] max-content [typ] max-content
       [aktion] max-content;
     display: grid;
     grid-template-columns: var(--lead, ) var(--cols);
@@ -665,38 +672,25 @@
     }
   }
 
-  /* narrow densities — WIDTH is the only input (owner verdict 2026-08-07): stable one-line row
-     anatomy, low-priority columns drop as the CONTAINER narrows (pane open or viewport small —
-     same mechanism). Drop order: Typ, then Datierung; SIG + Titel + the toolbar survive. */
-  /* the drop steps are RANGE-scoped (open below at 32rem) so they never overlap the fold —
-     no counter-overrides, no source-order dependence between the steps and the fold block */
-  @container (32rem < width <= 60rem) {
-    .ledger > [role="table"] {
-      --cols: [sig] max-content [titel] minmax(10rem, 1fr)
-        [datum] minmax(6rem, max-content) [aktion] max-content;
-    }
-    .ledger .typ {
-      display: none;
-    }
-  }
-  @container (32rem < width <= 52rem) {
-    .ledger > [role="table"] {
-      --cols: [sig] max-content [titel] minmax(10rem, 1fr) [aktion] max-content;
-    }
-    .ledger .datierung {
-      display: none;
-    }
-  }
+  /* NO drop steps (law C11, owner 2026-08-07 — intrinsic first, queries last): between the
+     fold below and full width the grid itself absorbs every variation — max-content columns
+     tighten, the Titel ellipsizes. A width query survives only for the genuinely MODAL change
+     below. */
 
   /* the LAST RESORT at phone-width containers: the two-line fold — header hidden, SIG + Titel
      over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track when
      absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling rule),
-     so absence dangles nothing. The drop steps above are range-scoped to stay out of this
-     block's range. The 32rem threshold sits BELOW the narrowest pane-open container — the
-     pane switch (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding
-     leaves main ≥ ~51rem), so both sides of the inequality share the rem unit and the margin
-     holds at every root font size: row anatomy must never change with pane state (decision 1)
-     — only a genuinely phone-narrow container may fold. */
+     so absence dangles nothing. The 32rem threshold DERIVES from the one-line anatomy's content
+     minimum (law C9; measured live 2026-08-07, e2e test_ledger_columns_stay_visible_by_
+     intrinsic_sizing re-measures it every run): checkbox 13 + Signatur ~82 (a realistic 10-char
+     mono code, e.g. "BA 1848/II") + 13 margin-rule chrome + Titel floor 96 (6rem) + Datierung 84
+     (its header label is the column's widest content) + Typ ~47 + toolbar 96 (two --touch-target
+     icons + gap) + 5 gaps × 12 + row padding 24 ≈ 513px ≈ 32rem — below that the one-line row
+     genuinely cannot fit, so hiding (the fold) is necessary, never premature. The threshold
+     also sits BELOW the narrowest pane-open container — the pane switch (layouts.css) is an
+     80rem viewport query (pane ≤26rem + gap + frame padding leaves main ≥ ~51rem), both sides
+     sharing the rem unit, so row anatomy never changes with pane state (decision 1) at any root
+     font size — only a genuinely phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;

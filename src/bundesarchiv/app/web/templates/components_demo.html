@@ -101,9 +101,9 @@ components; this storyboard updates in lockstep with them.
     /* density probes: the ledger is a size container — constraining its box IS the demo.
        .probe-stack stacks the two modes so a wide sample keeps a wide container. */
     .probe-stack { grid-template-columns: 1fr; }
-    .probe-mid { max-width: 56rem; }   /* drop step 1: Typ gone (≤60rem) */
-    .probe-low { max-width: 50rem; }   /* drop step 2: Datierung gone too (≤52rem) */
-    .probe-narrow { max-width: 30rem; } /* the fold (≤32rem) */
+    .probe-mid { max-width: 56rem; }   /* mid width: Titel elastic, mono columns content-tight */
+    .probe-low { max-width: 34rem; }   /* just above the fold: Titel at its 6rem floor, ellipsis */
+    .probe-narrow { max-width: 30rem; } /* the fold (≤32rem, C9-derived) */
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -342,7 +342,7 @@ reserve its height. Served open to exhibit the floating overlay panel. {% endcom
 </div>
 <code class="doc">components/ledger.html · rows=[…] columns=[…] — Sig · Titel · Datierung · Typ · row-action toolbar (no Sichtbarkeit column); sortable heads cycle asc→desc→default; Typ is a plain head; the toolbar (pencil=Bearbeiten, panel=Vorschau) reveals on row hover/focus on pointer devices; the draft row's ENTWURF mark rides its title (quiet amber mono)</code>
 
-<h2>Ledger — narrow container (column drop, THE width behavior)</h2>
+<h2>Ledger — narrow container (intrinsic tightening, THE width behavior)</h2>
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -355,7 +355,7 @@ reserve its height. Served open to exhibit the floating overlay panel. {% endcom
   </div>
   {% endfor %}
 </div>
-<code class="doc">width is the only density input (owner verdict 2026-08-07): stable one-line anatomy, low-priority columns drop as the container narrows (Typ at 60rem, then Datierung at 52rem) — no param, no viewport query</code>
+<code class="doc">width is the only density input (owner verdict 2026-08-07), absorbed INTRINSICALLY (law C11 — the invented 60/52rem drop steps died): mono columns sit at max-content, the Titel takes all slack and ellipsizes first down to its 6rem floor, so every column stays visible above the fold — no drop thresholds, no param, no viewport query</code>
 
 <h2>Ledger — phone-width container (the two-line fold, last resort)</h2>
 <div class="probe">

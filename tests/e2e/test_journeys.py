@@ -151,7 +151,7 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
     # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
-    # the only state that hides it) and the low-priority columns merely drop.
+    # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
     page.goto(live_workbench + "/")
@@ -159,6 +159,71 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     expect(page.locator(".pane")).to_be_visible()
     header_row = page.locator('.ledger [role="table"] > [role="row"]')
     expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
+
+
+#: The measured four-column content minimum of the ledger (law C9's arithmetic, computed live):
+#: per column the widest content box (Range-measured over header + body cells; sr-only heads
+#: excluded), the Titel at its CSS floor (it ellipsizes first — C11), plus the Signatur column's
+#: margin-rule chrome, the row gaps and the row padding. Mirrors the derivation comment next to
+#: the fold query in components.css.
+_LEDGER_MINIMUM_JS = """() => {
+    const table = document.querySelector('.ledger [role=table]');
+    const measure = (el) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        return r.getBoundingClientRect().width;
+    };
+    const colMin = (cls) => {
+        const cells = [
+            ...table.querySelectorAll('[role=rowgroup] .' + cls),
+            ...[...table.querySelectorAll(':scope > [role=row] .' + cls)].filter(
+                (h) => !h.querySelector('.visually-hidden')),
+        ];
+        return Math.max(0, ...cells.map(measure));
+    };
+    const row = table.querySelector('[role=rowgroup] [role=row]');
+    const s = getComputedStyle(row);
+    const sig = table.querySelector('[role=rowgroup] .sig');
+    const sigChrome = parseFloat(getComputedStyle(sig).paddingInlineEnd)
+        + parseFloat(getComputedStyle(sig).borderInlineEndWidth);
+    const titelFloor = 6 * 16;  // the CSS floor: minmax(6rem, 1fr) — titel truncates below it
+    const cols = [colMin('auswahl'), colMin('sig') + sigChrome, titelFloor,
+                  colMin('datierung'), colMin('typ'), colMin('aktion')];
+    return Math.round(cols.reduce((a, b) => a + b, 0)
+        + parseFloat(s.columnGap) * (cols.length - 1)
+        + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight));
+}"""
+
+
+def test_ledger_columns_stay_visible_by_intrinsic_sizing(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Law C11 (intrinsic first, owner 2026-08-07): the ledger has NO column-drop thresholds —
+    # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
+    # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
+    # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
+    # Proof at each width: nothing hidden AND nothing overflows.
+    page = archivist_page
+    for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + path)
+        for col in ("sig", "titel", "datierung", "typ"):
+            expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
+        overflow: int = page.evaluate(
+            "() => { const t = document.querySelector('.ledger [role=table]');"
+            " return t.scrollWidth - t.clientWidth; }"
+        )
+        assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+    # The fold below 32rem stays the ONE modal width change (C11-licensed) and hides content
+    # only out of necessity (C9): the measured four-column minimum exceeds the fold container.
+    minimum: int = page.evaluate(_LEDGER_MINIMUM_JS)  # measured while all columns render
+    page.set_viewport_size({"width": 500, "height": 900})
+    page.goto(live_workbench + "/")
+    expect(page.locator('.ledger [role="table"] > [role="row"]')).to_be_hidden()  # fold active
+    container: int = page.evaluate("() => document.querySelector('.ledger').clientWidth")
+    assert minimum > container, (
+        f"the fold engaged although the four-column anatomy ({minimum}px) fits {container}px"
+    )
 
 
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:

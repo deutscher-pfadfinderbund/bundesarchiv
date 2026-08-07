@@ -119,8 +119,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
     # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
     # the ledger re-densifies by itself — it is a size container (components.css). Width is the
-    # ONLY density input (charter item 5 settled 2026-08-07: column-drop won; the ?fold switch
-    # and the pane-open fold died with the verdict).
+    # ONLY density input (charter item 5 settled 2026-08-07; the ?fold switch and the pane-open
+    # fold died with the verdict), absorbed intrinsically per law C11 — no drop thresholds.
     context["vorschau"] = pane is not None
     # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
