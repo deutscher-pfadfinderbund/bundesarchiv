@@ -161,13 +161,56 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
 
 
-#: The measured four-column content minimum of the ledger (law C9's arithmetic, computed live):
-#: per column the widest content box (Range-measured over header + body cells; sr-only heads
-#: excluded), the Titel at its CSS floor (it ellipsizes first — C11), plus the Signatur column's
-#: margin-rule chrome, the row gaps and the row padding. Mirrors the derivation comment next to
-#: the fold query in components.css.
+#: A realistically LONG Signatur + Dokumenttyp for the intrinsic-sizing proofs (learning G.24: an
+#: intrinsic-sizing test run on the short demo corpus passes VACUOUSLY — bare ``max-content`` tracks
+#: only betray themselves once the content is long). A real Bundesarchiv-shaped code (Bestand ·
+#: tectonic level · year span · volume) and the vocabulary's longest Dokumenttyp.
+_LONG_REF_CODE = "BArch B 106/XVII/1948-1952 Bd. 3"
+_LONG_TYP = "Veranstaltungsplakat"
+
+
+def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
+    """Add ONE article whose mono columns are as long as real archive content gets: the widest
+    Signatur, the widest vocabulary Dokumenttyp and a full-date EDTF interval. Seeded per test (not
+    into the shared corpus) so the count-asserting journeys keep their canonical three hits."""
+    from bundesarchiv.domain.edtf import EdtfDate
+    from bundesarchiv.domain.models import Article, Lifecycle
+    from bundesarchiv.index import indexer
+    from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    store = LocalFsObjectStore(root)
+    ArticleRepository(store).save(
+        Article(
+            ulid="01KXE2ELANG0000000000000AA",  # valid Crockford base32, sorts after the canonical
+            title="Werbeplakat zur Bundesfahrt in die Rhön",
+            collection_id="FOTOS",
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code=_LONG_REF_CODE,
+            media_type="Plakat",
+            document_type=_LONG_TYP,
+            date=EdtfDate("1948-01-01/1952-12-31"),
+        ),
+        0,
+    )
+    with blocker.unblock():
+        indexer.rebuild(store)
+
+
+#: The ledger's content minimum (law C9's arithmetic, computed live): every SHRINKABLE track at its
+#: CSS floor — read from the ``--*-floor`` knobs on the grid itself, so the proof can never drift
+#: from the stylesheet the way a hard-coded ``6 * 16`` did — plus the rigid tracks at their measured
+#: content width, the Signatur column's margin-rule chrome, the row gaps and the row padding.
+#: Mirrors the derivation comment next to the fold query in components.css.
 _LEDGER_MINIMUM_JS = """() => {
     const table = document.querySelector('.ledger [role=table]');
+    const s = getComputedStyle(table);
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const floor = (name) => {
+        const raw = s.getPropertyValue('--' + name + '-floor').trim();
+        if (!raw.endsWith('rem')) throw new Error('no --' + name + '-floor knob: ' + raw);
+        return parseFloat(raw) * rem;
+    };
     const measure = (el) => {
         const r = document.createRange();
         r.selectNodeContents(el);
@@ -182,27 +225,54 @@ _LEDGER_MINIMUM_JS = """() => {
         return Math.max(0, ...cells.map(measure));
     };
     const row = table.querySelector('[role=rowgroup] [role=row]');
-    const s = getComputedStyle(row);
+    const rs = getComputedStyle(row);
     const sig = table.querySelector('[role=rowgroup] .sig');
     const sigChrome = parseFloat(getComputedStyle(sig).paddingInlineEnd)
         + parseFloat(getComputedStyle(sig).borderInlineEndWidth);
-    const titelFloor = 6 * 16;  // the CSS floor: minmax(6rem, 1fr) — titel truncates below it
-    const cols = [colMin('auswahl'), colMin('sig') + sigChrome, titelFloor,
-                  colMin('datierung'), colMin('typ'), colMin('aktion')];
+    const cols = [colMin('auswahl'), floor('sig') + sigChrome, floor('titel'),
+                  floor('datum'), floor('typ'), colMin('aktion')];
     return Math.round(cols.reduce((a, b) => a + b, 0)
-        + parseFloat(s.columnGap) * (cols.length - 1)
-        + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight));
+        + parseFloat(rs.columnGap) * (cols.length - 1)
+        + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight));
+}"""
+
+#: The DOCUMENT's horizontal overflow — ledger.html's standing contract is "the page body never
+#: scrolls sideways" (the [role=table] may scroll in its OWN box; the page may not).
+_DOC_OVERFLOW_JS = """() => {
+    const d = document.documentElement;
+    return {overflow: d.scrollWidth - d.clientWidth,
+            scrollX: (window.scrollTo(99999, 0), window.scrollX)};
+}"""
+
+#: Is the long Signatur actually ELLIPSIZED at this width? Its rendered box vs the width its text
+#: wants (Range-measured): a bare max-content track never shrinks, so .c-sig-code's ellipsis is
+#: dead styling (catechism Q6) — this is what proves the floor made it live.
+_LONG_SIG_JS = """() => {
+    const code = [...document.querySelectorAll('.ledger [role=rowgroup] .c-sig-code')]
+        .find((e) => e.textContent.trim().startsWith('BArch'));
+    if (!code) throw new Error('the long-Signatur row is not on this page');
+    const r = document.createRange();
+    r.selectNodeContents(code);
+    return {box: code.getBoundingClientRect().width, text: r.getBoundingClientRect().width};
 }"""
 
 
 def test_ledger_columns_stay_visible_by_intrinsic_sizing(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page,
+    live_workbench: str,
+    e2e_corpus: CorpusHandles,
+    _e2e_root: Path,
+    django_db_blocker: DjangoDbBlocker,
 ) -> None:
     # Law C11 (intrinsic first, owner 2026-08-07): the ledger has NO column-drop thresholds —
     # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
     # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
     # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
-    # Proof at each width: nothing hidden AND nothing overflows.
+    # G.24's red case pinned the opposite escape: with a realistic LONG Signatur + Typ the bare
+    # max-content tracks could not shrink at all, so the ledger pushed the whole PAGE BODY into
+    # horizontal scroll from 800px down. Hence the long-content seed — the short demo corpus made
+    # this proof pass vacuously.
+    _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
         page.set_viewport_size({"width": width, "height": 900})
@@ -214,8 +284,31 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
             " return t.scrollWidth - t.clientWidth; }"
         )
         assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+    # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
+    # never scrolls sideways, and the long Signatur gives its space back by ELLIPSIZING (proof the
+    # floors are shrinkable and .c-sig-code's ellipsis is live styling, not dead — Q6).
+    defects: list[str] = []
+    for width, path in (
+        (560, "/"),
+        (640, "/"),
+        (800, "/"),
+        (1280, f"/?artikel={e2e_corpus.published_ulid}"),
+    ):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + path)
+        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
+        if doc["overflow"] > 1 or doc["scrollX"] > 1:
+            defects.append(f"{width}px: document scrolls sideways {doc}")
+        sig: dict[str, float] = page.evaluate(_LONG_SIG_JS)
+        if width < 1280 and sig["box"] >= sig["text"] - 1:
+            defects.append(f"{width}px: the long Signatur never tightened {sig}")
+    assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
+        defects
+    )
     # The fold below 32rem stays the ONE modal width change (C11-licensed) and hides content
-    # only out of necessity (C9): the measured four-column minimum exceeds the fold container.
+    # only out of necessity (C9): the fully-tightened one-line anatomy exceeds the fold container.
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(live_workbench + "/")
     minimum: int = page.evaluate(_LEDGER_MINIMUM_JS)  # measured while all columns render
     page.set_viewport_size({"width": 500, "height": 900})
     page.goto(live_workbench + "/")

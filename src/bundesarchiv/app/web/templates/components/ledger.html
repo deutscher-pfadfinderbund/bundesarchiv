@@ -24,7 +24,11 @@ ellipsizes first, so every column stays visible down to the phone-width ~32rem c
 never changes with pane state.
 
 The root div is the size container the density rules query; the inner [role=table] grid scrolls
-in its own box if it still overflows (the page body never scrolls sideways). Every column head
+in its own box if it still overflows (THE PAGE BODY NEVER SCROLLS SIDEWAYS — the standing
+contract). That contract rests on two mechanisms, both in components.css (learning G.24): every
+column whose content is unbounded is a minmax(floor, max-content) track, so long values give
+space back by ellipsizing instead of forcing the grid wide; and the scroll box is a containing
+block, so the sr-only column labels cannot escape it and stretch the document. Every column head
 uses the ONE label treatment; body marks (SIG codes, Datierung) carry ink per the stamp grammar.
 {% endcomment %}
 <div class="ledger{% if bulk %} bulk{% endif %}">
