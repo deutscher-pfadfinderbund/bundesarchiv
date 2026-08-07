@@ -157,7 +157,8 @@
     display: inline-flex;
   }
 
-  /* ---- preview pane: present only when ?artikel resolves (server-rendered) ---- */
+  /* ---- preview pane: present only when ?artikel resolves (server-rendered). THE pulled sheet
+     (register row 8): sheet tint + hairline + the one resting-contact shadow. ---- */
   .pane {
     grid-column: pane;
   }
@@ -167,9 +168,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    background: var(--surface-container-low);
+    background: var(--sheet);
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
+    box-shadow: var(--sheet-shadow);
     padding: var(--space-4);
   }
   .pane :is(h2, p, ul) {

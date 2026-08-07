@@ -110,19 +110,26 @@
   --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
   --focus-ring: light-dark(var(--tone-50), var(--tone-78));
 
-  /* Sheet material (cue-register row 8 — the papier recipe promoted to baseline, owner
-     2026-08-06): sheet-like containers (facet panels, confirm panels, the empty state, result
-     cards if they return) read as cut sheets on the gray desk — a whisper of seed tint mixed
-     OVER --primary-container (high lightness, so the sheet tints without darkening; retints
-     automatically with a sibling service's seed), a hairline edge, and EXACTLY ONE depth cue:
-     the 2px lower edge (--sheet-edge, the thickness of the sheet). Root-level DERIVED tokens by
-     design (themability law): a future `prefers-contrast: more` block remaps these four to the
-     plain container roles and zeroes --sheet-edge — zero component changes. */
+  /* Sheet material (cue-register row 8 as amended 2026-08-07 — material ROLES, not taste):
+     TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state.
+     A sheet is a whisper of seed tint mixed OVER --primary-container (high lightness, so the
+     sheet tints without darkening; retints automatically with a sibling service's seed), a
+     hairline edge, and EXACTLY ONE depth cue: the RESTING-CONTACT shadow (--sheet-shadow) —
+     a single tight layer, the way a sheet resting on a desk touches it. NOT a Material
+     elevation ramp (the 2px lower edge --sheet-edge is retired, superseded by the shadow).
+     Facet panels are FURNITURE, not sheets — flat plain container, hairline only.
+     Root-level DERIVED tokens by design (themability law): the future
+     `prefers-contrast: more` remap sets these to the plain container roles and ZEROES
+     --sheet-shadow (shadow: none) — zero component changes. */
   --sheet: color-mix(in oklab, var(--surface-container-low), var(--primary-container) 30%);
   --sheet-lowest: color-mix(in oklab, var(--surface-container-lowest), var(--primary-container) 25%);
-  --sheet-high: color-mix(in oklab, var(--surface-container-high), var(--primary-container) 35%);
-  --sheet-hover: color-mix(in oklab, var(--surface-container-mid), var(--primary-container) 30%);
-  --sheet-edge: 2px;
+  /* one layer, 1px y-offset, 2px blur, low-alpha near-black ink (the neutral ramp's floor is
+     ink-dark in BOTH modes; dark mode needs more alpha to read against dark surfaces) */
+  --sheet-shadow: 0 1px 2px 0
+    light-dark(
+      color-mix(in oklab, var(--neutral-22) 20%, transparent),
+      color-mix(in oklab, var(--neutral-22) 55%, transparent)
+    );
 
   /* ==================================================================
      Non-color tokens.

@@ -164,8 +164,6 @@ _SWATCH_SURFACE_RAMP = (
 _SWATCH_SHEETS = (
     ("sheet-lowest", "on-surface"),
     ("sheet", "on-surface"),
-    ("sheet-high", "on-surface"),
-    ("sheet-hover", "on-surface"),
 )
 _SWATCH_PAIRS = (
     ("primary", "on-primary"),

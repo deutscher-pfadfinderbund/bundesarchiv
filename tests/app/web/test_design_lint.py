@@ -7,14 +7,16 @@ and enforces:
 
 1. no raw colors (hex/rgb/hsl/oklch literals) outside ``tokens.css`` — components consume roles
    only (themability law: component CSS is mode- and theme-blind);
-2. ``corner-shape`` only inside register row 1's licensed selectors (``.c-sig``; ``.c-facet-tab``
-   is licensed but currently unused);
+2. ``corner-shape`` only inside register row 1's licensed selector (``.c-sig`` — the sole bevel
+   carrier since the 2026-08-07 register amendment);
 3. ``--primary`` / ``--draft`` / ``--error`` consumed only inside rows 2/4/5's licensed selector
    families (allowlisted below — extending an allowlist means citing a register row);
 4. no ``margin`` on component root selectors (law C4 — compositions own the between);
 5. bare px/rem literals outside ``tokens.css`` flagged, except (a) a custom-property DEFINITION
    (naming the dimension IS the C3/C5 mechanism) or (b) a line carrying a comment naming why no
-   token fits.
+   token fits;
+6. ``box-shadow`` appears only as consumption of ``var(--sheet-shadow)`` (register row 8: the
+   resting-contact shadow is the ONE depth cue; Material elevation ramps are forbidden).
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
 block opener, selectors possibly wrapped over lines, declarations one per line). It recurses into
@@ -31,8 +33,9 @@ STATIC = Path(__file__).resolve().parents[3] / "src" / "bundesarchiv" / "app" / 
 #: Every prod stylesheet; tokens.css is the ONLY file allowed to write color literals.
 STYLESHEETS = ("tokens.css", "components.css", "layouts.css", "forms.css", "detail.css")
 
-#: Register row 1 — the bevel cut's licensed selectors.
-ROW1_BEVEL = ("c-sig", "c-facet-tab")
+#: Register row 1 — the bevel cut's one licensed selector (2026-08-07 amendment: `.c-facet-tab`
+#: no longer exists in live markup and lost its license).
+ROW1_BEVEL = ("c-sig",)
 
 #: Row 2 — violet ink: the Signatur code, mono counts/dates, inline links, plus the roles that
 #: legitimately embed primary at the token layer. Selector substrings that license var(--primary).
@@ -119,6 +122,23 @@ def test_no_raw_colors_outside_tokens() -> None:
             if _COLOR_LITERAL.search(candidate):
                 offenders.append(f"{name}:{lineno}: {raw.strip()}")
     assert not offenders, "raw color literal in component CSS (roles only):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_box_shadow_only_the_sheet_shadow_token() -> None:
+    # Register row 8: EXACTLY ONE depth cue — the resting-contact shadow. Component CSS may
+    # consume the token (`box-shadow: var(--sheet-shadow);`) and nothing else: no literal shadow
+    # values, no elevation stacks (the Material float model is forbidden everywhere). tokens.css
+    # is exempt — it DEFINES the token.
+    offenders = []
+    for name, decls in _all_declarations().items():
+        if name == "tokens.css":
+            continue
+        for sel, prop, raw, lineno, _comment in decls:
+            if prop == "box-shadow" and raw.strip() != "box-shadow: var(--sheet-shadow);":
+                offenders.append(f"{name}:{lineno}: {sel} -> {raw.strip()}")
+    assert not offenders, "box-shadow outside var(--sheet-shadow) (register row 8):\n" + "\n".join(
         offenders
     )
 
