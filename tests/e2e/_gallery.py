@@ -151,7 +151,8 @@ STATES: tuple[GalleryState, ...] = (
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
     GalleryState(
         "workbench-bulk-cold",
-        "workbench, Sammelbearbeitung disclosure collapsed cold (no selection)",
+        "workbench cold (no selection) — NO Sammelbearbeitung visible (progressive, owner"
+        " 2026-08-07: JS hides the disclosure at count 0; that absence is the point of the shot)",
         True,
         _goto("/"),
     ),

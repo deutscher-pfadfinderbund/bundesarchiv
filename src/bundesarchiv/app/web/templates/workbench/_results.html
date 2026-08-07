@@ -11,8 +11,11 @@ The TOOLROW above the ledger carries the occasional chrome, demoted below the wo
 
 Bulk edit (Sammelbearbeitung, archivist-only): the ledger's rows + the disclosure live inside
 ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row
-checkboxes name="auswahl"; the affordances render whenever there are hits (cold-start fix,
-#16). Selection survives pagination in two layers: the view bakes the URL-borne ?auswahl= into
+checkboxes name="auswahl" (always in the form — they are the selection instrument); the
+disclosure renders server-VISIBLE whenever there are hits, and catalog_bulk.js hides it while
+the live selection count is 0 (progressive, owner 2026-08-07 — reverses the #16 cold-start
+ruling; the no-JS baseline keeps it visible so "Alle auf dieser Seite" stays reachable).
+Selection survives pagination in two layers: the view bakes the URL-borne ?auswahl= into
 the prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) folds UNSUBMITTED
 ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
 selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first.

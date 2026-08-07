@@ -749,10 +749,12 @@ def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
 
 @pytest.mark.django_db
 def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
-    # Cold-start fix (#16 reopen): with an EMPTY selection the bar's AFFORDANCES must render for an
-    # archivist-with-results, so the feature is reachable — the "Änderung prüfen" submit (posts the
-    # checked boxes) + "Alle auf dieser Seite" link. Signals-once still holds: NO "0 ausgewählt"
-    # count and NO "Auswahl aufheben" until a selection exists.
+    # The progressive pattern's SERVER half (owner 2026-08-07, reverses the #16 cold-start
+    # ruling): with an EMPTY selection the disclosure still renders VISIBLE for an archivist-
+    # with-results — the no-JS baseline must reach "Alle auf dieser Seite" and the "Änderung
+    # prüfen" submit; catalog_bulk.js (not the server) hides it at count 0 and reveals it on the
+    # first tick (pinned by the e2e journeys). Signals-once still holds: NO "0 ausgewählt" count
+    # and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
     assert '<details class="bulk">' in body  # the collapsed disclosure (cold = summary only)
     assert "Sammelbearbeitung" in body

@@ -223,6 +223,15 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
 - **Report artifact discipline:** the artifact shows the CURRENT state and
   open decisions only — history lives in git; the design explorations stay
   in the artifact as an inspiration annex.
+- **Rail-wave round 2 verdicts (owner, 2026-08-07):** header buttons →
+  Mock B (ONE quiet "+ Neu …" disclosure replaces the two create buttons;
+  the search button goes quiet too); row hover stays underline-only;
+  a COMPACT chip hit size is allowed (new dimension token, C5); add an
+  "Alle Filter entfernen" link at the END of the chip row. Rail stays
+  workbench-only (unobjected default).
+- **Communication language (owner, 2026-08-07):** all agent communication
+  and report artifacts in ENGLISH; German remains the product UI language
+  (writer-brief law unchanged). No mixed-language reports.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns
