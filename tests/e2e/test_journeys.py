@@ -138,13 +138,46 @@ def test_treffer_count_rides_the_rail_and_stays_live(
     page.goto(live_workbench + "/")
     count = page.locator(".filterrail #trefferzahl")
     expect(count).to_have_text("3 Treffer")  # the canonical corpus, archivist-scoped
+    # The live region's NODE must survive the swap or the polite announcement dies silently (an
+    # aria-live element inserted together with its content is not announced). Stamp the node with
+    # an expando — a property, so no server render can reproduce it — and look for it afterwards.
+    page.evaluate("() => { document.querySelector('#trefferzahl').__probe = 'same-node'; }")
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
+    assert page.evaluate("() => document.querySelector('#trefferzahl').__probe") == "same-node", (
+        "the count's aria-live node was replaced by the swap — announcements die silently"
+    )
     # zero hits: the rail still renders, the count stays on its line (the rail is the one place)
     page.goto(live_workbench + "/?q=zzzznomatch")
     expect(page.locator(".filterrail #trefferzahl")).to_have_text("0 Treffer")
+
+
+def test_rail_links_keep_the_typed_q_after_a_live_swap(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The rail lives OUTSIDE the #results swap target, so an htmx q-swap left every rail link
+    # rendered from the PREVIOUS request: the chip ✕ and "Alle Filter entfernen" still pointed at
+    # a query with no q. Typing "Sommerfahrt" and then removing a filter navigated to "?" and
+    # destroyed the search — violating browse.clear_filters_query's contract ("every FILTER param
+    # drops, q + sort survive"). One fact, one source: the whole filter set refreshes out-of-band
+    # with the count, so the rail can never describe a query the URL no longer has.
+    page = archivist_page
+    for remove in ("Filter entfernen: sommer", "Alle Filter entfernen"):
+        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Fotografie")
+        page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+        page.wait_for_url("**q=Sommerfahrt**")
+        expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
+        link = (
+            page.get_by_label(remove) if remove.startswith("Filter") else page.get_by_text(remove)
+        )
+        assert "q=Sommerfahrt" in (link.get_attribute("href") or ""), (
+            f"'{remove}' was rendered before the q existed: {link.get_attribute('href')}"
+        )
+        link.click()
+        page.wait_for_load_state()
+        assert "q=Sommerfahrt" in page.url, f"'{remove}' destroyed the search: {page.url}"
 
 
 def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:

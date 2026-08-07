@@ -1,0 +1,33 @@
+{% comment %}
+The rail's FILTER SET — one facet_group dropdown per group, then the active-filter chips, then
+clear-all. Split out of _filterrail.html for ONE reason: it is the unit an htmx q-swap has to
+refresh out-of-band. Every link here is built from the request's query params, so after a live
+q-swap (which only replaces #results) a rail rendered by the PREVIOUS request describes a query
+the URL no longer has — the chip ✕ then navigated to "?" and destroyed the typed search. On an
+HX-Request the view sets oob=True and _results.html emits this same include as a top-level
+hx-swap-oob fragment, so counts, aria-current and every href refresh together.
+
+A dropdown left open across a q-swap closes with the swap. That is the honest outcome, not a
+regression: its counts and links were rendered for the previous query, and showing a stale open
+panel is exactly the defect this fragment exists to kill.
+
+Why this is its own element and not the whole <nav>: the count's aria-live node must SURVIVE the
+swap (a live region inserted together with its content is not announced), so #trefferzahl stays
+outside the swapped subtree and keeps its own innerHTML oob. The div is a pure swap handle with
+display: contents (layouts.css) — its children are the rail's flex items exactly as before, so the
+grouping costs no box and no composition change.
+{% endcomment %}
+<div class="filterset" id="filterset"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>
+  {% comment %} open resolves falsy on the workbench (the view-model carries none — dropdowns
+  start closed); the layout demo seeds one group open to exhibit the dropped panel. {% endcomment %}
+  {% for group in facet_groups %}
+  {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
+  {% endfor %}
+  {% for chip in filter_chips %}
+  <span class="chip"><b>{{ chip.group }}:</b> {{ chip.label }}<a href="?{{ chip.query }}" aria-label="Filter entfernen: {{ chip.label }}">✕</a></span>
+  {% endfor %}
+  {% comment %} Clear-all at the END of the chip row (owner 2026-08-07, rail round 2): a quiet
+  text link, only when ≥1 chip is present. Same semantics as the chips, all at once: every
+  FILTER param drops, q + sort survive (browse.clear_filters_query). {% endcomment %}
+  {% if filter_chips %}<a href="?{{ clear_filters_query }}">Alle Filter entfernen</a>{% endif %}
+</div>

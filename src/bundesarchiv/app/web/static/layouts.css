@@ -86,11 +86,20 @@
        room between the header's double rule and the results. */
     padding: var(--space-4) var(--space-4) var(--space-2);
   }
+  /* the filter set (dropdowns + chips + clear-all) is grouped in the DOM because it is the unit
+     an htmx q-swap refreshes out-of-band (_filterset.html) — never because it is a box. It has
+     no box: its children are the rail's own flex items, so wrapping, gaps and the row knob
+     behave exactly as they did when they were direct children. */
+  .filterrail > .filterset {
+    display: contents;
+  }
   /* the rail's two TEXT occupants — the clear-all link ("Alle Filter entfernen", owner
      2026-08-07 rail round 2: a quiet text link ending the chip row, deliberately not a chip)
      and the "N Treffer" count — share one line-box rule: both consume the row knob (C8) so
-     their lines center level with the controls beside them. */
-  .filterrail > :is(a, p) {
+     their lines center level with the controls beside them. The clear-all sits one level deeper
+     (inside the display:contents filter set), the count directly on the rail. */
+  .filterrail > .filterset > a,
+  .filterrail > p {
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);

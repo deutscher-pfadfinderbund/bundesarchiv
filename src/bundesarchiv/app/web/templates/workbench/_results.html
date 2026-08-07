@@ -7,8 +7,10 @@ gate off is_archivist.
 
 The "N Treffer" count lives on the FILTER RAIL (workbench/_filterrail.html), not here — law C10:
 status text rides an occupied band, and the status-only toolrow died (owner round-2 correction
-2026-08-07). The rail sits outside this swap target, so an HX-Request render prepends the count
-as an out-of-band fragment (workbench/_trefferzahl.html owns that mechanism). The collapsed
+2026-08-07). The WHOLE rail sits outside this swap target and is rendered from the request's query
+params, so an HX-Request render prepends it as out-of-band fragments: the filter set (facet counts,
+chips, every href, aria-current) and the count. Refreshing only the count left the chip ✕ and
+clear-all pointing at the pre-q query, which destroyed the typed search. The collapsed
 Sammelbearbeitung disclosure (archivist-only, learning G.4) sits directly above the ledger and
 collapses to NOTHING when hidden/absent — no empty band, no wrapper (law C10).
 
@@ -23,10 +25,12 @@ the prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) fold
 ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
 selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first.
 {% endcomment %}
-{% comment %}The rail's count, refreshed out-of-band (HX-Request renders only — the view sets
-oob): a top-level sibling BEFORE the swap fragment, so htmx lifts it out while #results swaps.
+{% comment %}The rail, refreshed out-of-band (HX-Request renders only — the view sets oob):
+top-level siblings BEFORE the swap fragment, so htmx lifts them out while #results swaps. Two
+fragments, one per swap shape — the filter set goes whole, the count keeps its aria-live node.
 {% endcomment %}
-{% if oob %}{% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
+{% if oob %}{% include "workbench/_filterset.html" with facet_groups=facet_groups filter_chips=filter_chips clear_filters_query=clear_filters_query oob=True only %}
+{% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
 <main id="results">
   {% if page.hits %}
   {% if is_archivist %}
