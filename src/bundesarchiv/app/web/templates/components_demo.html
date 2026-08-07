@@ -320,8 +320,9 @@ reserve its height. Served open to exhibit the floating overlay panel. {% endcom
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% comment %} The wrapper mimics the rail's row knob (layouts.css sets it on .filterrail):
-    chips consume --control-height (law C8), so the exhibit must supply one to render true. {% endcomment %}
+    {% comment %} The wrapper mimics the rail's row knob (layouts.css sets it on .filterrail), so
+    the exhibit shows the chip the way production composes it — inside a control row (law C8).
+    {% endcomment %}
     <div style="--control-height: var(--touch-target-compact)">
       <span class="chip"><b>Bestand:</b> Aktenbestand <a href="#demo-chip" aria-label="Filter entfernen: Aktenbestand">✕</a></span>
       <span class="chip"><b>Schlagworte:</b> sommer <a href="#demo-chip" aria-label="Filter entfernen: sommer">✕</a></span>

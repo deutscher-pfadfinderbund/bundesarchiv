@@ -505,7 +505,7 @@ def test_clear_all_link_only_with_active_filter_chips(corpus_root: Path) -> None
 
 
 def _search_form_html(body: str) -> str:
-    """The header search form's own markup (``<form role="search">``), isolated from the sidebar/
+    """The header search form's own markup (``<form role="search">``), isolated from the rail/
     ledger — so an assertion here can never accidentally match a facet link or pagination href
     that happens to carry the same param/value elsewhere on the page."""
     return body.split('<form role="search"', 1)[1].split("</form>", 1)[0]

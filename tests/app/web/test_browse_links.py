@@ -1,9 +1,9 @@
 """URL-as-state link helpers (Part 4.5-MVP, plan §4.5: URL-as-state, forms/links stable).
 
 The workbench's whole state lives in the query string. These pure helpers build the links the
-facet sidebar / pagination / sort control emit, and pin the round-trip: a param set that
+filter rail / pagination / sort control emit, and pin the round-trip: a param set that
 ``parse_query`` reads back is exactly what a link that ADDS that facet produces, and removing it
-(sidebar ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
+(the chip ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
 """
 
 from bundesarchiv.app.web.browse import (

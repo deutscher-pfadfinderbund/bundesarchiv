@@ -179,7 +179,7 @@ _LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
 
 #: Filter-rail facet groups; items match facet_group.html's contract (label, count, query,
 #: active). ``open`` seeds each <details> dropdown's initial state — ONE group is served open so
-#: the demo exhibits the dropped furniture panel without JS.
+#: the demo exhibits the dropped overlay panel (register row 12) without JS.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",

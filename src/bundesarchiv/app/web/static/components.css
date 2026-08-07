@@ -219,18 +219,20 @@
     margin: 0;
   }
   /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
-     the facet remove) — ink/hover stay per-site deltas. Inside a control row the row's
-     --control-height knob is the size source (C8); outside one (the pane ✕) the touch-target
-     floor applies. The rail chip's ✕ is the ONE licensed compact deviation (owner 2026-08-07,
-     rail round 2) and rides the rail's compact knob via the .chip rule below. */
+     the facet remove, the chip ✕) — ink/hover stay per-site deltas. Inside a control row the
+     row's --control-height knob is the size source (C8); outside one the --hit-fallback knob
+     decides, defaulting to the full touch target (the pane ✕). The rail chip's ✕ is the ONE
+     licensed compact deviation (owner 2026-08-07, rail round 2): .chip sets --hit-fallback so its
+     ✕ is compact even in the demo exhibit, where no row knob exists. */
   [role="toolbar"] a,
   .pane header > a,
-  .facet .remove {
+  .facet .remove,
+  .chip > a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--control-height, var(--touch-target));
-    min-height: var(--control-height, var(--touch-target));
+    min-width: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    min-height: var(--control-height, var(--hit-fallback, var(--touch-target)));
     border-radius: var(--radius-s);
   }
 
@@ -421,16 +423,18 @@
      the rail's --control-height knob (law C8, round-2 correction: chips carried an independent
      height and drifted from the dropdown buttons — now a mismatch is impossible without editing
      the shared knob). The rail sets the knob to --touch-target-compact (owner ruling 2026-08-07
-     rail round 2: chips + their ✕ are the licensed compact hit size); the fallback reproduces
-     that value for the chip exhibited outside a rail (the component demo). Chip TYPOGRAPHY may
-     stay chip-flavored; the height may not deviate. ---- */
+     rail round 2: chips + their ✕ are the licensed compact hit size); --hit-fallback reproduces
+     that value for the chip exhibited outside a rail (the component demo) and reaches the ✕
+     through the shared icon-control rule above. Chip TYPOGRAPHY may stay chip-flavored; the
+     height may not deviate. ---- */
   .chip {
+    /* the out-of-row fallback, for the chip AND its ✕: on the rail the ROW's knob is the only
+       height source; this exists solely for a chip exhibited outside any control row (demo) */
+    --hit-fallback: var(--touch-target-compact);
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    /* knob consumption with the compact fallback: on the rail the ROW's knob is the only height
-       source; the fallback exists solely for a chip exhibited outside any control row (demo) */
-    min-height: var(--control-height, var(--touch-target-compact));
+    min-height: var(--control-height, var(--hit-fallback));
     font: var(--type-meta);
     background: var(--on-surface);
     color: var(--surface);
@@ -441,13 +445,9 @@
     font-weight: 400;
     color: color-mix(in oklab, var(--surface), var(--on-surface) 30%);
   }
+  /* hit-area mechanics come from the shared icon-control rule above (sized by --hit-fallback);
+     only the inverted ink is local */
   .chip > a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--control-height, var(--touch-target-compact));
-    min-height: var(--control-height, var(--touch-target-compact));
-    border-radius: var(--radius-s);
     color: var(--surface);
   }
 
@@ -672,25 +672,22 @@
     }
   }
 
-  /* NO drop steps (law C11, owner 2026-08-07 — intrinsic first, queries last): between the
-     fold below and full width the grid itself absorbs every variation — max-content columns
-     tighten, the Titel ellipsizes. A width query survives only for the genuinely MODAL change
-     below. */
-
-  /* the LAST RESORT at phone-width containers: the two-line fold — header hidden, SIG + Titel
-     over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track when
-     absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling rule),
-     so absence dangles nothing. The 32rem threshold DERIVES from the one-line anatomy's content
-     minimum (law C9; measured live 2026-08-07, e2e test_ledger_columns_stay_visible_by_
-     intrinsic_sizing re-measures it every run): checkbox 13 + Signatur ~82 (a realistic 10-char
-     mono code, e.g. "BA 1848/II") + 13 margin-rule chrome + Titel floor 96 (6rem) + Datierung 84
-     (its header label is the column's widest content) + Typ ~47 + toolbar 96 (two --touch-target
-     icons + gap) + 5 gaps × 12 + row padding 24 ≈ 513px ≈ 32rem — below that the one-line row
-     genuinely cannot fit, so hiding (the fold) is necessary, never premature. The threshold
-     also sits BELOW the narrowest pane-open container — the pane switch (layouts.css) is an
-     80rem viewport query (pane ≤26rem + gap + frame padding leaves main ≥ ~51rem), both sides
-     sharing the rem unit, so row anatomy never changes with pane state (decision 1) at any root
-     font size — only a genuinely phone-narrow container may fold. */
+  /* the ONE width query in the ledger (law C11 — intrinsic first: above this threshold the grid
+     itself absorbs every variation, so there are no drop steps). The LAST RESORT at phone-width
+     containers: the two-line fold — header hidden, SIG + Titel over Datierung · Typ; the bulk
+     checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
+     BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. The 32rem
+     threshold DERIVES from the one-line anatomy's content minimum (law C9; measured live
+     2026-08-07, e2e test_ledger_columns_stay_visible_by_intrinsic_sizing re-measures it every
+     run): checkbox 13 + Signatur ~82 (a realistic 10-char mono code, e.g. "BA 1848/II") + 13
+     margin-rule chrome + Titel floor 96 (6rem) + Datierung 84 (its header label is the column's
+     widest content) + Typ ~47 + toolbar 96 (two --touch-target icons + gap) + 5 gaps × 12 + row
+     padding 24 ≈ 513px ≈ 32rem — below that the one-line row genuinely cannot fit, so hiding
+     (the fold) is necessary, never premature. The threshold also sits BELOW the narrowest
+     pane-open container — the pane switch (layouts.css) is an 80rem viewport query (pane ≤26rem
+     + gap + frame padding leaves main ≥ ~51rem), both sides sharing the rem unit, so row anatomy
+     never changes with pane state (decision 1) at any root font size — only a genuinely
+     phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;

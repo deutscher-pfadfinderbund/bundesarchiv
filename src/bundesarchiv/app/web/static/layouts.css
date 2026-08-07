@@ -63,13 +63,13 @@
     margin-left: auto;
   }
 
-  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar
-     died with it). One row of facet dropdowns + active-filter chips directly under the header,
-     above the results. FURNITURE: flat quiet container, hairline edge. It lives OUTSIDE
-     #results: filter clicks are plain GET navigations, so the rail re-renders with fresh counts
-     on every filter change — the same mechanism the sidebar used (an htmx q-swap updates only
-     #results, as before). Narrow viewports simply wrap the row — results are never buried under
-     stacked panels (the standing 680px finding). ---- */
+  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar died
+     with it). One row of facet dropdowns + active-filter chips directly under the header, above
+     the results; its material role is stated at the padding below. It lives OUTSIDE #results:
+     filter clicks are plain GET navigations, so the rail re-renders with fresh counts on every
+     filter change — the same mechanism the sidebar used (an htmx q-swap updates only #results, as
+     before). Narrow viewports simply wrap the row — results are never buried under stacked
+     panels (the standing 680px finding). ---- */
   .filterrail {
     /* the rail is a CONTROL ROW (law C8): one height source for dropdown summaries, chips and
        the chip ✕ — the licensed COMPACT value (owner ruling 2026-08-07, rail round 2; the knob
@@ -119,19 +119,17 @@
     padding: var(--space-4);
   }
 
-  /* main results column: a stack of toolrow · ledger · pager */
-  .frame main {
-    grid-column: main;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-  /* the bulk form wraps toolrow + ledger; it stacks them like the column it sits in */
+  /* main results column: a stack of Sammelbearbeitung · ledger · pager. The bulk form wraps the
+     disclosure + ledger, so it repeats the stack of the column it sits in — ONE rule for both */
+  .frame main,
   .frame main form {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+  }
+  .frame main {
+    grid-column: main;
+    min-width: 0;
   }
   /* HTMX in-flight: dim the results while a swap is pending — static opacity, NO motion */
   #results.htmx-request {

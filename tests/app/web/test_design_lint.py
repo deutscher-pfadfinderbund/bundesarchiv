@@ -15,8 +15,9 @@ and enforces:
 5. bare px/rem literals outside ``tokens.css`` flagged, except (a) a custom-property DEFINITION
    (naming the dimension IS the C3/C5 mechanism) or (b) a line carrying a comment naming why no
    token fits;
-6. ``box-shadow`` appears only as consumption of ``var(--sheet-shadow)`` (register row 8: the
-   resting-contact shadow is the ONE depth cue; Material elevation ramps are forbidden).
+6. ``box-shadow`` appears only as consumption of the two licensed shadow tokens —
+   ``var(--sheet-shadow)`` (register row 8: the resting-contact cue) and ``var(--overlay-shadow)``
+   (row 12: transient floating panels); Material elevation ramps are forbidden.
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
 block opener, selectors possibly wrapped over lines, declarations one per line). It recurses into
@@ -208,9 +209,9 @@ _PX_REM = re.compile(r"\b(?:0*[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b")
 
 def test_bare_dimension_literals_are_named_or_commented() -> None:
     # Law C5: --space-*/--touch-target/--touch-target-compact/--hairline/--state-border are the
-    # value sources. A bare
-    # px/rem literal outside tokens.css needs either a naming custom property (--foo: 3rem — the
-    # C3 component-API mechanism) or a same-line comment saying why no token fits.
+    # value sources. A bare px/rem literal outside tokens.css needs either a naming custom
+    # property (--foo: 3rem — the C3 component-API mechanism) or a same-line comment saying why
+    # no token fits.
     offenders = []
     for name, decls in _all_declarations().items():
         if name == "tokens.css":

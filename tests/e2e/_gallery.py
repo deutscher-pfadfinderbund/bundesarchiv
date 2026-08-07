@@ -55,7 +55,7 @@ def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the filter rail with one facet dropdown open — the dropped furniture panel over the ledger
+    # the filter rail with one facet dropdown open — the dropped overlay panel over the ledger
     page.goto(f"{base}/", wait_until="networkidle")
     page.locator(".filterrail summary", has_text="Bestand").click()
 

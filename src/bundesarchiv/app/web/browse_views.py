@@ -416,19 +416,11 @@ def _ledger_columns(
 
 
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
-#: render order. Every ``browse`` search-state key EXCEPT ``q`` (the form's own live input, never
-#: duplicated as hidden) and ``seite`` (a new search deliberately resets to page 1 — kept as-is).
-_FORM_FILTER_PARAMS: tuple[str, ...] = (
-    browse.PARAM_COLLECTION,
-    browse.PARAM_MEDIA_TYPE,
-    browse.PARAM_DOCUMENT_TYPE,
-    browse.PARAM_TAG,
-    browse.PARAM_DECADE,
-    browse.PARAM_DATELESS,
-    browse.PARAM_DATE_FROM,
-    browse.PARAM_DATE_TO,
-    browse.PARAM_SORT,
-)
+#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the rail's
+#: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
+#: live input, never duplicated as hidden) and ``seite`` (a new search deliberately resets to
+#: page 1 — kept as-is).
+_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
