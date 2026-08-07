@@ -202,6 +202,15 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
     underline) — no persistent link styling in the ledger.
   - **Header buttons** ("Suchen", "+ Neuer Artikel"): acknowledged not
     great, explicitly MINOR — no rework mandate yet.
+  - **Bulk selection mark (owner, 2026-08-07):** NO inversion bar — the
+    checked checkbox IS the selection mark; unchecked checkboxes reveal on
+    row hover/focus (the same gesture that reveals the row toolbar — one
+    hover opens the row's whole action surface, doubling as the
+    batch-operations entry). Register row 3 narrowed to the facet active
+    row; row 10 licenses the quiet pane-row highlight.
+  - **Screen priority (owner, 2026-08-07):** finish the WORKBENCH first as
+    the exemplar, learn from it, then propagate the learnings to the other
+    screens (edit form, detail reader) — the precedent rule in action.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns

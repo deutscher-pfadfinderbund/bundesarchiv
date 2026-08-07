@@ -75,13 +75,14 @@ adding a row first, and rows are owner decisions.
 |---|-----|-------------------------------|-----------------|
 | 1 | Bevel cut | `.c-sig` only — single cut, leading (top-left) corner (owner 2026-08-06). Licensed CONTEXT (2026-08-07, scarcity — learning G.2): the article reader header (detail page and pane), NOT ledger rows — there the Signatur renders as plain violet-ink mono (row 2). `.c-facet-tab` no longer exists in live markup. | forbidden |
 | 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
-| 3 | Inversion (solid fg/bg swap) | selection/active states | forbidden — especially as hover, and never as a tonal tint wash |
+| 3 | Inversion (solid fg/bg swap) | the facet sidebar's active filter row (owner 2026-08-07: ledger bulk selection is NO LONGER an inversion — the checked box is the mark, unchecked boxes reveal on row hover/focus) | forbidden — especially as hover, and never as a tonal tint wash |
 | 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |
 | 5 | Red (`--error`) | errors; AND the one destructive-action button on a confirm surface (`button.danger` — owner ruling 2026-08-07: "destructive actions can be red") | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published/normal state renders no badge | — |
 | 8 | Paper sheet material (owner rulings 2026-08-06/07: "paper material, but not the generic Google Material look"; "a sheet resting on a desk has a shadow — professionally, a touch of skeuomorphism") | TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state: a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the RESTING-CONTACT shadow (`--sheet-shadow`: single layer, 1–2px y-offset, blur ≤ 3px, low-alpha ink derived from roles; supersedes the 2px lower edge). Facet panels are FURNITURE, not sheets — flat, hairline only (2026-08-07 role reassignment). | forbidden — and the Material float model is forbidden everywhere: no elevation shadow ramps/stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
 | 9 | Icons (owner 2026-08-07) | ONE vendored set of hairline-stroke inline SVGs (24px grid, stroke-width 2 — matches the hairline/ink aesthetic). Licensed slots: the ledger row-action toolbar and view toolbars (`role="toolbar"`). Every icon-only control carries an accessible name. New glyphs join the one set deliberately (demo page in lockstep); no second style, no icon fonts, no ad-hoc picks. | forbidden |
+| 10 | Pane-row marker (owner 2026-08-07) | `.ledger [role="row"][aria-current]`: a quiet persistent neutral highlight (`--surface-container-high`) on the one row whose article the pane shows — deliberately NOT an inversion (a previewed row is not a selected row) | forbidden |
 
 **Reserved (recorded, NOT licensed):** trapezoid tab — both top corners cut —
 for a future register-tab component used as **view navigation** (owner,
@@ -262,3 +263,14 @@ with a newer one.
    reads as an accident when it is the only depth in view: assign material
    roles across the WHOLE surface (what is desk, furniture, sheet), then
    apply the cue to every member of the role, not to one.
+
+**2026-08-07, view rulings after the explorations:**
+
+12. **Typography is a role, everywhere — including mocks.** Across agent
+   renders the table column headers came out different every time (the
+   owner spotted it across the exploration set, after G.1 caught it in
+   production CSS). The rule generalizes: every text style names a type
+   role from tokens.css — in live CSS, in demo pages, AND in exploration
+   mocks; a render whose typography does not come from the roles pollutes
+   the judgment made on it. Where uniformity is claimed, prove it computed
+   (the G.1 test pattern).

@@ -393,14 +393,18 @@
   .ledger [role="row"][aria-current]:hover {
     background: var(--surface-container-high);
   }
-  /* a bulk-selected row: INVERSION (row 3), read live from its own checkbox — no class, no JS */
-  .ledger [role="row"]:has(.auswahl input:checked) {
-    background: var(--on-surface);
-  }
-  .ledger
-    [role="row"]:has(.auswahl input:checked)
-    :is(.titel a, .datierung, .typ, .badge, .c-sig-code, .aktion a) {
-    color: var(--surface);
+  /* bulk selection (owner 2026-08-07): the CHECKED BOX IS the mark — no inversion bar, no
+     tint wash. Unchecked boxes stay invisible until the row is hovered/focused (the same
+     reveal that surfaces the row toolbar — one gesture opens the row's whole action surface,
+     including batch entry); a checked box is always visible, and keyboard focus always
+     reveals. Hover-gating only on devices that HAVE hover — touch keeps boxes visible. */
+  @media (hover: hover) {
+    .ledger [role="rowgroup"] .auswahl input:not(:checked) {
+      opacity: 0;
+    }
+    .ledger [role="rowgroup"] [role="row"]:is(:hover, :focus-within) .auswahl input {
+      opacity: 1;
+    }
   }
 
   .ledger :is([role="cell"], [role="columnheader"]) {
