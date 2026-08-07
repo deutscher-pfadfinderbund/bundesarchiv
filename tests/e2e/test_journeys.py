@@ -688,10 +688,18 @@ def test_bulk_fresh_ticks_survive_paging(
     # the URL carries the fresh state: the tick travelled, the untick stuck
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
     assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
+    # ...and the archivist can SEE it here. Learning G.25: the progressive-visibility JS counted
+    # only THIS page's checkboxes, so an off-page selection (nothing ticked on page 2) was hidden
+    # at wire time — the server rendered "1 ausgewählt" + Auswahl aufheben and the client took the
+    # whole disclosure away, stranding the selection. Asserted BEFORE any tick on this page.
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # none of it is here
+    expect(page.locator("details.bulk > summary")).to_be_visible()
+    expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
     page2_box = page.locator('input[name="auswahl"]').first
     page2_ulid = page2_box.get_attribute("value")
     page2_box.check()
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # off-page 1 + this page's fresh tick
     page.click('a[rel="prev"]')
     page.wait_for_url("**seite=1**")
     # page 1 re-renders the selection from the URL alone: tick survived, untick survived
@@ -701,6 +709,12 @@ def test_bulk_fresh_ticks_survive_paging(
     ).not_to_be_checked()
     assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
+    # the cross-page selection stays CLEARABLE from either page (the other half of G.25: an
+    # affordance the client hid could not be used) — one link drops both pages' ulids
+    page.click("details.bulk > summary")
+    page.click('a:has-text("Auswahl aufheben")')
+    expect(page.locator("details.bulk")).to_be_hidden()  # nothing selected anywhere → hidden again
+    assert not _auswahl_in_url(page)
 
 
 # --- no-JS baseline ----------------------------------------------------------------

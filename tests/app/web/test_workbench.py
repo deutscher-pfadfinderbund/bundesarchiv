@@ -773,7 +773,9 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
     # first tick (pinned by the e2e journeys). Signals-once still holds: NO "0 ausgewählt" count
     # and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
-    assert '<details class="bulk">' in body  # the collapsed disclosure (cold = summary only)
+    # the collapsed disclosure (cold = summary only); the open tag also carries the
+    # data-bulk-offpage hook the enhancement counts with, so match the prefix only
+    assert '<details class="bulk"' in body
     assert "Sammelbearbeitung" in body
     assert "Änderung prüfen" in body
     assert "Alle auf dieser Seite" in body
@@ -784,7 +786,10 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert '<details class="bulk">' in body
+    assert '<details class="bulk"' in body
+    # the selected article IS on this page, so nothing is off-page — the enhancement adds its own
+    # live checkbox count to this number and must not double-count what it can already see (G.25)
+    assert 'data-bulk-offpage="0"' in body
     assert "1 ausgewählt" in body  # the count rides the always-visible summary line
     assert "Änderung prüfen" in body
     assert "Feld" in body  # the chooser Feld select

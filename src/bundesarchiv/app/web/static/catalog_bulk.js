@@ -4,8 +4,11 @@
 // ticks need a submit first — this file lifts that limit, GH #22). PROGRESSIVE visibility
 // (owner 2026-08-07, reverses the #16 cold-start ruling): the server always renders the
 // disclosure VISIBLE (so a no-JS archivist can reach "Alle auf dieser Seite"); with JS this
-// file hides it via the [hidden] attribute while the live selection count is 0 and reveals it
-// the moment a row checkbox is ticked — hiding rides the modes-layer `[hidden] { display: none
+// file hides it via the [hidden] attribute while the TOTAL selection count is 0 — this page's
+// live checkboxes PLUS the off-page URL-borne selection the server hands over in
+// data-bulk-offpage (learning G.25: an enhancement may only hide what it can account for; a
+// box-counting client hid a live cross-page selection) — and reveals it the moment the total
+// reaches 1 — hiding rides the modes-layer `[hidden] { display: none
 // !important }` rule, so no display rule can ever make the hidden disclosure intercept clicks
 // (the recorded regression class). Row inversion and the Feld→value-widget switch are pure CSS
 // (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
@@ -43,13 +46,23 @@
     // Empty text at zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract:
     // markup may restructure freely as long as it keeps the hook. The same count drives the
     // disclosure's progressive visibility (see the file header): hidden at 0, revealed at ≥ 1.
+    //
+    // The TOTAL is this page's live checkboxes PLUS the off-page part of the URL-borne selection
+    // (data-bulk-offpage, from the server). Both halves matter: on THIS page the live checkbox
+    // state supersedes the URL (fresh ticks/unticks count immediately, GH #22), while the
+    // selection on other pages is invisible to the DOM and can only come from the server. An
+    // enhancement may only hide what it accounts for (learning G.25) — counting the boxes alone
+    // hid a live cross-page selection and stranded the archivist on page 2.
     function updateCount() {
       var zahl = form.querySelector("[data-bulk-zahl]");
-      var n = rowBoxes().filter(function (b) {
-        return b.checked;
-      }).length;
-      zahl.textContent = n > 0 ? n + " ausgewählt" : "";
       var bulk = form.querySelector("details.bulk");
+      var offPage = bulk ? parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
+      var n =
+        offPage +
+        rowBoxes().filter(function (b) {
+          return b.checked;
+        }).length;
+      zahl.textContent = n > 0 ? n + " ausgewählt" : "";
       if (bulk) bulk.hidden = n === 0;
     }
 
