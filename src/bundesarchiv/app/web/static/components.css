@@ -97,7 +97,12 @@
     text-decoration: none;
   }
 
-  /* Fields: squarer, hairline, dense. Checkboxes/radios/files keep their native rendering. */
+  /* Fields: squarer, hairline, dense. Checkboxes/radios/files keep their native rendering —
+     but their accent runs on role ink, not the UA's blue: no register row licenses blue, and
+     the themability remap must be able to reach every visible color. */
+  input:is([type="checkbox"], [type="radio"]) {
+    accent-color: var(--on-surface);
+  }
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
@@ -175,11 +180,16 @@
     border: 0;
   }
 
-  /* ---- action cluster: ONE pattern for a row of related action buttons (pane, read view,
-     confirm pages, form footer) — consistency beats novelty ---- */
-  .actions {
+  /* ---- action rows: ONE pattern for a row of related actions (pane + view toolbars, read
+     view, confirm pages, form footer) — consistency beats novelty. [role=toolbar] is the named,
+     extensible slot flavor (learning G.9 — a new action lands in an existing slot, never a new
+     button position); icon controls come from the ONE vendored set (register row 9) and carry
+     their accessible name via aria-label. ---- */
+  .actions,
+  [role="toolbar"] {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
   }
   /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline */
@@ -187,14 +197,17 @@
     display: inline;
     margin: 0;
   }
-
-  /* ---- toolbars: named, extensible action slots (learning G.9 — a new action lands in an
-     existing slot, never a new button position). Icon controls come from the ONE vendored set
-     (register row 9) and carry their accessible name via aria-label. ---- */
-  [role="toolbar"] {
-    display: flex;
+  /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
+     the facet remove) — ink/hover stay per-site deltas */
+  [role="toolbar"] a,
+  .pane header > a,
+  .facet .remove {
+    display: inline-flex;
     align-items: center;
-    gap: var(--space-2); /* same rhythm as the .actions cluster — one look per action row */
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    border-radius: var(--radius-s);
   }
 
   /* ---- badges: small flat marks. Neutral outline by default (visibility); the ENTWURF badge is
@@ -346,18 +359,21 @@
   .ledger [role="rowgroup"] {
     display: contents;
   }
+  /* the shared row rule carries only what header AND body rows share (inline padding, the
+     grid); each flavor declares its own block padding below — one rule per fact */
   .ledger [role="row"] {
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
+    padding-inline: var(--space-3);
   }
   /* the header row is the [role=table]'s direct child; body rows live in the rowgroup */
   .ledger [role="table"] > [role="row"] {
     background: var(--surface-container-high);
     border-bottom: var(--hairline) solid var(--outline-variant);
+    padding-block: var(--space-2);
   }
   .ledger [role="rowgroup"] [role="row"] + [role="row"] {
     border-top: var(--hairline) solid var(--outline-variant);
@@ -485,13 +501,8 @@
   .ledger [role="rowgroup"] .aktion [role="toolbar"] {
     justify-content: flex-end;
   }
+  /* hit-area mechanics come from the shared icon-control rule above; only the ink is local */
   .ledger [role="rowgroup"] .aktion a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
-    border-radius: var(--radius-s);
     color: var(--on-surface-variant);
   }
   .ledger [role="rowgroup"] .aktion a:hover {
@@ -513,7 +524,9 @@
   /* narrow densities — WIDTH is the only input (owner verdict 2026-08-07): stable one-line row
      anatomy, low-priority columns drop as the CONTAINER narrows (pane open or viewport small —
      same mechanism). Drop order: Typ, then Datierung; SIG + Titel + the toolbar survive. */
-  @container (max-width: 60rem) {
+  /* the drop steps are RANGE-scoped (open below at 32rem) so they never overlap the fold —
+     no counter-overrides, no source-order dependence between the steps and the fold block */
+  @container (32rem < width <= 60rem) {
     .ledger > [role="table"] {
       --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
         [datum] minmax(6rem, max-content) [aktion] max-content;
@@ -522,7 +535,7 @@
       display: none;
     }
   }
-  @container (max-width: 52rem) {
+  @container (32rem < width <= 52rem) {
     .ledger > [role="table"] {
       --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr) [aktion] max-content;
     }
@@ -534,10 +547,11 @@
   /* the LAST RESORT at phone-width containers: the two-line fold — header hidden, SIG + Titel
      over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track when
      absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling rule),
-     so absence dangles nothing. Declared AFTER the drop steps so its display rules win inside
-     the overlapping range. The threshold sits BELOW the narrowest pane-open container (a
-     1280px viewport with the pane ≈ 34rem): row anatomy must never change with pane state
-     (decision 1) — only a genuinely phone-narrow container may fold. */
+     so absence dangles nothing. The drop steps above are range-scoped to stay out of this
+     block's range. The 32rem threshold sits BELOW the narrowest pane-open container — the
+     pane switch (layouts.css) is an 80rem viewport query, so both sides of the inequality
+     share the rem unit and the margin holds at every root font size: row anatomy must never
+     change with pane state (decision 1) — only a genuinely phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
@@ -555,7 +569,7 @@
       row-gap: calc(var(--space-1) / 2);
     }
     /* cell rules ride the same rowgroup scope as the base typography, so the fold's overrides
-       (font step-down, re-revealed columns) win inside its range */
+       (font step-down, grid areas) win inside its range */
     .ledger [role="rowgroup"] .auswahl {
       grid-area: auswahl;
       align-self: center;
@@ -573,12 +587,10 @@
       white-space: normal;
     }
     .ledger [role="rowgroup"] .datierung {
-      display: block;
       grid-area: datum;
       font: var(--type-mono-meta);
     }
     .ledger [role="rowgroup"] .typ {
-      display: block;
       grid-area: typ;
       font: var(--type-mono-meta);
     }

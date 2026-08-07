@@ -38,7 +38,11 @@ selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") firs
   {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=False only %}
   {% endif %}
   {% else %}
-  <p aria-live="polite">{{ total }} Treffer</p>
+  {% comment %}Zero hits: the count keeps the SAME toolrow context as the other two branches —
+  one place, one styling rule (no bare-<p> special case in the layout CSS).{% endcomment %}
+  <div class="toolrow">
+    <p aria-live="polite">{{ total }} Treffer</p>
+  </div>
   {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is
   Bestand-specific + carries an archivist-only "+ Neuer Artikel" link pre-seeded with that Bestand
   (4.8 item 3) — NOT the generic "remove filters" copy. A non-archivist sees just the sentence.{% endcomment %}

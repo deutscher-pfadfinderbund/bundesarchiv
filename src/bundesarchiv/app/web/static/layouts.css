@@ -97,7 +97,9 @@
      disclosure left, the result count right (learning G.4: status recedes, the ledger leads) */
   .toolrow {
     /* flex-start, not baseline: the disclosure grows downward when opened — the count must stay
-       up on the summary line, not ride the expanded box's baseline */
+       up on the summary line, not ride the expanded box's baseline. --line-pad is the ONE knob
+       (law C3) both the summary and the count consume, so their lines align by construction. */
+    --line-pad: var(--space-1);
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
@@ -107,40 +109,32 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  /* the "N Treffer" count: demoted status — small mono, muted, right-aligned; keeps its
-     aria-live=polite (it announces result changes, it just no longer claims the headline spot). */
-  .frame main p[aria-live] {
+  /* the "N Treffer" count: demoted status — small mono, muted, right-aligned. Styled by its
+     PLACE (the toolrow), not by its announcement attribute — aria-live stays markup-only, so a
+     future live-region <p> elsewhere inherits nothing (altitude: attributes are behavior, the
+     context is the style hook). Every count renders inside a toolrow, all three branches. */
+  .toolrow > p {
     margin: 0;
     font: var(--type-mono-meta);
     font-variant-numeric: tabular-nums;
     color: var(--on-surface-variant);
-  }
-  /* standalone above the zero-hit empty state: right edge of main's column flex */
-  .frame main > p[aria-live] {
-    align-self: flex-end;
-  }
-  /* on the toolrow: pinned to the summary line (top), not the expanded box's bottom */
-  .toolrow > p[aria-live] {
-    align-self: flex-start;
-    padding-block: var(--space-1); /* rides the collapsed summary's own line box */
+    padding-block: var(--line-pad); /* rides the collapsed summary's own line box */
   }
 
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
      occasional chrome and recede). Cold: the summary line + the selection count. Open:
      furniture — flat plain container, hairline border, no tint, no depth (register row 8). */
   details.bulk summary {
-    padding: var(--space-1) 0;
+    padding: var(--line-pad) 0;
   }
-  details.bulk summary output {
+  /* the selection count inside the summary: plain status text (span role=status — deliberately
+     NOT a form-associated element, whose interactivity would swallow the summary's toggle click) */
+  details.bulk summary [data-bulk-zahl] {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
     text-transform: none;
     color: var(--on-surface);
     padding-inline-start: var(--space-3);
-    /* the count is status text INSIDE the summary control: without this, a click landing on the
-       <output> is swallowed (Chrome treats form-associated elements in a summary as interactive)
-       and the disclosure fails to toggle — the whole summary line must toggle. */
-    pointer-events: none;
   }
   details.bulk[open] {
     padding: 0 var(--space-3) var(--space-3);
@@ -148,9 +142,8 @@
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
   }
-  details.bulk[open] summary {
-    padding: var(--space-2) 0;
-  }
+  /* open keeps --line-pad: the count outside the disclosure shares the knob, so the two lines
+     stay aligned in BOTH states — no per-state pad retune to remember */
   details.bulk > div:first-of-type {
     display: flex;
     flex-wrap: wrap;
@@ -226,17 +219,12 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  /* the ✕ close (icon set's x): quiet, touch-target sized; top-aligned — an icon-only flex item
-     has no text baseline to share */
+  /* the ✕ close (icon set's x): hit-area mechanics come from the shared icon-control rule
+     (components.css); local deltas only — top-aligned because an icon-only flex item has no
+     text baseline to share */
   .pane header > a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     align-self: flex-start;
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
     color: var(--on-surface-variant);
-    border-radius: var(--radius-s);
   }
   .pane header > a:hover {
     color: var(--on-surface);
@@ -246,13 +234,15 @@
     font: var(--type-title);
     color: var(--on-surface);
   }
-  /* the meta line (below the toolbar) */
-  .pane > div > p {
+  /* the meta line (below the toolbar) — a NAMED hook (law C1 licenses a class exactly here:
+     "meta line" is a distinction semantics cannot express; positional selectors made every pane
+     reshuffle a silent retarget risk) */
+  .pane .meta {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
     color: var(--primary); /* mono meta = ink data (stamp grammar) */
   }
-  .pane > div > p span + span::before {
+  .pane .meta span + span::before {
     content: " · ";
     color: var(--on-surface-variant);
   }
@@ -385,18 +375,22 @@
      re-densifies by ITSELF — it is a size container). Below, the pane vanishes and rows navigate
      to the detail page; very narrow stacks sidebar over results.
      ============================================================ */
-  @media (min-width: 1280px) {
+  /* REM, not px: the ledger's last-resort fold is a 32rem CONTAINER query (components.css) whose
+     "never folds while the pane is open" guarantee (decision 1) is an inequality against this
+     switch — sidebar 16rem + pane ≤26rem + gaps out of 80rem leaves main ≥ ~33rem > 32rem. Both
+     sides must share the rem unit or a non-default root font size silently breaks the margin. */
+  @media (min-width: 80rem) {
     body.vorschau .frame {
       grid-template-columns:
         [sidebar] var(--sidebar-col) [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
   }
-  @media (max-width: 1279.98px) {
+  @media (max-width: 79.98rem) {
     .pane {
       display: none;
     }
   }
-  @media (max-width: 720px) {
+  @media (max-width: 45rem) {
     .frame {
       grid-template-columns: 1fr;
     }

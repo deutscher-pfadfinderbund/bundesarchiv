@@ -17,7 +17,7 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -253,33 +253,25 @@ _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
 )
 
 
-def _vorschau_query(params: Mapping[str, str], auswahl: Sequence[str], ulid: str) -> str:
-    """One row's Vorschau link query: the CURRENT state — search params (``params`` already
-    excludes ``artikel``/``auswahl``), the multi-valued bulk selection, and ``artikel=<ulid>``
-    last. A plain GET link (URL-borne pane state, spec §4.5) — the no-JS baseline IS this link."""
-    pairs: list[tuple[str, str]] = [(k, v) for k, v in params.items() if v != ""]
-    pairs.extend((browse.PARAM_AUSWAHL, u) for u in auswahl)
-    pairs.append((_PANE_PARAM, ulid))
-    return urlencode(pairs)
-
-
 def _ledger_row(
     hit: SearchHit,
     *,
     is_archivist: bool,
     selected_ulid: str | None,
-    params: Mapping[str, str],
-    auswahl: Sequence[str],
+    vorschau_prefix: str,
+    auswahl: frozenset[str],
     zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
     logic in the template). The ENTWURF flag + Bearbeiten href + bulk checkbox are archivist
     chrome: left EMPTY/False for non-archivists here (and the ledger component renders no control
     without them), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in
-    the pane; ``auswahl`` is the bulk selection (this row's checkbox is checked + the row inverts
-    when its ulid is in it; the Vorschau link re-carries the whole selection). ``zurueck`` is the
-    encoded ``?zurueck=`` suffix carrying the current search so the detail page's "Zurück zur
-    Suche" returns here (empty when no search)."""
+    the pane; ``auswahl`` is the bulk selection as a set (this row's checkbox is checked + the row
+    inverts when its ulid is in it). ``vorschau_prefix`` is the row-invariant encoded pane-link
+    prefix (``browse.pane_query_prefix`` — search state + the whole selection), computed once per
+    page; only the trailing ``artikel=<ulid>`` differs per row. ``zurueck`` is the encoded
+    ``?zurueck=`` suffix carrying the current search so the detail page's "Zurück zur Suche"
+    returns here (empty when no search)."""
     return {
         "title": hit.title,
         # ONE-CLICK ENTRY (owner 2026-08-07): the Titel IS the canonical detail navigation — no
@@ -293,8 +285,13 @@ def _ledger_row(
         "draft": hit.is_draft if is_archivist else False,
         "bearbeiten_href": reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else "",
         # The explicit pane affordance for EVERY viewer (the pane itself re-authorizes
-        # fail-closed): a plain GET link, keeping search + selection state.
-        "vorschau_href": "?" + _vorschau_query(params, auswahl, hit.ulid),
+        # fail-closed): a plain GET link, keeping search + selection state. ULIDs are
+        # Crockford base32, so the one per-row pair needs no encoding.
+        "vorschau_href": (
+            f"?{vorschau_prefix}&{_PANE_PARAM}={hit.ulid}"
+            if vorschau_prefix
+            else f"?{_PANE_PARAM}={hit.ulid}"
+        ),
         "selected": hit.ulid == selected_ulid,
         "gewaehlt": is_archivist and hit.ulid in auswahl,
     }
@@ -305,8 +302,8 @@ def _ledger_rows(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
-    params: Mapping[str, str],
-    auswahl: Sequence[str],
+    vorschau_prefix: str,
+    auswahl: frozenset[str],
     zurueck: str,
 ) -> tuple[dict[str, object], ...]:
     """The ledger row view-models for the page's SearchHits. The title link points at the
@@ -321,7 +318,7 @@ def _ledger_rows(
             hit,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            params=params,
+            vorschau_prefix=vorschau_prefix,
             auswahl=auswahl,
             zurueck=zurueck,
         )
@@ -433,8 +430,9 @@ def _results_context(
             page,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            params=params,
-            auswahl=auswahl,
+            # both row-invariant: encoded once here, not once per row
+            vorschau_prefix=browse.pane_query_prefix(params, auswahl),
+            auswahl=frozenset(auswahl),
             zurueck=zurueck,
         ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),

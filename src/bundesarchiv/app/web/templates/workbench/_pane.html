@@ -26,7 +26,7 @@ static demo context (lockstep by construction).
       {% if pane.bearbeiten_href %}<a class="button" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
     </div>
     {% if pane.datierung or pane.typ %}
-    <p>
+    <p class="meta">
       {% if pane.datierung %}<span>{{ pane.datierung }}</span>{% endif %}
       {% if pane.typ %}<span>{{ pane.typ }}</span>{% endif %}
     </p>

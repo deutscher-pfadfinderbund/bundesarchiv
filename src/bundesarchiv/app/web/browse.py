@@ -260,6 +260,17 @@ def select_page_query(
     return urlencode(pairs)
 
 
+def pane_query_prefix(params: Mapping[str, str], auswahl: Sequence[str]) -> str:
+    """The row-invariant prefix of every Vorschau (pane) link: the current search state (blanks
+    dropped) plus the multi-valued ``auswahl`` selection — everything EXCEPT the trailing
+    ``artikel=<ulid>`` pair, which is the one per-row difference. Encoded once per page; each
+    ledger row appends its own ``artikel`` pair. Empty string when there is neither search state
+    nor a selection (the row link is then just ``?artikel=<ulid>``)."""
+    pairs: list[tuple[str, str]] = list(_clean(params).items())
+    pairs.extend((PARAM_AUSWAHL, u) for u in auswahl)
+    return urlencode(pairs)
+
+
 def has_next_page(*, page: int, page_size: int, hits_on_page: int, total: int) -> bool:
     """Whether a further result page exists after the current one.
 

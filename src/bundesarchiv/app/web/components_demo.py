@@ -38,7 +38,7 @@ _FACET_ITEMS_BESTAND = (
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
 #: carries a ref_code (lifecycle is decoupled from the sig slot) and its ENTWURF mark rides the
 #: title (the SICHTBARKEIT column died, owner 2026-08-07 — quiet default: published shows nothing).
-_LEDGER_ROWS = (
+_ROW_CONTENT = (
     {
         "title": "Sommerfahrt 1962",
         "href": "#demo-detail",
@@ -46,8 +46,6 @@ _LEDGER_ROWS = (
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         "title": "Jahresbericht 1974",
@@ -56,8 +54,6 @@ _LEDGER_ROWS = (
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
@@ -66,8 +62,6 @@ _LEDGER_ROWS = (
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         # A draft WITH a Signatur: lifecycle (ENTWURF badge) is decoupled from the sig slot.
@@ -77,8 +71,6 @@ _LEDGER_ROWS = (
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         # Absence renders as absence (no em-dash). Datierung present, Typ absent: in the narrow fold
@@ -89,8 +81,6 @@ _LEDGER_ROWS = (
         "datierung": "1990",
         "typ": "",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         # Typ present, Datierung absent: the fold shows just "Notiz" with NO leading separator.
@@ -100,8 +90,6 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "Notiz",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
     {
         # Neither Datierung nor Typ: the narrow fold shows NO second line at all.
@@ -111,9 +99,13 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "",
         "draft": False,
-        "bearbeiten_href": "#demo-edit",
-        "vorschau_href": "#demo-vorschau",
     },
+)
+
+#: Shared action hrefs spliced once — content dicts above stay content-only.
+_LEDGER_ROWS = tuple(
+    {**row, "bearbeiten_href": "#demo-edit", "vorschau_href": "#demo-vorschau"}
+    for row in _ROW_CONTENT
 )
 
 #: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,

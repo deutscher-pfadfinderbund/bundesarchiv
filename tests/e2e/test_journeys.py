@@ -65,6 +65,20 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
+def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
+    # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
+    # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
+    # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
+    # the only state that hides it) and the low-priority columns merely drop.
+    page = archivist_page
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(live_workbench + "/")
+    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    expect(page.locator(".pane")).to_be_visible()
+    header_row = page.locator('.ledger [role="table"] > [role="row"]')
+    expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
+
+
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").

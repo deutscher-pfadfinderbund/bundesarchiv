@@ -10,6 +10,7 @@ These need Postgres (they call ``search``); the ``corpus`` fixture indexes once 
 on teardown (the shared ``indexed_corpus`` isolation mechanism).
 """
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
@@ -591,18 +592,22 @@ def test_titel_navigates_and_vorschau_link_opens_pane(corpus_root: Path) -> None
     body = _get(corpus_root, Public()).content.decode()
     assert f'href="/artikel/{PANE_PUB_ULID}"' in body  # the Titel's detail navigation
     assert "data-artikel" not in body  # the JS upgrade hook died with ledger_pane.js
-    assert f'href="?artikel={PANE_PUB_ULID}" aria-label="Vorschau"' in body
+    # the href value and the accessible name, pinned separately (no attribute-order pin)
+    assert f'href="?artikel={PANE_PUB_ULID}"' in body
+    assert 'aria-label="Vorschau"' in body
 
 
 @pytest.mark.django_db
 def test_vorschau_link_preserves_search_state(corpus_root: Path) -> None:
     # The Vorschau link carries the CURRENT search (q + facets), so opening the pane never drops
-    # the filter scope; artikel rides last.
+    # the filter scope; artikel rides last. The contract is "all pairs present, artikel last" —
+    # NOT one exact param ordering (a Mapping-iteration change is no behavior change).
     body = _get(corpus_root, Public(), "q=Vorschau&medienart=Foto").content.decode()
-    assert (
-        f'href="?q=Vorschau&amp;medienart=Foto&amp;artikel={PANE_PUB_ULID}" aria-label="Vorschau"'
-        in body
-    )
+    match = re.search(rf'href="\?([^"]*artikel={PANE_PUB_ULID})"', body)
+    assert match, "no Vorschau link found"
+    pairs = match.group(1).replace("&amp;", "&").split("&")
+    assert "q=Vorschau" in pairs and "medienart=Foto" in pairs
+    assert pairs[-1] == f"artikel={PANE_PUB_ULID}"
 
 
 @pytest.mark.django_db
@@ -610,7 +615,8 @@ def test_row_toolbar_bearbeiten_is_archivist_chrome(corpus_root: Path) -> None:
     # The row toolbar's Bearbeiten (pencil → the edit form) is archivist-only; the Vorschau
     # affordance exists for every viewer (the pane itself re-authorizes fail-closed).
     arch = _get(corpus_root, Archivist()).content.decode()
-    assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten" aria-label="Bearbeiten"' in arch
+    assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten"' in arch
+    assert 'aria-label="Bearbeiten"' in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(corpus_root, viewer).content.decode()
         assert 'aria-label="Bearbeiten"' not in body, f"[{label}] Bearbeiten control leaked"
