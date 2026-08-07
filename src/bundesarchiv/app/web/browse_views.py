@@ -477,6 +477,9 @@ def _results_context(
         # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
         # its removal affordance even after it vanishes from the recomputed facet counts.
         "filter_chips": _filter_chips(params, parsed, names),
+        # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
+        # drops every filter param, keeps q + sort. The template renders it only alongside chips.
+        "clear_filters_query": browse.clear_filters_query(params),
         "ledger_rows": _ledger_rows(
             page,
             is_archivist=is_archivist,

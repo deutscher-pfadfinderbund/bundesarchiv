@@ -224,6 +224,34 @@ def without_param(params: Mapping[str, str], key: str) -> str:
     return urlencode(updated)
 
 
+#: The FILTER dimensions of the search state — exactly the params the rail renders chips for.
+#: Deliberately excludes the text query (``q``), the sort and the page: "Alle Filter entfernen"
+#: (owner ruling 2026-08-07, rail round 2) clears the same set the chips remove one-by-one, so
+#: the two affordances share one semantics.
+_FILTER_PARAMS: frozenset[str] = frozenset(
+    {
+        PARAM_COLLECTION,
+        PARAM_MEDIA_TYPE,
+        PARAM_DOCUMENT_TYPE,
+        PARAM_TAG,
+        PARAM_DECADE,
+        PARAM_DATELESS,
+        PARAM_DATE_FROM,
+        PARAM_DATE_TO,
+    }
+)
+
+
+def clear_filters_query(params: Mapping[str, str]) -> str:
+    """The query string for the current state MINUS every filter param — the rail's "Alle Filter
+    entfernen" link (owner 2026-08-07, rail round 2). Keeps the text query + sort (chip semantics:
+    a chip removes one filter and keeps ``q``; this removes them all) and resets ``seite`` for the
+    same reason ``without_param`` does — the narrowing changed."""
+    updated = {k: v for k, v in _clean(params).items() if k not in _FILTER_PARAMS}
+    updated.pop(PARAM_PAGE, None)
+    return urlencode(updated)
+
+
 def page_query(params: Mapping[str, str], page: int) -> str:
     """The query string for the current state at ``page`` (pagination). Preserves every filter,
     text and sort; only ``seite`` moves — URL-as-state, back-button-honest, no infinite scroll."""

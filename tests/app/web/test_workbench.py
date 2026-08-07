@@ -484,6 +484,23 @@ def test_active_filter_renders_rail_chip_with_labeled_remove(corpus_root: Path) 
     assert 'aria-label="Filter entfernen: Mikrofilm"' in empty
 
 
+@pytest.mark.django_db
+def test_clear_all_link_only_with_active_filter_chips(corpus_root: Path) -> None:
+    # "Alle Filter entfernen" (owner 2026-08-07, rail round 2): a quiet link at the END of the
+    # chip row, present exactly when ≥1 filter chip is — its href drops every filter param but
+    # keeps the text query (chip semantics: remove filters, keep q).
+    body = _get(corpus_root, Public(), "q=Foto&medienart=Foto&schlagwort=fahrten").content.decode()
+    match = re.search(r'<a href="\?([^"]*)">Alle Filter entfernen</a>', body)
+    assert match is not None
+    from urllib.parse import parse_qsl
+
+    cleared = dict(parse_qsl(match.group(1)))
+    assert cleared == {"q": "Foto"}
+    # no active filter → no clear-all link (q alone is not a filter)
+    bare = _get(corpus_root, Public(), "q=Foto").content.decode()
+    assert "Alle Filter entfernen" not in bare
+
+
 # --- search form keeps active facet filters (GH #21) ------------------------------
 
 

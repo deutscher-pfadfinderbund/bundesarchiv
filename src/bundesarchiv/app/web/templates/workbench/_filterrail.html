@@ -18,4 +18,8 @@ narrow viewports the rail simply wraps — the results are never buried under st
   {% for chip in filter_chips %}
   <span class="chip"><b>{{ chip.group }}:</b> {{ chip.label }}<a href="?{{ chip.query }}" aria-label="Filter entfernen: {{ chip.label }}">✕</a></span>
   {% endfor %}
+  {% comment %} Clear-all at the END of the chip row (owner 2026-08-07, rail round 2): a quiet
+  text link, only when ≥1 chip is present. Same semantics as the chips, all at once: every
+  FILTER param drops, q + sort survive (browse.clear_filters_query). {% endcomment %}
+  {% if filter_chips %}<a href="?{{ clear_filters_query }}">Alle Filter entfernen</a>{% endif %}
 </nav>

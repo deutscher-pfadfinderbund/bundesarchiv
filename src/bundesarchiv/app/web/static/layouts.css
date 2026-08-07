@@ -75,6 +75,12 @@
        room between the header's double rule and the results. */
     padding: var(--space-4) var(--space-4) var(--space-2);
   }
+  /* the clear-all ("Alle Filter entfernen", owner 2026-08-07 rail round 2): the rail's only
+     bare anchor child — a QUIET text link at the end of the chip row, deliberately not a chip;
+     element link ink, the rail's dense meta size */
+  .filterrail > a {
+    font: var(--type-meta);
+  }
 
   /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
      (body.vorschau) on a viewport wide enough to show it. ---- */

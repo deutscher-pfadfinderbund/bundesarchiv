@@ -303,10 +303,11 @@ height so the open exhibit never overlays the annotation. {% endcomment %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <span class="chip"><b>Bestand:</b> Aktenbestand <a href="#demo-chip" aria-label="Filter entfernen: Aktenbestand">✕</a></span>
     <span class="chip"><b>Schlagworte:</b> sommer <a href="#demo-chip" aria-label="Filter entfernen: sommer">✕</a></span>
+    <a href="#demo-chip">Alle Filter entfernen</a>
   </div>
   {% endfor %}
 </div>
-<code class="doc">.chip (workbench/_filterrail.html) · the register-row-3 INVERSION for one active filter — muted &lt;b&gt; names the group; the ✕ removes it (aria-label "Filter entfernen: …")</code>
+<code class="doc">.chip (workbench/_filterrail.html) · the register-row-3 INVERSION for one active filter — muted &lt;b&gt; names the group; the ✕ removes it (aria-label "Filter entfernen: …"); compact hit size --touch-target-compact (owner 2026-08-07, rail round 2) so chips sit level with the rail's dropdown buttons; "Alle Filter entfernen" ends the chip row as a quiet text link (removes ALL filters, keeps q + sort)</code>
 
 <h2>Ledger — full density</h2>
 <div class="probe probe-stack">

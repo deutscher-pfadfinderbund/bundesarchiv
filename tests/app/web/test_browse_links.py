@@ -7,6 +7,7 @@ facet sidebar / pagination / sort control emit, and pin the round-trip: a param 
 """
 
 from bundesarchiv.app.web.browse import (
+    clear_filters_query,
     has_next_page,
     page_query,
     pane_query_prefix,
@@ -62,6 +63,40 @@ def test_page_query_sets_seite_preserving_the_rest() -> None:
     assert params["seite"] == "2"
     assert params["q"] == "Lager"
     assert params["medienart"] == "Foto"
+
+
+# --- clear-all (clear_filters_query) -----------------------------------------------
+# The rail's "Alle Filter entfernen" link (owner 2026-08-07, rail round 2): removes ALL filter
+# params in one click but keeps the text query + sort — the same semantics as the chips, which
+# each remove ONE filter and keep q. seite resets like every narrowing change.
+
+
+def test_clear_filters_removes_every_filter_keeps_q_and_sort() -> None:
+    q = clear_filters_query(
+        {
+            "q": "Lager",
+            "bestand": "FOTOS",
+            "medienart": "Foto",
+            "dokumenttyp": "Bericht",
+            "schlagwort": "lager",
+            "jahrzehnt": "1960",
+            "ohne_datum": "1",
+            "von": "1960-01-01",
+            "bis": "1969-12-31",
+            "sortierung": "-signatur",
+            "seite": "3",
+        }
+    )
+    assert _params(q) == {"q": "Lager", "sortierung": "-signatur"}
+
+
+def test_clear_filters_empty_when_only_filters_active() -> None:
+    # Filters were the whole state: the link points at the bare workbench ("?").
+    assert clear_filters_query({"medienart": "Foto", "schlagwort": "lager"}) == ""
+
+
+def test_clear_filters_drops_blank_values_like_every_link_helper() -> None:
+    assert clear_filters_query({"q": "Fahrt", "medienart": ""}) == "q=Fahrt"
 
 
 # --- pane-link prefix (pane_query_prefix) -----------------------------------------
