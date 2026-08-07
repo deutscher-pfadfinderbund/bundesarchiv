@@ -5,12 +5,12 @@ switcher): production settings never mount this, so it is unreachable in prod by
 path, not by a flag. Each page renders a FULL archivist-workbench layout composed from the REAL
 partials (components/facet_group, components/ledger, workbench/_pane) over static German demo
 context defined here — no store, no index, no viewer; lockstep with the live app by construction.
-The layouts iterate the PAGE FRAME (header + facet sidebar + ledger + preview pane).
+The layouts iterate the PAGE FRAME (header + filter rail + ledger + preview pane).
 
 ONE layout, whitelisted (unknown name → 404, never a path interpolation):
-- ``split-narrow`` — when the preview pane is open the facet sidebar stays full and the ledger
-                     re-densifies by itself (it is a size container; owner's pick over the
-                     rejected "split-rail", whose collapsed-rail state read as confusing).
+- ``split-narrow`` — the filter rail spans the top (facet dropdowns + active chips; the sidebar
+                     died with the rail, owner 2026-08-07); when the preview pane is open the
+                     ledger re-densifies by itself (it is a size container).
 
 Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
 (default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
@@ -177,8 +177,9 @@ _LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
     {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
-#: Facet sidebar groups; items match facet_group.html's contract (label, count, query, active).
-#: ``open`` seeds each <details> group's initial expanded/collapsed state.
+#: Filter-rail facet groups; items match facet_group.html's contract (label, count, query,
+#: active). ``open`` seeds each <details> dropdown's initial state — ONE group is served open so
+#: the demo exhibits the dropped furniture panel without JS.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",
@@ -196,7 +197,7 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Dokumenttyp",
-        "open": True,
+        "open": False,
         "items": (
             {"label": "Foto", "count": 31, "query": "typ=foto", "active": False},
             {"label": "Bericht", "count": 12, "query": "typ=bericht", "active": False},
@@ -222,6 +223,13 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
             {"label": "1980er", "count": 4, "query": "jahrzehnt=1980", "active": False},
         ),
     },
+)
+
+#: The rail's active-filter chips — the demo mirror of browse_views._filter_chips (one chip per
+#: active item above, group heading + removal query).
+_FILTER_CHIPS: tuple[dict[str, str], ...] = (
+    {"group": "Bestand", "label": "Aktenbestand", "query": ""},
+    {"group": "Schlagworte", "label": "sommer", "query": "bestand=AKTEN"},
 )
 
 #: The static preview shown in the pane (the first result) — the REAL ``workbench/_pane.html``
@@ -257,6 +265,7 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
             "facet_groups": _FACET_GROUPS,
+            "filter_chips": _FILTER_CHIPS,
             "preview": _PREVIEW,
         },
     )

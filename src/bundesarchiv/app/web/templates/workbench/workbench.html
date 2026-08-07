@@ -41,10 +41,8 @@ by itself — it is a size container. <1280px the media query hides the pane. {%
   {% endif %}
 {% endblock %}
 {% block body %}
+{% include "workbench/_filterrail.html" %}
 <div class="frame">
-  <aside class="sidebar" aria-label="Facetten">
-    {% include "workbench/_facets.html" %}
-  </aside>
   {% include "workbench/_results.html" %}
   {% if pane %}{% include "workbench/_pane.html" %}{% endif %}
 </div>

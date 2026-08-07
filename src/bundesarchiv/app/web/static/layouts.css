@@ -1,4 +1,4 @@
-/* Compositions — the workbench page frame (header · facet sidebar · results · preview pane) and
+/* Compositions — the workbench page frame (header · filter rail · results · preview pane) and
    the global page chrome every screen shares. Role tokens ONLY (tokens.css); the components style
    themselves (components.css). Load order: tokens, components, then this file. Stamp grammar
    holds: violet lives only on the components' marks; the frame chrome is pure neutral, no bevels
@@ -57,26 +57,32 @@
     margin-left: auto;
   }
 
-  /* ---- page frame: sidebar · main · (pane). The pane column exists only while ?artikel is
-     resolved (body.vorschau) on a viewport wide enough to show it. ---- */
+  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar
+     died with it). One row of facet dropdowns + active-filter chips directly under the header,
+     above the results. FURNITURE: flat quiet container, hairline edge. It lives OUTSIDE
+     #results: filter clicks are plain GET navigations, so the rail re-renders with fresh counts
+     on every filter change — the same mechanism the sidebar used (an htmx q-swap updates only
+     #results, as before). Narrow viewports simply wrap the row — results are never buried under
+     stacked panels (the standing 680px finding). ---- */
+  .filterrail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-container-low);
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+
+  /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
+     (body.vorschau) on a viewport wide enough to show it. ---- */
   .frame {
-    --sidebar-col: minmax(14rem, 16rem); /* named frame tracks (law C3/C5) */
-    --pane-col: minmax(20rem, 26rem);
+    --pane-col: minmax(20rem, 26rem); /* named frame track (law C3/C5) */
     display: grid;
-    grid-template-columns: [sidebar] var(--sidebar-col) [main] minmax(0, 1fr);
+    grid-template-columns: [main] minmax(0, 1fr);
     align-items: start;
     gap: var(--space-4);
     padding: var(--space-4);
-  }
-
-  /* facet sidebar: sticky; a stack of collapsible facet groups (the components style themselves) */
-  .sidebar {
-    grid-column: sidebar;
-    position: sticky;
-    top: var(--space-4);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
   }
 
   /* main results column: a stack of toolrow · ledger · pager */
@@ -376,18 +382,18 @@
   }
 
   /* ============================================================
-     Viewport composition switches. ≥1280px the open pane adds a third frame column (the ledger
+     Viewport composition switches. ≥1280px the open pane adds a second frame column (the ledger
      re-densifies by ITSELF — it is a size container). Below, the pane vanishes and rows navigate
-     to the detail page; very narrow stacks sidebar over results.
+     to the detail page.
      ============================================================ */
   /* REM, not px: the ledger's last-resort fold is a 32rem CONTAINER query (components.css) whose
      "never folds while the pane is open" guarantee (decision 1) is an inequality against this
-     switch — sidebar 16rem + pane ≤26rem + gaps out of 80rem leaves main ≥ ~33rem > 32rem. Both
-     sides must share the rem unit or a non-default root font size silently breaks the margin. */
+     switch — pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem
+     > 32rem (the sidebar's death only WIDENED the margin). Both sides must share the rem unit or
+     a non-default root font size silently breaks the margin. */
   @media (min-width: 80rem) {
     body.vorschau .frame {
-      grid-template-columns:
-        [sidebar] var(--sidebar-col) [main] minmax(0, 1fr) [pane] var(--pane-col);
+      grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
   }
   /* the exact complement of the switch above — a negated query instead of an epsilon, so no
@@ -396,19 +402,6 @@
   @media not (min-width: 80rem) {
     .pane {
       display: none;
-    }
-  }
-  @media (max-width: 45rem) {
-    .frame {
-      grid-template-columns: 1fr;
-    }
-    .sidebar,
-    .frame main,
-    .pane {
-      grid-column: 1 / -1;
-    }
-    .sidebar {
-      position: static;
     }
   }
 }

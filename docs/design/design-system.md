@@ -222,21 +222,33 @@ Semantic notes:
   geometry, so borders and fills follow it automatically. Older browsers
   render rounded corners instead — accepted, no fallback (owner, 2026-07-10).
 
-## Layout (owner, 2026-07-10)
+## Layout (owner, 2026-07-10; rail 2026-08-07)
 
-The workbench is **split-narrow**: sticky collapsible facet sidebar left
-(native `<details>` groups), LEDGER results center (dense register rows:
-SIG · Titel · Datierung · Typ · row-action toolbar; one label-role header
-treatment; no Sichtbarkeit column — ÖFFENTLICH renders nothing and the
-ENTWURF mark rides the title, owner 2026-08-07), preview pane right. Pane
-state lives in the URL, server-rendered — zero JS required. Width is the
-only density input (2026-08-07 verdict): columns drop as the ledger's
-container narrows (Typ, then Datierung); the two-line fold survives only
-under the phone-width ~32rem container query (kept below the narrowest
-pane-open container) as the last resort. Below
-1280px the pane disappears and rows navigate to the detail page (the
-canonical permalink). Cards remain for photo-heavy and member-facing
-contexts.
+The workbench composes header · **filter rail** · results · preview pane.
+The rail is the PRIMARY filter interaction (owner 2026-08-07, exploration
+02 verdict — the facet sidebar died with it): one horizontal row directly
+under the header holding a native `<details>` dropdown per facet group
+(flat furniture panels, no shadow) plus the active filters as inversion
+chips (register row 3), each with a labeled remove ✕. Every filter stays a
+plain GET link; the rail lives outside `#results`, so filter clicks
+re-render it with fresh counts (same mechanism the sidebar used). On
+narrow viewports the rail wraps — results are never buried under stacked
+panels.
+
+The LEDGER fills the frame (dense register rows drawn as a bound
+line-table, exploration 05a: hairline horizontal rules only, no header
+band, the row-11 margin rule after the Signatur column, Datierung as a
+right-aligned figure column; SIG · Titel · Datierung · Typ · row-action
+toolbar; one label-role header treatment; no Sichtbarkeit column —
+ÖFFENTLICH renders nothing and the ENTWURF mark rides the title, owner
+2026-08-07), preview pane right. Pane state lives in the URL,
+server-rendered — zero JS required. Width is the only density input
+(2026-08-07 verdict): columns drop as the ledger's container narrows (Typ,
+then Datierung); the two-line fold survives only under the phone-width
+~32rem container query (kept below the narrowest pane-open container) as
+the last resort. Below 1280px the pane disappears and rows navigate to the
+detail page (the canonical permalink). Cards remain for photo-heavy and
+member-facing contexts.
 
 ## Component mapping (workbench)
 
@@ -244,11 +256,11 @@ contexts.
 |---|---|
 | Page background | `surface` |
 | Header bar | `surface-container-high` |
-| Facet group panels | `surface-container-low`, headings `label`/`on-surface-variant` |
-| Active facet | `primary-container` / `on-primary-container` |
+| Filter rail | `surface-container-low` bar; dropdown summaries flat hairline buttons; dropped panels furniture (`surface-container-lowest`, hairline, NO shadow) |
+| Active facet | inversion (`on-surface`/`surface`) — the dropdown's active row and the rail chip (register row 3) |
 | Result card | `surface-container-low`, hover `-mid` |
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
-| Chips | `primary-container` / `on-primary-container` |
+| Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕ |
 | Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
 | ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
 | Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); the badge component survives only on the publish over-exposure preview |

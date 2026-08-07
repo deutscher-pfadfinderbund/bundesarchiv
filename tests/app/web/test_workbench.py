@@ -466,6 +466,24 @@ def test_media_facet_filter_narrows_results(corpus_root: Path) -> None:
     assert "Öffentliches Foto" not in body  # a Foto is excluded
 
 
+@pytest.mark.django_db
+def test_active_filter_renders_rail_chip_with_labeled_remove(corpus_root: Path) -> None:
+    # The filter rail (owner 2026-08-07: the PRIMARY filter interaction): every active filter
+    # renders as a chip whose remove link carries the German accessible name — the user contract
+    # (tests/CLAUDE.md: verbatim UI strings are assertable; the styling is design-gate territory).
+    body = _get(corpus_root, Public(), "medienart=Schrifttum").content.decode()
+    assert 'aria-label="Filter entfernen: Schrifttum"' in body
+    # no active filter → no chip remove link at all
+    bare = _get(corpus_root, Public()).content.decode()
+    assert "Filter entfernen:" not in bare
+    # ZERO-HIT filter: the value vanishes from the recomputed facet counts (no active dropdown
+    # row), but the chip derives from the URL state — the empty state says "Entferne einzelne
+    # Filter", so the removal affordance must survive exactly there.
+    empty = _get(corpus_root, Public(), "medienart=Mikrofilm").content.decode()
+    assert "0 Treffer" in empty
+    assert 'aria-label="Filter entfernen: Mikrofilm"' in empty
+
+
 # --- search form keeps active facet filters (GH #21) ------------------------------
 
 

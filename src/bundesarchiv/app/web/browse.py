@@ -12,7 +12,7 @@ Two halves:
   default (garbage never raises, never 500s — plan §4.5). Text comes from ``q``; the rest build a
   ``SearchFilters`` + sort + page.
 - The link helpers (``with_param`` / ``without_param`` / ``page_query``) — pure query-string
-  algebra the templates emit for facet clicks, sidebar removal and pagination. Adding or removing a
+  algebra the templates emit for facet clicks, rail chip removal and pagination. Adding or removing a
   facet resets ``seite`` (the result set changed, so the old page number is stale).
 
 No visibility logic lives here (that is ``search`` / ``can_view``); this module only shuffles

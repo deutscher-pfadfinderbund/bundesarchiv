@@ -1,14 +1,15 @@
 {% comment %}
-Facet group — the ONE facet-panel implementation (used by the workbench sidebar, the layout demo
-and the component library alike; the former hand-forked copies died in the rework wave). A
-collapsible <details> sheet (cue-register row 8 material) of value rows. Params:
+Facet group — the ONE facet implementation (used by the workbench filter rail, the layout demo
+and the component library alike; the sidebar died with the rail, owner 2026-08-07). A native
+<details> DROPDOWN: the <summary> is the rail's group button, the value list drops as a flat
+FURNITURE panel (register row 8 role — hairline, opaque, no shadow). Params:
 - heading — the group's German heading (the <summary>)
+- open    — initial expanded state (bool; the rail omits it — dropdowns start closed)
 - items   — each with .label, .count, .query (the GET query string the row links to), .active
-- open    — initial expanded state (bool)
 Each value is a plain GET link (URL-as-state, no JS). An ACTIVE row carries aria-current on its
-link (state lives on the attribute, law C2 — CSS marks the row by inversion from it) and an
-inline ✕ remove link — the one place a filter is cleared; clicking either link clears it.
-Inactive rows show the bare count.
+link (state lives on the attribute, law C2 — CSS marks the row by inversion from it, register
+row 3) and an inline ✕ remove link — clicking either link clears the filter. Inactive rows show
+the bare count.
 {% endcomment %}
 <details class="facet"{% if open %} open{% endif %}>
   <summary>{{ heading }}</summary>

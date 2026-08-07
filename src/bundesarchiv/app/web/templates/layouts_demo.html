@@ -3,10 +3,10 @@ Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL arc
 composition built from the REAL partials (components/facet_group, components/ledger,
 workbench/_pane) over static German demo context — lockstep with the live app by construction.
 English dev chrome; German product copy inside the components. The page frame is the CSS grid
-from layouts.css: facet sidebar · main (hitcount + ledger) · preview pane. Two server-rendered
-states via ?vorschau=0|1 (no JS): the pane column exists only when vorschau=1; the ledger
-re-densifies by itself (it is a size container). Below 1280px a media query hides the pane —
-layouts.css owns that, not the view.
+from layouts.css: filter rail (facet dropdowns + active chips) · main (hitcount + ledger) ·
+preview pane. Two server-rendered states via ?vorschau=0|1 (no JS): the pane column exists only
+when vorschau=1; the ledger re-densifies by itself (it is a size container). Below 1280px a
+media query hides the pane — layouts.css owns that, not the view.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -70,14 +70,11 @@ real workbench header). {% endcomment %}
   <a class="button primary" href="#demo-neu">+ Neuer Artikel</a>
 </header>
 
-<div class="frame">
+{% comment %} Filter rail — the REAL workbench partial over demo context (facet_groups +
+filter_chips); one group is served open to exhibit the dropped furniture panel. {% endcomment %}
+{% include "workbench/_filterrail.html" %}
 
-  {% comment %} Facet sidebar — sticky; the REAL facet_group component per group. {% endcomment %}
-  <aside class="sidebar" aria-label="Facetten">
-    {% for group in facet_groups %}
-    {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
-    {% endfor %}
-  </aside>
+<div class="frame">
 
   {% comment %} Main column: hitcount, then the ledger results. {% endcomment %}
   <main>

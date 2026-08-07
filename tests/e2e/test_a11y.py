@@ -49,6 +49,7 @@ def test_axe_archivist_screens(
     # + edit forms, the delete confirm, the archivist draft read view, the Bestand forms.
     paths = (
         "/",
+        "/?schlagwort=sommer",  # active filter: the rail chip + its labeled remove link
         f"/?artikel={e2e_corpus.published_ulid}",
         f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}",
         "/artikel/neu",
