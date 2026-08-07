@@ -5,9 +5,12 @@ headers (asc→desc→default cycle); active-filter state lives only on the filt
 logic: every hit is already viewer-scoped by search(); the archivist chrome is a presentation
 gate off is_archivist.
 
-The TOOLROW above the ledger carries the occasional chrome, demoted below the work surface
-(learning G.4): the collapsed Sammelbearbeitung disclosure (archivist-only) on the left and the
-"N Treffer" count — small mono, muted, right-aligned, aria-live=polite — on the right.
+The "N Treffer" count lives on the FILTER RAIL (workbench/_filterrail.html), not here — law C10:
+status text rides an occupied band, and the status-only toolrow died (owner round-2 correction
+2026-08-07). Because the rail sits outside this swap target, an HX-Request render prepends the
+count as an hx-swap-oob fragment (top of this file) so a live q-swap updates the rail's count in
+the same response. The collapsed Sammelbearbeitung disclosure (archivist-only, learning G.4)
+sits directly above the ledger and collapses to NOTHING when hidden/absent — no empty band.
 
 Bulk edit (Sammelbearbeitung, archivist-only): the ledger's rows + the disclosure live inside
 ONE form that POSTs to /artikel/sammelbearbeitung ("Änderung prüfen" → confirm page). Row
@@ -20,32 +23,28 @@ the prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) fold
 ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
 selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first.
 {% endcomment %}
+{% comment %}Out-of-band count refresh, HX-Request renders only (the view sets oob): a top-level
+sibling BEFORE the swap fragment, so htmx lifts it into the rail's #trefferzahl while #results
+swaps. Absent on the full page — there the rail renders the count itself.{% endcomment %}
+{% if oob %}{% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
 <main id="results">
   {% if page.hits %}
   {% if is_archivist %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% csrf_token %}
-    <div class="toolrow">
-      {% if bulk_bar %}
-      {% include "workbench/_sammelleiste.html" %}
-      {% endif %}
-      <p aria-live="polite">{{ total }} Treffer</p>
-    </div>
+    {% comment %}The disclosure sits directly above the ledger — no wrapper band (law C10):
+    when catalog_bulk.js hides it at selection count 0 (or bulk_bar is off), the form column
+    collapses to just the ledger, leaving no empty gap between rail and register.{% endcomment %}
+    {% if bulk_bar %}
+    {% include "workbench/_sammelleiste.html" %}
+    {% endif %}
     {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=True only %}
   </form>
   {% else %}
-  <div class="toolrow">
-    <p aria-live="polite">{{ total }} Treffer</p>
-  </div>
   {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=False only %}
   {% endif %}
   {% else %}
-  {% comment %}Zero hits: the count keeps the SAME toolrow context as the other two branches —
-  one place, one styling rule (no bare-<p> special case in the layout CSS).{% endcomment %}
-  <div class="toolrow">
-    <p aria-live="polite">{{ total }} Treffer</p>
-  </div>
   {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is
   Bestand-specific + carries an archivist-only "+ Neuer Artikel" link pre-seeded with that Bestand
   (4.8 item 3) — NOT the generic "remove filters" copy. A non-archivist sees just the sentence.{% endcomment %}

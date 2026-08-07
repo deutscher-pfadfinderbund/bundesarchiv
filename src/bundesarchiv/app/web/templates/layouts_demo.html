@@ -3,8 +3,8 @@ Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL arc
 composition built from the REAL partials (components/facet_group, components/ledger,
 workbench/_pane) over static German demo context — lockstep with the live app by construction.
 English dev chrome; German product copy inside the components. The page frame is the CSS grid
-from layouts.css: filter rail (facet dropdowns + active chips) · main (hitcount + ledger) ·
-preview pane. Two server-rendered states via ?vorschau=0|1 (no JS): the pane column exists only
+from layouts.css: filter rail (facet dropdowns + active chips + the right-aligned hit count,
+law C10) · main (ledger) · preview pane. Two server-rendered states via ?vorschau=0|1 (no JS): the pane column exists only
 when vorschau=1; the ledger re-densifies by itself (it is a size container). Below 1280px a
 media query hides the pane — layouts.css owns that, not the view.
 {% endcomment %}<!doctype html>
@@ -82,11 +82,8 @@ filter_chips); one group is served open to exhibit the dropped furniture panel. 
 
 <div class="frame">
 
-  {% comment %} Main column: hitcount, then the ledger results. {% endcomment %}
+  {% comment %} Main column: the ledger (the hit count rides the rail, law C10). {% endcomment %}
   <main>
-    <div class="toolrow">
-      <p aria-live="polite">{{ ledger_rows|length }} Treffer</p>
-    </div>
     {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
   </main>
 

@@ -128,6 +128,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-History-Restore-Request"):
         return render(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
+        # The hit count lives on the filter rail (law C10), OUTSIDE the #results swap target —
+        # the partial therefore prepends an hx-swap-oob fragment updating the rail's count in
+        # the same response (oob gates it: the full page renders the count once, from the rail).
+        context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
 

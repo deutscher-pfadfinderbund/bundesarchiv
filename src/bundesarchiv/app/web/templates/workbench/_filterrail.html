@@ -22,4 +22,8 @@ narrow viewports the rail simply wraps — the results are never buried under st
   text link, only when ≥1 chip is present. Same semantics as the chips, all at once: every
   FILTER param drops, q + sort survive (browse.clear_filters_query). {% endcomment %}
   {% if filter_chips %}<a href="?{{ clear_filters_query }}">Alle Filter entfernen</a>{% endif %}
+  {% comment %} The "N Treffer" count ends the rail line, right-aligned (law C10: status rides
+  the occupied band; the status-only toolrow died). The rail always renders on the workbench,
+  so the count has one place in every branch — results, zero hits, non-archivist alike. {% endcomment %}
+  {% include "workbench/_trefferzahl.html" with total=total only %}
 </nav>

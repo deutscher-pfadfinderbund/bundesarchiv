@@ -271,6 +271,8 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "facet_groups": _FACET_GROUPS,
             "filter_chips": _FILTER_CHIPS,
             "clear_filters_query": _CLEAR_FILTERS_QUERY,
+            # the rail renders the hit count at its line end (law C10 — the toolrow died)
+            "total": len(_LEDGER_ROWS),
             "preview": _PREVIEW,
         },
     )

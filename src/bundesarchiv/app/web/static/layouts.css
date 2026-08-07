@@ -86,15 +86,26 @@
        room between the header's double rule and the results. */
     padding: var(--space-4) var(--space-4) var(--space-2);
   }
-  /* the clear-all ("Alle Filter entfernen", owner 2026-08-07 rail round 2): the rail's only
-     bare anchor child — a QUIET text link at the end of the chip row, deliberately not a chip;
-     element link ink, the rail's dense meta size. Its LINE consumes the row knob (C8) so the
-     text centers on the same 2rem line as the controls beside it. */
-  .filterrail > a {
+  /* the rail's two TEXT occupants — the clear-all link ("Alle Filter entfernen", owner
+     2026-08-07 rail round 2: a quiet text link ending the chip row, deliberately not a chip)
+     and the "N Treffer" count — share one line-box rule: both consume the row knob (C8) so
+     their lines center level with the controls beside them. */
+  .filterrail > :is(a, p) {
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);
     font: var(--type-meta);
+  }
+  /* the count ENDS the rail line, right-aligned (law C10: status text rides an occupied band —
+     the status-only toolrow died, owner round-2 correction 2026-08-07). Demoted status styling
+     (G.4): small mono, muted, tabular. The auto margin is composition-owned placement (law C4).
+     Styled by its PLACE, not its aria-live attribute (a live region elsewhere inherits
+     nothing). */
+  .filterrail > p {
+    margin: 0 0 0 auto;
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
   }
 
   /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
@@ -127,39 +138,14 @@
     opacity: 0.6;
   }
 
-  /* ---- toolrow: the one line of occasional chrome above the ledger — the Sammelbearbeitung
-     disclosure left, the result count right (learning G.4: status recedes, the ledger leads) */
-  .toolrow {
-    /* flex-start, not baseline: the disclosure grows downward when opened — the count must stay
-       up on the summary line, not ride the expanded box's baseline. --line-pad is the ONE knob
-       (law C3) both the summary and the count consume, so their lines align by construction. */
-    --line-pad: var(--space-1);
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: var(--space-3);
-  }
-  .toolrow details {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  /* the "N Treffer" count: demoted status — small mono, muted, right-aligned. Styled by its
-     PLACE (the toolrow), not by its announcement attribute — aria-live stays markup-only, so a
-     future live-region <p> elsewhere inherits nothing (altitude: attributes are behavior, the
-     context is the style hook). Every count renders inside a toolrow, all three branches. */
-  .toolrow > p {
-    margin: 0;
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--on-surface-variant);
-    padding-block: var(--line-pad); /* rides the collapsed summary's own line box */
-  }
-
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
-     occasional chrome and recede). Cold: the summary line + the selection count. Open:
-     furniture — flat plain container, hairline border, no tint, no depth (register row 8). */
+     occasional chrome and recede). It sits DIRECTLY above the ledger in the form's column — no
+     wrapper band (law C10, round-2 correction: the old toolrow was status-only once the count
+     moved to the rail; a hidden/absent disclosure now collapses to nothing, no empty gap). Cold:
+     the summary line + the selection count. Open: furniture — flat plain container, hairline
+     border, no tint, no depth (register row 8). */
   details.bulk summary {
-    padding: var(--line-pad) 0;
+    padding: var(--space-1) 0;
   }
   /* the selection count inside the summary: plain status text (span role=status — deliberately
      NOT a form-associated element, whose interactivity would swallow the summary's toggle click) */
@@ -176,8 +162,6 @@
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
   }
-  /* open keeps --line-pad: the count outside the disclosure shares the knob, so the two lines
-     stay aligned in BOTH states — no per-state pad retune to remember */
   details.bulk > div:first-of-type {
     display: flex;
     flex-wrap: wrap;

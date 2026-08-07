@@ -127,6 +127,26 @@ def test_control_rows_compute_one_height_source(archivist_page: Page, live_workb
     assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
 
+def test_treffer_count_rides_the_rail_and_stays_live(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Law C10 (owner round-2 correction 2026-08-07): the "N Treffer" count rides the filter
+    # rail's line — the occupied band — and the status-only toolrow is gone. The rail lives
+    # OUTSIDE the #results swap target, so the htmx type-to-search swap must refresh the count
+    # out-of-band: type a narrowing q and watch the RAIL's count change without navigation.
+    page = archivist_page
+    page.goto(live_workbench + "/")
+    count = page.locator(".filterrail #trefferzahl")
+    expect(count).to_have_text("3 Treffer")  # the canonical corpus, archivist-scoped
+    # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
+    page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+    expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
+    assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
+    # zero hits: the rail still renders, the count stays on its line (the rail is the one place)
+    page.goto(live_workbench + "/?q=zzzznomatch")
+    expect(page.locator(".filterrail #trefferzahl")).to_have_text("0 Treffer")
+
+
 def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
     # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
