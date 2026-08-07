@@ -84,7 +84,6 @@ adding a row first, and rows are owner decisions.
 | 9 | Icons (owner 2026-08-07) | ONE vendored set of hairline-stroke inline SVGs (24px grid, stroke-width 2 — matches the hairline/ink aesthetic). Licensed slots: the ledger row-action toolbar and view toolbars (`role="toolbar"`). Every icon-only control carries an accessible name. New glyphs join the one set deliberately (demo page in lockstep); no second style, no icon fonts, no ad-hoc picks. | forbidden |
 | 10 | Pane-row marker (owner 2026-08-07) | `.ledger [role="row"][aria-current]`: a quiet persistent neutral highlight (`--surface-container-high`) on the one row whose article the pane shows — deliberately NOT an inversion (a previewed row is not a selected row) | forbidden |
 | 11 | Ledger margin rule (owner endorsement of exploration 05 idea (a), 2026-08-07) | ONE vertical hairline after the Signatur column of the ledger — the bound-register margin line. | forbidden — no other vertical rules in the ledger |
-
 | 12 | Overlay shadow (owner 2026-08-07: the popover "should have a shadow or something to differentiate it from the background") | TRANSIENT floating panels only — the filter rail's dropdown panels AND the header's "+ Neu …" create-menu panel (`details.menu > ul` — owner 2026-08-07 rail round 2, Mock B: the panel's material role is OVERLAY, per G.17) (`--overlay-shadow`: one soft layer, larger blur than the sheet's contact shadow, low-alpha ink over roles). An overlay genuinely floats; a resting sheet does not — the two shadows stay distinct tokens. | forbidden — still no elevation ramps/stacks on resting surfaces |
 
 **Reserved (recorded, NOT licensed):** a serif READING type role (`--type-reading`) for the Lesesaal member composition (owner liked exploration 04's serif reader, 2026-08-07) — licensed when that wave is approved. Also reserved: trapezoid tab — both top corners cut —
@@ -123,6 +122,21 @@ then two-cut bevels are forbidden like any unregistered cue.
    turns the fact into text. (Owner, 2026-08-06 — supersedes the planned
    copy law; the doubling defect class dies with one-implementation-per-view
    plus this rule.)
+
+8. **One height source per control row** (owner correction 2026-08-07).
+   Every interactive child of a control row — a toolbar, the filter rail,
+   the header — consumes the row's `--control-height` knob. Equal sizing
+   must hold BY CONSTRUCTION, never by two components' values happening to
+   agree; a per-component height inside a control row is a defect.
+9. **Breakpoints are derived, never invented.** Any width threshold that
+   hides content cites the content arithmetic it derives from (the sum of
+   the columns' min-content widths + gaps), written next to the query. A
+   threshold that hides content while space remains is a defect — provable
+   computed: at any width where a column is hidden, showing it would
+   overflow.
+10. **No status-only bands.** A horizontal band exists only with a primary
+   occupant; status text (counts) rides an occupied band; a band whose
+   occupants are all hidden collapses entirely.
 
 ## Themability law (owner, 2026-08-06)
 
@@ -173,6 +187,12 @@ rework wave:
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
   C5).
+
+**Generic computed invariant (the G.1 pattern, generalized — mandatory):** one
+e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,
+the filter rail, the header's control cluster) and asserts all interactive
+children compute the same height and font treatment. Per-instance copies of
+this test are forbidden — the walker covers new rows automatically.
 
 What the lint cannot check — composition, alignment, one-fact-one-place —
 is the design gate's checklist: catechism questions 2–4 and 6–8, judged on
@@ -326,3 +346,20 @@ for the future?"):**
    law and shipped again unchanged; one wave later the owner tightened it.
    Record lukewarm verdicts as revisit-candidates with the reservation
    quoted, not as closed decisions.
+
+**2026-08-07, round-2 gate corrections (four sibling-consistency escapes):**
+
+21. **Per-instance proofs don't generalize themselves.** The G.1
+   computed-style test protected exactly the ledger headers it was written
+   for; the header's "+ Neu" summary and the rail chips reintroduced the
+   same defect class beside it. Invariants are written as WALKERS over all
+   instances (every control row), so new siblings are covered the day they
+   appear.
+22. **Equality by construction, not by coincidence.** Two components whose
+   independent values happen to match will drift; siblings that must match
+   consume one shared knob (C8). "This shouldn't even be possible" is a
+   demand for construction, not for review vigilance.
+23. **A hidden element must be provably out of space.** The column-drop
+   thresholds were invented for one composition and hid columns at 680px
+   with room to spare. Every content-hiding threshold derives from measured
+   content minimums (C9) and carries a computed proof.
