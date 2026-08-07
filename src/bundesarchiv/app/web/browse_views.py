@@ -538,6 +538,12 @@ def _bulk_bar_context(
     STATUS: ``has_auswahl`` gates the "{n} ausgewählt" count + "Auswahl aufheben" so an empty
     selection shows no "0 ausgewählt".
 
+    The client can only hide what it fully accounts for (learning G.25): ``auswahl_offpage_count``
+    is the part of the URL-borne selection that is NOT on this page, so the enhancement can add its
+    own live checkbox count to a number it cannot otherwise see. Without it the JS counted this
+    page's boxes alone and hid a live cross-page selection — the archivist on page 2 could neither
+    see, clear nor apply it.
+
     Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
     the whole results block on ``page.hits``, so this returns the off flag defensively for that case.
     """
@@ -545,10 +551,12 @@ def _bulk_bar_context(
     if not hits:
         return {"bulk_bar": False}
     page_ulids = [h.ulid for h in hits]
+    on_page = set(page_ulids)
     context: dict[str, object] = {
         "auswahl": auswahl,
         "bulk_bar": True,
         "has_auswahl": bool(auswahl),
+        "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
         "bulk_feld_options": _BULK_FELD_OPTIONS,
         "bulk_media_type_options": vocab.media_type_options(),

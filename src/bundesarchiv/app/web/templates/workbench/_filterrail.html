@@ -1,27 +1,21 @@
 {% comment %}
 The filter rail — the PRIMARY filter interaction (owner 2026-08-07; the facet sidebar died with
-it). One horizontal row directly under the header: a native <details> dropdown per facet group
-(the ONE facet_group component — the demo pages include the same file, lockstep by construction)
-followed by the active-filter chips. Every filter is a plain GET link (URL-as-state, no JS);
-facet clicks navigate the full page, so the rail re-renders with fresh counts on every filter
-change — the same mechanism the sidebar used (an htmx q-swap updates only #results, as before,
-which is why the rail lives OUTSIDE it). A chip is the register-row-3 inversion mark for one
-active filter; its ✕ (and the dropdown's active row) remove it via the same link algebra. On
-narrow viewports the rail simply wraps — the results are never buried under stacked panels.
+it). One horizontal row directly under the header: the filter set (a native <details> dropdown per
+facet group — the ONE facet_group component — plus the active-filter chips and clear-all), then the
+"N Treffer" count ending the line. Every filter is a plain GET link (URL-as-state, no JS); facet
+clicks navigate the full page, so the rail re-renders with fresh counts on every filter change. A
+chip is the register-row-3 inversion mark for one active filter; its ✕ (and the dropdown's active
+row) remove it via the same link algebra. On narrow viewports the rail simply wraps — the results
+are never buried under stacked panels.
+
+The rail lives OUTSIDE the #results swap target, so an htmx q-swap has to refresh it out-of-band or
+it keeps describing the previous request's query. Both of its parts do exactly that, and they are
+two parts for one reason: _filterset.html (counts, chips, hrefs, aria-current) is swapped WHOLE,
+while _trefferzahl.html keeps its own innerHTML swap so the aria-live node itself survives and
+still announces. Both are emitted as top-level oob fragments by _results.html on an HX-Request.
 {% endcomment %}
 <nav class="filterrail" aria-label="Filter">
-  {% comment %} open resolves falsy on the workbench (the view-model carries none — dropdowns
-  start closed); the layout demo seeds one group open to exhibit the dropped panel. {% endcomment %}
-  {% for group in facet_groups %}
-  {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
-  {% endfor %}
-  {% for chip in filter_chips %}
-  <span class="chip"><b>{{ chip.group }}:</b> {{ chip.label }}<a href="?{{ chip.query }}" aria-label="Filter entfernen: {{ chip.label }}">✕</a></span>
-  {% endfor %}
-  {% comment %} Clear-all at the END of the chip row (owner 2026-08-07, rail round 2): a quiet
-  text link, only when ≥1 chip is present. Same semantics as the chips, all at once: every
-  FILTER param drops, q + sort survive (browse.clear_filters_query). {% endcomment %}
-  {% if filter_chips %}<a href="?{{ clear_filters_query }}">Alle Filter entfernen</a>{% endif %}
+  {% include "workbench/_filterset.html" with facet_groups=facet_groups filter_chips=filter_chips clear_filters_query=clear_filters_query only %}
   {% comment %} The "N Treffer" count ends the rail line, right-aligned (law C10: status rides
   the occupied band; the status-only toolrow died). The rail always renders on the workbench,
   so the count has one place in every branch — results, zero hits, non-archivist alike. {% endcomment %}

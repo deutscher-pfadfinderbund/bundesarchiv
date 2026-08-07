@@ -305,9 +305,8 @@
      overlays). Still no elevation ramps/stacks. The active row is read from aria-current on its
      link (law C2) and marked by INVERSION (row 3); it carries the remove ✕, inactive rows carry
      the bare count. ---- */
-  .facet {
-    position: relative; /* the anchor the dropped panel positions against */
-  }
+  /* NB: .facet declares no positioning — the dropped panel positions against the rail, not
+     against its own trigger (see the shared overlay-panel rule below). */
   .facet > summary {
     display: inline-flex;
     align-items: center;
@@ -328,10 +327,23 @@
   }
   /* the ONE transient overlay panel (register row 12), shared by both details dropdowns —
      the rail's facet groups and the header's create menu: opaque, hairline-edged, floating on
-     the one overlay shadow. Anchoring + reading width stay per component (below). */
+     the one overlay shadow.
+     ONE PATTERN, ONE RULE — an overlay panel positions against its CONTROL ROW (the filter rail,
+     the header), never against its own trigger (learning G.26). That is what makes containment
+     STRUCTURAL: the row spans the viewport minus its own padding, so a panel pinned to one of the
+     row's inline edges and capped at 100% of it is fully on-viewport at every width, by
+     construction. Pinning to the TRIGGER cannot achieve that in Baseline CSS — the trigger's
+     viewport offset is not expressible, so start-pinning protects only the left edge and
+     end-pinning only the right, and both escaped at real widths (the header menu landed at
+     left:-89px once the header wrapped; the rail's trailing dropdowns pushed the document into
+     horizontal scroll). Anchor positioning would restore per-trigger anchoring, but law F bars it
+     as load-bearing until Baseline. Which EDGE a panel pins to stays per component (below); the
+     row is whatever positioned ancestor it sits in (layouts.css marks the header and the rail;
+     the component library's exhibit column is its own row). */
   :is(.facet, .menu) > ul {
     position: absolute;
     top: calc(100% + var(--space-1));
+    max-width: 100%; /* the containment half of the rule above — never wider than the row */
     z-index: 2; /* above the (sticky, positioned) pane sheet the open panel may overlap */
     list-style: none;
     margin: 0;
@@ -342,7 +354,10 @@
     box-shadow: var(--overlay-shadow);
   }
   .facet > ul {
-    left: 0;
+    /* the row's LEADING edge (the enhancement below refines this to the trigger where anchor
+       positioning exists); with one drop point the rail's groups share a `name` so two panels can
+       never hide each other — components/facet_group.html */
+    inset-inline-start: 0;
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
     /* the dropped panel is a transient OVERLAY, not part of the rail's control row — the rail's
        compact --control-height must not reach in (the compact license covers chips + their ✕
@@ -350,6 +365,39 @@
        full --touch-target floor. */
     --control-height: initial;
   }
+  /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
+     positioning exists, the panel drops from its OWN trigger and FLIPS its inline anchor when
+     that would leave the viewport — the placement the overlay wants, with containment kept by the
+     try-fallback rather than by the row. Where it does not exist, the row-pinned rule above stands
+     unchanged: contained, readable, and needing no fallback code (the corner-shape precedent).
+     anchor-scope keeps each disclosure resolving its OWN trigger instead of a later sibling's.
+     The `--anchor-probe` name in the condition is also the e2e hook: the containment walker serves
+     this stylesheet once with that one condition falsified, so the fallback tier gets its own
+     computed proof instead of being reasoned about from the enhanced render. */
+  @supports (anchor-name: --anchor-probe) and (position-area: block-end span-inline-end) {
+    .facet,
+    .menu {
+      anchor-name: --dropdown;
+      anchor-scope: --dropdown;
+    }
+    :is(.facet, .menu) > ul {
+      position-anchor: --dropdown;
+      position-try-fallbacks: flip-inline;
+      /* position-area replaces the row-edge insets and supplies the containing block */
+      top: auto;
+      inset-inline: auto;
+      margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
+    }
+    /* each panel keeps the direction it drops in — the rail's groups open rightward from their
+       button, the header's create menu leftward from its own trailing edge */
+    .facet > ul {
+      position-area: block-end span-inline-end;
+    }
+    .menu > ul {
+      position-area: block-end span-inline-start;
+    }
+  }
+
   .facet li {
     display: flex;
     justify-content: space-between;
@@ -390,10 +438,10 @@
      mechanics live here. The dropped panel is a TRANSIENT overlay (register row 12): opaque,
      hairline-edged, floating on the one overlay shadow. Plain native <details> behavior, no
      close-on-outside-click JS (owner-accepted). ---- */
+  /* like .facet, no positioning: the panel positions against the HEADER row (shared rule above) */
   .menu {
-    position: relative; /* the anchor the dropped panel positions against */
-    display: inline-block; /* shrink to the summary, so the panel anchors to the button — not to
-       a stretched block box (matters outside the header's flex row, e.g. the demo columns) */
+    display: inline-block; /* shrink to the summary, so the disclosure is button-sized — not a
+       stretched block box (matters outside the header's flex row, e.g. the demo columns) */
   }
   .menu > summary {
     display: inline-flex; /* centers the label inside the row's --control-height (C8) */
@@ -407,7 +455,11 @@
   }
   /* panel box: the shared overlay-panel rule above (row 12); only anchoring + width are local */
   .menu > ul {
-    inset-inline-end: 0; /* the menu ends the header row — the panel drops leftward, on-viewport */
+    /* the header row's TRAILING edge: the create disclosure ends the header, so at every width
+       where the row does not wrap the panel lands exactly under it — and when the row DOES wrap
+       (the menu drops to the next line, at the row's start) the panel stays on-viewport instead
+       of running off the left edge at left:-89px */
+    inset-inline-end: 0;
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
   .menu li > a {
@@ -471,24 +523,45 @@
     container-type: inline-size;
   }
   .ledger > [role="table"] {
+    /* The SHRINKABLE track floors (law C3: the grid's own knobs, consumed by --cols AND by the
+       fold's row template below, so one-line and folded anatomy can never derive different
+       minima). Every floor is the narrowest width at which its column still carries its fact,
+       and each is a structural dimension with no fitting token (law C5):
+         --sig-floor    5rem    — a short realistic code ("BA 1848/II") still reads; longer codes
+                                  give space back through .c-sig-code's ellipsis
+         --titel-floor  6rem    — the elastic track: takes all slack, gives it back FIRST
+         --datum-floor  5.25rem — the "DATIERUNG" header label (83px measured) stays intact
+         --typ-floor    3rem    — the "TYP" header label (28px) plus reading room
+       Learning G.24: a BARE max-content track has a max-content BASE size — it can never shrink,
+       so a long Signatur/Typ pushed the whole page body into horizontal scroll and the cells'
+       ellipsis was dead styling. minmax(floor, max-content) keeps the intrinsic PREFERENCE (the
+       column tightens to its content whenever there is room) while making the floor the real
+       minimum. */
+    --sig-floor: 5rem;
+    --titel-floor: 6rem;
+    --datum-floor: 5.25rem;
+    --typ-floor: 3rem;
     /* the shared column tracks (a named local dimension set, law C3/C5); --lead is the optional
        bulk-checkbox track, prepended via the empty-fallback idiom. Tracks carry line names and
        every cell is placed on its own line (below), so a row with an ABSENT value keeps every
        other cell in its column instead of auto-flowing leftward. INTRINSIC sizing (law C11):
-       SIG, DATIERUNG, TYP are short mono/meta values and sit at max-content — they tighten to
-       their widest content (for Datierung that is usually its own header label) instead of
-       holding invented floors; the SIG track thereby never truncates realistic codes
-       ("BA 1848/II") and the row-11 margin rule closes right after the column. TITEL is the one
-       elastic track: it takes all slack and gives it back first (ellipsis), down to a 6rem
-       floor — the largest floor at which the full six-track anatomy still fits a 32rem (512px)
-       container, the fold boundary (C9 arithmetic at the fold block below: 512px − ~417px of
-       siblings/gaps/padding ≈ 95px ≈ 6rem). */
-    --cols: [sig] max-content [titel] minmax(6rem, 1fr) [datum] max-content [typ] max-content
+       SIG, DATIERUNG, TYP are short mono/meta values that PREFER max-content — they tighten to
+       their widest content (for Datierung that is usually its own header label) — and yield to
+       their floors under pressure; the row-11 margin rule closes right after the SIG column.
+       TITEL is the elastic track: it takes all slack and gives it back first. */
+    --cols: [sig] minmax(var(--sig-floor), max-content) [titel] minmax(var(--titel-floor), 1fr)
+      [datum] minmax(var(--datum-floor), max-content) [typ] minmax(var(--typ-floor), max-content)
       [aktion] max-content;
     display: grid;
     grid-template-columns: var(--lead, ) var(--cols);
     /* the book's covers: top + bottom rules only — a bound page has no side chrome */
     border-block: var(--hairline) solid var(--outline);
+    /* The last-resort scroll box (ledger.html's contract: the page body never scrolls sideways).
+       `position: relative` makes this box the containing block for its absolutely-positioned
+       descendants — the sr-only column labels — so they are clipped BY the scroller instead of
+       escaping it and extending the document's scrollable area. Without it the contract held only
+       as long as the content happened to be short enough (learning G.24). */
+    position: relative;
     overflow-x: auto;
   }
   .ledger.bulk > [role="table"] {
@@ -647,6 +720,14 @@
     font: var(--type-meta);
     color: var(--on-surface-variant);
   }
+  /* the shrinkable mono columns give space back the same way the Titel does — one line, ellipsis
+     (the Signatur's own ellipsis lives on .c-sig-code). Without this the tightened track would
+     merely CLIP the value; with it, a long EDTF interval or Dokumenttyp says so visibly. */
+  .ledger [role="rowgroup"] :is(.datierung, .typ) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   /* the row-action toolbar (learning G.9): icon links from the one set, --touch-target hit
      areas, quiet ink */
   .ledger [role="rowgroup"] .aktion [role="toolbar"] {
@@ -678,16 +759,17 @@
      checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
      BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. The 32rem
      threshold DERIVES from the one-line anatomy's content minimum (law C9; measured live
-     2026-08-07, e2e test_ledger_columns_stay_visible_by_intrinsic_sizing re-measures it every
-     run): checkbox 13 + Signatur ~82 (a realistic 10-char mono code, e.g. "BA 1848/II") + 13
-     margin-rule chrome + Titel floor 96 (6rem) + Datierung 84 (its header label is the column's
-     widest content) + Typ ~47 + toolbar 96 (two --touch-target icons + gap) + 5 gaps × 12 + row
-     padding 24 ≈ 513px ≈ 32rem — below that the one-line row genuinely cannot fit, so hiding
-     (the fold) is necessary, never premature. The threshold also sits BELOW the narrowest
-     pane-open container — the pane switch (layouts.css) is an 80rem viewport query (pane ≤26rem
-     + gap + frame padding leaves main ≥ ~51rem), both sides sharing the rem unit, so row anatomy
-     never changes with pane state (decision 1) at any root font size — only a genuinely
-     phone-narrow container may fold. */
+     2026-08-07, re-derived 2026-08-07 from the track FLOORS after G.24 — the e2e
+     test_ledger_columns_stay_visible_by_intrinsic_sizing reads the same knobs and re-measures it
+     every run): every shrinkable track at its floor plus the rigid ones at content width —
+     checkbox 13 + Signatur floor 80 (--sig-floor 5rem) + 13 margin-rule chrome + Titel floor 96
+     (6rem) + Datierung floor 84 (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
+     (two --touch-target icons + gap) + 5 gaps × 12 + row padding 24 ≈ 514px ≈ 32rem — below that
+     even the FULLY TIGHTENED one-line row cannot fit, so hiding (the fold) is necessary, never
+     premature. The threshold also sits BELOW the narrowest pane-open container — the pane switch
+     (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
+     ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
+     (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
@@ -696,7 +778,12 @@
       display: none;
     }
     .ledger [role="rowgroup"] [role="row"] {
-      grid-template-columns: min-content max-content max-content minmax(0, 1fr);
+      /* the two-line card's own tracks, on the SAME floor knobs as the one-line anatomy (G.24:
+         a bare max-content track cannot shrink, and the fold is exactly where space is
+         scarcest — a long Signatur overflowed the card at phone widths) */
+      grid-template-columns:
+        min-content minmax(var(--sig-floor), max-content)
+        minmax(var(--datum-floor), max-content) minmax(0, 1fr);
       grid-template-areas:
         "auswahl sig titel titel"
         "auswahl sig datum typ";

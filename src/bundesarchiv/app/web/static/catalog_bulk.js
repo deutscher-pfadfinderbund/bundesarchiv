@@ -4,10 +4,14 @@
 // ticks need a submit first — this file lifts that limit, GH #22). PROGRESSIVE visibility
 // (owner 2026-08-07, reverses the #16 cold-start ruling): the server always renders the
 // disclosure VISIBLE (so a no-JS archivist can reach "Alle auf dieser Seite"); with JS this
-// file hides it via the [hidden] attribute while the live selection count is 0 and reveals it
-// the moment a row checkbox is ticked — hiding rides the modes-layer `[hidden] { display: none
-// !important }` rule, so no display rule can ever make the hidden disclosure intercept clicks
-// (the recorded regression class). Row inversion and the Feld→value-widget switch are pure CSS
+// file hides it via the [hidden] attribute while the TOTAL selection count is 0 and reveals it
+// the moment that total reaches 1. TOTAL, not this page's ticks: it is the live checkboxes here
+// PLUS the off-page URL-borne selection the server hands over in data-bulk-offpage (learning
+// G.25 — an enhancement may only hide what it can account for; a box-counting client hid a live
+// cross-page selection and stranded the archivist). Hiding rides the modes-layer
+// `[hidden] { display: none !important }` rule, so no display rule can ever make the hidden
+// disclosure intercept clicks (the recorded regression class). Row inversion and the
+// Feld→value-widget switch are pure CSS
 // (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
 // blacklist defect. Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
 // separately) handles the dependent-Dokumenttyp swap.
@@ -18,12 +22,35 @@
   // + bar), so the enhancement survives a live search. Idempotent: a data-flag guards double-binding.
   document.addEventListener("DOMContentLoaded", init);
   document.body.addEventListener("htmx:afterSwap", init);
+  // A history restore (Back after a hx-push-url search) is its OWN lifecycle event: htmx 2.0.4
+  // replaces the body from its snapshot and fires ONLY htmx:historyRestore — never afterSwap — so
+  // the plain init above never runs. Worse, the snapshot was serialized WITH this enhancement's
+  // leftovers: the bound flag (an attribute, so it survives), the disclosure's [hidden] state and
+  // the count text, while the checkbox ticks (properties) do not. The restored page therefore came
+  // back with a stale count over a dead form. Re-init from the restored state instead (learning
+  // G.25). document.body itself survives the restore (htmx swaps its innerHTML), so this listener
+  // stays attached.
+  document.body.addEventListener("htmx:historyRestore", reinit);
+
+  // the bulk form currently in the document (absent for non-archivists and on the zero-hit page)
+  function resultsForm() {
+    return document.querySelector("#results > form");
+  }
 
   function init() {
-    var form = document.querySelector("#results > form");
+    var form = resultsForm();
     if (!form || form.dataset.bulkBound === "1") return;
     form.dataset.bulkBound = "1";
     wire(form);
+  }
+
+  // Drop the restored snapshot's bound flag so init() wires the fresh nodes, then let wire()'s own
+  // closing sync re-derive count + visibility + link state from what is ACTUALLY in the DOM.
+  // Idempotent like init(): the flag goes back up immediately.
+  function reinit() {
+    var form = resultsForm();
+    if (form) delete form.dataset.bulkBound;
+    init();
   }
 
   function wire(form) {
@@ -43,13 +70,23 @@
     // Empty text at zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract:
     // markup may restructure freely as long as it keeps the hook. The same count drives the
     // disclosure's progressive visibility (see the file header): hidden at 0, revealed at ≥ 1.
+    //
+    // The TOTAL is this page's live checkboxes PLUS the off-page part of the URL-borne selection
+    // (data-bulk-offpage, from the server). Both halves matter: on THIS page the live checkbox
+    // state supersedes the URL (fresh ticks/unticks count immediately, GH #22), while the
+    // selection on other pages is invisible to the DOM and can only come from the server. An
+    // enhancement may only hide what it accounts for (learning G.25) — counting the boxes alone
+    // hid a live cross-page selection and stranded the archivist on page 2.
     function updateCount() {
       var zahl = form.querySelector("[data-bulk-zahl]");
-      var n = rowBoxes().filter(function (b) {
-        return b.checked;
-      }).length;
-      zahl.textContent = n > 0 ? n + " ausgewählt" : "";
       var bulk = form.querySelector("details.bulk");
+      var offPage = bulk ? parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
+      var n =
+        offPage +
+        rowBoxes().filter(function (b) {
+          return b.checked;
+        }).length;
+      zahl.textContent = n > 0 ? n + " ausgewählt" : "";
       if (bulk) bulk.hidden = n === 0;
     }
 

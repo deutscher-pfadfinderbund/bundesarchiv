@@ -127,6 +127,104 @@ def test_control_rows_compute_one_height_source(archivist_page: Page, live_workb
     assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
 
+#: Every OVERLAY on the page, found generically: a native disclosure whose dropped panel is a
+#: positioned list (`details > ul` — the header's "+ Neu …" create menu and each filter-rail facet
+#: dropdown today). Written as a WALKER, not per instance (learning G.21/G.26): the day a new
+#: overlay is built from the same pattern, this proof already covers it.
+_OVERLAY_SELECTOR = "details:has(> ul)"
+
+#: One overlay's containment facts: the panel's box against the viewport, plus the document's own
+#: horizontal overflow while it is open. Both are needed — a panel can sit inside the viewport
+#: while still stretching the document, and vice versa.
+_OVERLAY_RECT_JS = """(index) => {
+    const detail = document.querySelectorAll('details:has(> ul)')[index];
+    const panel = detail.querySelector(':scope > ul');
+    const r = panel.getBoundingClientRect();
+    const d = document.documentElement;
+    return {
+        label: detail.querySelector('summary').textContent.trim(),
+        left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
+        viewport: d.clientWidth,
+        docOverflow: d.scrollWidth - d.clientWidth,
+    };
+}"""
+
+#: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
+#: 540/680/900 straddle the header wrap and the rail's own wrapping.
+_CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1440)
+
+
+def _walk_overlay_containment(page: Page, live_workbench: str) -> list[str]:
+    """Open every overlay on the filtered workbench at every containment width and return the
+    containment defects. The filtered URL makes the rail carry chips AND dropdowns; overlays open
+    one at a time so panels never mask each other's geometry."""
+    defects: list[str] = []
+    for width in _CONTAINMENT_WIDTHS:
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Fotografie")
+        overlays = page.locator(_OVERLAY_SELECTOR)
+        found = overlays.count()
+        # a silent no-find proves nothing: the create menu + one dropdown per facet group
+        assert found >= 4, f"the overlay walker found only {found} panels at {width}px"
+        for i in range(found):
+            summary = overlays.nth(i).locator("summary")
+            summary.click()
+            rect: dict[str, float | str] = page.evaluate(_OVERLAY_RECT_JS, i)
+            where = f"{width}px · {rect['label']}"
+            if float(rect["left"]) < -1:
+                defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
+            if float(rect["right"]) > float(rect["viewport"]) + 1:
+                defects.append(f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px")
+            if float(rect["docOverflow"]) > 1:
+                defects.append(f"{where}: the open panel scrolls the document {rect}")
+            summary.click()  # close before measuring the next one
+    return defects
+
+
+#: The one pre-Baseline @supports condition in components.css, and a falsification of it. Serving
+#: the REAL stylesheet with just this condition negated is how the walker reaches the FALLBACK tier
+#: — no fallback CSS is restated in the test, and Chromium's own anchor-positioning support (which
+#: no browser flag turns off any more) is left alone.
+_ANCHOR_SUPPORTS_CONDITION = "(anchor-name: --anchor-probe)"
+_ANCHOR_SUPPORTS_FALSIFIED = "(anchor-name: 0)"
+
+
+def _serve_components_css_without_anchor_positioning(route: Route) -> None:
+    response = route.fetch()
+    css = response.text()
+    patched = css.replace(_ANCHOR_SUPPORTS_CONDITION, _ANCHOR_SUPPORTS_FALSIFIED)
+    assert patched != css, f"components.css no longer contains {_ANCHOR_SUPPORTS_CONDITION}"
+    route.fulfill(response=response, body=patched)
+
+
+def test_overlays_stay_inside_the_viewport(archivist_page: Page, live_workbench: str) -> None:
+    # Learning G.26: every floating panel needs a computed CONTAINMENT proof across the width
+    # range — both overlays could leave the viewport at widths no gallery state rendered (the
+    # header create menu landed at left:-89px once the header wrapped, its labels clipped; the
+    # rail's trailing dropdowns ran past the right edge and pushed the document into horizontal
+    # scroll). Walked over BOTH availability tiers (law F): the ANCHORED render, where anchor
+    # positioning drops each panel from its own trigger and flips it away from the edge, and the
+    # FALLBACK render, where the row-pinned placement has to hold containment alone — a
+    # pre-Baseline feature is licensed only where its absence is acceptable, so the fallback is
+    # not something to reason about from the enhanced render.
+    page = archivist_page
+    assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
+        "this browser has no anchor positioning — the anchored tier would go unproven"
+    )
+    defects = [f"[anchored] {d}" for d in _walk_overlay_containment(page, live_workbench)]
+    page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
+    page.goto(live_workbench + "/")
+    page.locator("details.menu summary").click()
+    assert (
+        page.evaluate(
+            "() => getComputedStyle(document.querySelector('details.menu > ul')).positionArea"
+        )
+        == "none"
+    ), "the enhancement is still live — the fallback tier would go unproven"
+    defects += [f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench)]
+    assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
+
+
 def test_treffer_count_rides_the_rail_and_stays_live(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -138,13 +236,46 @@ def test_treffer_count_rides_the_rail_and_stays_live(
     page.goto(live_workbench + "/")
     count = page.locator(".filterrail #trefferzahl")
     expect(count).to_have_text("3 Treffer")  # the canonical corpus, archivist-scoped
+    # The live region's NODE must survive the swap or the polite announcement dies silently (an
+    # aria-live element inserted together with its content is not announced). Stamp the node with
+    # an expando — a property, so no server render can reproduce it — and look for it afterwards.
+    page.evaluate("() => { document.querySelector('#trefferzahl').__probe = 'same-node'; }")
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
+    assert page.evaluate("() => document.querySelector('#trefferzahl').__probe") == "same-node", (
+        "the count's aria-live node was replaced by the swap — announcements die silently"
+    )
     # zero hits: the rail still renders, the count stays on its line (the rail is the one place)
     page.goto(live_workbench + "/?q=zzzznomatch")
     expect(page.locator(".filterrail #trefferzahl")).to_have_text("0 Treffer")
+
+
+def test_rail_links_keep_the_typed_q_after_a_live_swap(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The rail lives OUTSIDE the #results swap target, so an htmx q-swap left every rail link
+    # rendered from the PREVIOUS request: the chip ✕ and "Alle Filter entfernen" still pointed at
+    # a query with no q. Typing "Sommerfahrt" and then removing a filter navigated to "?" and
+    # destroyed the search — violating browse.clear_filters_query's contract ("every FILTER param
+    # drops, q + sort survive"). One fact, one source: the whole filter set refreshes out-of-band
+    # with the count, so the rail can never describe a query the URL no longer has.
+    page = archivist_page
+    for remove in ("Filter entfernen: sommer", "Alle Filter entfernen"):
+        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Fotografie")
+        page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+        page.wait_for_url("**q=Sommerfahrt**")
+        expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
+        link = (
+            page.get_by_label(remove) if remove.startswith("Filter") else page.get_by_text(remove)
+        )
+        assert "q=Sommerfahrt" in (link.get_attribute("href") or ""), (
+            f"'{remove}' was rendered before the q existed: {link.get_attribute('href')}"
+        )
+        link.click()
+        page.wait_for_load_state()
+        assert "q=Sommerfahrt" in page.url, f"'{remove}' destroyed the search: {page.url}"
 
 
 def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
@@ -161,13 +292,56 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
 
 
-#: The measured four-column content minimum of the ledger (law C9's arithmetic, computed live):
-#: per column the widest content box (Range-measured over header + body cells; sr-only heads
-#: excluded), the Titel at its CSS floor (it ellipsizes first — C11), plus the Signatur column's
-#: margin-rule chrome, the row gaps and the row padding. Mirrors the derivation comment next to
-#: the fold query in components.css.
+#: A realistically LONG Signatur + Dokumenttyp for the intrinsic-sizing proofs (learning G.24: an
+#: intrinsic-sizing test run on the short demo corpus passes VACUOUSLY — bare ``max-content`` tracks
+#: only betray themselves once the content is long). A real Bundesarchiv-shaped code (Bestand ·
+#: tectonic level · year span · volume) and the vocabulary's longest Dokumenttyp.
+_LONG_REF_CODE = "BArch B 106/XVII/1948-1952 Bd. 3"
+_LONG_TYP = "Veranstaltungsplakat"
+
+
+def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
+    """Add ONE article whose mono columns are as long as real archive content gets: the widest
+    Signatur, the widest vocabulary Dokumenttyp and a full-date EDTF interval. Seeded per test (not
+    into the shared corpus) so the count-asserting journeys keep their canonical three hits."""
+    from bundesarchiv.domain.edtf import EdtfDate
+    from bundesarchiv.domain.models import Article, Lifecycle
+    from bundesarchiv.index import indexer
+    from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    store = LocalFsObjectStore(root)
+    ArticleRepository(store).save(
+        Article(
+            ulid="01KXE2ELANG0000000000000AA",  # valid Crockford base32, sorts after the canonical
+            title="Werbeplakat zur Bundesfahrt in die Rhön",
+            collection_id="FOTOS",
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code=_LONG_REF_CODE,
+            media_type="Plakat",
+            document_type=_LONG_TYP,
+            date=EdtfDate("1948-01-01/1952-12-31"),
+        ),
+        0,
+    )
+    with blocker.unblock():
+        indexer.rebuild(store)
+
+
+#: The ledger's content minimum (law C9's arithmetic, computed live): every SHRINKABLE track at its
+#: CSS floor — read from the ``--*-floor`` knobs on the grid itself, so the proof can never drift
+#: from the stylesheet the way a hard-coded ``6 * 16`` did — plus the rigid tracks at their measured
+#: content width, the Signatur column's margin-rule chrome, the row gaps and the row padding.
+#: Mirrors the derivation comment next to the fold query in components.css.
 _LEDGER_MINIMUM_JS = """() => {
     const table = document.querySelector('.ledger [role=table]');
+    const s = getComputedStyle(table);
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const floor = (name) => {
+        const raw = s.getPropertyValue('--' + name + '-floor').trim();
+        if (!raw.endsWith('rem')) throw new Error('no --' + name + '-floor knob: ' + raw);
+        return parseFloat(raw) * rem;
+    };
     const measure = (el) => {
         const r = document.createRange();
         r.selectNodeContents(el);
@@ -182,27 +356,54 @@ _LEDGER_MINIMUM_JS = """() => {
         return Math.max(0, ...cells.map(measure));
     };
     const row = table.querySelector('[role=rowgroup] [role=row]');
-    const s = getComputedStyle(row);
+    const rs = getComputedStyle(row);
     const sig = table.querySelector('[role=rowgroup] .sig');
     const sigChrome = parseFloat(getComputedStyle(sig).paddingInlineEnd)
         + parseFloat(getComputedStyle(sig).borderInlineEndWidth);
-    const titelFloor = 6 * 16;  // the CSS floor: minmax(6rem, 1fr) — titel truncates below it
-    const cols = [colMin('auswahl'), colMin('sig') + sigChrome, titelFloor,
-                  colMin('datierung'), colMin('typ'), colMin('aktion')];
+    const cols = [colMin('auswahl'), floor('sig') + sigChrome, floor('titel'),
+                  floor('datum'), floor('typ'), colMin('aktion')];
     return Math.round(cols.reduce((a, b) => a + b, 0)
-        + parseFloat(s.columnGap) * (cols.length - 1)
-        + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight));
+        + parseFloat(rs.columnGap) * (cols.length - 1)
+        + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight));
+}"""
+
+#: The DOCUMENT's horizontal overflow — ledger.html's standing contract is "the page body never
+#: scrolls sideways" (the [role=table] may scroll in its OWN box; the page may not).
+_DOC_OVERFLOW_JS = """() => {
+    const d = document.documentElement;
+    return {overflow: d.scrollWidth - d.clientWidth,
+            scrollX: (window.scrollTo(99999, 0), window.scrollX)};
+}"""
+
+#: Is the long Signatur actually ELLIPSIZED at this width? Its rendered box vs the width its text
+#: wants (Range-measured): a bare max-content track never shrinks, so .c-sig-code's ellipsis is
+#: dead styling (catechism Q6) — this is what proves the floor made it live.
+_LONG_SIG_JS = """() => {
+    const code = [...document.querySelectorAll('.ledger [role=rowgroup] .c-sig-code')]
+        .find((e) => e.textContent.trim().startsWith('BArch'));
+    if (!code) throw new Error('the long-Signatur row is not on this page');
+    const r = document.createRange();
+    r.selectNodeContents(code);
+    return {box: code.getBoundingClientRect().width, text: r.getBoundingClientRect().width};
 }"""
 
 
 def test_ledger_columns_stay_visible_by_intrinsic_sizing(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+    archivist_page: Page,
+    live_workbench: str,
+    e2e_corpus: CorpusHandles,
+    _e2e_root: Path,
+    django_db_blocker: DjangoDbBlocker,
 ) -> None:
     # Law C11 (intrinsic first, owner 2026-08-07): the ledger has NO column-drop thresholds —
     # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
     # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
     # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
-    # Proof at each width: nothing hidden AND nothing overflows.
+    # G.24's red case pinned the opposite escape: with a realistic LONG Signatur + Typ the bare
+    # max-content tracks could not shrink at all, so the ledger pushed the whole PAGE BODY into
+    # horizontal scroll from 800px down. Hence the long-content seed — the short demo corpus made
+    # this proof pass vacuously.
+    _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
         page.set_viewport_size({"width": width, "height": 900})
@@ -214,8 +415,31 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
             " return t.scrollWidth - t.clientWidth; }"
         )
         assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+    # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
+    # never scrolls sideways, and the long Signatur gives its space back by ELLIPSIZING (proof the
+    # floors are shrinkable and .c-sig-code's ellipsis is live styling, not dead — Q6).
+    defects: list[str] = []
+    for width, path in (
+        (560, "/"),
+        (640, "/"),
+        (800, "/"),
+        (1280, f"/?artikel={e2e_corpus.published_ulid}"),
+    ):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + path)
+        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
+        if doc["overflow"] > 1 or doc["scrollX"] > 1:
+            defects.append(f"{width}px: document scrolls sideways {doc}")
+        sig: dict[str, float] = page.evaluate(_LONG_SIG_JS)
+        if width < 1280 and sig["box"] >= sig["text"] - 1:
+            defects.append(f"{width}px: the long Signatur never tightened {sig}")
+    assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
+        defects
+    )
     # The fold below 32rem stays the ONE modal width change (C11-licensed) and hides content
-    # only out of necessity (C9): the measured four-column minimum exceeds the fold container.
+    # only out of necessity (C9): the fully-tightened one-line anatomy exceeds the fold container.
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(live_workbench + "/")
     minimum: int = page.evaluate(_LEDGER_MINIMUM_JS)  # measured while all columns render
     page.set_viewport_size({"width": 500, "height": 900})
     page.goto(live_workbench + "/")
@@ -538,6 +762,33 @@ def test_bulk_url_seeded_selection_still_works(
     expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
 
 
+def test_bulk_enhancement_survives_a_history_restore(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Learning G.25, second half: htmx 2.0.4 restores a cached page WITHOUT firing afterSwap —
+    # only htmx:historyRestore — and the snapshot it restores was serialized WITH the enhancement's
+    # own leftovers: data-bulk-bound="1" on the form, the [hidden] state and the count text as they
+    # stood at snapshot time. Checkbox ticks are properties and do NOT survive the snapshot, so
+    # after search-then-Back the disclosure claimed "2 ausgewählt" over an empty selection and the
+    # bound-guard left the form dead. The restore must re-init from the ACTUAL restored state.
+    page = archivist_page
+    page.goto(live_workbench + "/")
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()
+    # a live search: hx-push-url snapshots the current page into htmx's history cache first
+    page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+    page.wait_for_url("**q=Sommerfahrt**")
+    page.go_back()
+    page.wait_for_url(lambda url: "q=Sommerfahrt" not in url)
+    # the restored page states the URL's selection (none), never the snapshot's stale count
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
+    expect(page.locator("details.bulk")).to_be_hidden()
+    # ...and the enhancement is WIRED again: a fresh tick moves the live count
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    expect(page.get_by_text("1 ausgewählt")).to_be_visible()
+
+
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
     """Grow the canonical corpus past one page (PAGE_SIZE=50): 60 extra published articles with
     fixed ULIDs sorting AFTER the canonical ones (browse order is ulid), then re-index so the live
@@ -595,10 +846,18 @@ def test_bulk_fresh_ticks_survive_paging(
     # the URL carries the fresh state: the tick travelled, the untick stuck
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
     assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
+    # ...and the archivist can SEE it here. Learning G.25: the progressive-visibility JS counted
+    # only THIS page's checkboxes, so an off-page selection (nothing ticked on page 2) was hidden
+    # at wire time — the server rendered "1 ausgewählt" + Auswahl aufheben and the client took the
+    # whole disclosure away, stranding the selection. Asserted BEFORE any tick on this page.
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # none of it is here
+    expect(page.locator("details.bulk > summary")).to_be_visible()
+    expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
     page2_box = page.locator('input[name="auswahl"]').first
     page2_ulid = page2_box.get_attribute("value")
     page2_box.check()
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # off-page 1 + this page's fresh tick
     page.click('a[rel="prev"]')
     page.wait_for_url("**seite=1**")
     # page 1 re-renders the selection from the URL alone: tick survived, untick survived
@@ -608,6 +867,12 @@ def test_bulk_fresh_ticks_survive_paging(
     ).not_to_be_checked()
     assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
+    # the cross-page selection stays CLEARABLE from either page (the other half of G.25: an
+    # affordance the client hid could not be used) — one link drops both pages' ulids
+    page.click("details.bulk > summary")
+    page.click('a:has-text("Auswahl aufheben")')
+    expect(page.locator("details.bulk")).to_be_hidden()  # nothing selected anywhere → hidden again
+    assert not _auswahl_in_url(page)
 
 
 # --- no-JS baseline ----------------------------------------------------------------

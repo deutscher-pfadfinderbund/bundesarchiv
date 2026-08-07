@@ -6,9 +6,15 @@ law, no-JS by construction). Renders inside the results form — the row checkbo
 are the selection source. PROGRESSIVE visibility (owner 2026-08-07, reverses the #16 cold-start
 ruling): the server renders the disclosure VISIBLE (this template carries no hidden attribute),
 so the no-JS archivist always reaches "Alle auf dieser Seite"; catalog_bulk.js hides the whole
-disclosure via [hidden] while the live selection count is 0 and reveals it on the first tick.
+disclosure via [hidden] while the TOTAL selection count is 0 and reveals it on the first tick.
 The count span is ALWAYS present (empty when no selection) so catalog_bulk.js has a live target
 to write into; the server fills it for the no-JS path (signals-once: no "0 ausgewählt").
+
+data-bulk-offpage is the second half of that contract (learning G.25: an enhancement may only hide
+what it can ACCOUNT for). It carries the part of the URL-borne ?auswahl= selection that is not on
+this page — invisible to a client counting checkboxes — so the JS total is
+data-bulk-offpage + this page's checked boxes. Counting only the boxes hid a live cross-page
+selection and stranded the archivist on page 2.
 
 Expanded: "Alle auf dieser Seite" (GET link appending the page's ulids), "Auswahl aufheben"
 (selection-gated), then the Feld chooser + Änderung prüfen (submit → confirm POST; a zero-check
@@ -17,7 +23,7 @@ the one matching the chosen Feld — via CSS :has over the select's own checked 
 (layouts.css .chooser; no JS, identical no-JS behavior; the server reads only the matching
 widget either way). No loud color; the primary is the one anchor.
 {% endcomment %}
-<details class="bulk">
+<details class="bulk" data-bulk-offpage="{{ auswahl_offpage_count|default:0 }}">
   {% comment %}The count is a plain status span, NOT an <output>: a form-associated element
   inside a <summary> counts as interactive and swallows the toggle click (Chrome). role=status
   keeps the polite announcement; data-bulk-zahl is the JS contract (catalog_bulk.js writes the
