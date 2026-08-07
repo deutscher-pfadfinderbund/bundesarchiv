@@ -78,7 +78,7 @@ class _Corpus:
                 collection_id="FOTOS",
                 lifecycle=Lifecycle.PUBLISHED,
                 body="Erste Zeile.\n\nZweite Zeile.",
-                ref_code="F 12",
+                ref_code="F12",
                 media_type="Fotografie",
                 document_type="Porträt",
                 tags=("fahrt", "sommer"),
@@ -157,7 +157,7 @@ def _body(corpus: _Corpus, viewer: Viewer, ulid: str, query: str = "") -> str:
 def test_detail_renders_title_and_record_card(corpus: _Corpus) -> None:
     body = _body(corpus, Public(), corpus.pub)
     assert "Sommerfahrt 1962" in body
-    assert "F 12" in body  # Signatur
+    assert "F12" in body  # Signatur
     assert "K. Meyer" in body  # Autor
     assert "Harz" in body  # Ort
     assert "Porträt" in body  # Typ (document_type preferred)
@@ -211,7 +211,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Co
     member = _body(corpus, Member(groups=()), corpus.pub)
     archivist = _body(corpus, Archivist(), corpus.pub)
     # both carry the shared reading structure
-    for shared in ("Sommerfahrt 1962", "Juli 1962", "F 12", "K. Meyer", "Erste Zeile."):
+    for shared in ("Sommerfahrt 1962", "Juli 1962", "F12", "K. Meyer", "Erste Zeile."):
         assert shared in member
         assert shared in archivist
     # the archivist-only VALUES appear only for the archivist

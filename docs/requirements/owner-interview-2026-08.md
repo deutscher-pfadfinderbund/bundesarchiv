@@ -232,6 +232,23 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
 - **Communication language (owner, 2026-08-07):** all agent communication
   and report artifacts in ENGLISH; German remains the product UI language
   (writer-brief law unchanged). No mixed-language reports.
+- **Post-review decisions (owner, 2026-08-07):**
+  - **Rail dropdowns stay mutually exclusive** (native accordion, one open
+    at a time) and an open one closes on a live search.
+  - **Fallback panel placement accepted:** where anchor positioning is
+    unavailable, rail panels drop from the rail's leading edge rather than
+    from the clicked button. Contained + readable is enough; per-trigger
+    anchoring stays an enhancement (appendix F), never load-bearing.
+  - **Cascade rule C12 confirmed as law** (an overlay positions against its
+    control row, not its trigger).
+  - **SIGNATUR DOMAIN FACT (owner, 2026-08-07):** Signaturen carry **no
+    spaces**, and **8 characters is the practical ceiling** ("they could get
+    longer, but I don't expect them to"). The canonical demo corpus gets ONE
+    Signatur at that ceiling — the 30-character space-bearing example used
+    while diagnosing the overflow bug was excessive and is not
+    representative. Layout guards may still stress beyond the ceiling
+    (Titel is genuinely unbounded free text), but renders and design
+    judgment run on realistic codes (learning G.6).
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns

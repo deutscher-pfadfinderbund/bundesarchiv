@@ -235,7 +235,7 @@ def test_treffer_count_rides_the_rail_and_stays_live(
     page = archivist_page
     page.goto(live_workbench + "/")
     count = page.locator(".filterrail #trefferzahl")
-    expect(count).to_have_text("3 Treffer")  # the canonical corpus, archivist-scoped
+    expect(count).to_have_text("4 Treffer")  # the canonical corpus, archivist-scoped
     # The live region's NODE must survive the swap or the polite announcement dies silently (an
     # aria-live element inserted together with its content is not announced). Stamp the node with
     # an expando — a property, so no server render can reproduce it — and look for it afterwards.
@@ -292,18 +292,27 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
 
 
-#: A realistically LONG Signatur + Dokumenttyp for the intrinsic-sizing proofs (learning G.24: an
-#: intrinsic-sizing test run on the short demo corpus passes VACUOUSLY — bare ``max-content`` tracks
-#: only betray themselves once the content is long). A real Bundesarchiv-shaped code (Bestand ·
-#: tectonic level · year span · volume) and the vocabulary's longest Dokumenttyp.
-_LONG_REF_CODE = "BArch B 106/XVII/1948-1952 Bd. 3"
+#: The stress content for the intrinsic-sizing proofs, sized by what each field can ACTUALLY carry
+#: (learning G.24: an intrinsic-sizing test run on short content passes VACUOUSLY, so the stress must
+#: sit where the content really grows — but stressing a BOUNDED field beyond its bound only proves a
+#: fiction, learning G.6). Per the SIGNATUR DOMAIN FACT (owner, 2026-08-07) a Signatur carries NO
+#: SPACES and 8 characters is the practical ceiling, so the sig column is stressed AT that ceiling
+#: (the 30-character space-bearing code used while diagnosing G.24 was not representative). Typ is
+#: vocabulary-bounded: its longest value IS its ceiling. The TITEL is the genuinely unbounded field —
+#: free text an archivist types, with no ceiling — so it carries the real pressure here.
+_CEILING_REF_CODE = "B106/XVI"  # 8 chars, no spaces: Bestand · tectonic level
+_LONG_TITLE = (
+    "Werbeplakat zur Bundesfahrt in die Rhön mit Aufruf zur Teilnahme"
+    " am Pfingstlager des Gaues Hochland"
+)
 _LONG_TYP = "Veranstaltungsplakat"
 
 
 def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
-    """Add ONE article whose mono columns are as long as real archive content gets: the widest
-    Signatur, the widest vocabulary Dokumenttyp and a full-date EDTF interval. Seeded per test (not
-    into the shared corpus) so the count-asserting journeys keep their canonical three hits."""
+    """Add ONE article whose columns are as long as real archive content gets: a Signatur at the
+    8-character ceiling, an unbounded free-text Titel, the widest vocabulary Dokumenttyp and a
+    full-date EDTF interval. Seeded per test (not into the shared corpus) so the count-asserting
+    journeys keep their canonical hit count."""
     from bundesarchiv.domain.edtf import EdtfDate
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
@@ -314,10 +323,10 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
     ArticleRepository(store).save(
         Article(
             ulid="01KXE2ELANG0000000000000AA",  # valid Crockford base32, sorts after the canonical
-            title="Werbeplakat zur Bundesfahrt in die Rhön",
+            title=_LONG_TITLE,
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
-            ref_code=_LONG_REF_CODE,
+            ref_code=_CEILING_REF_CODE,
             media_type="Plakat",
             document_type=_LONG_TYP,
             date=EdtfDate("1948-01-01/1952-12-31"),
@@ -367,6 +376,14 @@ _LEDGER_MINIMUM_JS = """() => {
         + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight));
 }"""
 
+#: The [role=table]'s OWN horizontal overflow. It is the last-resort scroll box, so it CAN scroll —
+#: but a scrolling register hides columns, which is exactly what law C11 forbids above the fold, so
+#: above the fold this must stay zero.
+_TABLE_OVERFLOW_JS = """() => {
+    const t = document.querySelector('.ledger [role=table]');
+    return t.scrollWidth - t.clientWidth;
+}"""
+
 #: The DOCUMENT's horizontal overflow — ledger.html's standing contract is "the page body never
 #: scrolls sideways" (the [role=table] may scroll in its OWN box; the page may not).
 _DOC_OVERFLOW_JS = """() => {
@@ -375,16 +392,18 @@ _DOC_OVERFLOW_JS = """() => {
             scrollX: (window.scrollTo(99999, 0), window.scrollX)};
 }"""
 
-#: Is the long Signatur actually ELLIPSIZED at this width? Its rendered box vs the width its text
-#: wants (Range-measured): a bare max-content track never shrinks, so .c-sig-code's ellipsis is
-#: dead styling (catechism Q6) — this is what proves the floor made it live.
-_LONG_SIG_JS = """() => {
-    const code = [...document.querySelectorAll('.ledger [role=rowgroup] .c-sig-code')]
-        .find((e) => e.textContent.trim().startsWith('BArch'));
-    if (!code) throw new Error('the long-Signatur row is not on this page');
+#: Is the long TITEL actually ELLIPSIZED at this width? Its rendered box vs the width its text wants
+#: (Range-measured). The Titel is the elastic track and the archive's one unbounded field, so it is
+#: the column that must give space back — if it never tightens, nothing does, and the .titel
+#: ellipsis is dead styling (catechism Q6). The seeded long row is the only Titel over 60 characters,
+#: so it is found by length rather than by a duplicated literal.
+_LONG_TITEL_JS = """() => {
+    const link = [...document.querySelectorAll('.ledger [role=rowgroup] .titel a')]
+        .find((e) => e.textContent.trim().length > 60);
+    if (!link) throw new Error('the long-Titel row is not on this page');
     const r = document.createRange();
-    r.selectNodeContents(code);
-    return {box: code.getBoundingClientRect().width, text: r.getBoundingClientRect().width};
+    r.selectNodeContents(link);
+    return {box: link.getBoundingClientRect().width, text: r.getBoundingClientRect().width};
 }"""
 
 
@@ -399,10 +418,12 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
     # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
     # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
     # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
-    # G.24's red case pinned the opposite escape: with a realistic LONG Signatur + Typ the bare
-    # max-content tracks could not shrink at all, so the ledger pushed the whole PAGE BODY into
-    # horizontal scroll from 800px down. Hence the long-content seed — the short demo corpus made
-    # this proof pass vacuously.
+    # G.24's red case pinned the opposite escape: with long content the bare max-content tracks
+    # could not shrink at all, so the ledger pushed the whole PAGE BODY into horizontal scroll from
+    # 800px down. Hence the long-content seed — the short demo corpus made this proof pass
+    # vacuously. WHAT is long here follows the domain (owner, 2026-08-07): a Signatur has no spaces
+    # and tops out around 8 characters, and Typ comes from the vocabulary — the TITEL is the one
+    # genuinely unbounded field, so it carries the pressure and it is the column that must yield.
     _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
@@ -410,14 +431,13 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
         page.goto(live_workbench + path)
         for col in ("sig", "titel", "datierung", "typ"):
             expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
-        overflow: int = page.evaluate(
-            "() => { const t = document.querySelector('.ledger [role=table]');"
-            " return t.scrollWidth - t.clientWidth; }"
-        )
+        overflow: int = page.evaluate(_TABLE_OVERFLOW_JS)
         assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
     # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
-    # never scrolls sideways, and the long Signatur gives its space back by ELLIPSIZING (proof the
-    # floors are shrinkable and .c-sig-code's ellipsis is live styling, not dead — Q6).
+    # never scrolls sideways, the [role=table] absorbs the long row without a scrollbar of its own
+    # (a scrolling table hides columns, which is exactly what C11 forbids), and the long Titel gives
+    # its space back by ELLIPSIZING (proof the tracks are shrinkable and the .titel ellipsis is live
+    # styling, not dead — Q6).
     defects: list[str] = []
     for width, path in (
         (560, "/"),
@@ -430,9 +450,12 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
         doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
         if doc["overflow"] > 1 or doc["scrollX"] > 1:
             defects.append(f"{width}px: document scrolls sideways {doc}")
-        sig: dict[str, float] = page.evaluate(_LONG_SIG_JS)
-        if width < 1280 and sig["box"] >= sig["text"] - 1:
-            defects.append(f"{width}px: the long Signatur never tightened {sig}")
+        table: int = page.evaluate(_TABLE_OVERFLOW_JS)
+        if table > 1:
+            defects.append(f"{width}px: the ledger overflows its own box by {table}px")
+        titel: dict[str, float] = page.evaluate(_LONG_TITEL_JS)
+        if titel["box"] >= titel["text"] - 1:
+            defects.append(f"{width}px: the long Titel never tightened {titel}")
     assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
         defects
     )
@@ -474,7 +497,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
     expect(page.locator("main header p")).to_have_text("Juli 1962")  # human German under the title
     expect(page.locator(".facts dd.mono").first).to_have_text("1962-07")  # mono machine date
-    expect(page.get_by_text("F 12")).to_be_visible()  # Signatur
+    expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
     expect(page.locator("main figure img")).to_be_visible()  # cover Platte
     expect(page.locator(".filmstrip > div > a")).to_have_count(2)  # cover + one further plate
     # a plate links its gated media byte route; Zurück returns to the search
@@ -792,7 +815,7 @@ def test_bulk_enhancement_survives_a_history_restore(
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
     """Grow the canonical corpus past one page (PAGE_SIZE=50): 60 extra published articles with
     fixed ULIDs sorting AFTER the canonical ones (browse order is ulid), then re-index so the live
-    server actually paginates. 63 archivist-visible hits → page 1 holds the canonical articles."""
+    server actually paginates. 64 archivist-visible hits → page 1 holds the canonical articles."""
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
     from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore

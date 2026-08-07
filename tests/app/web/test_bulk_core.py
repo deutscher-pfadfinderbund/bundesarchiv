@@ -51,7 +51,7 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
     # A non-Conflict ArchiveError at save time (e.g. media not stored) must not escape mid-loop —
     # the documented invariant is every distinct ulid lands in a bucket, never a 500. 01A's save
     # is forced to raise plain ArchiveError; 01B must still save.
-    store = _store_with(_article(ulid="01A", ref_code="F 1"), _article(ulid="01B"))
+    store = _store_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 
     def _save_error_first(store_: object, article: Article, version: int) -> object:
@@ -63,7 +63,7 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
     outcome = bulk.apply_bulk(store, ["01A", "01B"], "creator", "Y")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
-    assert outcome.conflicted[0].ref_code == "F 1"
+    assert outcome.conflicted[0].ref_code == "F1"
     assert ArticleRepository(store).load("01B").article.creator == "Y"
 
 

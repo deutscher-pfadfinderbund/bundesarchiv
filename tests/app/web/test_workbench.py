@@ -69,7 +69,7 @@ class _Corpus:
                 "Öffentliches Foto der Fahrten",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 2",
+                "B2",
                 "Foto",
                 "Fotografie",
                 ("fahrten",),
@@ -80,7 +80,7 @@ class _Corpus:
                 "Fahrtenbericht vom Bundeslager",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 3",
+                "B3",
                 "Foto",
                 "Bericht",
                 ("lager",),
@@ -91,7 +91,7 @@ class _Corpus:
                 "Undatiertes Liederheft",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 4",
+                "B4",
                 "Schrifttum",
                 "Liederheft",
                 ("lieder",),
@@ -102,7 +102,7 @@ class _Corpus:
                 "Vertrauliche Mitgliederakte",
                 "AKTEN",
                 Lifecycle.PUBLISHED,
-                "A 5",
+                "A5",
                 "Akte",
                 "Schriftstück",
                 ("mitglieder",),
@@ -113,19 +113,20 @@ class _Corpus:
                 "Entwurf einer Chronik",
                 "FOTOS",
                 Lifecycle.DRAFT,
-                "D 1",
+                "D1",
                 "Akte",
                 "Chronik",
                 ("entwurf",),
                 EdtfDate("2010"),
             ),
-            # Realistic LONG Signaturen — the SIG column must size to content, never truncate these.
+            # Signaturen at the DOMAIN CEILING (owner 2026-08-07: no spaces, 8 characters is the
+            # practical top) — the SIG column must size to content and render these in full.
             (
                 "LONGSIG1",
                 "Fahrtenmappe mit Unterakte",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "F 12/3-b",
+                "F12/3-b",
                 "Foto",
                 "Fotografie",
                 ("fahrten",),
@@ -136,7 +137,7 @@ class _Corpus:
                 "Historischer Bestand 1848",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "BA 1848/II",
+                "BA1848/2",
                 "Druck",
                 "Druck",
                 ("historisch",),
@@ -173,7 +174,7 @@ class _Corpus:
                 title="Protokoll der Vorstandssitzung",
                 collection_id="VORSTAND",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="V 2",
+                ref_code="V2",
                 media_type="Akte",
                 document_type="Protokoll",
                 tags=("vorstand",),
@@ -196,7 +197,7 @@ class _Corpus:
                 title="Vorschau Sommerfahrt",
                 collection_id="FOTOS",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="P 1",
+                ref_code="P1",
                 media_type="Foto",
                 document_type="Fotografie",
                 tags=("vorschau",),
@@ -211,7 +212,7 @@ class _Corpus:
                 title="Vorschau Mitgliederakte",
                 collection_id="AKTEN",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="P 2",
+                ref_code="P2",
                 media_type="Akte",
                 document_type="Schriftstück",
                 tags=("vorschau",),
@@ -582,10 +583,11 @@ def test_round_trip_q_and_bestand_both_filter_results(corpus_root: Path) -> None
 
 @pytest.mark.django_db
 def test_long_signaturen_render_in_full(corpus_root: Path) -> None:
-    # An identity mark must never truncate at realistic lengths (owner correction 3).
+    # An identity mark must never truncate at realistic lengths (owner correction 3) — realistic
+    # being the 8-character, space-free ceiling (owner 2026-08-07), not an invented long code.
     body = _get(corpus_root, Public()).content.decode()
-    assert "F 12/3-b" in body
-    assert "BA 1848/II" in body
+    assert "F12/3-b" in body
+    assert "BA1848/2" in body
 
 
 # --- param injection: garbage → 200 defaults, never 500 --------------------------
