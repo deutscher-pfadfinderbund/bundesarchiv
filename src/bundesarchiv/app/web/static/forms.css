@@ -56,8 +56,10 @@
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
     text-transform: uppercase;
-    /* rounded leading corner only — the bevel cut is licensed solely on .c-sig (register row 1) */
-    border-radius: var(--radius-m) 0 0 0;
+    /* symmetric top corners: the ASYMMETRIC leading-corner silhouette is the drawer-tab
+       signature (register row 1, .c-sig only) — a legend repeating it 7× per form dilutes the
+       mark (learning G.2) even drawn with radius instead of the cut */
+    border-radius: var(--radius-s) var(--radius-s) 0 0;
   }
 
   /* ---- the custom bag (Gruppe 7): a <details> drawer of key/value pairs ---- */

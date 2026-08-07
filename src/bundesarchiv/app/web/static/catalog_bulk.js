@@ -32,11 +32,12 @@
       rewriteSelectionLinks();
     });
 
-    // The bar (and its <output>) is always in the DOM (cold-start fix, #16), so the count goes
-    // live on the first tick — no early-return. Empty text at zero keeps signals-once (no "0
-    // ausgewählt").
+    // The count target [data-bulk-zahl] (in the disclosure's summary) is always in the DOM
+    // (cold-start fix, #16), so the count goes live on the first tick — visible even while the
+    // details is collapsed. Empty text at zero keeps signals-once (no "0 ausgewählt"). The
+    // data-hook is the contract: markup may restructure freely as long as it keeps the hook.
     function updateCount() {
-      var zahl = form.querySelector(".bulkbar output");
+      var zahl = form.querySelector("[data-bulk-zahl]");
       var n = rowBoxes().filter(function (b) {
         return b.checked;
       }).length;

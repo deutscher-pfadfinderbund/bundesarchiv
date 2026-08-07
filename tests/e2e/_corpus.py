@@ -121,10 +121,13 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         ),
         0,
     )
+    # Corpus realism (learning G.6): the draft's TITLE is plain archive content — its draft-ness
+    # is lifecycle state (the ENTWURF mark), never words in the title. "Entwurf Lagerchronik"
+    # once made every render lie about badge duplication.
     articles.save(
         Article(
             ulid=DRAFT_ULID,
-            title="Entwurf Lagerchronik",
+            title="Lagerchronik",
             collection_id="FOTOS",
             lifecycle=Lifecycle.DRAFT,
             ref_code="F 9",

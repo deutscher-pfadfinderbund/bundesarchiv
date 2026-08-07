@@ -36,9 +36,9 @@ _FACET_ITEMS_BESTAND = (
 )
 
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
-#: carries a ref_code (lifecycle is decoupled from the sig slot) and shows the ENTWURF badge as its
-#: sole SICHTBARKEIT signal.
-_LEDGER_ROWS = (
+#: carries a ref_code (lifecycle is decoupled from the sig slot) and its ENTWURF mark rides the
+#: title (the SICHTBARKEIT column died, owner 2026-08-07 — quiet default: published shows nothing).
+_ROW_CONTENT = (
     {
         "title": "Sommerfahrt 1962",
         "href": "#demo-detail",
@@ -46,9 +46,6 @@ _LEDGER_ROWS = (
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         "title": "Jahresbericht 1974",
@@ -57,9 +54,6 @@ _LEDGER_ROWS = (
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
@@ -68,9 +62,6 @@ _LEDGER_ROWS = (
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # A draft WITH a Signatur: lifecycle (ENTWURF badge) is decoupled from the sig slot.
@@ -80,9 +71,6 @@ _LEDGER_ROWS = (
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "visibility": "",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Absence renders as absence (no em-dash). Datierung present, Typ absent: in the narrow fold
@@ -93,9 +81,6 @@ _LEDGER_ROWS = (
         "datierung": "1990",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Typ present, Datierung absent: the fold shows just "Notiz" with NO leading separator.
@@ -105,9 +90,6 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "Notiz",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Neither Datierung nor Typ: the narrow fold shows NO second line at all.
@@ -117,10 +99,13 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
+)
+
+#: Shared action hrefs spliced once — content dicts above stay content-only.
+_LEDGER_ROWS = tuple(
+    {**row, "bearbeiten_href": "#demo-edit", "vorschau_href": "#demo-vorschau"}
+    for row in _ROW_CONTENT
 )
 
 #: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,

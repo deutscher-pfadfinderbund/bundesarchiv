@@ -12,14 +12,18 @@ page: one POST executes; there is no undo (no Papierkorb this version).
 {% block body %}
 <main class="column narrow">
   <h1>{{ titel_confirm }}</h1>
-  <header>
-    <strong>„{{ title }}"</strong>
-    {% include "components/signatur_tab.html" with ref_code=ref_code %}
-  </header>
-  <p>
-    Dieser Artikel wird unwiderruflich gelöscht.
-    Ein Papierkorb steht in dieser Version nicht zur Verfügung.
-  </p>
+  {% comment %}The record being confirmed sits on a true sheet (register row 8: confirm panels
+  are sheets) — same material grammar as the bulk-confirm page, one look per confirm surface.{% endcomment %}
+  <section class="panel">
+    <header>
+      <strong>„{{ title }}"</strong>
+      {% include "components/signatur_tab.html" with ref_code=ref_code %}
+    </header>
+    <p>
+      Dieser Artikel wird unwiderruflich gelöscht.
+      Ein Papierkorb steht in dieser Version nicht zur Verfügung.
+    </p>
+  </section>
   <div class="actions">
     {% comment %}HTMX (spec §5): an htmx submit gets HX-Redirect to the workbench (the view's
     _redirect helper); the no-JS baseline is the plain POST + 302.{% endcomment %}

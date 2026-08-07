@@ -30,10 +30,14 @@ by itself — it is a size container. <1280px the media query hides the pane. {%
   Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
   search()/can_view; the /artikel/neu ROUTE is independently gated either way).
   {% endcomment %}
+  {% comment %}One toolbar slot (learning G.9), so the create actions wrap AS A GROUP on narrow
+  headers instead of orphaning one button onto its own line.{% endcomment %}
   {% if is_archivist %}
-  <a class="button primary" href="{% url 'artikel-neu' %}">+ Neuer Artikel</a>
-  <a class="button" href="{% url 'bestand-neu' %}">+ Neuer Bestand</a>
-  {% if aktiver_bestand %}<a class="button" href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a>{% endif %}
+  <div role="toolbar" aria-label="Anlegen">
+    <a class="button primary" href="{% url 'artikel-neu' %}">+ Neuer Artikel</a>
+    <a class="button" href="{% url 'bestand-neu' %}">+ Neuer Bestand</a>
+    {% if aktiver_bestand %}<a class="button" href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a>{% endif %}
+  </div>
   {% endif %}
 {% endblock %}
 {% block body %}

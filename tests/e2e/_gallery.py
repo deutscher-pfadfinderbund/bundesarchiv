@@ -54,21 +54,14 @@ def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/?artikel={corpus.published_ulid}", wait_until="networkidle")
 
 
-def _reach_pane_columndrop(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the design-gate candidate (charter item 5): ?fold=columns keeps stable row anatomy and drops
-    # low-priority columns instead of folding — rendered alongside the default for the verdict
-    page.goto(f"{base}/?artikel={corpus.published_ulid}&fold=columns", wait_until="networkidle")
-
-
-def _reach_results_columndrop(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/?fold=columns", wait_until="networkidle")
-
-
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
+    # the collapsed cold state is its own gallery state (workbench-bulk-cold)
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
+    page.click("details.bulk > summary")
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -142,24 +135,14 @@ STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
     GalleryState(
-        "workbench-pane-columndrop",
-        "workbench, pane open, column-drop density candidate (?fold=columns — gate item 5)",
-        True,
-        _reach_pane_columndrop,
-    ),
-    GalleryState(
-        "workbench-columndrop",
-        "workbench, no pane, column-drop density candidate (narrow widths show the drops)",
-        True,
-        _reach_results_columndrop,
-    ),
-    GalleryState(
         "workbench-bulk-cold",
-        "workbench, bulk bar cold start (affordances, no selection)",
+        "workbench, Sammelbearbeitung disclosure collapsed cold (no selection)",
         True,
         _goto("/"),
     ),
-    GalleryState("workbench-bulk", "workbench, bulk selection bar", True, _reach_bulk),
+    GalleryState(
+        "workbench-bulk", "workbench, selection + expanded Sammelbearbeitung", True, _reach_bulk
+    ),
     GalleryState("workbench-public", "workbench as a public visitor", False, _goto("/")),
     GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),
     GalleryState("bestand-neu", "create a Bestand", True, _goto("/bestand/neu")),

@@ -33,6 +33,50 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     page.goto(live_workbench + "/?schlagwort=sommer")
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
+    # the pane opens via the row's explicit Vorschau action (one-click model: the Titel itself
+    # navigates to the detail page; the pane is never a toll gate) and keeps the search state
+    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    expect(page.locator(".pane")).to_be_visible()
+    expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
+    assert "schlagwort=sommer" in page.url and "artikel=" in page.url  # URL-borne pane state
+    # ✕ closes the pane and keeps the filter
+    page.get_by_label("Vorschau schließen").click()
+    expect(page.locator(".pane")).not_to_be_visible()
+    assert "schlagwort=sommer" in page.url
+
+
+def test_ledger_headers_compute_one_uniform_treatment(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Learning G.1: a comment is not a proof; the computed style is. Every [role=columnheader]
+    # AND every anchor inside one must compute the SAME font treatment (the label role) — the
+    # sortable-head link may differ only by affordance, never by typography.
+    archivist_page.goto(live_workbench + "/")
+    treatments: list[str] = archivist_page.evaluate(
+        """() => Array.from(document.querySelectorAll(
+               '.ledger [role=columnheader], .ledger [role=columnheader] a'
+           )).map((el) => {
+               const s = getComputedStyle(el);
+               return [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
+                       s.letterSpacing, s.color].join('|');
+           })"""
+    )
+    assert len(treatments) >= 5  # four column heads + at least one sortable-head anchor
+    assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
+
+
+def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
+    # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
+    # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
+    # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
+    # the only state that hides it) and the low-priority columns merely drop.
+    page = archivist_page
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(live_workbench + "/")
+    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    expect(page.locator(".pane")).to_be_visible()
+    header_row = page.locator('.ledger [role="table"] > [role="row"]')
+    expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
 
 
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
@@ -40,7 +84,7 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
-    expect(public_page.get_by_text("Entwurf Lagerchronik")).not_to_be_visible()
+    expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
     expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
 
 
@@ -49,12 +93,10 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
 
 def test_detail_read_from_search_result(public_page: Page, live_workbench: str) -> None:
     page = public_page
-    # a member/public visitor: click a result (JS opens the preview pane) → Öffnen → land on the
-    # Lesesaal detail read view. (With JS on, ledger_pane.js turns the row link into a pane open; the
-    # pane's Öffnen is the navigation to /artikel/<ulid>. No-JS, the row link navigates directly.)
+    # a member/public visitor: the Titel click IS the navigation to the Lesesaal detail read view
+    # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
     page.goto(live_workbench + "/")
     page.locator(".ledger .titel a", has_text="Sommerfahrt 1962").click()
-    page.get_by_role("link", name="Öffnen").click()
     page.wait_for_url("**/artikel/**")
     # the reading structure: title, record card facts (Signatur + human + mono date), the cover
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
@@ -296,14 +338,20 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The REAL cold-start path (#16 fix): land with NO selection. The bar's affordances are present
-    # (the fix), so tick two row checkboxes → the live count appears (JS) → choose a field →
-    # Änderung prüfen posts the checked boxes → confirm → apply.
+    # The REAL cold-start path (#16 fix): land with NO selection. The collapsed Sammelbearbeitung
+    # disclosure is present, so tick two row checkboxes → the live count appears in the summary
+    # (JS, visible while collapsed) → expand → choose a field → Änderung prüfen posts the checked
+    # boxes → confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator(".bulkbar")).to_be_visible()  # affordances present from cold start
+    expect(page.locator("details.bulk > summary")).to_be_visible()  # affordance from cold start
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick, collapsed
+    # expand by clicking THE COUNT ITSELF — the named regression: a form-associated element in
+    # the summary (the old <output>) swallowed exactly this click and the disclosure never
+    # opened; the status span must toggle like any other point on the summary line
+    page.get_by_text("2 ausgewählt").click()
+    expect(page.locator("details.bulk")).to_have_attribute("open", "")
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -322,8 +370,9 @@ def test_bulk_url_seeded_selection_still_works(
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
-    expect(page.locator(".bulkbar")).to_be_visible()
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()
+    expect(page.locator("details.bulk > summary")).to_be_visible()
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count, collapsed
+    page.click("details.bulk > summary")
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')

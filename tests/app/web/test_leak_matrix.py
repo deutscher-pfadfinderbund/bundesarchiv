@@ -207,7 +207,6 @@ def _p_root(_c: _Corpus) -> str:
 #: Each static route's literal path (the route names carry no captures — a plain constant per route).
 _STATIC_PATHS = {
     "static-htmx": "/static/htmx.min.js",
-    "static-ledger-pane": "/static/ledger_pane.js",
     "static-catalog-form": "/static/catalog_form.js",
     "static-catalog-bulk": "/static/catalog_bulk.js",
     "static-tokens": "/static/tokens.css",

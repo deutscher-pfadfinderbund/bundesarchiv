@@ -25,17 +25,21 @@ htmx partial swaps (no navigation).
 
 The workbench is the home surface for every tier; what differs is what the
 index lets each viewer see (leak filtering, not UI branching). Pane state
-lives in the URL — every state below is a bookmarkable GET.
+lives in the URL — every state below is a bookmarkable GET. One-click entry
+(owner 2026-08-07): the Titel click IS the detail navigation on every
+viewport; the pane is the explicit per-row Vorschau action (a plain GET
+link — no JS interception), never a toll gate on the primary loop.
 
 ```mermaid
 flowchart TD
     WB["Workbench (workbench)\nledger + facets"] -->|"type query / Suchen"| WB
     WB -->|"facet click (?schlagwort=, ?bestand=, …)"| WB
     WB -->|"pagination (?seite=)"| WB
-    WB -->|"row click ≥1280px (?artikel=<ulid>)"| PANE["Workbench + preview pane\n(workbench)"]
-    WB -->|"row click <1280px"| DET["Detail (artikel-detail)"]
+    WB -->|"Titel click"| DET["Detail (artikel-detail)"]
+    WB -->|"row Vorschau (?artikel=<ulid>)\npane visible ≥1280px"| PANE["Workbench + preview pane\n(workbench)"]
+    WB -->|"row Bearbeiten (pencil, archivist)"| EDIT["Edit form (artikel-bearbeiten)"]
     PANE -->|"Öffnen"| DET
-    PANE -->|"Bearbeiten"| EDIT["Edit form (artikel-bearbeiten)"]
+    PANE -->|"Bearbeiten"| EDIT
     PANE -->|"✕ close (URL drops ?artikel)"| WB
     DET -->|"Zurück zur Suche"| WB
     DET -->|"breadcrumb (Bestand)"| WB
