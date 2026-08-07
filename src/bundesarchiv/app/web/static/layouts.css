@@ -23,10 +23,15 @@
     gap: var(--space-3) var(--space-4);
     padding: var(--space-3) var(--space-4);
     background: var(--surface-container-high);
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    /* the fine double rule under the header (05 idea (b)) — ONLY here, quiet */
+    border-bottom: 3px double var(--outline); /* 3px: the minimum where `double` draws two hairlines — no token names a double-rule width */
   }
+  /* the wordmark: the ONE place a display face has character (owner 2026-08-07) — small-caps
+     serif (the Kapitälchen), letterspaced; everything else in the header stays working-sans */
   .wordmark {
-    font: var(--type-display);
+    font: var(--type-wordmark);
+    font-variant-caps: small-caps;
+    letter-spacing: var(--wordmark-tracking);
     color: var(--on-surface);
     white-space: nowrap;
   }

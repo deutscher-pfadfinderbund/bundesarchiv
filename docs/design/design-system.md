@@ -203,7 +203,11 @@ Semantic notes:
 
 ## Non-color tokens
 
-- **Type roles**: `display` (wordmark), `title` (card titles), `body`,
+- **Type roles**: `wordmark` (the header's Bundesarchiv mark ONLY — small-caps
+  system serif with `--wordmark-tracking`, the one display face with character;
+  owner-licensed 2026-08-07, exploration 05 idea (b) — paired with the fine
+  double rule under `body > header`), `display` (screen titles), `title` (card
+  titles), `body`,
   `meta` (dense controls + secondary cells), `label` (facet headings, column
   heads, badges — letterspaced small caps), `mono` + `mono-meta` (Signaturen,
   Datierungen, counts — tabular). Every text node maps to exactly one role;

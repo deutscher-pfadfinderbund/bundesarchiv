@@ -147,6 +147,13 @@
   --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* The wordmark role (owner-licensed 2026-08-07, exploration 05 idea (b)): the ONE display
+     face with character — a small-caps system serif for the .wordmark in the header, nothing
+     else. Consumers pair the font with `font-variant-caps: small-caps` (the Kapitälchen) and
+     --wordmark-tracking; everything else in the header stays working-sans. */
+  --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+  --type-wordmark: 600 1.3rem/1.2 var(--font-wordmark);
+  --wordmark-tracking: 0.12em;
   --type-display: 600 1.35rem/1.2 var(--font-display);
   --type-title: 600 1.05rem/1.35 var(--font-display);
   --type-body: 400 0.95rem/1.5 var(--font-body);
