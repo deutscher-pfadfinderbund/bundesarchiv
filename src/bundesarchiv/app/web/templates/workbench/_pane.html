@@ -1,20 +1,30 @@
 {% comment %}
-The preview pane (Part 4.5) — server-rendered from a `visible`-projected Article (pane
-view-model), so no floored field can reach it. Present only when ?artikel resolves to a viewable
-article; a denied/absent/malformed ulid renders no pane at all (the view returns pane=None), so
-the pane can never be an existence oracle. Cover image leads (media is cover-first, ADR 0015);
-each media file shows its thumbnail (via the gated /media/.../thumb route, which re-authorizes)
-+ caption. Bearbeiten is archivist-only (empty href otherwise → not rendered); Öffnen goes to the
-detail page. Below 1280px layouts.css hides the pane; the row links then open the detail page
-directly. The layout demo includes THIS file over static demo context (lockstep by construction).
+The preview pane (Part 4.5) — THE pulled sheet, server-rendered from a `visible`-projected
+Article (pane view-model), so no floored field can reach it. Present only when ?artikel resolves
+to a viewable article; a denied/absent/malformed ulid renders no pane at all (the view returns
+pane=None), so the pane can never be an existence oracle.
+
+Anatomy (owner 2026-08-07): header row = Signatur tab (register row 1's licensed context) +
+Titel side by side, ✕ (Schließen, the icon set's x) at the end; below it ONE role="toolbar" —
+Öffnen (primary) then Bearbeiten (archivist-only; empty href renders nothing); then the mono
+meta line. One consistent gap unit (the sheet's own column gap) runs header → toolbar → meta.
+
+Cover image leads (media is cover-first, ADR 0015); each media file shows its thumbnail (via the
+gated /media/.../thumb route, which re-authorizes) + caption. Below 1280px layouts.css hides the
+pane; the row links then open the detail page directly. The layout demo includes THIS file over
+static demo context (lockstep by construction).
 {% endcomment %}
 <aside class="pane" aria-label="Vorschau">
   <div>
     <header>
       {% include "components/signatur_tab.html" with ref_code=pane.ref_code only %}
-      <a href="{{ pane.close_href }}" aria-label="Vorschau schließen">✕</a>
+      <h2>{{ pane.title }}</h2>
+      <a href="{{ pane.close_href }}" aria-label="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
     </header>
-    <h2>{{ pane.title }}</h2>
+    <div role="toolbar" aria-label="Artikelaktionen">
+      <a class="button primary" href="{{ pane.oeffnen_href }}">Öffnen</a>
+      {% if pane.bearbeiten_href %}<a class="button" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
+    </div>
     {% if pane.datierung or pane.typ %}
     <p>
       {% if pane.datierung %}<span>{{ pane.datierung }}</span>{% endif %}
@@ -33,9 +43,5 @@ directly. The layout demo includes THIS file over static demo context (lockstep 
     {% else %}
     <div class="hollow" aria-hidden="true"></div>
     {% endif %}
-    <div class="actions">
-      {% if pane.bearbeiten_href %}<a class="button" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
-      <a class="button primary" href="{{ pane.oeffnen_href }}">Öffnen</a>
-    </div>
   </div>
 </aside>

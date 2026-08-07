@@ -55,10 +55,13 @@ def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
+    # the collapsed cold state is its own gallery state (workbench-bulk-cold)
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
+    page.click("details.bulk > summary")
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -133,11 +136,13 @@ STATES: tuple[GalleryState, ...] = (
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
     GalleryState(
         "workbench-bulk-cold",
-        "workbench, bulk bar cold start (affordances, no selection)",
+        "workbench, Sammelbearbeitung disclosure collapsed cold (no selection)",
         True,
         _goto("/"),
     ),
-    GalleryState("workbench-bulk", "workbench, bulk selection bar", True, _reach_bulk),
+    GalleryState(
+        "workbench-bulk", "workbench, selection + expanded Sammelbearbeitung", True, _reach_bulk
+    ),
     GalleryState("workbench-public", "workbench as a public visitor", False, _goto("/")),
     GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),
     GalleryState("bestand-neu", "create a Bestand", True, _goto("/bestand/neu")),

@@ -720,7 +720,7 @@ def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
     body = _get(corpus_root, Public()).content.decode()
     assert 'class="ledger bulk"' not in body
     assert 'name="auswahl"' not in body
-    assert 'class="bulkbar"' not in body
+    assert "Sammelbearbeitung" not in body
 
 
 @pytest.mark.django_db
@@ -730,7 +730,8 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
     # checked boxes) + "Alle auf dieser Seite" link. Signals-once still holds: NO "0 ausgewählt"
     # count and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
-    assert 'class="bulkbar"' in body
+    assert '<details class="bulk">' in body  # the collapsed disclosure (cold = summary only)
+    assert "Sammelbearbeitung" in body
     assert "Änderung prüfen" in body
     assert "Alle auf dieser Seite" in body
     assert "ausgewählt" not in body  # no status filler
@@ -740,8 +741,8 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert 'class="bulkbar"' in body
-    assert "1 ausgewählt" in body
+    assert '<details class="bulk">' in body
+    assert "1 ausgewählt" in body  # the count rides the always-visible summary line
     assert "Änderung prüfen" in body
     assert "Feld" in body  # the chooser Feld select
     # the selected row's checkbox is checked (its inversion styling derives from it via CSS :has)
@@ -760,7 +761,7 @@ def test_non_archivist_auswahl_param_is_ignored(corpus_root: Path) -> None:
     # a Public viewer hand-crafting ?auswahl= gets no bar/column (defence-in-depth; the POST route
     # is independently gated too)
     body = _get(corpus_root, Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert 'class="bulkbar"' not in body
+    assert "Sammelbearbeitung" not in body
     assert "ausgewählt" not in body
 
 

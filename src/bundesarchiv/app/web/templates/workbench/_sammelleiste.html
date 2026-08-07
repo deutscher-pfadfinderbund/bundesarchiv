@@ -1,23 +1,22 @@
 {% comment %}
-Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the results form
-(the row checkboxes name="auswahl" are the selection source). Docked sticky under the header —
-pushes content, never covers rows. The AFFORDANCES render whenever there are hits (cold-start
-fix, #16) so the feature is reachable with no prior selection; the STATUS parts are
-selection-gated.
+Sammelbearbeitung — a COLLAPSED disclosure on the toolrow above the ledger (owner 2026-08-07;
+bulk tools are occasional chrome and recede, learning G.4; native <details> per construction
+law, no-JS by construction). Renders inside the results form — the row checkboxes name="auswahl"
+are the selection source. Cold: just the summary line; the selection COUNT stays visible in the
+summary whenever > 0. The <output> is ALWAYS present (empty when no selection) so catalog_bulk.js
+has a live target to write into on the first tick; the server fills it for the no-JS path
+(signals-once: no "0 ausgewählt").
 
-Affordances (always): "Alle auf dieser Seite" (GET link appending the page's ulids) + the Feld
-select + Änderung prüfen (submit → confirm POST; a zero-check submit hits the existing "Keine
-Artikel ausgewählt." reject). Exactly ONE value widget shows — the one matching the chosen Feld —
-via CSS :has over the select's own checked option (layouts.css .chooser; no JS, identical no-JS
-behavior; the server reads only the matching widget either way). Status (has_auswahl only,
-signals-once — no "0 ausgewählt"): "{n} ausgewählt" in the live <output> + Auswahl aufheben.
-No loud color; the primary is the one anchor.
+Expanded: "Alle auf dieser Seite" (GET link appending the page's ulids), "Auswahl aufheben"
+(selection-gated), then the Feld chooser + Änderung prüfen (submit → confirm POST; a zero-check
+submit hits the existing "Keine Artikel ausgewählt." reject). Exactly ONE value widget shows —
+the one matching the chosen Feld — via CSS :has over the select's own checked option
+(layouts.css .chooser; no JS, identical no-JS behavior; the server reads only the matching
+widget either way). No loud color; the primary is the one anchor.
 {% endcomment %}
-<div class="bulkbar">
+<details class="bulk">
+  <summary>Sammelbearbeitung …<output>{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</output></summary>
   <div>
-    {% comment %}The <output> is ALWAYS present (empty when no selection) so catalog_bulk.js has a
-    live target to write into on the first tick. The server fills it for the no-JS path.{% endcomment %}
-    <output>{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</output>
     {% comment %}data-bulk-alle: catalog_bulk.js (GH #22) folds unsubmitted ticks into this link's
     ?auswahl= so it keeps meaning "current selection ∪ this page". "Auswahl aufheben" below must
     NEVER carry the hook — its purpose is clearing the selection.{% endcomment %}
@@ -77,4 +76,4 @@ No loud color; the primary is the one anchor.
       <button class="primary" type="submit">Änderung prüfen</button>
     </div>
   </div>
-</div>
+</details>

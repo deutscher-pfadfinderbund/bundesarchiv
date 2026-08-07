@@ -324,14 +324,16 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The REAL cold-start path (#16 fix): land with NO selection. The bar's affordances are present
-    # (the fix), so tick two row checkboxes → the live count appears (JS) → choose a field →
-    # Änderung prüfen posts the checked boxes → confirm → apply.
+    # The REAL cold-start path (#16 fix): land with NO selection. The collapsed Sammelbearbeitung
+    # disclosure is present, so tick two row checkboxes → the live count appears in the summary
+    # (JS, visible while collapsed) → expand → choose a field → Änderung prüfen posts the checked
+    # boxes → confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator(".bulkbar")).to_be_visible()  # affordances present from cold start
+    expect(page.locator("details.bulk > summary")).to_be_visible()  # affordance from cold start
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick, collapsed
+    page.click("details.bulk > summary")  # expand the native disclosure
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -350,8 +352,9 @@ def test_bulk_url_seeded_selection_still_works(
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
-    expect(page.locator(".bulkbar")).to_be_visible()
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()
+    expect(page.locator("details.bulk > summary")).to_be_visible()
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count, collapsed
+    page.click("details.bulk > summary")
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')

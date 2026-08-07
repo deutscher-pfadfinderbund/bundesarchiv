@@ -81,7 +81,9 @@ real workbench header). {% endcomment %}
 
   {% comment %} Main column: hitcount, then the ledger results. {% endcomment %}
   <main>
-    <p aria-live="polite">{{ ledger_rows|length }} Treffer</p>
+    <div class="toolrow">
+      <p aria-live="polite">{{ ledger_rows|length }} Treffer</p>
+    </div>
     {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
   </main>
 

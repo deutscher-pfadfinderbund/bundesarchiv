@@ -74,7 +74,7 @@
     gap: var(--space-3);
   }
 
-  /* main results column: a stack of hitcount · (bulk form ·) ledger · pager */
+  /* main results column: a stack of toolrow · ledger · pager */
   .frame main {
     grid-column: main;
     min-width: 0;
@@ -82,12 +82,7 @@
     flex-direction: column;
     gap: var(--space-3);
   }
-  .frame main > p {
-    margin: 0;
-    font: var(--type-meta);
-    color: var(--on-surface-variant);
-  }
-  /* the bulk form wraps bar + ledger; it stacks them like the column it sits in */
+  /* the bulk form wraps toolrow + ledger; it stacks them like the column it sits in */
   .frame main form {
     display: flex;
     flex-direction: column;
@@ -98,28 +93,61 @@
     opacity: 0.6;
   }
 
-  /* ---- bulk-edit bar (Sammelbearbeitung): docked sticky at the top of the results, pushes
-     content (never floats over rows). Neutral; the primary "Änderung prüfen" is the one anchor. */
-  .bulkbar {
-    position: sticky;
-    top: 0;
-    z-index: 1; /* above the rows it pushes past, below the error banner */
-    padding: var(--space-3);
-    background: var(--surface-container-high);
+  /* ---- toolrow: the one line of occasional chrome above the ledger — the Sammelbearbeitung
+     disclosure left, the result count right (learning G.4: status recedes, the ledger leads) */
+  .toolrow {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+  .toolrow details {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* the "N Treffer" count: demoted status — small mono, muted, right-aligned; keeps its
+     aria-live=polite (it announces result changes, it just no longer claims the headline spot).
+     Also matches the standalone count above the zero-hit empty state. */
+  .frame main p[aria-live] {
+    margin: 0;
+    align-self: flex-end;
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
+  }
+  .toolrow > p[aria-live] {
+    align-self: baseline;
+  }
+
+  /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
+     occasional chrome and recede). Cold: the summary line + the selection count. Open:
+     furniture — flat plain container, hairline border, no tint, no depth (register row 8). */
+  details.bulk summary {
+    padding: var(--space-1) 0;
+  }
+  details.bulk summary output {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    text-transform: none;
+    color: var(--on-surface);
+    padding-inline-start: var(--space-3);
+  }
+  details.bulk[open] {
+    padding: 0 var(--space-3) var(--space-3);
+    background: var(--surface-container-low);
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
   }
-  .bulkbar > div:first-child {
+  details.bulk[open] summary {
+    padding: var(--space-2) 0;
+  }
+  details.bulk > div:first-of-type {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: var(--space-2) var(--space-4);
   }
-  .bulkbar output {
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  .bulkbar a {
+  details.bulk a {
     font: var(--type-meta);
   }
 
@@ -177,17 +205,24 @@
   .pane :is(h2, p, ul) {
     margin: 0;
   }
+  /* header row: Signatur tab + Titel side by side (baseline-aligned), ✕ at the end. The sheet's
+     own column gap (--space-3 on .pane > div) is the ONE unit through header → toolbar → meta. */
   .pane header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: baseline;
     gap: var(--space-2) var(--space-3);
   }
-  /* the ✕ close link: quiet, touch-target sized */
+  .pane header h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* the ✕ close (icon set's x): quiet, touch-target sized; top-aligned — an icon-only flex item
+     has no text baseline to share */
   .pane header > a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    align-self: flex-start;
     min-width: var(--touch-target);
     min-height: var(--touch-target);
     color: var(--on-surface-variant);
@@ -201,12 +236,13 @@
     font: var(--type-title);
     color: var(--on-surface);
   }
-  .pane h2 + p {
+  /* the meta line (below the toolbar) */
+  .pane > div > p {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
     color: var(--primary); /* mono meta = ink data (stamp grammar) */
   }
-  .pane h2 + p span + span::before {
+  .pane > div > p span + span::before {
     content: " · ";
     color: var(--on-surface-variant);
   }

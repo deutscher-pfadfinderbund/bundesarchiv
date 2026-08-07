@@ -45,7 +45,7 @@ PRIMARY_LICENSED = (
     ".datierung",  # ledger mono date cells (row 2: mono dates)
     "dd.mono",  # detail record-card mono machine values (row 2: mono dates)
     ".filmstrip h2 span",  # the mono Blatt count (row 2: mono counts)
-    ".pane h2 + p",  # the pane's mono meta line (row 2: mono dates)
+    ".pane > div > p",  # the pane's mono meta line (row 2: mono dates)
     ".file > span",  # media register filename — the mono data mark (row 2)
     "button.link",  # link-styled buttons — inline interactive text (row 2)
     ".echo",  # EDTF echo may carry one violet fragment (spec §0)

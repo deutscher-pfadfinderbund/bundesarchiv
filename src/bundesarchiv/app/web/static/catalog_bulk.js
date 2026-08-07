@@ -32,11 +32,11 @@
       rewriteSelectionLinks();
     });
 
-    // The bar (and its <output>) is always in the DOM (cold-start fix, #16), so the count goes
-    // live on the first tick — no early-return. Empty text at zero keeps signals-once (no "0
-    // ausgewählt").
+    // The disclosure's <output> (in its summary) is always in the DOM (cold-start fix, #16), so
+    // the count goes live on the first tick — visible even while the details is collapsed. Empty
+    // text at zero keeps signals-once (no "0 ausgewählt").
     function updateCount() {
-      var zahl = form.querySelector(".bulkbar output");
+      var zahl = form.querySelector("details.bulk output");
       var n = rowBoxes().filter(function (b) {
         return b.checked;
       }).length;
