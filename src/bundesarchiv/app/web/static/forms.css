@@ -247,17 +247,17 @@
     opacity: 0.6;
   }
 
-  /* ---- panel: shared sheet base (register row 8 — confirm panels are sheet-like containers);
-     .konflikt is the CAS "Inzwischen geändert" case (spec §6.1): red LEFT border + error heading
-     only — NOT a flood fill; the diff stays neutral. The over-exposure preview panel shares the
-     base with a neutral heading — confirming who-gains-sight is neither draft nor error
-     (emphasis by WEIGHT only, spec §6.2). ---- */
+  /* ---- panel: shared TRUE-SHEET base (register row 8 — confirm panels are sheets: tint +
+     the one resting-contact shadow); .konflikt is the CAS "Inzwischen geändert" case (spec §6.1):
+     red LEFT border + error heading only — NOT a flood fill; the diff stays neutral. The
+     over-exposure preview panel shares the base with a neutral heading — confirming
+     who-gains-sight is neither draft nor error (emphasis by WEIGHT only, spec §6.2). ---- */
   .panel {
     padding: var(--space-4);
     background: var(--sheet);
     border: var(--hairline) solid var(--outline-variant);
-    border-bottom-width: var(--sheet-edge);
     border-radius: var(--radius-s);
+    box-shadow: var(--sheet-shadow);
   }
   .panel.konflikt {
     border-left: var(--state-border) solid var(--error);

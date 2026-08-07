@@ -7,11 +7,12 @@
    stamp ink. Violet (--primary) appears ONLY on the archive's MARKS — the Signatur code, mono
    counts/dates, and inline interactive text (links). Chrome is neutral; selection/active states
    are INVERSION (cue-register row 3), never a tint wash. draft=amber (row 4, the ENTWURF badge
-   only) and error=red (row 5) are the loud channels. Sheet material (row 8): facet panels,
-   confirm panels and the empty state read as cut sheets — --sheet* tokens, hairline edge, the one
-   2px lower edge. The bevel cut (row 1) survives ONLY on the register-licensed .c-sig; those
-   selector names (.c-sig, .c-sig-code) are pinned BY the register and outlive the retired c-*
-   taxonomy. */
+   only) and error=red (row 5) are the loud channels. Material roles (row 8, amended 2026-08-07):
+   TRUE SHEETS (the pane, confirm panels, the empty state) carry the --sheet tint + the one
+   resting-contact shadow (--sheet-shadow); facet panels are FURNITURE — flat plain container,
+   hairline only, no tint, no depth. The bevel cut (row 1) survives ONLY on the register-licensed
+   .c-sig; those selector names (.c-sig, .c-sig-code) are pinned BY the register and outlive the
+   retired c-* taxonomy. */
 
 /* ============================================================
    ELEMENTS — semantic HTML styled directly. A class appears only
@@ -241,13 +242,13 @@
   }
 
   /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> panel of
-     value rows. Sheet material (row 8): sheet tint, hairline edge, the 2px lower edge. The active
-     row is read from aria-current on its link (law C2) and marked by INVERSION (row 3); it carries
-     the remove ✕ (the one place a filter is cleared), inactive rows carry the bare count. ---- */
+     value rows. FURNITURE, not a sheet (row 8 role reassignment, 2026-08-07): flat plain
+     container, hairline edge, no tint, no depth. The active row is read from aria-current on its
+     link (law C2) and marked by INVERSION (row 3); it carries the remove ✕ (the one place a
+     filter is cleared), inactive rows carry the bare count. ---- */
   .facet {
-    background: var(--sheet);
+    background: var(--surface-container-low);
     border: var(--hairline) solid var(--outline-variant);
-    border-bottom-width: var(--sheet-edge);
     border-radius: var(--radius-s);
     padding: var(--space-2) var(--space-3) var(--space-3);
   }
@@ -549,14 +550,16 @@
     color: var(--on-surface); /* the current-page stand = data */
   }
 
-  /* ---- honest empty state: a hollow slot (row 6 dashed) on the quietest sheet (row 8).
-     .zeichen is the extension slot (Kohte / Waldläuferzeichen later, additive only). ---- */
+  /* ---- honest empty state: a hollow slot (row 6 dashed) on the quietest TRUE SHEET (row 8):
+     sheet tint + the one resting-contact shadow. .zeichen is the extension slot (Kohte /
+     Waldläuferzeichen later, additive only). ---- */
   .empty-state {
     padding: var(--space-6);
     text-align: center;
     background: var(--sheet-lowest);
     border: var(--hairline) dashed var(--outline-variant);
     border-radius: var(--radius-s);
+    box-shadow: var(--sheet-shadow);
     color: var(--on-surface);
   }
   .empty-state > p {
