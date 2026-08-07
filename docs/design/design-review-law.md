@@ -73,14 +73,15 @@ adding a row first, and rows are owner decisions.
 
 | # | Cue | Licensed selectors + position | Everywhere else |
 |---|-----|-------------------------------|-----------------|
-| 1 | Bevel cut | Drawer-tab family only: `.c-sig`, `.c-facet-tab` — **single cut, leading (top-left) corner** (owner ruling 2026-08-06). The card's former index cut has no row (`c-card` is an exhibit; if it becomes a citizen its cut is a new owner decision). | forbidden |
+| 1 | Bevel cut | `.c-sig` only — single cut, leading (top-left) corner (owner 2026-08-06). Licensed CONTEXT (2026-08-07, scarcity — learning G.2): the article reader header (detail page and pane), NOT ledger rows — there the Signatur renders as plain violet-ink mono (row 2). `.c-facet-tab` no longer exists in live markup. | forbidden |
 | 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
 | 3 | Inversion (solid fg/bg swap) | selection/active states | forbidden — especially as hover, and never as a tonal tint wash |
 | 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |
 | 5 | Red (`--error`) | errors | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published/normal state renders no badge | — |
-| 8 | Paper sheet material (owner ruling 2026-08-06: "paper material, but not the generic Google Material look") | Sheet-like containers only (result cards, facet panels, confirm panels, empty state): a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the 2px lower edge, the thickness of the sheet. This is the papier recipe promoted to baseline; the separate variant file still dies in the wave. | forbidden — and the Material-Design vocabulary is forbidden everywhere: no elevation `box-shadow` stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
+| 8 | Paper sheet material (owner rulings 2026-08-06/07: "paper material, but not the generic Google Material look"; "a sheet resting on a desk has a shadow — professionally, a touch of skeuomorphism") | TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state: a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the RESTING-CONTACT shadow (`--sheet-shadow`: single layer, 1–2px y-offset, blur ≤ 3px, low-alpha ink derived from roles; supersedes the 2px lower edge). Facet panels are FURNITURE, not sheets — flat, hairline only (2026-08-07 role reassignment). | forbidden — and the Material float model is forbidden everywhere: no elevation shadow ramps/stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
+| 9 | Icons (owner 2026-08-07) | ONE vendored set of hairline-stroke inline SVGs (24px grid, stroke-width 2 — matches the hairline/ink aesthetic). Licensed slots: the ledger row-action toolbar and view toolbars (`role="toolbar"`). Every icon-only control carries an accessible name. New glyphs join the one set deliberately (demo page in lockstep); no second style, no icon fonts, no ad-hoc picks. | forbidden |
 
 **Reserved (recorded, NOT licensed):** trapezoid tab — both top corners cut —
 for a future register-tab component used as **view navigation** (owner,
@@ -243,3 +244,21 @@ with a newer one.
    shows pixels and numbered decisions; internal metrics (class counts,
    line deltas) prove charter compliance to agents and belong in the
    engineering report, not the owner's brief.
+
+**2026-08-07, workbench composition rounds 4–5:**
+
+9. **Slots, not scattered buttons.** Actions live in named, extensible
+   toolbar slots (a view's toolbar, a row's action toolbar). A new action
+   lands in an existing slot; an agent never invents a new button position.
+   Slots are how a layout absorbs growth without recomposition.
+10. **Columns serve the scanner; exceptions ride their fact.** A column
+   exists only for facts the surface's primary user scans across rows
+   (year, type). A rare state (ENTWURF, a future GRUPPE mark) qualifies a
+   fact and renders attached to that fact — never a reserved column that is
+   empty in the normal case.
+11. **Depth is a model, not an effect.** Contact model (sheets resting on
+   the desk: one tight contact shadow) vs float model (Material elevation
+   ramps) — commit to one; mixing reads amateur. And a lawful cue still
+   reads as an accident when it is the only depth in view: assign material
+   roles across the WHOLE surface (what is desk, furniture, sheet), then
+   apply the cue to every member of the role, not to one.
