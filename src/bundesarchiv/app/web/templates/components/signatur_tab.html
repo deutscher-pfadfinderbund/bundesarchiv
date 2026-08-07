@@ -3,7 +3,9 @@ Signatur tab — the shape signature (cue-register rows 1/2: the .c-sig/.c-sig-c
 are pinned BY the register). Param: ref_code.
 The mono code alone IS the Signatur — no visible "Sig" microlabel (owner de-redundancy,
 2026-07-10); a screen-reader-only prefix keeps the accessible name ("Signatur …" / "Ohne
-Signatur"). Long codes like "F 12/3-b" grow with the content and ellipsize rather than overflow.
+Signatur"). A Signatur carries no spaces and tops out around 8 characters (owner, 2026-08-07); a
+ceiling code like "F12/3-b2" grows with the content and ellipsizes rather than overflow when the
+column squeezes below it.
 Without ref_code: the hollow dashed slot (row 6) meaning exactly "ohne Signatur" — decoupled from
 lifecycle; a draft WITH a ref_code shows its code normally.
 {% endcomment %}

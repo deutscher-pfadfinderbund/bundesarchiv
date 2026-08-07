@@ -39,11 +39,14 @@ LAYOUT_STYLESHEET = "layouts.css"
 #: The known demo set plus extra plausible rows so the ledger scrolls. Each dict carries a
 #: ledger_row's params. Two drafts demonstrate the sig/lifecycle decoupling: one WITH a ref_code
 #: (code shows; ENTWURF is the only lifecycle signal) and one WITHOUT (hollow "ohne Signatur" slot).
+#: The sample Signaturen obey the domain fact (owner 2026-08-07): no spaces, 8 characters is the
+#: practical ceiling — the Kassenbuch row sits AT that ceiling so the storyboard shows the widest
+#: real code beside the short ones.
 _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Sommerfahrt 1962",
         "href": "?artikel=sommerfahrt-1962",
-        "ref_code": "F 12",
+        "ref_code": "F12",
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
@@ -51,7 +54,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Jahresbericht 1974",
         "href": "?artikel=jahresbericht-1974",
-        "ref_code": "B 3",
+        "ref_code": "B3",
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
@@ -59,7 +62,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Vorstandsprotokoll März 1980",
         "href": "?artikel=vorstandsprotokoll-1980-03",
-        "ref_code": "V 7",
+        "ref_code": "V7",
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
@@ -68,7 +71,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
         # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
         "title": "Lagerchronik",
         "href": "?artikel=lagerchronik",
-        "ref_code": "C 5",
+        "ref_code": "C5",
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
@@ -76,7 +79,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Winterlager 1958",
         "href": "?artikel=winterlager-1958",
-        "ref_code": "F 4",
+        "ref_code": "F4",
         "datierung": "1958",
         "typ": "Foto",
         "draft": False,
@@ -84,7 +87,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Kassenbuch 1965-1969",
         "href": "?artikel=kassenbuch-1965-69",
-        "ref_code": "K 2",
+        "ref_code": "K2/65-69",
         "datierung": "1965/1969",
         "typ": "Buch",
         "draft": False,
@@ -92,7 +95,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Fahrtenbericht Norwegen 1971",
         "href": "?artikel=norwegen-1971",
-        "ref_code": "B 9",
+        "ref_code": "B9",
         "datierung": "1971",
         "typ": "Bericht",
         "draft": False,
@@ -100,7 +103,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Liederbuch (2. Auflage)",
         "href": "?artikel=liederbuch-2",
-        "ref_code": "D 1",
+        "ref_code": "D1",
         "datierung": "1969",
         "typ": "Druck",
         "draft": False,
@@ -108,7 +111,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Gruppenfoto Pfingsten 1983",
         "href": "?artikel=pfingsten-1983",
-        "ref_code": "F 21",
+        "ref_code": "F21",
         "datierung": "1983-05",
         "typ": "Foto",
         "draft": False,
@@ -116,7 +119,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Satzung des Trägervereins",
         "href": "?artikel=satzung",
-        "ref_code": "A 1",
+        "ref_code": "A1",
         "datierung": "1955",
         "typ": "Urkunde",
         "draft": False,
@@ -134,7 +137,7 @@ _ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Rundbrief Herbst 1977",
         "href": "?artikel=rundbrief-1977-h",
-        "ref_code": "R 6",
+        "ref_code": "R6",
         "datierung": "1977-10",
         "typ": "Rundbrief",
         "draft": False,
@@ -241,7 +244,7 @@ _CLEAR_FILTERS_QUERY = ""
 #: the hollow placeholder.
 _PREVIEW = {
     "title": "Sommerfahrt 1962",
-    "ref_code": "F 12",
+    "ref_code": "F12",
     "datierung": "1962",
     "typ": "Foto",
     "media": (),

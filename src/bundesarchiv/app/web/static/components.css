@@ -527,16 +527,21 @@
        fold's row template below, so one-line and folded anatomy can never derive different
        minima). Every floor is the narrowest width at which its column still carries its fact,
        and each is a structural dimension with no fitting token (law C5):
-         --sig-floor    5rem    — a short realistic code ("BA 1848/II") still reads; longer codes
-                                  give space back through .c-sig-code's ellipsis
-         --titel-floor  6rem    — the elastic track: takes all slack, gives it back FIRST
+         --sig-floor    5rem    — a Signatur at the DOMAIN CEILING still reads in full: no spaces,
+                                  8 characters (owner 2026-08-07), measured 65px in the mono face
+                                  plus 13px margin-rule chrome = 78px. A code beyond that ceiling
+                                  ("they could get longer, but I don't expect them to") gives its
+                                  extra width back through .c-sig-code's ellipsis rather than
+                                  widening the register.
+         --titel-floor  6rem    — the elastic track: takes all slack, gives it back FIRST. The
+                                  Titel is the one UNBOUNDED field (free text), so it is where
+                                  long content is actually absorbed.
          --datum-floor  5.25rem — the "DATIERUNG" header label (83px measured) stays intact
          --typ-floor    3rem    — the "TYP" header label (28px) plus reading room
        Learning G.24: a BARE max-content track has a max-content BASE size — it can never shrink,
-       so a long Signatur/Typ pushed the whole page body into horizontal scroll and the cells'
-       ellipsis was dead styling. minmax(floor, max-content) keeps the intrinsic PREFERENCE (the
-       column tightens to its content whenever there is room) while making the floor the real
-       minimum. */
+       so long content pushed the whole page body into horizontal scroll and the cells' ellipsis
+       was dead styling. minmax(floor, max-content) keeps the intrinsic PREFERENCE (the column
+       tightens to its content whenever there is room) while making the floor the real minimum. */
     --sig-floor: 5rem;
     --titel-floor: 6rem;
     --datum-floor: 5.25rem;
@@ -762,8 +767,9 @@
      2026-08-07, re-derived 2026-08-07 from the track FLOORS after G.24 — the e2e
      test_ledger_columns_stay_visible_by_intrinsic_sizing reads the same knobs and re-measures it
      every run): every shrinkable track at its floor plus the rigid ones at content width —
-     checkbox 13 + Signatur floor 80 (--sig-floor 5rem) + 13 margin-rule chrome + Titel floor 96
-     (6rem) + Datierung floor 84 (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
+     checkbox 13 + Signatur floor 80 (--sig-floor 5rem — the 8-character ceiling code in full,
+     owner 2026-08-07) + 13 margin-rule chrome + Titel floor 96 (6rem) + Datierung floor 84
+     (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
      (two --touch-target icons + gap) + 5 gaps × 12 + row padding 24 ≈ 514px ≈ 32rem — below that
      even the FULLY TIGHTENED one-line row cannot fit, so hiding (the fold) is necessary, never
      premature. The threshold also sits BELOW the narrowest pane-open container — the pane switch
@@ -780,7 +786,7 @@
     .ledger [role="rowgroup"] [role="row"] {
       /* the two-line card's own tracks, on the SAME floor knobs as the one-line anatomy (G.24:
          a bare max-content track cannot shrink, and the fold is exactly where space is
-         scarcest — a long Signatur overflowed the card at phone widths) */
+         scarcest — long content overflowed the card at phone widths) */
       grid-template-columns:
         min-content minmax(var(--sig-floor), max-content)
         minmax(var(--datum-floor), max-content) minmax(0, 1fr);

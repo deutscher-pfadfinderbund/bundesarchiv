@@ -97,7 +97,9 @@ components; this storyboard updates in lockstep with them.
       margin-left: var(--space-3);
     }
     .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
-    .sig-narrow { max-width: 9rem; }
+    /* squeezes the mark below a CEILING code (8 chars, no spaces — owner 2026-08-07) so the
+       ellipsis the ledger's sig floor relies on is shown on a realistic value, not a fiction */
+    .sig-narrow { max-width: 3.5rem; }
     /* density probes: the ledger is a size container — constraining its box IS the demo.
        .probe-stack stacks the two modes so a wide sample keeps a wide container. */
     .probe-stack { grid-template-columns: 1fr; }
@@ -247,9 +249,9 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="row">
-      {% include "components/signatur_tab.html" with ref_code="F 12" only %}
-      {% include "components/signatur_tab.html" with ref_code="F 12/3-b" only %}
-      <span class="sig-narrow">{% include "components/signatur_tab.html" with ref_code="Sehr lange Signatur 1234/5678-xyz" only %}</span>
+      {% include "components/signatur_tab.html" with ref_code="F12" only %}
+      {% include "components/signatur_tab.html" with ref_code="F12/3-b2" only %}
+      <span class="sig-narrow">{% include "components/signatur_tab.html" with ref_code="F12/3-b2" only %}</span>
       {% include "components/signatur_tab.html" only %}
     </div>
   </div>
@@ -262,8 +264,8 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="row facts">
-      {% include "components/signatur_tab.html" with ref_code="F 12" only %}
-      {% include "components/signatur_tab.html" with ref_code="F 12/3-b" only %}
+      {% include "components/signatur_tab.html" with ref_code="F12" only %}
+      {% include "components/signatur_tab.html" with ref_code="F12/3-b2" only %}
       {% include "components/signatur_tab.html" only %}
     </div>
   </div>

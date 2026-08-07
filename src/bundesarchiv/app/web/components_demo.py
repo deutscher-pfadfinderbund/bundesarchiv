@@ -38,19 +38,23 @@ _FACET_ITEMS_BESTAND = (
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
 #: carries a ref_code (lifecycle is decoupled from the sig slot) and its ENTWURF mark rides the
 #: title (the SICHTBARKEIT column died, owner 2026-08-07 — quiet default: published shows nothing).
+#: The sample Signaturen obey the domain fact (owner 2026-08-07): no spaces, 8 characters is the
+#: practical ceiling — one row sits AT that ceiling so the storyboard shows the widest real code.
 _ROW_CONTENT = (
     {
         "title": "Sommerfahrt 1962",
         "href": "#demo-detail",
-        "ref_code": "F 12",
+        "ref_code": "F12",
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
     },
     {
+        # The Signatur at the domain ceiling (owner 2026-08-07: no spaces, 8 characters is the
+        # practical top) — the widest realistic code the sig column has to seat.
         "title": "Jahresbericht 1974",
         "href": "#demo-detail",
-        "ref_code": "B 3",
+        "ref_code": "B3/1974a",
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
@@ -58,7 +62,7 @@ _ROW_CONTENT = (
     {
         "title": "Vorstandsprotokoll März 1980",
         "href": "#demo-detail",
-        "ref_code": "V 7",
+        "ref_code": "V7",
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
@@ -67,7 +71,7 @@ _ROW_CONTENT = (
         # A draft WITH a Signatur: lifecycle (ENTWURF badge) is decoupled from the sig slot.
         "title": "Lagerchronik",
         "href": "#demo-detail",
-        "ref_code": "C 5",
+        "ref_code": "C5",
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
@@ -77,7 +81,7 @@ _ROW_CONTENT = (
         # this shows just "1990" with NO dangling separator.
         "title": "Undatierter Zugang",
         "href": "#demo-detail",
-        "ref_code": "Z 1",
+        "ref_code": "Z1",
         "datierung": "1990",
         "typ": "",
         "draft": False,
