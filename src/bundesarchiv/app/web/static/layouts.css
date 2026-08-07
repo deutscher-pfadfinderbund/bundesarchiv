@@ -385,7 +385,10 @@
         [sidebar] var(--sidebar-col) [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
   }
-  @media (max-width: 79.98rem) {
+  /* the exact complement of the switch above — a negated query instead of an epsilon, so no
+     fractional-width dead zone exists (a 79.98rem epsilon left a 0.32px window where the pane
+     rendered without its frame column) */
+  @media not (min-width: 80rem) {
     .pane {
       display: none;
     }
