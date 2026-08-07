@@ -194,7 +194,7 @@
   [role="toolbar"] {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2); /* same rhythm as the .actions cluster — one look per action row */
   }
 
   /* ---- badges: small flat marks. Neutral outline by default (visibility); the ENTWURF badge is
