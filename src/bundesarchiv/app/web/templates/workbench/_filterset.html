@@ -21,7 +21,7 @@ grouping costs no box and no composition change.
   {% comment %} open resolves falsy on the workbench (the view-model carries none — dropdowns
   start closed); the layout demo seeds one group open to exhibit the dropped panel. {% endcomment %}
   {% for group in facet_groups %}
-  {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
+  {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open group="filter" only %}
   {% endfor %}
   {% for chip in filter_chips %}
   <span class="chip"><b>{{ chip.group }}:</b> {{ chip.label }}<a href="?{{ chip.query }}" aria-label="Filter entfernen: {{ chip.label }}">✕</a></span>

@@ -23,6 +23,10 @@
        compact control height, the same the rail sets, so the two standing chrome rows read as
        one system. */
     --control-height: var(--touch-target-compact);
+    /* the row is the containing block for the overlay panels its controls drop (components.css:
+       an overlay positions against its CONTROL ROW, not its trigger — that is what keeps it
+       on-viewport at every width, learning G.26) */
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -76,6 +80,9 @@
        value lives in tokens.css as --touch-target-compact per C5). A chip/dropdown mismatch is
        impossible without editing this knob. */
     --control-height: var(--touch-target-compact);
+    /* the row is the containing block for its facet dropdowns' panels (components.css: an overlay
+       positions against its CONTROL ROW, not its trigger — G.26) */
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;

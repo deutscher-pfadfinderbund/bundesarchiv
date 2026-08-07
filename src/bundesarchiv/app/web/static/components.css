@@ -305,9 +305,8 @@
      overlays). Still no elevation ramps/stacks. The active row is read from aria-current on its
      link (law C2) and marked by INVERSION (row 3); it carries the remove ✕, inactive rows carry
      the bare count. ---- */
-  .facet {
-    position: relative; /* the anchor the dropped panel positions against */
-  }
+  /* NB: .facet declares no positioning — the dropped panel positions against the rail, not
+     against its own trigger (see the shared overlay-panel rule below). */
   .facet > summary {
     display: inline-flex;
     align-items: center;
@@ -328,10 +327,23 @@
   }
   /* the ONE transient overlay panel (register row 12), shared by both details dropdowns —
      the rail's facet groups and the header's create menu: opaque, hairline-edged, floating on
-     the one overlay shadow. Anchoring + reading width stay per component (below). */
+     the one overlay shadow.
+     ONE PATTERN, ONE RULE — an overlay panel positions against its CONTROL ROW (the filter rail,
+     the header), never against its own trigger (learning G.26). That is what makes containment
+     STRUCTURAL: the row spans the viewport minus its own padding, so a panel pinned to one of the
+     row's inline edges and capped at 100% of it is fully on-viewport at every width, by
+     construction. Pinning to the TRIGGER cannot achieve that in Baseline CSS — the trigger's
+     viewport offset is not expressible, so start-pinning protects only the left edge and
+     end-pinning only the right, and both escaped at real widths (the header menu landed at
+     left:-89px once the header wrapped; the rail's trailing dropdowns pushed the document into
+     horizontal scroll). Anchor positioning would restore per-trigger anchoring, but law F bars it
+     as load-bearing until Baseline. Which EDGE a panel pins to stays per component (below); the
+     row is whatever positioned ancestor it sits in (layouts.css marks the header and the rail;
+     the component library's exhibit column is its own row). */
   :is(.facet, .menu) > ul {
     position: absolute;
     top: calc(100% + var(--space-1));
+    max-width: 100%; /* the containment half of the rule above — never wider than the row */
     z-index: 2; /* above the (sticky, positioned) pane sheet the open panel may overlap */
     list-style: none;
     margin: 0;
@@ -342,7 +354,7 @@
     box-shadow: var(--overlay-shadow);
   }
   .facet > ul {
-    left: 0;
+    inset-inline-start: 0; /* the rail's leading edge — the panels all drop from one place */
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
     /* the dropped panel is a transient OVERLAY, not part of the rail's control row — the rail's
        compact --control-height must not reach in (the compact license covers chips + their ✕
@@ -350,6 +362,39 @@
        full --touch-target floor. */
     --control-height: initial;
   }
+  /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
+     positioning exists, the panel drops from its OWN trigger and FLIPS its inline anchor when
+     that would leave the viewport — the placement the overlay wants, with containment kept by the
+     try-fallback rather than by the row. Where it does not exist, the row-pinned rule above stands
+     unchanged: contained, readable, and needing no fallback code (the corner-shape precedent).
+     anchor-scope keeps each disclosure resolving its OWN trigger instead of a later sibling's.
+     The `--anchor-probe` name in the condition is also the e2e hook: the containment walker serves
+     this stylesheet once with that one condition falsified, so the fallback tier gets its own
+     computed proof instead of being reasoned about from the enhanced render. */
+  @supports (anchor-name: --anchor-probe) and (position-area: block-end span-inline-end) {
+    .facet,
+    .menu {
+      anchor-name: --dropdown;
+      anchor-scope: --dropdown;
+    }
+    :is(.facet, .menu) > ul {
+      position-anchor: --dropdown;
+      position-try-fallbacks: flip-inline;
+      /* position-area replaces the row-edge insets and supplies the containing block */
+      top: auto;
+      inset-inline: auto;
+      margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
+    }
+    /* each panel keeps the direction it drops in — the rail's groups open rightward from their
+       button, the header's create menu leftward from its own trailing edge */
+    .facet > ul {
+      position-area: block-end span-inline-end;
+    }
+    .menu > ul {
+      position-area: block-end span-inline-start;
+    }
+  }
+
   .facet li {
     display: flex;
     justify-content: space-between;
@@ -390,10 +435,10 @@
      mechanics live here. The dropped panel is a TRANSIENT overlay (register row 12): opaque,
      hairline-edged, floating on the one overlay shadow. Plain native <details> behavior, no
      close-on-outside-click JS (owner-accepted). ---- */
+  /* like .facet, no positioning: the panel positions against the HEADER row (shared rule above) */
   .menu {
-    position: relative; /* the anchor the dropped panel positions against */
-    display: inline-block; /* shrink to the summary, so the panel anchors to the button — not to
-       a stretched block box (matters outside the header's flex row, e.g. the demo columns) */
+    display: inline-block; /* shrink to the summary, so the disclosure is button-sized — not a
+       stretched block box (matters outside the header's flex row, e.g. the demo columns) */
   }
   .menu > summary {
     display: inline-flex; /* centers the label inside the row's --control-height (C8) */
@@ -407,7 +452,11 @@
   }
   /* panel box: the shared overlay-panel rule above (row 12); only anchoring + width are local */
   .menu > ul {
-    inset-inline-end: 0; /* the menu ends the header row — the panel drops leftward, on-viewport */
+    /* the header row's TRAILING edge: the create disclosure ends the header, so at every width
+       where the row does not wrap the panel lands exactly under it — and when the row DOES wrap
+       (the menu drops to the next line, at the row's start) the panel stays on-viewport instead
+       of running off the left edge at left:-89px */
+    inset-inline-end: 0;
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
   .menu li > a {

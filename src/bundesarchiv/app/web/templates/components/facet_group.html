@@ -7,12 +7,18 @@ resting furniture). Params:
 - heading — the group's German heading (the <summary>)
 - open    — initial expanded state (bool; the rail omits it — dropdowns start closed)
 - items   — each with .label, .count, .query (the GET query string the row links to), .active
+- group   — the exclusive-accordion name (optional). Every panel on one rail drops from the SAME
+            place (the row's leading edge — components.css: an overlay positions against its
+            control row, which is what keeps it on-viewport), so two open at once would hide each
+            other. Sharing a `name` makes them mutually exclusive NATIVELY — still plain <details>
+            behavior, no JS. Omitted where a group is exhibited alone (the component library shows
+            two colour modes of the same open panel side by side; naming them would close one).
 Each value is a plain GET link (URL-as-state, no JS). An ACTIVE row carries aria-current on its
 link (state lives on the attribute, law C2 — CSS marks the row by inversion from it, register
 row 3) and an inline ✕ remove link — clicking either link clears the filter. Inactive rows show
 the bare count.
 {% endcomment %}
-<details class="facet"{% if open %} open{% endif %}>
+<details class="facet"{% if group %} name="{{ group }}"{% endif %}{% if open %} open{% endif %}>
   <summary>{{ heading }}</summary>
   <ul>
     {% for item in items %}

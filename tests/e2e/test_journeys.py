@@ -127,6 +127,104 @@ def test_control_rows_compute_one_height_source(archivist_page: Page, live_workb
     assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
 
+#: Every OVERLAY on the page, found generically: a native disclosure whose dropped panel is a
+#: positioned list (`details > ul` — the header's "+ Neu …" create menu and each filter-rail facet
+#: dropdown today). Written as a WALKER, not per instance (learning G.21/G.26): the day a new
+#: overlay is built from the same pattern, this proof already covers it.
+_OVERLAY_SELECTOR = "details:has(> ul)"
+
+#: One overlay's containment facts: the panel's box against the viewport, plus the document's own
+#: horizontal overflow while it is open. Both are needed — a panel can sit inside the viewport
+#: while still stretching the document, and vice versa.
+_OVERLAY_RECT_JS = """(index) => {
+    const detail = document.querySelectorAll('details:has(> ul)')[index];
+    const panel = detail.querySelector(':scope > ul');
+    const r = panel.getBoundingClientRect();
+    const d = document.documentElement;
+    return {
+        label: detail.querySelector('summary').textContent.trim(),
+        left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
+        viewport: d.clientWidth,
+        docOverflow: d.scrollWidth - d.clientWidth,
+    };
+}"""
+
+#: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
+#: 540/680/900 straddle the header wrap and the rail's own wrapping.
+_CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1440)
+
+
+def _walk_overlay_containment(page: Page, live_workbench: str) -> list[str]:
+    """Open every overlay on the filtered workbench at every containment width and return the
+    containment defects. The filtered URL makes the rail carry chips AND dropdowns; overlays open
+    one at a time so panels never mask each other's geometry."""
+    defects: list[str] = []
+    for width in _CONTAINMENT_WIDTHS:
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Fotografie")
+        overlays = page.locator(_OVERLAY_SELECTOR)
+        found = overlays.count()
+        # a silent no-find proves nothing: the create menu + one dropdown per facet group
+        assert found >= 4, f"the overlay walker found only {found} panels at {width}px"
+        for i in range(found):
+            summary = overlays.nth(i).locator("summary")
+            summary.click()
+            rect: dict[str, float | str] = page.evaluate(_OVERLAY_RECT_JS, i)
+            where = f"{width}px · {rect['label']}"
+            if float(rect["left"]) < -1:
+                defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
+            if float(rect["right"]) > float(rect["viewport"]) + 1:
+                defects.append(f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px")
+            if float(rect["docOverflow"]) > 1:
+                defects.append(f"{where}: the open panel scrolls the document {rect}")
+            summary.click()  # close before measuring the next one
+    return defects
+
+
+#: The one pre-Baseline @supports condition in components.css, and a falsification of it. Serving
+#: the REAL stylesheet with just this condition negated is how the walker reaches the FALLBACK tier
+#: — no fallback CSS is restated in the test, and Chromium's own anchor-positioning support (which
+#: no browser flag turns off any more) is left alone.
+_ANCHOR_SUPPORTS_CONDITION = "(anchor-name: --anchor-probe)"
+_ANCHOR_SUPPORTS_FALSIFIED = "(anchor-name: 0)"
+
+
+def _serve_components_css_without_anchor_positioning(route: Route) -> None:
+    response = route.fetch()
+    css = response.text()
+    patched = css.replace(_ANCHOR_SUPPORTS_CONDITION, _ANCHOR_SUPPORTS_FALSIFIED)
+    assert patched != css, f"components.css no longer contains {_ANCHOR_SUPPORTS_CONDITION}"
+    route.fulfill(response=response, body=patched)
+
+
+def test_overlays_stay_inside_the_viewport(archivist_page: Page, live_workbench: str) -> None:
+    # Learning G.26: every floating panel needs a computed CONTAINMENT proof across the width
+    # range — both overlays could leave the viewport at widths no gallery state rendered (the
+    # header create menu landed at left:-89px once the header wrapped, its labels clipped; the
+    # rail's trailing dropdowns ran past the right edge and pushed the document into horizontal
+    # scroll). Walked over BOTH availability tiers (law F): the ANCHORED render, where anchor
+    # positioning drops each panel from its own trigger and flips it away from the edge, and the
+    # FALLBACK render, where the row-pinned placement has to hold containment alone — a
+    # pre-Baseline feature is licensed only where its absence is acceptable, so the fallback is
+    # not something to reason about from the enhanced render.
+    page = archivist_page
+    assert page.evaluate("() => CSS.supports('anchor-name: --a')"), (
+        "this browser has no anchor positioning — the anchored tier would go unproven"
+    )
+    defects = [f"[anchored] {d}" for d in _walk_overlay_containment(page, live_workbench)]
+    page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
+    page.goto(live_workbench + "/")
+    page.locator("details.menu summary").click()
+    assert (
+        page.evaluate(
+            "() => getComputedStyle(document.querySelector('details.menu > ul')).positionArea"
+        )
+        == "none"
+    ), "the enhancement is still live — the fallback tier would go unproven"
+    defects += [f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench)]
+    assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
+
+
 def test_treffer_count_rides_the_rail_and_stays_live(
     archivist_page: Page, live_workbench: str
 ) -> None:

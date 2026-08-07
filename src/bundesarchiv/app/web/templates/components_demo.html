@@ -286,8 +286,10 @@ components; this storyboard updates in lockstep with them.
 <code class="doc">components/icon.html · name=pencil|panel|x — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: role="toolbar" + the pane ✕</code>
 
 <h2>Facet group — the filter-rail dropdown</h2>
-{% comment %} The dropped panel positions absolutely below its summary; the columns reserve its
-height so the open exhibit never overlays the annotation. {% endcomment %}
+{% comment %} The dropped panel positions absolutely against its CONTROL ROW — here the exhibit
+column, which is the nearest positioned ancestor (in production the filter rail). That is what keeps
+it on-viewport at every width; the columns reserve its height so the open exhibit never overlays the
+annotation. {% endcomment %}
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 14rem">
@@ -295,11 +297,12 @@ height so the open exhibit never overlays the annotation. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12), the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it</code>
+<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12) and positions against its control row — pinned to the row's leading edge and capped at its width, so it is on-viewport by construction, with anchor positioning refining it to the trigger where available (law F); the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it. On the rail the groups share a `name`, so opening one closes the others (native exclusive accordion — they all drop from one place)</code>
 
 <h2>Header create menu — the "+ Neu …" disclosure</h2>
-{% comment %} Like the facet exhibit: the dropped panel positions absolutely, so the columns
-reserve its height. Served open to exhibit the floating overlay panel. {% endcomment %}
+{% comment %} Like the facet exhibit: the dropped panel positions absolutely against its control
+row (here the exhibit column), so the columns reserve its height. Served open to exhibit the
+floating overlay panel. {% endcomment %}
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 8rem">
@@ -314,7 +317,7 @@ reserve its height. Served open to exhibit the floating overlay panel. {% endcom
   </div>
   {% endfor %}
 </div>
-<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: the summary IS a button visually — it shares the button rule's whole treatment (round-2 C8 correction) and consumes the header row's --control-height knob; panel = transient overlay on --overlay-shadow (register row 12); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
+<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: the summary IS a button visually — it shares the button rule's whole treatment (round-2 C8 correction) and consumes the header row's --control-height knob; panel = transient overlay on --overlay-shadow (register row 12), pinned to the header row's TRAILING edge and capped at its width so it stays on-viewport even when the header wraps; the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">
