@@ -41,10 +41,8 @@
     // The count target [data-bulk-zahl] (in the disclosure's summary) is always in the DOM,
     // so the count goes live on the first tick — visible even while the details is collapsed.
     // Empty text at zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract:
-    // markup may restructure freely as long as it keeps the hook. The count also drives the
-    // disclosure's PROGRESSIVE visibility (owner 2026-08-07): hidden at 0, revealed at ≥ 1 —
-    // both at wire time (URL-seeded selections and back/forward checkbox restores fire no
-    // change event) and on every tick.
+    // markup may restructure freely as long as it keeps the hook. The same count drives the
+    // disclosure's progressive visibility (see the file header): hidden at 0, revealed at ≥ 1.
     function updateCount() {
       var zahl = form.querySelector("[data-bulk-zahl]");
       var n = rowBoxes().filter(function (b) {

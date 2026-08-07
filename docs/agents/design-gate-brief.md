@@ -12,8 +12,9 @@ uv run pytest -m gallery -s
 
 One invocation writes every canonical UI state to `var/gallery/` as a PNG in
 BOTH color modes (`<state>.light.png` / `<state>.dark.png`). The states are the
-workbench (empty / results / filtered with rail chips / rail dropdown open /
-pane-open / bulk-selection / public),
+workbench (empty / results / filtered with rail chips + clear-all / rail
+dropdown open / header "+ Neu …" disclosure open / pane-open / bulk-selection /
+public),
 the create + edit forms, the read view, and the POST-gated confirm surfaces
 (bulk-confirm, delete-confirm, publish-preview).
 These are the shots that go to the owner for async review — one representative

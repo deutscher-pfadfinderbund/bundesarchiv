@@ -55,9 +55,16 @@ def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the filter rail with one facet dropdown open — the dropped furniture panel over the ledger
+    # the filter rail with one facet dropdown open — the dropped overlay panel over the ledger
     page.goto(f"{base}/", wait_until="networkidle")
     page.locator(".filterrail summary", has_text="Bestand").click()
+
+
+def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the header's "+ Neu …" create disclosure open (Mock B, owner 2026-08-07) — the floating
+    # overlay panel with Neuer Artikel / Neuer Bestand
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.click("details.menu > summary")
 
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -147,6 +154,12 @@ STATES: tuple[GalleryState, ...] = (
         "workbench, Bestand filter dropdown open on the rail",
         True,
         _reach_rail_open,
+    ),
+    GalleryState(
+        "header-neu-open",
+        "workbench, header '+ Neu …' create disclosure open (Mock B overlay panel)",
+        True,
+        _reach_header_neu_open,
     ),
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
     GalleryState(

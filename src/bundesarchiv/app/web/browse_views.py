@@ -119,8 +119,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
     # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
     # the ledger re-densifies by itself — it is a size container (components.css). Width is the
-    # ONLY density input (charter item 5 settled 2026-08-07: column-drop won; the ?fold switch
-    # and the pane-open fold died with the verdict).
+    # ONLY density input (charter item 5 settled 2026-08-07; the ?fold switch and the pane-open
+    # fold died with the verdict), absorbed intrinsically per law C11 — no drop thresholds.
     context["vorschau"] = pane is not None
     # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
@@ -128,6 +128,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-History-Restore-Request"):
         return render(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
+        # The hit count lives on the filter rail (law C10), OUTSIDE the #results swap target —
+        # the partial therefore prepends an hx-swap-oob fragment updating the rail's count in
+        # the same response (oob gates it: the full page renders the count once, from the rail).
+        context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
 
@@ -412,19 +416,11 @@ def _ledger_columns(
 
 
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
-#: render order. Every ``browse`` search-state key EXCEPT ``q`` (the form's own live input, never
-#: duplicated as hidden) and ``seite`` (a new search deliberately resets to page 1 — kept as-is).
-_FORM_FILTER_PARAMS: tuple[str, ...] = (
-    browse.PARAM_COLLECTION,
-    browse.PARAM_MEDIA_TYPE,
-    browse.PARAM_DOCUMENT_TYPE,
-    browse.PARAM_TAG,
-    browse.PARAM_DECADE,
-    browse.PARAM_DATELESS,
-    browse.PARAM_DATE_FROM,
-    browse.PARAM_DATE_TO,
-    browse.PARAM_SORT,
-)
+#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the rail's
+#: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
+#: live input, never duplicated as hidden) and ``seite`` (a new search deliberately resets to
+#: page 1 — kept as-is).
+_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
@@ -477,6 +473,9 @@ def _results_context(
         # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
         # its removal affordance even after it vanishes from the recomputed facet counts.
         "filter_chips": _filter_chips(params, parsed, names),
+        # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
+        # drops every filter param, keeps q + sort. The template renders it only alongside chips.
+        "clear_filters_query": browse.clear_filters_query(params),
         "ledger_rows": _ledger_rows(
             page,
             is_archivist=is_archivist,

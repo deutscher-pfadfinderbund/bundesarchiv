@@ -65,11 +65,93 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
+#: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
+#: WALKERS over all instances). Enumerates EVERY control row on the page — the header's control
+#: cluster, the filter rail, each [role=toolbar] — and for each row returns its controls'
+#: computed heights + font treatments. A "control" is a button, a summary, or a chip (the rail's
+#: clear-all link is text, not a control); inside a toolbar the icon links ARE the controls.
+#: A new control row (or a new control in an existing row) is covered the day it appears —
+#: per-instance copies of this proof are forbidden.
+_CONTROL_ROW_WALKER_JS = """() => {
+    const rows = [
+        ['header', document.querySelector('body > header')],
+        ['filterrail', document.querySelector('.filterrail')],
+        ...Array.from(document.querySelectorAll('[role=toolbar]')).map(
+            (el, i) => ['toolbar-' + i, el]),
+    ].filter(([, el]) => el);
+    return rows.map(([name, row]) => {
+        const selector = row.matches('[role=toolbar]')
+            ? 'a, button' : 'button, a.button, summary, .chip';
+        const controls = Array.from(row.querySelectorAll(selector))
+            .filter((el) => el.offsetParent !== null)  // rendered only (closed dropdowns skip)
+            .map((el) => {
+                const s = getComputedStyle(el);
+                return {
+                    label: (el.getAttribute('aria-label') || el.textContent).trim(),
+                    chip: el.matches('.chip'),
+                    height: el.offsetHeight,
+                    font: [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
+                           s.letterSpacing].join('|'),
+                };
+            });
+        return {name, controls};
+    });
+}"""
+
+
+def test_control_rows_compute_one_height_source(archivist_page: Page, live_workbench: str) -> None:
+    # Law C8 proven computed (the generalized G.1 pattern, section E): within EVERY control row,
+    # all controls compute the SAME height (offsetHeight within 1px — one --control-height source,
+    # equal by construction) and — chips excepted, which keep chip typography but must still match
+    # height — the same font treatment. Driven on the filtered workbench so the rail carries
+    # chips + dropdowns and the ledger carries row toolbars in one shot.
+    page = archivist_page
+    page.goto(live_workbench + "/?schlagwort=sommer")
+    rows: list[dict[str, list[dict[str, str | int | bool]]]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
+    by_name = {str(row["name"]): row["controls"] for row in rows}
+    # the walker must actually see the rows this page composes — a silent no-find proves nothing
+    assert "header" in by_name and "filterrail" in by_name
+    assert len(by_name["header"]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert any(c["chip"] for c in by_name["filterrail"])  # the active-filter chip is present
+    assert any(name.startswith("toolbar-") for name in by_name)  # ledger row toolbars
+    defects: list[str] = []
+    for name, controls in by_name.items():
+        if len(controls) < 2:
+            continue  # nothing to compare within this row
+        heights = {str(c["label"]): int(str(c["height"])) for c in controls}
+        if max(heights.values()) - min(heights.values()) > 1:
+            defects.append(f"row '{name}' computes more than one height: {heights}")
+        fonts = {c["font"] for c in controls if not c["chip"]}
+        if len(fonts) > 1:
+            defects.append(f"row '{name}' computes mixed control fonts: {fonts}")
+    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
+
+
+def test_treffer_count_rides_the_rail_and_stays_live(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Law C10 (owner round-2 correction 2026-08-07): the "N Treffer" count rides the filter
+    # rail's line — the occupied band — and the status-only toolrow is gone. The rail lives
+    # OUTSIDE the #results swap target, so the htmx type-to-search swap must refresh the count
+    # out-of-band: type a narrowing q and watch the RAIL's count change without navigation.
+    page = archivist_page
+    page.goto(live_workbench + "/")
+    count = page.locator(".filterrail #trefferzahl")
+    expect(count).to_have_text("3 Treffer")  # the canonical corpus, archivist-scoped
+    # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
+    page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+    expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
+    assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
+    # zero hits: the rail still renders, the count stays on its line (the rail is the one place)
+    page.goto(live_workbench + "/?q=zzzznomatch")
+    expect(page.locator(".filterrail #trefferzahl")).to_have_text("0 Treffer")
+
+
 def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
     # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
     # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
-    # the only state that hides it) and the low-priority columns merely drop.
+    # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
     page.goto(live_workbench + "/")
@@ -79,13 +161,79 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
 
 
+#: The measured four-column content minimum of the ledger (law C9's arithmetic, computed live):
+#: per column the widest content box (Range-measured over header + body cells; sr-only heads
+#: excluded), the Titel at its CSS floor (it ellipsizes first — C11), plus the Signatur column's
+#: margin-rule chrome, the row gaps and the row padding. Mirrors the derivation comment next to
+#: the fold query in components.css.
+_LEDGER_MINIMUM_JS = """() => {
+    const table = document.querySelector('.ledger [role=table]');
+    const measure = (el) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        return r.getBoundingClientRect().width;
+    };
+    const colMin = (cls) => {
+        const cells = [
+            ...table.querySelectorAll('[role=rowgroup] .' + cls),
+            ...[...table.querySelectorAll(':scope > [role=row] .' + cls)].filter(
+                (h) => !h.querySelector('.visually-hidden')),
+        ];
+        return Math.max(0, ...cells.map(measure));
+    };
+    const row = table.querySelector('[role=rowgroup] [role=row]');
+    const s = getComputedStyle(row);
+    const sig = table.querySelector('[role=rowgroup] .sig');
+    const sigChrome = parseFloat(getComputedStyle(sig).paddingInlineEnd)
+        + parseFloat(getComputedStyle(sig).borderInlineEndWidth);
+    const titelFloor = 6 * 16;  // the CSS floor: minmax(6rem, 1fr) — titel truncates below it
+    const cols = [colMin('auswahl'), colMin('sig') + sigChrome, titelFloor,
+                  colMin('datierung'), colMin('typ'), colMin('aktion')];
+    return Math.round(cols.reduce((a, b) => a + b, 0)
+        + parseFloat(s.columnGap) * (cols.length - 1)
+        + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight));
+}"""
+
+
+def test_ledger_columns_stay_visible_by_intrinsic_sizing(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Law C11 (intrinsic first, owner 2026-08-07): the ledger has NO column-drop thresholds —
+    # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
+    # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
+    # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
+    # Proof at each width: nothing hidden AND nothing overflows.
+    page = archivist_page
+    for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(live_workbench + path)
+        for col in ("sig", "titel", "datierung", "typ"):
+            expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
+        overflow: int = page.evaluate(
+            "() => { const t = document.querySelector('.ledger [role=table]');"
+            " return t.scrollWidth - t.clientWidth; }"
+        )
+        assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+    # The fold below 32rem stays the ONE modal width change (C11-licensed) and hides content
+    # only out of necessity (C9): the measured four-column minimum exceeds the fold container.
+    minimum: int = page.evaluate(_LEDGER_MINIMUM_JS)  # measured while all columns render
+    page.set_viewport_size({"width": 500, "height": 900})
+    page.goto(live_workbench + "/")
+    expect(page.locator('.ledger [role="table"] > [role="row"]')).to_be_hidden()  # fold active
+    container: int = page.evaluate("() => document.querySelector('.ledger').clientWidth")
+    assert minimum > container, (
+        f"the fold engaged although the four-column anatomy ({minimum}px) fits {container}px"
+    )
+
+
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
-    # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").
+    # the draft (search scopes it out) and no archivist chrome (no bulk column, no "+ Neu …" create
+    # disclosure — Mock B, owner 2026-08-07).
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
-    expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
+    expect(public_page.locator("details.menu")).to_have_count(0)
 
 
 # --- detail read view (4.6) --------------------------------------------------------
@@ -119,10 +267,13 @@ def test_create_bestand_then_file_an_article_under_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # + Neuer Bestand → fill Name → Anlegen → LAND on the create-article form (create→catalog is one
-    # flow), the new Bestand pre-selected + a success hinweis. File the first article under it.
+    # "+ Neu …" → Neuer Bestand → fill Name → Anlegen → LAND on the create-article form
+    # (create→catalog is one flow), the new Bestand pre-selected + a success hinweis. File the
+    # first article under it. The create actions live in the header's ONE quiet disclosure
+    # (Mock B, owner 2026-08-07) — a native <details>, opened by a plain click.
     page.goto(live_workbench + "/")
-    page.get_by_role("link", name="+ Neuer Bestand").click()
+    page.click("details.menu > summary")
+    page.get_by_role("link", name="Neuer Bestand").click()
     page.wait_for_url("**/bestand/neu")
     page.fill('input[name="name"]', "Plakate")
     page.click('button:has-text("Anlegen")')

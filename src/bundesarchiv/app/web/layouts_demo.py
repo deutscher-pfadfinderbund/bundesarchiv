@@ -179,7 +179,7 @@ _LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
 
 #: Filter-rail facet groups; items match facet_group.html's contract (label, count, query,
 #: active). ``open`` seeds each <details> dropdown's initial state — ONE group is served open so
-#: the demo exhibits the dropped furniture panel without JS.
+#: the demo exhibits the dropped overlay panel (register row 12) without JS.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",
@@ -232,6 +232,10 @@ _FILTER_CHIPS: tuple[dict[str, str], ...] = (
     {"group": "Schlagworte", "label": "sommer", "query": "bestand=AKTEN"},
 )
 
+#: The rail's clear-all target — the demo mirror of browse.clear_filters_query (every filter
+#: param dropped, q + sort kept). Static: the demo state has no q, so the bare workbench.
+_CLEAR_FILTERS_QUERY = ""
+
 #: The static preview shown in the pane (the first result) — the REAL ``workbench/_pane.html``
 #: renders it, so the keys mirror the pane view-model's contract (browse_views._Pane). No media →
 #: the hollow placeholder.
@@ -266,6 +270,9 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "ledger_columns": _LEDGER_COLUMNS,
             "facet_groups": _FACET_GROUPS,
             "filter_chips": _FILTER_CHIPS,
+            "clear_filters_query": _CLEAR_FILTERS_QUERY,
+            # the rail renders the hit count at its line end (law C10 — the toolrow died)
+            "total": len(_LEDGER_ROWS),
             "preview": _PREVIEW,
         },
     )

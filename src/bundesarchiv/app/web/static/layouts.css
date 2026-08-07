@@ -17,6 +17,12 @@
 @layer compositions {
   /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
   body > header {
+    /* the header is a CONTROL ROW (law C8): this knob is the ONE height source every
+       interactive child (the search input, "Suchen", the "+ Neu …" summary) consumes via the
+       components-layer consumption rule — equal heights by construction (G.22). Value: the
+       compact control height, the same the rail sets, so the two standing chrome rows read as
+       one system. */
+    --control-height: var(--touch-target-compact);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -57,14 +63,19 @@
     margin-left: auto;
   }
 
-  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar
-     died with it). One row of facet dropdowns + active-filter chips directly under the header,
-     above the results. FURNITURE: flat quiet container, hairline edge. It lives OUTSIDE
-     #results: filter clicks are plain GET navigations, so the rail re-renders with fresh counts
-     on every filter change — the same mechanism the sidebar used (an htmx q-swap updates only
-     #results, as before). Narrow viewports simply wrap the row — results are never buried under
-     stacked panels (the standing 680px finding). ---- */
+  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar died
+     with it). One row of facet dropdowns + active-filter chips directly under the header, above
+     the results; its material role is stated at the padding below. It lives OUTSIDE #results:
+     filter clicks are plain GET navigations, so the rail re-renders with fresh counts on every
+     filter change — the same mechanism the sidebar used (an htmx q-swap updates only #results, as
+     before). Narrow viewports simply wrap the row — results are never buried under stacked
+     panels (the standing 680px finding). ---- */
   .filterrail {
+    /* the rail is a CONTROL ROW (law C8): one height source for dropdown summaries, chips and
+       the chip ✕ — the licensed COMPACT value (owner ruling 2026-08-07, rail round 2; the knob
+       value lives in tokens.css as --touch-target-compact per C5). A chip/dropdown mismatch is
+       impossible without editing this knob. */
+    --control-height: var(--touch-target-compact);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -74,6 +85,27 @@
        hairline (components.css .facet > summary). The block padding is the rail's breathing
        room between the header's double rule and the results. */
     padding: var(--space-4) var(--space-4) var(--space-2);
+  }
+  /* the rail's two TEXT occupants — the clear-all link ("Alle Filter entfernen", owner
+     2026-08-07 rail round 2: a quiet text link ending the chip row, deliberately not a chip)
+     and the "N Treffer" count — share one line-box rule: both consume the row knob (C8) so
+     their lines center level with the controls beside them. */
+  .filterrail > :is(a, p) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+    font: var(--type-meta);
+  }
+  /* the count ENDS the rail line, right-aligned (law C10: status text rides an occupied band —
+     the status-only toolrow died, owner round-2 correction 2026-08-07). Demoted status styling
+     (G.4): small mono, muted, tabular. The auto margin is composition-owned placement (law C4).
+     Styled by its PLACE, not its aria-live attribute (a live region elsewhere inherits
+     nothing). */
+  .filterrail > p {
+    margin: 0 0 0 auto;
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
   }
 
   /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
@@ -87,58 +119,31 @@
     padding: var(--space-4);
   }
 
-  /* main results column: a stack of toolrow · ledger · pager */
-  .frame main {
-    grid-column: main;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-  /* the bulk form wraps toolrow + ledger; it stacks them like the column it sits in */
+  /* main results column: a stack of Sammelbearbeitung · ledger · pager. The bulk form wraps the
+     disclosure + ledger, so it repeats the stack of the column it sits in — ONE rule for both */
+  .frame main,
   .frame main form {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+  }
+  .frame main {
+    grid-column: main;
+    min-width: 0;
   }
   /* HTMX in-flight: dim the results while a swap is pending — static opacity, NO motion */
   #results.htmx-request {
     opacity: 0.6;
   }
 
-  /* ---- toolrow: the one line of occasional chrome above the ledger — the Sammelbearbeitung
-     disclosure left, the result count right (learning G.4: status recedes, the ledger leads) */
-  .toolrow {
-    /* flex-start, not baseline: the disclosure grows downward when opened — the count must stay
-       up on the summary line, not ride the expanded box's baseline. --line-pad is the ONE knob
-       (law C3) both the summary and the count consume, so their lines align by construction. */
-    --line-pad: var(--space-1);
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: var(--space-3);
-  }
-  .toolrow details {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  /* the "N Treffer" count: demoted status — small mono, muted, right-aligned. Styled by its
-     PLACE (the toolrow), not by its announcement attribute — aria-live stays markup-only, so a
-     future live-region <p> elsewhere inherits nothing (altitude: attributes are behavior, the
-     context is the style hook). Every count renders inside a toolrow, all three branches. */
-  .toolrow > p {
-    margin: 0;
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--on-surface-variant);
-    padding-block: var(--line-pad); /* rides the collapsed summary's own line box */
-  }
-
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
-     occasional chrome and recede). Cold: the summary line + the selection count. Open:
-     furniture — flat plain container, hairline border, no tint, no depth (register row 8). */
+     occasional chrome and recede). It sits DIRECTLY above the ledger in the form's column — no
+     wrapper band (law C10, round-2 correction: the old toolrow was status-only once the count
+     moved to the rail; a hidden/absent disclosure now collapses to nothing, no empty gap). Cold:
+     the summary line + the selection count. Open: furniture — flat plain container, hairline
+     border, no tint, no depth (register row 8). */
   details.bulk summary {
-    padding: var(--line-pad) 0;
+    padding: var(--space-1) 0;
   }
   /* the selection count inside the summary: plain status text (span role=status — deliberately
      NOT a form-associated element, whose interactivity would swallow the summary's toggle click) */
@@ -155,8 +160,6 @@
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
   }
-  /* open keeps --line-pad: the count outside the disclosure shares the knob, so the two lines
-     stay aligned in BOTH states — no per-state pad retune to remember */
   details.bulk > div:first-of-type {
     display: flex;
     flex-wrap: wrap;
