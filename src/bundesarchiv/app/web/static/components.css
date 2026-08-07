@@ -386,8 +386,11 @@
     /* the shared column tracks (a named local dimension set, law C3/C5); --lead is the optional
        bulk-checkbox track, prepended via the empty-fallback idiom. Tracks carry line names and
        every cell is placed on its own line (below), so a row with an ABSENT value keeps every
-       other cell in its column instead of auto-flowing leftward. */
-    --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+       other cell in its column instead of auto-flowing leftward. The SIG track is content-tight
+       (owner rail-wave verdict 2026-08-07: left-aligned and narrower) — max-content sizes to the
+       longest Signatur on the page, so realistic codes ("BA 1848/II") never truncate and the
+       row-11 margin rule closes right after the column. */
+    --cols: [sig] max-content [titel] minmax(10rem, 1fr)
       [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
       [aktion] max-content;
     display: grid;
@@ -584,7 +587,7 @@
      no counter-overrides, no source-order dependence between the steps and the fold block */
   @container (32rem < width <= 60rem) {
     .ledger > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+      --cols: [sig] max-content [titel] minmax(10rem, 1fr)
         [datum] minmax(6rem, max-content) [aktion] max-content;
     }
     .ledger .typ {
@@ -593,7 +596,7 @@
   }
   @container (32rem < width <= 52rem) {
     .ledger > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr) [aktion] max-content;
+      --cols: [sig] max-content [titel] minmax(10rem, 1fr) [aktion] max-content;
     }
     .ledger .datierung {
       display: none;
