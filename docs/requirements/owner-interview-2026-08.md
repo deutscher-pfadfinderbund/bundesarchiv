@@ -176,6 +176,23 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   only (`.c-sig`, `.c-facet-tab`). Trapezoid (both top corners) is reserved
   for a possible future register-tab component for view navigation — not
   licensed until that component is approved.
+- **Exploration verdicts (owner, 2026-08-07)** — directional endorsements
+  from the five workbench explorations, to be executed as deliberate waves
+  (register/token edits where noted), not ad hoc:
+  - **05 Eisengallus:** the LINE-TABLE (bound-register) ledger style is
+    liked; the Kapitälchen-serif "Bundesarchiv" wordmark is liked (a new
+    display type role — owner-only tokens.css entry); ideas (a)–(c)
+    endorsed in general. Hue itself NOT switched (see 01).
+  - **04 Lesesaal:** the simpler member browsing mode is good; the serif
+    pane/reader title is liked (reading type role). Open question the
+    composition must answer: how readers FILTER in this mode.
+  - **01 Flaschengrün:** no seed change now — recorded as proof the swap
+    stays a one-line decision.
+  - **02 Filterleiste:** facets in a top filter bar are a CANDIDATE FOR THE
+    PRIMARY filter interaction; the sidebar possibly only on large screens.
+  - **03 Karteikasten:** card results liked as an ALTERNATIVE, user-chosen
+    view (harder to scan, but can show previews) — a view preference, not
+    the default.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns
