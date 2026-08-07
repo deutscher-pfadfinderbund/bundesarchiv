@@ -347,7 +347,11 @@ def test_bulk_select_confirm_apply(
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick, collapsed
-    page.click("details.bulk > summary")  # expand the native disclosure
+    # expand by clicking THE COUNT ITSELF — the named regression: a form-associated element in
+    # the summary (the old <output>) swallowed exactly this click and the disclosure never
+    # opened; the status span must toggle like any other point on the summary line
+    page.get_by_text("2 ausgewählt").click()
+    expect(page.locator("details.bulk")).to_have_attribute("open", "")
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
