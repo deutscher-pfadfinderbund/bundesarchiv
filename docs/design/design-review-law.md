@@ -48,6 +48,14 @@ Ask in order; earlier questions can terminate the review.
    additionally suppress it upstream, but may not be the only defense.
 8. **Do all gaps come from the spacing scale — and does the parent own the
    between?**
+9. **Does every element's visual weight match its information rank for the
+   primary user of this surface?** Placement and size are claims of
+   importance ("3 Treffer" in the headline spot is a false claim). Rank by
+   how often the primary user needs it, not by when it was built.
+10. **How many interactions does the most frequent task cost?** The primary
+   loop (archivist: open an article) must be the shortest path on the
+   surface. A preview or intermediate step is an enhancement, never a toll
+   gate.
 
 **Severity:** findings are reported ranked —
 - **S1**: dead/exhibit code, contradiction with recorded law, false
@@ -72,7 +80,6 @@ adding a row first, and rows are owner decisions.
 | 5 | Red (`--error`) | errors | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published/normal state renders no badge | — |
-
 | 8 | Paper sheet material (owner ruling 2026-08-06: "paper material, but not the generic Google Material look") | Sheet-like containers only (result cards, facet panels, confirm panels, empty state): a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the 2px lower edge, the thickness of the sheet. This is the papier recipe promoted to baseline; the separate variant file still dies in the wave. | forbidden — and the Material-Design vocabulary is forbidden everywhere: no elevation `box-shadow` stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
 
 **Reserved (recorded, NOT licensed):** trapezoid tab — both top corners cut —
@@ -192,3 +199,47 @@ JS for state `:has()`/`details`/`popover`/CSS can express; `!important`
 outside a deliberate `@layer` override; px media queries for component
 adaptation where a container query belongs; div-buttons and other
 re-implemented native elements (restates construction law).
+
+## G. Learnings register (append-only)
+
+Mechanism (owner, 2026-08-07): every design-gate round that corrects an
+agent decision appends its lesson here, GENERALIZED — the rule that would
+have prevented the correction, not the anecdote. Reviewers read this
+section as part of the law. Never rewrite or delete entries; supersede
+with a newer one.
+
+**2026-08-07, workbench composition rounds 1–3:**
+
+1. **A comment is not a proof; the computed style is.** The header CSS
+   claimed "ONE treatment for every column head" while the browser computed
+   three different sizes (a link inside the header escaped the label rule).
+   When a rule claims uniformity, verify it in the browser
+   (`getComputedStyle` over the claimed set), not in the source.
+2. **Repetition dilutes a mark.** A licensed cue (the Signatur tab
+   silhouette) carried into a 50-row ledger stops being a signature and
+   becomes chrome. License cues per CONTEXT, and expect scarcity: the more
+   often a mark appears on one surface, the quieter it must be.
+3. **Sweep each law horizontally.** The quiet-default law was obeyed by one
+   atom (lifecycle badge) and violated by its sibling (visibility badge)
+   for a year. When reviewing against a law, check every element the law
+   touches on the surface — not just the component under review.
+4. **Prominence is a frequency claim.** Rank every element by how often the
+   surface's primary user needs it; the layout must match that ranking
+   (result count and bulk tools are status/occasional — they collapse or
+   recede; they never outrank the ledger).
+5. **Materials need role assignments, not taste.** "Tinted or not" per
+   component drifts; the metaphor assigns roles (desk = neutral ground,
+   furniture = quiet, THE pulled sheet = tinted) and every container gets
+   styled by its role.
+6. **The demo corpus is a design instrument.** "Entwurf Lagerchronik" as a
+   test title made every render lie about badge duplication. Corpus data
+   must look like real archive content, or verdicts made on renders are
+   verdicts about test data.
+7. **Decide on renders, not prose.** Every contested composition question
+   in these rounds was settled in minutes once both options were rendered
+   (live-page CSS/JS injection is cheap); none had been settled by
+   description. Mock first, rule second.
+8. **Report in the reader's decision language.** A gate brief for the owner
+   shows pixels and numbered decisions; internal metrics (class counts,
+   line deltas) prove charter compliance to agents and belong in the
+   engineering report, not the owner's brief.
