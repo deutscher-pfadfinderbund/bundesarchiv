@@ -403,12 +403,17 @@ def test_floored_fields_present_for_archivist_only_where_intended(corpus_root: P
 
 
 @pytest.mark.django_db
-def test_visibility_column_and_strings_only_for_archivist(corpus_root: Path) -> None:
-    # The SICHTBARKEIT column header + its strings (incl. the group name) are archivist chrome.
+def test_visibility_column_renders_for_nobody(corpus_root: Path) -> None:
+    # The SICHTBARKEIT column died entirely (owner 2026-08-07): no header, no cells, no badges —
+    # for ANY viewer. Quiet default: ÖFFENTLICH renders nothing anywhere in the ledger. The leak
+    # half of the old contract still holds a fortiori: group names never reach a non-archivist.
     arch = _get(corpus_root, Archivist()).content.decode()
-    assert "Sichtbarkeit" in arch
-    assert "Gruppe: vorstand" in arch  # the GROUPS row's visibility string, archivist-only
-    assert "Öffentlich" in arch and "Alle Mitglieder" in arch
+    assert "Sichtbarkeit" not in arch
+    assert "Gruppe: vorstand" not in arch
+    assert "Alle Mitglieder" not in arch
+    # the quiet default: no ÖFFENTLICH badge string in the ledger (">Öffentlich<" as a text node;
+    # the corpus title "Öffentliches Foto…" legitimately contains the bare substring)
+    assert ">Öffentlich<" not in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(corpus_root, viewer).content.decode()
         assert "Sichtbarkeit" not in body, f"[{label}] SICHTBARKEIT column header leaked"

@@ -300,11 +300,11 @@
   /* ---- ledger: the results register (dense aligned rows). The root is a size container, so the
      register adapts to the COLUMN it sits in (law C2), not the viewport: when the pane opens (or
      the page narrows) the available inline size shrinks and the density switches by itself.
-     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · SICHTBARKEIT · action gutter; the
-     member register omits the last two entirely. All rows are subgrid rows on shared tracks.
-     Two narrow densities, the owner picks at the design gate (charter item 5):
-       default            — the mail-client fold: two-line rows, header hidden;
-       [data-fold="columns"] — stable anatomy, low-priority columns drop as the register narrows. */
+     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · action gutter; the member register
+     omits the gutter. All rows are subgrid rows on shared tracks. WIDTH is the only density
+     input (owner verdict 2026-08-07, charter item 5 settled — column-drop won): low-priority
+     columns drop as the container narrows (Typ, then Datierung); the two-line fold below is the
+     phone-width LAST RESORT only. Row anatomy never changes with pane state. */
   .ledger {
     container-type: inline-size;
   }
@@ -315,7 +315,7 @@
        other cell in its column instead of auto-flowing leftward. */
     --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
       [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
-      [sicht] minmax(7rem, max-content) [aktion] minmax(6rem, max-content);
+      [aktion] minmax(6rem, max-content);
     display: grid;
     grid-template-columns: var(--lead, ) var(--cols);
     border: var(--hairline) solid var(--outline-variant);
@@ -323,7 +323,7 @@
     overflow-x: auto;
   }
   .ledger.member > [role="table"] {
-    /* member/public: no SICHTBARKEIT, no action gutter — four tracks, cells omitted in markup */
+    /* member/public: no action gutter — four tracks, the cell omitted in markup */
     --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
       [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content);
   }
@@ -364,20 +364,19 @@
   .ledger [role="row"]:has(.auswahl input:checked) {
     background: var(--on-surface);
   }
-  .ledger [role="row"]:has(.auswahl input:checked) :is(.titel a, .datierung, .typ) {
+  .ledger [role="row"]:has(.auswahl input:checked) :is(.titel a, .datierung, .typ, .badge) {
     color: var(--surface);
-  }
-  .ledger [role="row"]:has(.auswahl input:checked) .badge {
-    color: var(--surface);
-    border-color: var(--surface);
   }
 
   .ledger :is([role="cell"], [role="columnheader"]) {
     min-width: 0;
   }
-  /* header cells: ONE treatment for every column head — the label role, identical for all.
+  /* header cells: ONE treatment for every column head — the label role computed IDENTICALLY on
+     the header span AND any anchor inside it (learning G.1: prove uniformity in the browser,
+     not the source — the e2e suite asserts getComputedStyle equality over this whole set).
      Sortable heads differ ONLY by the link affordance; the active sort shows one glyph. */
-  .ledger [role="columnheader"] {
+  .ledger [role="columnheader"],
+  .ledger [role="columnheader"] a {
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
     text-transform: uppercase;
@@ -387,7 +386,6 @@
     display: inline-flex;
     align-items: baseline;
     gap: calc(var(--space-1) / 2);
-    color: inherit;
   }
   .ledger [role="columnheader"] a:hover {
     color: var(--primary);
@@ -396,48 +394,73 @@
     font-size: 0.85em; /* the direction glyph rides the label's own size — relative by nature */
   }
 
-  /* body cells — each sits on its named line (absent optional cells leave holes, not drift) */
+  /* column placement — headers AND cells share the named lines (absent optional cells leave
+     holes, not drift) */
   .ledger .auswahl {
     grid-column: auswahl;
-    display: inline-flex;
-    align-items: center;
   }
   .ledger .sig {
     grid-column: sig;
   }
   .ledger .titel {
     grid-column: titel;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .ledger .titel a {
-    font: var(--type-body);
-    color: var(--on-surface);
-  }
-  .ledger .titel a:hover {
-    color: var(--primary);
   }
   .ledger .datierung {
     grid-column: datum;
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--primary); /* mono date = ink data (row 2) */
   }
   .ledger .typ {
     grid-column: typ;
-    font: var(--type-meta);
-    color: var(--on-surface-variant);
-  }
-  .ledger .sichtbarkeit {
-    grid-column: sicht;
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
   }
   .ledger .aktion {
     grid-column: aktion;
     text-align: right;
+  }
+
+  /* body-cell typography — scoped to the ROWGROUP so a cell rule can never outrank the one
+     label-role header treatment above (learning G.1: the header cells carry the same column
+     classes; an unscoped `.ledger .titel a` beat the header rule by order and split the
+     computed styles). */
+  .ledger [role="rowgroup"] .auswahl {
+    display: inline-flex;
+    align-items: center;
+  }
+  .ledger [role="rowgroup"] .titel {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .ledger [role="rowgroup"] .titel a {
+    font: var(--type-body);
+    color: var(--on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ledger [role="rowgroup"] .titel a:hover {
+    color: var(--primary);
+  }
+  /* the ENTWURF deviation rides its fact (row 4 + learning G.10): SAME renderer as everywhere
+     (badge_lifecycle), the ledger context strips the box — quiet amber mono directly after the
+     title text. A future GRUPPE mark takes the same slot and treatment. flex:none keeps the mark
+     visible when the title ellipsizes. */
+  .ledger [role="rowgroup"] .titel .badge.entwurf {
+    flex: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font: var(--type-mono-meta);
+    letter-spacing: var(--label-tracking);
+    color: var(--on-draft);
+  }
+  .ledger [role="rowgroup"] .datierung {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--primary); /* mono date = ink data (row 2) */
+  }
+  .ledger [role="rowgroup"] .typ {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
   }
   /* the row action is quiet until the row is hovered / keyboard-focused */
   .ledger .aktion a {
@@ -448,89 +471,90 @@
     opacity: 1;
   }
 
-  /* narrow density, DEFAULT variant — the mail-client fold: header hidden, each row two lines.
-     Line 1: SIG + Titel; line 2: Datierung · Typ; Sichtbarkeit rides the right edge; the bulk
-     checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
-     BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. */
-  @container (max-width: 48rem) {
-    .ledger:not([data-fold="columns"]) > [role="table"] {
-      grid-template-columns: 1fr;
-    }
-    .ledger:not([data-fold="columns"]) [role="table"] > [role="row"] {
-      display: none;
-    }
-    .ledger:not([data-fold="columns"]) [role="rowgroup"] [role="row"] {
-      grid-template-columns: min-content max-content max-content minmax(0, 1fr) max-content;
-      grid-template-areas:
-        "auswahl sig titel titel meta"
-        "auswahl sig datum typ   meta";
-      align-items: start;
-      column-gap: var(--space-3);
-      row-gap: calc(var(--space-1) / 2);
-    }
-    .ledger:not([data-fold="columns"]) .auswahl {
-      grid-area: auswahl;
-      align-self: center;
-    }
-    .ledger:not([data-fold="columns"]) .sig {
-      grid-area: sig;
-      align-self: center;
-    }
-    .ledger:not([data-fold="columns"]) .titel {
-      grid-area: titel;
-      align-self: center;
-      white-space: normal;
-    }
-    .ledger:not([data-fold="columns"]) .datierung {
-      grid-area: datum;
-      font: var(--type-mono-meta);
-    }
-    .ledger:not([data-fold="columns"]) .typ {
-      grid-area: typ;
-      font: var(--type-mono-meta);
-    }
-    .ledger:not([data-fold="columns"]) .datierung + .typ::before {
-      content: "· ";
-    }
-    .ledger:not([data-fold="columns"]) .sichtbarkeit {
-      grid-area: meta;
-      align-self: center;
-      justify-content: flex-end;
-    }
-    /* the action gutter collapses — the row itself is the affordance in this density */
-    .ledger:not([data-fold="columns"]) .aktion {
-      display: none;
-    }
-  }
-
-  /* narrow density, CANDIDATE variant (design-gate item 5): stable row anatomy — the register
-     keeps one line per row and sheds low-priority columns instead. Drop order: Typ, then
-     Datierung, then Sichtbarkeit; SIG + Titel + action survive to the last step. */
+  /* narrow densities — WIDTH is the only input (owner verdict 2026-08-07): stable one-line row
+     anatomy, low-priority columns drop as the CONTAINER narrows (pane open or viewport small —
+     same mechanism). Drop order: Typ, then Datierung; SIG + Titel + action survive. */
   @container (max-width: 60rem) {
-    .ledger[data-fold="columns"] > [role="table"] {
+    .ledger > [role="table"] {
       --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-        [datum] minmax(6rem, max-content) [sicht] minmax(7rem, max-content)
-        [aktion] minmax(6rem, max-content);
+        [datum] minmax(6rem, max-content) [aktion] minmax(6rem, max-content);
     }
-    .ledger[data-fold="columns"] .typ {
+    .ledger.member > [role="table"] {
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+        [datum] minmax(6rem, max-content);
+    }
+    .ledger .typ {
       display: none;
     }
   }
   @container (max-width: 52rem) {
-    .ledger[data-fold="columns"] > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-        [sicht] minmax(7rem, max-content) [aktion] minmax(6rem, max-content);
-    }
-    .ledger[data-fold="columns"] .datierung {
-      display: none;
-    }
-  }
-  @container (max-width: 42rem) {
-    .ledger[data-fold="columns"] > [role="table"] {
+    .ledger > [role="table"] {
       --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
         [aktion] minmax(6rem, max-content);
     }
-    .ledger[data-fold="columns"] .sichtbarkeit {
+    .ledger.member > [role="table"] {
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr);
+    }
+    .ledger .datierung {
+      display: none;
+    }
+  }
+
+  /* the LAST RESORT under the phone-width container query: the two-line fold — header hidden,
+     SIG + Titel over Datierung · Typ; the bulk checkbox keeps its own leading area (empty track
+     when absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling
+     rule), so absence dangles nothing. Declared AFTER the drop steps so its display rules win
+     inside the overlapping range. */
+  @container (max-width: 48rem) {
+    .ledger > [role="table"] {
+      grid-template-columns: 1fr;
+    }
+    .ledger [role="table"] > [role="row"] {
+      display: none;
+    }
+    .ledger [role="rowgroup"] [role="row"] {
+      grid-template-columns: min-content max-content max-content minmax(0, 1fr);
+      grid-template-areas:
+        "auswahl sig titel titel"
+        "auswahl sig datum typ";
+      align-items: start;
+      column-gap: var(--space-3);
+      row-gap: calc(var(--space-1) / 2);
+    }
+    /* cell rules ride the same rowgroup scope as the base typography, so the fold's overrides
+       (font step-down, re-revealed columns) win inside its range */
+    .ledger [role="rowgroup"] .auswahl {
+      grid-area: auswahl;
+      align-self: center;
+    }
+    .ledger [role="rowgroup"] .sig {
+      grid-area: sig;
+      align-self: center;
+    }
+    .ledger [role="rowgroup"] .titel {
+      grid-area: titel;
+      align-self: center;
+      flex-wrap: wrap;
+    }
+    .ledger [role="rowgroup"] .titel a {
+      white-space: normal;
+    }
+    .ledger [role="rowgroup"] .datierung {
+      display: block;
+      grid-area: datum;
+      font: var(--type-mono-meta);
+    }
+    .ledger [role="rowgroup"] .typ {
+      display: block;
+      grid-area: typ;
+      font: var(--type-mono-meta);
+    }
+    .ledger [role="rowgroup"] .datierung + .typ::before {
+      content: "· ";
+    }
+    /* the action gutter collapses — the Titel already navigates, and the pane is
+       viewport-hidden at these widths anyway */
+    .ledger [role="rowgroup"] .aktion {
       display: none;
     }
   }

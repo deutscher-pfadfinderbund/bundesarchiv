@@ -118,12 +118,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
     # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
-    # the ledger re-densifies by itself — it is a size container (components.css).
+    # the ledger re-densifies by itself — it is a size container (components.css). Width is the
+    # ONLY density input (charter item 5 settled 2026-08-07: column-drop won; the ?fold switch
+    # and the pane-open fold died with the verdict).
     context["vorschau"] = pane is not None
-    # Design-gate density switch (rework-wave charter item 5, TEMPORARY until the owner picks):
-    # ?fold=columns renders the stable-anatomy column-drop candidate instead of the mail-client
-    # fold. Presentation only; the losing variant and this param die at the gate verdict.
-    context["fold_variante"] = "columns" if request.GET.get("fold") == "columns" else ""
     # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
     # plain HX-Request check below — otherwise the restore renders the chrome-less results partial.
@@ -243,34 +241,15 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
 # The ledger's column headers: (German label, css-modifier key, sortierung label or None). SIG /
 # TITEL / DATIERUNG are sortable (their sortierung label is a key in browse._SORT_BY_LABEL minus
 # relevanz, which has no column). TYP is NOT a sortable index column, so it is a plain header (None).
-# SICHTBARKEIT + the action gutter are added by the ledger component. Presentation only — sort is
-# browse.
+# The action gutter is added by the ledger component. This IS the whole column anatomy (owner
+# 2026-08-07): the SICHTBARKEIT column died — visibility strings render nowhere in the ledger, and
+# the ENTWURF deviation rides with the title. Presentation only — sort is browse.
 _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
     ("Sig", "sig", "signatur"),
     ("Titel", "titel", "titel"),
     ("Datierung", "datierung", "datierung"),
     ("Typ", "typ", None),
 )
-
-
-def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
-    """Render a hit's STRUCTURED scope data (tier + group names) to the German Sichtbarkeit string.
-
-    Presentation only — it maps the index scope columns the hit already carries; it does NOT
-    re-derive visibility (that is search()/_viewer_scope). Only the archivist ledger renders this
-    (the template gates it), and the data is leak-free on scoped rows by construction (SearchHit
-    docstring). ``tier is None`` is an archivist-only row (a fail-closed row that is not a draft) —
-    it has no ladder rung, so it shows nothing here. The rung captions come from the shared ``vocab``
-    source (the index scope strings differ from the domain enum, so the mapping stays here)."""
-    match tier:
-        case "PUBLIC":
-            return vocab.SICHTBARKEIT_PUBLIC
-        case "MEMBERS":
-            return vocab.SICHTBARKEIT_MEMBERS
-        case "GROUPS":
-            return vocab.groups_label(groups)
-        case _:
-            return ""
 
 
 def _ledger_row(
@@ -282,12 +261,12 @@ def _ledger_row(
     zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
-    logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action + bulk
-    checkbox are archivist chrome: left EMPTY/False for non-archivists here (and the ledger component
-    also omits those columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row
-    shown in the pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row
-    inverts when its ulid is in it). ``zurueck`` is the encoded ``?zurueck=`` suffix carrying the
-    current search so the detail page's "Zurück zur Suche" returns here (empty when no search)."""
+    logic in the template). The ENTWURF flag + Bearbeiten action + bulk checkbox are archivist
+    chrome: left EMPTY/False for non-archivists here (and the ledger component also omits those
+    columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in the
+    pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row inverts
+    when its ulid is in it). ``zurueck`` is the encoded ``?zurueck=`` suffix carrying the current
+    search so the detail page's "Zurück zur Suche" returns here (empty when no search)."""
     return {
         "title": hit.title,
         # BASELINE href = the canonical detail route: it works without JS on every viewport (below
@@ -302,7 +281,6 @@ def _ledger_row(
         "datierung": hit.date_edtf or "",
         "typ": hit.document_type or "",
         "draft": hit.is_draft if is_archivist else False,
-        "visibility": _visibility_label(hit.tier, hit.groups) if is_archivist else "",
         # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
         "action_label": "Bearbeiten" if is_archivist else "",
         "action_href": reverse("artikel-detail", args=[hit.ulid]) if is_archivist else "",

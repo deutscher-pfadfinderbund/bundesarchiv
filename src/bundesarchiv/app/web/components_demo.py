@@ -36,8 +36,8 @@ _FACET_ITEMS_BESTAND = (
 )
 
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
-#: carries a ref_code (lifecycle is decoupled from the sig slot) and shows the ENTWURF badge as its
-#: sole SICHTBARKEIT signal.
+#: carries a ref_code (lifecycle is decoupled from the sig slot) and its ENTWURF mark rides the
+#: title (the SICHTBARKEIT column died, owner 2026-08-07 — quiet default: published shows nothing).
 _LEDGER_ROWS = (
     {
         "title": "Sommerfahrt 1962",
@@ -46,7 +46,6 @@ _LEDGER_ROWS = (
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -57,7 +56,6 @@ _LEDGER_ROWS = (
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -68,7 +66,6 @@ _LEDGER_ROWS = (
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -80,7 +77,6 @@ _LEDGER_ROWS = (
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "visibility": "",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -93,7 +89,6 @@ _LEDGER_ROWS = (
         "datierung": "1990",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -105,7 +100,6 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "Notiz",
         "draft": False,
-        "visibility": "Öffentlich",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },
@@ -117,7 +111,6 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
         "action_label": "Bearbeiten",
         "action_href": "#demo-edit",
     },

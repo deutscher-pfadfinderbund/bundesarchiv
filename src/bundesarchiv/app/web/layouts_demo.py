@@ -30,7 +30,7 @@ from bundesarchiv.app.web.browse_views import _serve_static
 #: The layout whitelist: name → human label. An entry here is the ONLY way a layout becomes
 #: routable. Unknown name → 404. One layout after the owner's review (split-rail rejected).
 LAYOUTS: dict[str, str] = {
-    "split-narrow": "Split narrow (ledger folds to two-line when the pane opens)",
+    "split-narrow": "Split narrow (ledger sheds columns as its container narrows)",
 }
 
 #: The dev-only layout stylesheet (served by the whitelisted dev static route below).
@@ -47,7 +47,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Jahresbericht 1974",
@@ -56,7 +55,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
@@ -65,7 +63,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
     },
     {
         # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
@@ -75,7 +72,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "visibility": "",
     },
     {
         "title": "Winterlager 1958",
@@ -84,7 +80,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1958",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Kassenbuch 1965-1969",
@@ -93,7 +88,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1965/1969",
         "typ": "Buch",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
     },
     {
         "title": "Fahrtenbericht Norwegen 1971",
@@ -102,7 +96,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1971",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
     {
         "title": "Liederbuch (2. Auflage)",
@@ -111,7 +104,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1969",
         "typ": "Druck",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Gruppenfoto Pfingsten 1983",
@@ -120,7 +112,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1983-05",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Satzung des Trägervereins",
@@ -129,7 +120,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1955",
         "typ": "Urkunde",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         # Draft WITHOUT a Signatur: the hollow slot means "ohne Signatur" (ref_code absent), a
@@ -140,7 +130,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "",
         "typ": "Druck",
         "draft": True,
-        "visibility": "",
     },
     {
         "title": "Rundbrief Herbst 1977",
@@ -149,7 +138,6 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1977-10",
         "typ": "Rundbrief",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
 )
 

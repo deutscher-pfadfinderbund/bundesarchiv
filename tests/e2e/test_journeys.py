@@ -35,6 +35,26 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
 
 
+def test_ledger_headers_compute_one_uniform_treatment(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Learning G.1: a comment is not a proof; the computed style is. Every [role=columnheader]
+    # AND every anchor inside one must compute the SAME font treatment (the label role) — the
+    # sortable-head link may differ only by affordance, never by typography.
+    archivist_page.goto(live_workbench + "/")
+    treatments: list[str] = archivist_page.evaluate(
+        """() => Array.from(document.querySelectorAll(
+               '.ledger [role=columnheader], .ledger [role=columnheader] a'
+           )).map((el) => {
+               const s = getComputedStyle(el);
+               return [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
+                       s.letterSpacing, s.color].join('|');
+           })"""
+    )
+    assert len(treatments) >= 5  # four column heads + at least one sortable-head anchor
+    assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
+
+
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").

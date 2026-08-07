@@ -101,8 +101,9 @@ components; this storyboard updates in lockstep with them.
     /* density probes: the ledger is a size container — constraining its box IS the demo.
        .probe-stack stacks the two modes so a wide sample keeps a wide container. */
     .probe-stack { grid-template-columns: 1fr; }
-    .probe-mid { max-width: 50rem; }
-    .probe-narrow { max-width: 40rem; }
+    .probe-mid { max-width: 56rem; }   /* drop step 1: Typ gone (≤60rem) */
+    .probe-low { max-width: 50rem; }   /* drop step 2: Datierung gone too (≤52rem) */
+    .probe-narrow { max-width: 40rem; } /* the fold (≤48rem) */
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -274,9 +275,24 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · rows=[…] columns=[…] — sortable heads cycle asc→desc→default; Typ is a plain head; Bearbeiten on row hover/focus; last row is a draft (ENTWURF is its sole Sichtbarkeit signal)</code>
+<code class="doc">components/ledger.html · rows=[…] columns=[…] — Sig · Titel · Datierung · Typ (no Sichtbarkeit column); sortable heads cycle asc→desc→default; Typ is a plain head; Bearbeiten on row hover/focus; the draft row's ENTWURF mark rides its title (quiet amber mono)</code>
 
-<h2>Ledger — narrow container (the mail-client fold, default)</h2>
+<h2>Ledger — narrow container (column drop, THE width behavior)</h2>
+<div class="probe probe-stack">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="probe-mid">
+      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+    </div>
+    <div class="probe-low" style="margin-top: var(--space-3)">
+      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">width is the only density input (owner verdict 2026-08-07): stable one-line anatomy, low-priority columns drop as the container narrows (Typ at 60rem, then Datierung at 52rem) — no param, no viewport query</code>
+
+<h2>Ledger — phone-width container (the two-line fold, last resort)</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -286,22 +302,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">the ledger is a size container — under 48rem it folds to two-line rows by itself (no param, no viewport query)</code>
-
-<h2>Ledger — narrow container (column-drop candidate, fold="columns")</h2>
-<div class="probe probe-stack">
-  {% for mode in modes %}
-  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    <div class="probe-mid">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True fold="columns" only %}
-    </div>
-    <div class="probe-narrow" style="margin-top: var(--space-3)">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True fold="columns" only %}
-    </div>
-  </div>
-  {% endfor %}
-</div>
-<code class="doc">design-gate candidate (charter item 5): stable row anatomy, low-priority columns drop (Typ → Datierung → Sichtbarkeit) as the container narrows — the owner picks fold vs column-drop on pixels</code>
+<code class="doc">under the ~48rem container query the register folds to two-line rows — the phone-width last resort, the only place row anatomy changes</code>
 
 <h2>Pagination</h2>
 <div class="probe">

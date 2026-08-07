@@ -12,9 +12,6 @@ checkboxes name="auswahl"; the bar's affordances render whenever there are hits 
 prev/next + "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) folds UNSUBMITTED
 ticks/unticks into those same links on every change. No-JS baseline: paging carries the URL-borne
 selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") first.
-
-fold_variante threads the design-gate density switch (charter item 5) into the ledger: unset =
-the mail-client fold; "columns" = the stable-anatomy column-drop candidate (?fold=columns).
 {% endcomment %}
 <main id="results">
   <p aria-live="polite">{{ total }} Treffer</p>
@@ -27,10 +24,10 @@ the mail-client fold; "columns" = the stable-anatomy column-drop candidate (?fol
     {% if bulk_bar %}
     {% include "workbench/_sammelleiste.html" %}
     {% endif %}
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=True fold=fold_variante only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=True only %}
   </form>
   {% else %}
-  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=False fold=fold_variante only %}
+  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=False only %}
   {% endif %}
   {% else %}
   {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is

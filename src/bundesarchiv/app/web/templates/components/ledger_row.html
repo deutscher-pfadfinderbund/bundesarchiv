@@ -10,18 +10,18 @@ One ledger row — a result register line. Params (via {% include with %}):
 - typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In
                        the narrow fold the "·" separator only appears BETWEEN a present datierung
                        and typ (css adjacent-sibling rule), so absence dangles nothing.
-- draft (bool)       — a draft shows the ENTWURF badge in the SICHTBARKEIT column INSTEAD of the
-                       visibility badge (a draft's effective visibility is archivists-only).
-- visibility         — human-German visibility text (SICHTBARKEIT column, published rows only)
+- draft (bool)       — the ENTWURF deviation rides WITH the title (owner 2026-08-07, learning
+                       G.10): the lifecycle badge renders directly after the title text, restyled
+                       by the ledger context to the quiet amber mono mark. A published row shows
+                       nothing (quiet default, row 7). A future GRUPPE mark takes the same slot.
 - action_label/href  — the row action (e.g. "Bearbeiten"), revealed on hover/focus-within
-- archivist (bool)   — archivist chrome; when false the SICHTBARKEIT + action cells are omitted
-                       entirely (members/public never receive that data or that column)
+- archivist (bool)   — archivist chrome; when false the action cell is omitted entirely
 - selected (bool)    — this row is shown in the preview pane; aria-current marks it (law C2)
 - bulk / gewaehlt    — the selection checkbox cell / its server-rendered checked state. The row's
                        inversion styling derives from the checkbox itself (CSS :has).
 
-Composes the signatur_tab + badge atoms. SICHTBARKEIT carries ONE signal per row, exactly once:
-ENTWURF for drafts, the visibility badge otherwise.
+Composes the signatur_tab + lifecycle-badge atoms. No SICHTBARKEIT cell: the column died entirely
+(header + cells + badges) — visibility strings render nowhere in the ledger.
 {% endcomment %}
 <div role="row"{% if selected %} aria-current="true"{% endif %}>
   {% if bulk %}
@@ -33,14 +33,11 @@ ENTWURF for drafts, the visibility badge otherwise.
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
   <span class="titel" role="cell">
-    <a href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>
+    <a href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>{% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% endif %}
   </span>
   {% if datierung %}<span class="datierung" role="cell">{{ datierung }}</span>{% endif %}
   {% if typ %}<span class="typ" role="cell">{{ typ }}</span>{% endif %}
   {% if archivist %}
-  <span class="sichtbarkeit" role="cell">
-    {% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% elif visibility %}{% include "components/badge_visibility.html" with text=visibility only %}{% endif %}
-  </span>
   <span class="aktion" role="cell">
     {% if action_label %}<a class="button" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
   </span>

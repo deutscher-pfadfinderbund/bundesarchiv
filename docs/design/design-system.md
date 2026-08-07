@@ -86,10 +86,12 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
 4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
    stay, and every component change updates them in the same wave —
    lockstep is the price of keeping them.
-5. **Fold vs column-drop at the gate.** Render the pane-open ledger both
-   ways — the existing two-line fold and a stable-anatomy variant where
-   low-priority columns drop as the table narrows — and the owner picks
-   on pixels. The 2026-07-10 fold ruling stands until then.
+5. **Fold vs column-drop at the gate.** SETTLED (owner verdict 2026-08-07,
+   on pixels): column-drop won and is THE width behavior — low-priority
+   columns drop as the ledger's container narrows (Typ, then Datierung);
+   the two-line fold survives only under the ~48rem container query as the
+   phone-width last resort. The `?fold` switch, the pane-open fold and the
+   losing CSS are gone; row anatomy never changes with pane state.
 6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
    selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
    `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
@@ -219,12 +221,16 @@ Semantic notes:
 
 The workbench is **split-narrow**: sticky collapsible facet sidebar left
 (native `<details>` groups), LEDGER results center (dense register rows:
-SIG · Titel · Datierung · Typ · Sichtbarkeit · row action; one label-role
-header treatment), preview pane right. Pane state lives in the URL,
-server-rendered — zero JS required. While the pane is open the ledger folds
-to two-line narrow rows (the mail-client fold); below 1280px the pane
-disappears and rows navigate to the detail page (the canonical permalink).
-Cards remain for photo-heavy and member-facing contexts.
+SIG · Titel · Datierung · Typ · row-action toolbar; one label-role header
+treatment; no Sichtbarkeit column — ÖFFENTLICH renders nothing and the
+ENTWURF mark rides the title, owner 2026-08-07), preview pane right. Pane
+state lives in the URL, server-rendered — zero JS required. Width is the
+only density input (2026-08-07 verdict): columns drop as the ledger's
+container narrows (Typ, then Datierung); the two-line fold survives only
+under the ~48rem container query as the phone-width last resort. Below
+1280px the pane disappears and rows navigate to the detail page (the
+canonical permalink). Cards remain for photo-heavy and member-facing
+contexts.
 
 ## Component mapping (workbench)
 
@@ -238,8 +244,8 @@ Cards remain for photo-heavy and member-facing contexts.
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
 | Chips | `primary-container` / `on-primary-container` |
 | Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
-| ENTWURF badge | `draft` / `on-draft`; the Sichtbarkeit value for drafts (shown instead of the visibility badge) |
-| Visibility badge (published, archivist only) | `outline` + `on-surface-variant` |
+| ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
+| Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); the badge component survives only on the publish over-exposure preview |
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 
