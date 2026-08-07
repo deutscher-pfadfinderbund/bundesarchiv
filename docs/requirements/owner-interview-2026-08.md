@@ -211,6 +211,18 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   - **Screen priority (owner, 2026-08-07):** finish the WORKBENCH first as
     the exemplar, learn from it, then propagate the learnings to the other
     screens (edit form, detail reader) — the precedent rule in action.
+- **Rail-wave verdicts (owner, 2026-08-07, on REAL renders):** wordmark
+  larger; the header create buttons are "horrid" — rethink via mocks (no
+  ruling yet); Signatur column left-aligned and narrower; the filter rail
+  loses its background band (lighter, more air below the navbar); the
+  Sammelbearbeitung affordance is hidden until rows are selected —
+  REVERSES the #16 cold-start-visibility ruling (progressive: no-JS keeps
+  it visible, JS hides at zero selection); dropdown panels get an overlay
+  shadow (register row 12) — the flat-furniture reading of row 8 applies
+  to RESTING surfaces, not transient overlays.
+- **Report artifact discipline:** the artifact shows the CURRENT state and
+  open decisions only — history lives in git; the design explorations stay
+  in the artifact as an inspiration annex.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns

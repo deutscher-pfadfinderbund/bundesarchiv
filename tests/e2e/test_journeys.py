@@ -132,8 +132,10 @@ def test_create_bestand_then_file_an_article_under_it(
     page.fill('input[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
-    # now the Bestand has an article, so it appears in the workbench collection facet (indexed name)
+    # now the Bestand has an article, so it appears in the workbench's Bestand filter dropdown
+    # (the rail is the primary filter interaction — open the group to see its values)
     page.goto(live_workbench + "/")
+    page.locator(".filterrail summary", has_text="Bestand").click()
     expect(page.locator(".facet a", has_text="Plakate")).to_be_visible()
 
 

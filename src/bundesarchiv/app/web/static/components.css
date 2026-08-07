@@ -9,8 +9,9 @@
    are INVERSION (cue-register row 3), never a tint wash. draft=amber (row 4, the ENTWURF badge
    only) and error=red (row 5) are the loud channels. Material roles (row 8, amended 2026-08-07):
    TRUE SHEETS (the pane, confirm panels, the empty state) carry the --sheet tint + the one
-   resting-contact shadow (--sheet-shadow); facet panels are FURNITURE — flat plain container,
-   hairline only, no tint, no depth. The bevel cut (row 1) survives ONLY on the register-licensed
+   resting-contact shadow (--sheet-shadow); resting furniture is flat, hairline only, no tint;
+   TRANSIENT overlays (the rail's dropdown panels) float on the one overlay shadow (row 12,
+   --overlay-shadow). The bevel cut (row 1) survives ONLY on the register-licensed
    .c-sig; those selector names (.c-sig, .c-sig-code) are pinned BY the register and outlive the
    retired c-* taxonomy. */
 
@@ -198,10 +199,11 @@
     margin: 0;
   }
   /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
-     the facet remove) — ink/hover stay per-site deltas */
+     the facet remove, the chip ✕) — ink/hover stay per-site deltas */
   [role="toolbar"] a,
   .pane header > a,
-  .facet .remove {
+  .facet .remove,
+  .chip > a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -270,25 +272,49 @@
     border-style: dashed; /* the hollow "ohne Signatur" slot (row 6) keeps its dashed edge here */
   }
 
-  /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> panel of
-     value rows. FURNITURE, not a sheet (row 8 role reassignment, 2026-08-07): flat plain
-     container, hairline edge, no tint, no depth. The active row is read from aria-current on its
-     link (law C2) and marked by INVERSION (row 3); it carries the remove ✕ (the one place a
-     filter is cleared), inactive rows carry the bare count. ---- */
+  /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> DROPDOWN
+     on the filter rail (the sidebar died with the rail, owner 2026-08-07). The summary is a flat
+     hairline group button (furniture); the dropped value panel is an OPAQUE, hairline-edged box
+     that genuinely FLOATS while open — it carries the one licensed overlay shadow (register
+     row 12, owner 2026-08-07: "should have a shadow or something to differentiate it from the
+     background"; the flat-furniture reading of row 8 binds RESTING surfaces, not transient
+     overlays). Still no elevation ramps/stacks. The active row is read from aria-current on its
+     link (law C2) and marked by INVERSION (row 3); it carries the remove ✕, inactive rows carry
+     the bare count. ---- */
   .facet {
-    background: var(--surface-container-low);
+    position: relative; /* the anchor the dropped panel positions against */
+  }
+  .facet > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    list-style: none; /* the ▾ glyph below is the disclosure mark, not the UA triangle */
+    padding: var(--space-1) var(--space-2);
+    background: var(--surface);
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
-    padding: var(--space-2) var(--space-3) var(--space-3);
   }
-  .facet summary {
-    padding: var(--space-1) 0;
-    list-style-position: inside;
+  .facet > summary::after {
+    content: "▾";
+    font-size: 0.85em; /* the glyph rides the label's own size — relative by nature */
   }
-  .facet ul {
+  .facet[open] > summary {
+    background: var(--surface-container-mid);
+    border-color: var(--outline);
+  }
+  .facet > ul {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    left: 0;
+    z-index: 2; /* above the (sticky, positioned) pane sheet the open panel may overlap */
+    min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
     list-style: none;
-    margin: var(--space-1) 0 0;
-    padding: 0;
+    margin: 0;
+    padding: var(--space-2);
+    background: var(--surface-container-lowest);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    box-shadow: var(--overlay-shadow);
   }
   .facet li {
     display: flex;
@@ -309,14 +335,10 @@
     color: var(--on-surface-variant);
     white-space: nowrap;
   }
+  /* hit-area mechanics come from the shared icon-control rule above; only the flex opt-out
+     (never shrink below the touch target inside the value row) is local */
   .facet .remove {
     flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
-    border-radius: var(--radius-s);
   }
   .facet li:has(> [aria-current]) {
     background: var(--on-surface);
@@ -324,6 +346,27 @@
   .facet li:has(> [aria-current]) :is(a, span) {
     color: var(--surface);
     font-weight: 600;
+  }
+
+  /* ---- filter chip: one ACTIVE filter on the rail — the register-row-3 INVERSION mark (the
+     rail chip is row 3's licensed selector since the rail became the primary filter
+     interaction). Carries its labeled remove ✕; the muted <b> names the facet group. ---- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font: var(--type-meta);
+    background: var(--on-surface);
+    color: var(--surface);
+    border-radius: var(--radius-s);
+    padding-inline-start: var(--space-2);
+  }
+  .chip b {
+    font-weight: 400;
+    color: color-mix(in oklab, var(--surface), var(--on-surface) 30%);
+  }
+  .chip > a {
+    color: var(--surface);
   }
 
   /* ---- ledger: the results register, drawn as a bound REGISTER BOOK (owner endorsement of
@@ -346,8 +389,11 @@
     /* the shared column tracks (a named local dimension set, law C3/C5); --lead is the optional
        bulk-checkbox track, prepended via the empty-fallback idiom. Tracks carry line names and
        every cell is placed on its own line (below), so a row with an ABSENT value keeps every
-       other cell in its column instead of auto-flowing leftward. */
-    --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+       other cell in its column instead of auto-flowing leftward. The SIG track is content-tight
+       (owner rail-wave verdict 2026-08-07: left-aligned and narrower) — max-content sizes to the
+       longest Signatur on the page, so realistic codes ("BA 1848/II") never truncate and the
+       row-11 margin rule closes right after the column. */
+    --cols: [sig] max-content [titel] minmax(10rem, 1fr)
       [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
       [aktion] max-content;
     display: grid;
@@ -544,7 +590,7 @@
      no counter-overrides, no source-order dependence between the steps and the fold block */
   @container (32rem < width <= 60rem) {
     .ledger > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
+      --cols: [sig] max-content [titel] minmax(10rem, 1fr)
         [datum] minmax(6rem, max-content) [aktion] max-content;
     }
     .ledger .typ {
@@ -553,7 +599,7 @@
   }
   @container (32rem < width <= 52rem) {
     .ledger > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr) [aktion] max-content;
+      --cols: [sig] max-content [titel] minmax(10rem, 1fr) [aktion] max-content;
     }
     .ledger .datierung {
       display: none;
@@ -565,9 +611,10 @@
      absent). The "·" separator prints only BETWEEN two present values (adjacent-sibling rule),
      so absence dangles nothing. The drop steps above are range-scoped to stay out of this
      block's range. The 32rem threshold sits BELOW the narrowest pane-open container — the
-     pane switch (layouts.css) is an 80rem viewport query, so both sides of the inequality
-     share the rem unit and the margin holds at every root font size: row anatomy must never
-     change with pane state (decision 1) — only a genuinely phone-narrow container may fold. */
+     pane switch (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding
+     leaves main ≥ ~51rem), so both sides of the inequality share the rem unit and the margin
+     holds at every root font size: row anatomy must never change with pane state (decision 1)
+     — only a genuinely phone-narrow container may fold. */
   @container (max-width: 32rem) {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;

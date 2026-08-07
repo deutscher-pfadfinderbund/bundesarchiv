@@ -126,19 +126,25 @@ def test_no_raw_colors_outside_tokens() -> None:
     )
 
 
-def test_box_shadow_only_the_sheet_shadow_token() -> None:
-    # Register row 8: EXACTLY ONE depth cue — the resting-contact shadow. Component CSS may
-    # consume the token (`box-shadow: var(--sheet-shadow);`) and nothing else: no literal shadow
-    # values, no elevation stacks (the Material float model is forbidden everywhere). tokens.css
-    # is exempt — it DEFINES the token.
+#: The two licensed shadow tokens, as the EXACT declarations component CSS may write: the
+#: resting-contact sheet shadow (register row 8) and the transient overlay shadow (row 12 —
+#: the filter rail's dropdown panels). Strict string equality keeps this mutation-proof: any
+#: literal shadow value, second layer, or unlisted token is an offender.
+_LICENSED_SHADOWS = ("box-shadow: var(--sheet-shadow);", "box-shadow: var(--overlay-shadow);")
+
+
+def test_box_shadow_only_the_licensed_shadow_tokens() -> None:
+    # Rows 8 + 12: component CSS may consume the two shadow tokens and nothing else — no literal
+    # shadow values, no elevation stacks (the Material float model is forbidden everywhere).
+    # tokens.css is exempt — it DEFINES the tokens.
     offenders = []
     for name, decls in _all_declarations().items():
         if name == "tokens.css":
             continue
         for sel, prop, raw, lineno, _comment in decls:
-            if prop == "box-shadow" and raw.strip() != "box-shadow: var(--sheet-shadow);":
+            if prop == "box-shadow" and raw.strip() not in _LICENSED_SHADOWS:
                 offenders.append(f"{name}:{lineno}: {sel} -> {raw.strip()}")
-    assert not offenders, "box-shadow outside var(--sheet-shadow) (register row 8):\n" + "\n".join(
+    assert not offenders, "box-shadow outside the licensed tokens (rows 8/12):\n" + "\n".join(
         offenders
     )
 

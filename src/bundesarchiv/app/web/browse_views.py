@@ -72,7 +72,7 @@ def _bulk_collection_options(names: _NamesLoader) -> tuple[tuple[str, str], ...]
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /`` — the workbench: search field, results, facet sidebar, "Neuer Artikel" button.
+    """``GET /`` — the workbench: search field, filter rail, results, "Neuer Artikel" button.
 
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
@@ -146,11 +146,59 @@ class _FacetItem:
 
 @dataclass(frozen=True, slots=True)
 class _FacetGroup:
-    """A sidebar facet section: its German heading and its items. Every group shows a bare
-    right-aligned count (collection counts are subtree counts now — no "direkt:" hedge)."""
+    """A filter-rail facet group (one ``<details>`` dropdown): its German heading and its items.
+    Every group shows a bare right-aligned count (collection counts are subtree counts now — no
+    "direkt:" hedge)."""
 
     heading: str
     items: tuple[_FacetItem, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _FilterChip:
+    """One active filter as a rail chip (register row 3 inversion): its group heading, the active
+    value's label, and the query string that REMOVES it (``browse.without_param`` — the chip ✕ and
+    the dropdown's active row clear the same filter through the same link algebra)."""
+
+    group: str
+    label: str
+    query: str
+
+
+def _filter_chips(
+    params: dict[str, str], parsed: browse.ParsedQuery, names: _NamesLoader
+) -> tuple[_FilterChip, ...]:
+    """Every active filter as a rail chip, derived from the PARSED URL state — not from the facet
+    counts. The distinction matters exactly on the zero-hit page: a filter that matches nothing
+    vanishes from the recomputed counts (so the dropdown shows no active row), but its chip must
+    stay — the empty state says "Entferne einzelne Filter", and the chip ✕ is that affordance.
+    Labels mirror the dropdowns' (collection ULIDs resolve to names; the Datum bounds/toggle
+    reuse the group's own spellings); headings mirror the group headings."""
+    f = parsed.filters
+    chips: list[_FilterChip] = []
+
+    def chip(param: str, group: str, label: str) -> None:
+        chips.append(
+            _FilterChip(group=group, label=label, query=browse.without_param(params, param))
+        )
+
+    if f.collection is not None:
+        chip(browse.PARAM_COLLECTION, "Bestand", names().get(f.collection, f.collection))
+    if f.media_type is not None:
+        chip(browse.PARAM_MEDIA_TYPE, "Medienart", f.media_type)
+    if f.document_type is not None:
+        chip(browse.PARAM_DOCUMENT_TYPE, "Dokumenttyp", f.document_type)
+    if f.tag is not None:
+        chip(browse.PARAM_TAG, "Schlagworte", f.tag)
+    if f.decade is not None:
+        chip(browse.PARAM_DECADE, "Jahrzehnte", str(f.decade))
+    if f.date_from is not None:
+        chip(browse.PARAM_DATE_FROM, "Datum", f"von: {f.date_from.isoformat()}")
+    if f.date_to is not None:
+        chip(browse.PARAM_DATE_TO, "Datum", f"bis: {f.date_to.isoformat()}")
+    if f.dateless:
+        chip(browse.PARAM_DATELESS, "Datum", "Ohne Datum")
+    return tuple(chips)
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,7 +278,7 @@ def _zurueck_suffix(search_params: dict[str, str]) -> str:
     return f"?{urlencode({'zurueck': current})}" if current else ""
 
 
-# Which index facet key feeds which sidebar group: (facet key, param key, German heading). The
+# Which index facet key feeds which rail facet group: (facet key, param key, German heading). The
 # collection group resolves ULIDs → names separately (below); the rest show the value verbatim.
 _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("media_type", browse.PARAM_MEDIA_TYPE, "Medienart"),
@@ -382,7 +430,7 @@ _FORM_FILTER_PARAMS: tuple[str, ...] = (
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     """The active filter params as ``(key, value)`` pairs for the search form's hidden inputs — read
     from the SAME ``params`` mapping the facet/sort/pagination links below build from, so the form
-    and the sidebar can never drift out of sync (GH #21: typing refines WITHIN the active filter
+    and the rail can never drift out of sync (GH #21: typing refines WITHIN the active filter
     scope). A blank or absent param is omitted entirely — never an empty-value hidden input."""
     return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
 
@@ -397,7 +445,7 @@ def _results_context(
     auswahl: list[str],
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
-    sidebar/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
+    rail/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
     template calls no functions with args), so the raw query dict itself is never handed to the
     template. No visibility logic — that already happened in ``search``; the ledger's archivist
     chrome is a presentation gate off ``is_archivist``.
@@ -426,6 +474,9 @@ def _results_context(
         "filter_params": _form_filters(params),
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page, names),
+        # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
+        # its removal affordance even after it vanishes from the recomputed facet counts.
+        "filter_chips": _filter_chips(params, parsed, names),
         "ledger_rows": _ledger_rows(
             page,
             is_archivist=is_archivist,
@@ -516,7 +567,7 @@ def _facet_groups(
     page: object,
     names: _NamesLoader,
 ) -> tuple[_FacetGroup, ...]:
-    """Build every sidebar facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
+    """Build every rail facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
     collection group resolves ULID facet values to Collection names (via ``names``, the shared
     per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
     facets = page.facets  # type: ignore[attr-defined]
@@ -771,7 +822,7 @@ def serve_catalog_bulk_js(request: HttpRequest) -> HttpResponseBase:
 
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
-    sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
+    filter rail, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
     first); graduated from the dev layout demo into production. Self-contained, no external
     requests."""
     return _serve_static("layouts.css", "text/css")

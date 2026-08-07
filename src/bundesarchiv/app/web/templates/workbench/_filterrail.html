@@ -1,0 +1,21 @@
+{% comment %}
+The filter rail — the PRIMARY filter interaction (owner 2026-08-07; the facet sidebar died with
+it). One horizontal row directly under the header: a native <details> dropdown per facet group
+(the ONE facet_group component — the demo pages include the same file, lockstep by construction)
+followed by the active-filter chips. Every filter is a plain GET link (URL-as-state, no JS);
+facet clicks navigate the full page, so the rail re-renders with fresh counts on every filter
+change — the same mechanism the sidebar used (an htmx q-swap updates only #results, as before,
+which is why the rail lives OUTSIDE it). A chip is the register-row-3 inversion mark for one
+active filter; its ✕ (and the dropdown's active row) remove it via the same link algebra. On
+narrow viewports the rail simply wraps — the results are never buried under stacked panels.
+{% endcomment %}
+<nav class="filterrail" aria-label="Filter">
+  {% comment %} open resolves falsy on the workbench (the view-model carries none — dropdowns
+  start closed); the layout demo seeds one group open to exhibit the dropped panel. {% endcomment %}
+  {% for group in facet_groups %}
+  {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open only %}
+  {% endfor %}
+  {% for chip in filter_chips %}
+  <span class="chip"><b>{{ chip.group }}:</b> {{ chip.label }}<a href="?{{ chip.query }}" aria-label="Filter entfernen: {{ chip.label }}">✕</a></span>
+  {% endfor %}
+</nav>
