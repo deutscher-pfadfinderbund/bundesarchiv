@@ -17,6 +17,12 @@
 @layer compositions {
   /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
   body > header {
+    /* the header is a CONTROL ROW (law C8): this knob is the ONE height source every
+       interactive child (the search input, "Suchen", the "+ Neu …" summary) consumes via the
+       components-layer consumption rule — equal heights by construction (G.22). Value: the
+       compact control height, the same the rail sets, so the two standing chrome rows read as
+       one system. */
+    --control-height: var(--touch-target-compact);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -65,6 +71,11 @@
      #results, as before). Narrow viewports simply wrap the row — results are never buried under
      stacked panels (the standing 680px finding). ---- */
   .filterrail {
+    /* the rail is a CONTROL ROW (law C8): one height source for dropdown summaries, chips and
+       the chip ✕ — the licensed COMPACT value (owner ruling 2026-08-07, rail round 2; the knob
+       value lives in tokens.css as --touch-target-compact per C5). A chip/dropdown mismatch is
+       impossible without editing this knob. */
+    --control-height: var(--touch-target-compact);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -77,8 +88,12 @@
   }
   /* the clear-all ("Alle Filter entfernen", owner 2026-08-07 rail round 2): the rail's only
      bare anchor child — a QUIET text link at the end of the chip row, deliberately not a chip;
-     element link ink, the rail's dense meta size */
+     element link ink, the rail's dense meta size. Its LINE consumes the row knob (C8) so the
+     text centers on the same 2rem line as the controls beside it. */
   .filterrail > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
     font: var(--type-meta);
   }
 

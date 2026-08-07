@@ -42,10 +42,14 @@
   }
 
   /* Buttons: flat, dense, hairline-bordered. The bare element is the subtle default; a link
-     acting as a button opts in via .button. Variants are the two licensed deviations: .primary =
-     neutral-ink INVERSION (row 3 — a filled button is chrome, not a mark), .danger = the ONE
-     destructive filled variant (error inversion, forms spec §7 — confirm pages only). */
-  :is(button, a.button) {
+     acting as a button opts in via .button. The header's create-menu summary (.menu > summary)
+     JOINS this rule (owner round-2 correction 2026-08-07 + law C8/learning G.22): "+ Neu …" is a
+     button visually, so it shares the button's ONE declaration set — font, padding, hairline,
+     radius — and can never drift from the adjacent "Suchen" by coincidence. Variants are the two
+     licensed deviations: .primary = neutral-ink INVERSION (row 3 — a filled button is chrome,
+     not a mark), .danger = the ONE destructive filled variant (error inversion, forms spec §7 —
+     confirm pages only). */
+  :is(button, a.button, .menu > summary) {
     display: inline-block;
     font: var(--type-meta);
     padding: var(--space-1) var(--space-3);
@@ -57,7 +61,7 @@
     text-decoration: none;
     white-space: nowrap;
   }
-  :is(button, a.button):hover {
+  :is(button, a.button, .menu > summary):hover {
     background: var(--surface-container-high);
     text-decoration: none;
   }
@@ -168,6 +172,17 @@
    COMPONENTS — named structures (atoms/molecules with real anatomy).
    ============================================================ */
 @layer components {
+  /* ---- control rows (law C8): ONE height source per row. A control row — the header's control
+     cluster, the filter rail, each [role=toolbar] — sets --control-height ONCE; every interactive
+     child consumes it here as its min-height, so equal control heights hold BY CONSTRUCTION
+     (learning G.22 — never by two components' values happening to agree). Outside a control row
+     the knob is unset and the fallback changes nothing. The chip and the icon controls consume
+     the same knob in their own rules below (their non-row fallbacks differ). The generic e2e
+     walker (test_control_rows_compute_one_height_source) proves this computed on every row. ---- */
+  :is(button, a.button, summary, input, select) {
+    min-height: var(--control-height, auto);
+  }
+
   /* screen-reader-only text (accessible names for icon-only/quiet controls) */
   .visually-hidden {
     position: absolute;
@@ -193,22 +208,29 @@
     align-items: center;
     gap: var(--space-2);
   }
+  /* every toolbar is a control row (law C8): it sets the ONE height source its icon controls
+     consume below — the full touch-target hit size */
+  [role="toolbar"] {
+    --control-height: var(--touch-target);
+  }
   /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline */
   .actions form {
     display: inline;
     margin: 0;
   }
   /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
-     the facet remove) — ink/hover stay per-site deltas. The rail chip's ✕ is the ONE licensed
-     deviation: it rides --touch-target-compact instead (owner 2026-08-07, rail round 2). */
+     the facet remove) — ink/hover stay per-site deltas. Inside a control row the row's
+     --control-height knob is the size source (C8); outside one (the pane ✕) the touch-target
+     floor applies. The rail chip's ✕ is the ONE licensed compact deviation (owner 2026-08-07,
+     rail round 2) and rides the rail's compact knob via the .chip rule below. */
   [role="toolbar"] a,
   .pane header > a,
   .facet .remove {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
+    min-width: var(--control-height, var(--touch-target));
+    min-height: var(--control-height, var(--touch-target));
     border-radius: var(--radius-s);
   }
 
@@ -320,6 +342,11 @@
   .facet > ul {
     left: 0;
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
+    /* the dropped panel is a transient OVERLAY, not part of the rail's control row — the rail's
+       compact --control-height must not reach in (the compact license covers chips + their ✕
+       ONLY, owner 2026-08-07): unset the knob so the value rows' remove ✕ falls back to the
+       full --touch-target floor. */
+    --control-height: initial;
   }
   .facet li {
     display: flex;
@@ -355,30 +382,23 @@
 
   /* ---- header create menu: the ONE "+ Neu …" disclosure in the header (owner 2026-08-07,
      rail round 2 — Mock B: the two create buttons died; the search submit went quiet with them).
-     The summary is a QUIET hairline button — deliberately NO solid fill. The dropped panel is a
-     TRANSIENT overlay (register row 12): opaque, hairline-edged, floating on the one overlay
-     shadow. Plain native <details> behavior, no close-on-outside-click JS (owner-accepted). ---- */
+     The summary IS a button visually: its whole treatment (font, padding, hairline, radius,
+     hover) comes from the SHARED button rule it joined in the elements layer (owner round-2
+     correction 2026-08-07, law C8/G.22 — one declaration set, no drift) — only the disclosure
+     mechanics live here. The dropped panel is a TRANSIENT overlay (register row 12): opaque,
+     hairline-edged, floating on the one overlay shadow. Plain native <details> behavior, no
+     close-on-outside-click JS (owner-accepted). ---- */
   .menu {
     position: relative; /* the anchor the dropped panel positions against */
     display: inline-block; /* shrink to the summary, so the panel anchors to the button — not to
        a stretched block box (matters outside the header's flex row, e.g. the demo columns) */
   }
   .menu > summary {
-    display: inline-flex;
+    display: inline-flex; /* centers the label inside the row's --control-height (C8) */
     align-items: center;
     list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
-    font: var(--type-meta);
-    letter-spacing: normal;
-    text-transform: none;
-    color: var(--on-surface);
-    padding: var(--space-1) var(--space-3);
-    background: var(--surface-container-low);
-    border: var(--hairline) solid var(--outline);
-    border-radius: var(--radius-s);
-    white-space: nowrap;
-  }
-  .menu > summary:hover {
-    background: var(--surface-container-high);
+    letter-spacing: normal; /* undo the bare-summary label treatment the button set leaves alone */
+    text-transform: none; /* (same) */
   }
   .menu[open] > summary {
     background: var(--surface-container-mid);
@@ -397,14 +417,20 @@
 
   /* ---- filter chip: one ACTIVE filter on the rail — the register-row-3 INVERSION mark (the
      rail chip is row 3's licensed selector since the rail became the primary filter
-     interaction). Carries its labeled remove ✕; the muted <b> names the facet group. COMPACT
-     hit size (--touch-target-compact, owner ruling 2026-08-07 rail round 2): chip + ✕ sit
-     visually level with the rail's dropdown buttons; everything else keeps --touch-target. ---- */
+     interaction). Carries its labeled remove ✕; the muted <b> names the facet group. HEIGHT is
+     the rail's --control-height knob (law C8, round-2 correction: chips carried an independent
+     height and drifted from the dropdown buttons — now a mismatch is impossible without editing
+     the shared knob). The rail sets the knob to --touch-target-compact (owner ruling 2026-08-07
+     rail round 2: chips + their ✕ are the licensed compact hit size); the fallback reproduces
+     that value for the chip exhibited outside a rail (the component demo). Chip TYPOGRAPHY may
+     stay chip-flavored; the height may not deviate. ---- */
   .chip {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    min-height: var(--touch-target-compact);
+    /* knob consumption with the compact fallback: on the rail the ROW's knob is the only height
+       source; the fallback exists solely for a chip exhibited outside any control row (demo) */
+    min-height: var(--control-height, var(--touch-target-compact));
     font: var(--type-meta);
     background: var(--on-surface);
     color: var(--surface);
@@ -419,8 +445,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--touch-target-compact);
-    min-height: var(--touch-target-compact);
+    min-width: var(--control-height, var(--touch-target-compact));
+    min-height: var(--control-height, var(--touch-target-compact));
     border-radius: var(--radius-s);
     color: var(--surface);
   }

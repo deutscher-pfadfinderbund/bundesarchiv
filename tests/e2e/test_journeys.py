@@ -65,6 +65,68 @@ def test_ledger_headers_compute_one_uniform_treatment(
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
+#: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
+#: WALKERS over all instances). Enumerates EVERY control row on the page — the header's control
+#: cluster, the filter rail, each [role=toolbar] — and for each row returns its controls'
+#: computed heights + font treatments. A "control" is a button, a summary, or a chip (the rail's
+#: clear-all link is text, not a control); inside a toolbar the icon links ARE the controls.
+#: A new control row (or a new control in an existing row) is covered the day it appears —
+#: per-instance copies of this proof are forbidden.
+_CONTROL_ROW_WALKER_JS = """() => {
+    const rows = [
+        ['header', document.querySelector('body > header')],
+        ['filterrail', document.querySelector('.filterrail')],
+        ...Array.from(document.querySelectorAll('[role=toolbar]')).map(
+            (el, i) => ['toolbar-' + i, el]),
+    ].filter(([, el]) => el);
+    return rows.map(([name, row]) => {
+        const selector = row.matches('[role=toolbar]')
+            ? 'a, button' : 'button, a.button, summary, .chip';
+        const controls = Array.from(row.querySelectorAll(selector))
+            .filter((el) => el.offsetParent !== null)  // rendered only (closed dropdowns skip)
+            .map((el) => {
+                const s = getComputedStyle(el);
+                return {
+                    label: (el.getAttribute('aria-label') || el.textContent).trim(),
+                    chip: el.matches('.chip'),
+                    height: el.offsetHeight,
+                    font: [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
+                           s.letterSpacing].join('|'),
+                };
+            });
+        return {name, controls};
+    });
+}"""
+
+
+def test_control_rows_compute_one_height_source(archivist_page: Page, live_workbench: str) -> None:
+    # Law C8 proven computed (the generalized G.1 pattern, section E): within EVERY control row,
+    # all controls compute the SAME height (offsetHeight within 1px — one --control-height source,
+    # equal by construction) and — chips excepted, which keep chip typography but must still match
+    # height — the same font treatment. Driven on the filtered workbench so the rail carries
+    # chips + dropdowns and the ledger carries row toolbars in one shot.
+    page = archivist_page
+    page.goto(live_workbench + "/?schlagwort=sommer")
+    rows: list[dict[str, list[dict[str, str | int | bool]]]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
+    by_name = {str(row["name"]): row["controls"] for row in rows}
+    # the walker must actually see the rows this page composes — a silent no-find proves nothing
+    assert "header" in by_name and "filterrail" in by_name
+    assert len(by_name["header"]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert any(c["chip"] for c in by_name["filterrail"])  # the active-filter chip is present
+    assert any(name.startswith("toolbar-") for name in by_name)  # ledger row toolbars
+    defects: list[str] = []
+    for name, controls in by_name.items():
+        if len(controls) < 2:
+            continue  # nothing to compare within this row
+        heights = {str(c["label"]): int(str(c["height"])) for c in controls}
+        if max(heights.values()) - min(heights.values()) > 1:
+            defects.append(f"row '{name}' computes more than one height: {heights}")
+        fonts = {c["font"] for c in controls if not c["chip"]}
+        if len(fonts) > 1:
+            defects.append(f"row '{name}' computes mixed control fonts: {fonts}")
+    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
+
+
 def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
     # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open

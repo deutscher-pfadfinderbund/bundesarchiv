@@ -314,19 +314,23 @@ reserve its height. Served open to exhibit the floating overlay panel. {% endcom
   </div>
   {% endfor %}
 </div>
-<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: quiet hairline summary (no solid fill), panel = transient overlay on --overlay-shadow (register row 12); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
+<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: the summary IS a button visually — it shares the button rule's whole treatment (round-2 C8 correction) and consumes the header row's --control-height knob; panel = transient overlay on --overlay-shadow (register row 12); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    <span class="chip"><b>Bestand:</b> Aktenbestand <a href="#demo-chip" aria-label="Filter entfernen: Aktenbestand">✕</a></span>
-    <span class="chip"><b>Schlagworte:</b> sommer <a href="#demo-chip" aria-label="Filter entfernen: sommer">✕</a></span>
-    <a href="#demo-chip">Alle Filter entfernen</a>
+    {% comment %} The wrapper mimics the rail's row knob (layouts.css sets it on .filterrail):
+    chips consume --control-height (law C8), so the exhibit must supply one to render true. {% endcomment %}
+    <div style="--control-height: var(--touch-target-compact)">
+      <span class="chip"><b>Bestand:</b> Aktenbestand <a href="#demo-chip" aria-label="Filter entfernen: Aktenbestand">✕</a></span>
+      <span class="chip"><b>Schlagworte:</b> sommer <a href="#demo-chip" aria-label="Filter entfernen: sommer">✕</a></span>
+      <a href="#demo-chip">Alle Filter entfernen</a>
+    </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">.chip (workbench/_filterrail.html) · the register-row-3 INVERSION for one active filter — muted &lt;b&gt; names the group; the ✕ removes it (aria-label "Filter entfernen: …"); compact hit size --touch-target-compact (owner 2026-08-07, rail round 2) so chips sit level with the rail's dropdown buttons; "Alle Filter entfernen" ends the chip row as a quiet text link (removes ALL filters, keeps q + sort)</code>
+<code class="doc">.chip (workbench/_filterrail.html) · the register-row-3 INVERSION for one active filter — muted &lt;b&gt; names the group; the ✕ removes it (aria-label "Filter entfernen: …"); HEIGHT = the row's --control-height knob (law C8 — the rail sets it to --touch-target-compact, owner 2026-08-07 rail round 2), so chips sit level with the rail's dropdown buttons by construction; "Alle Filter entfernen" ends the chip row as a quiet text link (removes ALL filters, keeps q + sort)</code>
 
 <h2>Ledger — full density</h2>
 <div class="probe probe-stack">
