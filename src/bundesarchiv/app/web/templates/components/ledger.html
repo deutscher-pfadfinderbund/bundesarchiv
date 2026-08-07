@@ -2,30 +2,30 @@
 Ledger — the results register (the one result-list view; it renders in the full workbench column
 and beside the open pane as the SAME component, adapting to its container). Params:
 - rows      — list of dicts, each carrying a ledger_row's params (title, href, ref_code,
-              datierung, typ, draft, action_label, action_href, selected, gewaehlt)
+              datierung, typ, draft, bearbeiten_href, vorschau_href, selected, gewaehlt)
 - columns   — list of column headers {label, key, sortable, [query, active, order]}. Sortable heads
               are links whose href is the header's NEXT sort state (asc→desc→default cycle,
               computed in the view); the active column shows ▲/▼. URL-as-state, no JS — the sort
               control IS the headers.
-- archivist (bool) — archivist chrome: the row action gutter. For members/public it is FALSE, so
-              that cell is omitted entirely and the grid drops to the four member-visible tracks
-              (class "member"). Presentation gating only — search()/SearchHit already scope rows.
 - bulk (bool) — the leading selection-checkbox track (class "bulk"); rows carry name="auswahl"
               checkboxes. A checked row inverts via CSS :has — no class, no JS.
 
-Column anatomy is Sig · Titel · Datierung · Typ (owner ruling 2026-08-07): the SICHTBARKEIT
-column is gone — ÖFFENTLICH (the quiet default, row 7) renders nothing anywhere in the ledger,
-and deviations ride WITH the title (the ENTWURF mark in the Titel cell; a future GRUPPE mark
-takes the same slot). WIDTH is the only density input (decision 1 settled — the ?fold switch and
-the pane-open fold died): low-priority columns drop as the CONTAINER narrows (Typ, then
-Datierung); the two-line fold survives only under the ~48rem container query as the phone-width
-last resort. Row anatomy never changes with pane state.
+Column anatomy is Sig · Titel · Datierung · Typ · row-action toolbar (owner ruling 2026-08-07):
+the SICHTBARKEIT column is gone — ÖFFENTLICH (the quiet default, row 7) renders nothing anywhere
+in the ledger, and deviations ride WITH the title (the ENTWURF mark in the Titel cell; a future
+GRUPPE mark takes the same slot). Every row carries the toolbar slot — Vorschau for every viewer,
+Bearbeiten only where the row supplies its href (archivist rows); rows never leak archivist data
+(search()/SearchHit already scope them). ONE-CLICK ENTRY: the Titel navigates to the detail page;
+the pane is the explicit Vorschau action. WIDTH is the only density input (decision 1 settled —
+the ?fold switch and the pane-open fold died): low-priority columns drop as the CONTAINER narrows
+(Typ, then Datierung); the two-line fold survives only under the ~48rem container query as the
+phone-width last resort. Row anatomy never changes with pane state.
 
 The root div is the size container the density rules query; the inner [role=table] grid scrolls
 in its own box if it still overflows (the page body never scrolls sideways). Every column head
 uses the ONE label treatment; body marks (SIG codes, Datierung) carry ink per the stamp grammar.
 {% endcomment %}
-<div class="ledger{% if bulk %} bulk{% endif %}{% if not archivist %} member{% endif %}">
+<div class="ledger{% if bulk %} bulk{% endif %}">
   <div role="table" aria-label="Trefferliste">
     <div role="row">
       {% if bulk %}
@@ -38,13 +38,11 @@ uses the ONE label treatment; body marks (SIG codes, Datierung) carry ink per th
         {% if col.sortable %}<a href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span aria-hidden="true">{% if col.order == "desc" %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
       </span>
       {% endfor %}
-      {% if archivist %}
-      <span class="aktion" role="columnheader"><span class="visually-hidden">Aktion</span></span>
-      {% endif %}
+      <span class="aktion" role="columnheader"><span class="visually-hidden">Aktionen</span></span>
     </div>
     <div role="rowgroup">
       {% for row in rows %}
-      {% include "components/ledger_row.html" with title=row.title href=row.href artikel_ulid=row.artikel_ulid ulid=row.ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft action_label=row.action_label action_href=row.action_href archivist=archivist selected=row.selected bulk=bulk gewaehlt=row.gewaehlt only %}
+      {% include "components/ledger_row.html" with title=row.title href=row.href ulid=row.ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft bearbeiten_href=row.bearbeiten_href vorschau_href=row.vorschau_href selected=row.selected bulk=bulk gewaehlt=row.gewaehlt only %}
       {% endfor %}
     </div>
   </div>

@@ -17,7 +17,7 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -167,7 +167,8 @@ class _PaneMedia:
 class _Pane:
     """The preview pane view-model, built ONLY from a ``visible``-projected Article (so no floored
     field can reach it). ``media`` is cover-first (the tuple's order is meaning, ADR 0015). The
-    Bearbeiten href is archivist-only (empty otherwise); Öffnen points at the detail stub."""
+    Bearbeiten href is archivist-only (empty otherwise) and points at the edit form; Öffnen goes
+    to the detail read view."""
 
     ulid: str
     title: str
@@ -214,8 +215,8 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         typ=article.document_type or "",
         media=media,
         oeffnen_href=f"{reverse('artikel-detail', args=[article.ulid])}{_zurueck_suffix(search_params)}",
-        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
-        bearbeiten_href=reverse("artikel-detail", args=[article.ulid]) if is_archivist else "",
+        # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
+        bearbeiten_href=reverse("artikel-bearbeiten", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
@@ -252,38 +253,48 @@ _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
 )
 
 
+def _vorschau_query(params: Mapping[str, str], auswahl: Sequence[str], ulid: str) -> str:
+    """One row's Vorschau link query: the CURRENT state — search params (``params`` already
+    excludes ``artikel``/``auswahl``), the multi-valued bulk selection, and ``artikel=<ulid>``
+    last. A plain GET link (URL-borne pane state, spec §4.5) — the no-JS baseline IS this link."""
+    pairs: list[tuple[str, str]] = [(k, v) for k, v in params.items() if v != ""]
+    pairs.extend((browse.PARAM_AUSWAHL, u) for u in auswahl)
+    pairs.append((_PANE_PARAM, ulid))
+    return urlencode(pairs)
+
+
 def _ledger_row(
     hit: SearchHit,
     *,
     is_archivist: bool,
     selected_ulid: str | None,
-    auswahl: frozenset[str],
+    params: Mapping[str, str],
+    auswahl: Sequence[str],
     zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
-    logic in the template). The ENTWURF flag + Bearbeiten action + bulk checkbox are archivist
-    chrome: left EMPTY/False for non-archivists here (and the ledger component also omits those
-    columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in the
-    pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row inverts
-    when its ulid is in it). ``zurueck`` is the encoded ``?zurueck=`` suffix carrying the current
-    search so the detail page's "Zurück zur Suche" returns here (empty when no search)."""
+    logic in the template). The ENTWURF flag + Bearbeiten href + bulk checkbox are archivist
+    chrome: left EMPTY/False for non-archivists here (and the ledger component renders no control
+    without them), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in
+    the pane; ``auswahl`` is the bulk selection (this row's checkbox is checked + the row inverts
+    when its ulid is in it; the Vorschau link re-carries the whole selection). ``zurueck`` is the
+    encoded ``?zurueck=`` suffix carrying the current search so the detail page's "Zurück zur
+    Suche" returns here (empty when no search)."""
     return {
         "title": hit.title,
-        # BASELINE href = the canonical detail route: it works without JS on every viewport (below
-        # 1280px the pane is CSS-hidden, so ?artikel would be a dead click for a no-JS narrow user).
-        # ledger_pane.js progressively upgrades this to the ?artikel pane on wide viewports (see the
-        # data-artikel hook). No-JS behavior: the detail link everywhere. ?zurueck carries the search
-        # back so detail's "Zurück zur Suche" restores it (spec §2).
+        # ONE-CLICK ENTRY (owner 2026-08-07): the Titel IS the canonical detail navigation — no
+        # pane interception. ?zurueck carries the search back so detail's "Zurück zur Suche"
+        # restores it (spec §2).
         "href": f"{reverse('artikel-detail', args=[hit.ulid])}{zurueck}",
-        "artikel_ulid": hit.ulid,
         "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
         "datierung": hit.date_edtf or "",
         "typ": hit.document_type or "",
         "draft": hit.is_draft if is_archivist else False,
-        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
-        "action_label": "Bearbeiten" if is_archivist else "",
-        "action_href": reverse("artikel-detail", args=[hit.ulid]) if is_archivist else "",
+        "bearbeiten_href": reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else "",
+        # The explicit pane affordance for EVERY viewer (the pane itself re-authorizes
+        # fail-closed): a plain GET link, keeping search + selection state.
+        "vorschau_href": "?" + _vorschau_query(params, auswahl, hit.ulid),
         "selected": hit.ulid == selected_ulid,
         "gewaehlt": is_archivist and hit.ulid in auswahl,
     }
@@ -294,20 +305,23 @@ def _ledger_rows(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
-    auswahl: frozenset[str],
+    params: Mapping[str, str],
+    auswahl: Sequence[str],
     zurueck: str,
 ) -> tuple[dict[str, object], ...]:
-    """The ledger row view-models for the page's SearchHits. The title link's BASELINE points at the
-    canonical detail route ``/artikel/<ulid>`` (works with no JS, every viewport); ``ledger_pane.js``
-    progressively upgrades it to the ``?artikel`` pane on wide viewports. No visibility logic — that
-    already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``.
-    ``zurueck`` is the shared encoded return suffix (same for every row — the current search)."""
+    """The ledger row view-models for the page's SearchHits. The title link points at the
+    canonical detail route ``/artikel/<ulid>`` (plain navigation, works with no JS on every
+    viewport); the pane opens via each row's explicit Vorschau link. No visibility logic — that
+    already happened in ``search``; the archivist chrome is a presentation gate off
+    ``is_archivist``. ``zurueck`` is the shared encoded return suffix (same for every row — the
+    current search)."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
         _ledger_row(
             hit,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
+            params=params,
             auswahl=auswahl,
             zurueck=zurueck,
         )
@@ -401,7 +415,6 @@ def _results_context(
     }
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
-    auswahl_set = frozenset(auswahl)
     # The ONE per-request collection-names load, memoized and shared by its two consumers (the
     # Bestand facet labels + the bulk drawer's options) — and LAZY: a page that resolves no names
     # (zero hits, no collection counts, non-archivist) never loads at all (issue #2 P1, pinned).
@@ -420,7 +433,8 @@ def _results_context(
             page,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            auswahl=auswahl_set,
+            params=params,
+            auswahl=auswahl,
             zurueck=zurueck,
         ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
@@ -741,14 +755,6 @@ def serve_htmx(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/htmx.min.js`` — the vendored htmx (the enhancement layer degrades to the
     no-JS baseline if the file is ever unavailable, so this is best-effort)."""
     return _serve_static("htmx.min.js", "application/javascript")
-
-
-def serve_ledger_pane_js(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/ledger_pane.js`` — the ledger-row pane enhancement: on viewports ≥1280px a
-    plain click on a row title opens the ?artikel pane in place (preserving the other query params)
-    instead of the detail page. Best-effort: the no-JS baseline is the canonical /artikel detail
-    link, so if this file is unavailable rows still navigate correctly."""
-    return _serve_static("ledger_pane.js", "application/javascript")
 
 
 def serve_catalog_form_js(request: HttpRequest) -> HttpResponseBase:

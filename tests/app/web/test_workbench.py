@@ -579,21 +579,42 @@ def test_pagination_second_page_via_seite(corpus_root: Path) -> None:
     assert response.status_code == 200
 
 
-# --- ledger row href: canonical detail baseline + pane progressive-enhancement hook -----
+# --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----
 
 
 @pytest.mark.django_db
-def test_ledger_row_href_is_the_canonical_detail_route(corpus_root: Path) -> None:
-    # BASELINE (no-JS, every viewport): a row title links to /artikel/<ulid>, the canonical detail
-    # route — NOT ?artikel (below 1280px the pane is CSS-hidden, so ?artikel would be a dead click).
-    body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert f'href="/artikel/{PANE_PUB_ULID}"' in body
-    # ...and the enhancement hook rides alongside: ledger_pane.js upgrades the click to the pane on
-    # wide viewports via this data attribute (no-JS still gets the detail link above).
-    assert f'data-artikel="{PANE_PUB_ULID}"' in body
-    # The old ?artikel row-href baseline is gone (it now lives only in the JS enhancement + the pane
-    # close/media links, never as a row title href).
-    assert f'href="?artikel={PANE_PUB_ULID}"' not in body
+def test_titel_navigates_and_vorschau_link_opens_pane(corpus_root: Path) -> None:
+    # ONE-CLICK ENTRY (owner 2026-08-07): the Titel link is plain navigation to the canonical
+    # detail route — no pane interception, no data-artikel JS hook. The pane opens via the
+    # explicit per-row Vorschau action: a plain GET link to ?artikel=<ulid> (URL-borne pane
+    # state; the no-JS baseline IS this link).
+    body = _get(corpus_root, Public()).content.decode()
+    assert f'href="/artikel/{PANE_PUB_ULID}"' in body  # the Titel's detail navigation
+    assert "data-artikel" not in body  # the JS upgrade hook died with ledger_pane.js
+    assert f'href="?artikel={PANE_PUB_ULID}" aria-label="Vorschau"' in body
+
+
+@pytest.mark.django_db
+def test_vorschau_link_preserves_search_state(corpus_root: Path) -> None:
+    # The Vorschau link carries the CURRENT search (q + facets), so opening the pane never drops
+    # the filter scope; artikel rides last.
+    body = _get(corpus_root, Public(), "q=Vorschau&medienart=Foto").content.decode()
+    assert (
+        f'href="?q=Vorschau&amp;medienart=Foto&amp;artikel={PANE_PUB_ULID}" aria-label="Vorschau"'
+        in body
+    )
+
+
+@pytest.mark.django_db
+def test_row_toolbar_bearbeiten_is_archivist_chrome(corpus_root: Path) -> None:
+    # The row toolbar's Bearbeiten (pencil → the edit form) is archivist-only; the Vorschau
+    # affordance exists for every viewer (the pane itself re-authorizes fail-closed).
+    arch = _get(corpus_root, Archivist()).content.decode()
+    assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten" aria-label="Bearbeiten"' in arch
+    for viewer, label in _NON_ARCHIVIST:
+        body = _get(corpus_root, viewer).content.decode()
+        assert 'aria-label="Bearbeiten"' not in body, f"[{label}] Bearbeiten control leaked"
+        assert 'aria-label="Vorschau"' in body, f"[{label}] Vorschau affordance missing"
 
 
 # --- preview pane (?artikel): fail-closed, leak-safe ----------------

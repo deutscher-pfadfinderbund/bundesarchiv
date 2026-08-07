@@ -242,7 +242,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/badge_visibility.html · text=…</code>
 
-<h2>Signatur tab</h2>
+<h2>Signatur mark — plain default (ledger rows, lists, form headers)</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -255,7 +255,35 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/signatur_tab.html · ref_code=… (absent → hollow "ohne Signatur" slot; long codes ellipsize)</code>
+<code class="doc">components/signatur_tab.html · ref_code=… — the DEFAULT rendering: plain violet-ink mono (register row 2); absent → quiet "ohne Signatur" dash; long codes ellipsize</code>
+
+<h2>Signatur tab — article reader header context</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row facts">
+      {% include "components/signatur_tab.html" with ref_code="F 12" only %}
+      {% include "components/signatur_tab.html" with ref_code="F 12/3-b" only %}
+      {% include "components/signatur_tab.html" only %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">the TAB silhouette is CONTEXT styling (register row 1, licensed context: .pane header / .facts — the reader header + record card); the .facts wrapper here triggers it. Absent → the hollow dashed slot (row 6)</code>
+
+<h2>Icons — the one vendored set (register row 9)</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <div class="row">
+      <span title="pencil (Bearbeiten)">{% include "components/icon.html" with name="pencil" only %}</span>
+      <span title="panel (Vorschau)">{% include "components/icon.html" with name="panel" only %}</span>
+      <span title="x (Schließen)">{% include "components/icon.html" with name="x" only %}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">components/icon.html · name=pencil|panel|x — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: role="toolbar" + the pane ✕</code>
 
 <h2>Facet group</h2>
 <div class="probe">
@@ -271,21 +299,21 @@ components; this storyboard updates in lockstep with them.
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · rows=[…] columns=[…] — Sig · Titel · Datierung · Typ (no Sichtbarkeit column); sortable heads cycle asc→desc→default; Typ is a plain head; Bearbeiten on row hover/focus; the draft row's ENTWURF mark rides its title (quiet amber mono)</code>
+<code class="doc">components/ledger.html · rows=[…] columns=[…] — Sig · Titel · Datierung · Typ · row-action toolbar (no Sichtbarkeit column); sortable heads cycle asc→desc→default; Typ is a plain head; the toolbar (pencil=Bearbeiten, panel=Vorschau) reveals on row hover/focus on pointer devices; the draft row's ENTWURF mark rides its title (quiet amber mono)</code>
 
 <h2>Ledger — narrow container (column drop, THE width behavior)</h2>
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="probe-mid">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
     </div>
     <div class="probe-low" style="margin-top: var(--space-3)">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
     </div>
   </div>
   {% endfor %}
@@ -297,7 +325,7 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="probe-narrow">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=True only %}
+      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
     </div>
   </div>
   {% endfor %}

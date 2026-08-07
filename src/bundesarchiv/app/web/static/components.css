@@ -188,6 +188,15 @@
     margin: 0;
   }
 
+  /* ---- toolbars: named, extensible action slots (learning G.9 — a new action lands in an
+     existing slot, never a new button position). Icon controls come from the ONE vendored set
+     (register row 9) and carry their accessible name via aria-label. ---- */
+  [role="toolbar"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
   /* ---- badges: small flat marks. Neutral outline by default (visibility); the ENTWURF badge is
      the ONE amber mark (cue-register row 4). Published renders NO badge (row 7). ---- */
   .badge {
@@ -208,9 +217,11 @@
     border-color: var(--on-draft);
   }
 
-  /* ---- Signatur tab: the archive's primary MARK. Ink code on gray paper; ONE beveled leading
-     corner (cue-register row 1 — .c-sig/.c-sig-code are the register's licensed selector names,
-     kept verbatim). Absent ref_code renders the hollow dashed slot (row 6). ---- */
+  /* ---- Signatur mark (cue-register rows 1/2 — .c-sig/.c-sig-code are the register's licensed
+     selector names, kept verbatim). DEFAULT rendering everywhere the code appears in running
+     chrome (ledger rows, confirm lists, form headers, diffs): the PLAIN violet-ink mono code
+     (row 2) — no tab chrome; repetition dilutes a mark (learning G.2). Absent ref_code renders
+     the quiet "ohne Signatur" slot (sr-only text carries the fact). ---- */
   .c-sig {
     display: inline-flex;
     align-items: baseline;
@@ -218,12 +229,7 @@
     max-width: 100%;
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    background: var(--surface-container-low);
     color: var(--on-surface-variant);
-    border: var(--hairline) solid var(--outline-variant);
-    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-    corner-shape: bevel;
-    border-radius: var(--radius-m) 0 0 0;
   }
   .c-sig-code {
     color: var(--primary);
@@ -232,13 +238,23 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .c-sig--leer {
-    background: transparent;
-    border-style: dashed;
-  }
   .c-sig--leer .c-sig-code {
     color: var(--on-surface-variant);
     font-weight: 400;
+  }
+  /* the TAB SILHOUETTE — register row 1's licensed CONTEXT (owner 2026-08-07, scarcity): the
+     article reader header ONLY — the pane's header and the detail record card. Context styling,
+     not a variant class (law C2): the same include renders plain everywhere else. */
+  :is(.pane header, .facts) .c-sig {
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline-variant);
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+    corner-shape: bevel;
+    border-radius: var(--radius-m) 0 0 0;
+  }
+  :is(.pane header, .facts) .c-sig--leer {
+    background: transparent;
+    border-style: dashed; /* the hollow "ohne Signatur" slot (row 6) keeps its dashed edge here */
   }
 
   /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> panel of
@@ -300,11 +316,12 @@
   /* ---- ledger: the results register (dense aligned rows). The root is a size container, so the
      register adapts to the COLUMN it sits in (law C2), not the viewport: when the pane opens (or
      the page narrows) the available inline size shrinks and the density switches by itself.
-     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · action gutter; the member register
-     omits the gutter. All rows are subgrid rows on shared tracks. WIDTH is the only density
-     input (owner verdict 2026-08-07, charter item 5 settled — column-drop won): low-priority
-     columns drop as the container narrows (Typ, then Datierung); the two-line fold below is the
-     phone-width LAST RESORT only. Row anatomy never changes with pane state. */
+     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row-action toolbar — the same five
+     tracks for every viewer (Bearbeiten renders only where a row supplies its href). All rows
+     are subgrid rows on shared tracks. WIDTH is the only density input (owner verdict
+     2026-08-07, charter item 5 settled — column-drop won): low-priority columns drop as the
+     container narrows (Typ, then Datierung); the two-line fold below is the phone-width LAST
+     RESORT only. Row anatomy never changes with pane state. */
   .ledger {
     container-type: inline-size;
   }
@@ -315,17 +332,12 @@
        other cell in its column instead of auto-flowing leftward. */
     --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
       [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content)
-      [aktion] minmax(6rem, max-content);
+      [aktion] max-content;
     display: grid;
     grid-template-columns: var(--lead, ) var(--cols);
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-s);
     overflow-x: auto;
-  }
-  .ledger.member > [role="table"] {
-    /* member/public: no action gutter — four tracks, the cell omitted in markup */
-    --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-      [datum] minmax(6rem, max-content) [typ] minmax(5rem, max-content);
   }
   .ledger.bulk > [role="table"] {
     --lead: [auswahl] min-content;
@@ -350,6 +362,11 @@
   .ledger [role="rowgroup"] [role="row"] + [role="row"] {
     border-top: var(--hairline) solid var(--outline-variant);
   }
+  /* body rows: the --touch-target toolbar already gives the row its height — less block padding
+     keeps the register workbench-compact */
+  .ledger [role="rowgroup"] [role="row"] {
+    padding-block: var(--space-1);
+  }
   .ledger [role="rowgroup"] [role="row"]:hover,
   .ledger [role="rowgroup"] [role="row"]:focus-within {
     background: var(--surface-container-mid);
@@ -364,7 +381,9 @@
   .ledger [role="row"]:has(.auswahl input:checked) {
     background: var(--on-surface);
   }
-  .ledger [role="row"]:has(.auswahl input:checked) :is(.titel a, .datierung, .typ, .badge) {
+  .ledger
+    [role="row"]:has(.auswahl input:checked)
+    :is(.titel a, .datierung, .typ, .badge, .c-sig-code, .aktion a) {
     color: var(--surface);
   }
 
@@ -413,7 +432,6 @@
   }
   .ledger .aktion {
     grid-column: aktion;
-    text-align: right;
   }
 
   /* body-cell typography — scoped to the ROWGROUP so a cell rule can never outrank the one
@@ -462,26 +480,43 @@
     font: var(--type-meta);
     color: var(--on-surface-variant);
   }
-  /* the row action is quiet until the row is hovered / keyboard-focused */
-  .ledger .aktion a {
-    opacity: 0;
+  /* the row-action toolbar (learning G.9): icon links from the one set, --touch-target hit
+     areas, quiet ink */
+  .ledger [role="rowgroup"] .aktion [role="toolbar"] {
+    justify-content: flex-end;
   }
-  .ledger [role="row"]:is(:hover, :focus-within) .aktion a,
-  .ledger .aktion a:focus-visible {
-    opacity: 1;
+  .ledger [role="rowgroup"] .aktion a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    border-radius: var(--radius-s);
+    color: var(--on-surface-variant);
+  }
+  .ledger [role="rowgroup"] .aktion a:hover {
+    color: var(--on-surface);
+    background: var(--surface-container-high);
+  }
+  /* row actions are quiet until the row is hovered / keyboard-focused — POINTER devices only
+     (CSS-only reveal; touch has no hover, so there the controls simply stay visible) */
+  @media (hover: hover) {
+    .ledger [role="rowgroup"] .aktion a {
+      opacity: 0;
+    }
+    .ledger [role="row"]:is(:hover, :focus-within) .aktion a,
+    .ledger .aktion a:focus-visible {
+      opacity: 1;
+    }
   }
 
   /* narrow densities — WIDTH is the only input (owner verdict 2026-08-07): stable one-line row
      anatomy, low-priority columns drop as the CONTAINER narrows (pane open or viewport small —
-     same mechanism). Drop order: Typ, then Datierung; SIG + Titel + action survive. */
+     same mechanism). Drop order: Typ, then Datierung; SIG + Titel + the toolbar survive. */
   @container (max-width: 60rem) {
     .ledger > [role="table"] {
       --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-        [datum] minmax(6rem, max-content) [aktion] minmax(6rem, max-content);
-    }
-    .ledger.member > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-        [datum] minmax(6rem, max-content);
+        [datum] minmax(6rem, max-content) [aktion] max-content;
     }
     .ledger .typ {
       display: none;
@@ -489,11 +524,7 @@
   }
   @container (max-width: 52rem) {
     .ledger > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr)
-        [aktion] minmax(6rem, max-content);
-    }
-    .ledger.member > [role="table"] {
-      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr);
+      --cols: [sig] minmax(6rem, max-content) [titel] minmax(10rem, 1fr) [aktion] max-content;
     }
     .ledger .datierung {
       display: none;

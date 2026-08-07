@@ -27,7 +27,6 @@ the wordmark is always present and always links home.
   <button type="button" aria-label="Meldung schließen">&times;</button>
 </div>
 <script src="{% url 'static-htmx' %}" defer></script>
-<script src="{% url 'static-ledger-pane' %}" defer></script>
 <script>
   // htmx failures are otherwise silent — one document-level listener on both failure events reveals
   // the banner; dismiss or a fresh success hides it (by setting [hidden], which the modes-layer CSS

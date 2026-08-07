@@ -24,10 +24,10 @@ selection only, so a fresh tick needs a submit (or "Alle auf dieser Seite") firs
     {% if bulk_bar %}
     {% include "workbench/_sammelleiste.html" %}
     {% endif %}
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=True only %}
+    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=True only %}
   </form>
   {% else %}
-  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns archivist=is_archivist bulk=False only %}
+  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=False only %}
   {% endif %}
   {% else %}
   {% comment %}Zero hits. When the ONLY filter is a Bestand (leerer_bestand set), the empty state is

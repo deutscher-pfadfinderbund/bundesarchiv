@@ -33,6 +33,16 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     page.goto(live_workbench + "/?schlagwort=sommer")
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
+    # the pane opens via the row's explicit Vorschau action (one-click model: the Titel itself
+    # navigates to the detail page; the pane is never a toll gate) and keeps the search state
+    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    expect(page.locator(".pane")).to_be_visible()
+    expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
+    assert "schlagwort=sommer" in page.url and "artikel=" in page.url  # URL-borne pane state
+    # ✕ closes the pane and keeps the filter
+    page.get_by_label("Vorschau schließen").click()
+    expect(page.locator(".pane")).not_to_be_visible()
+    assert "schlagwort=sommer" in page.url
 
 
 def test_ledger_headers_compute_one_uniform_treatment(
@@ -60,7 +70,7 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
-    expect(public_page.get_by_text("Entwurf Lagerchronik")).not_to_be_visible()
+    expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
     expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
 
 
@@ -69,12 +79,10 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
 
 def test_detail_read_from_search_result(public_page: Page, live_workbench: str) -> None:
     page = public_page
-    # a member/public visitor: click a result (JS opens the preview pane) → Öffnen → land on the
-    # Lesesaal detail read view. (With JS on, ledger_pane.js turns the row link into a pane open; the
-    # pane's Öffnen is the navigation to /artikel/<ulid>. No-JS, the row link navigates directly.)
+    # a member/public visitor: the Titel click IS the navigation to the Lesesaal detail read view
+    # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
     page.goto(live_workbench + "/")
     page.locator(".ledger .titel a", has_text="Sommerfahrt 1962").click()
-    page.get_by_role("link", name="Öffnen").click()
     page.wait_for_url("**/artikel/**")
     # the reading structure: title, record card facts (Signatur + human + mono date), the cover
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")

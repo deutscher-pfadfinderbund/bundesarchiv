@@ -47,6 +47,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Jahresbericht 1974",
@@ -55,6 +57,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
@@ -63,6 +67,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
@@ -72,6 +78,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Winterlager 1958",
@@ -80,6 +88,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1958",
         "typ": "Foto",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Kassenbuch 1965-1969",
@@ -88,6 +98,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1965/1969",
         "typ": "Buch",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Fahrtenbericht Norwegen 1971",
@@ -96,6 +108,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1971",
         "typ": "Bericht",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Liederbuch (2. Auflage)",
@@ -104,6 +118,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1969",
         "typ": "Druck",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Gruppenfoto Pfingsten 1983",
@@ -112,6 +128,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1983-05",
         "typ": "Foto",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Satzung des Trägervereins",
@@ -120,6 +138,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1955",
         "typ": "Urkunde",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         # Draft WITHOUT a Signatur: the hollow slot means "ohne Signatur" (ref_code absent), a
@@ -130,6 +150,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "",
         "typ": "Druck",
         "draft": True,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
     {
         "title": "Rundbrief Herbst 1977",
@@ -138,6 +160,8 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "1977-10",
         "typ": "Rundbrief",
         "draft": False,
+        "bearbeiten_href": "#demo-edit",
+        "vorschau_href": "?vorschau=1",
     },
 )
 

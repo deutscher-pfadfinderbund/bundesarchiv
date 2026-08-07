@@ -1,11 +1,11 @@
 {% comment %}
 One ledger row — a result register line. Params (via {% include with %}):
-- title + href       — the detail link (required; TITEL column). BASELINE href is the canonical
-                       /artikel/<ulid> detail route (no-JS-safe on every viewport).
-- artikel_ulid       — optional pane hook: when set, the title link carries data-artikel=<ulid> so
-                       ledger_pane.js can upgrade the click to the ?artikel pane on wide viewports.
-- ref_code           — Signatur; empty/absent renders the hollow "ohne Signatur" slot (SIG column),
-                       independent of lifecycle — a draft WITH a ref_code shows its code normally.
+- title + href       — the detail link (required; TITEL column). ONE-CLICK ENTRY (owner
+                       2026-08-07): the Titel click IS plain navigation to the canonical
+                       /artikel/<ulid> detail route — no pane interception, no JS hook.
+- ref_code           — Signatur, rendered as the PLAIN violet-ink mono code here (register row 2;
+                       the tab silhouette is reader-header context only). Empty/absent renders
+                       the quiet "ohne Signatur" slot, independent of lifecycle.
 - datierung          — mono date string (DATIERUNG column); absent renders NOTHING (no placeholder)
 - typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In
                        the narrow fold the "·" separator only appears BETWEEN a present datierung
@@ -14,14 +14,18 @@ One ledger row — a result register line. Params (via {% include with %}):
                        G.10): the lifecycle badge renders directly after the title text, restyled
                        by the ledger context to the quiet amber mono mark. A published row shows
                        nothing (quiet default, row 7). A future GRUPPE mark takes the same slot.
-- action_label/href  — the row action (e.g. "Bearbeiten"), revealed on hover/focus-within
-- archivist (bool)   — archivist chrome; when false the action cell is omitted entirely
+- bearbeiten_href    — archivist chrome: the row's edit-form link (pencil icon); empty renders no
+                       Bearbeiten control at all.
+- vorschau_href      — the explicit pane affordance for EVERY viewer: a plain GET link to
+                       ?artikel=<ulid> carrying the current search + selection (URL-borne pane
+                       state; identical no-JS baseline). Split-view (panel) icon.
 - selected (bool)    — this row is shown in the preview pane; aria-current marks it (law C2)
 - bulk / gewaehlt    — the selection checkbox cell / its server-rendered checked state. The row's
                        inversion styling derives from the checkbox itself (CSS :has).
 
-Composes the signatur_tab + lifecycle-badge atoms. No SICHTBARKEIT cell: the column died entirely
-(header + cells + badges) — visibility strings render nowhere in the ledger.
+The row end is the role="toolbar" action slot (learning G.9: slots, not scattered buttons) —
+icon-only controls from the ONE vendored set (row 9), each named via aria-label, hover/focus-
+revealed on pointer devices only (always present in DOM for keyboard + touch).
 {% endcomment %}
 <div role="row"{% if selected %} aria-current="true"{% endif %}>
   {% if bulk %}
@@ -33,13 +37,14 @@ Composes the signatur_tab + lifecycle-badge atoms. No SICHTBARKEIT cell: the col
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
   <span class="titel" role="cell">
-    <a href="{{ href }}"{% if artikel_ulid %} data-artikel="{{ artikel_ulid }}"{% endif %}>{{ title }}</a>{% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% endif %}
+    <a href="{{ href }}">{{ title }}</a>{% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% endif %}
   </span>
   {% if datierung %}<span class="datierung" role="cell">{{ datierung }}</span>{% endif %}
   {% if typ %}<span class="typ" role="cell">{{ typ }}</span>{% endif %}
-  {% if archivist %}
   <span class="aktion" role="cell">
-    {% if action_label %}<a class="button" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+    <span role="toolbar" aria-label="Zeilenaktionen">
+      {% if bearbeiten_href %}<a href="{{ bearbeiten_href }}" aria-label="Bearbeiten">{% include "components/icon.html" with name="pencil" only %}</a>{% endif %}
+      <a href="{{ vorschau_href }}" aria-label="Vorschau">{% include "components/icon.html" with name="panel" only %}</a>
+    </span>
   </span>
-  {% endif %}
 </div>
