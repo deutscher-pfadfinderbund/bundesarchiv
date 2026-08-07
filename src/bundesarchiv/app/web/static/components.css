@@ -471,8 +471,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* hover states the affordance (owner 2026-08-07): ink turns link-violet AND underlines —
+     the title is the row's navigation, and hover is where that becomes legible (Q6) */
   .ledger [role="rowgroup"] .titel a:hover {
     color: var(--primary);
+    text-decoration: underline;
   }
   /* the ENTWURF deviation rides its fact (row 4 + learning G.10): SAME renderer as everywhere
      (badge_lifecycle), the ledger context strips the box — quiet amber mono directly after the

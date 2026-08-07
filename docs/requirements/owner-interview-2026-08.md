@@ -193,6 +193,15 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   - **03 Karteikasten:** card results liked as an ALTERNATIVE, user-chosen
     view (harder to scan, but can show previews) — a view preference, not
     the default.
+  - **Result-view switching (owner, 2026-08-07):** Lesesaal, table and
+    cards are VIEWS the user switches between; the table (line-table
+    ledger) is THE DEFAULT for now.
+  - **Destructive actions may be red** (register row 5 amended: the one
+    `button.danger` on a confirm surface).
+  - **Title affordance:** clickability shows ON HOVER (link ink +
+    underline) — no persistent link styling in the ledger.
+  - **Header buttons** ("Suchen", "+ Neuer Artikel"): acknowledged not
+    great, explicitly MINOR — no rework mandate yet.
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns

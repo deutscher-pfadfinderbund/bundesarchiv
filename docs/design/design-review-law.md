@@ -77,7 +77,7 @@ adding a row first, and rows are owner decisions.
 | 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
 | 3 | Inversion (solid fg/bg swap) | selection/active states | forbidden — especially as hover, and never as a tonal tint wash |
 | 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |
-| 5 | Red (`--error`) | errors | forbidden — not for warnings or emphasis |
+| 5 | Red (`--error`) | errors; AND the one destructive-action button on a confirm surface (`button.danger` — owner ruling 2026-08-07: "destructive actions can be red") | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published/normal state renders no badge | — |
 | 8 | Paper sheet material (owner rulings 2026-08-06/07: "paper material, but not the generic Google Material look"; "a sheet resting on a desk has a shadow — professionally, a touch of skeuomorphism") | TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state: a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the RESTING-CONTACT shadow (`--sheet-shadow`: single layer, 1–2px y-offset, blur ≤ 3px, low-alpha ink derived from roles; supersedes the 2px lower edge). Facet panels are FURNITURE, not sheets — flat, hairline only (2026-08-07 role reassignment). | forbidden — and the Material float model is forbidden everywhere: no elevation shadow ramps/stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
