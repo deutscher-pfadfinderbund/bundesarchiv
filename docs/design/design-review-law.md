@@ -371,3 +371,24 @@ for the future?"):**
    thresholds were invented for one composition and hid columns at 680px
    with room to spare. Every content-hiding threshold derives from measured
    content minimums (C9) and carries a computed proof.
+
+**2026-08-07, Opus review of the PR tail (six confirmed findings):**
+
+24. **`max-content` is a hard floor, not a preference.** A bare
+   `max-content` track can never shrink, so intrinsic sizing needs
+   shrinkable floors (`minmax(floor, max-content)`) wherever content length
+   is unbounded — and intrinsic-sizing proofs must run against LONG content
+   fixtures, or they pass vacuously on the short demo corpus (the ledger
+   overflowed the page body from 800px down with a realistic long
+   Signatur).
+25. **An enhancement may only hide what it can account for.** The
+   progressive-visibility JS counted this page's checkboxes and hid the
+   bulk affordance while a URL-borne selection from another page was live —
+   stranding the archivist. Client logic that overrides server-rendered
+   state must incorporate every state source the server used (URL params,
+   not just DOM), and htmx history restores need their own re-init hook.
+26. **Overlays need viewport-containment proofs.** Both new floating panels
+   (header menu, rail dropdowns) could leave the viewport (clipped labels,
+   document horizontal scroll) at widths no gallery state rendered. Every
+   overlay gets a computed containment check across the width range — as a
+   generic walker, per G.21.
