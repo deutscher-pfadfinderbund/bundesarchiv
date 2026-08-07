@@ -1,8 +1,9 @@
 {% comment %}
 Facet group — the ONE facet implementation (used by the workbench filter rail, the layout demo
 and the component library alike; the sidebar died with the rail, owner 2026-08-07). A native
-<details> DROPDOWN: the <summary> is the rail's group button, the value list drops as a flat
-FURNITURE panel (register row 8 role — hairline, opaque, no shadow). Params:
+<details> DROPDOWN: the <summary> is the rail's group button, the value list drops as an opaque
+hairline panel floating on the one overlay shadow (register row 12 — a transient overlay, not
+resting furniture). Params:
 - heading — the group's German heading (the <summary>)
 - open    — initial expanded state (bool; the rail omits it — dropdowns start closed)
 - items   — each with .label, .count, .query (the GET query string the row links to), .active

@@ -142,7 +142,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">static/tokens.css · TRUE-SHEET tints (pane, confirm panels, empty state) + --sheet-shadow, derived over roles at :root — the prefers-contrast remap zeroes them</code>
+<code class="doc">static/tokens.css · TRUE-SHEET tints (pane, confirm panels, empty state) + --sheet-shadow, plus --overlay-shadow for transient overlays (register row 12 — the rail's dropdown panels), derived over roles at :root — the prefers-contrast remap zeroes them all</code>
 
 <h2>Tokens — primary / draft / error pairs</h2>
 <div class="probe">
@@ -295,7 +295,7 @@ height so the open exhibit never overlays the annotation. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: flat furniture panel (no shadow), the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it</code>
+<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12), the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">

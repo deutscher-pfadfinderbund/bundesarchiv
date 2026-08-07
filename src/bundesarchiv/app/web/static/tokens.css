@@ -130,6 +130,17 @@
       color-mix(in oklab, var(--neutral-22) 20%, transparent),
       color-mix(in oklab, var(--neutral-22) 55%, transparent)
     );
+  /* Overlay shadow (cue-register row 12, owner 2026-08-07): TRANSIENT floating panels only —
+     the filter rail's dropdown panels. An overlay genuinely floats; a resting sheet does not,
+     so the two shadows stay distinct tokens: same single-layer discipline, larger blur than the
+     sheet's contact shadow, low-alpha ink over roles. Still no elevation ramps/stacks anywhere.
+     The future `prefers-contrast: more` remap ZEROES this token too (shadow: none), like
+     --sheet-shadow — zero component changes. */
+  --overlay-shadow: 0 2px 8px 0
+    light-dark(
+      color-mix(in oklab, var(--neutral-22) 22%, transparent),
+      color-mix(in oklab, var(--neutral-22) 60%, transparent)
+    );
 
   /* ==================================================================
      Non-color tokens.

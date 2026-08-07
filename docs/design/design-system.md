@@ -228,8 +228,11 @@ The workbench composes header · **filter rail** · results · preview pane.
 The rail is the PRIMARY filter interaction (owner 2026-08-07, exploration
 02 verdict — the facet sidebar died with it): one horizontal row directly
 under the header holding a native `<details>` dropdown per facet group
-(flat furniture panels, no shadow) plus the active filters as inversion
-chips (register row 3), each with a labeled remove ✕. Every filter stays a
+(the dropped panels float on the one overlay shadow, register row 12 —
+owner 2026-08-07) plus the active filters as inversion
+chips (register row 3), each with a labeled remove ✕. The rail itself sits
+bare on the desk — no background band, no bottom rule (rail-wave verdict
+2026-08-07). Every filter stays a
 plain GET link; the rail lives outside `#results`, so filter clicks
 re-render it with fresh counts (same mechanism the sidebar used). On
 narrow viewports the rail wraps — results are never buried under stacked
@@ -256,7 +259,7 @@ member-facing contexts.
 |---|---|
 | Page background | `surface` |
 | Header bar | `surface-container-high` |
-| Filter rail | `surface-container-low` bar; dropdown summaries flat hairline buttons; dropped panels furniture (`surface-container-lowest`, hairline, NO shadow) |
+| Filter rail | bare on the desk (no band, no rule — rail-wave verdict 2026-08-07); dropdown summaries flat hairline buttons; dropped panels `surface-container-lowest`, hairline, floating on `--overlay-shadow` (register row 12) |
 | Active facet | inversion (`on-surface`/`surface`) — the dropdown's active row and the rail chip (register row 3) |
 | Result card | `surface-container-low`, hover `-mid` |
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |

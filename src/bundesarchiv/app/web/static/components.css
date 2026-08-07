@@ -9,8 +9,9 @@
    are INVERSION (cue-register row 3), never a tint wash. draft=amber (row 4, the ENTWURF badge
    only) and error=red (row 5) are the loud channels. Material roles (row 8, amended 2026-08-07):
    TRUE SHEETS (the pane, confirm panels, the empty state) carry the --sheet tint + the one
-   resting-contact shadow (--sheet-shadow); facet panels are FURNITURE — flat plain container,
-   hairline only, no tint, no depth. The bevel cut (row 1) survives ONLY on the register-licensed
+   resting-contact shadow (--sheet-shadow); resting furniture is flat, hairline only, no tint;
+   TRANSIENT overlays (the rail's dropdown panels) float on the one overlay shadow (row 12,
+   --overlay-shadow). The bevel cut (row 1) survives ONLY on the register-licensed
    .c-sig; those selector names (.c-sig, .c-sig-code) are pinned BY the register and outlive the
    retired c-* taxonomy. */
 
@@ -272,11 +273,12 @@
   }
 
   /* ---- facet group: ONE implementation (components/facet_group.html) — a <details> DROPDOWN
-     on the filter rail (the sidebar died with the rail, owner 2026-08-07). FURNITURE, not a
-     sheet (row 8 role reassignment): the summary is a flat hairline group button; the dropped
-     value panel is a flat, OPAQUE, hairline-edged box — NO shadow, no elevation ramp (the
-     Material float model is forbidden; if the overlay ever needs depth to read, that is a
-     row-8 owner question, not a style tweak). The active row is read from aria-current on its
+     on the filter rail (the sidebar died with the rail, owner 2026-08-07). The summary is a flat
+     hairline group button (furniture); the dropped value panel is an OPAQUE, hairline-edged box
+     that genuinely FLOATS while open — it carries the one licensed overlay shadow (register
+     row 12, owner 2026-08-07: "should have a shadow or something to differentiate it from the
+     background"; the flat-furniture reading of row 8 binds RESTING surfaces, not transient
+     overlays). Still no elevation ramps/stacks. The active row is read from aria-current on its
      link (law C2) and marked by INVERSION (row 3); it carries the remove ✕, inactive rows carry
      the bare count. ---- */
   .facet {
@@ -312,6 +314,7 @@
     background: var(--surface-container-lowest);
     border: var(--hairline) solid var(--outline);
     border-radius: var(--radius-s);
+    box-shadow: var(--overlay-shadow);
   }
   .facet li {
     display: flex;
