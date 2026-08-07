@@ -326,15 +326,19 @@
     font-weight: 600;
   }
 
-  /* ---- ledger: the results register (dense aligned rows). The root is a size container, so the
-     register adapts to the COLUMN it sits in (law C2), not the viewport: when the pane opens (or
-     the page narrows) the available inline size shrinks and the density switches by itself.
-     Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row-action toolbar — the same five
-     tracks for every viewer (Bearbeiten renders only where a row supplies its href). All rows
-     are subgrid rows on shared tracks. WIDTH is the only density input (owner verdict
-     2026-08-07, charter item 5 settled — column-drop won): low-priority columns drop as the
-     container narrows (Typ, then Datierung); the two-line fold below is the phone-width LAST
-     RESORT only. Row anatomy never changes with pane state. */
+  /* ---- ledger: the results register, drawn as a bound REGISTER BOOK (owner endorsement of
+     exploration 05 idea (a), 2026-08-07): hairline HORIZONTAL rules only — no filled header
+     band, no zebra, no side borders; the header is the same uppercase label row over a stronger
+     rule (hairline in the darker --outline vs the body's --outline-variant), and the Signatur
+     column closes on the ONE licensed vertical margin rule (register row 11). The root is a
+     size container, so the register adapts to the COLUMN it sits in (law C2), not the viewport:
+     when the pane opens (or the page narrows) the available inline size shrinks and the density
+     switches by itself. Anatomy: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row-action
+     toolbar — the same five tracks for every viewer (Bearbeiten renders only where a row
+     supplies its href). All rows are subgrid rows on shared tracks. WIDTH is the only density
+     input (owner verdict 2026-08-07, charter item 5 settled — column-drop won): low-priority
+     columns drop as the container narrows (Typ, then Datierung); the two-line fold below is the
+     phone-width LAST RESORT only. Row anatomy never changes with pane state. */
   .ledger {
     container-type: inline-size;
   }
@@ -348,8 +352,8 @@
       [aktion] max-content;
     display: grid;
     grid-template-columns: var(--lead, ) var(--cols);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
+    /* the book's covers: top + bottom rules only — a bound page has no side chrome */
+    border-block: var(--hairline) solid var(--outline);
     overflow-x: auto;
   }
   .ledger.bulk > [role="table"] {
@@ -369,28 +373,25 @@
     gap: var(--space-3);
     padding-inline: var(--space-3);
   }
-  /* the header row is the [role=table]'s direct child; body rows live in the rowgroup */
+  /* the header row is the [role=table]'s direct child; body rows live in the rowgroup. NO
+     filled band (line-table, 05a): the head sits on a stronger rule — the darker --outline
+     against the body's --outline-variant hairlines. */
   .ledger [role="table"] > [role="row"] {
-    background: var(--surface-container-high);
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    border-bottom: var(--hairline) solid var(--outline);
     padding-block: var(--space-2);
   }
   .ledger [role="rowgroup"] [role="row"] + [role="row"] {
     border-top: var(--hairline) solid var(--outline-variant);
   }
   /* body rows: the --touch-target toolbar already gives the row its height — less block padding
-     keeps the register workbench-compact */
+     keeps the register workbench-compact. Hover carries NO fill (05a: the finger on the line is
+     the title's link-ink underline below; hover/focus still reveal the row's action surface). */
   .ledger [role="rowgroup"] [role="row"] {
     padding-block: var(--space-1);
   }
-  .ledger [role="rowgroup"] [role="row"]:hover,
-  .ledger [role="rowgroup"] [role="row"]:focus-within {
-    background: var(--surface-container-mid);
-  }
-  /* the row shown in the preview pane (aria-current, law C2): a persistent NEUTRAL highlight,
-     distinct from hover */
-  .ledger [role="row"][aria-current],
-  .ledger [role="row"][aria-current]:hover {
+  /* the row shown in the preview pane (aria-current, register row 10): the quiet persistent
+     NEUTRAL highlight — the one fill left in the line-table */
+  .ledger [role="row"][aria-current] {
     background: var(--surface-container-high);
   }
   /* bulk selection (owner 2026-08-07): the CHECKED BOX IS the mark — no inversion bar, no
@@ -440,12 +441,20 @@
   }
   .ledger .sig {
     grid-column: sig;
+    /* register row 11: the Kontobuch margin rule — the ONE vertical hairline in the ledger,
+       closing the Signatur column (header and body alike; stretch spans the full row height) */
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    border-inline-end: var(--hairline) solid var(--outline-variant);
+    padding-inline-end: var(--space-3);
   }
   .ledger .titel {
     grid-column: titel;
   }
   .ledger .datierung {
     grid-column: datum;
+    text-align: right; /* the Datierung reads as a right-aligned figure column (05a) */
   }
   .ledger .typ {
     grid-column: typ;
@@ -584,6 +593,9 @@
     .ledger [role="rowgroup"] .sig {
       grid-area: sig;
       align-self: center;
+      /* the fold is a two-line card, not table anatomy — the margin rule (row 11) rests */
+      border-inline-end: none;
+      padding-inline-end: 0;
     }
     .ledger [role="rowgroup"] .titel {
       grid-area: titel;
