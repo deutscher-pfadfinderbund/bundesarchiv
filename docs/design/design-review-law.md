@@ -301,3 +301,26 @@ for the future?"):**
    mock quietly becomes a false claim about the product's state. Every
    render shown for judgment carries its provenance: REAL (live app at
    commit X) or MOCK (static/injected, not in the product).
+
+**2026-08-07, rail-wave autopsy (six owner corrections on the first render):**
+
+17. **A new surface class needs an explicit material-role assignment in the
+   brief.** The filter rail was new — neither desk, furniture, sheet nor
+   overlay had been assigned — so the writer styled it by analogy (a banded
+   bar like the header) and it read heavy. Every wave brief names the role
+   of every NEW surface before styling starts; row 8's role list is the
+   vocabulary.
+18. **Constants outlive their reasons.** The Signatur column kept v4's
+   track floor and alignment, sized for the tab chrome that no longer
+   exists — a reskin re-derives geometry from the new anatomy instead of
+   inheriting numbers whose justification died.
+19. **Visual weight is relative — after a subtraction wave, re-rank the
+   survivors.** The header create buttons were "minor" against the old
+   busy surface and "horrid" against the new quiet one. Q9 is a ratio:
+   quieting a surface re-ranks everything left on it, so every wave ends
+   with a fresh Q9 pass over what it did NOT touch.
+20. **Lukewarm acceptances are provisional.** "Still not a fan, but
+   acceptable" (the collapsed Sammelbearbeitung) was treated as settled
+   law and shipped again unchanged; one wave later the owner tightened it.
+   Record lukewarm verdicts as revisit-candidates with the reservation
+   quoted, not as closed decisions.
