@@ -137,6 +137,14 @@ then two-cut bevels are forbidden like any unregistered cue.
 10. **No status-only bands.** A horizontal band exists only with a primary
    occupant; status text (counts) rides an occupied band; a band whose
    occupants are all hidden collapses entirely.
+11. **Intrinsic first, queries last** (owner, 2026-08-07: "use a more
+   flexible approach using grids and flexboxes" instead of guessing
+   breakpoints). Layout adapts through flexible mechanisms as the FIRST
+   resort — `minmax()`/`fr` tracks that share space, `flex-wrap`,
+   `auto-fit`, content that tightens or truncates. A width query is the
+   LAST resort, reserved for genuinely MODAL changes (the phone fold, the
+   pane column appearing) — and then it derives per C9. Before writing any
+   query, show why no flexible mechanism can absorb the variation.
 
 ## Themability law (owner, 2026-08-06)
 
