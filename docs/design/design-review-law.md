@@ -75,7 +75,7 @@ adding a row first, and rows are owner decisions.
 |---|-----|-------------------------------|-----------------|
 | 1 | Bevel cut | `.c-sig` only — single cut, leading (top-left) corner (owner 2026-08-06). Licensed CONTEXT (2026-08-07, scarcity — learning G.2): the article reader header (detail page and pane), NOT ledger rows — there the Signatur renders as plain violet-ink mono (row 2). `.c-facet-tab` no longer exists in live markup. | forbidden |
 | 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
-| 3 | Inversion (solid fg/bg swap) | the facet sidebar's active filter row (owner 2026-08-07: ledger bulk selection is NO LONGER an inversion — the checked box is the mark, unchecked boxes reveal on row hover/focus) | forbidden — especially as hover, and never as a tonal tint wash |
+| 3 | Inversion (solid fg/bg swap) | the active filter mark — the facet sidebar's active row, and the filter rail's active chip once the rail lands (rail = primary filter interaction). Ledger bulk selection is NO LONGER an inversion — the checked box is the mark, unchecked boxes reveal on row hover/focus (both owner 2026-08-07) | forbidden — especially as hover, and never as a tonal tint wash |
 | 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |
 | 5 | Red (`--error`) | errors; AND the one destructive-action button on a confirm surface (`button.danger` — owner ruling 2026-08-07: "destructive actions can be red") | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
@@ -83,8 +83,9 @@ adding a row first, and rows are owner decisions.
 | 8 | Paper sheet material (owner rulings 2026-08-06/07: "paper material, but not the generic Google Material look"; "a sheet resting on a desk has a shadow — professionally, a touch of skeuomorphism") | TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state: a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the RESTING-CONTACT shadow (`--sheet-shadow`: single layer, 1–2px y-offset, blur ≤ 3px, low-alpha ink derived from roles; supersedes the 2px lower edge). Facet panels are FURNITURE, not sheets — flat, hairline only (2026-08-07 role reassignment). | forbidden — and the Material float model is forbidden everywhere: no elevation shadow ramps/stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
 | 9 | Icons (owner 2026-08-07) | ONE vendored set of hairline-stroke inline SVGs (24px grid, stroke-width 2 — matches the hairline/ink aesthetic). Licensed slots: the ledger row-action toolbar and view toolbars (`role="toolbar"`). Every icon-only control carries an accessible name. New glyphs join the one set deliberately (demo page in lockstep); no second style, no icon fonts, no ad-hoc picks. | forbidden |
 | 10 | Pane-row marker (owner 2026-08-07) | `.ledger [role="row"][aria-current]`: a quiet persistent neutral highlight (`--surface-container-high`) on the one row whose article the pane shows — deliberately NOT an inversion (a previewed row is not a selected row) | forbidden |
+| 11 | Ledger margin rule (owner endorsement of exploration 05 idea (a), 2026-08-07) | ONE vertical hairline after the Signatur column of the ledger — the bound-register margin line. | forbidden — no other vertical rules in the ledger |
 
-**Reserved (recorded, NOT licensed):** trapezoid tab — both top corners cut —
+**Reserved (recorded, NOT licensed):** a serif READING type role (`--type-reading`) for the Lesesaal member composition (owner liked exploration 04's serif reader, 2026-08-07) — licensed when that wave is approved. Also reserved: trapezoid tab — both top corners cut —
 for a future register-tab component used as **view navigation** (owner,
 2026-08-06). Gets its own row if and when that component is approved; until
 then two-cut bevels are forbidden like any unregistered cue.
@@ -274,3 +275,27 @@ with a newer one.
    mocks; a render whose typography does not come from the roles pollutes
    the judgment made on it. Where uniformity is claimed, prove it computed
    (the G.1 test pattern).
+
+**2026-08-07, session retrospective (owner: "what can structurally help us
+for the future?"):**
+
+13. **Blind agents are the measuring instrument for the law itself.** Every
+   context-free run (review of facet_group, the pixels-only gallery review,
+   the two code reviewers) outperformed context-laden judgment AND returned
+   a list of places the law failed to bind — which became the next law
+   edits. Institutionalize: run reviews blind, and treat the reviewer's
+   "where I had to guess" section as the primary deliverable.
+14. **The loop that converges is mock → ruling → law → build.** Four
+   composition rounds (v1–v4) settled in hours what prose proposals had
+   not settled in weeks: render a cheap variant, get one-line owner
+   verdicts, write them into the law, THEN build once. Never build first
+   and ask second.
+15. **A ruling exists only once it is committed.** Chat is not a record —
+   every owner sentence with decision content goes into
+   `docs/requirements/` (verbatim where possible) in the same turn it is
+   spoken, or it will be re-litigated later.
+16. **Label every image REAL or MOCK.** The owner could not tell product
+   screenshots from exploration renders — a mock that is not marked as a
+   mock quietly becomes a false claim about the product's state. Every
+   render shown for judgment carries its provenance: REAL (live app at
+   commit X) or MOCK (static/injected, not in the product).
