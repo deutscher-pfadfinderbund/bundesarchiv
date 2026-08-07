@@ -152,7 +152,9 @@
      else. Consumers pair the font with `font-variant-caps: small-caps` (the Kapitälchen) and
      --wordmark-tracking; everything else in the header stays working-sans. */
   --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
-  --type-wordmark: 600 1.3rem/1.2 var(--font-wordmark);
+  /* stepped up above --type-display (owner rail-wave verdict 2026-08-07: "wordmark larger") —
+     the mark leads the header without shouting; judged on renders at 1440/680 */
+  --type-wordmark: 600 1.5rem/1.2 var(--font-wordmark);
   --wordmark-tracking: 0.12em;
   --type-display: 600 1.35rem/1.2 var(--font-display);
   --type-title: 600 1.05rem/1.35 var(--font-display);
