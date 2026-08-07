@@ -340,12 +340,17 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The REAL cold-start path (#16 fix): land with NO selection. The collapsed Sammelbearbeitung
-    # disclosure is present, so tick two row checkboxes → the live count appears in the summary
-    # (JS, visible while collapsed) → expand → choose a field → Änderung prüfen posts the checked
-    # boxes → confirm → apply.
+    # The PROGRESSIVE cold start (owner 2026-08-07 — reverses the #16 cold-start ruling): with JS
+    # on and NO selection, the whole Sammelbearbeitung affordance is hidden (the server renders it
+    # visible; catalog_bulk.js hides it at count 0). The first tick reveals it with the live
+    # count → expand → choose a field → Änderung prüfen posts the checked boxes → confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator("details.bulk > summary")).to_be_visible()  # affordance from cold start
+    expect(page.locator("details.bulk")).to_be_hidden()  # cold: no selection, no affordance
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    expect(page.locator("details.bulk > summary")).to_be_visible()  # revealed on the first tick
+    # unticking back to zero hides it again — the visibility tracks the live count both ways
+    page.uncheck(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    expect(page.locator("details.bulk")).to_be_hidden()
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick, collapsed
@@ -368,7 +373,8 @@ def test_bulk_url_seeded_selection_still_works(
 ) -> None:
     page = archivist_page
     # The pagination-persistence path: a selection seeded in the URL (?auswahl=) still renders the
-    # bar with the count + confirm flow. Cheap second assertion so the fix doesn't regress it.
+    # bar with the count + confirm flow — and the JS wire-time sync must KEEP it visible (count
+    # ≥ 1), it only hides at zero. Cheap second assertion so the fix doesn't regress it.
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
@@ -454,6 +460,29 @@ def test_bulk_fresh_ticks_survive_paging(
 
 
 # --- no-JS baseline ----------------------------------------------------------------
+
+
+def test_no_js_bulk_flow_completes(
+    no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = no_js_archivist_page
+    # The progressive pattern's no-JS half (owner 2026-08-07): the server renders the
+    # Sammelbearbeitung disclosure VISIBLE, so with JavaScript OFF and no selection the archivist
+    # still reaches "Alle auf dieser Seite" — the URL-borne selection path — and completes the
+    # whole bulk flow: page-select → expand → choose a field → prüfen → anwenden.
+    page.goto(live_workbench + "/")
+    expect(page.locator("details.bulk > summary")).to_be_visible()  # server-visible, no JS hiding
+    page.click("details.bulk > summary")  # native <details> toggle, no JS involved
+    page.click('a:has-text("Alle auf dieser Seite")')
+    page.wait_for_url("**auswahl=**")  # the selection is URL state now
+    expect(page.locator("details.bulk > summary")).to_be_visible()
+    page.click("details.bulk > summary")
+    page.select_option('select[name="feld"]', "creator")
+    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.click('button:has-text("Änderung prüfen")')
+    expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+    page.click('button:has-text("anwenden")')
+    expect(page.get_by_text("abgeschlossen")).to_be_visible()
 
 
 def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workbench: str) -> None:

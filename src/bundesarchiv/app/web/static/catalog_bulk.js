@@ -1,10 +1,16 @@
 // Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
 // baseline works without it (page-select is the "Alle auf dieser Seite" link; the bar visibility
 // + count come from the server off ?auswahl=; paging carries the URL-borne selection, so fresh
-// ticks need a submit first — this file lifts that limit, GH #22). Row inversion and the
-// Feld→value-widget switch are pure CSS now (:has over the checkbox / the select's checked
-// option) — JS for state CSS can express is a blacklist defect. Self-contained, same-origin, no
-// framework (dormancy rule). HTMX (loaded separately) handles the dependent-Dokumenttyp swap.
+// ticks need a submit first — this file lifts that limit, GH #22). PROGRESSIVE visibility
+// (owner 2026-08-07, reverses the #16 cold-start ruling): the server always renders the
+// disclosure VISIBLE (so a no-JS archivist can reach "Alle auf dieser Seite"); with JS this
+// file hides it via the [hidden] attribute while the live selection count is 0 and reveals it
+// the moment a row checkbox is ticked — hiding rides the modes-layer `[hidden] { display: none
+// !important }` rule, so no display rule can ever make the hidden disclosure intercept clicks
+// (the recorded regression class). Row inversion and the Feld→value-widget switch are pure CSS
+// (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
+// blacklist defect. Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
+// separately) handles the dependent-Dokumenttyp swap.
 (function () {
   "use strict";
 
@@ -32,16 +38,21 @@
       rewriteSelectionLinks();
     });
 
-    // The count target [data-bulk-zahl] (in the disclosure's summary) is always in the DOM
-    // (cold-start fix, #16), so the count goes live on the first tick — visible even while the
-    // details is collapsed. Empty text at zero keeps signals-once (no "0 ausgewählt"). The
-    // data-hook is the contract: markup may restructure freely as long as it keeps the hook.
+    // The count target [data-bulk-zahl] (in the disclosure's summary) is always in the DOM,
+    // so the count goes live on the first tick — visible even while the details is collapsed.
+    // Empty text at zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract:
+    // markup may restructure freely as long as it keeps the hook. The count also drives the
+    // disclosure's PROGRESSIVE visibility (owner 2026-08-07): hidden at 0, revealed at ≥ 1 —
+    // both at wire time (URL-seeded selections and back/forward checkbox restores fire no
+    // change event) and on every tick.
     function updateCount() {
       var zahl = form.querySelector("[data-bulk-zahl]");
       var n = rowBoxes().filter(function (b) {
         return b.checked;
       }).length;
       zahl.textContent = n > 0 ? n + " ausgewählt" : "";
+      var bulk = form.querySelector("details.bulk");
+      if (bulk) bulk.hidden = n === 0;
     }
 
     // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
@@ -89,7 +100,9 @@
     }
 
     // Fold once at wire time too: back/forward navigation restores checkbox state without firing
-    // change events, and the server-rendered links only carry the URL-borne selection.
+    // change events, and the server-rendered links only carry the URL-borne selection. The count
+    // sync doubles as the initial visibility verdict (hide the server-visible disclosure at 0).
+    updateCount();
     rewriteSelectionLinks();
   }
 })();

@@ -530,11 +530,14 @@ def _bulk_bar_context(
 ) -> dict[str, object]:
     """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
 
-    The bar's AFFORDANCES render whenever there are hits (cold-start fix, #16): the "Änderung prüfen"
-    submit (POSTs the checked boxes — a zero-check submit hits the existing "Keine Artikel
-    ausgewählt." reject) and the "Alle auf dieser Seite" page-select link, so the feature is reachable
-    with no prior selection. Signals-once still holds for STATUS: ``has_auswahl`` gates the
-    "{n} ausgewählt" count + "Auswahl aufheben" so an empty selection shows no "0 ausgewählt".
+    The bar's AFFORDANCES render whenever there are hits: the "Änderung prüfen" submit (POSTs the
+    checked boxes — a zero-check submit hits the existing "Keine Artikel ausgewählt." reject) and
+    the "Alle auf dieser Seite" page-select link, so the NO-JS path reaches the feature with no
+    prior selection. Visibility is PROGRESSIVE (owner 2026-08-07, reverses the #16 cold-start
+    ruling): the server always renders the disclosure visible; catalog_bulk.js hides it while the
+    live selection count is 0 and reveals it on the first tick. Signals-once still holds for
+    STATUS: ``has_auswahl`` gates the "{n} ausgewählt" count + "Auswahl aufheben" so an empty
+    selection shows no "0 ausgewählt".
 
     Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
     the whole results block on ``page.hits``, so this returns the off flag defensively for that case.

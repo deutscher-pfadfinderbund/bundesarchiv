@@ -2,10 +2,12 @@
 Sammelbearbeitung — a COLLAPSED disclosure on the toolrow above the ledger (owner 2026-08-07;
 bulk tools are occasional chrome and recede, learning G.4; native <details> per construction
 law, no-JS by construction). Renders inside the results form — the row checkboxes name="auswahl"
-are the selection source. Cold: just the summary line; the selection COUNT stays visible in the
-summary whenever > 0. The <output> is ALWAYS present (empty when no selection) so catalog_bulk.js
-has a live target to write into on the first tick; the server fills it for the no-JS path
-(signals-once: no "0 ausgewählt").
+are the selection source. PROGRESSIVE visibility (owner 2026-08-07, reverses the #16 cold-start
+ruling): the server renders the disclosure VISIBLE (this template carries no hidden attribute),
+so the no-JS archivist always reaches "Alle auf dieser Seite"; catalog_bulk.js hides the whole
+disclosure via [hidden] while the live selection count is 0 and reveals it on the first tick.
+The count span is ALWAYS present (empty when no selection) so catalog_bulk.js has a live target
+to write into; the server fills it for the no-JS path (signals-once: no "0 ausgewählt").
 
 Expanded: "Alle auf dieser Seite" (GET link appending the page's ulids), "Auswahl aufheben"
 (selection-gated), then the Feld chooser + Änderung prüfen (submit → confirm POST; a zero-check
