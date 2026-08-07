@@ -264,7 +264,7 @@ member-facing contexts.
 | Result card | `surface-container-low`, hover `-mid` |
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
 | Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕ |
-| Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
+| Header actions | QUIET (owner 2026-08-07, rail round 2 — Mock B): "Suchen" is the plain hairline button; the create actions live in the ONE "+ Neu …" disclosure (`details.menu`) — quiet hairline summary, panel floating on `--overlay-shadow` (register row 12); "Bestand bearbeiten" joins the panel only while a Bestand filter is active. `.primary` inversion survives on form submits (Anlegen, Speichern, Veröffentlichen, Änderung prüfen) |
 | ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
 | Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); the badge component survives only on the publish over-exposure preview |
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |

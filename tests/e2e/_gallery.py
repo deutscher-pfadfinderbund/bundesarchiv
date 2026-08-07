@@ -60,6 +60,13 @@ def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.locator(".filterrail summary", has_text="Bestand").click()
 
 
+def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the header's "+ Neu …" create disclosure open (Mock B, owner 2026-08-07) — the floating
+    # overlay panel with Neuer Artikel / Neuer Bestand
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.click("details.menu > summary")
+
+
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
     # the collapsed cold state is its own gallery state (workbench-bulk-cold)
@@ -147,6 +154,12 @@ STATES: tuple[GalleryState, ...] = (
         "workbench, Bestand filter dropdown open on the rail",
         True,
         _reach_rail_open,
+    ),
+    GalleryState(
+        "header-neu-open",
+        "workbench, header '+ Neu …' create disclosure open (Mock B overlay panel)",
+        True,
+        _reach_header_neu_open,
     ),
     GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
     GalleryState(

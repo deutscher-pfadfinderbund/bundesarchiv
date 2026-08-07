@@ -81,11 +81,12 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
 
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
-    # the draft (search scopes it out) and no archivist chrome (no bulk column, no "Neuer Artikel").
+    # the draft (search scopes it out) and no archivist chrome (no bulk column, no "+ Neu …" create
+    # disclosure — Mock B, owner 2026-08-07).
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
-    expect(public_page.get_by_text("+ Neuer Artikel")).not_to_be_visible()
+    expect(public_page.locator("details.menu")).to_have_count(0)
 
 
 # --- detail read view (4.6) --------------------------------------------------------
@@ -119,10 +120,13 @@ def test_create_bestand_then_file_an_article_under_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # + Neuer Bestand → fill Name → Anlegen → LAND on the create-article form (create→catalog is one
-    # flow), the new Bestand pre-selected + a success hinweis. File the first article under it.
+    # "+ Neu …" → Neuer Bestand → fill Name → Anlegen → LAND on the create-article form
+    # (create→catalog is one flow), the new Bestand pre-selected + a success hinweis. File the
+    # first article under it. The create actions live in the header's ONE quiet disclosure
+    # (Mock B, owner 2026-08-07) — a native <details>, opened by a plain click.
     page.goto(live_workbench + "/")
-    page.get_by_role("link", name="+ Neuer Bestand").click()
+    page.click("details.menu > summary")
+    page.get_by_role("link", name="Neuer Bestand").click()
     page.wait_for_url("**/bestand/neu")
     page.fill('input[name="name"]', "Plakate")
     page.click('button:has-text("Anlegen")')

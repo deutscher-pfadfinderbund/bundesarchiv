@@ -24,20 +24,25 @@ by itself — it is a size container. <1280px the media query hides the pane. {%
         hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
     <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
     {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
-    {% endfor %}<button class="primary" type="submit">Suchen</button>
+    {% endfor %}<button type="submit">Suchen</button>
   </form>
   {% comment %}
   Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
   search()/can_view; the /artikel/neu ROUTE is independently gated either way).
   {% endcomment %}
-  {% comment %}One toolbar slot (learning G.9), so the create actions wrap AS A GROUP on narrow
-  headers instead of orphaning one button onto its own line.{% endcomment %}
+  {% comment %}ONE quiet "+ Neu …" disclosure (owner 2026-08-07, rail round 2 — Mock B: the two
+  create buttons died; the search submit went quiet with them). The panel's list is the header's
+  create SLOT (learning G.9): a new create action lands in this list, never as a new header
+  button. Native <details> — no JS; plain details close behavior is owner-accepted.{% endcomment %}
   {% if is_archivist %}
-  <div role="toolbar" aria-label="Anlegen">
-    <a class="button primary" href="{% url 'artikel-neu' %}">+ Neuer Artikel</a>
-    <a class="button" href="{% url 'bestand-neu' %}">+ Neuer Bestand</a>
-    {% if aktiver_bestand %}<a class="button" href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a>{% endif %}
-  </div>
+  <details class="menu">
+    <summary>+ Neu …</summary>
+    <ul>
+      <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
+      <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
+      {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
+    </ul>
+  </details>
   {% endif %}
 {% endblock %}
 {% block body %}

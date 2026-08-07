@@ -59,15 +59,21 @@ media query hides the pane — layouts.css owns that, not the view.
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
 
-{% comment %} Header bar: wordmark + search + Neuer Artikel (bare semantic elements, like the
-real workbench header). {% endcomment %}
+{% comment %} Header bar: wordmark + quiet search + the "+ Neu …" create disclosure (Mock B,
+owner 2026-08-07 — bare semantic elements, like the real workbench header). {% endcomment %}
 <header>
   <a class="wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
   <form role="search" method="get" action="">
     <input type="search" name="q" placeholder="Archiv durchsuchen…" aria-label="Suche">
-    <button class="primary" type="submit">Suchen</button>
+    <button type="submit">Suchen</button>
   </form>
-  <a class="button primary" href="#demo-neu">+ Neuer Artikel</a>
+  <details class="menu">
+    <summary>+ Neu …</summary>
+    <ul>
+      <li><a href="#demo-neu">Neuer Artikel</a></li>
+      <li><a href="#demo-neu">Neuer Bestand</a></li>
+    </ul>
+  </details>
 </header>
 
 {% comment %} Filter rail — the REAL workbench partial over demo context (facet_groups +

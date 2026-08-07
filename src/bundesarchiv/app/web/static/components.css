@@ -302,12 +302,13 @@
     background: var(--surface-container-mid);
     border-color: var(--outline);
   }
-  .facet > ul {
+  /* the ONE transient overlay panel (register row 12), shared by both details dropdowns —
+     the rail's facet groups and the header's create menu: opaque, hairline-edged, floating on
+     the one overlay shadow. Anchoring + reading width stay per component (below). */
+  :is(.facet, .menu) > ul {
     position: absolute;
     top: calc(100% + var(--space-1));
-    left: 0;
     z-index: 2; /* above the (sticky, positioned) pane sheet the open panel may overlap */
-    min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
     list-style: none;
     margin: 0;
     padding: var(--space-2);
@@ -315,6 +316,10 @@
     border: var(--hairline) solid var(--outline);
     border-radius: var(--radius-s);
     box-shadow: var(--overlay-shadow);
+  }
+  .facet > ul {
+    left: 0;
+    min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
   }
   .facet li {
     display: flex;
@@ -346,6 +351,48 @@
   .facet li:has(> [aria-current]) :is(a, span) {
     color: var(--surface);
     font-weight: 600;
+  }
+
+  /* ---- header create menu: the ONE "+ Neu …" disclosure in the header (owner 2026-08-07,
+     rail round 2 — Mock B: the two create buttons died; the search submit went quiet with them).
+     The summary is a QUIET hairline button — deliberately NO solid fill. The dropped panel is a
+     TRANSIENT overlay (register row 12): opaque, hairline-edged, floating on the one overlay
+     shadow. Plain native <details> behavior, no close-on-outside-click JS (owner-accepted). ---- */
+  .menu {
+    position: relative; /* the anchor the dropped panel positions against */
+    display: inline-block; /* shrink to the summary, so the panel anchors to the button — not to
+       a stretched block box (matters outside the header's flex row, e.g. the demo columns) */
+  }
+  .menu > summary {
+    display: inline-flex;
+    align-items: center;
+    list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
+    font: var(--type-meta);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--on-surface);
+    padding: var(--space-1) var(--space-3);
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    white-space: nowrap;
+  }
+  .menu > summary:hover {
+    background: var(--surface-container-high);
+  }
+  .menu[open] > summary {
+    background: var(--surface-container-mid);
+  }
+  /* panel box: the shared overlay-panel rule above (row 12); only anchoring + width are local */
+  .menu > ul {
+    inset-inline-end: 0; /* the menu ends the header row — the panel drops leftward, on-viewport */
+    min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
+  }
+  .menu li > a {
+    display: block;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-s);
+    white-space: nowrap;
   }
 
   /* ---- filter chip: one ACTIVE filter on the rail — the register-row-3 INVERSION mark (the

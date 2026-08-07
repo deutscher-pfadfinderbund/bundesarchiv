@@ -174,7 +174,7 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="row">
-      <button class="primary" type="submit">Suchen</button>
+      <button class="primary" type="submit">Speichern</button>
       <button type="button">Bearbeiten</button>
       <a class="button" href="#demo">Öffnen</a>
       <button class="link" type="button">nach oben</button>
@@ -183,7 +183,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">&lt;button&gt; is the subtle default · .primary = neutral-ink inversion · a.button = link-as-button · .link = text affordance · .danger = the ONE destructive variant (confirm pages only)</code>
+<code class="doc">&lt;button&gt; is the subtle default (also the header's Suchen — quiet since Mock B, owner 2026-08-07) · .primary = neutral-ink inversion (form submits only) · a.button = link-as-button · .link = text affordance · .danger = the ONE destructive variant (confirm pages only)</code>
 
 <h2>Fields (elements — no include)</h2>
 <div class="probe">
@@ -296,6 +296,25 @@ height so the open exhibit never overlays the annotation. {% endcomment %}
   {% endfor %}
 </div>
 <code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12), the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it</code>
+
+<h2>Header create menu — the "+ Neu …" disclosure</h2>
+{% comment %} Like the facet exhibit: the dropped panel positions absolutely, so the columns
+reserve its height. Served open to exhibit the floating overlay panel. {% endcomment %}
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 8rem">
+    <details class="menu" open>
+      <summary>+ Neu …</summary>
+      <ul>
+        <li><a href="#demo-menu">Neuer Artikel</a></li>
+        <li><a href="#demo-menu">Neuer Bestand</a></li>
+        <li><a href="#demo-menu">Bestand bearbeiten</a></li>
+      </ul>
+    </details>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: quiet hairline summary (no solid fill), panel = transient overlay on --overlay-shadow (register row 12); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">
