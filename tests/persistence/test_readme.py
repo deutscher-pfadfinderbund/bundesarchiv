@@ -285,9 +285,9 @@ def test_empty_optional_fields_omitted_from_wire() -> None:
 def test_set_optional_fields_still_emitted() -> None:
     # The omit-empty rule drops only EMPTY fields; a set field still appears on the wire.
     text = readme.encode(
-        _article(ref_code="B 2", media_type="Foto", document_type="Fotografie", tags=("a",)), 1
+        _article(ref_code="B2", media_type="Foto", document_type="Fotografie", tags=("a",)), 1
     )
-    assert "ref_code: B 2" in text
+    assert "ref_code: B2" in text
     assert "media_type: Foto" in text
     assert "document_type: Fotografie" in text
     assert "tags:" in text

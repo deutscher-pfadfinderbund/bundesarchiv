@@ -50,7 +50,7 @@ class _Corpus:
                 title="Wanderfahrt 1962",
                 collection_id="PUB",
                 lifecycle=Lifecycle.DRAFT,
-                ref_code="F 12/3",
+                ref_code="F12/3",
             ),
             0,
         )
@@ -81,7 +81,7 @@ def _valid_post(corpus: _Corpus, **overrides: str) -> dict[str, str]:
     base = {
         "title": "Wanderfahrt 1962",
         "collection_id": "PUB",
-        "ref_code": "F 12/3",
+        "ref_code": "F12/3",
         "media_type": "Fotografie",
         "document_type": "",
         "tags": "",
@@ -108,7 +108,7 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _Corpus) -> None:
     body = response.content.decode()
     # the stored values are seeded into the form
     assert 'value="Wanderfahrt 1962"' in body
-    assert 'value="F 12/3"' in body
+    assert 'value="F12/3"' in body
     # the group drawers are present (spec §3)
     for legend in ("Kerndaten", "Einordnung", "Herkunft", "Beschreibung", "Zugriff"):
         assert legend in body
@@ -118,7 +118,7 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _Corpus) -> None:
     # the ENTWURF badge (draft) sits in the header
     assert "Entwurf" in body
     # the Signatur mark reflects ref_code
-    assert "F 12/3" in body
+    assert "F12/3" in body
 
 
 def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> None:
@@ -354,7 +354,7 @@ def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _C
             title="Veröffentlicht",
             collection_id="PUB",
             lifecycle=Lifecycle.PUBLISHED,
-            ref_code="F 99/1",
+            ref_code="F99/1",
         ),
         0,
     )

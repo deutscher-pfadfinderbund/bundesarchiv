@@ -57,7 +57,7 @@ class _Corpus:
                 title="Entwurf Lagerchronik",
                 collection_id="PUB",
                 lifecycle=Lifecycle.DRAFT,
-                ref_code="F 9",
+                ref_code="F9",
             ),
             0,
         )
@@ -67,7 +67,7 @@ class _Corpus:
                 title="Sommerfahrt 1962",
                 collection_id="PUB",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="F 12",
+                ref_code="F12",
             ),
             0,
         )
@@ -145,7 +145,7 @@ def test_loeschen_confirm_page_shows_context(corpus: _Corpus) -> None:
     body = response.content.decode()
     assert "Artikel löschen?" in body
     assert "Sommerfahrt 1962" in body  # Titel context
-    assert "F 12" in body  # Signatur context
+    assert "F12" in body  # Signatur context
     assert "Ein Papierkorb steht in dieser Version nicht zur Verfügung." in body
     assert "Endgültig löschen" in body
 
