@@ -199,11 +199,11 @@
     margin: 0;
   }
   /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
-     the facet remove, the chip ✕) — ink/hover stay per-site deltas */
+     the facet remove) — ink/hover stay per-site deltas. The rail chip's ✕ is the ONE licensed
+     deviation: it rides --touch-target-compact instead (owner 2026-08-07, rail round 2). */
   [role="toolbar"] a,
   .pane header > a,
-  .facet .remove,
-  .chip > a {
+  .facet .remove {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -397,11 +397,14 @@
 
   /* ---- filter chip: one ACTIVE filter on the rail — the register-row-3 INVERSION mark (the
      rail chip is row 3's licensed selector since the rail became the primary filter
-     interaction). Carries its labeled remove ✕; the muted <b> names the facet group. ---- */
+     interaction). Carries its labeled remove ✕; the muted <b> names the facet group. COMPACT
+     hit size (--touch-target-compact, owner ruling 2026-08-07 rail round 2): chip + ✕ sit
+     visually level with the rail's dropdown buttons; everything else keeps --touch-target. ---- */
   .chip {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    min-height: var(--touch-target-compact);
     font: var(--type-meta);
     background: var(--on-surface);
     color: var(--surface);
@@ -413,6 +416,12 @@
     color: color-mix(in oklab, var(--surface), var(--on-surface) 30%);
   }
   .chip > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-compact);
+    min-height: var(--touch-target-compact);
+    border-radius: var(--radius-s);
     color: var(--surface);
   }
 

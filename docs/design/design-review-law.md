@@ -110,7 +110,9 @@ then two-cut bevels are forbidden like any unregistered cue.
    is internal spacing and comes from the scale like everything else.
 5. **Tokens are the only value source.** Spacing from `--space-*`. The
    non-spacing dimensions have named tokens: `--touch-target` (2.75rem),
-   `--hairline` (1px), `--state-border` (3px). A dimension used once,
+   `--touch-target-compact` (2rem — the filter-rail chips + their ✕ only;
+   owner ruling 2026-08-07, rail round 2), `--hairline` (1px),
+   `--state-border` (3px). A dimension used once,
    structurally, may be a literal **with a comment naming why no token
    fits**; a bare literal is an S3 defect.
 6. **Deviation = registration.** A new cue means a new cue-register row

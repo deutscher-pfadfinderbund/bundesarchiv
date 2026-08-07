@@ -200,6 +200,9 @@
      three recurring values. A bare px/rem literal in component CSS is an S3 defect unless a
      comment names why no token fits. */
   --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕) */
+  --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
+     round 2): the filter-rail chips + their ✕ ONLY, so chips sit visually level with the rail's
+     dropdown buttons; still ≥ the WCAG 2.2 AA 24px target-size floor */
   --hairline: 1px; /* the hairline edge — a contrast mode may thicken it globally */
   --state-border: 3px; /* the state-marking left border (e.g. the CAS conflict panel) */
 }

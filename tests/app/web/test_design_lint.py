@@ -207,7 +207,8 @@ _PX_REM = re.compile(r"\b(?:0*[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b")
 
 
 def test_bare_dimension_literals_are_named_or_commented() -> None:
-    # Law C5: --space-*/--touch-target/--hairline/--state-border are the value sources. A bare
+    # Law C5: --space-*/--touch-target/--touch-target-compact/--hairline/--state-border are the
+    # value sources. A bare
     # px/rem literal outside tokens.css needs either a naming custom property (--foo: 3rem — the
     # C3 component-API mechanism) or a same-line comment saying why no token fits.
     offenders = []
