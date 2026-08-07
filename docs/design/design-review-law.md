@@ -145,6 +145,15 @@ then two-cut bevels are forbidden like any unregistered cue.
    LAST resort, reserved for genuinely MODAL changes (the phone fold, the
    pane column appearing) — and then it derives per C9. Before writing any
    query, show why no flexible mechanism can absorb the variation.
+12. **An overlay positions against its CONTROL ROW, not its trigger**
+   (recorded 2026-08-07 from the containment fixes; owner may veto). A
+   dropped panel's containing block is the row that owns the trigger (the
+   filter rail, the header cluster), so both its edges stay inside that
+   row's box and the panel can never leave the viewport — the trigger's own
+   viewport offset is not expressible in CSS. Per-trigger anchoring
+   (`anchor-scope` + `position-area` + `position-try-fallbacks`) rides on
+   top as the appendix-F enhancement, never load-bearing. Every overlay is
+   covered by the containment walker (section E, learning G.26).
 
 ## Themability law (owner, 2026-08-06)
 
