@@ -455,15 +455,72 @@ for the future?"):**
    happened to be. Uniform full-width inputs are what wasted half of a 1440px
    desk on the old form.
 
+**2026-08-08, Opus review of the form wave (eleven ranked findings, nine confirmed):**
+
+32. **An enhancement's swap selector must resolve WHERE IT FIRES.** The shared header
+   kept `hx-target="#results"` on five screens that have no `#results`, so htmx
+   cancelled the native submit and aborted with `htmx:targetError` — searching
+   from the edit/create screens did nothing, silently, because a targetError is
+   not a request failure and no error banner shows. Same class one level down:
+   htmx INHERITS `hx-select`, so a form's whole-region selector reached the two
+   little GET enhancements inside it, htmx selected nothing out of their
+   `<option>`/`<span>` responses and swapped exactly that in. Declare an
+   enhancement on the region it swaps (then it exists exactly where its target
+   exists, by construction), or stop inheritance at the boundary — never leave a
+   selector that resolves on one page and not on its siblings.
+33. **A fold may hide no MESSAGE and no FOCUS, not just no data.** "Folded rare
+   sections with their values in the summary" was obeyed for values and violated
+   for everything else: a validation error re-rendered inside a shut `<details>`
+   is invisible, and `autofocus` inside one focuses nothing at all. Decide
+   `[open]` server-side from the SAME error/autofocus context the fields render
+   with, declare once which fields each fold holds, and mark the summary from the
+   section's own contents (`:has(.error)`) so no flag can disagree with reality.
+34. **A permanent fact may not live behind a disclosure — and a test that must
+   OPEN one to see a fact is reporting the defect.** The exposure statement was
+   what let the publish gate retire, yet below the pane's switch it sat inside a
+   shut fold: on a narrow window it was on screen nowhere, and the e2e proof
+   clicked the fold open and passed. When a gate is deleted on the strength of a
+   promise, the guard for that promise may not contain a workaround.
+35. **An action that navigates away from a form must carry the form.** Putting
+   Veröffentlichen in the same row as Speichern made it a save-shaped affordance;
+   posting it as its own transition rebuilt the record from disk and discarded
+   every unsaved edit. Either the action rides the form's single write, or it is
+   not allowed to sit in the form's action row.
+36. **On-viewport is not reachable.** Both overlay panels sat perfectly inside
+   the viewport while an opaque sticky row painted over them and ate every click.
+   A containment proof answers a geometry question; reachability needs
+   `elementFromPoint` — and a stacking-order fix needs a CLICK, because
+   Playwright's own actionability retry will happily scroll a merely-awkward
+   element into reach. Extend the check for every overlay, never for the one that
+   failed.
+37. **A guard keyed by a non-unique name silently narrows itself.** The C8 walker
+   keyed rows by a generated name; every ledger row toolbar produces the same one
+   (`span[toolbar]`), so all but the last collapsed in the dict and the walk
+   proved ONE row while reporting green. Walkers key by POSITION, and their test
+   asserts a minimum count of what the page composes — a shrinking guard is worse
+   than a missing one.
+38. **`initial` on a custom property is not a value.** It is the
+   guaranteed-invalid value, so every consumer falls back to its OWN default: one
+   knob resolved to `--touch-target` for one rule and `auto` for another, and the
+   comment was true of only half of it. To say "not the row's height, the full
+   touch target here", RE-DECLARE the knob. Sub-floor hit areas hid behind this
+   (23px facet entries under the AA 24px floor).
+39. **Derive a sticky offset from the chrome above it — and prove the sticky
+   works at all.** The sheet's offset was a guessed constant against a 49px row;
+   deriving it exposed that `position: sticky` had never done anything, because
+   the pane column was only as tall as its own content and the declaration had no
+   slack to work in. Dead styling reads exactly like live styling in source.
+
 ## H. Writer pre-flight checklist
 
 Run before returning from ANY UI wave. Ten lines distilled from the
 learnings register (section G is the archive and the reasoning; this is the
 operational form — learning G.28).
 
-1. **Walkers green:** control-row heights (C8), overlay containment (G.26),
-   header uniformity (G.1) — plus the design lint (E). Not "should pass":
-   run them.
+1. **Walkers green:** control-row heights (C8 — rows keyed by POSITION, and the
+   test asserts the MINIMUM count of rows the page composes, G.37), overlay
+   containment AND hit-testability (G.26/G.36), header uniformity (G.1) — plus
+   the design lint (E). Not "should pass": run them.
 2. **Every new surface has a material role** (desk / furniture / sheet /
    overlay) named in the code and consistent with register row 8 (G.17).
 3. **Every distinctive cue cites a register row** (B) — including its
@@ -489,6 +546,14 @@ operational form — learning G.28).
     reach into a nested component's own parts (G.30). Verify on the STATE
     renders — in source, an outranked state rule looks identical to a correct
     one.
+12. **Every enhancement's target resolves on every screen it ships to** (G.32) —
+    including inherited `hx-*` selectors — and no fold hides a message, the
+    focus, or a permanent fact (G.33/G.34). If a guard has to open a fold or
+    click something extra to see a fact, the fact is not where it belongs.
+13. **No dead styling and no guessed offsets:** a sticky/positioned declaration
+    is proven to MOVE something, and any clearance derives from the box it must
+    clear, through one knob both sides consume (G.39, C5/C9). A custom property
+    is never `initial` when a value is meant (G.38).
 
 **Enforcement caveat:** none of the guards above run on a push — CI is not
 active (issue #12). Until it is, "green" means an agent ran it and said so
