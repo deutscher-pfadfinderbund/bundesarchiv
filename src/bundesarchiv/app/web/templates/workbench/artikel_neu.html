@@ -4,11 +4,13 @@ Create step (Part 4.7 Slice A, spec §2/§1 focal-point A). Archivist-only (the 
 minimal create form: Titel + Bestand — the two required fields are the ONE loud focal point on a
 near-empty page. Plain no-JS POST → create_article → 302 to /bearbeiten. Validation state B
 re-renders here with the verbatim error + preserved values. Autofocus (server-computed) lands on
-Titel (or the first errored field). Anlegen is first-in-source so Enter submits it.
+Titel (or the first errored field). Anlegen is first-in-source so Enter submits it. Chrome: the WORKBENCH header (search + "+ Neu …"),
+shared via workbench/_header.html — the form wave retired this screen's own reduced header (the lone
+"Zurück zur Suche" link died with it: the search field IS the way back).
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=True %}{% endblock %}
 {% block body %}
 <main class="column narrow">
   <h1>Neuer Artikel</h1>

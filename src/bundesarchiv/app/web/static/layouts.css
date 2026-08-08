@@ -124,6 +124,43 @@
     color: var(--on-surface-variant);
   }
 
+  /* ---- record row: the edit surface's ONE control row and its ONE action place (owner ruling 2,
+     2026-08-08 — the bottom sticky footer band and the separate lifecycle band both died with it).
+     It occupies the slot the workbench spends on the filter rail (directly under the header) and
+     STICKS there, so Speichern is reachable at any scroll position without a second band; a
+     bottom-docked band used to cover the field beneath it while scrolling.
+     Material role (register row 8, learning G.17 — a new surface class gets its role named before
+     it is styled): FURNITURE. Flat, no sheet tint, no depth cue; it is separated from the work
+     below by one hairline, exactly like the ledger's rules. Its only fill is the desk itself, which
+     is what makes it opaque while content scrolls under it. ---- */
+  .recordrow {
+    /* the row is a CONTROL ROW (law C8): this knob is the ONE height source every interactive child
+       consumes (components.css' consumption rule) — Speichern, the lifecycle action and the overflow
+       summary can never drift apart by coincidence (G.22). Value: the compact control height, the
+       same the header and the rail set, so the standing chrome rows read as one system. */
+    --control-height: var(--touch-target-compact);
+    /* sticky ALSO makes this the containing block for the overlay panel its overflow disclosure
+       drops (components.css: an overlay positions against its CONTROL ROW, not its trigger — law
+       C12/learning G.26), so containment holds by construction here too */
+    position: sticky;
+    top: 0;
+    z-index: 4; /* above the sticky pane sheet and its own dropped panel (z 2) — the row is chrome */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface);
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  /* the toolbar INHERITS the row's knob instead of setting its own (components.css gives every
+     [role=toolbar] the full --touch-target): ONE height source per control row (law C8) — a
+     per-component height inside a control row is the defect that rule exists to forbid. */
+  .recordrow > [role="toolbar"] {
+    --control-height: inherit;
+    margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
+  }
+
   /* ---- page frame: main · (pane). The pane column exists only while ?artikel is resolved
      (body.vorschau) on a viewport wide enough to show it. ---- */
   .frame {
@@ -314,15 +351,16 @@
     --column-width: 52rem;
     max-width: var(--column-width);
     margin: 0 auto;
-    padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
+    /* ONE block padding for every flavor: the doubled bottom padding existed to clear the edit
+       form's bottom-docked sticky footer, which died with the record row (G.18 — a constant
+       outliving its reason is a defect) */
+    padding: var(--space-6) var(--space-4) var(--space-8);
   }
   .column.narrow {
     --column-width: 34rem;
-    padding-bottom: var(--space-8);
   }
   .column.wide {
     --column-width: 72rem;
-    padding-bottom: var(--space-8);
   }
   .column h1 {
     margin: 0 0 var(--space-5);

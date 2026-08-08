@@ -66,24 +66,45 @@ def test_ledger_headers_compute_one_uniform_treatment(
 
 
 #: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
-#: WALKERS over all instances). Enumerates EVERY control row on the page — the header's control
-#: cluster, the filter rail, each [role=toolbar] — and for each row returns its controls'
-#: computed heights + font treatments. A "control" is a button, a summary, or a chip (the rail's
-#: clear-all link is text, not a control); inside a toolbar the icon links ARE the controls.
-#: A new control row (or a new control in an existing row) is covered the day it appears —
-#: per-instance copies of this proof are forbidden.
+#: WALKERS over all instances). Rows are DISCOVERED, never listed: a control row is any element that
+#: DECLARES the --control-height knob (its computed value differs from its parent's) plus every
+#: [role=toolbar] — so the header cluster, the filter rail, the edit surface's record row and each
+#: toolbar are found by the mechanism law C8 is written in, and the next row built the same way is
+#: covered the day it appears. A toolbar that INHERITS its row's knob (the record row's action slot)
+#: is deliberately not a row of its own: its controls belong to the row that owns the knob, which is
+#: exactly the equality C8 demands.
+#: A "control" is a button, a summary, a chip or a toolbar's icon link (the rail's clear-all link is
+#: text, not a control). Per-instance copies of this proof are forbidden.
 _CONTROL_ROW_WALKER_JS = """() => {
-    const rows = [
-        ['header', document.querySelector('body > header')],
-        ['filterrail', document.querySelector('.filterrail')],
-        ...Array.from(document.querySelectorAll('[role=toolbar]')).map(
-            (el, i) => ['toolbar-' + i, el]),
-    ].filter(([, el]) => el);
-    return rows.map(([name, row]) => {
-        const selector = row.matches('[role=toolbar]')
-            ? 'a, button' : 'button, a.button, summary, .chip';
-        const controls = Array.from(row.querySelectorAll(selector))
-            .filter((el) => el.offsetParent !== null)  // rendered only (closed dropdowns skip)
+    const declaresKnob = (el) => {
+        const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
+        if (!own) return false;  // unset, or reset to the guaranteed-invalid value
+        const parent = el.parentElement;
+        const inherited = parent
+            ? getComputedStyle(parent).getPropertyValue('--control-height').trim() : '';
+        return own !== inherited;
+    };
+    const rows = [];
+    for (const el of document.querySelectorAll('*')) {
+        if (el.matches('[role=toolbar]') || declaresKnob(el)) rows.push(el);
+    }
+    const name = (el) => (el.tagName.toLowerCase()
+        + (el.id ? '#' + el.id : '')
+        + (el.className && typeof el.className === 'string'
+            ? '.' + el.className.trim().split(/\\s+/).join('.') : '')
+        + (el.matches('[role=toolbar]') ? '[toolbar]' : ''));
+    return rows.map((row) => ({
+        name: name(row),
+        knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
+        controls: Array.from(
+            row.querySelectorAll('button, a.button, summary, .chip, [role=toolbar] > a'))
+            // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
+            // contents in the box tree (Chromium renders ::details-content with
+            // content-visibility:hidden), so offsetParent still resolves for a panel item that is
+            // not on screen. Opacity is deliberately NOT considered: the ledger's row-action icons
+            // rest at opacity 0 and are still controls of their row.
+            .filter((el) => el.checkVisibility({
+                checkVisibilityCSS: true, contentVisibilityAuto: true}))
             .map((el) => {
                 const s = getComputedStyle(el);
                 return {
@@ -93,27 +114,21 @@ _CONTROL_ROW_WALKER_JS = """() => {
                     font: [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
                            s.letterSpacing].join('|'),
                 };
-            });
-        return {name, controls};
-    });
+            }),
+    }));
 }"""
 
 
-def test_control_rows_compute_one_height_source(archivist_page: Page, live_workbench: str) -> None:
-    # Law C8 proven computed (the generalized G.1 pattern, section E): within EVERY control row,
-    # all controls compute the SAME height (offsetHeight within 1px — one --control-height source,
-    # equal by construction) and — chips excepted, which keep chip typography but must still match
-    # height — the same font treatment. Driven on the filtered workbench so the rail carries
-    # chips + dropdowns and the ledger carries row toolbars in one shot.
-    page = archivist_page
-    page.goto(live_workbench + "/?schlagwort=sommer")
-    rows: list[dict[str, list[dict[str, str | int | bool]]]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
-    by_name = {str(row["name"]): row["controls"] for row in rows}
-    # the walker must actually see the rows this page composes — a silent no-find proves nothing
-    assert "header" in by_name and "filterrail" in by_name
-    assert len(by_name["header"]) >= 2  # the Suchen button + the "+ Neu …" summary
-    assert any(c["chip"] for c in by_name["filterrail"])  # the active-filter chip is present
-    assert any(name.startswith("toolbar-") for name in by_name)  # ledger row toolbars
+def _walk_control_rows(page: Page, url: str) -> dict[str, list[dict[str, str | int | bool]]]:
+    """Every control row on ``url`` with its rendered controls, keyed by a readable row name."""
+    page.goto(url)
+    rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
+    return {str(row["name"]): row["controls"] for row in rows}  # type: ignore[misc]
+
+
+def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
+    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — chips excepted,
+    which keep chip typography but must still match height — one font treatment."""
     defects: list[str] = []
     for name, controls in by_name.items():
         if len(controls) < 2:
@@ -124,6 +139,30 @@ def test_control_rows_compute_one_height_source(archivist_page: Page, live_workb
         fonts = {c["font"] for c in controls if not c["chip"]}
         if len(fonts) > 1:
             defects.append(f"row '{name}' computes mixed control fonts: {fonts}")
+    return defects
+
+
+def test_control_rows_compute_one_height_source(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Law C8 proven computed (the generalized G.1 pattern, section E) over every control row the app
+    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the ledger's
+    # row toolbars) and the edit surface (the record row, whose action toolbar INHERITS the row's
+    # knob — Speichern, the lifecycle action and the overflow summary must compute one height).
+    page = archivist_page
+    by_name = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
+    # the walker must actually see the rows this page composes — a silent no-find proves nothing
+    header = next(n for n in by_name if n.startswith("header"))
+    rail = next(n for n in by_name if "filterrail" in n)
+    assert len(by_name[header]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert any(c["chip"] for c in by_name[rail])  # the active-filter chip is present
+    assert any("[toolbar]" in n for n in by_name)  # ledger row toolbars
+    defects = [f"[workbench] {d}" for d in _control_row_defects(by_name)]
+
+    edit = _walk_control_rows(page, live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+    row = next(n for n in edit if "recordrow" in n)
+    assert len(edit[row]) >= 3, f"the record row's controls were not found: {edit[row]}"
+    defects += [f"[edit] {d}" for d in _control_row_defects(edit)]
     assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
 
@@ -579,9 +618,12 @@ def test_failed_save_banner_leaves_speichern_clickable(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # A failed save reveals the global error banner, fixed at the viewport bottom — the SAME edge the
-    # sticky footer's Speichern docks at. The banner must lift the footer, never cover it: the retry
-    # button has to stay clickable exactly when the archivist needs it (design-gate finding).
+    # A failed save reveals the global error banner, fixed at the viewport BOTTOM. Since the form
+    # wave the edit surface's one action place is the sticky record row at the TOP (owner ruling 2),
+    # so the recorded regression class — a bottom-docked Speichern occluded by the banner at exactly
+    # the moment the archivist needs to retry — is gone BY CONSTRUCTION rather than by a
+    # measure-and-lift dance. This journey pins that: while the banner is up, a real browser
+    # hit-test at Speichern's center still reaches the button, and the retry fires again.
     _create_draft(page, live_workbench, "E2E Fehlschlag")
 
     def fail_saves(route: Route) -> None:
@@ -594,31 +636,28 @@ def test_failed_save_banner_leaves_speichern_clickable(
     page.route("**/bearbeiten", fail_saves)
     page.click('button:has-text("Speichern")')  # htmx sendError → the banner reveals
     expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
-    # THE assertion, at the natural post-failure scroll position (footer stuck at the viewport
-    # bottom, exactly where the banner sits): a real browser hit-test at Speichern's center must
-    # reach the button, and the footer must sit clear above the banner. A bare page.click cannot
-    # pin this — Playwright's actionability retry rescues an occluded sticky-bottom element by
-    # scrolling the page to the very bottom, where the footer un-sticks above the banner and the
-    # click lands anyway (verified against the unfixed CSS).
+    # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the record
+    # row is still pinned at the top and its Speichern is still the topmost element at its own
+    # center. A bare page.click cannot pin this: Playwright's actionability retry scrolls an
+    # occluded element into a clickable position and the click lands anyway.
+    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
     state = page.evaluate(
         """() => {
         const banner = document.querySelector('.error-banner');
-        const btn = document.querySelector('footer.sticky button.primary');
-        const footer = document.querySelector('footer.sticky');
+        const btn = document.querySelector('.recordrow button.primary');
         const b = banner.getBoundingClientRect();
-        const f = footer.getBoundingClientRect();
         const r = btn.getBoundingClientRect();
         const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
         return {
             speichernHit: btn === hit || btn.contains(hit),
-            footerBottom: f.bottom,
+            speichernBottom: r.bottom,
             bannerTop: b.top,
         };
     }"""
     )
     assert state["speichernHit"], "the error banner paints over Speichern (hit-test misses)"
-    assert state["footerBottom"] <= state["bannerTop"] + 1, (
-        f"the sticky footer overlaps the banner: footer bottom {state['footerBottom']}px "
+    assert state["speichernBottom"] <= state["bannerTop"] + 1, (
+        f"the record row overlaps the banner: Speichern bottom {state['speichernBottom']}px "
         f"vs banner top {state['bannerTop']}px"
     )
     # and the retry itself works end to end: the second Speichern fires another save while the

@@ -1,0 +1,41 @@
+{% comment %}
+The ONE header chrome every archivist screen carries (precedent rule: a new view copies the nearest
+approved view — the workbench's header IS that view). Before the form wave the edit/create screens
+each drew their own reduced header (no search, one lone "Zurück zur Suche"), so the approved chrome
+existed on exactly one screen; this partial is the chrome itself, included from the {% templatetag openblock %} block header {% templatetag closeblock %} of
+every screen that has it.
+
+Params (all optional — an empty value simply renders less):
+  text            — the current search text (the workbench's q); blank elsewhere
+  filter_params   — the ACTIVE facet/sort filters as hidden inputs, so typing q refines WITHIN
+                    the current scope instead of dropping it (GH #21); empty elsewhere
+  is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). The screens that are
+                   archivist-only by route pass True at the include site
+  aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
+
+The wordmark itself lives in base.html (always present, always links home). The header is the page's
+one CONTROL ROW at the top (layouts.css sets its --control-height knob) — the search input, Suchen
+and the "+ Neu …" summary all consume it, so their heights hold by construction (law C8).
+{% endcomment %}
+<form role="search" method="get" action="{% url 'workbench' %}"
+      hx-get="{% url 'workbench' %}" hx-target="#results" hx-swap="outerHTML"
+      hx-indicator="#results" hx-push-url="true"
+      hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
+  <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
+  {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
+  {% endfor %}<button type="submit">Suchen</button>
+</form>
+{% comment %}ONE quiet "+ Neu …" disclosure (owner 2026-08-07, rail round 2 — Mock B: the two
+create buttons died; the search submit went quiet with them). The panel's list is the header's
+create SLOT (learning G.9): a new create action lands in this list, never as a new header
+button. Native <details> — no JS; plain details close behavior is owner-accepted.{% endcomment %}
+{% if is_archivist %}
+<details class="menu">
+  <summary>+ Neu …</summary>
+  <ul>
+    <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
+    <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
+    {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
+  </ul>
+</details>
+{% endif %}

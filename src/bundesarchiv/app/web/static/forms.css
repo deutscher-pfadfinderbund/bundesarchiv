@@ -107,33 +107,18 @@
     border-bottom: var(--hairline) dashed var(--outline-variant);
   }
 
-  /* ---- footer action bar (spec §3): plain on short pages, .sticky on the edit form. .sticky
-     docks at the viewport bottom; a revealed error banner lifts it by its measured height
-     (--banner-offset, set by base.html's failure listener) so Speichern stays clickable. ---- */
+  /* ---- footer action bar (spec §3): the create/confirm pages' one action row. The edit form's
+     bottom-docked .sticky variant and the separate .lifecycle band are GONE (owner ruling 2,
+     2026-08-08): that surface has exactly ONE action place, the sticky record row at the top
+     (layouts.css). With them went the --banner-offset lift, whose whole purpose was keeping a
+     bottom-docked Speichern clear of the viewport-bottom failure banner. ---- */
   .column footer {
     display: flex;
     align-items: center;
     gap: var(--space-3);
   }
-  .column footer.sticky {
-    position: sticky;
-    bottom: var(--banner-offset, 0px);
-    margin-top: var(--space-6);
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface-container-high);
-    border-top: var(--hairline) solid var(--outline-variant);
-  }
   .column footer .actions {
     margin-left: auto;
-  }
-
-  /* lifecycle control: a continuation of the sticky footer band — same surface, flush against it.
-     Separate forms so Enter never fires a lifecycle action (spec §6.2). */
-  .lifecycle {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0 var(--space-4) var(--space-3);
-    background: var(--surface-container-high);
   }
 
   /* the composition owns the space between stacked panels and the form region */

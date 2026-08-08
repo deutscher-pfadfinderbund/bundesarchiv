@@ -5,11 +5,12 @@ ONLY editable control; Eltern-Bestand + Sichtbarkeit render as a quiet read-only
 hint, because moving + changing visibility are deferred (they move descendants' visibility and
 need the over-exposure machinery a rename does not). Plain no-JS POST → save_collection (CAS +
 subtree reindex, so the new name is live in facets) → 302 to the workbench filtered to this
-Bestand.
+Bestand. Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
+screen since the form wave.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=True %}{% endblock %}
 {% block body %}
 <main class="column narrow">
   <h1>Bestand bearbeiten</h1>

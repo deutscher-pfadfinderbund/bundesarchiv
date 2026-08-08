@@ -1,27 +1,93 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-Full edit form (Part 4.7 Slice B, spec §3/§4/§5/§6.1). Archivist-only (the view gates it). No-JS
-baseline only: one real <form>, native controls, one POST, server re-render preserving every value.
-Field order/grouping follows how an archivist catalogs (spec §3). The header carries the two
-reserved marks once (amber ENTWURF, violet Signatur). The sticky footer's Speichern is first in
-source so Enter submits it; the hidden expected_version rides the form for CAS (ADR 0013). On a
-Conflict the panel.konflikt renders at top (state G) with a neutral changed-fields diff.
+The archivist edit surface (Part 4.7 Slice B + the form wave, spec §3/§4/§5/§6.1; owner rulings
+2026-08-08 in docs/requirements/owner-interview-2026-08.md). Archivist-only (the view gates it).
+No-JS baseline only: one real <form>, native controls, one POST, server re-render preserving every
+value. Field order/grouping follows how an archivist catalogs (spec §3).
+
+There is exactly ONE place to act (owner ruling 2): the sticky .recordrow under the header. The
+bottom sticky footer band and the separate .lifecycle band are GONE. There is NO title header
+(ruling 3): every identity fact is a field, so a header repeating Titel/Signatur would be a Q2
+duplication — the <title> still names the record.
+
+The hidden expected_version rides the form for CAS (ADR 0013); on a Conflict the panel.konflikt
+renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
 <script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
-{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=True %}{% endblock %}
 {% block body %}
-{% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
+{% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this region carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
-the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.{% endcomment %}
-<main class="column" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-{% comment %}#form-region wraps the panels + header + edit form — the save hx-post swaps exactly this
-from the SAME full-page render (hx-select), so validation/conflict/state-H re-renders and their panels
-appear without a partial-render fork. On a successful save the view sends HX-Redirect instead (spec
-§5). The media drawer inside re-renders harmlessly; its own structural POSTs swap #medien-drawer
-only.{% endcomment %}
-<div id="form-region">
+the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.
+
+#form-region wraps the record row + the frame — the save hx-post swaps exactly this from the SAME
+full-page render (hx-select), so validation/conflict/state-H re-renders, their panels, the refreshed
+expected_version on EVERY form in the row, and the reader's sheet all move together (a row left
+outside the swap would keep a stale CAS version after a conflict re-render). On a successful save the
+view sends HX-Redirect instead (spec §5). The media drawer inside re-renders harmlessly; its own
+structural POSTs swap #medien-drawer only.{% endcomment %}
+<div id="form-region" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+{% comment %}The record row — the view's ONE control row and its ONE action place (owner ruling 2).
+It occupies the slot the workbench spends on the filter rail and STICKS there, so Speichern is
+reachable at any scroll position without a second band at the bottom. Contents in reading order: the
+back affordance · the save-state output (enhancement-only) and the ENTWURF badge · then ONE
+role="toolbar" holding Speichern (primary), the lifecycle action, and the overflow disclosure. The
+lifecycle/Kopieren actions are their OWN forms (Enter in the edit form must never fire them) but ride
+this row's toolbar slot — a new action lands in that list, never as a new button position
+(learning G.9).{% endcomment %}
+<div class="recordrow">
+  <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
+  {% include "components/badge_lifecycle.html" with draft=values.is_draft only %}
+  {% comment %}The dirty register is a neutral <output> badge (amber is licensed ONLY on the ENTWURF
+  badge, register row 4) — enhancement-only: JS reveals it on the first edit, and the no-JS baseline
+  simply never shows it (catalog_form.js).{% endcomment %}
+  <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
+  <div role="toolbar" aria-label="Satzaktionen">
+    <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
+    {% if values.is_draft %}
+    {% comment %}Publishing is ONE click (owner ruling 5): the separate over-exposure preview gate
+    retired with the permanent exposure statement (the sheet ≥80rem, the Zugriff section below it),
+    so this posts the lifecycle action directly, CAS-guarded like every other write.{% endcomment %}
+    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ version }}">
+      <input type="hidden" name="aktion" value="veroeffentlichen">
+      <button type="submit">Veröffentlichen</button>
+    </form>
+    {% else %}
+    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
+      {% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ version }}">
+      <input type="hidden" name="aktion" value="zurueckziehen">
+      <button type="submit">Als Entwurf zurückziehen</button>
+    </form>
+    {% endif %}
+    {% comment %}The overflow: the row's rare actions. Same native <details> disclosure as the
+    header's "+ Neu …" (ONE pattern), so its panel is the licensed transient OVERLAY (register
+    row 12) and positions against THIS control row (law C12).{% endcomment %}
+    <details class="menu">
+      <summary>Mehr …</summary>
+      <ul>
+        <li><a href="{% url 'artikel-detail' values.ulid %}">Ansehen</a></li>
+        <li>
+          <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
+            {% csrf_token %}
+            <button class="link" type="submit">Kopieren</button>
+          </form>
+        </li>
+        <li><a href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
+        {% comment %}Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm
+        page (spec §7 — the destructive idiom lives on its own page, never inline).{% endcomment %}
+        {% if values.is_draft %}<li><a href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
+      </ul>
+    </details>
+  </div>
+</div>
+
+<main class="column">
 
   {% if conflict %}
   <section class="panel konflikt" aria-labelledby="konflikt-titel">
@@ -79,16 +145,6 @@ only.{% endcomment %}
   {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet hinweis — NOT loud
   (it is not an error; the save succeeded).{% endcomment %}
   {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
-
-  <header>
-    <h1>{{ values.title|default:"Ohne Titel" }}</h1>
-    <span>
-      {% include "components/badge_lifecycle.html" with draft=values.is_draft %}
-      {% comment %}Edit-header omits the hollow "ohne Signatur" slot — the Signatur INPUT on this same
-      screen carries absence (owner finding, signals-once). Show the mark only when a code exists.{% endcomment %}
-      {% if ref_code %}{% include "components/signatur_tab.html" with ref_code=ref_code %}{% endif %}
-    </span>
-  </header>
 
   {% comment %}HTMX (spec §5): the save hx-posts and swaps #form-region (panels + fields) from the
   same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
@@ -373,44 +429,6 @@ only.{% endcomment %}
       {% endfor %}
     </details>
 
-    {% comment %}Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
-    Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
-    (spec §7 — the destructive idiom lives on its own page, never inline). The dirty register is a
-    neutral <output> badge (amber is licensed ONLY on the ENTWURF badge, register row 4) —
-    enhancement-only, JS reveals it on the first edit.{% endcomment %}
-    <footer class="sticky">
-      <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
-      <div class="actions">
-        <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
-        {% if values.is_draft %}
-        <a class="button" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
-        {% endif %}
-      </div>
-    </footer>
-  </div>{# /#form-region #}
-
-  {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),
-  adjacent to the footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST
-  /vorschau) that re-renders this page with the preview panel at top; the panel's own Veröffentlichen
-  (gated by the confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen,
-  no preview.{% endcomment %}
-  <section class="lifecycle">
-    {% if values.is_draft %}
-    {# HTMX (spec §5): the preview swaps #form-region so the preview panel appears inline at top. #}
-    <form method="post" action="{% url 'artikel-vorschau' values.ulid %}"
-          hx-post="{% url 'artikel-vorschau' values.ulid %}"
-          hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
-      {% csrf_token %}
-      <button type="submit">Veröffentlichen</button>
-    </form>
-    {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="zurueckziehen">
-      <button type="submit">Als Entwurf zurückziehen</button>
-    </form>
-    {% endif %}
-  </section>
 </main>
+</div>{# /#form-region #}
 {% endblock %}

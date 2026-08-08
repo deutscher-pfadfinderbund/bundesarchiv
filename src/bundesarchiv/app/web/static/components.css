@@ -213,18 +213,22 @@
   [role="toolbar"] {
     --control-height: var(--touch-target);
   }
-  /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline */
-  .actions form {
+  /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline —
+     in a plain .actions row AND in a [role=toolbar] slot (the record row's lifecycle action), so
+     one rule covers both flavors */
+  :is(.actions, [role="toolbar"]) form {
     display: inline;
     margin: 0;
   }
-  /* icon-control hit-area mechanics, ONCE for every quiet icon link (toolbar slots, the pane ✕,
-     the facet remove, the chip ✕) — ink/hover stay per-site deltas. Inside a control row the
+  /* icon-control hit-area mechanics, ONCE for every quiet icon control (toolbar slots, the pane ✕,
+     the facet remove, the chip ✕) — ink/hover stay per-site deltas. Scoped to a toolbar's DIRECT
+     children: a toolbar may also own a disclosure whose dropped panel holds plain text links, and
+     those are overlay contents, not row controls. Inside a control row the
      row's --control-height knob is the size source (C8); outside one the --hit-fallback knob
      decides, defaulting to the full touch target (the pane ✕). The rail chip's ✕ is the ONE
      licensed compact deviation (owner 2026-08-07, rail round 2): .chip sets --hit-fallback so its
      ✕ is compact even in the demo exhibit, where no row knob exists. */
-  [role="toolbar"] a,
+  [role="toolbar"] > a,
   .pane header > a,
   .facet .remove,
   .chip > a {
@@ -341,6 +345,10 @@
      row is whatever positioned ancestor it sits in (layouts.css marks the header and the rail;
      the component library's exhibit column is its own row). */
   :is(.facet, .menu) > ul {
+    /* a dropped panel is a transient OVERLAY, not part of the control row it hangs from — the row's
+       (possibly compact) --control-height must not reach into it, so the knob is unset here for
+       BOTH panels and their controls fall back to the full --touch-target floor. */
+    --control-height: initial;
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
@@ -359,11 +367,6 @@
        never hide each other — components/facet_group.html */
     inset-inline-start: 0;
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
-    /* the dropped panel is a transient OVERLAY, not part of the rail's control row — the rail's
-       compact --control-height must not reach in (the compact license covers chips + their ✕
-       ONLY, owner 2026-08-07): unset the knob so the value rows' remove ✕ falls back to the
-       full --touch-target floor. */
-    --control-height: initial;
   }
   /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
      positioning exists, the panel drops from its OWN trigger and FLIPS its inline anchor when
@@ -462,11 +465,21 @@
     inset-inline-end: 0;
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
-  .menu li > a {
+  /* every entry in a menu panel reads as one list line, whether it is a link or the submit button of
+     an entry that must POST (Kopieren mutates, so it cannot be a link) — ONE declaration set, so a
+     POST entry can never look like a different kind of thing than its neighbours */
+  .menu li > a,
+  .menu li > form > button.link {
     display: block;
+    width: 100%;
+    text-align: start;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-s);
     white-space: nowrap;
+  }
+  .menu li > form {
+    display: block;
+    margin: 0;
   }
 
   /* ---- filter chip: one ACTIVE filter on the rail — the register-row-3 INVERSION mark (the
