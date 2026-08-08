@@ -259,10 +259,6 @@ def _p_lebenszyklus(c: _Corpus) -> str:
     return f"/artikel/{c.article_ulid}/lebenszyklus"
 
 
-def _p_vorschau(c: _Corpus) -> str:
-    return f"/artikel/{c.article_ulid}/vorschau"
-
-
 def _p_medien_verschieben(c: _Corpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/verschieben"
 
@@ -370,13 +366,6 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # retract (zurueckziehen) + CAS version → 302 to the read view
         post_data=None,  # filled at probe time (needs the corpus version) — see _lifecycle_post_data
-    ),
-    "artikel-vorschau": Route(
-        build_path=_p_vorschau,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=FOUR_OH_FOUR,  # GET disallowed
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=OK,  # preview panel
     ),
     "artikel-medien-verschieben": Route(
         build_path=_p_medien_verschieben,

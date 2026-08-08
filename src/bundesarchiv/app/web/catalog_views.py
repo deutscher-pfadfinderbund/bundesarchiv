@@ -11,7 +11,10 @@ These views only resolve the viewer, gate, marshal the form context, and render.
   re-renders state B (verbatim errors, preserved values).
 - ``article_edit`` — ``GET/POST /artikel/<ulid>/bearbeiten``: GET renders the full form seeded from
   the stored Article; POST parses + saves (CAS on ``expected_version``). A ``Conflict`` re-renders
-  the "Inzwischen geändert" panel (state G) with the just-submitted values preserved.
+  the "Inzwischen geändert" panel (state G) with the just-submitted values preserved. Since the form
+  wave the render also carries the READER'S SHEET — the reader's view of the stored record plus the
+  exposure statement (owner rulings 1 + 5, 2026-08-08) — which is why there is no separate
+  over-exposure preview route any more.
 
 The ``<ulid>`` is validated in-view via ``is_valid_ulid`` (never a route converter), so a malformed
 value collapses to the same 404 as an absent one. ``neu`` is registered before ``<str:ulid>`` in
@@ -743,7 +746,16 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     applies to lifecycle too). ``aktion=veroeffentlichen`` → PUBLISHED; ``aktion=zurueckziehen`` →
     DRAFT. Archivist-only; non-archivist / malformed / absent / GET → the byte-identical 404. A
     ``Conflict`` re-renders the edit form's state G (the ONE catch site is ``save_catalog_form``).
-    An unknown aktion is a no-op 404 (never mutate on a bad verb)."""
+    An unknown aktion is a no-op 404 (never mutate on a bad verb).
+
+    Publishing is ONE click (owner ruling 5, 2026-08-08): the separate over-exposure preview gate —
+    POST /vorschau, its panel and the required ``geprueft`` confirm checkbox — retired when the
+    exposure statement became PERMANENT chrome on the edit surface (the reader's sheet above 80rem,
+    the card's Zugriff section below it). The archivist reads who gains sight while cataloging instead
+    of buying that fact with three extra interactions at the end (catechism Q10: a preview is an
+    enhancement, never a toll gate). Nothing else about publishing changed: the audience computation,
+    the CAS guard, the state-H index-lag hinweis, the conflict panel and the archivist-only gate all
+    stand."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
@@ -751,16 +763,6 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     lifecycle = _lifecycle_for(request.POST.get("aktion", ""))
     if lifecycle is None:
         return _not_found()  # unknown verb → no mutation, indistinguishable 404
-    # Publishing REQUIRES the over-exposure confirm (spec §6.2): the checkbox rides the /vorschau
-    # panel form, so a publish POST without it never saw the preview — re-show the preview instead
-    # of publishing blind (server-enforced, not just the client-side `required` attr).
-    if lifecycle is Lifecycle.PUBLISHED and request.POST.get("geprueft") != "1":
-        collections = _collections(store)
-        context = _edit_context_from_article(
-            stored.article, stored.version, collections, autofocus_first_empty=False
-        )
-        context["vorschau"] = _preview_view_model(store, stored.article)
-        return render(request, "workbench/artikel_bearbeiten.html", context)
     expected_version = catalog.parse_version(request.POST.get("expected_version", ""))
     mutated = replace(stored.article, lifecycle=lifecycle)
     outcome = catalog.save_catalog_form(store, mutated, expected_version)
@@ -789,61 +791,6 @@ def _lifecycle_for(aktion: str) -> Lifecycle | None:
             return Lifecycle.DRAFT
         case _:
             return None
-
-
-# --- /artikel/<ulid>/vorschau — over-exposure preview (Slice C, spec §6.2) ---------
-
-
-def article_vorschau(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/vorschau`` — the over-exposure preview (highest-risk oracle, spec §8):
-    ``preview()`` BYPASSES the lifecycle gate by design, so THIS ROUTE GATE is the sole barrier — a
-    non-archivist / malformed / absent / GET request must get the byte-identical 404 and NEVER the
-    widget content. Archivist: re-render the edit form with the neutral ``c-panel--vorschau`` showing
-    who gains sight after publication + the required confirm checkbox that gates Veröffentlichen. No
-    save happens here (it is a preview)."""
-    gated = _load_gated(request, ulid)
-    if gated is None or request.method != "POST":
-        return _not_found()
-    store, stored = gated
-    collections = _collections(store)
-    context = _edit_context_from_article(
-        stored.article, stored.version, collections, autofocus_first_empty=False
-    )
-    context["vorschau"] = _preview_view_model(store, stored.article)
-    return render(request, "workbench/artikel_bearbeiten.html", context)
-
-
-@dataclass(frozen=True, slots=True)
-class _PreviewViewModel:
-    """The over-exposure preview panel data (spec §6.2), built from the domain ``preview()``. NEUTRAL
-    by construction — no loud color; the ``public`` flag drives WEIGHT emphasis only. ``audience`` is
-    the human-German who-gains-sight string; ``fields`` the visible-field list."""
-
-    audience: str
-    public: bool
-    fields: str
-
-
-def _preview_view_model(store: ObjectStore, article: Article) -> _PreviewViewModel | None:
-    """Build the preview panel view-model from the domain ``preview(article, chain)`` — server-
-    computed, archivist-only. Returns ``None`` if the collection chain cannot resolve (fail-closed:
-    no panel rather than a misleading one). The who-sees decision stays entirely in the domain."""
-    try:
-        chain = resolve_chain(article.collection_id, _collection_map(store))
-    except DomainError:
-        return None
-    result = preview(article, chain)
-    return _PreviewViewModel(
-        audience=_preview_audience_label(result),
-        public=result.public,
-        fields=_preview_fields_label(result),
-    )
-
-
-def _collection_map(store: ObjectStore) -> dict[Ulid, Collection]:
-    """Every saved Collection as a ULID→Collection map for ``resolve_chain`` (chain resolution is
-    injected the lookup, never fetches — domain purity)."""
-    return {c.ulid: c for c in CollectionRepository(store).load_all()}
 
 
 # --- the reader's sheet on the edit surface (owner rulings 1 + 5, 2026-08-08) -------

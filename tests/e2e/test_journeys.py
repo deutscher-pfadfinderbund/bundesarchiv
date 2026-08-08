@@ -6,7 +6,7 @@ The ``archivist_page`` / ``public_page`` fixtures (conftest) carry the right vie
 corpus is the canonical one from ``_corpus``.
 
 Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two contexts) · Kopieren
-loop · Löschen confirm · publish preview gate · bulk select→confirm→partial result.
+loop · Löschen confirm · one-click publish · bulk select→confirm→partial result.
 """
 
 from pathlib import Path
@@ -773,17 +773,42 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     )  # → workbench
 
 
-# --- publish preview gate ----------------------------------------------------------
+# --- publish: one click, exposure permanently on screen -----------------------------
 
 
-def test_publish_requires_over_exposure_confirm(archivist_page: Page, live_workbench: str) -> None:
+def test_publish_is_one_click_with_the_exposure_on_screen(
+    archivist_page: Page, live_workbench: str
+) -> None:
     page = archivist_page
+    # Owner ruling 5 (2026-08-08): the over-exposure preview GATE retired — the fact it used to
+    # charge three interactions for is on screen the whole time, in the reader's sheet beside the
+    # card, in the future tense while the record is a draft. Publishing is then one click.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
-    # _create_draft already set the required Medienart; open the over-exposure preview
+    expect(page.locator(".pane")).to_contain_text("Nach Veröffentlichung sichtbar für")
     page.click('button:has-text("Veröffentlichen")')
-    # the over-exposure preview panel appears (neutral); the confirm checkbox gates the final button
-    expect(page.get_by_text("Wer bekommt nach Veröffentlichung Einblick?")).to_be_visible()
-    expect(page.get_by_text("Ich habe geprüft, wer Einblick erhält.")).to_be_visible()
+    # straight to the read view, published — no panel, no checkbox, no second Veröffentlichen
+    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
+
+
+def test_exposure_statement_is_on_screen_at_every_width(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # ONE renderer, TWO placements (law C7): the reader's sheet carries the exposure statement where
+    # the pane's 80rem switch shows the pane, and the card's Zugriff section carries it below that —
+    # so the fact is on screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are
+    # server-rendered: this holds with JS off too.
+    page = archivist_page
+    url = live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
+    for width, in_sheet in ((1440, True), (1000, False)):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(url)
+        if not in_sheet:
+            page.click('summary:has-text("Zugriff")')  # below the switch it lives in the card
+        shown = page.locator(".einblick:visible")
+        assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
+        expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")
+        assert page.locator(".pane:visible").count() == (1 if in_sheet else 0)
 
 
 # --- bulk select → confirm → result ------------------------------------------------

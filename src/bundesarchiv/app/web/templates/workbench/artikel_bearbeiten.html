@@ -127,31 +127,6 @@ the pane.{% endcomment %}
   </section>
   {% endif %}
 
-  {% comment %}Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is
-  emphasized by WEIGHT only (a bare <strong>). The required confirm checkbox gates Veröffentlichen
-  (server re-checks it).{% endcomment %}
-  {% if vorschau %}
-  <section class="panel" aria-labelledby="vorschau-titel">
-    <h2 id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
-    <p>Nach Veröffentlichung sichtbar für: {{ vorschau.audience }}.</p>
-    <p>{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
-    {% if vorschau.public %}<p><strong>Öffentlich sichtbar</strong></p>{% endif %}
-    <p class="hint">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="veroeffentlichen">
-      <label>
-        <input type="checkbox" name="geprueft" value="1" required>
-        <span>Ich habe geprüft, wer Einblick erhält.</span>
-      </label>
-      <div class="actions">
-        <button class="primary" type="submit">Veröffentlichen</button>
-      </div>
-    </form>
-  </section>
-  {% endif %}
-
   {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet hinweis — NOT loud
   (it is not an error; the save succeeded).{% endcomment %}
   {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}

@@ -393,8 +393,9 @@
   /* ---- panel: shared TRUE-SHEET base (register row 8 — confirm panels are sheets: tint +
      the one resting-contact shadow); .konflikt is the CAS "Inzwischen geändert" case (spec §6.1):
      red LEFT border + error heading only — NOT a flood fill; the diff stays neutral. The
-     over-exposure preview panel shares the base with a neutral heading — confirming
-     who-gains-sight is neither draft nor error (emphasis by WEIGHT only, spec §6.2). ---- */
+     over-exposure preview panel that used to share this base is gone (owner ruling 5, 2026-08-08 —
+     one-click publish), and its confirm-checkbox row rule went with it rather than lingering as
+     dead styling (catechism Q6). ---- */
   .panel {
     padding: var(--space-4);
     background: var(--sheet);
@@ -415,15 +416,6 @@
   }
   .panel p {
     margin: 0 0 var(--space-2);
-    font: var(--type-body);
-    color: var(--on-surface);
-  }
-  /* the required confirm checkbox row gates the enabled Veröffentlichen (spec §6.2) */
-  .panel label {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
     font: var(--type-body);
     color: var(--on-surface);
   }

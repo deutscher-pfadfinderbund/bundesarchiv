@@ -4,8 +4,10 @@ Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
-- ``/artikel/<ulid>/lebenszyklus`` POST — publish (gated by the over-exposure confirm) / unpublish.
-- ``/artikel/<ulid>/vorschau`` POST — the over-exposure preview (highest-risk oracle).
+- ``/artikel/<ulid>/lebenszyklus`` POST — publish / unpublish. Publishing is ONE click since the
+  form wave (owner ruling 5, 2026-08-08): the separate over-exposure preview route + its ``geprueft``
+  confirm checkbox retired when the exposure statement became permanent chrome on the edit surface.
+  The audience computation itself did not move — it is what the edit render now shows.
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
@@ -193,31 +195,44 @@ def test_loeschen_denied_leaves_article(corpus: _Corpus, viewer: Viewer, method:
 # --- Lebenszyklus (publish / unpublish) --------------------------------------------
 
 
-def test_publish_with_confirm_sets_published(corpus: _Corpus) -> None:
+def test_publish_is_one_click(corpus: _Corpus) -> None:
+    # Owner ruling 5 (2026-08-08): ONE click publishes. The retired gate demanded a `geprueft`
+    # checkbox that rode a separate /vorschau round trip; a publish POST without it now simply
+    # publishes, because the archivist has been reading the exposure statement all along.
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(
             f"/artikel/{_DRAFT}/lebenszyklus",
-            {
-                "aktion": "veroeffentlichen",
-                "geprueft": "1",
-                "expected_version": str(corpus.draft_version),
-            },
+            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
         )
     assert response.status_code == 302
     assert response["Location"] == f"/artikel/{_DRAFT}"
     assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.PUBLISHED
 
 
-def test_publish_without_confirm_reshows_preview_and_stays_draft(corpus: _Corpus) -> None:
+def test_edit_form_states_the_exposure_permanently(corpus: _Corpus) -> None:
+    # What replaced the gate: the who-gains-sight fact is on the edit render itself (owner ruling 5),
+    # computed by the domain preview() — for a DRAFT in the future tense, since a draft is
+    # archivist-only until it is published. This is the fact the archivist used to buy with three
+    # extra interactions.
     with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert response.status_code == 200  # re-render, not a redirect
-    assert "Wer bekommt nach Veröffentlichung Einblick?" in response.content.decode()
-    # NOT published — the confirm gate held
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
+        body = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/bearbeiten").content.decode()
+    assert "Nach Veröffentlichung sichtbar für" in body
+    assert "Öffentlich" in body  # the PUB collection is PUBLIC, so publishing would expose it
+    assert "Sichtbare Felder:" in body
+    assert "Verborgen: Standort, interne Felder." in body
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+def test_edit_form_exposure_is_archivist_only(corpus: _Corpus, viewer: Viewer) -> None:
+    # The exposure statement is the SAME oracle the retired /vorschau route was: preview() bypasses
+    # the lifecycle gate by design, so it must never reach a non-archivist. Its only barrier is the
+    # edit route's own archivist gate — deny is a plain 404 that reveals nothing.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(viewer).get(f"/artikel/{_DRAFT}/bearbeiten")
+    assert_denied(response)
+    body = response.content.decode()
+    assert "sichtbar für" not in body
+    assert "Sichtbare Felder" not in body
 
 
 def test_unpublish_sets_draft(corpus: _Corpus) -> None:
@@ -251,11 +266,7 @@ def test_lifecycle_stale_version_shows_conflict_panel(corpus: _Corpus) -> None:
         # now publish at the STALE version -> Conflict -> state G
         loser = archivist.post(
             f"/artikel/{_DRAFT}/lebenszyklus",
-            {
-                "aktion": "veroeffentlichen",
-                "geprueft": "1",
-                "expected_version": str(corpus.draft_version),
-            },
+            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
         )
     assert loser.status_code == 200
     assert "Inzwischen geändert" in loser.content.decode()
@@ -266,11 +277,7 @@ def test_lifecycle_denied_leaves_lifecycle(corpus: _Corpus, viewer: Viewer) -> N
     with override_settings(**_settings(corpus)):
         response = _client_as(viewer).post(
             f"/artikel/{_DRAFT}/lebenszyklus",
-            {
-                "aktion": "veroeffentlichen",
-                "geprueft": "1",
-                "expected_version": str(corpus.draft_version),
-            },
+            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
         )
     assert_denied(response)
     assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
@@ -302,45 +309,8 @@ def test_lifecycle_stale_save_against_deleted_article_is_404(
     with override_settings(**_settings(corpus)):
         response = _client_as(Archivist()).post(
             f"/artikel/{_DRAFT}/lebenszyklus",
-            {
-                "aktion": "veroeffentlichen",
-                "geprueft": "1",
-                "expected_version": str(corpus.draft_version),
-            },
+            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
         )
-    assert_denied(response)
-
-
-# --- Vorschau (the highest-risk oracle) --------------------------------------------
-
-
-def test_vorschau_renders_preview_panel_for_archivist(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(f"/artikel/{_DRAFT}/vorschau")
-    assert response.status_code == 200
-    body = response.content.decode()
-    assert "Wer bekommt nach Veröffentlichung Einblick?" in body
-    assert "Ich habe geprüft, wer Einblick erhält." in body  # the confirm checkbox
-    assert "Sichtbare Felder:" in body
-    # PUB collection is PUBLIC → the article would be publicly visible
-    assert "Öffentlich" in body
-
-
-@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_vorschau_denied_is_404_never_widget(corpus: _Corpus, viewer: Viewer) -> None:
-    # THE highest-risk oracle: preview() bypasses the lifecycle gate, so the ROUTE gate is the sole
-    # barrier. A non-archivist must get a 404 and NEVER the widget content.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).post(f"/artikel/{_DRAFT}/vorschau")
-    assert_denied(response)
-    body = response.content.decode()
-    assert "Einblick" not in body  # no widget content leaked
-    assert "Sichtbare Felder" not in body
-
-
-def test_vorschau_get_is_404(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/vorschau")
     assert_denied(response)
 
 
@@ -353,7 +323,6 @@ def test_vorschau_get_is_404(corpus: _Corpus) -> None:
         "/artikel/not-a-ulid/kopieren",
         "/artikel/not-a-ulid/loeschen",
         "/artikel/not-a-ulid/lebenszyklus",
-        "/artikel/not-a-ulid/vorschau",
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/loeschen",  # well-formed but absent
     ],
 )
