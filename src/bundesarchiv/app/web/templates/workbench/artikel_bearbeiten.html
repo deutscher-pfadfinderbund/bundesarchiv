@@ -145,10 +145,18 @@ the pane.{% endcomment %}
   register must hold real <form> children and forms cannot nest, so the DOM splits at the drawer
   while the CARD does not. Gruppe 6/7 are wired back via form="bearbeiten-form" on every field.{% endcomment %}
   <div class="karte">
+  {% comment %}hx-disinherit is load-bearing, not tidiness: htmx INHERITS hx-target/hx-select/hx-swap
+  down the tree, so the two small GET enhancements inside this form (the Dokumenttyp option list, the
+  Datierung echo) inherited hx-select="#form-region" — and their responses are an <option> list and
+  one <span>, which contain no #form-region at all. htmx selected NOTHING out of them and swapped
+  exactly that in: changing Medienart emptied the Dokumenttyp select outright, and typing a Datierung
+  deleted the echo's own swap target. Same class as the header's search (a swap selector that does not
+  resolve where the enhancement fires), so it dies the same way — at the boundary, once.{% endcomment %}
   <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
-        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
+        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML"
+        hx-disinherit="hx-target hx-select hx-swap">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
@@ -236,9 +244,13 @@ the pane.{% endcomment %}
     {% comment %}Gruppe 3 — Herkunft: rarely touched after cataloging, so it FOLDS — but its summary
     carries its own values, so folding hides nothing (owner ruling 4). The values come from the SAME
     context the fields print (one renderer per fact, law C7 — nothing is re-formatted here), and the
-    value line disappears while the section is open, so no fact is ever on screen twice
-    (Q2).{% endcomment %}
-    <details>
+    value line disappears while the section is open, so no fact is ever on screen twice (Q2).
+
+    [open] is SERVER-DECIDED (catalog_views._open_sections) from the same error/autofocus context the
+    fields below are rendered with: a fold may hide neither a validation message nor the autofocus
+    target (a closed <details> has no focusable contents, so `autofocus` inside one focuses nothing).
+    Same mechanism on Zugriff and Weitere Angaben — one rule, every fold.{% endcomment %}
+    <details{% if "herkunft" in open_sections %} open{% endif %}>
       <summary>Herkunft
         <span class="werte">
           {% include "workbench/_wertmarke.html" with label="Autor" value=values.creator only %}
@@ -278,7 +290,7 @@ the pane.{% endcomment %}
     EXPOSURE statement (who gains sight) lives inside: below the pane's 80rem switch this is where
     the archivist reads it, and above it the reader's sheet carries the same renderer's output — so
     the fact is on screen exactly once at every width.{% endcomment %}
-    <details>
+    <details{% if "zugriff" in open_sections %} open{% endif %}>
       <summary>Zugriff
         <span class="werte">
           <span>{{ sichtbarkeit_caption }}</span>
@@ -434,7 +446,7 @@ the pane.{% endcomment %}
     {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded like Herkunft
     and Zugriff, its summary naming the keys it holds so folding hides nothing (ruling 4). Its fields
     are wired back to #bearbeiten-form via form=.{% endcomment %}
-    <details id="custom-bag">
+    <details id="custom-bag"{% if "weitere" in open_sections %} open{% endif %}>
       <summary>Weitere Angaben
         <span class="werte">
           {% for key in custom_keys %}<span>{{ key }}</span>{% empty %}<span class="leer">keine</span>{% endfor %}

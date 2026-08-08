@@ -430,6 +430,9 @@ def _edit_context(
         # summary can never spell a fact differently from its field (law C7).
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
         "custom_keys": [key for key, _ in _custom_rows(values) if key],
+        # Which folded sections render OPEN: the ones holding an error message or the autofocus
+        # target, so neither can end up inside a fold (see _FOLDED_SECTIONS).
+        "open_sections": _open_sections(errors, autofocus),
         # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
         # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the
         # pane's 80rem switch, and the Zugriff section below it.
@@ -604,6 +607,29 @@ _FOCUSABLE_FIELDS: tuple[str, ...] = (
     "subject_place",
     "physical_location",
 )
+
+
+# The record card's FOLDED sections (owner ruling 4: rarely-used sections stay folded, their values
+# in the summary) and the fields each one HOLDS. Folding may never hide data — and it may never hide a
+# MESSAGE either: a validation error rendered inside a folded section is invisible, and an `autofocus`
+# inside one focuses nothing at all (a closed <details> has no focusable contents). Both are decided
+# here, from the SAME error/autofocus context the fields are rendered with, so the fix is one rule
+# over every folded section rather than a patch per instance. ``custom`` is the ``errors`` key for the
+# bag as a whole (it maps to no single input), ``custom_key``/``custom_value`` are its inputs.
+# test_folded_sections_own_every_field_they_hold walks the render and fails if a field moves into a
+# fold without joining this map.
+_FOLDED_SECTIONS: tuple[tuple[str, frozenset[str]], ...] = (
+    ("herkunft", frozenset({"creator", "subject_place", "physical_location"})),
+    ("zugriff", frozenset({"sichtbarkeit", "gruppen"})),
+    ("weitere", frozenset({"custom", "custom_key", "custom_value"})),
+)
+
+
+def _open_sections(errors: catalog.FormErrors, autofocus: str) -> frozenset[str]:
+    """The folded sections that must render OPEN: the ones holding an errored field or the autofocus
+    target. Empty on a clean render, so the rare sections stay folded as ruled."""
+    marked = set(errors) | ({autofocus} if autofocus else set())
+    return frozenset(name for name, fields in _FOLDED_SECTIONS if fields & marked)
 
 
 def _first_empty_field(values: dict[str, object]) -> str:

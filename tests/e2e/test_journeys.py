@@ -96,6 +96,27 @@ def test_search_works_from_a_screen_without_the_results_region(
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
 
 
+def test_the_edit_forms_two_small_swaps_land_their_own_partials(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The SAME class as the header's search, found by sweeping it (learning G.27): an htmx swap
+    # selector that does not resolve where the enhancement fires. htmx inherits hx-select down the
+    # tree, so #bearbeiten-form's hx-select="#form-region" reached the two little GET enhancements
+    # inside it — whose responses are an <option> list and one <span>, containing no #form-region.
+    # htmx selected nothing and swapped exactly that: picking a Medienart EMPTIED the Dokumenttyp
+    # select (no type could be chosen at all with JS on, while the no-JS baseline worked), and typing
+    # a Datierung deleted the echo's own target. Both are enhancement-only, so no test that runs the
+    # server saw it.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Fotografie
+    dokumenttyp = page.locator("#dokumenttyp-select")
+    expect(dokumenttyp.locator("option")).to_have_count(5)  # the empty option + Fotografie's four
+    expect(dokumenttyp).to_contain_text("Lageraufnahme")
+    expect(dokumenttyp).not_to_contain_text("Wanderkarte")  # ...and only that Medienart's types
+    page.locator('input[name="date"]').press_sequentially("1962-07")
+    expect(page.locator("#datierung-echo")).to_have_text("Juli 1962")
+
+
 def test_ledger_headers_compute_one_uniform_treatment(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -433,7 +454,9 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
     8-character ceiling, an unbounded free-text Titel, the widest vocabulary Dokumenttyp, a full-date
     EDTF interval, and an institutional Autor/Ort pair (what the record card's folded summaries have
     to absorb). Seeded per test (not into the shared corpus) so the count-asserting journeys keep
-    their canonical hit count."""
+    their canonical hit count. Every single-line field EXCEPT Standort carries a value, which also
+    makes this the record whose autofocus target sits behind the Herkunft fold
+    (test_a_fold_never_swallows_the_autofocus)."""
     from bundesarchiv.domain.edtf import EdtfDate
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
@@ -451,6 +474,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
             media_type="Plakat",
             document_type=_LONG_TYP,
             date=EdtfDate("1948-01-01/1952-12-31"),
+            tags=("pfingstlager",),
             creator=_LONG_CREATOR,
             subject_place=_LONG_PLACE,
         ),
@@ -1115,6 +1139,54 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
         if set(f["sides"]) != {f["ink"]}
     ]
     assert not defects, "an error state lost to the resting look (C13/G.29):\n" + "\n".join(defects)
+
+
+def test_a_fold_hides_neither_the_error_nor_the_focus(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Owner ruling 4 folds the rare sections WITH their values, so folding hides no DATA. It must hide
+    # no MESSAGE either: Sichtbarkeit=Gruppe(n) with an empty Gruppen field re-rendered the message AND
+    # the errored input inside the folded Zugriff section, with `autofocus` focusing nothing (a closed
+    # <details> has no focusable contents). The server decides [open] from the same error context that
+    # renders the message, and the summary says so via :has(.error) — proven in the browser, because
+    # "on screen" and "focused" are browser facts.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Fehler im Fach")
+    page.click('summary:has-text("Zugriff")')
+    page.select_option('select[name="sichtbarkeit"]', "groups")  # Gruppen stays empty -> invalid
+    page.click('button:has-text("Speichern")')
+    # the swap discards whatever the archivist had opened: this is the SERVER's fold state
+    zugriff = page.locator("details", has=page.locator('input[name="gruppen"]'))
+    expect(zugriff).to_have_attribute("open", "")
+    expect(zugriff.locator(".error")).to_be_visible()
+    expect(zugriff.locator(".error")).to_have_text("Bitte mindestens eine Gruppe angeben.")
+    marker = page.evaluate(
+        """() => {
+            const d = [...document.querySelectorAll('.karte details')]
+                .find((el) => el.querySelector('[name=gruppen]'));
+            return getComputedStyle(d.querySelector('summary'), '::after').content;
+        }"""
+    )
+    assert "Fehler" in marker, f"the opened section's summary does not say why: {marker}"
+
+
+def test_a_fold_never_swallows_the_autofocus(
+    archivist_page: Page,
+    live_workbench: str,
+    _e2e_root: Path,
+    django_db_blocker: DjangoDbBlocker,
+) -> None:
+    # The other half of the same class: _FOCUSABLE_FIELDS scans for the first EMPTY field and three of
+    # them (Autor, Ort, Standort) sit behind the Herkunft fold, so on a well-catalogued record the
+    # server told the browser to focus an input inside a closed <details> — which focuses NOTHING. The
+    # fixture is the realistic long-content record (H.7): a Plakat with everything filled except its
+    # Standort, which is exactly the state an archivist reaches at the end of cataloguing.
+    _seed_long_content(_e2e_root, django_db_blocker)
+    page = archivist_page
+    page.goto(live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten")
+    standort = page.locator('input[name="physical_location"]')
+    expect(standort).to_have_attribute("autofocus", "")  # the case this guard is about
+    expect(standort).to_be_focused()
 
 
 #: Every label on the record card, with its own box width and the width its text WANTS. The card's

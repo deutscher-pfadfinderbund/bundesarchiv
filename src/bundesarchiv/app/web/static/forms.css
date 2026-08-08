@@ -117,6 +117,17 @@
   :is(.karte, .karte > form) > details[open] > summary > .werte {
     display: none;
   }
+  /* a folded section that CONTAINS an error renders OPEN (the view decides [open] from the same error
+     context that renders the message — catalog_views._open_sections), and its summary SAYS so: an
+     opened section is otherwise indistinguishable from one the archivist opened themselves, and the
+     message may sit a screenful below the summary. Read off the section's own contents with :has(),
+     so no server flag and no JS can disagree with where the .error actually is. Red is register
+     row 5's licensed channel (errors); the " · " is the .werte line's own separator idiom, and the
+     summary's label treatment uppercases it like every other word on that line. */
+  :is(.karte, .karte > form) > details:has(.error) > summary::after {
+    content: " · Fehler";
+    color: var(--error);
+  }
   .werte > span + span::before {
     content: " · ";
   }
