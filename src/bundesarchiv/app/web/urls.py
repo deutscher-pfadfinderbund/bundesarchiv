@@ -20,7 +20,6 @@ from bundesarchiv.app.web.browse_views import (
     serve_forms_css,
     serve_htmx,
     serve_layouts_css,
-    serve_ledger_pane_js,
     serve_tokens,
     workbench,
 )
@@ -32,11 +31,9 @@ from bundesarchiv.app.web.catalog_views import (
     article_delete,
     article_dokumenttypen,
     article_edit,
-    article_lifecycle,
     article_medien_entfernen,
     article_medien_hochladen,
     article_medien_verschieben,
-    article_vorschau,
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
@@ -51,7 +48,6 @@ from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 urlpatterns = [
     path("", workbench, name="workbench"),
     path("static/htmx.min.js", serve_htmx, name="static-htmx"),
-    path("static/ledger_pane.js", serve_ledger_pane_js, name="static-ledger-pane"),
     path("static/catalog_form.js", serve_catalog_form_js, name="static-catalog-form"),
     path("static/catalog_bulk.js", serve_catalog_bulk_js, name="static-catalog-bulk"),
     path("static/tokens.css", serve_tokens, name="static-tokens"),
@@ -71,8 +67,6 @@ urlpatterns = [
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
-    path("artikel/<str:ulid>/lebenszyklus", article_lifecycle, name="artikel-lebenszyklus"),
-    path("artikel/<str:ulid>/vorschau", article_vorschau, name="artikel-vorschau"),
     path(
         "artikel/<str:ulid>/medien/verschieben",
         article_medien_verschieben,

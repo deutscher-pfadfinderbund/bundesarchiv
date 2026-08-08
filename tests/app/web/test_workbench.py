@@ -10,6 +10,7 @@ These need Postgres (they call ``search``); the ``corpus`` fixture indexes once 
 on teardown (the shared ``indexed_corpus`` isolation mechanism).
 """
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
@@ -68,7 +69,7 @@ class _Corpus:
                 "Öffentliches Foto der Fahrten",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 2",
+                "B2",
                 "Foto",
                 "Fotografie",
                 ("fahrten",),
@@ -79,7 +80,7 @@ class _Corpus:
                 "Fahrtenbericht vom Bundeslager",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 3",
+                "B3",
                 "Foto",
                 "Bericht",
                 ("lager",),
@@ -90,7 +91,7 @@ class _Corpus:
                 "Undatiertes Liederheft",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "B 4",
+                "B4",
                 "Schrifttum",
                 "Liederheft",
                 ("lieder",),
@@ -101,7 +102,7 @@ class _Corpus:
                 "Vertrauliche Mitgliederakte",
                 "AKTEN",
                 Lifecycle.PUBLISHED,
-                "A 5",
+                "A5",
                 "Akte",
                 "Schriftstück",
                 ("mitglieder",),
@@ -112,19 +113,20 @@ class _Corpus:
                 "Entwurf einer Chronik",
                 "FOTOS",
                 Lifecycle.DRAFT,
-                "D 1",
+                "D1",
                 "Akte",
                 "Chronik",
                 ("entwurf",),
                 EdtfDate("2010"),
             ),
-            # Realistic LONG Signaturen — the SIG column must size to content, never truncate these.
+            # Signaturen at the DOMAIN CEILING (owner 2026-08-07: no spaces, 8 characters is the
+            # practical top) — the SIG column must size to content and render these in full.
             (
                 "LONGSIG1",
                 "Fahrtenmappe mit Unterakte",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "F 12/3-b",
+                "F12/3-b",
                 "Foto",
                 "Fotografie",
                 ("fahrten",),
@@ -135,7 +137,7 @@ class _Corpus:
                 "Historischer Bestand 1848",
                 "FOTOS",
                 Lifecycle.PUBLISHED,
-                "BA 1848/II",
+                "BA1848/2",
                 "Druck",
                 "Druck",
                 ("historisch",),
@@ -172,7 +174,7 @@ class _Corpus:
                 title="Protokoll der Vorstandssitzung",
                 collection_id="VORSTAND",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="V 2",
+                ref_code="V2",
                 media_type="Akte",
                 document_type="Protokoll",
                 tags=("vorstand",),
@@ -195,7 +197,7 @@ class _Corpus:
                 title="Vorschau Sommerfahrt",
                 collection_id="FOTOS",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="P 1",
+                ref_code="P1",
                 media_type="Foto",
                 document_type="Fotografie",
                 tags=("vorschau",),
@@ -210,7 +212,7 @@ class _Corpus:
                 title="Vorschau Mitgliederakte",
                 collection_id="AKTEN",
                 lifecycle=Lifecycle.PUBLISHED,
-                ref_code="P 2",
+                ref_code="P2",
                 media_type="Akte",
                 document_type="Schriftstück",
                 tags=("vorschau",),
@@ -403,12 +405,17 @@ def test_floored_fields_present_for_archivist_only_where_intended(corpus_root: P
 
 
 @pytest.mark.django_db
-def test_visibility_column_and_strings_only_for_archivist(corpus_root: Path) -> None:
-    # The SICHTBARKEIT column header + its strings (incl. the group name) are archivist chrome.
+def test_visibility_column_renders_for_nobody(corpus_root: Path) -> None:
+    # The SICHTBARKEIT column died entirely (owner 2026-08-07): no header, no cells, no badges —
+    # for ANY viewer. Quiet default: ÖFFENTLICH renders nothing anywhere in the ledger. The leak
+    # half of the old contract still holds a fortiori: group names never reach a non-archivist.
     arch = _get(corpus_root, Archivist()).content.decode()
-    assert "Sichtbarkeit" in arch
-    assert "Gruppe: vorstand" in arch  # the GROUPS row's visibility string, archivist-only
-    assert "Öffentlich" in arch and "Alle Mitglieder" in arch
+    assert "Sichtbarkeit" not in arch
+    assert "Gruppe: vorstand" not in arch
+    assert "Alle Mitglieder" not in arch
+    # the quiet default: no ÖFFENTLICH badge string in the ledger (">Öffentlich<" as a text node;
+    # the corpus title "Öffentliches Foto…" legitimately contains the bare substring)
+    assert ">Öffentlich<" not in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(corpus_root, viewer).content.decode()
         assert "Sichtbarkeit" not in body, f"[{label}] SICHTBARKEIT column header leaked"
@@ -424,7 +431,7 @@ def test_entwurf_badge_and_bearbeiten_only_for_archivist(corpus_root: Path) -> N
         body = _get(corpus_root, viewer).content.decode()
         assert "Bearbeiten" not in body, f"[{label}] Bearbeiten action leaked"
         # The draft ROW is already scope-hidden; this pins the BADGE chrome is gone too.
-        assert "c-badge--entwurf" not in body, f"[{label}] ENTWURF badge chrome leaked"
+        assert 'class="badge entwurf"' not in body, f"[{label}] ENTWURF badge chrome leaked"
 
 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
@@ -460,14 +467,49 @@ def test_media_facet_filter_narrows_results(corpus_root: Path) -> None:
     assert "Öffentliches Foto" not in body  # a Foto is excluded
 
 
+@pytest.mark.django_db
+def test_active_filter_renders_rail_chip_with_labeled_remove(corpus_root: Path) -> None:
+    # The filter rail (owner 2026-08-07: the PRIMARY filter interaction): every active filter
+    # renders as a chip whose remove link carries the German accessible name — the user contract
+    # (tests/CLAUDE.md: verbatim UI strings are assertable; the styling is design-gate territory).
+    body = _get(corpus_root, Public(), "medienart=Schrifttum").content.decode()
+    assert 'aria-label="Filter entfernen: Schrifttum"' in body
+    # no active filter → no chip remove link at all
+    bare = _get(corpus_root, Public()).content.decode()
+    assert "Filter entfernen:" not in bare
+    # ZERO-HIT filter: the value vanishes from the recomputed facet counts (no active dropdown
+    # row), but the chip derives from the URL state — the empty state says "Entferne einzelne
+    # Filter", so the removal affordance must survive exactly there.
+    empty = _get(corpus_root, Public(), "medienart=Mikrofilm").content.decode()
+    assert "0 Treffer" in empty
+    assert 'aria-label="Filter entfernen: Mikrofilm"' in empty
+
+
+@pytest.mark.django_db
+def test_clear_all_link_only_with_active_filter_chips(corpus_root: Path) -> None:
+    # "Alle Filter entfernen" (owner 2026-08-07, rail round 2): a quiet link at the END of the
+    # chip row, present exactly when ≥1 filter chip is — its href drops every filter param but
+    # keeps the text query (chip semantics: remove filters, keep q).
+    body = _get(corpus_root, Public(), "q=Foto&medienart=Foto&schlagwort=fahrten").content.decode()
+    match = re.search(r'<a href="\?([^"]*)">Alle Filter entfernen</a>', body)
+    assert match is not None
+    from urllib.parse import parse_qsl
+
+    cleared = dict(parse_qsl(match.group(1)))
+    assert cleared == {"q": "Foto"}
+    # no active filter → no clear-all link (q alone is not a filter)
+    bare = _get(corpus_root, Public(), "q=Foto").content.decode()
+    assert "Alle Filter entfernen" not in bare
+
+
 # --- search form keeps active facet filters (GH #21) ------------------------------
 
 
 def _search_form_html(body: str) -> str:
-    """The ``<form class="wb-search">``'s own markup, isolated from the sidebar/ledger — so an
-    assertion here can never accidentally match a facet link or pagination href that happens to
-    carry the same param/value elsewhere on the page."""
-    return body.split('<form class="wb-search"', 1)[1].split("</form>", 1)[0]
+    """The header search form's own markup (``<form role="search">``), isolated from the rail/
+    ledger — so an assertion here can never accidentally match a facet link or pagination href
+    that happens to carry the same param/value elsewhere on the page."""
+    return body.split('<form role="search"', 1)[1].split("</form>", 1)[0]
 
 
 @pytest.mark.django_db
@@ -541,10 +583,11 @@ def test_round_trip_q_and_bestand_both_filter_results(corpus_root: Path) -> None
 
 @pytest.mark.django_db
 def test_long_signaturen_render_in_full(corpus_root: Path) -> None:
-    # An identity mark must never truncate at realistic lengths (owner correction 3).
+    # An identity mark must never truncate at realistic lengths (owner correction 3) — realistic
+    # being the 8-character, space-free ceiling (owner 2026-08-07), not an invented long code.
     body = _get(corpus_root, Public()).content.decode()
-    assert "F 12/3-b" in body
-    assert "BA 1848/II" in body
+    assert "F12/3-b" in body
+    assert "BA1848/2" in body
 
 
 # --- param injection: garbage → 200 defaults, never 500 --------------------------
@@ -574,21 +617,47 @@ def test_pagination_second_page_via_seite(corpus_root: Path) -> None:
     assert response.status_code == 200
 
 
-# --- ledger row href: canonical detail baseline + pane progressive-enhancement hook -----
+# --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----
 
 
 @pytest.mark.django_db
-def test_ledger_row_href_is_the_canonical_detail_route(corpus_root: Path) -> None:
-    # BASELINE (no-JS, every viewport): a row title links to /artikel/<ulid>, the canonical detail
-    # route — NOT ?artikel (below 1280px the pane is CSS-hidden, so ?artikel would be a dead click).
-    body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert f'href="/artikel/{PANE_PUB_ULID}"' in body
-    # ...and the enhancement hook rides alongside: ledger_pane.js upgrades the click to the pane on
-    # wide viewports via this data attribute (no-JS still gets the detail link above).
-    assert f'data-artikel="{PANE_PUB_ULID}"' in body
-    # The old ?artikel row-href baseline is gone (it now lives only in the JS enhancement + the pane
-    # close/media links, never as a row title href).
-    assert f'href="?artikel={PANE_PUB_ULID}"' not in body
+def test_titel_navigates_and_vorschau_link_opens_pane(corpus_root: Path) -> None:
+    # ONE-CLICK ENTRY (owner 2026-08-07): the Titel link is plain navigation to the canonical
+    # detail route — no pane interception, no data-artikel JS hook. The pane opens via the
+    # explicit per-row Vorschau action: a plain GET link to ?artikel=<ulid> (URL-borne pane
+    # state; the no-JS baseline IS this link).
+    body = _get(corpus_root, Public()).content.decode()
+    assert f'href="/artikel/{PANE_PUB_ULID}"' in body  # the Titel's detail navigation
+    assert "data-artikel" not in body  # the JS upgrade hook died with ledger_pane.js
+    # the href value and the accessible name, pinned separately (no attribute-order pin)
+    assert f'href="?artikel={PANE_PUB_ULID}"' in body
+    assert 'aria-label="Vorschau"' in body
+
+
+@pytest.mark.django_db
+def test_vorschau_link_preserves_search_state(corpus_root: Path) -> None:
+    # The Vorschau link carries the CURRENT search (q + facets), so opening the pane never drops
+    # the filter scope; artikel rides last. The contract is "all pairs present, artikel last" —
+    # NOT one exact param ordering (a Mapping-iteration change is no behavior change).
+    body = _get(corpus_root, Public(), "q=Vorschau&medienart=Foto").content.decode()
+    match = re.search(rf'href="\?([^"]*artikel={PANE_PUB_ULID})"', body)
+    assert match, "no Vorschau link found"
+    pairs = match.group(1).replace("&amp;", "&").split("&")
+    assert "q=Vorschau" in pairs and "medienart=Foto" in pairs
+    assert pairs[-1] == f"artikel={PANE_PUB_ULID}"
+
+
+@pytest.mark.django_db
+def test_row_toolbar_bearbeiten_is_archivist_chrome(corpus_root: Path) -> None:
+    # The row toolbar's Bearbeiten (pencil → the edit form) is archivist-only; the Vorschau
+    # affordance exists for every viewer (the pane itself re-authorizes fail-closed).
+    arch = _get(corpus_root, Archivist()).content.decode()
+    assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten"' in arch
+    assert 'aria-label="Bearbeiten"' in arch
+    for viewer, label in _NON_ARCHIVIST:
+        body = _get(corpus_root, viewer).content.decode()
+        assert 'aria-label="Bearbeiten"' not in body, f"[{label}] Bearbeiten control leaked"
+        assert 'aria-label="Vorschau"' in body, f"[{label}] Vorschau affordance missing"
 
 
 # --- preview pane (?artikel): fail-closed, leak-safe ----------------
@@ -599,11 +668,11 @@ def test_pane_opens_for_a_viewable_article(corpus_root: Path) -> None:
     # A public article's pane opens for the public viewer: its title + Signatur + Öffnen appear, and
     # the row is marked selected.
     body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert 'class="wb-pane"' in body
+    assert 'class="pane"' in body
     assert "Vorschau Sommerfahrt" in body
     assert "Titelaufnahme der Fahrt" in body  # the media caption
     assert "Öffnen" in body
-    assert "c-ledger-row--aktiv" in body  # the selected row is marked
+    assert '<div role="row" aria-current="true">' in body  # the selected row is marked
 
 
 @pytest.mark.django_db
@@ -613,7 +682,7 @@ def test_pane_absent_or_malformed_artikel_renders_no_pane(corpus_root: Path) -> 
     for query in (f"artikel={PANE_ABSENT_ULID}", "artikel=not-a-ulid"):
         response = _get(corpus_root, Public(), query)
         assert response.status_code == 200
-        assert 'class="wb-pane"' not in response.content.decode()
+        assert 'class="pane"' not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -621,7 +690,7 @@ def test_pane_denied_for_member_only_article_as_public(corpus_root: Path) -> Non
     # Public cannot open the members-only article's pane at all (no pane markup, no title, no floored
     # fields) — the deny is total.
     body = _get(corpus_root, Public(), f"artikel={PANE_MEM_ULID}").content.decode()
-    assert 'class="wb-pane"' not in body
+    assert 'class="pane"' not in body
     assert "Vorschau Mitgliederakte" not in body
     assert "Panzerschrank" not in body  # floored physical_location never appears
     assert "geheimnis" not in body  # floored custom key never appears
@@ -632,7 +701,7 @@ def test_pane_floored_fields_absent_even_for_member_who_can_view(corpus_root: Pa
     # A member CAN open the members-only article's pane, but its floored fields are projected away
     # (visible() = can_view + project) — the pane view-model is built from the floored copy.
     body = _get(corpus_root, Member(groups=()), f"artikel={PANE_MEM_ULID}").content.decode()
-    assert 'class="wb-pane"' in body
+    assert 'class="pane"' in body
     assert "Vorschau Mitgliederakte" in body  # the member sees the article
     assert "Panzerschrank" not in body  # ...but never its physical_location
     assert "Panzernachlass" not in body  # ...nor its custom value
@@ -658,24 +727,24 @@ def test_pane_close_link_preserves_query_drops_only_artikel(corpus_root: Path) -
         Public(),
         f"q=Vorschau&medienart=Foto&artikel={PANE_PUB_ULID}",
     ).content.decode()
-    assert 'class="wb-pane"' in body  # the pane is open
+    assert 'class="pane"' in body  # the pane is open
     # the close link carries the active search params...
     assert "q=Vorschau" in body
     assert "medienart=Foto" in body
     # ...but never the artikel selection (it is pane state, stripped from the close href)
-    close_href = body.split('class="wb-pane-schliessen" href="', 1)[1].split('"', 1)[0]
+    close_href = body.split(' aria-label="Vorschau schließen"', 1)[0].rsplit('href="', 1)[1]
     assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
     assert "q=Vorschau" in close_href and "medienart=Foto" in close_href
 
 
 @pytest.mark.django_db
-def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
-    # Opening the pane puts the frame in the vorschau state (the split-narrow fold is CSS-driven off
-    # this body class; the <1280px query unfolds + hides the pane).
+def test_pane_open_marks_the_vorschau_state(corpus_root: Path) -> None:
+    # Opening the pane puts the body in the vorschau state (the pane frame column is CSS-driven off
+    # this body class ≥1280px; the ledger re-densifies by itself — it is a size container).
     body = _get(corpus_root, Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert "wb--vorschau" in body
+    assert '<body class="workbench vorschau">' in body
     closed = _get(corpus_root, Public()).content.decode()
-    assert "wb--vorschau" not in closed
+    assert '<body class="workbench">' in closed
 
 
 # --- bulk edit: selection column + bar (Sammelbearbeitung, spec §2) ----------------
@@ -684,27 +753,32 @@ def test_pane_open_folds_the_ledger_narrow(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_archivist_sees_bulk_checkbox_column(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist()).content.decode()
-    assert "c-ledger--bulk" in body
+    assert 'class="ledger bulk"' in body
     assert 'name="auswahl"' in body  # row checkboxes
-    assert "Alle auf dieser Seite auswählen" in body  # header sr-only label
+    assert '<span class="visually-hidden">Auswahl</span>' in body  # the sr-only column header
 
 
 @pytest.mark.django_db
 def test_public_never_gets_bulk_column(corpus_root: Path) -> None:
     body = _get(corpus_root, Public()).content.decode()
-    assert "c-ledger--bulk" not in body
+    assert 'class="ledger bulk"' not in body
     assert 'name="auswahl"' not in body
-    assert "wb-sammelleiste" not in body
+    assert "Sammelbearbeitung" not in body
 
 
 @pytest.mark.django_db
 def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
-    # Cold-start fix (#16 reopen): with an EMPTY selection the bar's AFFORDANCES must render for an
-    # archivist-with-results, so the feature is reachable — the "Änderung prüfen" submit (posts the
-    # checked boxes) + "Alle auf dieser Seite" link. Signals-once still holds: NO "0 ausgewählt"
-    # count and NO "Auswahl aufheben" until a selection exists.
+    # The progressive pattern's SERVER half (owner 2026-08-07, reverses the #16 cold-start
+    # ruling): with an EMPTY selection the disclosure still renders VISIBLE for an archivist-
+    # with-results — the no-JS baseline must reach "Alle auf dieser Seite" and the "Änderung
+    # prüfen" submit; catalog_bulk.js (not the server) hides it at count 0 and reveals it on the
+    # first tick (pinned by the e2e journeys). Signals-once still holds: NO "0 ausgewählt" count
+    # and NO "Auswahl aufheben" until a selection exists.
     body = _get(corpus_root, Archivist()).content.decode()
-    assert "wb-sammelleiste" in body
+    # the collapsed disclosure (cold = summary only); the open tag also carries the
+    # data-bulk-offpage hook the enhancement counts with, so match the prefix only
+    assert '<details class="bulk"' in body
+    assert "Sammelbearbeitung" in body
     assert "Änderung prüfen" in body
     assert "Alle auf dieser Seite" in body
     assert "ausgewählt" not in body  # no status filler
@@ -714,12 +788,15 @@ def test_bulk_bar_affordances_present_when_empty(corpus_root: Path) -> None:
 @pytest.mark.django_db
 def test_bulk_bar_shows_with_selection_and_count(corpus_root: Path) -> None:
     body = _get(corpus_root, Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "wb-sammelleiste" in body
-    assert "1 ausgewählt" in body
+    assert '<details class="bulk"' in body
+    # the selected article IS on this page, so nothing is off-page — the enhancement adds its own
+    # live checkbox count to this number and must not double-count what it can already see (G.25)
+    assert 'data-bulk-offpage="0"' in body
+    assert "1 ausgewählt" in body  # the count rides the always-visible summary line
     assert "Änderung prüfen" in body
     assert "Feld" in body  # the chooser Feld select
-    # the selected row inverts + its checkbox is checked
-    assert "c-ledger-row--gewaehlt" in body
+    # the selected row's checkbox is checked — the checked box IS the selection mark
+    # (owner 2026-08-07: no inversion bar; unchecked boxes reveal on hover)
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
@@ -735,7 +812,7 @@ def test_non_archivist_auswahl_param_is_ignored(corpus_root: Path) -> None:
     # a Public viewer hand-crafting ?auswahl= gets no bar/column (defence-in-depth; the POST route
     # is independently gated too)
     body = _get(corpus_root, Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "wb-sammelleiste" not in body
+    assert "Sammelbearbeitung" not in body
     assert "ausgewählt" not in body
 
 
@@ -744,6 +821,6 @@ def test_auswahl_aufheben_preserves_active_search(corpus_root: Path) -> None:
     # Design-gate MED: "Auswahl aufheben" drops the selection but must KEEP the active search — a
     # bare "?" would wipe the filter. The clear link carries the filters, not auswahl.
     body = _get(corpus_root, Archivist(), f"q=fahrt&auswahl={PANE_PUB_ULID}").content.decode()
-    clear = body.split('class="wb-sammelleiste-link" href="?', 2)[2].split('"', 1)[0]
+    clear = body.split(">Auswahl aufheben<", 1)[0].rsplit('href="?', 1)[1].split('"', 1)[0]
     assert "q=fahrt" in clear  # the search survives
     assert "auswahl" not in clear  # the selection is dropped

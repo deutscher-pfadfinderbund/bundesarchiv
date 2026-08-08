@@ -148,7 +148,7 @@ def test_rename_shows_new_name_in_workbench_facets(root: Path) -> None:
             f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
         )
         body = client.get("/").content.decode()
-    assert "Lichtbilder" in body  # the renamed Bestand's new name in the facet sidebar
+    assert "Lichtbilder" in body  # the renamed Bestand's new name in the rail's Bestand dropdown
     assert "Fotografien" not in body  # the old name is gone
 
 

@@ -207,7 +207,6 @@ def _p_root(_c: _Corpus) -> str:
 #: Each static route's literal path (the route names carry no captures — a plain constant per route).
 _STATIC_PATHS = {
     "static-htmx": "/static/htmx.min.js",
-    "static-ledger-pane": "/static/ledger_pane.js",
     "static-catalog-form": "/static/catalog_form.js",
     "static-catalog-bulk": "/static/catalog_bulk.js",
     "static-tokens": "/static/tokens.css",
@@ -254,14 +253,6 @@ def _p_kopieren(c: _Corpus) -> str:
 
 def _p_loeschen(c: _Corpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
-
-
-def _p_lebenszyklus(c: _Corpus) -> str:
-    return f"/artikel/{c.article_ulid}/lebenszyklus"
-
-
-def _p_vorschau(c: _Corpus) -> str:
-    return f"/artikel/{c.article_ulid}/vorschau"
 
 
 def _p_medien_verschieben(c: _Corpus) -> str:
@@ -364,21 +355,6 @@ _CONTRACT: dict[str, Route] = {
         post_arch=REDIRECT,  # confirmed delete → 302 to /
         post_data={"bestaetigt": "1"},
     ),
-    "artikel-lebenszyklus": Route(
-        build_path=_p_lebenszyklus,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=FOUR_OH_FOUR,  # GET disallowed
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=REDIRECT,  # retract (zurueckziehen) + CAS version → 302 to the read view
-        post_data=None,  # filled at probe time (needs the corpus version) — see _lifecycle_post_data
-    ),
-    "artikel-vorschau": Route(
-        build_path=_p_vorschau,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=FOUR_OH_FOUR,  # GET disallowed
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=OK,  # preview panel
-    ),
     "artikel-medien-verschieben": Route(
         build_path=_p_medien_verschieben,
         get_nonarch=FOUR_OH_FOUR,
@@ -464,13 +440,6 @@ def _sammel_post_data(c: _Corpus) -> dict[str, object]:
     return {"auswahl": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
 
 
-def _lifecycle_post_data(c: _Corpus) -> dict[str, object]:
-    """A valid retract POST: ``zurueckziehen`` needs no over-exposure confirm, and the CAS version
-    matches the corpus article → the archivist gets a 302 to the read view. Non-archivists deny at
-    the gate before the verb is read."""
-    return {"aktion": "zurueckziehen", "expected_version": str(c.article_version)}
-
-
 def _empty_search_page() -> object:
     """An empty ``SearchPage`` for the workbench stub: no hits, no facets — enough for the template to
     render the (empty) ledger for any tier so the matrix can assert the route's status DB-free."""
@@ -516,7 +485,6 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 #: Routes whose POST payload needs the corpus (a real ulid / version), filled at probe time.
 _POST_DATA_BUILDERS = {
     "artikel-sammelbearbeitung": _sammel_post_data,
-    "artikel-lebenszyklus": _lifecycle_post_data,
 }
 
 
@@ -554,16 +522,29 @@ def test_route_tier_matrix(
 
 
 def _prod_route_names() -> set[str]:
-    return {name for name in _prod_pattern_names() if name is not None}
+    return set(_prod_pattern_names())
 
 
-def _prod_pattern_names() -> list[str | None]:
-    """The ``.name`` of every prod pattern. The prod urlconf is deliberately FLAT (all ``path()``, no
-    ``include()``), so every entry is a ``URLPattern``; asserting that here doubles as a guard that a
-    future ``include()`` (which would nest routes past the leak matrix) is a deliberate change."""
+def _prod_pattern_names() -> list[str]:
+    """The ``.name`` of every prod pattern. Two structural asserts guard the exhaustiveness gate below,
+    because both of them are ways for a live route to leave its scope:
+
+    The prod urlconf is deliberately FLAT (all ``path()``, no ``include()``), so every entry is a
+    ``URLPattern``; asserting that doubles as a guard that a future ``include()`` — which would nest
+    routes past the leak matrix — is a deliberate change.
+
+    And every pattern must be NAMED. ``name`` is the handle the contract joins on, so an unnamed live
+    route was un-gated and un-leak-tested: this function used to drop ``None`` from the list, and the
+    set-equality then dropped it from BOTH sides and reported no drift at all. A route with no
+    ``name=`` is not an exception to the matrix, it is a route the matrix cannot see."""
     patterns = get_resolver(_PROD_URLCONF).url_patterns
     assert all(isinstance(p, URLPattern) for p in patterns), "prod urlconf is no longer flat"
-    return [p.name for p in patterns if isinstance(p, URLPattern)]
+    unnamed = [str(p.pattern) for p in patterns if isinstance(p, URLPattern) and p.name is None]
+    assert not unnamed, (
+        f"prod routes with no name=, invisible to the leak matrix: {unnamed} — every route needs a"
+        " name (it is the key the contract and the screen inventory join on)"
+    )
+    return [p.name for p in patterns if isinstance(p, URLPattern) and p.name is not None]
 
 
 def test_contract_covers_every_prod_route() -> None:
@@ -590,9 +571,7 @@ _DEV_ONLY_PATHS = (
     "/favicon.ico",
     "/_dev/viewer/",
     "/_dev/components/",
-    "/_dev/components/papier/",
     "/_dev/layouts/split-narrow/",
-    "/_dev/static/components.css",
     "/_dev/layouts/static/layouts.css",
 )
 

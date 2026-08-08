@@ -161,7 +161,7 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
     # §8). save_article is patched to conflict for 01A, else delegate to the real service.
     from bundesarchiv.app import articles
 
-    store = _store_with(_article(ulid="01A", ref_code="F 1"), _article(ulid="01B"))
+    store = _store_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 
     def _save_conflict_first(store_: object, article: Article, version: int) -> object:
@@ -173,7 +173,7 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
     outcome = bulk.apply_bulk(store, ["01A", "01B"], "creator", "Y")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
-    assert outcome.conflicted[0].ref_code == "F 1"  # the .c-sig mark rides the row
+    assert outcome.conflicted[0].ref_code == "F1"  # the .c-sig mark rides the row
     assert ArticleRepository(store).load("01B").article.creator == "Y"  # 01B not aborted
 
 

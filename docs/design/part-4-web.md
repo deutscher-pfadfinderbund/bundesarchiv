@@ -120,11 +120,17 @@ Binding constraints regardless of prototype outcome:
 - Forms carry `expected_version`; `StaleVersion` → re-render with "Inzwischen
   geändert" diff panel (ADR 0013 UX).
 - Visibility preview: ONE server-computed widget (domain `preview()` — exists
-  since Part 2), reused by publish flow AND collection-move flow (ideas-doc
-  theme #1). Collection move REQUIRES the over-exposure preview before commit
-  (roadmap). The widget is **Archivist-only** (`preview()` surfaces group
-  names by design); preview/publish/move endpoints join the 4.10 leak suite —
-  Member/Public hitting them → redirect/404, never widget content.
+  since Part 2), reused by the publish flow AND the collection-move flow
+  (ideas-doc theme #1). On the ARTICLE side it is no longer a gate: since the
+  form wave (owner ruling 5, 2026-08-08) its output is the PERMANENT exposure
+  statement on the edit surface and publishing is one click — the separate
+  `artikel-vorschau` route, its panel and its `geprueft` confirm checkbox are
+  gone. Collection move still REQUIRES an over-exposure preview before commit
+  (roadmap, subtree scope). The widget is **Archivist-only** (`preview()`
+  surfaces group names by design and bypasses the lifecycle gate), so its only
+  barrier is the route gate of whatever page shows it — the edit route for the
+  statement, and the move endpoint later; both join the 4.10 leak suite —
+  Member/Public hitting them → 404, never widget content.
 - Collection deletion blocked while descendants/articles exist (ADR 0014).
 - German UI language per CONTEXT.md glossary, plain and modern. (REVERSED
   2026-07-10: "Findbuch" banned from UI copy — archaic. Development-facing
@@ -172,14 +178,15 @@ design-gate passes per wave):
   stamp-grammar design system (tokens.css, contrast gate, atom components).
 - **4.7 cataloging form** — create/edit (no-JS baseline + CAS "Inzwischen
   geändert" panel), copy (clears Signatur), delete (confirm), lifecycle
-  (publish gated on the over-exposure preview), media manager (reorder /
-  remove / upload / captions), and the HTMX enhancement layer (dependent
-  Dokumenttyp select, EDTF echo, swaps via `hx-select` from the same full
-  render — no partial fork).
+  (one-click publish beside a permanent exposure statement since the form wave;
+  the over-exposure preview gate retired with owner ruling 5, 2026-08-08), media
+  manager (reorder / remove / upload / captions), and the HTMX enhancement layer
+  (dependent Dokumenttyp select, EDTF echo, swaps via `hx-select` from the same
+  full render — no partial fork).
 - **4.6 Artikel detail (Lesesaal)** — one `visible`-projected render, cover +
   filmstrip, EDTF human-German phrasing, per-tier field flooring, draft gate.
-- **E2E + state gallery** (#26) — 10 Playwright journeys + a 52-PNG gallery
-  (13 states x 2 modes x 2 widths); the design-gate review medium.
+- **E2E + state gallery** (#26) — the Playwright journeys + the state gallery
+  (every canonical state x 2 modes x 2 widths); the design-gate review medium.
 - **4.10 hardening gate** (this part-exit) — the route x tier leak matrix
   (`tests/app/web/test_leak_matrix.py`: every prod route x every viewer tier x
   {GET, POST}, byte-identical-404 on every deny, exhaustive against the

@@ -10,6 +10,16 @@
    The exact L/C values are an implementation detail (the spec's pair table in
    design-system.md is the contract); judge edits at the design gate, both modes. */
 
+/* The cascade architecture (design-review-law.md appendix F): every stylesheet contributes to one
+   of these layers. tokens.css loads FIRST on every page, so this declaration fixes the order for
+   the whole app: tokens < elements (bare semantic HTML) < components (classed structures) <
+   compositions (page frames, view arrangements) < modes (deliberate global overrides + future
+   mode remaps such as prefers-contrast). Later layers win — a composition may tune a component,
+   and modes outrank everything by design. */
+@layer tokens, elements, components, compositions, modes;
+
+@layer tokens {
+
 :root {
   /* ==================================================================
      Layer 1 — seed. The ONLY line a sibling DPB service changes.
@@ -96,9 +106,50 @@
   --error: light-dark(var(--red-50), var(--red-75));
   --on-error: light-dark(var(--neutral-99), var(--red-25));
 
+  /* Disabled ink (role token, added 2026-08-08): the quiet ink faded toward the surface, for a
+     control that is present, non-interactive and visibly so (the media register's end-of-register
+     arrows). A ROLE, not a mix written in component CSS: a hard-coded
+     color-mix(--on-surface-variant, --surface 55%) is unreachable by the planned
+     `prefers-contrast: more` remap, and by the themability law an unreachable value IS the defect —
+     that remap wants a HARDER disabled ink, and it can only reach one that lives here. */
+  --on-surface-disabled: color-mix(in oklab, var(--on-surface-variant), var(--surface) 55%);
+
   --outline: light-dark(var(--neutral-50), var(--neutral-72));
   --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
   --focus-ring: light-dark(var(--tone-50), var(--tone-78));
+
+  /* Sheet material (cue-register row 8 as amended 2026-08-07 — material ROLES, not taste):
+     TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state.
+     A sheet is a whisper of seed tint mixed OVER --primary-container (high lightness, so the
+     sheet tints without darkening; retints automatically with a sibling service's seed), a
+     hairline edge, and EXACTLY ONE depth cue: the RESTING-CONTACT shadow (--sheet-shadow) —
+     a single tight layer, the way a sheet resting on a desk touches it. NOT a Material
+     elevation ramp (the 2px lower edge --sheet-edge is retired, superseded by the shadow).
+     Facet panels are FURNITURE, not sheets — flat plain container, hairline only.
+     Root-level DERIVED tokens by design (themability law): the future
+     `prefers-contrast: more` remap sets these to the plain container roles and ZEROES
+     --sheet-shadow (shadow: none) — zero component changes. */
+  --sheet: color-mix(in oklab, var(--surface-container-low), var(--primary-container) 30%);
+  --sheet-lowest: color-mix(in oklab, var(--surface-container-lowest), var(--primary-container) 25%);
+  /* one layer, 1px y-offset, 2px blur, low-alpha near-black ink (the neutral ramp's floor is
+     ink-dark in BOTH modes; dark mode needs more alpha to read against dark surfaces) */
+  --sheet-shadow: 0 1px 2px 0
+    light-dark(
+      color-mix(in oklab, var(--neutral-22) 20%, transparent),
+      color-mix(in oklab, var(--neutral-22) 55%, transparent)
+    );
+  /* Overlay shadow (cue-register row 12, owner 2026-08-07): TRANSIENT floating panels only —
+     the filter rail's dropdown panels and the header's "+ Neu …" create-menu panel (Mock B,
+     rail round 2). An overlay genuinely floats; a resting sheet does not,
+     so the two shadows stay distinct tokens: same single-layer discipline, larger blur than the
+     sheet's contact shadow, low-alpha ink over roles. Still no elevation ramps/stacks anywhere.
+     The future `prefers-contrast: more` remap ZEROES this token too (shadow: none), like
+     --sheet-shadow — zero component changes. */
+  --overlay-shadow: 0 2px 8px 0
+    light-dark(
+      color-mix(in oklab, var(--neutral-22) 22%, transparent),
+      color-mix(in oklab, var(--neutral-22) 60%, transparent)
+    );
 
   /* ==================================================================
      Non-color tokens.
@@ -116,6 +167,15 @@
   --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* The wordmark role (owner-licensed 2026-08-07, exploration 05 idea (b)): the ONE display
+     face with character — a small-caps system serif for the .wordmark in the header, nothing
+     else. Consumers pair the font with `font-variant-caps: small-caps` (the Kapitälchen) and
+     --wordmark-tracking; everything else in the header stays working-sans. */
+  --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+  /* stepped up above --type-display (owner rail-wave verdict 2026-08-07: "wordmark larger") —
+     the mark leads the header without shouting; judged on renders at 1440/680 */
+  --type-wordmark: 600 1.5rem/1.2 var(--font-wordmark);
+  --wordmark-tracking: 0.12em;
   --type-display: 600 1.35rem/1.2 var(--font-display);
   --type-title: 600 1.05rem/1.35 var(--font-display);
   --type-body: 400 0.95rem/1.5 var(--font-body);
@@ -143,4 +203,45 @@
   --radius-s: 4px;
   --radius-m: 6px;
   --bevel: 12px;
+
+  /* Named non-spacing dimensions (design-review-law.md C5): the ONLY licensed sources for these
+     three recurring values. A bare px/rem literal in component CSS is an S3 defect unless a
+     comment names why no token fits. */
+  --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
+     the value each [role=toolbar] row sets as its --control-height (law C8) */
+  --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
+     round 2): the filter-rail chips + their ✕ ONLY, so chips sit visually level with the rail's
+     dropdown buttons; still ≥ the WCAG 2.2 AA 24px target-size floor. Since the round-2 C8 fix
+     this is the VALUE the header and the rail set as their --control-height row knob — every
+     control on those two rows (buttons, summaries, chips, the search input) consumes the knob,
+     so their equal height holds by construction. */
+  --hairline: 1px; /* the hairline edge — a contrast mode may thicken it globally */
+  --state-border: 3px; /* the state-marking left border (e.g. the CAS conflict panel) */
+
+  /* THE STACKING MODEL (C5 one level down: a bare z-index is a raw literal whose RELATIONSHIP to its
+     neighbours is the whole meaning, and that relationship used to live only in prose scattered across
+     two files). The complete order, lowest first:
+
+       (auto)             the desk, the record card, the ledger — everything in normal flow, plus the
+                          pane column's sticky reader's sheet, which needs no value: nothing in flow
+                          competes with it
+       --z-overlay-panel  a dropped overlay panel (register row 12) — above the sticky sheet it may
+                          overlap while open
+       --z-control-row    a STICKY control row (the edit surface's record row): chrome, above the work
+                          scrolling under it and above the sheet beside it
+       --z-header         the page header — above every control row, because the overlay panel its own
+                          disclosure drops hangs INTO the row's band, and a sticky row is a stacking
+                          context, so a descendant of the header can only out-stack it through THIS
+                          value
+       --z-banner         the viewport-fixed failure banner: above everything, always reachable
+
+     Named rather than guessed because the committed view-switching wave adds another sticky row, and
+     a wrong guess reproduces the click-eating class exactly (learning G.36: an opaque sticky row that
+     sat on top and swallowed every entry of the panel beneath it). A new layer joins this scale. */
+  --z-overlay-panel: 2;
+  --z-control-row: 4;
+  --z-header: 5;
+  --z-banner: 10;
 }
+
+} /* @layer tokens */

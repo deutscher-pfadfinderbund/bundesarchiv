@@ -3,14 +3,14 @@
 Referenced ONLY from ``dev_urls`` (the same discipline as the component library and the viewer
 switcher): production settings never mount this, so it is unreachable in prod by absence of a code
 path, not by a flag. Each page renders a FULL archivist-workbench layout composed from the REAL
-atom partials (templates/components/) over static German demo context defined here — no store, no
-index, no viewer. The layouts iterate the PAGE FRAME (header + chips + sort + facet sidebar +
-ledger + preview pane), not the atoms.
+partials (components/facet_group, components/ledger, workbench/_pane) over static German demo
+context defined here — no store, no index, no viewer; lockstep with the live app by construction.
+The layouts iterate the PAGE FRAME (header + filter rail + ledger + preview pane).
 
 ONE layout, whitelisted (unknown name → 404, never a path interpolation):
-- ``split-narrow`` — when the preview pane is open the facet sidebar stays full and the ledger
-                     folds to its narrow two-line density (owner's pick over the rejected
-                     "split-rail", whose collapsed-rail state read as confusing and useless).
+- ``split-narrow`` — the filter rail spans the top (facet dropdowns + active chips; the sidebar
+                     died with the rail, owner 2026-08-07); when the preview pane is open the
+                     ledger re-densifies by itself (it is a size container).
 
 Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
 (default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
@@ -30,7 +30,7 @@ from bundesarchiv.app.web.browse_views import _serve_static
 #: The layout whitelist: name → human label. An entry here is the ONLY way a layout becomes
 #: routable. Unknown name → 404. One layout after the owner's review (split-rail rejected).
 LAYOUTS: dict[str, str] = {
-    "split-narrow": "Split narrow (ledger folds to two-line when the pane opens)",
+    "split-narrow": "Split narrow (ledger sheds columns as its container narrows)",
 }
 
 #: The dev-only layout stylesheet (served by the whitelisted dev static route below).
@@ -39,97 +39,90 @@ LAYOUT_STYLESHEET = "layouts.css"
 #: The known demo set plus extra plausible rows so the ledger scrolls. Each dict carries a
 #: ledger_row's params. Two drafts demonstrate the sig/lifecycle decoupling: one WITH a ref_code
 #: (code shows; ENTWURF is the only lifecycle signal) and one WITHOUT (hollow "ohne Signatur" slot).
-_LEDGER_ROWS: tuple[dict[str, object], ...] = (
+#: The sample Signaturen obey the domain fact (owner 2026-08-07): no spaces, 8 characters is the
+#: practical ceiling — the Kassenbuch row sits AT that ceiling so the storyboard shows the widest
+#: real code beside the short ones.
+_ROW_CONTENT: tuple[dict[str, object], ...] = (
     {
         "title": "Sommerfahrt 1962",
         "href": "?artikel=sommerfahrt-1962",
-        "ref_code": "F 12",
+        "ref_code": "F12",
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Jahresbericht 1974",
         "href": "?artikel=jahresbericht-1974",
-        "ref_code": "B 3",
+        "ref_code": "B3",
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
         "href": "?artikel=vorstandsprotokoll-1980-03",
-        "ref_code": "V 7",
+        "ref_code": "V7",
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
     },
     {
         # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
         "title": "Lagerchronik",
         "href": "?artikel=lagerchronik",
-        "ref_code": "C 5",
+        "ref_code": "C5",
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "visibility": "",
     },
     {
         "title": "Winterlager 1958",
         "href": "?artikel=winterlager-1958",
-        "ref_code": "F 4",
+        "ref_code": "F4",
         "datierung": "1958",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Kassenbuch 1965-1969",
         "href": "?artikel=kassenbuch-1965-69",
-        "ref_code": "K 2",
+        "ref_code": "K2/65-69",
         "datierung": "1965/1969",
         "typ": "Buch",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
     },
     {
         "title": "Fahrtenbericht Norwegen 1971",
         "href": "?artikel=norwegen-1971",
-        "ref_code": "B 9",
+        "ref_code": "B9",
         "datierung": "1971",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
     {
         "title": "Liederbuch (2. Auflage)",
         "href": "?artikel=liederbuch-2",
-        "ref_code": "D 1",
+        "ref_code": "D1",
         "datierung": "1969",
         "typ": "Druck",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Gruppenfoto Pfingsten 1983",
         "href": "?artikel=pfingsten-1983",
-        "ref_code": "F 21",
+        "ref_code": "F21",
         "datierung": "1983-05",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         "title": "Satzung des Trägervereins",
         "href": "?artikel=satzung",
-        "ref_code": "A 1",
+        "ref_code": "A1",
         "datierung": "1955",
         "typ": "Urkunde",
         "draft": False,
-        "visibility": "Öffentlich",
     },
     {
         # Draft WITHOUT a Signatur: the hollow slot means "ohne Signatur" (ref_code absent), a
@@ -140,17 +133,21 @@ _LEDGER_ROWS: tuple[dict[str, object], ...] = (
         "datierung": "",
         "typ": "Druck",
         "draft": True,
-        "visibility": "",
     },
     {
         "title": "Rundbrief Herbst 1977",
         "href": "?artikel=rundbrief-1977-h",
-        "ref_code": "R 6",
+        "ref_code": "R6",
         "datierung": "1977-10",
         "typ": "Rundbrief",
         "draft": False,
-        "visibility": "Alle Mitglieder",
     },
+)
+
+#: Every demo row shares the same action hrefs (the row toolbar's two icon links) — spliced
+#: once here, so the content dicts above stay content-only.
+_LEDGER_ROWS: tuple[dict[str, object], ...] = tuple(
+    {**row, "bearbeiten_href": "#demo-edit", "vorschau_href": "?vorschau=1"} for row in _ROW_CONTENT
 )
 
 #: Sortable column headers for the ledger: (label, key matching the cell modifier, query stub,
@@ -183,19 +180,12 @@ _LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
     {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
-_SORT_OPTIONS = (
-    ("relevanz", "Relevanz"),
-    ("signatur", "Signatur"),
-    ("datierung", "Datierung"),
-    ("titel", "Titel"),
-)
-
-#: Facet sidebar groups; items match facet_group.html's contract (label, count, query, active).
-#: ``open`` seeds each <details> group's initial expanded/collapsed state.
+#: Filter-rail facet groups; items match facet_group.html's contract (label, count, query,
+#: active). ``open`` seeds each <details> dropdown's initial state — ONE group is served open so
+#: the demo exhibits the dropped overlay panel (register row 12) without JS.
 _FACET_GROUPS: tuple[dict[str, object], ...] = (
     {
         "heading": "Bestand",
-        "direct": True,
         "open": True,
         "items": (
             {"label": "Fotografien", "count": 24, "query": "bestand=FOTOS", "active": False},
@@ -210,8 +200,7 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Dokumenttyp",
-        "direct": False,
-        "open": True,
+        "open": False,
         "items": (
             {"label": "Foto", "count": 31, "query": "typ=foto", "active": False},
             {"label": "Bericht", "count": 12, "query": "typ=bericht", "active": False},
@@ -220,7 +209,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Schlagworte",
-        "direct": False,
         "open": False,
         "items": (
             {"label": "sommer", "count": 12, "query": "schlagwort=sommer", "active": True},
@@ -230,7 +218,6 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
     {
         "heading": "Jahrzehnte",
-        "direct": False,
         "open": False,
         "items": (
             {"label": "1950er", "count": 6, "query": "jahrzehnt=1950", "active": False},
@@ -241,17 +228,29 @@ _FACET_GROUPS: tuple[dict[str, object], ...] = (
     },
 )
 
-#: The static preview shown in the pane (the first result). Plausible article projection.
+#: The rail's active-filter chips — the demo mirror of browse_views._filter_chips (one chip per
+#: active item above, group heading + removal query).
+_FILTER_CHIPS: tuple[dict[str, str], ...] = (
+    {"group": "Bestand", "label": "Aktenbestand", "query": ""},
+    {"group": "Schlagworte", "label": "sommer", "query": "bestand=AKTEN"},
+)
+
+#: The rail's clear-all target — the demo mirror of browse.clear_filters_query (every filter
+#: param dropped, q + sort kept). Static: the demo state has no q, so the bare workbench.
+_CLEAR_FILTERS_QUERY = ""
+
+#: The static preview shown in the pane (the first result) — the REAL ``workbench/_pane.html``
+#: renders it, so the keys mirror the pane view-model's contract (browse_views._Pane). No media →
+#: the hollow placeholder.
 _PREVIEW = {
     "title": "Sommerfahrt 1962",
-    "ref_code": "F 12",
+    "ref_code": "F12",
     "datierung": "1962",
     "typ": "Foto",
-    "visibility": "Öffentlich",
-    "beschreibung": (
-        "Schwarzweiß-Aufnahme der Sommerfahrt 1962 an der Ostsee. Gruppe am Lagerplatz, "
-        "Kohte im Hintergrund. Übernahme aus dem Nachlass, Kiste 3."
-    ),
+    "media": (),
+    "close_href": "?vorschau=0",
+    "oeffnen_href": "#demo-detail",
+    "bearbeiten_href": "#demo-edit",
 }
 
 
@@ -272,8 +271,11 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "stylesheet": f"/_dev/layouts/static/{LAYOUT_STYLESHEET}",
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
-            "sort_options": _SORT_OPTIONS,
             "facet_groups": _FACET_GROUPS,
+            "filter_chips": _FILTER_CHIPS,
+            "clear_filters_query": _CLEAR_FILTERS_QUERY,
+            # the rail renders the hit count at its line end (law C10 — the toolrow died)
+            "total": len(_LEDGER_ROWS),
             "preview": _PREVIEW,
         },
     )

@@ -1,11 +1,10 @@
-"""The 4.6 detail resolver (`resolve_visible_detail`, spec §8) — one load feeding both the render
-view-model and the archivist CAS version.
+"""The 4.6 detail resolver (`resolve_visible_detail`, spec §8) — ONE load feeding the render
+view-model.
 
-`resolve_visible_article` (the pane's path) returns only a projected Article; the detail view ALSO
-needs the raw version for the lifecycle action-row's CAS field. Rather than load twice (the stub's
-double-load bug), `resolve_visible_detail` loads ONCE and returns a `DetailResolution` carrying the
-`visible`-projected Article + the version + the is_archivist flag. These tests pin the projection
-(archivist-only fields floored for members) and the single load.
+`resolve_visible_article` (the pane's path) returns only a projected Article; the detail view also
+needs the Bestand chain and the is_archivist presentation gate, so `resolve_visible_detail` loads ONCE
+and returns a `DetailResolution` carrying all three. These tests pin the projection (archivist-only
+fields floored for members) and the single load.
 """
 
 from pathlib import Path
@@ -61,12 +60,11 @@ def _settings(root: Path) -> dict[str, object]:
     return {"DEV_VIEWER_SIGNING_KEY": _DEV_KEY, "BUNDESARCHIV_CANONICAL_ROOT": str(root)}
 
 
-def test_resolves_projected_article_and_version(root: Path) -> None:
+def test_resolves_the_projected_article(root: Path) -> None:
     with override_settings(**_settings(root)):
         res = resolve_visible_detail(_request(Archivist(), root), PUB_ULID)
     assert res is not None
     assert res.article.title == "Sommerfahrt"
-    assert res.version == 1  # one save (expected_version 0) increments the stored version to 1
     assert res.is_archivist is True
     # archivist sees the archivist-only fields
     assert res.article.physical_location == "Regal 7"

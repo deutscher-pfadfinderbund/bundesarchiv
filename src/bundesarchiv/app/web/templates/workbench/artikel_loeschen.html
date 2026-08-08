@@ -3,32 +3,39 @@
 Delete / discard confirm page (Part 4.7 Slice C, spec §7 state M). Archivist-only (the view gates
 it). Shows the .c-sig mark + Titel so the archivist confirms WHICH record before an irreversible
 delete. The Endgültig löschen / Entwurf verwerfen button is the ONE loud element — the sole place
-c-btn--gefahr (error inversion) appears. Abbrechen is subtle → back to the read view. Own no-JS
+button.danger (error inversion) appears. Abbrechen is subtle → back to the read view. Own no-JS
 page: one POST executes; there is no undo (no Papierkorb this version).
 {% endcomment %}
 {% block title %}{{ titel_confirm }}{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="{% url 'artikel-detail' ulid %}">Zurück zum Artikel</a>{% endblock %}
+{% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
+screen. Its back link keeps pointing at the ARTICLE this page is about rather than at the search —
+that is a per-screen parameter of the one partial, not a reason to hand-draw a second header.{% endcomment %}
+{% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
 {% block body %}
-<main class="c-form c-confirm">
-  <h1 class="c-confirm-titel">{{ titel_confirm }}</h1>
-  <div class="c-confirm-kontext">
-    <span class="c-confirm-kontext-titel">„{{ title }}"</span>
-    {% include "components/signatur_tab.html" with ref_code=ref_code %}
-  </div>
-  <p class="c-confirm-text">
-    Dieser Artikel wird unwiderruflich gelöscht.
-    Ein Papierkorb steht in dieser Version nicht zur Verfügung.
-  </p>
-  <div class="c-confirm-aktionen">
+<main class="column narrow">
+  <h1>{{ titel_confirm }}</h1>
+  {% comment %}The record being confirmed sits on a true sheet (register row 8: confirm panels
+  are sheets) — same material grammar as the bulk-confirm page, one look per confirm surface.{% endcomment %}
+  <section class="panel">
+    <header>
+      <strong>„{{ title }}"</strong>
+      {% include "components/signatur_tab.html" with ref_code=ref_code %}
+    </header>
+    <p>
+      Dieser Artikel wird unwiderruflich gelöscht.
+      Ein Papierkorb steht in dieser Version nicht zur Verfügung.
+    </p>
+  </section>
+  <div class="actions">
     {% comment %}HTMX (spec §5): an htmx submit gets HX-Redirect to the workbench (the view's
     _redirect helper); the no-JS baseline is the plain POST + 302.{% endcomment %}
     <form method="post" action="{{ action }}"
           hx-post="{{ action }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
       {% csrf_token %}
-      <button class="c-btn c-btn--gefahr" type="submit">{{ button_label }}</button>
+      <button class="danger" type="submit">{{ button_label }}</button>
     </form>
-    <a class="c-btn c-btn--subtle" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
+    <a class="button" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
   </div>
 </main>
 {% endblock %}

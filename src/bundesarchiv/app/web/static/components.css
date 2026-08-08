@@ -1,540 +1,824 @@
-/* Component atoms (templates/components/*.html) — styles consume ROLE tokens from tokens.css
-   ONLY (design-system.md: "a hex value in a component style is a defect").
-   Load order: tokens.css first, then this file. No external requests, no raw color values;
-   the only color functions allowed are var() over roles and color-mix() OVER roles.
+/* Elements + components. Cue register + cascade rules: docs/design/design-review-law.md.
+   Load order: tokens.css (which declares the @layer order) first, then this file.
+   .c-sig / .c-sig-code are the register's own selector names — pinned by it, not renameable. */
 
-   GRAMMAR (duotone stamp — spec law, design-system.md): the archive is gray paper; the accent is
-   stamp ink. Violet (--primary / --on-primary-container) appears ONLY on the archive's MARKS — the
-   Signatur tab's code, mono counts/dates, and inline interactive text (links). Every other piece of
-   chrome is PURE NEUTRAL: buttons, inputs, chips, panels, cards, badges, empty state carry no hue.
-   Selection/active states are INVERSION (swap fg/bg to a solid neutral-ink block, like a stamp
-   pressed down), never a tonal tint wash. draft=amber and error=red keep loud semantic marks so
-   lifecycle and errors stay instantly visible. If an element is not a mark, it gets no hue. Corners:
-   square or --radius-s everywhere; the ONE beveled corner survives only on the card's index cut and
-   the Signatur/drawer-tab leading corner. (Was two files — components-stamp.css folded in here since
-   the stamp grammar is spec law; components-papier.css remains the one dev materiality variant.) */
+/* ============================================================
+   ELEMENTS — semantic HTML styled directly (law C1).
+   ============================================================ */
+@layer elements {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
 
-/* ---- focus: the one global interaction invariant (3:1 on every surface, gated) ---- */
+  /* focus: the one global interaction invariant (3:1 on every surface) */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring); /* the spec'd ring geometry (design-system "Focus") */
+    outline-offset: 2px; /* (same spec line) */
+  }
 
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
+  /* inline interactive text = stamp ink (cue-register row 2) */
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
 
-/* ---- corners: cut ONLY where it carries meaning (owner restraint, 2026-07-10) ----
-   The bevel is a meaning-bearing signature, not a house radius: it survives ONLY on the card's
-   big index cut and the Signatur/drawer tabs' leading corner. Everything else is square or
-   --radius-s rounded. Native corner-shape: bevel lets the browser draw the cut, so borders and
-   fills follow it automatically (no clip-path, no hairline hacks). Older browsers ignore
-   corner-shape and render rounded corners — accepted, no fallback. */
+  /* The create-menu summary JOINS this rule so "+ Neu …" cannot drift from "Suchen" (G.22): one
+     declaration set, not two that agree. Variants: .primary = inversion (register row 3),
+     .danger = the one destructive filled variant (row 5, confirm pages only). */
+  :is(button, a.button, .menu > summary) {
+    display: inline-block;
+    font: var(--type-meta);
+    padding: var(--space-1) var(--space-3);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  :is(button, a.button, .menu > summary):hover {
+    background: var(--surface-container-high);
+    text-decoration: none;
+  }
+  :is(button, a.button).primary {
+    background: var(--on-surface);
+    color: var(--surface);
+    border-color: var(--on-surface);
+  }
+  :is(button, a.button).primary:hover {
+    background: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
+    border-color: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
+  }
+  button.danger {
+    background: var(--error);
+    color: var(--on-error);
+    border-color: var(--error);
+  }
+  button.danger:hover {
+    /* deepen toward the button's own ink role (role-only mix — no raw color) */
+    background: color-mix(in oklab, var(--error), var(--on-error) 12%);
+    border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
+  }
+  /* a button that reads as inline text — or, in a toolbar slot, an icon control (the shared
+     icon-control rule below gives it the hit area; this one takes the chrome away) */
+  button.link {
+    background: none;
+    border: none;
+    padding: var(--space-1) 0;
+    font: var(--type-meta);
+    color: var(--primary);
+  }
+  button.link:hover {
+    background: none;
+    text-decoration: underline;
+  }
+  button.link:disabled {
+    color: var(--on-surface-variant);
+    cursor: default;
+    text-decoration: none;
+  }
 
-.c-card,
-.c-sig,
-.c-facet-tab {
-  corner-shape: bevel;
-}
+  /* Checkboxes/radios keep their native rendering, but on role ink: no register row licenses the
+     UA's blue, and a retint must be able to reach every visible color. */
+  input:is([type="checkbox"], [type="radio"]) {
+    accent-color: var(--on-surface);
+  }
+  /* --field-fill / --field-border are the field's chrome API (law C3): a composition sets them and
+     inherits every STATE rule below unchanged. It may NOT restate the chrome instead — a later layer
+     wins over the state rules whatever their specificity (C13's second mechanism, G.47). */
+  textarea,
+  select,
+  input:not([type="checkbox"], [type="radio"], [type="file"]) {
+    font: var(--type-meta);
+    color: var(--on-surface);
+    background: var(--field-fill, var(--surface-container-lowest));
+    border: var(--hairline) solid var(--field-border, var(--outline));
+    border-radius: var(--radius-s);
+    padding: var(--space-1) var(--space-2);
+  }
+  input[type="file"] {
+    font: var(--type-meta);
+    color: var(--on-surface);
+  }
+  ::placeholder {
+    color: var(--on-surface-variant);
+  }
+  /* focus deepens the neutral border in addition to the ink ring */
+  :is(textarea, select, input):focus-visible {
+    border-color: var(--on-surface);
+  }
 
-/* ---- button: flat, dense, hairline-bordered ---- */
+  /* <label class="field"><span>Titel</span><input …></label> — the class is law C1's licence:
+     semantics cannot discriminate a stacked labeled field from an inline checkbox label. */
+  .field {
+    display: inline-flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--on-surface);
+  }
+  .field > span:first-child {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  /* one source for the message and the border: the .error node's presence */
+  .error {
+    font: var(--type-meta);
+    color: var(--error);
+  }
+  .field:has(.error) :is(input, select, textarea) {
+    border-color: var(--error);
+  }
+  .hint {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
 
-.c-btn {
-  display: inline-block;
-  font: var(--type-meta);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-s);
-  cursor: pointer;
-  text-decoration: none;
-}
-.c-btn--subtle {
-  background: var(--surface-container-low);
-  color: var(--on-surface);
-  border: 1px solid var(--outline);
-}
-.c-btn--subtle:hover { background: var(--surface-container-high); }
-.c-btn--primary {
-  /* inversion: paper text stamped onto ink-neutral — a filled button is chrome, not a mark */
-  background: var(--on-surface);
-  color: var(--surface);
-  border: 1px solid var(--on-surface);
-}
-.c-btn--primary:hover {
-  background: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
-  border-color: color-mix(in oklab, var(--on-surface), var(--surface) 16%);
-}
-
-/* ---- field label + input + select: squarer, hairline, dense ---- */
-
-.c-field {
-  display: inline-flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  color: var(--on-surface);
-}
-.c-field-label {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-.c-input,
-.c-select {
-  font: var(--type-meta);
-  color: var(--on-surface);
-  background: var(--surface-container-lowest);
-  border: 1px solid var(--outline);
-  border-radius: var(--radius-s);
-  padding: var(--space-1) var(--space-2);
-}
-.c-input::placeholder { color: var(--on-surface-variant); }
-/* focus deepens the neutral border in addition to the ink ring */
-.c-input:focus-visible,
-.c-select:focus-visible { border-color: var(--on-surface); }
-
-/* ---- removable filter chip: a filter is a MARK -> its text is stamp ink, but the fill stays
-   neutral paper (no tonal wash). Hover on the X inverts. ---- */
-
-.c-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font: var(--type-mono-meta);
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-container-low);
-  color: var(--primary);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: calc(var(--space-1) / 2) var(--space-1) calc(var(--space-1) / 2) var(--space-2);
-}
-.c-chip-x {
-  color: var(--on-surface-variant);
-  text-decoration: none;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-s);
-}
-.c-chip-x:hover {
-  /* inversion: the removal target stamps solid */
-  background: var(--on-surface);
-  color: var(--surface);
-}
-
-/* ---- badges (lifecycle + visibility): small flat marks ---- */
-
-.c-badge {
-  display: inline-block;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  padding: calc(var(--space-1) / 2) var(--space-2);
-  border-radius: var(--radius-s);
-  white-space: nowrap;
-}
-.c-badge--entwurf {
-  /* the one warm mark — drafts pop (spec semantic note) */
-  background: var(--draft);
-  color: var(--on-draft);
-  border: 1px solid var(--on-draft);
-}
-.c-badge--sichtbarkeit {
-  background: transparent;
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline);
-}
-
-/* ---- Signatur tab: the archive's primary MARK. Ink text on gray paper, NOT a tinted fill.
-   One beveled leading corner (the drawer-label silhouette). ---- */
-
-.c-sig {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  max-width: 100%;
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-container-low);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  /* the drawer-label silhouette: one beveled leading corner */
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-sig-code {
-  /* the actual signature = stamp ink */
-  color: var(--primary);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-sig--leer {
-  /* "ohne Signatur": the hollow dashed slot — SAME silhouette as the filled tab (the dashed border
-     follows the bevel), so filed vs unfiled reads as stamped tab vs empty slot */
-  background: transparent;
-  border: 1px dashed var(--outline-variant);
-}
-.c-sig--leer .c-sig-code {
-  /* unfiled: no ink, hollow slot */
-  color: var(--on-surface-variant);
-  font-weight: 400;
+  /* disclosure headings (facet groups, the custom bag) share the one label treatment */
+  summary {
+    cursor: pointer;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
 }
 
-/* ---- facet group panel with drawer-label tab ---- */
+/* ============================================================
+   COMPONENTS — named structures (atoms/molecules with real anatomy).
+   ============================================================ */
+@layer components {
+  /* ---- control rows (law C8): a row sets --control-height once and every interactive child
+     consumes it, so equal heights hold by construction. Outside a row --hit-fallback decides, and
+     outside that the control keeps its content height. A bare <a> or <p> in a row cannot use
+     min-height (it is an inline box) — layouts.css gives those the row's line box. ---- */
+  :is(button, a.button, summary, input, select) {
+    min-height: var(--control-height, var(--hit-fallback, auto));
+  }
 
-.c-facet {
-  position: relative;
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s); /* panels stay square-ish — the bevel belongs to the tab */
-  padding: var(--space-3);
-  margin-top: calc(1.5rem + var(--space-2));
-}
-.c-facet-tab {
-  position: absolute;
-  top: calc(1px - 1.5rem);
-  left: var(--space-3);
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 0 var(--space-3);
-  background: var(--surface-container-high);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  border-bottom: none;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  /* drawer-label silhouette: one beveled leading corner */
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-facet-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.c-facet-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-left: 3px solid transparent;
-  border-radius: var(--radius-s);
-}
-.c-facet-row a {
-  /* inline interactive text = stamp ink */
-  color: var(--primary);
-  text-decoration: none;
-}
-.c-facet-row a:hover { text-decoration: underline; }
-.c-facet-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.c-facet-count {
-  /* mono count = ink data */
-  font: var(--type-mono-meta);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface-variant);
-  white-space: nowrap;
-}
-/* the remove ✕ on an active row — the one place a filter is cleared (the chips row is gone) */
-.c-facet-remove {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  border-radius: var(--radius-s);
-}
-/* INVERSION: the selected row is stamped solid neutral ink — a highlight, not a tint */
-.c-facet-row--aktiv {
-  background: var(--on-surface);
-  border-left-color: var(--on-surface);
-}
-.c-facet-row--aktiv a,
-.c-facet-row--aktiv .c-facet-count,
-.c-facet-row--aktiv .c-facet-remove {
-  color: var(--surface);
-  font-weight: 600;
+  /* screen-reader-only text */
+  .visually-hidden {
+    position: absolute;
+    width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
+    height: 1px; /* (same) */
+    padding: 0;
+    margin: -1px; /* (same) */
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,
+     extensible slot flavor (G.9); its icons come from the one vendored set (register row 9). ---- */
+  .actions,
+  [role="toolbar"] {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* A toolbar declares its FALLBACK hit size, never the row knob: it cannot know whether it IS the
+     control row or sits inside one, and inside one the row owns the height (C8, learning G.45). */
+  [role="toolbar"] {
+    --hit-fallback: var(--touch-target);
+  }
+  /* a mutating action is its own <form> (Enter never fires it) but sits inline in an .actions row.
+     A form inside a PANEL is a list line instead — `.menu li > form` owns that. */
+  .actions form {
+    display: inline;
+    margin: 0;
+  }
+  /* Hit-area mechanics for every quiet icon control, once; ink/hover stay per-site deltas.
+     `a:not(.button)` is load-bearing: a toolbar's `a.button` takes its look from @layer elements and
+     this layer outranks that one, so a bare `a` here overrode the button even from :where() —
+     14.98:1 down to 2.24:1 (learning G.47).
+     DIRECT children only: a toolbar may own a disclosure, and its dropped panel's links are overlay
+     contents, not row controls. The chip's ✕ is the one licensed compact deviation (owner
+     2026-08-07): .chip sets --hit-fallback, which also sizes it in the demo, outside any row. */
+  [role="toolbar"] > :is(a:not(.button), button.link),
+  .pane header > a,
+  .facet .remove,
+  .chip > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    min-height: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    border-radius: var(--radius-s);
+  }
+  /* ...and its INK, the same three states, once. Quiet until the pointer is on it; a disabled
+     control keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6).
+     The chip's ✕ is NOT in this group — it carries register row 3's inverted ink (see .chip > a).
+     Declared in :where() per law C13, so every per-site delta outranks it in this same layer. */
+  :where([role="toolbar"] > :is(a:not(.button), button.link), .pane header > a) {
+    color: var(--on-surface-variant);
+  }
+  :is([role="toolbar"] > :is(a:not(.button), button.link), .pane header > a):hover:not(:disabled) {
+    color: var(--on-surface);
+    background: var(--surface-container-high);
+    text-decoration: none;
+  }
+  :is([role="toolbar"] > button.link):disabled {
+    color: var(--on-surface-disabled);
+  }
+
+  /* ---- badges: neutral outline by default; ENTWURF is the ONE amber mark (register row 4).
+     Published renders no badge (row 7). ---- */
+  .badge {
+    display: inline-block;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    padding: calc(var(--space-1) / 2) var(--space-2);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
+  .badge.entwurf {
+    background: var(--draft);
+    color: var(--on-draft);
+    border-color: var(--on-draft);
+  }
+
+  /* ---- Signatur mark (register rows 1/2). DEFAULT everywhere the code appears in running chrome:
+     the PLAIN violet-ink mono code, no tab chrome — repetition dilutes a mark (G.2). ---- */
+  .c-sig {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    max-width: 100%;
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
+  }
+  .c-sig-code {
+    color: var(--primary);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .c-sig--leer .c-sig-code {
+    color: var(--on-surface-variant);
+    font-weight: 400;
+  }
+  /* the TAB SILHOUETTE — register row 1's licensed CONTEXT: the article reader header ONLY.
+     Context styling, not a variant class (law C2): the same include renders plain elsewhere. */
+  :is(.pane header, .facts) .c-sig {
+    background: var(--surface-container-low);
+    border: var(--hairline) solid var(--outline-variant);
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+    corner-shape: bevel;
+    border-radius: var(--radius-m) 0 0 0;
+  }
+  :is(.pane header, .facts) .c-sig--leer {
+    background: transparent;
+    border-style: dashed; /* the hollow "ohne Signatur" slot (row 6) keeps its dashed edge here */
+  }
+
+  /* ---- facet group (components/facet_group.html): a <details> dropdown on the filter rail. The
+     summary is flat hairline FURNITURE (register row 8); the dropped panel is a transient OVERLAY
+     (row 12). The active row is read from aria-current (law C2) and marked by inversion (row 3).
+     No positioning here — the panel positions against the RAIL (the shared rule below). ---- */
+  .facet > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    list-style: none; /* the ▾ glyph below is the disclosure mark, not the UA triangle */
+    padding: var(--space-1) var(--space-2);
+    background: var(--surface);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+  }
+  .facet > summary::after {
+    content: "▾";
+    font-size: 0.85em; /* the glyph rides the label's own size — relative by nature */
+  }
+  .facet[open] > summary {
+    background: var(--surface-container-mid);
+    border-color: var(--outline);
+  }
+  /* the ONE transient overlay panel (register row 12), shared by both dropdowns. It positions
+     against its CONTROL ROW, never its trigger (law C12) — that is what makes containment
+     STRUCTURAL: the row spans the viewport minus its padding, so a panel pinned to one of the row's
+     inline edges and capped at 100% of it is on-viewport at every width. A trigger's own viewport
+     offset is not expressible in Baseline CSS, so trigger-pinning protects one edge only and both
+     panels escaped at real widths. Which EDGE a panel pins to stays per component (below); the row
+     is whatever positioned ancestor it sits in (layouts.css marks the header and the rail). */
+  :is(.facet, .menu) > ul {
+    /* A dropped panel is not part of the row it hangs from, so the row's (possibly compact) knob
+       must not reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom
+       property that is the guaranteed-invalid value, so each consumer falls back to its OWN default
+       and one knob resolves to two things (learning G.38). */
+    --control-height: var(--touch-target);
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    max-width: 100%; /* the containment half of the rule above — never wider than the row */
+    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    list-style: none;
+    margin: 0;
+    padding: var(--space-2);
+    background: var(--surface-container-lowest);
+    border: var(--hairline) solid var(--outline);
+    border-radius: var(--radius-s);
+    box-shadow: var(--overlay-shadow);
+  }
+  .facet > ul {
+    /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
+    inset-inline-start: 0;
+    min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
+  }
+  /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
+     positioning exists the panel drops from its OWN trigger and flips away from the edge; where it
+     does not, the row-pinned rule above stands unchanged. anchor-scope keeps each disclosure
+     resolving its own trigger, not a later sibling's.
+     `--anchor-probe` is also the e2e hook: the containment walker serves this stylesheet with that
+     one condition falsified, so the FALLBACK tier gets its own computed proof. */
+  @supports (anchor-name: --anchor-probe) and (position-area: block-end span-inline-end) {
+    .facet,
+    .menu {
+      anchor-name: --dropdown;
+      anchor-scope: --dropdown;
+    }
+    :is(.facet, .menu) > ul {
+      position-anchor: --dropdown;
+      position-try-fallbacks: flip-inline;
+      /* position-area replaces the row-edge insets and supplies the containing block */
+      top: auto;
+      inset-inline: auto;
+      margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
+    }
+    /* each panel keeps the direction it drops in — the rail's groups open rightward from their
+       button, the header's create menu leftward from its own trailing edge */
+    .facet > ul {
+      position-area: block-end span-inline-end;
+    }
+    .menu > ul {
+      position-area: block-end span-inline-start;
+    }
+  }
+
+  .facet li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-s);
+  }
+  /* ---- ONE PANEL ENTRY, both dropped panels: they share material role 12, so they share the two
+     things an entry IS — the hit floor (the panel's own knob) and the type role. Sized per panel
+     they drifted, and the C8 walker compares WITHIN a row, so a facet-vs-menu mismatch could never
+     fail it. Per-panel DELTAS only, below. ---- */
+  .facet li > a,
+  .menu li > a,
+  .menu li > form > button.link {
+    min-height: var(--control-height);
+    font: var(--type-meta);
+    border-radius: var(--radius-s);
+  }
+  /* facet delta: a facet VALUE is unbounded, so its entry ellipsizes — hence a BLOCK container (a
+     flex box cannot ellipsize its own text), with align-content centering the line. */
+  .facet li > a {
+    min-width: 0;
+    align-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .facet li > span {
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
+  /* hit area: the shared icon-control rule above; only the flex opt-out is local */
+  .facet .remove {
+    flex: none;
+  }
+  .facet li:has(> [aria-current]) {
+    background: var(--on-surface);
+  }
+  .facet li:has(> [aria-current]) :is(a, span) {
+    color: var(--surface);
+    font-weight: 600;
+  }
+
+  /* ---- header create menu: the ONE "+ Neu …" disclosure (owner 2026-08-07, Mock B). Its whole
+     button treatment comes from the shared button rule in the elements layer; only the disclosure
+     mechanics are local. No positioning — the panel positions against the HEADER row. ---- */
+  .menu {
+    display: inline-block; /* shrink to the summary, so the disclosure is button-sized — not a
+       stretched block box (matters outside the header's flex row, e.g. the demo columns) */
+  }
+  .menu > summary {
+    display: inline-flex; /* centers the label inside the row's --control-height (C8) */
+    align-items: center;
+    list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
+    letter-spacing: normal; /* undo the bare-summary label treatment the button set leaves alone */
+    text-transform: none; /* (same) */
+  }
+  .menu[open] > summary {
+    background: var(--surface-container-mid);
+  }
+  /* panel box: the shared overlay-panel rule above (row 12); only anchoring + width are local */
+  .menu > ul {
+    /* the header row's TRAILING edge: the create disclosure ends the header, so at every width
+       where the row does not wrap the panel lands exactly under it — and when the row DOES wrap
+       (the menu drops to the next line, at the row's start) the panel stays on-viewport instead
+       of running off the left edge at left:-89px */
+    inset-inline-end: 0;
+    min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
+  }
+  /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
+     it — link or submit button alike (Kopieren mutates, so it cannot be a link). */
+  .menu li > a,
+  .menu li > form > button.link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: start;
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+  }
+  .menu li > form {
+    display: block;
+    margin: 0;
+  }
+
+  /* ---- filter chip: one ACTIVE filter on the rail — register row 3's INVERSION mark. HEIGHT is
+     the rail's knob (law C8); the rail sets it to the licensed compact size (owner 2026-08-07).
+     Its TYPE ROLE (--type-meta against the rail's --type-label controls) cites no ruling and is the
+     one four-axis exemption left in the C8 walker — owner question, issue #45. ---- */
+  .chip {
+    /* the out-of-row fallback, for the chip AND its ✕ (the demo exhibits one outside any row) */
+    --hit-fallback: var(--touch-target-compact);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--control-height, var(--hit-fallback));
+    font: var(--type-meta);
+    background: var(--on-surface);
+    color: var(--surface);
+    border-radius: var(--radius-s);
+    padding-inline-start: var(--space-2);
+  }
+  .chip b {
+    font-weight: 400;
+    color: color-mix(in oklab, var(--surface), var(--on-surface) 30%);
+  }
+  /* hit area: the shared icon-control rule above; only the inverted ink is local */
+  .chip > a {
+    color: var(--surface);
+  }
+
+  /* ---- ledger: the results register as a bound REGISTER BOOK (owner 2026-08-07, exploration 05a):
+     hairline horizontal rules only, no filled band, no zebra, no side chrome; the Signatur column
+     closes on the ONE licensed vertical margin rule (register row 11). The root is a SIZE CONTAINER,
+     so the register adapts to its column (law C2), not the viewport. Anatomy, five tracks for every
+     viewer: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row toolbar; all rows subgrid onto them.
+     Adaptation is INTRINSIC (law C11): the mono columns sit at max-content, the Titel takes the slack
+     and gives it back first, so every column stays visible above the fold. The two-line fold below
+     is the phone-width LAST RESORT and the one modal width change. ---- */
+  .ledger {
+    container-type: inline-size;
+  }
+  .ledger > [role="table"] {
+    /* The SHRINKABLE track floors (law C3: the grid's own knobs, consumed by --cols AND by the
+       fold's row template below, so one-line and folded anatomy can never derive different
+       minima). Every floor is the narrowest width at which its column still carries its fact,
+       and each is a structural dimension with no fitting token (law C5):
+         --sig-floor    5rem    — a Signatur at the DOMAIN CEILING still reads in full: no spaces,
+                                  8 characters (owner 2026-08-07), measured 65px in the mono face
+                                  plus 13px margin-rule chrome = 78px. A code beyond that ceiling
+                                  ("they could get longer, but I don't expect them to") gives its
+                                  extra width back through .c-sig-code's ellipsis rather than
+                                  widening the register.
+         --titel-floor  6rem    — the elastic track: takes all slack, gives it back FIRST. The
+                                  Titel is the one UNBOUNDED field (free text), so it is where
+                                  long content is actually absorbed.
+         --datum-floor  5.25rem — the "DATIERUNG" header label (83px measured) stays intact
+         --typ-floor    3rem    — the "TYP" header label (28px) plus reading room
+       minmax(floor, max-content), never a bare max-content track: that has a max-content BASE size
+       and can never shrink, so long content pushed the page body into horizontal scroll and the
+       cells' ellipsis was dead styling (learning G.24). */
+    --sig-floor: 5rem;
+    --titel-floor: 6rem;
+    --datum-floor: 5.25rem;
+    --typ-floor: 3rem;
+    /* the shared column tracks (law C3/C5); --lead is the optional bulk-checkbox track, prepended
+       via the empty-fallback idiom. Tracks carry LINE NAMES and every cell is placed on its own
+       (below), so a row with an absent value keeps every other cell in its column instead of
+       auto-flowing leftward. */
+    --cols: [sig] minmax(var(--sig-floor), max-content) [titel] minmax(var(--titel-floor), 1fr)
+      [datum] minmax(var(--datum-floor), max-content) [typ] minmax(var(--typ-floor), max-content)
+      [aktion] max-content;
+    display: grid;
+    grid-template-columns: var(--lead, ) var(--cols);
+    /* the book's covers: top + bottom rules only — a bound page has no side chrome */
+    border-block: var(--hairline) solid var(--outline);
+    /* The last-resort scroll box (ledger.html's contract: the page body never scrolls sideways).
+       `position: relative` makes this the containing block for the sr-only column labels, so they
+       are clipped BY the scroller instead of extending the document's scrollable area. */
+    position: relative;
+    overflow-x: auto;
+  }
+  .ledger.bulk > [role="table"] {
+    --lead: [auswahl] min-content;
+  }
+  /* the rowgroup keeps its ARIA role but leaves the box tree, so rows subgrid onto the tracks */
+  .ledger [role="rowgroup"] {
+    display: contents;
+  }
+  /* only what header AND body rows share; each flavor declares its own block padding below */
+  .ledger [role="row"] {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    gap: var(--space-3);
+    padding-inline: var(--space-3);
+  }
+  /* the header row is the [role=table]'s direct child; body rows live in the rowgroup. No filled
+     band: the head sits on the darker --outline against the body's --outline-variant. */
+  .ledger [role="table"] > [role="row"] {
+    border-bottom: var(--hairline) solid var(--outline);
+    padding-block: var(--space-2);
+  }
+  .ledger [role="rowgroup"] [role="row"] + [role="row"] {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  /* body rows: the toolbar already gives the row its height, so less block padding keeps the
+     register compact. Hover carries no fill — the title's underline is the affordance. */
+  .ledger [role="rowgroup"] [role="row"] {
+    padding-block: var(--space-1);
+  }
+  /* the row shown in the preview pane (register row 10): the one fill left in the line-table */
+  .ledger [role="row"][aria-current] {
+    background: var(--surface-container-high);
+  }
+  /* bulk selection (owner 2026-08-07): the CHECKED BOX IS the mark — no inversion bar. Unchecked
+     boxes reveal on row hover/focus, the same gesture that surfaces the row toolbar. Gated on
+     `hover: hover` so touch keeps them visible. */
+  @media (hover: hover) {
+    .ledger [role="rowgroup"] .auswahl input:not(:checked) {
+      opacity: 0;
+    }
+    .ledger [role="rowgroup"] [role="row"]:is(:hover, :focus-within) .auswahl input {
+      opacity: 1;
+    }
+  }
+
+  .ledger :is([role="cell"], [role="columnheader"]) {
+    min-width: 0;
+  }
+  /* header cells: ONE treatment for every column head, span and anchor alike — proven computed,
+     not claimed here (learning G.1). Sortable heads differ only by the link affordance. */
+  .ledger [role="columnheader"],
+  .ledger [role="columnheader"] a {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .ledger [role="columnheader"] a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(var(--space-1) / 2);
+  }
+  .ledger [role="columnheader"] a:hover {
+    color: var(--primary);
+  }
+  .ledger [role="columnheader"] a > span {
+    font-size: 0.85em; /* the direction glyph rides the label's own size — relative by nature */
+  }
+
+  /* headers AND cells share the named lines: an absent cell leaves a hole, never drift */
+  .ledger .auswahl {
+    grid-column: auswahl;
+  }
+  .ledger .sig {
+    grid-column: sig;
+    /* register row 11: the ONE vertical hairline in the ledger, closing the Signatur column */
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    border-inline-end: var(--hairline) solid var(--outline-variant);
+    padding-inline-end: var(--space-3);
+  }
+  .ledger .titel {
+    grid-column: titel;
+  }
+  .ledger .datierung {
+    grid-column: datum;
+    text-align: right; /* the Datierung reads as a right-aligned figure column (05a) */
+  }
+  .ledger .typ {
+    grid-column: typ;
+  }
+  .ledger .aktion {
+    grid-column: aktion;
+  }
+
+  /* body-cell typography, scoped to the ROWGROUP: header cells carry the same column classes, so
+     an unscoped `.ledger .titel a` beat the header rule by order and split the computed styles. */
+  .ledger [role="rowgroup"] .auswahl {
+    display: inline-flex;
+    align-items: center;
+  }
+  .ledger [role="rowgroup"] .titel {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .ledger [role="rowgroup"] .titel a {
+    font: var(--type-body);
+    color: var(--on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* hover states the affordance (owner 2026-08-07): the title is the row's navigation */
+  .ledger [role="rowgroup"] .titel a:hover {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+  /* the ENTWURF deviation rides its fact (row 4, learning G.10): the same renderer as everywhere,
+     with the ledger context stripping the box. flex:none keeps it visible when the title
+     ellipsizes. */
+  .ledger [role="rowgroup"] .titel .badge.entwurf {
+    flex: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font: var(--type-mono-meta);
+    letter-spacing: var(--label-tracking);
+    color: var(--on-draft);
+  }
+  .ledger [role="rowgroup"] .datierung {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--primary); /* mono date = ink data (row 2) */
+  }
+  .ledger [role="rowgroup"] .typ {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  /* the mono columns give space back the way the Titel does: without the ellipsis a tightened
+     track merely CLIPS the value instead of saying so */
+  .ledger [role="rowgroup"] :is(.datierung, .typ) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the row-action toolbar (G.9): hit area and ink come from the shared icon-control rule above */
+  .ledger [role="rowgroup"] .aktion [role="toolbar"] {
+    justify-content: flex-end;
+  }
+  /* quiet until the row is hovered / focused — POINTER devices only (touch keeps them visible) */
+  @media (hover: hover) {
+    .ledger [role="rowgroup"] .aktion a {
+      opacity: 0;
+    }
+    .ledger [role="row"]:is(:hover, :focus-within) .aktion a,
+    .ledger .aktion a:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  /* the ONE width query in the ledger (law C11 — intrinsic first: above this threshold the grid
+     itself absorbs every variation, so there are no drop steps). The LAST RESORT at phone-width
+     containers: the two-line fold — header hidden, SIG + Titel over Datierung · Typ; the bulk
+     checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
+     BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. The 32rem
+     threshold DERIVES from the one-line anatomy's content minimum (law C9; measured live
+     2026-08-07, re-derived 2026-08-07 from the track FLOORS after G.24 — the e2e
+     test_ledger_columns_stay_visible_by_intrinsic_sizing reads the same knobs and re-measures it
+     every run): every shrinkable track at its floor plus the rigid ones at content width —
+     checkbox 13 + Signatur floor 80 (--sig-floor 5rem — the 8-character ceiling code in full,
+     owner 2026-08-07) + 13 margin-rule chrome + Titel floor 96 (6rem) + Datierung floor 84
+     (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
+     (two --touch-target icons + gap) + 5 gaps × 12 + row padding 24 ≈ 514px ≈ 32rem — below that
+     even the FULLY TIGHTENED one-line row cannot fit, so hiding (the fold) is necessary, never
+     premature. The threshold also sits BELOW the narrowest pane-open container — the pane switch
+     (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
+     ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
+     (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
+  @container (max-width: 32rem) { /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the e2e proof); no token names a content minimum */
+    .ledger > [role="table"] {
+      grid-template-columns: 1fr;
+    }
+    .ledger [role="table"] > [role="row"] {
+      display: none;
+    }
+    .ledger [role="rowgroup"] [role="row"] {
+      /* the two-line card's own tracks, on the SAME floor knobs as the one-line anatomy (G.24:
+         a bare max-content track cannot shrink, and the fold is exactly where space is
+         scarcest — long content overflowed the card at phone widths) */
+      grid-template-columns:
+        min-content minmax(var(--sig-floor), max-content)
+        minmax(var(--datum-floor), max-content) minmax(0, 1fr);
+      grid-template-areas:
+        "auswahl sig titel titel"
+        "auswahl sig datum typ";
+      align-items: start;
+      column-gap: var(--space-3);
+      row-gap: calc(var(--space-1) / 2);
+    }
+    /* cell rules ride the same rowgroup scope as the base typography, so the fold's overrides
+       (font step-down, grid areas) win inside its range */
+    .ledger [role="rowgroup"] .auswahl {
+      grid-area: auswahl;
+      align-self: center;
+    }
+    .ledger [role="rowgroup"] .sig {
+      grid-area: sig;
+      align-self: center;
+      /* the fold is a two-line card, not table anatomy — the margin rule (row 11) rests */
+      border-inline-end: none;
+      padding-inline-end: 0;
+    }
+    .ledger [role="rowgroup"] .titel {
+      grid-area: titel;
+      align-self: center;
+      flex-wrap: wrap;
+    }
+    .ledger [role="rowgroup"] .titel a {
+      white-space: normal;
+    }
+    .ledger [role="rowgroup"] .datierung {
+      grid-area: datum;
+      font: var(--type-mono-meta);
+    }
+    .ledger [role="rowgroup"] .typ {
+      grid-area: typ;
+      font: var(--type-mono-meta);
+    }
+    .ledger [role="rowgroup"] .datierung + .typ::before {
+      content: "· ";
+    }
+    /* the action gutter collapses — the Titel already navigates, and the pane is
+       viewport-hidden at these widths anyway */
+    .ledger [role="rowgroup"] .aktion {
+      display: none;
+    }
+  }
+
+  /* ---- pagination: plain prev/next links, the mono current-page stand ---- */
+  .pager {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    justify-content: center;
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  .pager > span {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface); /* the current-page stand = data */
+  }
+
+  /* ---- honest empty state: a hollow slot (row 6) on the quietest TRUE SHEET (row 8) ---- */
+  .empty-state {
+    padding: var(--space-6);
+    text-align: center;
+    background: var(--sheet-lowest);
+    border: var(--hairline) dashed var(--outline-variant);
+    border-radius: var(--radius-s);
+    box-shadow: var(--sheet-shadow);
+    color: var(--on-surface);
+  }
+  .empty-state > p {
+    margin: 0 0 var(--space-1);
+    font: var(--type-title);
+  }
+  .empty-state > p + p {
+    margin: 0;
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+  }
 }
 
-/* ---- result card: the index-card cut, drawn natively ---- */
-
-.c-card {
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  /* big beveled index cut top-right (--bevel), small bevels elsewhere — the border follows
-     the cut automatically, which is the whole point of corner-shape */
-  border-radius: var(--radius-s) var(--bevel) var(--radius-s) var(--radius-s);
-  padding: var(--space-4);
-}
-.c-card:hover { background: var(--surface-container-mid); }
-.c-card-kopf {
-  display: flex;
-  flex-wrap: wrap; /* narrow viewports: badges drop under the Signatur tab, never overflow */
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-2);
-  padding-right: calc(var(--bevel) + var(--space-1));
-}
-.c-card-badges {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.c-card-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
-.c-card-titel a {
-  /* the title link: neutral at rest (it is a heading, not data), ink on interaction */
-  color: var(--on-surface);
-  text-decoration: none;
-}
-.c-card-titel a:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-.c-card-meta {
-  /* mono meta (Signatur/Datierung) = ink data */
-  margin: 0;
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--primary);
-}
-.c-card-meta span + span::before {
-  content: " · ";
-  color: var(--on-surface-variant);
-}
-.c-card-aktionen {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--outline-variant);
-}
-
-/* ---- pagination ---- */
-
-.c-pager {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
-  justify-content: center;
-  margin-top: var(--space-4);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-.c-pager a {
-  color: var(--primary);
-  text-decoration: none;
-}
-.c-pager a:hover { text-decoration: underline; }
-.c-pager-stand {
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface); /* the current-page stand = ink data */
-}
-
-/* ---- honest empty state (carries the extension slot) ---- */
-
-.c-empty {
-  padding: var(--space-6);
-  text-align: center;
-  background: var(--surface-container-lowest);
-  border: 1px dashed var(--outline-variant);
-  border-radius: var(--radius-s);
-  color: var(--on-surface);
-}
-/* .c-empty-zeichen is the extension slot (Kohte / Waldläuferzeichen later, additive only) — the
-   template keeps the class hook; no style rule until there is something to draw. */
-.c-empty-titel { margin: 0 0 var(--space-1); font: var(--type-title); }
-.c-empty-hinweis {
-  margin: 0;
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-
-/* ---- ledger: the results register (dense aligned rows) ----
-   The whole ledger is ONE grid; the header and every row are subgrid rows spanning all columns, so
-   every cell lines up on the same tracks (no per-row width drift). Columns: SIG · TITEL (fills) ·
-   DATIERUNG · TYP · SICHTBARKEIT · action gutter. When the container is narrower than the columns
-   need (e.g. the split-narrow pane demo, or the component library's narrow probe), the ledger
-   scrolls horizontally inside its own box — the page body never scrolls sideways. The narrow
-   density reflows the SAME cells into two lines with zero markup fork. */
-
-.c-ledger {
-  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
-    minmax(5rem, max-content) minmax(7rem, max-content) minmax(6rem, max-content);
-  display: grid;
-  grid-template-columns: var(--c-ledger-cols);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  overflow-x: auto;
-}
-/* member/public: no SICHTBARKEIT + no action gutter — the grid drops to the four member-visible
-   columns (SIG · TITEL · DATIERUNG · TYP). Those cells are omitted from the markup entirely. */
-.c-ledger--ohne-chrome {
-  --c-ledger-cols: minmax(6rem, max-content) minmax(10rem, 1fr) minmax(6rem, max-content)
-    minmax(5rem, max-content);
-}
-/* bulk edit (archivist): a leading min-content checkbox track before the six archivist columns. */
-.c-ledger--bulk {
-  --c-ledger-cols: min-content minmax(6rem, max-content) minmax(10rem, 1fr)
-    minmax(6rem, max-content) minmax(5rem, max-content) minmax(7rem, max-content)
-    minmax(6rem, max-content);
-}
-.c-ledger-cell--auswahl { display: inline-flex; align-items: center; }
-/* INVERSION for a bulk-selected row — the same stamp grammar as the active facet row / pane row: a
-   solid neutral-ink ground, NOT a tint. The c-sig mark keeps its ink on the inverted ground
-   (contrast-tested via the --aktiv pairing). */
-.c-ledger-row--gewaehlt {
-  background: var(--on-surface);
-}
-.c-ledger-row--gewaehlt .c-ledger-titel,
-.c-ledger-row--gewaehlt .c-ledger-cell--datierung,
-.c-ledger-row--gewaehlt .c-ledger-cell--typ,
-/* a SELECTED draft row: the --entwurf rule would otherwise win the cascade and wash the title on
-   the inverted ground — flip it back to the surface ink like every other selected cell */
-.c-ledger-row--gewaehlt.c-ledger-row--entwurf .c-ledger-titel {
-  color: var(--surface);
-}
-/* the visibility badge on an inverted row: its default on-surface-variant text + outline border
-   both fall under the contrast floor on the ink ground — flip both to surface (contrast-tested) */
-.c-ledger-row--gewaehlt .c-badge--sichtbarkeit {
-  color: var(--surface);
-  border-color: var(--surface);
-}
-/* the rowgroup keeps its ARIA role but leaves the box tree, so the rows become effective grid
-   children of .c-ledger and their subgrid inherits the 6 columns (a real wrapper box would break
-   the subgrid chain and collapse each row to one column) */
-.c-ledger-body { display: contents; }
-.c-ledger-head,
-.c-ledger-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-.c-ledger-head {
-  background: var(--surface-container-high);
-  border-bottom: 1px solid var(--outline-variant);
-}
-.c-ledger-row + .c-ledger-row { border-top: 1px solid var(--outline-variant); }
-.c-ledger-row:hover,
-.c-ledger-row:focus-within { background: var(--surface-container-mid); }
-/* selected row (the one shown in the preview pane): a persistent highlight, distinct from hover. */
-.c-ledger-row--aktiv,
-.c-ledger-row--aktiv:hover { background: var(--surface-container-high); }
-
-.c-ledger-cell { min-width: 0; }
-
-/* header cells: ONE treatment for every column head — the label role, identical for all. */
-.c-ledger-h {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-/* sortable head: the same label base (inherits font/tracking/case/color from .c-ledger-h); the
-   ONLY difference is the link affordance — ink + underline on hover (stamp-grammar link rule). */
-.c-ledger-sort {
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(var(--space-1) / 2);
-  color: inherit;
-  text-decoration: none;
-}
-.c-ledger-sort:hover { color: var(--primary); text-decoration: underline; }
-/* active sort: exactly one marker — the direction glyph — never a different font/weight/color. */
-.c-ledger-sort-pfeil { font-size: 0.85em; }
-
-/* body cells */
-.c-ledger-titel {
-  font: var(--type-body);
-  color: var(--on-surface);
-  text-decoration: none;
-}
-.c-ledger-titel:hover { color: var(--primary); text-decoration: underline; }
-.c-ledger-cell--titel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-ledger-cell--datierung {
-  /* mono date = ink data */
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--primary);
-}
-.c-ledger-cell--typ {
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-.c-ledger-cell--sichtbarkeit {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-.c-ledger-cell--aktion { text-align: right; }
-/* the row action is quiet until the row is hovered / keyboard-focused */
-.c-ledger-aktion { opacity: 0; }
-.c-ledger-row:hover .c-ledger-aktion,
-.c-ledger-row:focus-within .c-ledger-aktion { opacity: 1; }
-.c-ledger-aktion:focus-visible { opacity: 1; }
-
-/* draft row: quiet, the sig slot reads as the hollow unfiled tab (handled by signatur_tab) */
-.c-ledger-row--entwurf .c-ledger-titel { color: var(--on-surface-variant); }
-
-/* narrow density — the mail-client fold: header hidden, each row two lines. Line 1: SIG + Titel.
-   Line 2: Datierung · Typ (the fold, one line via a shared grid track). Sichtbarkeit rides the
-   right edge across both lines. The row drops out of the ledger subgrid and becomes its own grid
-   so it can lay the cells out on two lines; the outer ledger stays a 1-col grid in this mode. */
-.c-ledger--narrow { grid-template-columns: 1fr; }
-.c-ledger--narrow .c-ledger-head { display: none; }
-.c-ledger--narrow .c-ledger-row {
-  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
-  grid-template-areas:
-    "sig titel titel meta-r"
-    "sig datum typ   meta-r";
-  align-items: start;
-  column-gap: var(--space-3);
-  row-gap: calc(var(--space-1) / 2);
-}
-.c-ledger--narrow .c-ledger-cell--sig { grid-area: sig; align-self: center; }
-.c-ledger--narrow .c-ledger-cell--titel {
-  grid-area: titel;
-  align-self: center;
-  white-space: normal;
-}
-/* the fold: Datierung and Typ sit side by side on line 2, each in its own track. The "·" separator
-   is printed by Typ ONLY when a Datierung cell immediately precedes it (adjacent-sibling rule): an
-   absent value (its cell is not rendered at all) leaves no dangling separator, and a row with
-   neither value drops its whole second line (both grid areas empty → the row auto-sizes away). */
-.c-ledger--narrow .c-ledger-cell--datierung {
-  grid-area: datum;
-  font: var(--type-mono-meta);
-  color: var(--primary); /* mono date = ink data */
-}
-.c-ledger--narrow .c-ledger-cell--typ {
-  grid-area: typ;
-  font: var(--type-mono-meta);
-  color: var(--on-surface-variant);
-}
-.c-ledger--narrow .c-ledger-cell--datierung + .c-ledger-cell--typ::before { content: "· "; }
-.c-ledger--narrow .c-ledger-cell--sichtbarkeit {
-  grid-area: meta-r;
-  align-self: center;
-  justify-content: flex-end;
-}
-/* the action gutter collapses in narrow mode — the row is the affordance (whole card clickable in
-   real use); the demo keeps Bearbeiten reachable via the titel link + preview pane */
-.c-ledger--narrow .c-ledger-cell--aktion { display: none; }
-
-/* screen-reader-only label (the action column header carries no visible text) */
-.c-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* ============================================================
+   MODES — deliberate global overrides + future mode remaps.
+   ============================================================ */
+@layer modes {
+  /* The one sanctioned !important (legacy-blacklist carve-out: "deliberate @layer override"):
+     no author display rule may ever un-hide a [hidden] element again. Kills the recorded
+     regression class — a fixed-position element whose display rule overrode [hidden] and
+     intercepted clicks. JS reveals by REMOVING the attribute, so enhancement still works. */
+  [hidden] {
+    display: none !important;
+  }
 }

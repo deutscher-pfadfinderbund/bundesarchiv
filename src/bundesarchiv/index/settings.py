@@ -73,7 +73,8 @@ BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 *
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
 
 # The ONE piece of HTTP middleware prod runs: CSRF protection for the Part 4.7 write forms (create,
-# edit-save, kopieren, loeschen, lebenszyklus, vorschau all POST). Without it, CsrfViewMiddleware is
+# edit-save (which carries the lifecycle verb), kopieren, loeschen, the media POSTs and the bulk
+# apply are all POSTs). Without it, CsrfViewMiddleware is
 # inactive and those destructive POSTs accept cross-site requests despite their {% csrf_token %}.
 # Deliberately the ONLY entry — no SessionMiddleware (CsrfViewMiddleware uses the cookie token by
 # default, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a Django session),

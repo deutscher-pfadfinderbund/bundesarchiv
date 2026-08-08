@@ -12,10 +12,13 @@ uv run pytest -m gallery -s
 
 One invocation writes every canonical UI state to `var/gallery/` as a PNG in
 BOTH color modes (`<state>.light.png` / `<state>.dark.png`). The states are the
-workbench (empty / results / filtered / pane-open / bulk-selection / public),
+workbench (empty / results / filtered with rail chips + clear-all / rail
+dropdown open / header "+ Neu …" disclosure open / pane-open / bulk-selection /
+public),
 the create + edit forms, the read view, and the POST-gated confirm surfaces
-(bulk-confirm, delete-confirm, publish-preview). These are the shots that go to
-the owner for async review — one representative shot per state, both modes.
+(bulk-confirm, delete-confirm, publish-preview).
+These are the shots that go to the owner for async review — one representative
+shot per state, both modes.
 
 Override the output dir with `BUNDESARCHIV_GALLERY_DIR` (e.g. a scratchpad).
 
@@ -37,7 +40,10 @@ purpose.
 ## 3. Then judge on live pages
 
 The gallery is the supplement, not the verdict. Final judgment — interact,
-resize, both modes — happens on the live `:8000` pages. Restart the dev server
+resize, both modes — happens on the live `:8000` pages. Judge against the
+review catechism and cue register in `docs/design/design-review-law.md`
+(questions 2–4 and 6–8 are the human half; the lintable subset becomes a
+test in the rework wave). Restart the dev server
 after ANY commit (`:8000` runs `--noreload` and serves stale code otherwise),
 then review the URLs the change touches.
 

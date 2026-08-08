@@ -72,6 +72,29 @@ neutral infinitive imperatives are fine. Everything development-facing — code,
 routes, dev pages, commit messages, docs, comments — is **English**. "Findbuch"
 is banned from UI copy (archaic).
 
+## Comment discipline (owner, 2026-08-08)
+
+A comment earns its place only by saying what the code at that spot cannot: an
+exception, a non-obvious constraint, or a value someone would otherwise "fix".
+Narration, restated law and history are defects — git holds the history;
+`docs/design/design-review-law.md`, `docs/adr/` and `docs/requirements/` hold
+the decisions.
+
+In code a decision gets a **pointer**, never a paraphrase (`law C8`,
+`register row 9`, `ADR 0015`) — and it appears once, at the one place a reader
+needs it. If you are explaining *why* a decision is right, you are writing in
+the wrong file: put it in the law and cite it here.
+
+Before keeping a comment, delete it and re-read the code. If only your
+confidence is gone, it was noise; if a future writer could now break something,
+keep it — at one line. Deleting code does not license a comment about the
+deletion.
+
+Measured baseline when this rule landed (form wave): 33.8% of the stylesheets
+and 31.2% of the templates were comment, and the wave's own additions were 69%
+(CSS) and 98% (templates) comment lines. That is the habit this rule exists to
+break.
+
 ## Standing law changes update the briefs in the same wave
 
 When a ruling changes standing law (a testing rule, a contract like the deny

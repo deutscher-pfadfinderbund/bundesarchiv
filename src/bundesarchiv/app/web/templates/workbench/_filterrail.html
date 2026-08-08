@@ -1,0 +1,23 @@
+{% comment %}
+The filter rail — the PRIMARY filter interaction (owner 2026-08-07; the facet sidebar died with
+it). One horizontal row directly under the header: the filter set (a native <details> dropdown per
+facet group — the ONE facet_group component — plus the active-filter chips and clear-all), then the
+"N Treffer" count ending the line. Every filter is a plain GET link (URL-as-state, no JS); facet
+clicks navigate the full page, so the rail re-renders with fresh counts on every filter change. A
+chip is the register-row-3 inversion mark for one active filter; its ✕ (and the dropdown's active
+row) remove it via the same link algebra. On narrow viewports the rail simply wraps — the results
+are never buried under stacked panels.
+
+The rail lives OUTSIDE the #results swap target, so an htmx q-swap has to refresh it out-of-band or
+it keeps describing the previous request's query. Both of its parts do exactly that, and they are
+two parts for one reason: _filterset.html (counts, chips, hrefs, aria-current) is swapped WHOLE,
+while _trefferzahl.html keeps its own innerHTML swap so the aria-live node itself survives and
+still announces. Both are emitted as top-level oob fragments by _results.html on an HX-Request.
+{% endcomment %}
+<nav class="filterrail" aria-label="Filter">
+  {% include "workbench/_filterset.html" with facet_groups=facet_groups filter_chips=filter_chips clear_filters_query=clear_filters_query only %}
+  {% comment %} The "N Treffer" count ends the rail line, right-aligned (law C10: status rides
+  the occupied band; the status-only toolrow died). The rail always renders on the workbench,
+  so the count has one place in every branch — results, zero hits, non-archivist alike. {% endcomment %}
+  {% include "workbench/_trefferzahl.html" with total=total only %}
+</nav>

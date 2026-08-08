@@ -4,6 +4,11 @@ Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
 no formal acceptance step. Governs all web UI from Part 4 on. Sibling DPB
 services reuse the whole system by swapping one seed line.
 
+**Enforceable half:** `design-review-law.md` (same directory) — the review
+catechism, the cue register (the ONLY licensed visual cues, MAY-only), the
+cascade rules, and the lintable subset. Owner-ratified 2026-08-06; reviews
+and the design gate run against it.
+
 ## Construction law (owner, 2026-08-05)
 
 How UI gets BUILT — these rank with the visual laws below. Background: agents
@@ -15,12 +20,29 @@ simplicity checkable instead of a matter of taste.
   `output`, …); a div-plus-CSS reconstruction of something HTML already
   provides is a defect. Deviate from browser-plain only where a law here or
   the spec demands it.
-- **Component hierarchy, reuse-first.** Atoms (`templates/components/`) →
-  molecules → layouts → pages. New UI composes existing
-  components; no ad-hoc one-off markup where a component exists, and no
-  redundant near-duplicate components. If something genuinely new is needed,
-  it is added DELIBERATELY: named, filed in the hierarchy, mapped here — or
-  it doesn't ship.
+- **Composition model, three layers** (owner, 2026-08-06; replaces the
+  earlier atoms→molecules→layouts→pages ladder):
+  1. **Components** — atoms/molecules (`templates/components/`), semantic
+     HTML first. Reuse-first: no ad-hoc one-off markup where a component
+     exists, no redundant near-duplicates; anything genuinely new is added
+     DELIBERATELY — named, filed, mapped here — or it doesn't ship.
+  2. **Views** — self-contained work surfaces (facet panel, result ledger,
+     article reader, edit form, confirm panel). Viewport-agnostic: a view
+     adapts to its CONTAINER (`@container`), never to the screen. One
+     implementation per view — the reader in the workbench pane and on the
+     detail page is the SAME view, composed differently.
+  3. **Compositions** — arrangements of views per available space, built
+     from a small set of reusable CSS layout primitives (Every Layout
+     style: Sidebar, Stack, Cover, …). Desktop composes several views;
+     narrow shows one at a time with navigation between them.
+
+  **Precedent rule:** a new view copies the nearest approved view and
+  changes the minimum. Deviating from precedent needs an owner ruling —
+  the approved views are the framework; there is no separate screen spec.
+
+  References: Every Layout (Pickering/Bell — composition primitives),
+  CSS container queries (view adaptivity; inside the browser floor),
+  Atomic Design (Frost — terminology: view ≈ organism).
 - **Provenance.** Every visible element traces to a named archivist wish
   (`docs/requirements/`), an owner ruling, or a spec section
   (`docs/design/part-4-web.md`). No element exists "for completeness."
@@ -41,6 +63,55 @@ simplicity checkable instead of a matter of taste.
   before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-
   first: prefer waves that only remove.
+
+## Rework-wave charter (owner interview, 2026-08-06)
+
+The one deliberate wave that dissolves the `c-*`/`l-*` taxonomy. Scope
+rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
+
+1. **Markup may change.** Where a native element replaces a div
+   construction, replace it in the same wave (`<dl>` for the Akte
+   key/value rows, `<fieldset>`, `<search>`, `<nav>`, …) — the cascade
+   must style real semantics, not re-labelled divs. Classes survive only
+   where semantics cannot discriminate, named for meaning. The target
+   structure is the three-layer composition model above: the taxonomy
+   dissolves into components + views + composition primitives, and the
+   pane/detail-page duality becomes one reader view in two compositions.
+2. **Delete `components-papier.css`** and the components-demo variant
+   toggle. One look; the papier experiment is over.
+3. **Dissolve bare-element wrapper components** (`button.html`,
+   `input.html`, `select.html`) into plain semantic HTML styled by the
+   cascade. Structural atoms stay (signatur_tab, facet_group, ledger_row,
+   pagination, …).
+4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
+   stay, and every component change updates them in the same wave —
+   lockstep is the price of keeping them.
+5. **Fold vs column-drop at the gate.** SETTLED (owner verdict 2026-08-07,
+   on pixels): column-drop won over the fold as THE width behavior; the
+   two-line fold survives only under the phone-width ~32rem container
+   query (kept below the narrowest pane-open container) as the last
+   resort. The `?fold` switch, the pane-open fold and the losing CSS are
+   gone; row anatomy never changes with pane state. *Addendum (owner,
+   2026-08-07 round 2 — law C11 "intrinsic first"):* the drop steps
+   themselves died the same day — their 60/52rem thresholds were invented
+   and hid columns with space to spare (learning G.23). The width behavior
+   is now INTRINSIC: mono columns sit at max-content, the Titel absorbs
+   slack and ellipsizes first, every column stays visible above the fold;
+   the ~32rem fold threshold carries its C9 content arithmetic.
+6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
+   selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
+   `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
+   A cascade rework is exactly the known regression class in `CLAUDE.md`
+   (position/overlay rules on `hidden`-gated elements intercepting
+   clicks), so the wave's gate is the e2e journeys, not gallery renders
+   alone. An axe-core pass over the journey pages rides along (carried
+   from issue #9) — the semantic-HTML upgrade is the moment to measure
+   and fix the a11y crop.
+
+Success criterion: net-negative diff in CSS lines and unique class names
+(169 classes / ~2,344 CSS lines at charter time), zero visual regressions
+outside the deliberately changed states, gallery renders as the verdict
+medium.
 
 ## Principles
 
@@ -137,7 +208,11 @@ Semantic notes:
 
 ## Non-color tokens
 
-- **Type roles**: `display` (wordmark), `title` (card titles), `body`,
+- **Type roles**: `wordmark` (the header's Bundesarchiv mark ONLY — small-caps
+  system serif with `--wordmark-tracking`, the one display face with character;
+  owner-licensed 2026-08-07, exploration 05 idea (b) — paired with the fine
+  double rule under `body > header`), `display` (screen titles), `title` (card
+  titles), `body`,
   `meta` (dense controls + secondary cells), `label` (facet headings, column
   heads, badges — letterspaced small caps), `mono` + `mono-meta` (Signaturen,
   Datierungen, counts — tabular). Every text node maps to exactly one role;
@@ -152,16 +227,45 @@ Semantic notes:
   geometry, so borders and fills follow it automatically. Older browsers
   render rounded corners instead — accepted, no fallback (owner, 2026-07-10).
 
-## Layout (owner, 2026-07-10)
+## Layout (owner, 2026-07-10; rail 2026-08-07)
 
-The workbench is **split-narrow**: sticky collapsible facet sidebar left
-(native `<details>` groups), LEDGER results center (dense register rows:
-SIG · Titel · Datierung · Typ · Sichtbarkeit · row action; one label-role
-header treatment), preview pane right. Pane state lives in the URL,
-server-rendered — zero JS required. While the pane is open the ledger folds
-to two-line narrow rows (the mail-client fold); below 1280px the pane
-disappears and rows navigate to the detail page (the canonical permalink).
-Cards remain for photo-heavy and member-facing contexts.
+The workbench composes header · **filter rail** · results · preview pane.
+The rail is the PRIMARY filter interaction (owner 2026-08-07, exploration
+02 verdict — the facet sidebar died with it): one horizontal row directly
+under the header holding a native `<details>` dropdown per facet group
+(the dropped panels float on the one overlay shadow, register row 12 —
+owner 2026-08-07) plus the active filters as inversion
+chips (register row 3), each with a labeled remove ✕, then the clear-all
+link and the right-aligned "N Treffer" count ending the line (law C10,
+round-2 correction 2026-08-07: status rides the occupied band — the
+status-only toolrow died; the Sammelbearbeitung disclosure sits directly
+above the ledger and collapses entirely when hidden). The rail itself sits
+bare on the desk — no background band, no bottom rule (rail-wave verdict
+2026-08-07) — and, like the header, is a CONTROL ROW: it sets the one
+`--control-height` knob every control on the line consumes (law C8; the
+compact value, tokens.css). Every filter stays a
+plain GET link; the rail lives outside `#results`, so filter clicks
+re-render it with fresh counts (same mechanism the sidebar used; the
+htmx q-swap refreshes the count out-of-band). On
+narrow viewports the rail wraps — results are never buried under stacked
+panels.
+
+The LEDGER fills the frame (dense register rows drawn as a bound
+line-table, exploration 05a: hairline horizontal rules only, no header
+band, the row-11 margin rule after the Signatur column, Datierung as a
+right-aligned figure column; SIG · Titel · Datierung · Typ · row-action
+toolbar; one label-role header treatment; no Sichtbarkeit column —
+ÖFFENTLICH renders nothing and the ENTWURF mark rides the title, owner
+2026-08-07), preview pane right. Pane state lives in the URL,
+server-rendered — zero JS required. Width is the only density input
+(2026-08-07 verdict), absorbed intrinsically (law C11, same-day round-2
+correction): the mono columns tighten to content, the Titel ellipsizes
+first, and every column stays visible down to the two-line fold under the
+phone-width ~32rem container query (C9-derived arithmetic at the query;
+kept below the narrowest pane-open container) — the last resort. Below
+1280px the pane disappears and rows navigate to the detail page (the
+canonical permalink). Cards remain for photo-heavy and member-facing
+contexts.
 
 ## Component mapping (workbench)
 
@@ -169,14 +273,15 @@ Cards remain for photo-heavy and member-facing contexts.
 |---|---|
 | Page background | `surface` |
 | Header bar | `surface-container-high` |
-| Facet group panels | `surface-container-low`, headings `label`/`on-surface-variant` |
-| Active facet | `primary-container` / `on-primary-container` |
+| Filter rail | bare on the desk (no band, no rule — rail-wave verdict 2026-08-07); dropdown summaries flat hairline buttons; dropped panels `surface-container-lowest`, hairline, floating on `--overlay-shadow` (register row 12) |
+| Active facet | inversion (`on-surface`/`surface`) — the dropdown's active row and the rail chip (register row 3) |
 | Result card | `surface-container-low`, hover `-mid` |
 | Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
-| Chips | `primary-container` / `on-primary-container` |
-| Primary actions (Suchen, Neuer Artikel) | `primary` / `on-primary` |
-| ENTWURF badge | `draft` / `on-draft`; the Sichtbarkeit value for drafts (shown instead of the visibility badge) |
-| Visibility badge (published, archivist only) | `outline` + `on-surface-variant` |
+| Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕; height = the rail's `--control-height` knob (law C8), never its own |
+| Treffer count | ends the filter-rail line, right-aligned (law C10 — no status-only band): `mono-meta`, muted, `aria-live=polite`; one renderer (`workbench/_trefferzahl.html`, law C7), refreshed out-of-band on htmx swaps |
+| Header actions | QUIET (owner 2026-08-07, rail round 2 — Mock B): "Suchen" is the plain hairline button; the create actions live in the ONE "+ Neu …" disclosure (`details.menu`) — quiet hairline summary, panel floating on `--overlay-shadow` (register row 12); "Bestand bearbeiten" joins the panel only while a Bestand filter is active. `.primary` inversion survives on form submits (Anlegen, Speichern, Veröffentlichen, Änderung prüfen) |
+| ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
+| Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); its last live usage, the publish over-exposure preview panel, died with the form wave (owner ruling 5, 2026-08-08 — one-click publish), so `components/badge_visibility.html` is now an EXHIBIT: demo-page-only, a park-or-delete verdict for the owner (catechism Q1). The exposure statement it used to accompany renders as plain text with WEIGHT emphasis instead |
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 

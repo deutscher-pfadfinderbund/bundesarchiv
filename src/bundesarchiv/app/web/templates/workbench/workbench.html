@@ -1,46 +1,28 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-The workbench full page (Part 4.5, rebuilt on the design system — the split-narrow layout). A plain
-GET renders this whole page; an HX-Request GET renders only _results.html into #results. Both share
-the same context — the no-JS baseline and the HTMX swap are one code path. URL-as-state: the form
-GETs to "/" with param q, so the URL always reflects the state (hx-push-url keeps the enhanced path
-honest too). Multi-line notes MUST use comment blocks — Django's hash-comment syntax is single-line.
+The workbench full page (Part 4.5, rebuilt on the design system). A plain GET renders this whole
+page; an HX-Request GET renders only _results.html into #results. Both share the same context —
+the no-JS baseline and the HTMX swap are one code path. URL-as-state: the form GETs to "/" with
+param q, so the URL always reflects the state (hx-push-url keeps the enhanced path honest too).
+Multi-line notes MUST use comment blocks — Django's hash-comment syntax is single-line.
 {% endcomment %}
 {% block title %}Suche — Bundesarchiv{% endblock %}
 {% block head_extra %}<script src="{% url 'static-catalog-bulk' %}" defer></script>{% endblock %}
-{% comment %} split-narrow always; wb--vorschau when the pane is open folds the ledger (layouts.css,
-≥1280px) and grows the pane column. <1280px the media query hides the pane + unfolds. {% endcomment %}
-{% block body_class %} wb--split-narrow{% if vorschau %} wb--vorschau{% endif %}{% endblock %}
-{% block header %}
-  {% comment %}
-  GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
-  URL; without JS the form still submits normally to "/". The atoms carry the styling. The hidden
-  inputs (GH #21) carry every ACTIVE facet/sort filter, so typing q refines WITHIN that scope
-  instead of dropping it — seite is deliberately excluded (a new search resets to page 1).
-  {% endcomment %}
-  <form class="wb-search" role="search" method="get" action="{% url 'workbench' %}"
-        hx-get="{% url 'workbench' %}" hx-target="#results" hx-swap="outerHTML"
-        hx-indicator="#results" hx-push-url="true"
-        hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
-    {% include "components/input.html" with type="search" name="q" value=text placeholder="Archiv durchsuchen…" aria_label="Suche" only %}
-    {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
-    {% endfor %}{% include "components/button.html" with variant="primary" label="Suchen" type="submit" only %}
-  </form>
-  {% comment %}
-  Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
-  search()/can_view; the /artikel/neu ROUTE is independently gated either way).
-  {% endcomment %}
-  {% if is_archivist %}
-  <a class="c-btn c-btn--primary wb-neu" href="{% url 'artikel-neu' %}">+ Neuer Artikel</a>
-  <a class="c-btn c-btn--subtle wb-neu-bestand" href="{% url 'bestand-neu' %}">+ Neuer Bestand</a>
-  {% if aktiver_bestand %}<a class="c-btn c-btn--subtle wb-bestand-bearbeiten" href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a>{% endif %}
-  {% endif %}
-{% endblock %}
+{% comment %} body.vorschau grows the pane column (layouts.css, ≥1280px); the ledger re-densifies
+by itself — it is a size container. <1280px the media query hides the pane. {% endcomment %}
+{% block body_class %}workbench{% if vorschau %} vorschau{% endif %}{% endblock %}
+{% comment %}
+The header chrome (search form + "+ Neu …" create disclosure) is ONE partial shared with every
+archivist screen (workbench/_header.html) — the form wave gave the edit/create screens the same
+approved chrome instead of their own reduced headers. GET → same page (param q); hx-* enhance it
+(type-to-search swaps only #results and pushes the URL). Archivist chrome is gated on the
+view-computed bool (§11: scoping itself stays in search()/can_view; the /artikel/neu ROUTE is
+independently gated either way).
+{% endcomment %}
+{% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
-<div class="wb-frame">
-  <aside class="wb-sidebar" aria-label="Facetten">
-    {% include "workbench/_facets.html" %}
-  </aside>
+{% include "workbench/_filterrail.html" %}
+<div class="frame">
   {% include "workbench/_results.html" %}
   {% if pane %}{% include "workbench/_pane.html" %}{% endif %}
 </div>

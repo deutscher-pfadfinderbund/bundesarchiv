@@ -1,14 +1,16 @@
 """URL-as-state link helpers (Part 4.5-MVP, plan §4.5: URL-as-state, forms/links stable).
 
 The workbench's whole state lives in the query string. These pure helpers build the links the
-facet sidebar / pagination / sort control emit, and pin the round-trip: a param set that
+filter rail / pagination / sort control emit, and pin the round-trip: a param set that
 ``parse_query`` reads back is exactly what a link that ADDS that facet produces, and removing it
-(sidebar ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
+(the chip ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
 """
 
 from bundesarchiv.app.web.browse import (
+    clear_filters_query,
     has_next_page,
     page_query,
+    pane_query_prefix,
     parse_query,
     with_param,
     without_param,
@@ -61,6 +63,59 @@ def test_page_query_sets_seite_preserving_the_rest() -> None:
     assert params["seite"] == "2"
     assert params["q"] == "Lager"
     assert params["medienart"] == "Foto"
+
+
+# --- clear-all (clear_filters_query) -----------------------------------------------
+# The rail's "Alle Filter entfernen" link (owner 2026-08-07, rail round 2): removes ALL filter
+# params in one click but keeps the text query + sort — the same semantics as the chips, which
+# each remove ONE filter and keep q. seite resets like every narrowing change.
+
+
+def test_clear_filters_removes_every_filter_keeps_q_and_sort() -> None:
+    q = clear_filters_query(
+        {
+            "q": "Lager",
+            "bestand": "FOTOS",
+            "medienart": "Foto",
+            "dokumenttyp": "Bericht",
+            "schlagwort": "lager",
+            "jahrzehnt": "1960",
+            "ohne_datum": "1",
+            "von": "1960-01-01",
+            "bis": "1969-12-31",
+            "sortierung": "-signatur",
+            "seite": "3",
+        }
+    )
+    assert _params(q) == {"q": "Lager", "sortierung": "-signatur"}
+
+
+def test_clear_filters_empty_when_only_filters_active() -> None:
+    # Filters were the whole state: the link points at the bare workbench ("?").
+    assert clear_filters_query({"medienart": "Foto", "schlagwort": "lager"}) == ""
+
+
+def test_clear_filters_drops_blank_values_like_every_link_helper() -> None:
+    assert clear_filters_query({"q": "Fahrt", "medienart": ""}) == "q=Fahrt"
+
+
+# --- pane-link prefix (pane_query_prefix) -----------------------------------------
+# The row-invariant half of every Vorschau link: search state (blanks dropped, same _clean rule
+# as every sibling helper) + the multi-valued auswahl selection. Rows append artikel=<ulid>.
+
+
+def test_pane_query_prefix_carries_state_and_selection() -> None:
+    q = pane_query_prefix({"q": "Lager", "medienart": "Foto"}, ["01A", "01B"])
+    assert q == "q=Lager&medienart=Foto&auswahl=01A&auswahl=01B"
+
+
+def test_pane_query_prefix_drops_blank_params() -> None:
+    assert pane_query_prefix({"q": "", "medienart": "Foto"}, []) == "medienart=Foto"
+
+
+def test_pane_query_prefix_empty_when_stateless() -> None:
+    # No search, no selection: the row link is just ?artikel=<ulid> — no dangling separator.
+    assert pane_query_prefix({}, []) == ""
 
 
 # --- pagination boundary (has_next_page) ------------------------------------------

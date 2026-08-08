@@ -1,0 +1,5 @@
+{% comment %}
+One value in a folded section's summary line (owner ruling 4: folding may never hide data). Params:
+label, value. Printed VERBATIM from the context the section's own input prints — a date in a summary
+must never be a second spelling of the date in its field (law C7). An EMPTY field says so by name.
+{% endcomment %}{% if value %}<span>{{ value }}</span>{% else %}<span class="leer">{{ label }} leer</span>{% endif %}

@@ -4,36 +4,40 @@ Create step (Part 4.7 Slice A, spec §2/§1 focal-point A). Archivist-only (the 
 minimal create form: Titel + Bestand — the two required fields are the ONE loud focal point on a
 near-empty page. Plain no-JS POST → create_article → 302 to /bearbeiten. Validation state B
 re-renders here with the verbatim error + preserved values. Autofocus (server-computed) lands on
-Titel (or the first errored field). Speichern is first-in-source so Enter submits it.
+Titel (or the first errored field). Anlegen is first-in-source so Enter submits it. Chrome: the WORKBENCH header (search + "+ Neu …"),
+shared via workbench/_header.html — the form wave retired this screen's own reduced header. The
+"Zurück zur Suche" link is BACK (zurueck=True, rendered by the shared header): the form wave dropped
+it on the grounds that "the search field IS the way back", but a search box is a way back only if you
+type something, so the create step had no visible return path at all.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="c-form c-form--neu">
-  <h1 class="c-form-titel">Neuer Artikel</h1>
-  {% if angelegt %}<p class="c-form-hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
-  <form class="c-form-felder" method="post" action="{% url 'artikel-neu' %}">"
+<main class="column narrow">
+  <h1>Neuer Artikel</h1>
+  {% if angelegt %}<p class="hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
+  <form method="post" action="{% url 'artikel-neu' %}">
     {% csrf_token %}
-    <label class="c-field{% if errors.title %} c-field--fehler{% endif %}">
-      <span class="c-field-label">Titel</span>
-      <input class="c-input" type="text" name="title" value="{{ title }}"
+    <label class="field">
+      <span>Titel</span>
+      <input type="text" name="title" value="{{ title }}"
              {% if autofocus == "title" %}autofocus{% endif %}>
-      {% if errors.title %}<span class="c-field-fehler">{{ errors.title }}</span>{% endif %}
+      {% if errors.title %}<span class="error">{{ errors.title }}</span>{% endif %}
     </label>
-    <label class="c-field{% if errors.collection_id %} c-field--fehler{% endif %}">
-      <span class="c-field-label">Bestand</span>
-      <select class="c-select" name="collection_id"
+    <label class="field">
+      <span>Bestand</span>
+      <select name="collection_id"
               {% if autofocus == "collection_id" %}autofocus{% endif %}>
         {% for value, caption in collection_options %}
         <option value="{{ value }}"{% if value == collection_id %} selected{% endif %}>{{ caption }}</option>
         {% endfor %}
       </select>
-      {% if errors.collection_id %}<span class="c-field-fehler">{{ errors.collection_id }}</span>{% endif %}
+      {% if errors.collection_id %}<span class="error">{{ errors.collection_id }}</span>{% endif %}
     </label>
-    <div class="c-form-footer c-form-footer--neu">
-      <button class="c-btn c-btn--primary" type="submit">Anlegen</button>
-    </div>
+    <footer>
+      <button class="primary" type="submit">Anlegen</button>
+    </footer>
   </form>
 </main>
 {% endblock %}
