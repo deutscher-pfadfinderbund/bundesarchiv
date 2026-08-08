@@ -17,18 +17,25 @@ only #medien-drawer, but they CHANGE what a reader sees — promoting a plate to
 sheet's thumbnail — so those forms carry hx-select-oob="#lesesicht" and this fragment rides along in
 the same response. Without it the sheet kept showing the old cover until a full reload.
 
-Contents are the READER's facts, server-rendered from the STORED article: Titel, Signatur, the machine
-Datierung (mono violet, register row 2 — the same renderer the workbench pane uses), the cover
-thumbnail via the gated /media/.../thumb route (which re-authorizes on its own), the first body
-paragraph, and the exposure statement. Nothing here is editable and nothing is recomputed in the
-browser. An absent Signatur renders NO mark rather than the hollow "ohne Signatur" slot: on this
-screen absence is carried by the Signatur INPUT (owner finding, signals-once).
+Contents are the READER's facts, server-rendered from the stored article's READER PROJECTION
+(catalog_views._sheet_view_model runs it through the domain's own access.project, the floor half of
+the ONE reader pipeline — so no archivist-only field can reach a box labelled "Leseansicht", now or
+when ARCHIVIST_ONLY_FIELDS grows): Titel, Signatur, the machine Datierung (mono violet, register
+row 2 — vocab.datierung_mono, the same ONE renderer the workbench pane uses), the cover thumbnail via
+the gated /media/.../thumb route (which re-authorizes on its own), the first body paragraph, and the
+exposure statement. Nothing here is editable and nothing is recomputed in the browser.
+
+The Titel prints PLAIN, exactly as the pane prints it. There used to be a `default:"Ohne Titel"` here
+— a second, sheet-only rendering of an absence no reader surface names (Titel is a required field, so
+the fallback described a state the form cannot produce) and one more spelling of a fact than law C7
+allows. An absent Signatur likewise renders NO mark rather than the hollow "ohne Signatur" slot: on
+this screen absence is carried by the Signatur INPUT (owner finding, signals-once).
 {% endcomment %}
 <aside id="lesesicht" class="pane" aria-label="Leseansicht">
   <div>
     <header>
       {% if sheet.ref_code %}{% include "components/signatur_tab.html" with ref_code=sheet.ref_code only %}{% endif %}
-      <h2>{{ sheet.title|default:"Ohne Titel" }}</h2>
+      <h2>{{ sheet.title }}</h2>
     </header>
     {% if sheet.datierung %}<p class="meta"><span>{{ sheet.datierung }}</span></p>{% endif %}
     {% if sheet.thumb_url %}<img src="{{ sheet.thumb_url }}" alt="" loading="lazy">{% endif %}

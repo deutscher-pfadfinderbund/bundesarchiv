@@ -12,7 +12,7 @@ type something, so the create step had no visible return path at all.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=True zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
 <main class="column narrow">
   <h1>Neuer Artikel</h1>

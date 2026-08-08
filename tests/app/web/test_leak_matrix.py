@@ -255,10 +255,6 @@ def _p_loeschen(c: _Corpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
 
 
-def _p_lebenszyklus(c: _Corpus) -> str:
-    return f"/artikel/{c.article_ulid}/lebenszyklus"
-
-
 def _p_medien_verschieben(c: _Corpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/verschieben"
 
@@ -359,14 +355,6 @@ _CONTRACT: dict[str, Route] = {
         post_arch=REDIRECT,  # confirmed delete → 302 to /
         post_data={"bestaetigt": "1"},
     ),
-    "artikel-lebenszyklus": Route(
-        build_path=_p_lebenszyklus,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=FOUR_OH_FOUR,  # GET disallowed
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=REDIRECT,  # retract (zurueckziehen) + CAS version → 302 to the read view
-        post_data=None,  # filled at probe time (needs the corpus version) — see _lifecycle_post_data
-    ),
     "artikel-medien-verschieben": Route(
         build_path=_p_medien_verschieben,
         get_nonarch=FOUR_OH_FOUR,
@@ -452,13 +440,6 @@ def _sammel_post_data(c: _Corpus) -> dict[str, object]:
     return {"auswahl": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
 
 
-def _lifecycle_post_data(c: _Corpus) -> dict[str, object]:
-    """A valid retract POST: ``zurueckziehen`` needs no over-exposure confirm, and the CAS version
-    matches the corpus article → the archivist gets a 302 to the read view. Non-archivists deny at
-    the gate before the verb is read."""
-    return {"aktion": "zurueckziehen", "expected_version": str(c.article_version)}
-
-
 def _empty_search_page() -> object:
     """An empty ``SearchPage`` for the workbench stub: no hits, no facets — enough for the template to
     render the (empty) ledger for any tier so the matrix can assert the route's status DB-free."""
@@ -504,7 +485,6 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 #: Routes whose POST payload needs the corpus (a real ulid / version), filled at probe time.
 _POST_DATA_BUILDERS = {
     "artikel-sammelbearbeitung": _sammel_post_data,
-    "artikel-lebenszyklus": _lifecycle_post_data,
 }
 
 

@@ -316,6 +316,11 @@ floating overlay panel. {% endcomment %}
         <li><a href="#demo-menu">Neuer Artikel</a></li>
         <li><a href="#demo-menu">Neuer Bestand</a></li>
         <li><a href="#demo-menu">Bestand bearbeiten</a></li>
+        {% comment %} A panel entry that must POST (Kopieren mutates, so it cannot be a link): the
+        record row's overflow menu carries this flavour, and the panel-entry rule covers it — but the
+        exhibit had only links, so neither an eye nor the control-row walker (which reads THIS page as
+        one of its rows) ever saw a link and a button in the same panel. {% endcomment %}
+        <li><form method="post" action="#demo-menu"><button class="link" type="submit">Kopieren</button></form></li>
       </ul>
     </details>
   </div>

@@ -59,21 +59,14 @@ media query hides the pane — layouts.css owns that, not the view.
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
 
-{% comment %} Header bar: wordmark + quiet search + the "+ Neu …" create disclosure (Mock B,
-owner 2026-08-07 — bare semantic elements, like the real workbench header). {% endcomment %}
+{% comment %} Header bar: the REAL shared partial (workbench/_header.html) over demo context, like
+every other partial on this page — it used to be hand-copied here while this file claimed to be built
+from the real ones, so a header change silently made the storyboard lie (lockstep, owner 2026-08-06:
+the demo pages ARE the styleguide). Only the wordmark stays local: on the live screens it lives in
+base.html, and here it must link back into the demo. {% endcomment %}
 <header>
   <a class="wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
-  <form role="search" method="get" action="">
-    <input type="search" name="q" placeholder="Archiv durchsuchen…" aria-label="Suche">
-    <button type="submit">Suchen</button>
-  </form>
-  <details class="menu">
-    <summary>+ Neu …</summary>
-    <ul>
-      <li><a href="#demo-neu">Neuer Artikel</a></li>
-      <li><a href="#demo-neu">Neuer Bestand</a></li>
-    </ul>
-  </details>
+  {% include "workbench/_header.html" with is_archivist=True %}
 </header>
 
 {% comment %} Filter rail — the REAL workbench partial over demo context (facet_groups +

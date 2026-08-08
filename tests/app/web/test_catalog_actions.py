@@ -4,10 +4,11 @@ Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
-- ``/artikel/<ulid>/lebenszyklus`` POST — publish / unpublish. Publishing is ONE click since the
-  form wave (owner ruling 5, 2026-08-08): the separate over-exposure preview route + its ``geprueft``
-  confirm checkbox retired when the exposure statement became permanent chrome on the edit surface.
-  The audience computation itself did not move — it is what the edit render now shows.
+- the exposure statement on the edit render — what the retired over-exposure preview route (and its
+  ``geprueft`` confirm checkbox) was replaced BY (owner ruling 5, 2026-08-08): the audience
+  computation did not move, it is simply on screen. There is no lifecycle route left to cover: both
+  verbs ride the edit form's own CAS write (tests/app/web/test_catalog_edit.py), and the standalone
+  POST /lebenszyklus died with its UI-unreachable ``veroeffentlichen`` branch.
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
@@ -16,15 +17,16 @@ did not happen (nothing created / article still exists / lifecycle unchanged / n
 The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http import HttpRequest
 from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.domain.access import project
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -192,21 +194,7 @@ def test_loeschen_denied_leaves_article(corpus: _Corpus, viewer: Viewer, method:
     assert ArticleRepository(corpus.store).load(_PUBLISHED).article.title == "Sommerfahrt 1962"
 
 
-# --- Lebenszyklus (publish / unpublish) --------------------------------------------
-
-
-def test_publish_is_one_click(corpus: _Corpus) -> None:
-    # Owner ruling 5 (2026-08-08): ONE click publishes. The retired gate demanded a `geprueft`
-    # checkbox that rode a separate /vorschau round trip; a publish POST without it now simply
-    # publishes, because the archivist has been reading the exposure statement all along.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert response.status_code == 302
-    assert response["Location"] == f"/artikel/{_DRAFT}"
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.PUBLISHED
+# --- the exposure statement (what replaced the publish gate) -----------------------
 
 
 def test_edit_form_states_the_exposure_permanently(corpus: _Corpus) -> None:
@@ -235,83 +223,84 @@ def test_edit_form_exposure_is_archivist_only(corpus: _Corpus, viewer: Viewer) -
     assert "Sichtbare Felder" not in body
 
 
-def test_unpublish_sets_draft(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_PUBLISHED}/lebenszyklus",
-            {"aktion": "zurueckziehen", "expected_version": str(corpus.pub_version)},
-        )
-    assert response.status_code == 302
-    assert ArticleRepository(corpus.store).load(_PUBLISHED).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_unknown_aktion_is_404_no_mutation(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "sabotage", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_stale_version_shows_conflict_panel(corpus: _Corpus) -> None:
-    archivist = _client_as(Archivist())
-    with override_settings(**_settings(corpus)):
-        # a concurrent edit bumps the version
-        archivist.post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "zurueckziehen", "expected_version": str(corpus.draft_version)},
-        )
-        # now publish at the STALE version -> Conflict -> state G
-        loser = archivist.post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert loser.status_code == 200
-    assert "Inzwischen geändert" in loser.content.decode()
-
-
-@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_lifecycle_denied_leaves_lifecycle(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_get_is_404(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/lebenszyklus")
-    assert_denied(response)
-
-
-def test_lifecycle_stale_save_against_deleted_article_is_404(
+def test_the_readers_sheet_is_built_from_the_reader_projection(
     corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The archivist's gate/load passes (as it would right after a GET), but the article is
-    # hard-deleted before THIS POST's save runs — the race window between the view's initial
-    # gate/load and `save_catalog_form`'s own re-load on Conflict. The Conflict handler's re-load
-    # then hits NotFound — that must collapse to the SAME 404 as an absent article, never a 500.
-    from bundesarchiv.app.web import catalog_views
+    # The app owns ONE reader pipeline (article_auth.resolve_visible_* -> access.visible = can_view +
+    # project), and a box labelled aria-label="Leseansicht" must show what project() produces. That
+    # cannot be proven from the RENDER today: project floors exactly {physical_location, custom} and
+    # the sheet shows neither, so reading the stored Article printed identical bytes — equality by
+    # coincidence (G.22) on the very surface whose promise retired the publish gate. What CAN be
+    # proven is that the projection is IN THE PATH, so the floor already holds the day a field joins
+    # ARCHIVIST_ONLY_FIELDS: floor a field the sheet does read and watch only the SHEET follow.
+    def floor_the_title(viewer: Viewer, article: Article) -> Article:
+        return replace(project(viewer, article), title="GEFLOORT")
 
-    real_gated = catalog_views._load_gated
-
-    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
-        gated = real_gated(request, ulid)
-        ArticleRepository(corpus.store).hard_delete(_DRAFT)
-        return gated
-
-    monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
+    monkeypatch.setattr("bundesarchiv.app.web.catalog_views.project", floor_the_title)
     with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
+        body = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/bearbeiten").content.decode()
+    assert "<h2>GEFLOORT</h2>" in body, "the reader's sheet does not go through access.project()"
+    # ...and the EDITABLE card still shows the stored record: the projection is the reader's view of
+    # the record, never a filter on what the archivist may type into it.
+    assert 'value="Entwurf Lagerchronik"' in body
+
+
+def test_the_readers_sheet_prints_the_title_plain(corpus: _Corpus) -> None:
+    # The sheet used to invent `default:"Ohne Titel"` — a sheet-only spelling of an absence no reader
+    # surface names (the pane prints {{ pane.title }} plain), i.e. one renderer more than law C7
+    # allows for the fact. A stored record with an empty Titel is only reachable past the form's own
+    # validation, and even then the sheet stays silent about it.
+    untitled = "01KX7YT9E3VX0CP3A5Q49RZMWN"
+    ArticleRepository(corpus.store).save(
+        Article(ulid=untitled, title="", collection_id="PUB", lifecycle=Lifecycle.DRAFT), 0
+    )
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{untitled}/bearbeiten").content.decode()
+    assert "Ohne Titel" not in body
+
+
+# --- fail-closed: no exposure statement, no publish affordance (learning G.34) ------
+
+_UNRESOLVABLE = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
+
+
+def _article_whose_bestand_chain_is_broken(corpus: _Corpus) -> str:
+    """Save an article filed under a collection whose PARENT does not exist, so ``resolve_chain``
+    raises ``BrokenCollectionTree`` and ``preview()`` can compute no exposure at all. The collection
+    itself IS in the store, so the Bestand select still offers it and the edit form renders."""
+    CollectionRepository(corpus.store).save(
+        Collection("WAISE", "Waise", "FEHLT", Audience(AudienceTier.PUBLIC)), 0
+    )
+    ArticleRepository(corpus.store).save(
+        Article(
+            ulid=_UNRESOLVABLE,
+            title="Ohne Bestandskette",
+            collection_id="WAISE",
+            lifecycle=Lifecycle.DRAFT,
+        ),
+        0,
+    )
+    return _UNRESOLVABLE
+
+
+def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: _Corpus) -> None:
+    # The retired preview gate BLOCKED publishing when the audience chain could not be resolved — its
+    # required `geprueft` checkbox lived inside the branch that rendered the statement. The permanent
+    # statement inherited the promise but not the teeth: the view-model was None, the statement
+    # rendered as nothing at all, and Veröffentlichen stayed one click away (G.34). Both halves are
+    # asserted here: the absence is STATED, and the affordance is gone.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
+    assert "Einblick nicht ermittelbar." in body
+    # the affordance itself is gone — asserted on the submit that carries the verb, because the
+    # German note deliberately NAMES Veröffentlichen to say it is locked
+    assert 'value="veroeffentlichen"' not in body
+    # a resolvable record is unaffected — the gate is the missing FACT, not the screen
+    with override_settings(**_settings(corpus)):
+        ok = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/bearbeiten").content.decode()
+    assert 'value="veroeffentlichen"' in ok
+    assert "Einblick nicht ermittelbar." not in ok
 
 
 # --- malformed / absent ulid across every new route --------------------------------
@@ -322,7 +311,6 @@ def test_lifecycle_stale_save_against_deleted_article_is_404(
     [
         "/artikel/not-a-ulid/kopieren",
         "/artikel/not-a-ulid/loeschen",
-        "/artikel/not-a-ulid/lebenszyklus",
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/loeschen",  # well-formed but absent
     ],
 )

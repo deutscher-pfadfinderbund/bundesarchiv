@@ -78,6 +78,10 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 SICHTBARKEIT_ERBEN = "Vom Bestand erben"
 SICHTBARKEIT_PUBLIC = "Öffentlich"
 SICHTBARKEIT_MEMBERS = "Alle Mitglieder"
+#: The GROUPS rung's caption where no group NAMES are known yet — the Sichtbarkeit ``<select>``'s own
+#: option, chosen together with the Gruppen field. ``groups_label`` spells the same rung once the
+#: names exist; both live here so the form's option list is not a second source (law C7).
+SICHTBARKEIT_GRUPPEN = "Gruppe(n)"
 
 
 def groups_label(groups: tuple[str, ...]) -> str:
@@ -98,6 +102,19 @@ def sichtbarkeit_label(audience: Audience | None) -> str:
             return SICHTBARKEIT_MEMBERS
         case AudienceTier.GROUPS:
             return groups_label(audience.groups)
+
+
+# --- EDTF: the two spellings, one renderer each (law C7) ---------------------------
+
+
+def datierung_mono(date: EdtfDate | None) -> str:
+    """The MACHINE date: the EDTF value verbatim, or ``""`` when absent. The ONE renderer for the
+    mono/violet machine spelling (register row 2) — the ledger's date column, the preview pane's meta
+    line, the reader's sheet on the edit surface, the detail record card's mono row, the CAS diff and
+    the Datierung field's own value all print it, so a single spelling of the fact cannot fork into
+    five inline copies of ``date.value if date is not None else ""``. Its sibling is
+    ``edtf_to_german`` — the HUMAN spelling, the other licensed rendering of the same fact."""
+    return date.value if date is not None else ""
 
 
 # --- EDTF -> German echo -----------------------------------------------------------

@@ -95,10 +95,20 @@ is binary; absence of the ENTWURF badge = published.
 
 ```mermaid
 flowchart TD
-    EDIT["Edit surface (draft)\nexposure statement on screen"] -->|"Veröffentlichen\n(POST artikel-lebenszyklus, CAS)"| READ["Read view, published"]
+    EDIT["Edit surface (draft)\nexposure statement on screen"] -->|"Veröffentlichen\n(the edit form's own POST + CAS)"| READ["Read view, published"]
     DET["Detail (draft)"] -->|"Veröffentlichen"| EDIT
     READ -->|"Als Entwurf zurückziehen"| EDIT
 ```
+
+Both verbs ride the EDIT FORM's single CAS-guarded write (owner decision
+2026-08-08: saving is publishing), and the detail reader LINKS to that form for
+either one. There is no separate lifecycle route: after the form wave its
+`veroeffentlichen` branch was UI-unreachable and its only caller was the detail
+reader's withdraw form, so it was deleted (2026-08-08 cleanup review).
+
+An exposure statement that cannot be COMPUTED (an unresolvable Bestand chain)
+withdraws the publish affordance and says so in German — the fail-closed branch
+the retired preview gate owned.
 
 Journeys: `test_publish_is_one_click_with_the_exposure_on_screen`,
 `test_exposure_statement_is_on_screen_at_every_width`.

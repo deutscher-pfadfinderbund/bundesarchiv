@@ -9,6 +9,7 @@ Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two c
 loop · Löschen confirm · one-click publish · bulk select→confirm→partial result.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -16,6 +17,7 @@ import pytest
 from playwright.sync_api import Browser, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
+from tests.e2e._pages import SCREENS, screens_for
 
 pytestmark = pytest.mark.e2e
 
@@ -45,15 +47,28 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
-#: Counts htmx's own "the swap target is not on this page" aborts. Installed on the document before
-#: the interaction, because htmx:targetError is NOT a request failure — it fires before any request,
-#: so the global error banner never shows and the archivist sees a dead control with no clue why.
-_COUNT_TARGET_ERRORS_JS = """() => {
+#: Counts htmx's own "the swap target is not on this page" aborts AND every request htmx starts.
+#: Installed on the document before the interaction, because htmx:targetError is NOT a request failure
+#: — it fires before any request, so the global error banner never shows and the archivist sees a dead
+#: control with no clue why. The REQUEST counter is what lets the assertion below be an assertion
+#: instead of a sleep: "the enhancement is not attached here" means htmx started nothing at all.
+_COUNT_HTMX_JS = """() => {
     window.__targetErrors = [];
+    window.__requests = [];
     document.body.addEventListener('htmx:targetError', (e) => {
         window.__targetErrors.push(String(e.detail && e.detail.target));
     });
+    document.body.addEventListener('htmx:beforeRequest', (e) => {
+        window.__requests.push(String(e.detail && e.detail.pathInfo
+            && e.detail.pathInfo.requestPath));
+    });
 }"""
+
+#: Just past the type-to-search debounce (hx-trigger="keyup changed delay:400ms" on #results). Long
+#: enough that a debounced request WOULD have fired, short enough not to be a sleep in disguise: the
+#: assertions are on the request counter above, and this only opens the window in which a request could
+#: appear. It replaced a 700ms wait on each of three screens.
+_PAST_SEARCH_DEBOUNCE_MS = 450
 
 
 def test_search_works_from_a_screen_without_the_results_region(
@@ -74,13 +89,17 @@ def test_search_works_from_a_screen_without_the_results_region(
         (edit_url, "enter"),  # the edit surface, and by implicit submission rather than a click
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
-        page.evaluate(_COUNT_TARGET_ERRORS_JS)
+        page.evaluate(_COUNT_HTMX_JS)
         # typing must not fire an aborted request either — off the workbench there is nothing to swap,
-        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25)
+        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25). That
+        # is ASSERTED on the request counter rather than waited out: htmx must start nothing at all.
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
-        page.wait_for_timeout(700)  # longer than the 400ms type-to-search debounce
+        page.wait_for_timeout(_PAST_SEARCH_DEBOUNCE_MS)
         assert page.evaluate("() => window.__targetErrors") == [], (
             f"{path}: htmx aborted a swap against an absent target"
+        )
+        assert page.evaluate("() => window.__requests") == [], (
+            f"{path}: htmx fired a request from a screen the enhancement does not live on"
         )
         assert "q=Sommerfahrt" not in page.url, f"{path}: typing navigated on its own: {page.url}"
         # ...and submitting IS the navigation, on this screen exactly as on the workbench
@@ -234,12 +253,26 @@ def _walk_control_rows(page: Page, url: str) -> dict[str, list[dict[str, str | i
     return walked
 
 
+#: The WCAG 2.2 AA target-size floor (law D's a11y floor, 24 CSS px). A row's controls agreeing on a
+#: height that is BELOW it is a uniform defect, which C8's equality check cannot see — the 23px facet
+#: entry (learning G.38) agreed with nothing and was found by eye. Checked per control, so it holds for
+#: a lone control too, where there is no equality to compare.
+_AA_TARGET_FLOOR = 24
+
+
 def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — the licensed state
-    marks excepted (a rail chip's chip typography, an active facet row's semibold inversion), which must
-    still match on HEIGHT — one font treatment."""
+    """Law C8 + the AA target floor, computed: every control clears 24px, and within every row all
+    controls share one height (offsetHeight within 1px) and — the licensed state marks excepted (a rail
+    chip's chip typography, an active facet row's semibold inversion), which must still match on
+    HEIGHT — one font treatment."""
     defects: list[str] = []
     for name, controls in by_name.items():
+        defects.extend(
+            f"row '{name}' control '{c['label']}' is {c['height']}px — under the WCAG 2.2 AA"
+            f" {_AA_TARGET_FLOOR}px target floor"
+            for c in controls
+            if int(str(c["height"])) < _AA_TARGET_FLOOR
+        )
         if len(controls) < 2:
             continue  # nothing to compare within this row
         heights = {str(c["label"]): int(str(c["height"])) for c in controls}
@@ -255,37 +288,58 @@ def test_control_rows_compute_one_height_source(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Law C8 proven computed (the generalized G.1 pattern, section E) over every control row the app
-    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the dropped
-    # panels' entries), the unfiltered one (four ledger rows, so four row toolbars) and the edit surface
-    # (the record row, whose action toolbar INHERITS the row's knob — Speichern, the lifecycle action and
-    # the overflow summary must compute one height).
+    # composes — on EVERY archivist screen the app has, derived from the one screen inventory
+    # (_pages.SCREENS) instead of three hand-picked URLs. The three URLs had already drifted: only the
+    # PUBLISHED record carries media, so the media register's icon toolbar — this wave's new control
+    # row — was composed on a screen this walk never visited (G.21 applied to page coverage).
+    #
+    # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, each
+    # ledger row's action toolbar, the dropped overlay panels' entries, the record row (whose action
+    # toolbar consumes the row's knob — Speichern, the lifecycle action and the overflow summary must
+    # compute one height) and the media register's row toolbars. Each screen NAMES the row prefixes it
+    # must compose, so a silent no-find can never pass as a green walk.
     page = archivist_page
-    by_name = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
-    # the walker must actually see the rows this page composes — a silent no-find proves nothing
-    header = next(n for n in by_name if n.startswith("header"))
-    rail = next(n for n in by_name if "filterrail" in n)
-    assert len(by_name[header]) >= 2  # the Suchen button + the "+ Neu …" summary
-    assert any(c["chip"] for c in by_name[rail])  # the active-filter chip is present
-    assert any("[toolbar]" in n for n in by_name)  # ledger row toolbars
-    # the dropped OVERLAY panels are rows of their own (they declare the knob) and their entries are
-    # controls: the header's create menu plus the rail's facet dropdowns, all measured while open
-    panels = [n for n in by_name if n.startswith("ul#") and len(by_name[n]) >= 2]
-    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(by_name)}"
-    defects = [f"[workbench] {d}" for d in _control_row_defects(by_name)]
+    defects: list[str] = []
+    for screen in screens_for(archivist=True):
+        by_name = _walk_control_rows(page, live_workbench + screen.path(e2e_corpus))
+        for prefix in screen.control_rows:
+            found = [n for n in by_name if n.startswith(prefix)]
+            assert found, f"[{screen.name}] no control row named {prefix!r}: {sorted(by_name)}"
+        defects += [f"[{screen.name}] {d}" for d in _control_row_defects(by_name)]
+    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
-    # The UNFILTERED workbench: four hits, so four ledger row toolbars. This is where the keying
-    # regression hid — every one of them names itself "span[toolbar]", so keying rows by name collapsed
-    # them into ONE dict entry and the walk proved a single toolbar while reporting green.
+
+def test_the_control_row_walk_sees_what_the_screens_compose(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The walk above asserts uniformity; this asserts it is not walking an empty page. The row KINDS
+    # the app composes, each on the screen that has the most of them: the header's control cluster, the
+    # rail's chips, one row toolbar per ledger row (the keying regression hid exactly here — every one
+    # of them names itself "span[toolbar]", so keying rows by name collapsed 50 rows into one entry and
+    # the walk proved a SINGLE toolbar while reporting green, G.37), the dropped panels' entries, and
+    # the record row plus the media register's per-row toolbars on the published edit surface.
+    page = archivist_page
+    filtered = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
+    header = next(n for n in filtered if n.startswith("header"))
+    rail = next(n for n in filtered if "filterrail" in n)
+    assert len(filtered[header]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert any(c["chip"] for c in filtered[rail])  # the active-filter chip is present
+    panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
+    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
+
     ledger = _walk_control_rows(page, live_workbench + "/")
     toolbars = [n for n in ledger if "[toolbar]" in n]
     assert len(toolbars) >= 4, f"the walker sees only {toolbars} — one per ledger row is required"
-    defects += [f"[ledger] {d}" for d in _control_row_defects(ledger)]
 
-    edit = _walk_control_rows(page, live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+    edit = _walk_control_rows(
+        page, live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten"
+    )
     row = next(n for n in edit if "recordrow" in n)
     assert len(edit[row]) >= 3, f"the record row's controls were not found: {edit[row]}"
-    defects += [f"[edit] {d}" for d in _control_row_defects(edit)]
-    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
+    # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
+    # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
+    media = [n for n in edit if n.startswith("span[toolbar]") and len(edit[n]) >= 3]
+    assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
 #: Every OVERLAY on the page, found generically: a native disclosure whose dropped panel is a
@@ -302,31 +356,44 @@ _OVERLAY_SELECTOR = "details:has(> ul)"
 #: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
 #: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
 #: overlay gets it rather than the one that failed (learning G.21).
-_OVERLAY_RECT_JS = """(index) => {
-    const detail = document.querySelectorAll('details:has(> ul)')[index];
-    const panel = detail.querySelector(':scope > ul');
-    const r = panel.getBoundingClientRect();
-    const d = document.documentElement;
-    const covered = [];
-    for (const entry of panel.querySelectorAll('a, button, input, select')) {
-        const b = entry.getBoundingClientRect();
-        if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
-        const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-        if (!(hit === entry || entry.contains(hit) || entry.contains(hit && hit.parentElement))) {
-            covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
-                + ' <- ' + (hit ? hit.tagName.toLowerCase()
-                    + (typeof hit.className === 'string' && hit.className
-                        ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
-                    : 'nothing'));
+#: Opens EVERY overlay on the page in turn (one at a time — the rail's facet groups share a `name`, so
+#: two can never be open together anyway) and returns one facts record per panel. One evaluate per
+#: (screen, width) instead of two clicks plus an evaluate per panel: the whole measurement is
+#: synchronous DOM work (setting `.open` forces layout before getBoundingClientRect reads it), so
+#: paying a Playwright round-trip per open/close bought nothing but wall clock.
+_OVERLAY_WALK_JS = """() => {
+    const facts = [];
+    const details = [...document.querySelectorAll('details:has(> ul)')];
+    for (const detail of details) {
+        const wasOpen = detail.open;
+        detail.open = true;
+        const panel = detail.querySelector(':scope > ul');
+        const r = panel.getBoundingClientRect();
+        const d = document.documentElement;
+        const covered = [];
+        for (const entry of panel.querySelectorAll('a, button, input, select')) {
+            const b = entry.getBoundingClientRect();
+            if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
+            const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+            if (!(hit === entry || entry.contains(hit)
+                  || entry.contains(hit && hit.parentElement))) {
+                covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
+                    + ' <- ' + (hit ? hit.tagName.toLowerCase()
+                        + (typeof hit.className === 'string' && hit.className
+                            ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
+                        : 'nothing'));
+            }
         }
+        facts.push({
+            label: detail.querySelector('summary').textContent.trim(),
+            left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
+            viewport: d.clientWidth,
+            docOverflow: d.scrollWidth - d.clientWidth,
+            covered: covered,
+        });
+        detail.open = wasOpen;
     }
-    return {
-        label: detail.querySelector('summary').textContent.trim(),
-        left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
-        viewport: d.clientWidth,
-        docOverflow: d.scrollWidth - d.clientWidth,
-        covered: covered,
-    };
+    return facts;
 }"""
 
 #: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
@@ -335,30 +402,30 @@ _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1440)
 
 
 def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHandles) -> list[str]:
-    """Open every overlay on every page that composes one, at every containment width, and return the
-    containment defects. The pages are named with the MINIMUM number of overlays each must carry, so a
-    silent no-find can never pass as a green walk: the filtered workbench (the header's create menu +
-    one dropdown per rail facet group — the filtered URL makes the rail carry chips AND dropdowns) and
-    the edit surface (the record row's "Mehr …" overflow). Overlays open one at a time so panels never
-    mask each other's geometry."""
-    pages = (
-        ("/?schlagwort=sommer&medienart=Fotografie", 4),
-        (f"/artikel/{corpus.draft_ulid}/bearbeiten", 1),
-    )
+    """Open every overlay on every screen that composes one, at every containment width, and return the
+    containment defects.
+
+    The screens come from the ONE inventory (``_pages.SCREENS``), each carrying the MINIMUM number of
+    overlay panels it must compose, so a silent no-find can never pass as a green walk — and a new
+    screen is covered the day it joins the inventory (G.21 applied to page coverage).
+
+    ONE ``goto`` per screen, widths swept INSIDE it, and one ``evaluate`` per (screen, width):
+    containment and reachability are pure CSS-geometry questions, so re-loading the page at each width
+    and paying two click round-trips per panel bought nothing. The old two-page list spent 16 avoidable
+    page loads on it; this walk visits nine more screens for less wall clock."""
     defects: list[str] = []
-    for width in _CONTAINMENT_WIDTHS:
-        page.set_viewport_size({"width": width, "height": 900})
-        for path, minimum in pages:
-            page.goto(live_workbench + path)
-            overlays = page.locator(_OVERLAY_SELECTOR)
-            found = overlays.count()
-            assert found >= minimum, (
-                f"the overlay walker found only {found} panels on {path} at {width}px"
-            )
-            for i in range(found):
-                summary = overlays.nth(i).locator("summary")
-                summary.click()
-                rect: dict[str, object] = page.evaluate(_OVERLAY_RECT_JS, i)
+    for screen in SCREENS:
+        if not screen.overlays:
+            continue
+        path = screen.path(corpus)
+        page.goto(live_workbench + path)
+        found = page.locator(_OVERLAY_SELECTOR).count()
+        assert found >= screen.overlays, (
+            f"the overlay walker found only {found} panels on {path} ({screen.name})"
+        )
+        for width in _CONTAINMENT_WIDTHS:
+            page.set_viewport_size({"width": width, "height": 900})
+            for rect in page.evaluate(_OVERLAY_WALK_JS):
                 where = f"{width}px · {path} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")
@@ -370,7 +437,6 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
                     )
                 if float(str(rect["docOverflow"])) > 1:
                     defects.append(f"{where}: the open panel scrolls the document {rect}")
-                summary.click()  # close before measuring the next one
     return defects
 
 
@@ -676,6 +742,29 @@ _DOC_OVERFLOW_JS = """() => {
             scrollX: (window.scrollTo(99999, 0), window.scrollX)};
 }"""
 
+
+def _sideways_scroll_defects(
+    page: Page,
+    cases: tuple[tuple[int, str], ...],
+    extra: Callable[[Page], list[str]] | None = None,
+) -> list[str]:
+    """The standing contract, ONE walker for every surface that has to keep it: the PAGE BODY never
+    scrolls sideways, at each (width, url) in ``cases``. Both long-content proofs need it — the record
+    card's was a clone of the ledger's tail, driven by the same seed — so the walk lives once and each
+    caller passes its own ``extra`` probe (the ledger's own scroll box and its Titel ellipsis) to run
+    inside the same navigation rather than paying for a second pass."""
+    defects: list[str] = []
+    for width, url in cases:
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(url)
+        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
+        if doc["overflow"] > 1 or doc["scrollX"] > 1:
+            defects.append(f"{width}px: the page body scrolls sideways {doc}")
+        if extra is not None:
+            defects.extend(f"{width}px: {d}" for d in extra(page))
+    return defects
+
+
 #: Is the long TITEL actually ELLIPSIZED at this width? Its rendered box vs the width its text wants
 #: (Range-measured). The Titel is the elastic track and the archive's one unbounded field, so it is
 #: the column that must give space back — if it never tightens, nothing does, and the .titel
@@ -717,29 +806,32 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
             expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
         overflow: int = page.evaluate(_TABLE_OVERFLOW_JS)
         assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+
     # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
     # never scrolls sideways, the [role=table] absorbs the long row without a scrollbar of its own
     # (a scrolling table hides columns, which is exactly what C11 forbids), and the long Titel gives
     # its space back by ELLIPSIZING (proof the tracks are shrinkable and the .titel ellipsis is live
     # styling, not dead — Q6).
-    defects: list[str] = []
-    for width, path in (
-        (560, "/"),
-        (640, "/"),
-        (800, "/"),
-        (1280, f"/?artikel={e2e_corpus.published_ulid}"),
-    ):
-        page.set_viewport_size({"width": width, "height": 900})
-        page.goto(live_workbench + path)
-        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
-        if doc["overflow"] > 1 or doc["scrollX"] > 1:
-            defects.append(f"{width}px: document scrolls sideways {doc}")
-        table: int = page.evaluate(_TABLE_OVERFLOW_JS)
+    def ledger_probes(current: Page) -> list[str]:
+        found: list[str] = []
+        table: int = current.evaluate(_TABLE_OVERFLOW_JS)
         if table > 1:
-            defects.append(f"{width}px: the ledger overflows its own box by {table}px")
-        titel: dict[str, float] = page.evaluate(_LONG_TITEL_JS)
+            found.append(f"the ledger overflows its own box by {table}px")
+        titel: dict[str, float] = current.evaluate(_LONG_TITEL_JS)
         if titel["box"] >= titel["text"] - 1:
-            defects.append(f"{width}px: the long Titel never tightened {titel}")
+            found.append(f"the long Titel never tightened {titel}")
+        return found
+
+    defects = _sideways_scroll_defects(
+        page,
+        (
+            (560, live_workbench + "/"),
+            (640, live_workbench + "/"),
+            (800, live_workbench + "/"),
+            (1280, live_workbench + f"/?artikel={e2e_corpus.published_ulid}"),
+        ),
+        ledger_probes,
+    )
     assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
         defects
     )
@@ -1079,6 +1171,21 @@ def test_exposure_statement_is_on_screen_at_every_width(
         assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
         expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")
         assert page.locator(".pane:visible").count() == (1 if in_sheet else 0)
+    # ...AND on a record card with NO SHEET BESIDE IT. The pane appears on ONE condition — ≥80rem AND
+    # body.vorschau — while the card's copy of the statement used to hide on the WIDTH HALF ALONE, so
+    # any card render without body.vorschau was publish-blind above 80rem: no sheet, no in-card
+    # statement, nothing on screen. This walk drove only the edit surface, which always sets the
+    # class, so the hole was invisible to it. Removing the class in the browser reaches the state
+    # exactly (the question is CSS-only), and there is now ONE condition to answer it.
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(url)
+    page.evaluate("() => document.body.classList.remove('vorschau')")
+    assert page.locator(".pane:visible").count() == 0  # confirms the state this half is about
+    shown = page.locator(".einblick:visible")
+    assert shown.count() == 1, (
+        f"1440px without body.vorschau: {shown.count()} exposure statements on screen — a card with"
+        " no sheet beside it must keep the statement (owner ruling 5 / G.34)"
+    )
 
 
 # --- bulk select → confirm → result ------------------------------------------------
@@ -1266,8 +1373,7 @@ def test_bulk_fresh_ticks_survive_paging(
 #: G.21 — never one instance), and comparing against the message's OWN ink rather than a colour
 #: constant, so the proof reads "the border is the error ink" in whatever mode/theme resolved it.
 _ERROR_FIELD_WALKER_JS = """() => {
-    const fields = document.querySelectorAll(
-        ':is(.karte, .karte > form) > :is(section, details) > .field:has(.error)');
+    const fields = document.querySelectorAll('.karte .fach > .field:has(.error)');
     return [...fields].map((field) => {
         const control = field.querySelector('input, select, textarea');
         const message = field.querySelector('.error');
@@ -1340,7 +1446,7 @@ def test_a_fold_never_swallows_the_autofocus(
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # The other half of the same class: _FOCUSABLE_FIELDS scans for the first EMPTY field and three of
+    # The other half of the same class: the GET autofocus scans for the first EMPTY field and three of
     # them (Autor, Ort, Standort) sit behind the Herkunft fold, so on a well-catalogued record the
     # server told the browser to focus an input inside a closed <details> — which focuses NOTHING. The
     # fixture is the realistic long-content record (H.7): a Plakat with everything filled except its
@@ -1358,8 +1464,7 @@ def test_a_fold_never_swallows_the_autofocus(
 #: knob in forms.css claims it holds the longest label — both halves are measured here rather than
 #: asserted in prose (learning G.1).
 _LABEL_AXIS_JS = """() => {
-    const fields = document.querySelectorAll(
-        ':is(.karte, .karte > form) > :is(section, details) > .field');
+    const fields = document.querySelectorAll('.karte .fach > .field');
     return [...fields].map((field) => {
         // a grid item is blockified, so the label's clientWidth IS the axis track's used width
         const label = field.querySelector(':scope > span:first-child');
@@ -1399,6 +1504,63 @@ def test_karte_labels_share_one_axis(
     assert not overflowing, "a label outgrew the axis (--label-spalte):\n" + "\n".join(overflowing)
 
 
+def test_the_custom_bag_enhancement_survives_a_form_region_swap(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # G.27 sweep of a PRE-EXISTING bug the wave enlarged: catalog_form.js bound the custom-bag
+    # listeners to the #custom-bag node it found AT LOAD, so after any #form-region swap — every
+    # validation error, CAS conflict and index-lag re-render performs one — the bag in the DOM was a new
+    # node and the client-side row add/remove was dead until a full reload. Nothing said so: the no-JS
+    # baseline still worked, one round-trip per row. The wave's fix for the sibling class covered the
+    # OTHER enhancement only (catalog_bulk.js on htmx:historyRestore).
+    page = archivist_page
+    edit_url = _create_draft(page, live_workbench, "E2E Fachwerk")
+    page.goto(edit_url)
+    page.click('summary:has-text("Weitere Angaben")')
+    rows = page.locator("#custom-bag .bag-row")
+    expect(rows).to_have_count(1)  # the always-present trailing empty add-row
+    page.fill('input[name="custom_key"]', "Quelle")
+    expect(rows).to_have_count(2)  # ...grew a fresh spare: the enhancement is live before the swap
+    # now force a #form-region swap: an empty Titel re-renders the whole region inline via htmx
+    page.fill('input[name="title"]', "")
+    page.click('button:has-text("Speichern")')
+    expect(page.locator(".karte .error").first).to_be_visible()
+    page.click('summary:has-text("Weitere Angaben")')
+    swapped = page.locator("#custom-bag .bag-row")
+    before = swapped.count()
+    swapped.last.locator('input[name="custom_key"]').fill("Querverweis")
+    expect(swapped).to_have_count(before + 1)
+
+
+def test_an_empty_summary_value_renders_the_hollow_cue(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # A folded section's promise is that folding hides NO DATA (owner ruling 4), and the summary keeps
+    # that promise by naming what is empty ("Standort leer"). `.leer` carried that name and was styled
+    # NOWHERE, so an absent Standort rendered pixel-identical to a real one — the promise stated in
+    # markup and not delivered on screen, which no assertion about the text could catch. The cue is
+    # register row 6's hollow/empty idiom (the licensed cue for absence), so the proof is that the
+    # empty mark computes a DASHED edge the filled marks beside it do not.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    marks: list[dict[str, str]] = page.evaluate(
+        """() => [...document.querySelectorAll('.karte .werte > span')].map((el) => {
+            const s = getComputedStyle(el);
+            return {text: el.textContent.trim(), leer: el.classList.contains('leer'),
+                    style: s.borderBottomStyle, width: s.borderBottomWidth};
+        })"""
+    )
+    empty = [m for m in marks if m["leer"]]
+    filled = [m for m in marks if not m["leer"]]
+    assert empty and filled, f"the record needs both an empty and a filled summary value: {marks}"
+    undressed = [m for m in empty if m["style"] != "dashed" or m["width"] == "0px"]
+    assert not undressed, f"an empty summary value renders like a real one: {undressed}"
+    assert all(m["style"] != "dashed" for m in filled), (
+        f"a real value carries the hollow cue: {filled}"
+    )
+
+
 def test_karte_absorbs_long_content(
     archivist_page: Page,
     live_workbench: str,
@@ -1413,18 +1575,14 @@ def test_karte_absorbs_long_content(
     # place on this surface where unbounded text is laid out with no input box around it. Walked at the
     # narrow width where the card is one column and at the wide one where the sheet sits beside it.
     _seed_long_content(_e2e_root, django_db_blocker)
-    page = archivist_page
     url = live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten"
-    defects: list[str] = []
     # 360 is in the range because that is where the card's own two-column floor bit: a bare
     # minmax(floor, 1fr) track cannot shrink below its floor (G.24), so the single column stayed
-    # 380px wide inside a 328px column and scrolled the page body.
-    for width in (360, 680, 1000, 1440):
-        page.set_viewport_size({"width": width, "height": 900})
-        page.goto(url)
-        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
-        if doc["overflow"] > 1 or doc["scrollX"] > 1:
-            defects.append(f"{width}px: the edit surface scrolls the page body sideways {doc}")
+    # 380px wide inside a 328px column and scrolled the page body. The walk itself is the shared one
+    # (the ledger proof drives it too, with its own extra probes) — this used to be a clone of its tail.
+    defects = _sideways_scroll_defects(
+        archivist_page, tuple((width, url) for width in (360, 680, 1000, 1440))
+    )
     assert not defects, "the record card does not absorb long content:\n" + "\n".join(defects)
 
 

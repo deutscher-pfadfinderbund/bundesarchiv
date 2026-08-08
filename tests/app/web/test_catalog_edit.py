@@ -414,26 +414,43 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Co
 # data. The form wave left two ways for it to hide something else: a validation error rendered inside
 # a folded section is invisible (Sichtbarkeit=Gruppe(n) with an empty Gruppen field; errors.custom in
 # the bag), and `autofocus` on a field inside a fold focuses nothing at all, because a closed
-# <details> has no focusable contents (_FOCUSABLE_FIELDS holds three such fields). Both are now
+# <details> has no focusable contents (the field registry holds three such fields). Both are now
 # decided server-side from the same context that renders the message — catalog_views._open_sections.
+#
+# DELIBERATE LAYERING, not accidental duplication (do not collapse into one): the tests below and
+# tests/e2e/test_journeys.py::test_a_fold_hides_neither_the_error_nor_the_focus /
+# test_a_fold_never_swallows_the_autofocus prove DIFFERENT things about the same rule. Here: the
+# server's decision, in milliseconds, over the real render — which fold carries [open] and which field
+# carries `autofocus`. There: the BROWSER's answer to the questions only a browser can answer — is the
+# message on screen, is the input actually focused, does the summary's ::after marker say why. A fast
+# server proof plus a slow browser proof is the shape the razor asks for; one of them alone would
+# either miss a regression or cost seconds per case.
 
 
 @dataclass
 class _Fold:
-    """One rendered ``<details>``: its summary label, whether it renders open, and the names of the
-    form fields it CONTAINS."""
+    """One rendered ``<details>`` inside the record card: its summary label, whether it renders open,
+    and the names of the form fields it CONTAINS (possibly none — a fold may hold only a message)."""
 
     label: str = ""
     is_open: bool = False
     fields: set[str] = field(default_factory=set)
 
 
+#: HTML elements with no end tag. The scanner tracks nesting depth to know what is inside the card,
+#: and a void element that never closes would leave the depth counter permanently one too deep.
+_VOID = frozenset({"input", "img", "br", "hr", "meta", "link", "source", "col", "area"})
+
+
 class _FoldScanner(HTMLParser):
-    """Collect every ``<details>`` with its ``open`` state, summary label and contained field names,
-    plus the name of the ONE field carrying ``autofocus``. A real parser rather than a regex, because
-    "contained" is a nesting question. Hidden inputs are skipped: they are plumbing (CSRF,
-    expected_version, the media hashes), not fields the archivist fills — which is also what keeps the
-    record row's "Mehr …" menu out of the result."""
+    """Collect every ``<details>`` INSIDE THE RECORD CARD with its ``open`` state, summary label and
+    contained field names, plus the name of the ONE field carrying ``autofocus``. A real parser rather
+    than a regex, because "contained" is a nesting question.
+
+    Scoped to ``.karte`` STRUCTURALLY. The record row's "Mehr …" overflow is a ``<details>`` too, and
+    it used to be excluded by the accident of holding no input — which is the same accident that hid
+    field-less CARD folds from the guard below. Hidden inputs are still skipped: they are plumbing
+    (CSRF, expected_version, the media hashes), not fields the archivist fills."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -441,10 +458,17 @@ class _FoldScanner(HTMLParser):
         self.autofocused = ""
         self._stack: list[_Fold] = []
         self._in_summary = False
+        self._depth = 0
+        self._karte_depth: int | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if tag == "details":
+        if tag not in _VOID:
+            self._depth += 1
+            if self._karte_depth is None and "karte" in (values.get("class") or "").split():
+                self._karte_depth = self._depth
+        in_karte = self._karte_depth is not None
+        if tag == "details" and in_karte:
             fold = _Fold(is_open="open" in values)
             self.folds.append(fold)
             self._stack.append(fold)
@@ -464,6 +488,10 @@ class _FoldScanner(HTMLParser):
             self._stack.pop()
         elif tag == "summary":
             self._in_summary = False
+        if tag not in _VOID:
+            if self._karte_depth is not None and self._depth == self._karte_depth:
+                self._karte_depth = None
+            self._depth -= 1
 
     def handle_data(self, data: str) -> None:
         if self._in_summary and self._stack and not self._stack[-1].label:
@@ -476,32 +504,49 @@ def _scan(body: str) -> _FoldScanner:
     return scanner
 
 
-def _folds(body: str) -> dict[str, _Fold]:
-    """The render's field-bearing ``<details>`` sections, keyed by summary label."""
-    return {fold.label: fold for fold in _scan(body).folds if fold.fields}
+def _folds(body: str) -> list[_Fold]:
+    """Every ``<details>`` the record card renders, in POSITION order — field-bearing or not.
+
+    Keyed by position, never by label: a summary label is not unique (nothing stops two sections
+    sharing one, and the label is free German copy), so a dict keyed by it silently collapses folds
+    and the count assertion below then passes over a SHRUNKEN walk — exactly the defect class this
+    wave just fixed in the C8 walker (learning G.37). Field-less folds are included for the same
+    reason: filtering on ``fold.fields`` dropped precisely the shape the guard exists for — a fold
+    whose contents are a MESSAGE (``errors.custom``) rather than an input."""
+    return _scan(body).folds
 
 
-def _autofocused(body: str) -> str:
-    """The name of the field the server told the browser to focus (empty when none)."""
-    return _scan(body).autofocused
+def _fold(body: str, label: str) -> _Fold:
+    """The one card fold whose summary starts with ``label`` (folds are position-keyed; callers name
+    the section they mean). Fails loudly on zero or several matches rather than picking one."""
+    matches = [f for f in _folds(body) if f.label.startswith(label)]
+    assert len(matches) == 1, (
+        f"„{label}“ matched {len(matches)} folds: {[f.label for f in _folds(body)]}"
+    )
+    return matches[0]
 
 
 def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
-    # The drift guard for the mechanism above: _FOLDED_SECTIONS is the ONE declaration of which
-    # fields live behind which fold, so a field moved into a fold without joining it would silently
+    # The drift guard for the mechanism above: the field registry is the ONE declaration of which
+    # fields live behind which fold, so a field moved into a fold without a `section` would silently
     # lose the open-on-error/open-on-focus behaviour. Walk the real render instead of trusting the map.
-    from bundesarchiv.app.web.catalog_views import _FOLDED_SECTIONS
+    #
+    # A field maps to AT MOST ONE section BY CONSTRUCTION now — the registry gives each field one
+    # `section` string, where the old shape was three frozensets that could overlap — so the three
+    # lines that used to rule out that impossibility went with it.
+    from bundesarchiv.app.web.catalog_views import _SECTION_FIELDS
 
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
     folds = _folds(body)
-    assert len(folds) == 3, f"the scanner found {sorted(folds)} — the guard proves nothing"
-    declared = dict(_FOLDED_SECTIONS)
-    for label, fold in folds.items():
-        covering = [name for name, fields in _FOLDED_SECTIONS if fold.fields & fields]
-        assert len(covering) == 1, f"„{label}“ ({sorted(fold.fields)}) maps to {covering}"
-        unowned = fold.fields - declared[covering[0]]
-        assert not unowned, f"„{label}“ holds {sorted(unowned)}, absent from _FOLDED_SECTIONS"
+    assert len(folds) == 3, (
+        f"the scanner found {[f.label for f in folds]} — the guard proves nothing"
+    )
+    for fold in folds:
+        owners = [name for name, fields in _SECTION_FIELDS.items() if fold.fields & fields]
+        assert owners, f"„{fold.label}“ ({sorted(fold.fields)}) belongs to no declared section"
+        unowned = fold.fields - _SECTION_FIELDS[owners[0]]
+        assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from the registry"
 
 
 def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
@@ -514,9 +559,8 @@ def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
     assert response.status_code == 200
     body = response.content.decode()
     assert "Bitte mindestens eine Gruppe angeben." in body
-    folds = _folds(body)
-    assert folds["Zugriff"].is_open, "the errored Zugriff section rendered folded"
-    assert not folds["Herkunft"].is_open  # the clean folds stay folded (ruling 4)
+    assert _fold(body, "Zugriff").is_open, "the errored Zugriff section rendered folded"
+    assert not _fold(body, "Herkunft").is_open  # the clean folds stay folded (ruling 4)
 
 
 def test_custom_bag_error_renders_the_bag_open(corpus: _Corpus) -> None:
@@ -529,11 +573,12 @@ def test_custom_bag_error_renders_the_bag_open(corpus: _Corpus) -> None:
     assert response.status_code == 200
     body = response.content.decode()
     assert "Bezeichnung ist reserviert." in body
-    assert _folds(body)["Weitere Angaben"].is_open, "the errored custom bag rendered folded"
+    assert _fold(body, "Weitere Angaben").is_open, "the errored custom bag rendered folded"
 
 
 def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
-    # _FOCUSABLE_FIELDS scans for the first EMPTY field, and three of them (Autor, Ort, Standort) sit
+    # The GET autofocus scans the cataloguing spine for the first EMPTY field, and three of its
+    # fields (Autor, Ort, Standort) sit
     # behind the Herkunft fold — so on a record whose earlier fields are all filled the autofocus
     # landed on an input inside a closed <details>, focusing nothing at all.
     filled = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
@@ -553,10 +598,9 @@ def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpu
     )
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).get(f"/artikel/{filled}/bearbeiten").content.decode()
-    assert _autofocused(body) == "creator"  # confirms the case this guard is about
-    folds = _folds(body)
-    assert folds["Herkunft"].is_open, "the autofocus target rendered inside a closed fold"
-    assert not folds["Zugriff"].is_open  # the other folds are untouched
+    assert _scan(body).autofocused == "creator"  # confirms the case this guard is about
+    assert _fold(body, "Herkunft").is_open, "the autofocus target rendered inside a closed fold"
+    assert not _fold(body, "Zugriff").is_open  # the other folds are untouched
 
 
 # --- publish/withdraw FROM THE EDIT SCREEN: saving is part of publishing ----------

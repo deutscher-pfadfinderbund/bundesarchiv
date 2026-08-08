@@ -60,14 +60,22 @@ DRAFT_LICENSED = (".badge.entwurf",)
 ERROR_LICENSED = (".error", ".field:has(.error)", ".konflikt", ".danger", "button.danger")
 
 Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned line, lineno, comment)
+#: One at-rule opener: (selector stack including it, the raw condition, lineno, has-comment). Kept
+#: SEPARATE from the declarations because an at-rule's CONDITION is not a property/value pair — and
+#: because it was invisible to every check while it was only a selector-stack prefix, which is how a
+#: hard-coded `@media (min-width: 80rem)` slipped past the px/rem literal rule three times over.
+AtRule = tuple[str, str, int, bool]
 
 
-def _declarations(css: str) -> list[Decl]:
-    """Flatten a stylesheet into (selector-stack, property, line, lineno, has-comment) tuples.
-    At-rules join the stack like selectors do, so a rule inside @container still knows its owning
-    selector. Comments are stripped before parsing; whether the original line carried one is kept
-    (the C5 comment exemption)."""
+def _parse(css: str) -> tuple[list[Decl], list[AtRule]]:
+    """Flatten a stylesheet into declarations and at-rule openers.
+
+    Declarations are (selector-stack, property, line, lineno, has-comment); at-rules join the stack
+    like selectors do, so a rule inside @container still knows its owning selector, AND are returned
+    in their own right so the value rules can be run over their conditions. Comments are stripped
+    before parsing; whether the original line carried one is kept (the C5 comment exemption)."""
     decls: list[Decl] = []
+    at_rules: list[AtRule] = []
     stack: list[str] = []
     pending: list[str] = []  # selector lines accumulated until their opening brace
     in_comment = False
@@ -89,6 +97,8 @@ def _declarations(css: str) -> list[Decl]:
         if line.endswith("{"):
             pending.append(line[:-1].strip())
             stack.append(" ".join(p for p in pending if p))
+            if pending and pending[-1].startswith("@"):
+                at_rules.append((" ".join(stack), pending[-1], lineno, had_comment))
             pending = []
             continue
         if line == "}":
@@ -101,11 +111,30 @@ def _declarations(css: str) -> list[Decl]:
         match = re.match(r"([-a-zA-Z_][-\w]*)\s*:", line)
         if match and stack:
             decls.append((" ".join(stack), match.group(1), line, lineno, had_comment))
-    return decls
+    return decls, at_rules
+
+
+def _declarations(css: str) -> list[Decl]:
+    return _parse(css)[0]
 
 
 def _all_declarations() -> dict[str, list[Decl]]:
     return {name: _declarations((STATIC / name).read_text()) for name in STYLESHEETS}
+
+
+def _all_at_rules() -> dict[str, list[AtRule]]:
+    return {name: _parse((STATIC / name).read_text())[1] for name in STYLESHEETS}
+
+
+def test_every_prod_stylesheet_is_linted() -> None:
+    # The list above is hand-written so it can be READ; this makes it a gate rather than a hope. An
+    # unlinted stylesheet is the cheapest way for every rule in this file to stop applying, and it
+    # arrives silently — a new file just is not in the tuple.
+    on_disk = {path.name for path in STATIC.glob("*.css")}
+    assert set(STYLESHEETS) == on_disk, (
+        f"stylesheets on disk but not linted = {sorted(on_disk - set(STYLESHEETS))}, "
+        f"linted but absent = {sorted(set(STYLESHEETS) - on_disk)}"
+    )
 
 
 _COLOR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(")
@@ -212,6 +241,13 @@ def test_bare_dimension_literals_are_named_or_commented() -> None:
     # value sources. A bare px/rem literal outside tokens.css needs either a naming custom
     # property (--foo: 3rem — the C3 component-API mechanism) or a same-line comment saying why
     # no token fits.
+    #
+    # AT-RULE CONDITIONS COUNT. A width threshold is the most consequential literal in the file — C9
+    # makes it derive from measured content and carry its arithmetic — and it was the one kind this
+    # check could not see, because a condition is not a property/value line. That blind spot is how
+    # `@media (min-width: 80rem)` came to exist in three places across two files, one of them not the
+    # complement it claimed to be. Every surviving query needs the same C5 comment as any other
+    # structural literal: a sentence naming why no token fits.
     offenders = []
     for name, decls in _all_declarations().items():
         if name == "tokens.css":
@@ -223,6 +259,14 @@ def test_bare_dimension_literals_are_named_or_commented() -> None:
                 continue  # comment-exempted per C5
             if _PX_REM.search(raw):
                 offenders.append(f"{name}:{lineno}: {sel} -> {raw.strip()}")
+    for name, at_rules in _all_at_rules().items():
+        if name == "tokens.css":
+            continue
+        for _sel, condition, lineno, comment in at_rules:
+            if comment:
+                continue  # comment-exempted per C5, same rule as any other structural literal
+            if _PX_REM.search(condition):
+                offenders.append(f"{name}:{lineno}: [at-rule] {condition}")
     assert not offenders, "bare px/rem literal (law C5 — token, name, or comment):\n" + "\n".join(
         offenders
     )

@@ -9,7 +9,10 @@ outcome, not an error. Index lag → a quiet role=status line.
 {% endcomment %}
 {% block title %}Sammelbearbeitung{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">{% endblock %}
-{% block header %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
+screen — the partial exists precisely so no screen hand-draws a reduced version of it (precedent
+rule). This one kept its own lone back link through the form wave.{% endcomment %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
 <main class="column">
   {% if conflict_count %}

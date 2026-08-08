@@ -77,7 +77,7 @@
 
   /* narrow fold: record card under the prose (single column); the breadcrumb hides very narrow
      and the card's leaf-Bestand fallback row appears so the filing is never wholly lost (§3) */
-  @media (max-width: 900px) {
+  @media (max-width: 900px) { /* the reader's one MODAL fold: below it the record card cannot sit beside the prose (C9/C11 — a composition breakpoint, no token names one). NOT re-derived from measured content: the detail reader is explicitly out of the form wave (form-wave-brief D), so this threshold is inherited unchanged and is a standing C9 debt, filed with the reader's own wave. */
     .split {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -86,7 +86,7 @@
       position: static;
     }
   }
-  @media (max-width: 560px) {
+  @media (max-width: 560px) { /* the phone step of the same fold (breadcrumb out, the card's leaf-Bestand row in) — same standing C9 debt as the query above, same wave. */
     body > header nav {
       display: none;
     }
