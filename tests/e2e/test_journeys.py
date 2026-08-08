@@ -902,10 +902,22 @@ def test_publish_is_one_click_with_the_exposure_on_screen(
     # card, in the future tense while the record is a draft. Publishing is then one click.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
     expect(page.locator(".pane")).to_contain_text("Nach Veröffentlichung sichtbar für")
+    # ...and SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): Veröffentlichen sits in the same
+    # row as Speichern (ruling 2), so the archivist reaches for it with unsaved edits on screen. It used
+    # to POST a lifecycle transition of its own, which rebuilt the record from disk and threw those
+    # edits away without a word. Type into two fields — one inside #bearbeiten-form's subtree and one
+    # OUTSIDE it (the media/custom split), because they are wired to the form differently — then publish
+    # with ONE click and find both on the read view.
+    page.fill('input[name="ref_code"]', "E2E-42")
+    page.click('summary:has-text("Weitere Angaben")')
+    page.fill('input[name="custom_key"]', "Quelle")
+    page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
     page.click('button:has-text("Veröffentlichen")')
     # straight to the read view, published — no panel, no checkbox, no second Veröffentlichen
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
+    expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived
+    expect(page.get_by_text("Privatbesitz Meyer")).to_be_visible()  # ...and the custom row
 
 
 def test_exposure_statement_is_on_screen_at_every_width(

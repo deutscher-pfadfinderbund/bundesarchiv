@@ -40,10 +40,17 @@ structural POSTs swap #medien-drawer only.{% endcomment %}
 It occupies the slot the workbench spends on the filter rail and STICKS there, so Speichern is
 reachable at any scroll position without a second band at the bottom. Contents in reading order: the
 back affordance · the save-state output (enhancement-only) and the ENTWURF badge · then ONE
-role="toolbar" holding Speichern (primary), the lifecycle action, and the overflow disclosure. The
-lifecycle/Kopieren actions are their OWN forms (Enter in the edit form must never fire them) but ride
-this row's toolbar slot — a new action lands in that list, never as a new button position
-(learning G.9).{% endcomment %}
+role="toolbar" holding Speichern (primary), the lifecycle action, and the overflow disclosure. Kopieren
+is its OWN form (it posts elsewhere) but rides this row's toolbar slot — a new action lands in that
+list, never as a new button position (learning G.9).
+
+The LIFECYCLE action is a submit button of #bearbeiten-form (owner decision 2026-08-08): since ruling 2
+put Veröffentlichen in the same row as Speichern, a lifecycle POST of its own rebuilt the record from
+disk and threw the archivist's unsaved edits away without a word. It now SAVES the form and transitions
+in one round trip under the one expected_version, so one click still means one click and nothing is
+lost. Enter is unaffected: implicit submission fires the FIRST submit button in tree order, which is
+Speichern above (pinned by test_edit_and_save_redirects_to_read_view — spec §6.2, Enter never
+publishes).{% endcomment %}
 <div class="recordrow">
   <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
   {% include "components/badge_lifecycle.html" with draft=values.is_draft only %}
@@ -53,23 +60,18 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
   <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
   <div role="toolbar" aria-label="Satzaktionen">
     <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
-    {% if values.is_draft %}
     {% comment %}Publishing is ONE click (owner ruling 5): the separate over-exposure preview gate
-    retired with the permanent exposure statement (the sheet ≥80rem, the Zugriff section below it),
-    so this posts the lifecycle action directly, CAS-guarded like every other write.{% endcomment %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="veroeffentlichen">
-      <button type="submit">Veröffentlichen</button>
-    </form>
+    retired with the permanent exposure statement (the sheet ≥80rem, the card below it). The click
+    submits the EDIT form with the lifecycle verb attached, so the save and the transition are one
+    CAS-guarded write — a validation failure behaves exactly like a failed save (re-render, values
+    preserved, nothing published) and a lost race exactly like a save conflict. No confirm step: that
+    is the gate the owner retired.{% endcomment %}
+    {% if values.is_draft %}
+    <button type="submit" form="bearbeiten-form"
+            name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
     {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="zurueckziehen">
-      <button type="submit">Als Entwurf zurückziehen</button>
-    </form>
+    <button type="submit" form="bearbeiten-form"
+            name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
     {% endif %}
     {% comment %}The overflow: the row's rare actions. Same native <details> disclosure as the
     header's "+ Neu …" (ONE pattern), so its panel is the licensed transient OVERLAY (register

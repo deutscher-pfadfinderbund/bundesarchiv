@@ -231,16 +231,30 @@ def _handle_edit_post(
     autofocused). On success 302 to the read view. On ``Conflict`` re-render state G with the
     submitted values preserved (the ONE catch site is ``catalog.save_catalog_form``). A
     ``custom_entfernen`` submit is the no-JS custom-row removal — it re-renders the form with that
-    row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
-    metadata save preserves them (only captions update; media structure is its own POSTs)."""
+    row cleared, without saving (spec §5). The current media rides the parse so the metadata save
+    preserves it (only captions update; media structure is its own POSTs).
+
+    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08). Since ruling 2 put Veröffentlichen in the
+    same row as Speichern, the archivist reaches for it with unsaved edits on screen — and a separate
+    lifecycle POST rebuilt the record from disk and 302'd away, discarding them silently. So the edit
+    form's own submit carries the lifecycle verb (``lebenszyklus``): the target lifecycle simply rides
+    the parse, and the ONE existing CAS save commits the metadata and the transition together. One
+    click, nothing lost, no confirm step (that is the gate ruling 5 retired). Everything downstream is
+    unchanged by construction: a validation failure re-renders state F before any save, and a lost race
+    re-renders state G — publishing cannot behave differently from saving, because it IS saving. An
+    unknown verb is a 404 with no mutation at all, like the standalone lifecycle route's."""
     if "custom_entfernen" in request.POST:
         return _rerender_with_custom_removed(request, ulid, collections, current)
+    verb = request.POST.get("lebenszyklus", "")
+    lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
+    if lifecycle is None:
+        return _not_found()  # unknown verb → no save, no transition, indistinguishable 404
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
         collections=tuple(c.ulid for c in collections),
         current_media=current.media,
-        current_lifecycle=current.lifecycle,
+        lifecycle=lifecycle,
     )
     if result.article is None:
         context = _edit_context_from_post(

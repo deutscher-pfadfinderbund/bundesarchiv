@@ -557,3 +557,107 @@ def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpu
     folds = _folds(body)
     assert folds["Herkunft"].is_open, "the autofocus target rendered inside a closed fold"
     assert not folds["Zugriff"].is_open  # the other folds are untouched
+
+
+# --- publish/withdraw FROM THE EDIT SCREEN: saving is part of publishing ----------
+#
+# Owner ruling 2 put Veröffentlichen in the same row as Speichern; the lifecycle POST it fired
+# rebuilt the record from disk and 302'd away, so every unsaved edit on screen was silently
+# discarded. That is DATA LOSS, so this block gets real coverage (testing razor). The decision
+# (2026-08-08): publishing from the edit screen SAVES the form first and transitions in the same CAS
+# write. No confirm step — that is the gate ruling 5 retired.
+
+
+def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
+                "lebenszyklus": "veroeffentlichen",
+            },
+        )
+    assert response.status_code == 302
+    assert response["Location"] == f"/artikel/{_ULID}"  # same destination as a plain save
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Frisch getippt"  # the edit was NOT discarded
+    assert stored.article.creator == "Kurt Meyer"
+    assert stored.article.lifecycle is Lifecycle.PUBLISHED
+    assert stored.version == corpus.version + 1  # ONE write, not save-then-publish
+
+
+def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
+    published = "01KX7YT9E3VX0CP3A5Q49RZMWR"
+    version = ArticleRepository(corpus.store).save(
+        Article(
+            ulid=published,
+            title="Veröffentlicht",
+            collection_id="PUB",
+            lifecycle=Lifecycle.PUBLISHED,
+        ),
+        0,
+    )
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{published}/bearbeiten",
+            {
+                **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
+                "lebenszyklus": "zurueckziehen",
+            },
+        )
+    assert response.status_code == 302
+    stored = ArticleRepository(corpus.store).load(published)
+    assert stored.article.title == "Doch noch Entwurf"
+    assert stored.article.lifecycle is Lifecycle.DRAFT
+
+
+def test_publish_with_an_invalid_form_publishes_nothing(corpus: _Corpus) -> None:
+    # A validation failure must behave EXACTLY like a failed save: re-render, values preserved,
+    # nothing published. It does by construction — the parse runs before any save.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title="", creator="Behalten"),
+                "lebenszyklus": "veroeffentlichen",
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Titel ist erforderlich." in body
+    assert 'value="Behalten"' in body
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.lifecycle is Lifecycle.DRAFT  # nothing published
+    assert stored.version == corpus.version  # nothing saved either
+
+
+def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _Corpus) -> None:
+    archivist = _client_as(Archivist())
+    with override_settings(**_settings(corpus)):
+        archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+        loser = archivist.post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus, title="Verlierer"), "lebenszyklus": "veroeffentlichen"},
+        )
+    assert loser.status_code == 200
+    body = loser.content.decode()
+    assert "Inzwischen geändert" in body
+    assert 'value="Verlierer"' in body  # the loser's input survives the conflict re-render
+    assert f'name="expected_version" value="{corpus.version + 1}"' in body  # refreshed
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Gewinner"
+    assert stored.article.lifecycle is Lifecycle.DRAFT  # the lost race published nothing
+
+
+def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _Corpus) -> None:
+    # Same rule as the standalone lifecycle route: never mutate on a bad verb — and here that means
+    # the SAVE does not happen either.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus, title="Gekapert"), "lebenszyklus": "sabotage"},
+        )
+    assert_denied(response)
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Wanderfahrt 1962"
+    assert stored.version == corpus.version
