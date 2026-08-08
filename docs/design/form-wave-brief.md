@@ -1,11 +1,13 @@
-# Form wave — audit, directions, open decisions
+# Form wave — audit, directions, rulings
 
-Status: OPEN (brainstorm recorded 2026-08-08; no owner ruling yet). The edit
+Status: DECIDED (owner rulings 2026-08-08 — verbatim in
+`docs/requirements/owner-interview-2026-08.md`; section C below records how each
+decision came out). Implementation wave in progress. The edit
 surface is the next screen after the workbench, per the owner's priority ruling
 ("let's do this screen first. Learn from it and then we can apply the learned to
 the other screens" — `docs/requirements/owner-interview-2026-08.md`).
 
-Nothing in this file is law. Rulings land in `docs/requirements/`; cues and
+Nothing in this file is law itself. Rulings land in `docs/requirements/`; cues and
 cascade rules land in `design-review-law.md` — and only after an owner decision.
 
 Renders behind this brief (owner artifact, 2026-08-08):
@@ -58,34 +60,35 @@ All four render through the real token/cascade layer with the real corpus record
   sentence naming what happens next), and a states render (rest / hover / edit /
   rejected / CAS conflict).
 
-## C. Open decisions (owner)
+## C. Decisions (owner, 2026-08-08)
 
-1. Which composition: **E** (rec.) / A / B / C alone.
-2. Actions: one sticky **record row at the top** (rec.) / bottom bar / both.
-3. Title header on the edit screen: **none — every identity fact is a field**
-   (rec.) / a quiet identity line.
-4. Rare sections: **folded with value summaries** (rec.) / always open.
-5. Publishing: **permanent exposure statement, one-click publish** (rec.) /
-   keep the preview gate.
-6. Media row actions as icons: **yes, two new glyphs (arrow-up, arrow-down) join
-   the one set** (rec.) / keep text links.
-7. File picker: **German label + hidden native input, native fallback without
-   JS** (rec.) / live with "Choose Files".
-8. Adopt C13 + C14 as cascade rules (see the learnings below) / record as
-   learnings only.
+1. **E**, with A's two-column behaviour INSIDE the card — the card's sections
+   break into two columns by grid, no guessed breakpoint.
+2. **One sticky record row at the top.** The bottom footer band and the separate
+   lifecycle band die.
+3. **No title header** — every identity fact is a field.
+4. **Folded rare sections, values in the summary.**
+5. **Permanent exposure statement, one-click publish**; the preview gate dies.
+6. **Icons for media rows**; arrow-up/arrow-down join the one icon set.
+7. **Keep the NATIVE file input** (a German browser renders German strings) —
+   this reverses my recommendation.
+8. **C13 + C14 adopted as cascade rules.**
 
-## D. Wave order once decided (one writer)
+## D. Wave order (one writer)
 
 1. Chrome: edit screens inherit the workbench header; the record row becomes the
    view's one control row (one `--control-height` knob).
-2. Card: ruled rows replace the seven fieldsets; folded rare sections with value
-   summaries; the prose field grows with its content.
+2. Card: ruled rows replace the seven fieldsets; sections flow in a two-column
+   grid (`repeat(auto-fit, minmax(<derived>, 1fr))`, C11 — the floor is computed
+   from the label column + the value minimum, arithmetic beside the rule); folded
+   rare sections with value summaries; the prose field grows with its content.
 3. Sheet: reader's view + exposure statement, server-rendered, refreshed on
    save; the publish preview page retires.
-4. Media: icon toolbar per row, German file picker.
+4. Media: icon toolbar per row (two new glyphs). The native file input STAYS
+   (owner ruling 7).
 5. Guards: the control-row and overlay walkers cover the new row for free; add a
    computed proof that the card's state rules outrank its resting defaults (the
-   C13 bug below, caught by a test rather than an eye).
+   C13 bug, caught by a test rather than an eye).
 
 Explicitly NOT in this wave: the detail reader (cover eats the first viewport,
 date rendered twice — C7), the confirm surfaces, and issue #42's unimplemented

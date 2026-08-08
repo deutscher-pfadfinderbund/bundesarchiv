@@ -155,6 +155,22 @@ then two-cut bevels are forbidden like any unregistered cue.
    top as the appendix-F enhancement, never load-bearing. Every overlay is
    covered by the containment walker (section E, learning G.26).
 
+13. **A resting look is declared in `:where()`** (owner, 2026-08-08 — learning
+   G.29). Any rule that establishes a component's DEFAULT appearance wraps its
+   selector in `:where()`, so it carries zero specificity and every state rule
+   (`:hover`, `:focus-visible`, `:user-invalid`, `:has(.error)`, `[aria-*]`)
+   outranks it without a specificity contest. A default written at normal
+   specificity silently swallows the states beneath it — and in source an
+   outranked state rule is indistinguishable from a correct one, so this is
+   construction, not review.
+14. **A composition styles only the structure it placed** (owner, 2026-08-08 —
+   learning G.30). Selectors reach the nodes the composition itself put on the
+   page, via direct-child paths (`.karte > section > h2`), never bare
+   descendants that can match inside a nested component. The compositions layer
+   outranks components, so a descendant selector is a silent override of any
+   component that happens to sit inside. This is C4 made enforceable:
+   components own the inside.
+
 ## Themability law (owner, 2026-08-06)
 
 The design must stay changeable. The lever is the role-token layer, and
