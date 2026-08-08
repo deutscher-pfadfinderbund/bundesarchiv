@@ -6,7 +6,8 @@ they reach here, so the same {% if value %} guard that omits an absent field als
 one — there is NO member/archivist fork (spec §4/§10). Violet ink is permitted ONLY on the
 Signatur, the mono machine values, and the inline links (spec §0); the human Datierung under the
 title stays neutral (signals-once — violet marks the machine value once). The action row +
-ENTWURF badge render only for is_archivist. The record card is a real <dl> (one fact, one row).
+ENTWURF badge render only for is_archivist; both lifecycle actions are LINKS to the edit surface,
+where the transition rides that form's own CAS write. The record card is a real <dl> (one fact, one row).
 No JS, no HTMX — the app's purest no-JS surface (§7).
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
@@ -28,16 +29,13 @@ No JS, no HTMX — the app's purest no-JS surface (§7).
       {% csrf_token %}
       <button type="submit">Kopieren</button>
     </form>
-    {% if is_draft %}
-    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>
-    {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="zurueckziehen">
-      <button type="submit">Als Entwurf zurückziehen</button>
-    </form>
-    {% endif %}
+    {% comment %}Both lifecycle actions are LINKS to the edit surface, where the transition rides the
+    form's own single CAS-guarded write (owner decision 2026-08-08 — saving IS publishing). Withdraw
+    used to POST a lifecycle route of its own; that route's remaining verb was UI-unreachable, so it
+    died and this action became symmetric with the publish link beside it. The archivist reads the
+    exposure statement on that screen before acting either way, which is the whole point of ruling 5.
+    {% endcomment %}
+    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">{% if is_draft %}Veröffentlichen{% else %}Als Entwurf zurückziehen{% endif %}</a>
     <a class="button" href="{% url 'artikel-loeschen' ulid %}">Löschen</a>
   </div>
   {% endif %}

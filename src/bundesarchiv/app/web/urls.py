@@ -31,7 +31,6 @@ from bundesarchiv.app.web.catalog_views import (
     article_delete,
     article_dokumenttypen,
     article_edit,
-    article_lifecycle,
     article_medien_entfernen,
     article_medien_hochladen,
     article_medien_verschieben,
@@ -68,7 +67,6 @@ urlpatterns = [
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
-    path("artikel/<str:ulid>/lebenszyklus", article_lifecycle, name="artikel-lebenszyklus"),
     path(
         "artikel/<str:ulid>/medien/verschieben",
         article_medien_verschieben,

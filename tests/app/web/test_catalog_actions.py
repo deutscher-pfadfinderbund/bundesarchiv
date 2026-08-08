@@ -4,10 +4,11 @@ Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
-- ``/artikel/<ulid>/lebenszyklus`` POST — publish / unpublish. Publishing is ONE click since the
-  form wave (owner ruling 5, 2026-08-08): the separate over-exposure preview route + its ``geprueft``
-  confirm checkbox retired when the exposure statement became permanent chrome on the edit surface.
-  The audience computation itself did not move — it is what the edit render now shows.
+- the exposure statement on the edit render — what the retired over-exposure preview route (and its
+  ``geprueft`` confirm checkbox) was replaced BY (owner ruling 5, 2026-08-08): the audience
+  computation did not move, it is simply on screen. There is no lifecycle route left to cover: both
+  verbs ride the edit form's own CAS write (tests/app/web/test_catalog_edit.py), and the standalone
+  POST /lebenszyklus died with its UI-unreachable ``veroeffentlichen`` branch.
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
@@ -21,7 +22,6 @@ from pathlib import Path
 
 import pytest
 from django.core import signing
-from django.http import HttpRequest
 from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
 
@@ -194,21 +194,7 @@ def test_loeschen_denied_leaves_article(corpus: _Corpus, viewer: Viewer, method:
     assert ArticleRepository(corpus.store).load(_PUBLISHED).article.title == "Sommerfahrt 1962"
 
 
-# --- Lebenszyklus (publish / unpublish) --------------------------------------------
-
-
-def test_publish_is_one_click(corpus: _Corpus) -> None:
-    # Owner ruling 5 (2026-08-08): ONE click publishes. The retired gate demanded a `geprueft`
-    # checkbox that rode a separate /vorschau round trip; a publish POST without it now simply
-    # publishes, because the archivist has been reading the exposure statement all along.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert response.status_code == 302
-    assert response["Location"] == f"/artikel/{_DRAFT}"
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.PUBLISHED
+# --- the exposure statement (what replaced the publish gate) -----------------------
 
 
 def test_edit_form_states_the_exposure_permanently(corpus: _Corpus) -> None:
@@ -317,85 +303,6 @@ def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: _Corpus) -> Non
     assert "Einblick nicht ermittelbar." not in ok
 
 
-def test_unpublish_sets_draft(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_PUBLISHED}/lebenszyklus",
-            {"aktion": "zurueckziehen", "expected_version": str(corpus.pub_version)},
-        )
-    assert response.status_code == 302
-    assert ArticleRepository(corpus.store).load(_PUBLISHED).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_unknown_aktion_is_404_no_mutation(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "sabotage", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_stale_version_shows_conflict_panel(corpus: _Corpus) -> None:
-    archivist = _client_as(Archivist())
-    with override_settings(**_settings(corpus)):
-        # a concurrent edit bumps the version
-        archivist.post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "zurueckziehen", "expected_version": str(corpus.draft_version)},
-        )
-        # now publish at the STALE version -> Conflict -> state G
-        loser = archivist.post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert loser.status_code == 200
-    assert "Inzwischen geändert" in loser.content.decode()
-
-
-@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_lifecycle_denied_leaves_lifecycle(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
-    assert ArticleRepository(corpus.store).load(_DRAFT).article.lifecycle is Lifecycle.DRAFT
-
-
-def test_lifecycle_get_is_404(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/lebenszyklus")
-    assert_denied(response)
-
-
-def test_lifecycle_stale_save_against_deleted_article_is_404(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # The archivist's gate/load passes (as it would right after a GET), but the article is
-    # hard-deleted before THIS POST's save runs — the race window between the view's initial
-    # gate/load and `save_catalog_form`'s own re-load on Conflict. The Conflict handler's re-load
-    # then hits NotFound — that must collapse to the SAME 404 as an absent article, never a 500.
-    from bundesarchiv.app.web import catalog_views
-
-    real_gated = catalog_views._load_gated
-
-    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
-        gated = real_gated(request, ulid)
-        ArticleRepository(corpus.store).hard_delete(_DRAFT)
-        return gated
-
-    monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_DRAFT}/lebenszyklus",
-            {"aktion": "veroeffentlichen", "expected_version": str(corpus.draft_version)},
-        )
-    assert_denied(response)
-
-
 # --- malformed / absent ulid across every new route --------------------------------
 
 
@@ -404,7 +311,6 @@ def test_lifecycle_stale_save_against_deleted_article_is_404(
     [
         "/artikel/not-a-ulid/kopieren",
         "/artikel/not-a-ulid/loeschen",
-        "/artikel/not-a-ulid/lebenszyklus",
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/loeschen",  # well-formed but absent
     ],
 )

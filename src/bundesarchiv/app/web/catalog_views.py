@@ -807,48 +807,16 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
-# --- /artikel/<ulid>/lebenszyklus — publish / unpublish (Slice C, spec §6.2) -------
-
-
-def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/lebenszyklus`` — the lifecycle transition, CAS-guarded (ADR 0013
-    applies to lifecycle too). ``aktion=veroeffentlichen`` → PUBLISHED; ``aktion=zurueckziehen`` →
-    DRAFT. Archivist-only; non-archivist / malformed / absent / GET → the byte-identical 404. A
-    ``Conflict`` re-renders the edit form's state G (the ONE catch site is ``save_catalog_form``).
-    An unknown aktion is a no-op 404 (never mutate on a bad verb).
-
-    Publishing is ONE click (owner ruling 5, 2026-08-08): the separate over-exposure preview gate —
-    POST /vorschau, its panel and the required ``geprueft`` confirm checkbox — retired when the
-    exposure statement became PERMANENT chrome on the edit surface (the reader's sheet above 80rem,
-    the card itself below it). The archivist reads who gains sight while cataloging instead
-    of buying that fact with three extra interactions at the end (catechism Q10: a preview is an
-    enhancement, never a toll gate). Nothing else about publishing changed: the audience computation,
-    the CAS guard, the state-H index-lag hinweis, the conflict panel and the archivist-only gate all
-    stand."""
-    gated = _load_gated(request, ulid)
-    if gated is None or request.method != "POST":
-        return _not_found()
-    store, stored = gated
-    lifecycle = _lifecycle_for(request.POST.get("aktion", ""))
-    if lifecycle is None:
-        return _not_found()  # unknown verb → no mutation, indistinguishable 404
-    expected_version = catalog.parse_version(request.POST.get("expected_version", ""))
-    mutated = replace(stored.article, lifecycle=lifecycle)
-    outcome = catalog.save_catalog_form(store, mutated, expected_version)
-    match outcome:
-        case catalog.SavedOutcome():
-            return _redirect(request, reverse("artikel-detail", args=[ulid]))
-        case catalog.ConflictOutcome() as conflict:
-            collections = _collections(store)
-            context = _edit_context_from_article(
-                conflict.winner, conflict.current_version, collections, autofocus_first_empty=False
-            )
-            context["conflict"] = True
-            context["conflict_rows"] = _conflict_rows(mutated, conflict.winner)
-            return render_screen(request, "workbench/artikel_bearbeiten.html", context)
-        case catalog.DeletedOutcome():
-            # hard-deleted underneath the save — collapse to the byte-identical 404
-            return _not_found()
+# --- the lifecycle verb (spec §6.2) ------------------------------------------------
+#
+# There is no lifecycle ROUTE any more. Publishing and withdrawing both ride the edit form's own
+# CAS-guarded write (owner decision 2026-08-08 — saving IS publishing: a separate transition rebuilt
+# the record from disk and discarded the archivist's unsaved edits without a word). After the form
+# wave the standalone POST /artikel/<ulid>/lebenszyklus had exactly one live caller — the detail
+# reader's withdraw form — while its `veroeffentlichen` branch was UI-unreachable from anywhere. The
+# detail reader now LINKS to /bearbeiten for both verbs, symmetric with its publish link, so the
+# archivist reads the exposure statement before either transition; the route, its urls.py row, its
+# leak-matrix contract row and the six tests guarding a verb nothing could reach went with it.
 
 
 def _lifecycle_for(aktion: str) -> Lifecycle | None:
