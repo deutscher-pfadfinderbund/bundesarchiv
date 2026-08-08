@@ -155,6 +155,22 @@ then two-cut bevels are forbidden like any unregistered cue.
    top as the appendix-F enhancement, never load-bearing. Every overlay is
    covered by the containment walker (section E, learning G.26).
 
+13. **A resting look is declared in `:where()`** (owner, 2026-08-08 — learning
+   G.29). Any rule that establishes a component's DEFAULT appearance wraps its
+   selector in `:where()`, so it carries zero specificity and every state rule
+   (`:hover`, `:focus-visible`, `:user-invalid`, `:has(.error)`, `[aria-*]`)
+   outranks it without a specificity contest. A default written at normal
+   specificity silently swallows the states beneath it — and in source an
+   outranked state rule is indistinguishable from a correct one, so this is
+   construction, not review.
+14. **A composition styles only the structure it placed** (owner, 2026-08-08 —
+   learning G.30). Selectors reach the nodes the composition itself put on the
+   page, via direct-child paths (`.karte > section > h2`), never bare
+   descendants that can match inside a nested component. The compositions layer
+   outranks components, so a descendant selector is a silent override of any
+   component that happens to sit inside. This is C4 made enforceable:
+   components own the inside.
+
 ## Themability law (owner, 2026-08-06)
 
 The design must stay changeable. The lever is the role-token layer, and
@@ -401,3 +417,79 @@ for the future?"):**
    document horizontal scroll) at widths no gallery state rendered. Every
    overlay gets a computed containment check across the width range — as a
    generic walker, per G.21.
+
+**2026-08-07, session retrospective round 2 (owner: "what did we learn?"):**
+
+27. **Owner corrections arrive as instances but live as classes.** Every
+   round of point-by-point feedback in this session collapsed into ONE
+   structural hole: four "different" defects were one sibling-consistency
+   gap; six were one missing material-role assignment plus one relativity
+   effect. Treat a correction list as a class hunt — fix the class, add the
+   structural guard, then re-check the whole surface for other instances.
+   Fixing the N listed items and stopping guarantees round N+1.
+28. **A register that only grows stops being read.** These learnings are
+   the ARCHIVE; section H is the working memory. Every new learning that
+   implies a pre-return action must also land as a checklist line, or it
+   will be true, recorded, and ignored.
+
+**2026-08-08, form-wave exploration (three bugs in my own mock, one class):**
+
+29. **A resting look declared at high specificity swallows every state beneath
+   it.** The card's default ("value on a ruled line, no border") outranked the
+   `:has(.error)` rule in a lower layer, so an invalid Datierung rendered with a
+   normal border — the red border was in the stylesheet and invisible on screen.
+   Same leak muted the error message's ink. Declare defaults inside `:where()`
+   (zero specificity) so hover/focus/error always win. Proposed as cascade rule
+   C13 (owner decision pending, `docs/design/form-wave-brief.md`).
+30. **A composition may only style the structure it owns.** `.karte h2`
+   restyled a nested conflict panel's own heading, because the compositions
+   layer outranks components. Scope to the nodes the composition placed
+   (`.karte > section > h2`). This is C4 with teeth — components own the inside,
+   so a composition must not select descendants it did not place. Proposed as
+   C14. The same slip in flex form: a row idiom (`flex: 1 1 14rem`) inherited by
+   a column container stretched every field to 14rem of HEIGHT.
+31. **Field width is a claim about content length — derive it like a
+   breakpoint.** C9 already forbids invented width thresholds; one level down,
+   an input's width is the same kind of claim. Size fields in `ch` from the
+   domain fact (Signatur ≤ 8 characters → 12ch), never from whatever the column
+   happened to be. Uniform full-width inputs are what wasted half of a 1440px
+   desk on the old form.
+
+## H. Writer pre-flight checklist
+
+Run before returning from ANY UI wave. Ten lines distilled from the
+learnings register (section G is the archive and the reasoning; this is the
+operational form — learning G.28).
+
+1. **Walkers green:** control-row heights (C8), overlay containment (G.26),
+   header uniformity (G.1) — plus the design lint (E). Not "should pass":
+   run them.
+2. **Every new surface has a material role** (desk / furniture / sheet /
+   overlay) named in the code and consistent with register row 8 (G.17).
+3. **Every distinctive cue cites a register row** (B) — including its
+   position. No row, no cue.
+4. **No invented numbers:** width queries derive from measured content and
+   carry the arithmetic plus a computed proof that hiding was necessary
+   (C9); flexible mechanisms were tried first (C11).
+5. **Siblings that must match consume ONE knob** (C8). Two independent
+   values that agree today are a defect, not a pass.
+6. **Re-rank what you did NOT touch:** subtraction changes relative visual
+   weight, so re-run Q9 over the whole surface (G.19).
+7. **Fixtures are realistic** (domain facts, not invented extremes), and
+   stress tests target the genuinely unbounded fields (G.6, G.24) — a proof
+   over short demo data proves nothing.
+8. **Client logic accounts for every state source the server used** (URL
+   params, not just DOM) and survives an htmx history restore (G.25).
+9. **Docs, demo pages and comments in lockstep**, and every uniformity
+   claim is proven computed rather than asserted in prose (G.1).
+10. **Report labels every image REAL or MOCK** (G.16), and names lukewarm
+   owner acceptances as revisit candidates rather than settled law (G.20).
+11. **Defaults in `:where()`; selectors scoped to what you placed.** Every
+    resting look must still lose to hover/focus/error (G.29), and no selector may
+    reach into a nested component's own parts (G.30). Verify on the STATE
+    renders — in source, an outranked state rule looks identical to a correct
+    one.
+
+**Enforcement caveat:** none of the guards above run on a push — CI is not
+active (issue #12). Until it is, "green" means an agent ran it and said so
+in its report.

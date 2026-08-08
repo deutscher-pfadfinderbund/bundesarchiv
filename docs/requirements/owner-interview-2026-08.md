@@ -249,6 +249,27 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
     representative. Layout guards may still stress beyond the ceiling
     (Titel is genuinely unbounded free text), but renders and design
     judgment run on realistic codes (learning G.6).
+- **Form-wave rulings (owner, 2026-08-08 — answers to the eight decisions in
+  `docs/design/form-wave-brief.md`):**
+  1. **Composition E** (the ruled record card + the reader's sheet in the pane
+     column), **with A's two-column behaviour inside the card**: the card's
+     sections break into two columns — "no breakpoint guessing, use a grid".
+  2. **Actions live in ONE sticky row at the top** of the edit screen (the
+     record row). The bottom sticky footer band and the separate lifecycle band
+     both die.
+  3. **Every identity fact is a field.** The edit screen carries NO title
+     header — Titel and Signatur are inputs, so a header repeating them is
+     duplication (Q2).
+  4. **Rarely-used sections stay folded, with their values in the summary**
+     (folding may never hide data).
+  5. **The exposure statement is permanently on screen; publishing is one
+     click.** The separate over-exposure preview gate retires.
+  6. **Media row actions become icons** — arrow-up and arrow-down join the ONE
+     vendored icon set (register row 9); the three text links per row die.
+  7. **Keep the NATIVE file input.** A German browser renders German strings;
+     the label-triggered replacement is rejected.
+  8. **Cascade rules C13 + C14 adopted as law** (zero-specificity defaults;
+     a composition styles only what it placed).
 - **The mail-client fold is under review.** The owner asked why the results
   table changes shape when a row opens the pane (the 2026-07-10 fold
   ruling). Candidate replacement: stable row anatomy, low-priority columns
