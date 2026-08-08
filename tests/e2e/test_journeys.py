@@ -244,19 +244,38 @@ def test_control_rows_compute_one_height_source(
 #: overlay is built from the same pattern, this proof already covers it.
 _OVERLAY_SELECTOR = "details:has(> ul)"
 
-#: One overlay's containment facts: the panel's box against the viewport, plus the document's own
-#: horizontal overflow while it is open. Both are needed — a panel can sit inside the viewport
-#: while still stretching the document, and vice versa.
+#: One overlay's containment facts: the panel's box against the viewport, the document's own
+#: horizontal overflow while it is open, and — the third fact, added after the sticky record row was
+#: found painting over the header's create menu — whether each of the panel's own entries is
+#: HIT-TESTABLE at its centre. Being on-viewport is not the same as being reachable: a panel can sit
+#: perfectly inside the viewport under an opaque sticky row that eats every click, which is the
+#: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
+#: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
+#: overlay gets it rather than the one that failed (learning G.21).
 _OVERLAY_RECT_JS = """(index) => {
     const detail = document.querySelectorAll('details:has(> ul)')[index];
     const panel = detail.querySelector(':scope > ul');
     const r = panel.getBoundingClientRect();
     const d = document.documentElement;
+    const covered = [];
+    for (const entry of panel.querySelectorAll('a, button, input, select')) {
+        const b = entry.getBoundingClientRect();
+        if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
+        const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+        if (!(hit === entry || entry.contains(hit) || entry.contains(hit && hit.parentElement))) {
+            covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
+                + ' <- ' + (hit ? hit.tagName.toLowerCase()
+                    + (typeof hit.className === 'string' && hit.className
+                        ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
+                    : 'nothing'));
+        }
+    }
     return {
         label: detail.querySelector('summary').textContent.trim(),
         left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
         viewport: d.clientWidth,
         docOverflow: d.scrollWidth - d.clientWidth,
+        covered: covered,
     };
 }"""
 
@@ -289,15 +308,17 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
             for i in range(found):
                 summary = overlays.nth(i).locator("summary")
                 summary.click()
-                rect: dict[str, float | str] = page.evaluate(_OVERLAY_RECT_JS, i)
+                rect: dict[str, object] = page.evaluate(_OVERLAY_RECT_JS, i)
                 where = f"{width}px · {path} · {rect['label']}"
-                if float(rect["left"]) < -1:
+                if rect["covered"]:
+                    defects.append(f"{where}: entries painted over: {rect['covered']}")
+                if float(str(rect["left"])) < -1:
                     defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
-                if float(rect["right"]) > float(rect["viewport"]) + 1:
+                if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
                     defects.append(
                         f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px"
                     )
-                if float(rect["docOverflow"]) > 1:
+                if float(str(rect["docOverflow"])) > 1:
                     defects.append(f"{where}: the open panel scrolls the document {rect}")
                 summary.click()  # close before measuring the next one
     return defects
@@ -351,6 +372,52 @@ def test_overlays_stay_inside_the_viewport(
         f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
     ]
     assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
+
+
+def test_the_header_menu_is_clickable_on_the_edit_screen(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The recorded regression class (CLAUDE.md): a fixed/sticky element whose paint order lets it
+    # intercept clicks. The sticky record row is opaque and forms a stacking context at z 4; the
+    # header's "+ Neu …" panel is a z-2 descendant of the (then z-auto) header and drops straight into
+    # the row's band — so on the edit surface every create entry was painted over and DEAD. The guard
+    # is therefore a real CLICK, not a geometry measurement: the walker's hit-test above catches the
+    # class generically, this proves the archivist's actual path end to end.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    for entry, destination in (
+        ("Neuer Artikel", "/artikel/neu"),
+        ("Neuer Bestand", "/bestand/neu"),
+    ):
+        page.goto(live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+        page.click("header details.menu > summary")
+        page.get_by_role("link", name=entry).click(timeout=5000)
+        page.wait_for_url(f"**{destination}")
+
+
+def test_the_sheet_clears_the_sticky_record_row(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The reader's sheet is sticky beside the card, and the record row is sticky above it. The sheet's
+    # offset was a guessed constant (--space-4 = 16px) while the row measures 49px, so scrolling slid
+    # the sheet's own header — Signatur and Titel — under the row. The offset now DERIVES from the
+    # row's anatomy through one knob both consume (C5/C9), which is what this measures: whatever the
+    # row's height turns out to be, the sheet starts below it.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+    boxes: dict[str, float] = page.evaluate(
+        """() => {
+        const row = document.querySelector('.recordrow').getBoundingClientRect();
+        const sheet = document.querySelector('.pane > div').getBoundingClientRect();
+        return {rowBottom: row.bottom, sheetTop: sheet.top, rowHeight: row.height};
+    }"""
+    )
+    assert boxes["sheetTop"] >= boxes["rowBottom"], (
+        f"the record row ({boxes['rowHeight']}px tall) covers the sheet: "
+        f"sheet top {boxes['sheetTop']}px vs row bottom {boxes['rowBottom']}px"
+    )
 
 
 def test_treffer_count_rides_the_rail_and_stays_live(
