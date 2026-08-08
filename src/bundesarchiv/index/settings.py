@@ -169,6 +169,14 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Collect ONLY the hashed names. This completes the fail-loud above: {% static %} raises for a file
+# missing from the manifest, but a HARDCODED "/static/tokens.css" bypasses the tag entirely and would
+# quietly serve (with a 60s max-age) from the unhashed copy collectstatic keeps by default. Dropping
+# those copies makes such a ref 404 in prod, and halves the collected tree (each asset otherwise
+# lands twice, each with gzip + brotli variants). Ignored under dev's non-manifest backend, where
+# runserver serves from the finders; the /_dev/static/ variant stylesheets read the SOURCE static dir
+# (browse_views._serve_static), never STATIC_ROOT, so they are unaffected.
+WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True

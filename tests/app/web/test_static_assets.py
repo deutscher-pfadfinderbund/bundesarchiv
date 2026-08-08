@@ -91,3 +91,14 @@ def test_uncollected_static_path_is_not_served() -> None:
     """A /static/ path that was never collected is not served (WhiteNoise passes it through to
     Django's default 404), so /static/ exposes only the collected, public-by-design assets."""
     assert Client().get("/static/nope-not-an-asset.css").status_code != 200
+
+
+def test_unhashed_path_of_a_real_asset_is_not_served() -> None:
+    """The fail-loud completed: only the manifest-HASHED URL of a real asset serves.
+
+    ``{% static %}`` raising on a missing asset only protects refs that go through the template tag;
+    a hardcoded ``/static/tokens.css`` bypasses it entirely. With
+    ``WHITENOISE_KEEP_ONLY_HASHED_FILES`` (ADR 0016) collectstatic keeps no unhashed copy, so such a
+    ref 404s in prod instead of quietly working — and prod stops shipping two copies of every
+    asset (plus their gzip/brotli variants)."""
+    assert Client().get("/static/tokens.css").status_code != 200
