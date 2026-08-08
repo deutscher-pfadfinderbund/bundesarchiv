@@ -442,7 +442,7 @@ def _edit_context(
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
         "custom_keys": custom_keys,
         # Which folded sections render OPEN: the ones holding an error message or the autofocus
-        # target, so neither can end up inside a fold (see _FOLDED_SECTIONS).
+        # target, so neither can end up inside a fold (see the field registry's `section`).
         "open_sections": _open_sections(errors, autofocus),
         # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
         # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the

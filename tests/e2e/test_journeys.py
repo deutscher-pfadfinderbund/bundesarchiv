@@ -1446,7 +1446,7 @@ def test_a_fold_never_swallows_the_autofocus(
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # The other half of the same class: _FOCUSABLE_FIELDS scans for the first EMPTY field and three of
+    # The other half of the same class: the GET autofocus scans for the first EMPTY field and three of
     # them (Autor, Ort, Standort) sit behind the Herkunft fold, so on a well-catalogued record the
     # server told the browser to focus an input inside a closed <details> — which focuses NOTHING. The
     # fixture is the realistic long-content record (H.7): a Plakat with everything filled except its

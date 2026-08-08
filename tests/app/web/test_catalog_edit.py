@@ -577,7 +577,8 @@ def test_custom_bag_error_renders_the_bag_open(corpus: _Corpus) -> None:
 
 
 def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
-    # _FOCUSABLE_FIELDS scans for the first EMPTY field, and three of them (Autor, Ort, Standort) sit
+    # The GET autofocus scans the cataloguing spine for the first EMPTY field, and three of its
+    # fields (Autor, Ort, Standort) sit
     # behind the Herkunft fold — so on a record whose earlier fields are all filled the autofocus
     # landed on an input inside a closed <details>, focusing nothing at all.
     filled = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
