@@ -518,10 +518,14 @@ def _fold(body: str, label: str) -> _Fold:
 
 
 def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
-    # The drift guard for the mechanism above: _FOLDED_SECTIONS is the ONE declaration of which
-    # fields live behind which fold, so a field moved into a fold without joining it would silently
+    # The drift guard for the mechanism above: the field registry is the ONE declaration of which
+    # fields live behind which fold, so a field moved into a fold without a `section` would silently
     # lose the open-on-error/open-on-focus behaviour. Walk the real render instead of trusting the map.
-    from bundesarchiv.app.web.catalog_views import _FOLDED_SECTIONS
+    #
+    # A field maps to AT MOST ONE section BY CONSTRUCTION now — the registry gives each field one
+    # `section` string, where the old shape was three frozensets that could overlap — so the three
+    # lines that used to rule out that impossibility went with it.
+    from bundesarchiv.app.web.catalog_views import _SECTION_FIELDS
 
     with override_settings(**_settings(corpus)):
         body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
@@ -529,12 +533,11 @@ def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
     assert len(folds) == 3, (
         f"the scanner found {[f.label for f in folds]} — the guard proves nothing"
     )
-    declared = dict(_FOLDED_SECTIONS)
     for fold in folds:
-        covering = [name for name, fields in _FOLDED_SECTIONS if fold.fields & fields]
-        assert len(covering) == 1, f"„{fold.label}“ ({sorted(fold.fields)}) maps to {covering}"
-        unowned = fold.fields - declared[covering[0]]
-        assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from _FOLDED_SECTIONS"
+        owners = [name for name, fields in _SECTION_FIELDS.items() if fold.fields & fields]
+        assert owners, f"„{fold.label}“ ({sorted(fold.fields)}) belongs to no declared section"
+        unowned = fold.fields - _SECTION_FIELDS[owners[0]]
+        assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from the registry"
 
 
 def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:

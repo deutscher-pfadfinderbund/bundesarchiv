@@ -600,92 +600,127 @@ def _sichtbarkeit_value(article: Article) -> str:
             return "groups"
 
 
-# The single-line fields in DOM/tab order — the autofocus scan walks these to find the first empty
-# one (GET) so an archivist lands on the first thing to fill (spec §5). body/custom are excluded:
-# body is a textarea (not "empty field" in the field sense) and custom is the escape hatch.
-_FOCUSABLE_FIELDS: tuple[str, ...] = (
-    "title",
-    "collection_id",
-    "ref_code",
-    "media_type",
-    "document_type",
-    "tags",
-    "date",
-    "creator",
-    "subject_place",
-    "physical_location",
+# --- THE FIELD REGISTRY ------------------------------------------------------------
+#
+# The record card's field structure, declared ONCE. It used to be declared four times — the autofocus
+# scan's field list, the folded sections' field sets, the CAS diff's label list, and the template
+# markup — and the copies had already drifted: ``_first_error_field`` hand-appended ``gruppen``
+# because that field is missing from one of the lists. Everything the view needs about a field is one
+# row here, in DOM/tab order, and each derivation below is a filter over it.
+
+
+@dataclass(frozen=True, slots=True)
+class _Field:
+    """One row of the record card's field registry.
+
+    ``section`` is the FOLDED card section that holds the field, or ``""`` for the always-open ones —
+    a single string, not membership in one of several sets, which is what makes "a field lives in at
+    most one fold" structural instead of something a test has to rule out.
+
+    ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
+    §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
+    something only at the GROUPS rung), so "first empty field" would park the caret there on every
+    fully catalogued record and pop the Zugriff fold open with it.
+
+    ``focusable`` marks every field with its own single-line input, i.e. every field that can CARRY
+    ``autofocus`` — the spine plus Gruppen, since a validation re-render focuses whatever errored.
+    ``body`` is excluded (a textarea is not an "empty field" in the field sense) and so are the custom
+    bag's inputs (the escape hatch).
+
+    ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
+    has no diff row.
+    """
+
+    name: str
+    section: str = ""
+    scanned: bool = False
+    focusable: bool = False
+    diff: str = ""
+
+
+#: Every field of the record card in DOM/tab order. ``custom`` is the ``errors`` key for the bag as a
+#: whole (it maps to no single input, so it is neither scanned nor focusable);
+#: ``custom_key``/``custom_value`` are its inputs. ``lifecycle`` is not a field at all — it is the
+#: record's state, and it rides here only because the CAS diff shows it as a row, last.
+_FIELDS: tuple[_Field, ...] = (
+    _Field("title", scanned=True, focusable=True, diff="Titel"),
+    # Bestand has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
+    _Field("collection_id", scanned=True, focusable=True),
+    _Field("ref_code", scanned=True, focusable=True, diff="Signatur"),
+    _Field("media_type", scanned=True, focusable=True, diff="Medienart"),
+    _Field("document_type", scanned=True, focusable=True, diff="Dokumenttyp"),
+    _Field("tags", scanned=True, focusable=True, diff="Schlagworte"),
+    _Field("date", scanned=True, focusable=True, diff="Datierung"),
+    _Field("creator", section="herkunft", scanned=True, focusable=True, diff="Autor"),
+    _Field("subject_place", section="herkunft", scanned=True, focusable=True, diff="Ort"),
+    _Field("physical_location", section="herkunft", scanned=True, focusable=True, diff="Standort"),
+    _Field("body", diff="Beschreibung"),
+    _Field("sichtbarkeit", section="zugriff", diff="Sichtbarkeit"),
+    _Field("gruppen", section="zugriff", focusable=True),
+    _Field("custom", section="weitere"),
+    _Field("custom_key", section="weitere"),
+    _Field("custom_value", section="weitere"),
+    _Field("lifecycle", diff="Status"),
 )
 
 
-# The record card's FOLDED sections (owner ruling 4: rarely-used sections stay folded, their values
-# in the summary) and the fields each one HOLDS. Folding may never hide data — and it may never hide a
-# MESSAGE either: a validation error rendered inside a folded section is invisible, and an `autofocus`
-# inside one focuses nothing at all (a closed <details> has no focusable contents). Both are decided
-# here, from the SAME error/autofocus context the fields are rendered with, so the fix is one rule
-# over every folded section rather than a patch per instance. ``custom`` is the ``errors`` key for the
-# bag as a whole (it maps to no single input), ``custom_key``/``custom_value`` are its inputs.
-# test_folded_sections_own_every_field_they_hold walks the render and fails if a field moves into a
-# fold without joining this map.
-_FOLDED_SECTIONS: tuple[tuple[str, frozenset[str]], ...] = (
-    ("herkunft", frozenset({"creator", "subject_place", "physical_location"})),
-    ("zugriff", frozenset({"sichtbarkeit", "gruppen"})),
-    ("weitere", frozenset({"custom", "custom_key", "custom_value"})),
-)
+#: The folded card sections and the fields each HOLDS, derived from the registry. Folding may never
+#: hide data (owner ruling 4) — and it may never hide a MESSAGE either: a validation error rendered
+#: inside a folded section is invisible, and an ``autofocus`` inside one focuses nothing at all (a
+#: closed ``<details>`` has no focusable contents). Both are decided from the SAME error/autofocus
+#: context the fields are rendered with, so the fix is one rule over every folded section rather than
+#: a patch per instance. test_folded_sections_own_every_field_they_hold walks the render and fails if
+#: a field moves into a fold without a ``section`` here.
+def _derive_section_fields() -> dict[str, frozenset[str]]:
+    """Group the registry's fields by their folded section, in first-appearance order. Written as a
+    function rather than a module-level comprehension: nesting one inside another at module scope
+    segfaults CPython 3.14.0rc2 (``_PySet_AddTakeRef`` during module exec), and this file is imported
+    lazily by the urlconf, so the crash surfaces as a dead request rather than an import error."""
+    sections: dict[str, set[str]] = {}
+    for registered in _FIELDS:
+        if registered.section:
+            sections.setdefault(registered.section, set()).add(registered.name)
+    return {name: frozenset(names) for name, names in sections.items()}
+
+
+_SECTION_FIELDS: dict[str, frozenset[str]] = _derive_section_fields()
 
 
 def _open_sections(errors: catalog.FormErrors, autofocus: str) -> frozenset[str]:
     """The folded sections that must render OPEN: the ones holding an errored field or the autofocus
     target. Empty on a clean render, so the rare sections stay folded as ruled."""
     marked = set(errors) | ({autofocus} if autofocus else set())
-    return frozenset(name for name, fields in _FOLDED_SECTIONS if fields & marked)
+    return frozenset(name for name, fields in _SECTION_FIELDS.items() if fields & marked)
 
 
 def _first_empty_field(values: dict[str, object]) -> str:
-    """The first single-line field (DOM order) whose value is empty — the fresh-edit autofocus target
-    (spec §5). Falls back to Titel when every field is filled."""
-    for name in _FOCUSABLE_FIELDS:
-        if not str(values.get(name) or "").strip():
-            return name
+    """The first field of the cataloguing spine (DOM order) whose value is empty — the fresh-edit
+    autofocus target (spec §5). Falls back to Titel when every field is filled."""
+    for field in _FIELDS:
+        if field.scanned and not str(values.get(field.name) or "").strip():
+            return field.name
     return "title"
 
 
 def _first_error_field(errors: catalog.FormErrors) -> str:
-    """The first errored field in DOM order — the validation-re-render autofocus target (spec §5).
-    ``custom`` maps to no single input, so it focuses nothing (empty)."""
-    for name in _FOCUSABLE_FIELDS:
-        if name in errors:
-            return name
-    if "gruppen" in errors:
-        return "gruppen"
+    """The first errored field in DOM order that can carry the focus — the validation-re-render
+    autofocus target (spec §5). ``custom`` maps to no single input, so it focuses nothing (empty)."""
+    for field in _FIELDS:
+        if field.focusable and field.name in errors:
+            return field.name
     return ""
 
 
 # --- the CAS conflict diff (spec §6.1) ---------------------------------------------
 
-# The fields the neutral diff compares, with their German labels. Only CHANGED fields are shown
-# (signals-once); the Signatur row renders as .c-sig marks. Order is the form's field order.
-_DIFF_FIELDS: tuple[tuple[str, str], ...] = (
-    ("title", "Titel"),
-    ("ref_code", "Signatur"),
-    ("media_type", "Medienart"),
-    ("document_type", "Dokumenttyp"),
-    ("tags", "Schlagworte"),
-    ("date", "Datierung"),
-    ("creator", "Autor"),
-    ("subject_place", "Ort"),
-    ("physical_location", "Standort"),
-    ("body", "Beschreibung"),
-    ("sichtbarkeit", "Sichtbarkeit"),
-    ("lifecycle", "Status"),
-)
-
 
 def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
     """The neutral CAS diff (spec §6.1): one row per CHANGED field, comparing the archivist's
     submitted Article to the winner's stored Article. Only differences are listed (signals-once).
-    The Signatur row is flagged so the template renders both cells as ``.c-sig`` marks."""
+    The rows are the registry's fields that carry a diff label, in the form's own field order; the
+    Signatur row is flagged so the template renders both cells as ``.c-sig`` marks."""
     rows: list[_ConflictRow] = []
-    for name, label in _DIFF_FIELDS:
+    for name, label in ((f.name, f.diff) for f in _FIELDS if f.diff):
         mine_str = _diff_value(mine, name)
         theirs_str = _diff_value(theirs, name)
         if mine_str != theirs_str:
