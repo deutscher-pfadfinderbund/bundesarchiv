@@ -16,6 +16,7 @@ import pytest
 from playwright.sync_api import Browser, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
+from tests.e2e._pages import SCREENS, screens_for
 
 pytestmark = pytest.mark.e2e
 
@@ -255,37 +256,58 @@ def test_control_rows_compute_one_height_source(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Law C8 proven computed (the generalized G.1 pattern, section E) over every control row the app
-    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the dropped
-    # panels' entries), the unfiltered one (four ledger rows, so four row toolbars) and the edit surface
-    # (the record row, whose action toolbar INHERITS the row's knob — Speichern, the lifecycle action and
-    # the overflow summary must compute one height).
+    # composes — on EVERY archivist screen the app has, derived from the one screen inventory
+    # (_pages.SCREENS) instead of three hand-picked URLs. The three URLs had already drifted: only the
+    # PUBLISHED record carries media, so the media register's icon toolbar — this wave's new control
+    # row — was composed on a screen this walk never visited (G.21 applied to page coverage).
+    #
+    # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, each
+    # ledger row's action toolbar, the dropped overlay panels' entries, the record row (whose action
+    # toolbar consumes the row's knob — Speichern, the lifecycle action and the overflow summary must
+    # compute one height) and the media register's row toolbars. Each screen NAMES the row prefixes it
+    # must compose, so a silent no-find can never pass as a green walk.
     page = archivist_page
-    by_name = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
-    # the walker must actually see the rows this page composes — a silent no-find proves nothing
-    header = next(n for n in by_name if n.startswith("header"))
-    rail = next(n for n in by_name if "filterrail" in n)
-    assert len(by_name[header]) >= 2  # the Suchen button + the "+ Neu …" summary
-    assert any(c["chip"] for c in by_name[rail])  # the active-filter chip is present
-    assert any("[toolbar]" in n for n in by_name)  # ledger row toolbars
-    # the dropped OVERLAY panels are rows of their own (they declare the knob) and their entries are
-    # controls: the header's create menu plus the rail's facet dropdowns, all measured while open
-    panels = [n for n in by_name if n.startswith("ul#") and len(by_name[n]) >= 2]
-    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(by_name)}"
-    defects = [f"[workbench] {d}" for d in _control_row_defects(by_name)]
+    defects: list[str] = []
+    for screen in screens_for(archivist=True):
+        by_name = _walk_control_rows(page, live_workbench + screen.path(e2e_corpus))
+        for prefix in screen.control_rows:
+            found = [n for n in by_name if n.startswith(prefix)]
+            assert found, f"[{screen.name}] no control row named {prefix!r}: {sorted(by_name)}"
+        defects += [f"[{screen.name}] {d}" for d in _control_row_defects(by_name)]
+    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
 
-    # The UNFILTERED workbench: four hits, so four ledger row toolbars. This is where the keying
-    # regression hid — every one of them names itself "span[toolbar]", so keying rows by name collapsed
-    # them into ONE dict entry and the walk proved a single toolbar while reporting green.
+
+def test_the_control_row_walk_sees_what_the_screens_compose(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The walk above asserts uniformity; this asserts it is not walking an empty page. The row KINDS
+    # the app composes, each on the screen that has the most of them: the header's control cluster, the
+    # rail's chips, one row toolbar per ledger row (the keying regression hid exactly here — every one
+    # of them names itself "span[toolbar]", so keying rows by name collapsed 50 rows into one entry and
+    # the walk proved a SINGLE toolbar while reporting green, G.37), the dropped panels' entries, and
+    # the record row plus the media register's per-row toolbars on the published edit surface.
+    page = archivist_page
+    filtered = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
+    header = next(n for n in filtered if n.startswith("header"))
+    rail = next(n for n in filtered if "filterrail" in n)
+    assert len(filtered[header]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert any(c["chip"] for c in filtered[rail])  # the active-filter chip is present
+    panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
+    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
+
     ledger = _walk_control_rows(page, live_workbench + "/")
     toolbars = [n for n in ledger if "[toolbar]" in n]
     assert len(toolbars) >= 4, f"the walker sees only {toolbars} — one per ledger row is required"
-    defects += [f"[ledger] {d}" for d in _control_row_defects(ledger)]
 
-    edit = _walk_control_rows(page, live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+    edit = _walk_control_rows(
+        page, live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten"
+    )
     row = next(n for n in edit if "recordrow" in n)
     assert len(edit[row]) >= 3, f"the record row's controls were not found: {edit[row]}"
-    defects += [f"[edit] {d}" for d in _control_row_defects(edit)]
-    assert not defects, "control rows violating C8 (one height source):\n" + "\n".join(defects)
+    # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
+    # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
+    media = [n for n in edit if n.startswith("span[toolbar]") and len(edit[n]) >= 3]
+    assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
 #: Every OVERLAY on the page, found generically: a native disclosure whose dropped panel is a
@@ -335,26 +357,29 @@ _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1440)
 
 
 def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHandles) -> list[str]:
-    """Open every overlay on every page that composes one, at every containment width, and return the
-    containment defects. The pages are named with the MINIMUM number of overlays each must carry, so a
-    silent no-find can never pass as a green walk: the filtered workbench (the header's create menu +
-    one dropdown per rail facet group — the filtered URL makes the rail carry chips AND dropdowns) and
-    the edit surface (the record row's "Mehr …" overflow). Overlays open one at a time so panels never
-    mask each other's geometry."""
-    pages = (
-        ("/?schlagwort=sommer&medienart=Fotografie", 4),
-        (f"/artikel/{corpus.draft_ulid}/bearbeiten", 1),
-    )
+    """Open every overlay on every screen that composes one, at every containment width, and return the
+    containment defects.
+
+    The screens come from the ONE inventory (``_pages.SCREENS``), each carrying the MINIMUM number of
+    overlay panels it must compose, so a silent no-find can never pass as a green walk. Overlays open
+    one at a time so panels never mask each other's geometry.
+
+    ONE ``goto`` per screen, widths swept INSIDE it: containment is a pure CSS-geometry question, so
+    re-loading the same page at each width bought nothing and cost a page load per (width, page) —
+    16 avoidable loads on the old two-page list, and the inventory has nine screens with overlays."""
     defects: list[str] = []
-    for width in _CONTAINMENT_WIDTHS:
-        page.set_viewport_size({"width": width, "height": 900})
-        for path, minimum in pages:
-            page.goto(live_workbench + path)
-            overlays = page.locator(_OVERLAY_SELECTOR)
-            found = overlays.count()
-            assert found >= minimum, (
-                f"the overlay walker found only {found} panels on {path} at {width}px"
-            )
+    for screen in SCREENS:
+        if not screen.overlays:
+            continue
+        path = screen.path(corpus)
+        page.goto(live_workbench + path)
+        overlays = page.locator(_OVERLAY_SELECTOR)
+        found = overlays.count()
+        assert found >= screen.overlays, (
+            f"the overlay walker found only {found} panels on {path} ({screen.name})"
+        )
+        for width in _CONTAINMENT_WIDTHS:
+            page.set_viewport_size({"width": width, "height": 900})
             for i in range(found):
                 summary = overlays.nth(i).locator("summary")
                 summary.click()

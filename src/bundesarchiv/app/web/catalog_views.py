@@ -29,14 +29,13 @@ from typing import Literal
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.access import VisibilityPreview, preview, project
 from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.edtf import EdtfDate
@@ -50,7 +49,7 @@ from bundesarchiv.domain.models import (
     MediaRef,
     Ulid,
 )
-from bundesarchiv.domain.viewer import Archivist, Public
+from bundesarchiv.domain.viewer import Public
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -83,11 +82,6 @@ def _canonical_store() -> ObjectStore:
     """The canonical files-store (ADR 0005), built per request from settings — the same construction
     the media/detail views use. Monkeypatchable in tests."""
     return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-
-
-def _is_archivist(request: HttpRequest) -> bool:
-    """Whether the request's viewer is an Archivist — the gate for every cataloging route."""
-    return isinstance(viewer_of(request), Archivist)
 
 
 def _load_gated(request: HttpRequest, ulid: str) -> tuple[ObjectStore, Stored] | None:
@@ -138,7 +132,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         if not errors:
             ulid = catalog.new_draft(store, title=title, collection_id=collection_id)
             return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
-        return render(
+        return render_screen(
             request,
             "workbench/artikel_neu.html",
             _create_context(collections, title=title, collection_id=collection_id, errors=errors),
@@ -148,7 +142,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     preselect = request.GET.get("bestand", "")
     if preselect not in {c.ulid for c in collections}:
         preselect = ""
-    return render(
+    return render_screen(
         request,
         "workbench/artikel_neu.html",
         _create_context(
@@ -217,7 +211,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
     if request.GET.get("fokus") == "signatur":
         context["autofocus"] = "ref_code"
-    return render(request, "workbench/artikel_bearbeiten.html", context)
+    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
 def _handle_edit_post(
@@ -266,7 +260,7 @@ def _handle_edit_post(
             media=catalog._apply_captions(request.POST, current.media),
             stored=current,
         )
-        return render(request, "workbench/artikel_bearbeiten.html", context)
+        return render_screen(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
     match outcome:
         case catalog.SavedOutcome(result=save_result):
@@ -296,7 +290,7 @@ def _handle_edit_post(
                 conflict=conflict,
                 stored=conflict.winner,
             )
-            return render(request, "workbench/artikel_bearbeiten.html", context)
+            return render_screen(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
             # hard-deleted underneath the save — collapse to the byte-identical 404
             return _not_found()
@@ -334,7 +328,7 @@ def _rerender_with_custom_removed(
     context = _edit_context(
         values, version, collections, errors={}, autofocus="", media=media, stored=current
     )
-    return render(request, "workbench/artikel_bearbeiten.html", context)
+    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
 @dataclass(frozen=True, slots=True)
@@ -764,7 +758,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
     # not discarded, so it always reads "Artikel löschen?" regardless of the query param.
     verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
-    return render(
+    return render_screen(
         request,
         "workbench/artikel_loeschen.html",
         {
@@ -816,7 +810,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
             )
             context["conflict"] = True
             context["conflict_rows"] = _conflict_rows(mutated, conflict.winner)
-            return render(request, "workbench/artikel_bearbeiten.html", context)
+            return render_screen(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
             # hard-deleted underneath the save — collapse to the byte-identical 404
             return _not_found()
@@ -1176,7 +1170,7 @@ def _rerender_edit(
         context["medien_fehler"] = medien_fehler
     if index_lag:
         context["index_lag"] = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
-    return render(request, "workbench/artikel_bearbeiten.html", context)
+    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
 # --- HTMX enhancement partials (Slice E, spec §5) ----------------------------------
@@ -1196,7 +1190,7 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # htmx sends the <select name="media_type"> value under that name; accept ?medienart= too so the
     # endpoint is callable directly with the German param name.
     media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
-    return render(
+    return render_screen(
         request,
         "workbench/_dokumenttyp_options.html",
         {"document_types": vocab.document_types_for(media_type)},
@@ -1210,7 +1204,7 @@ def article_datierung_echo(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "GET":
         return _not_found()
-    return render(
+    return render_screen(
         request,
         "workbench/_datierung_echo.html",
         {"edtf_echo": _edtf_echo(request.GET.get("date", ""))},

@@ -20,14 +20,12 @@ from pathlib import Path
 from django.conf import settings
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.media_views import _not_found
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Ulid
-from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
@@ -42,7 +40,7 @@ def _canonical_store() -> ObjectStore:
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     """``POST /artikel/sammelbearbeitung`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
     Archivist-only, POST-only → the byte-identical 404 otherwise (spec §6.1/§6.2)."""
-    if not isinstance(viewer_of(request), Archivist) or request.method != "POST":
+    if not _is_archivist(request) or request.method != "POST":
         return _not_found()
     store = _canonical_store()
     auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
@@ -63,7 +61,7 @@ def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
     GET-only → the byte-identical 404 otherwise. The no-JS baseline renders all optgroups + the
     server re-validates per-article; this only removes a round-trip on Medienart change."""
-    if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
+    if not _is_archivist(request) or request.method != "GET":
         return _not_found()
     # htmx sends the drawer's <select name="wert_media_type"> value under that name; accept the plain
     # media_type / medienart names too so the endpoint is callable directly.
@@ -72,7 +70,7 @@ def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
         or request.GET.get("media_type")
         or request.GET.get("medienart", "")
     )
-    return render(
+    return render_screen(
         request,
         "workbench/_dokumenttyp_options.html",
         {"document_types": vocab.document_types_for(media_type)},
@@ -117,7 +115,7 @@ def _confirm(
     articles = _load_all(store, auswahl)
     names = _collection_names(store)
     orphans = _orphans(articles, feld, wert)
-    return render(
+    return render_screen(
         request,
         "workbench/sammelbearbeitung_pruefen.html",
         {
@@ -150,7 +148,7 @@ def _commit(
         return _confirm(request, store, auswahl, feld, wert)  # re-confirm, no write
     outcome = bulk.apply_bulk(store, auswahl, feld, wert)
     names = _collection_names(store)
-    return render(
+    return render_screen(
         request,
         "workbench/sammelbearbeitung_ergebnis.html",
         {
@@ -181,7 +179,7 @@ def _reject(
     ledger re-render would silently drop the archivist's filter and might not show the selected rows
     — the gate's MIN variant. This keeps the drawer + selection + verbatim error, which is the
     spec-§2-C intent, without that entanglement.)"""
-    return render(
+    return render_screen(
         request,
         "workbench/sammelbearbeitung_pruefen.html",
         {

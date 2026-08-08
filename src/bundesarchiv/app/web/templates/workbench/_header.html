@@ -9,8 +9,12 @@ Params (all optional — an empty value simply renders less):
   text            — the current search text (the workbench's q); blank elsewhere
   filter_params   — the ACTIVE facet/sort filters as hidden inputs, so typing q refines WITHIN
                     the current scope instead of dropping it (GH #21); empty elsewhere
-  is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). The screens that are
-                   archivist-only by route pass True at the include site
+  is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). It comes from the VIEW,
+                    resolved from viewer_of (viewers.render_screen stamps every screen's context) —
+                    never asserted as `is_archivist=True` at an include site. Whether archivist chrome
+                    renders is an authorization-shaped fact, and the leak matrix asserts route gates,
+                    not chrome: a literal here would hand the create menu to the first lower-tier
+                    viewer that ever reaches a shared-header screen
   aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
   zurueck         — renders the "Zurück zur Suche" link at the end of the row. For the screens whose
                     own body carries no way back: the create/rename forms. The edit surface has it in

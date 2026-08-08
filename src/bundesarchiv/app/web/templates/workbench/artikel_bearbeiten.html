@@ -22,7 +22,7 @@ renders at top (state G) with a neutral changed-fields diff.
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
 <script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
 {% block body_class %}vorschau{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist %}{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this region carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like

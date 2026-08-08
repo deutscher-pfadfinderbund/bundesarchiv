@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page
 from tests.e2e._corpus import CorpusHandles
+from tests.e2e._pages import screens_for
 
 pytestmark = pytest.mark.e2e
 
@@ -45,21 +46,15 @@ def _check(page: Page, base: str, path: str) -> list[str]:
 def test_axe_archivist_screens(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # The archivist journey surface: workbench (results / pane open / bulk selection), the create
-    # + edit forms, the delete confirm, the archivist draft read view, the Bestand forms.
-    paths = (
-        "/",
-        "/?schlagwort=sommer",  # active filter: the rail chip + its labeled remove link
-        f"/?artikel={e2e_corpus.published_ulid}",
-        f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}",
-        "/artikel/neu",
-        f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten",
-        f"/artikel/{e2e_corpus.draft_ulid}/loeschen",
-        f"/artikel/{e2e_corpus.draft_ulid}",
-        "/bestand/neu",
-        f"/bestand/{e2e_corpus.renamable_ulid}/bearbeiten",
-    )
-    findings = [f for path in paths for f in _check(archivist_page, live_workbench, path)]
+    # The whole archivist surface, DERIVED from the one screen inventory (_pages.SCREENS) rather than
+    # re-typed here: this list had drifted from the app, and the drift was invisible — the PUBLISHED
+    # record's edit surface is the only screen with MEDIA, so the media register's icon toolbar (icon-
+    # only controls, whose accessible names are exactly axe's business) was never loaded by this pass.
+    findings = [
+        f
+        for screen in screens_for(archivist=True)
+        for f in _check(archivist_page, live_workbench, screen.path(e2e_corpus))
+    ]
     assert not findings, "axe (WCAG 2.2 AA) violations:\n" + "\n".join(findings)
 
 
@@ -67,10 +62,9 @@ def test_axe_member_screens(
     public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The member/public surface: the workbench and the two detail read shapes (cover + no-media).
-    paths = (
-        "/",
-        f"/artikel/{e2e_corpus.published_ulid}",
-        f"/artikel/{e2e_corpus.second_ulid}",
-    )
-    findings = [f for path in paths for f in _check(public_page, live_workbench, path)]
+    findings = [
+        f
+        for screen in screens_for(archivist=False)
+        for f in _check(public_page, live_workbench, screen.path(e2e_corpus))
+    ]
     assert not findings, "axe (WCAG 2.2 AA) violations:\n" + "\n".join(findings)
