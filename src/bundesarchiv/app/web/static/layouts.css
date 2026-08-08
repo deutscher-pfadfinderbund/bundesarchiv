@@ -172,10 +172,13 @@
     padding: var(--space-4);
   }
 
-  /* main results column: a stack of Sammelbearbeitung · ledger · pager. The bulk form wraps the
-     disclosure + ledger, so it repeats the stack of the column it sits in — ONE rule for both */
+  /* the work column: a vertical stack, whatever the screen puts in it — Sammelbearbeitung · ledger ·
+     pager on the workbench, panels · record card on the edit surface. The workbench's bulk form wraps
+     the disclosure + ledger, so it repeats the stack of the column it sits in — ONE rule for both.
+     DIRECT child only: the edit surface's form sits deeper (inside the record card) and is
+     display:contents there, so a descendant selector would silently relayout the card. */
   .frame main,
-  .frame main form {
+  .frame main > form {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);

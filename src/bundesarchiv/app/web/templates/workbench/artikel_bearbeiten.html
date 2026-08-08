@@ -5,6 +5,11 @@ The archivist edit surface (Part 4.7 Slice B + the form wave, spec §3/§4/§5/�
 No-JS baseline only: one real <form>, native controls, one POST, server re-render preserving every
 value. Field order/grouping follows how an archivist catalogs (spec §3).
 
+Composition E (owner ruling 1): the ruled record card in the work column + the reader's sheet in the
+pane column — the SAME frame the workbench uses (.frame · main · .pane), so the sheet appears and
+disappears on the ONE 80rem switch (layouts.css) and no second threshold is invented. body.vorschau
+is that switch's hook and is literally true here: the pulled sheet IS this record's Vorschau.
+
 There is exactly ONE place to act (owner ruling 2): the sticky .recordrow under the header. The
 bottom sticky footer band and the separate .lifecycle band are GONE. There is NO title header
 (ruling 3): every identity fact is a field, so a header repeating Titel/Signatur would be a Q2
@@ -16,6 +21,7 @@ renders at top (state G) with a neutral changed-fields diff.
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
 <script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
+{% block body_class %}vorschau{% endblock %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=True %}{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this region carries the token via
@@ -87,7 +93,11 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
   </div>
 </div>
 
-<main class="column">
+{% comment %}The page frame, shared with the workbench (layouts.css): the work column plus the pane
+column, the latter present only at/above 80rem. The card fills the work column; the reader's sheet is
+the pane.{% endcomment %}
+<div class="frame">
+<main>
 
   {% if conflict %}
   <section class="panel konflikt" aria-labelledby="konflikt-titel">
@@ -315,6 +325,7 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
         <span class="hint">Mehrere durch Komma trennen</span>
         {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
       </label>
+      {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
     </details>
 
     {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
@@ -464,5 +475,7 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
     </details>
   </div>{# /.karte #}
 </main>
+{% include "workbench/_lesesicht.html" with sheet=sheet only %}
+</div>{# /.frame #}
 </div>{# /#form-region #}
 {% endblock %}

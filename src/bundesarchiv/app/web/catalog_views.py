@@ -31,6 +31,7 @@ from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.web import catalog, vocab
+from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import VisibilityPreview, preview
@@ -230,9 +231,7 @@ def _handle_edit_post(
     row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
     metadata save preserves them (only captions update; media structure is its own POSTs)."""
     if "custom_entfernen" in request.POST:
-        return _rerender_with_custom_removed(
-            request, ulid, collections, current.media, current.lifecycle
-        )
+        return _rerender_with_custom_removed(request, ulid, collections, current)
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -248,7 +247,7 @@ def _handle_edit_post(
             collections,
             autofocus=_first_error_field(result.errors),
             media=catalog._apply_captions(request.POST, current.media),
-            lifecycle=current.lifecycle,
+            stored=current,
         )
         return render(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
@@ -278,7 +277,7 @@ def _handle_edit_post(
                 autofocus="speichern",
                 media=catalog._apply_captions(request.POST, conflict.winner.media),
                 conflict=conflict,
-                lifecycle=conflict.winner.lifecycle,
+                stored=conflict.winner,
             )
             return render(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
@@ -290,8 +289,7 @@ def _rerender_with_custom_removed(
     request: HttpRequest,
     ulid: Ulid,
     collections: tuple[Collection, ...],
-    current_media: tuple[MediaRef, ...],
-    current_lifecycle: Lifecycle,
+    current: Article,
 ) -> HttpResponseBase:
     """The no-JS custom-row removal: drop the row whose index rode the ``custom_entfernen`` submit,
     then re-render the form with every OTHER value preserved and NO save (spec §5). The index names a
@@ -299,8 +297,9 @@ def _rerender_with_custom_removed(
     actually submitted — so it is popped there, BEFORE ``_post_to_form_values``' blank-row filtering
     runs; popping after filtering would shift positions and drop the wrong row whenever an earlier row
     was blanked in the browser. A bad index is a no-op (nothing removed) — total, never raises. The
-    media register rides along too (spec values-preserved-verbatim): ``current_media`` with the
-    POSTed captions applied, same rule as the validation-error/conflict re-renders."""
+    media register rides along too (spec values-preserved-verbatim): the stored media with the POSTed
+    captions applied, same rule as the validation-error/conflict re-renders. ``current`` is the stored
+    Article — it supplies the lifecycle, the media, and the reader's sheet beside the card."""
     post = request.POST
     raw_rows = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
     try:
@@ -311,11 +310,13 @@ def _rerender_with_custom_removed(
         raw_rows.pop(index)
     rows = [pair for pair in raw_rows if pair != ("", "")]
     rows.append(("", ""))  # keep the always-present empty add-row
-    values = _post_to_form_values(request, ulid, current_lifecycle)
+    values = _post_to_form_values(request, ulid, current.lifecycle)
     values["custom_rows"] = rows
     version = catalog.parse_version(request.POST.get("expected_version", ""))
-    media = catalog._apply_captions(request.POST, current_media)
-    context = _edit_context(values, version, collections, errors={}, autofocus="", media=media)
+    media = catalog._apply_captions(request.POST, current.media)
+    context = _edit_context(
+        values, version, collections, errors={}, autofocus="", media=media, stored=current
+    )
     return render(request, "workbench/artikel_bearbeiten.html", context)
 
 
@@ -352,6 +353,7 @@ def _edit_context_from_article(
         autofocus=autofocus,
         media=article.media,
         entfernen_hash=entfernen_hash,
+        stored=article,
     )
 
 
@@ -363,17 +365,26 @@ def _edit_context_from_post(
     *,
     autofocus: str,
     media: tuple[MediaRef, ...],
-    lifecycle: Lifecycle,
+    stored: Article,
     conflict: catalog.ConflictOutcome | None = None,
 ) -> dict[str, object]:
     """The edit form context re-seeded from the raw POST (state F/G): the archivist's just-typed
     values are preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to
     the winner's current version and the neutral diff rows are attached (spec §6.1). ``media`` is the
-    stored media (structure isn't POSTed via the main form), so the register renders correctly."""
-    values = _post_to_form_values(request, ulid, lifecycle)
+    stored media (structure isn't POSTed via the main form), so the register renders correctly.
+    ``stored`` is the Article as it stands on disk (the conflict WINNER in state G): it supplies the
+    lifecycle and the reader's sheet, which shows what a reader sees of the SAVED record — never of
+    the unsaved keystrokes in the form."""
+    values = _post_to_form_values(request, ulid, stored.lifecycle)
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(
-        values, version, collections, errors=result.errors, autofocus=autofocus, media=media
+        values,
+        version,
+        collections,
+        errors=result.errors,
+        autofocus=autofocus,
+        media=media,
+        stored=stored,
     )
     if conflict is not None:
         context["conflict"] = True
@@ -388,14 +399,16 @@ def _edit_context(
     *,
     errors: catalog.FormErrors,
     autofocus: str,
+    stored: Article,
     media: tuple[MediaRef, ...] = (),
     entfernen_hash: str = "",
 ) -> dict[str, object]:
     """Assemble the full edit-form context: the field values, the option lists, the field errors, the
-    hidden version, and the autofocus target. The Signatur mark in the header reflects the current
-    ``ref_code`` value (empty → the hollow slot). The media register rows come from the stored media
-    (structure is edited via its own POSTs, never the main form); ``entfernen_hash`` puts one row
-    into the two-step "Wirklich entfernen?" confirm state (spec §6.3)."""
+    hidden version, the autofocus target, and the reader's sheet built from ``stored`` (the Article as
+    saved — the sheet is the READER's view of the record, so it never renders unsaved input). The
+    media register rows come from the stored media (structure is edited via its own POSTs, never the
+    main form); ``entfernen_hash`` puts one row into the two-step "Wirklich entfernen?" confirm state
+    (spec §6.3)."""
     return {
         "values": values,
         "version": version,
@@ -414,6 +427,10 @@ def _edit_context(
         # summary can never spell a fact differently from its field (law C7).
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
         "custom_keys": [key for key, _ in _custom_rows(values) if key],
+        # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
+        # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the
+        # pane's 80rem switch, and the Zugriff section below it.
+        "sheet": _sheet_view_model(stored, collections),
     }
 
 
@@ -827,6 +844,90 @@ def _collection_map(store: ObjectStore) -> dict[Ulid, Collection]:
     """Every saved Collection as a ULID→Collection map for ``resolve_chain`` (chain resolution is
     injected the lookup, never fetches — domain purity)."""
     return {c.ulid: c for c in CollectionRepository(store).load_all()}
+
+
+# --- the reader's sheet on the edit surface (owner rulings 1 + 5, 2026-08-08) -------
+
+
+@dataclass(frozen=True, slots=True)
+class _EinblickViewModel:
+    """The EXPOSURE statement: who gains sight of this record, and which fields they get. Permanent
+    chrome on the edit surface since the separate over-exposure preview gate retired (owner ruling 5,
+    2026-08-08) — the fact the archivist used to buy with three extra interactions is simply on
+    screen. Built from the domain ``preview()`` like the retired panel was, so the who-sees decision
+    stays in the domain and is never re-implemented (and never client-side).
+
+    ``draft`` switches the statement's tense: a draft is archivist-only TODAY, so saying "Sichtbar
+    für: Öffentlich" about it would be a lie — it reads "Nach Veröffentlichung sichtbar für: …".
+    ``public`` drives WEIGHT emphasis only (no loud color — the exposure fact is neither draft nor
+    error)."""
+
+    audience: str
+    public: bool
+    fields: str
+    draft: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _SheetViewModel:
+    """The reader's view of THIS record, server-rendered beside the card (owner ruling 1 —
+    composition E: the work column plus THE pulled sheet). Deliberately the reader's facts only:
+    Titel, Signatur, the machine Datierung, the cover thumbnail, the first body paragraph, and the
+    exposure statement. Every value comes from the stored Article through the same renderers the
+    reader's own surfaces use (law C7), and the exposure comes from the domain — nothing here is a
+    second implementation of a reader fact.
+
+    ``ref_code`` empty renders NO Signatur mark rather than the hollow "ohne Signatur" slot: on this
+    screen absence is carried by the Signatur INPUT (owner finding, signals-once)."""
+
+    title: str
+    ref_code: str
+    datierung: str
+    thumb_url: str
+    absatz: str
+    einblick: _EinblickViewModel | None
+
+
+def _einblick_view_model(
+    article: Article, collections: tuple[Collection, ...]
+) -> _EinblickViewModel | None:
+    """The exposure statement for ``article``, computed by the domain ``preview()`` over the resolved
+    collection chain. ``None`` when the chain cannot resolve (fail-closed: no statement rather than a
+    misleading one — the same rule the retired preview panel followed). The collections are the ones
+    the view already loaded, so this costs no extra read."""
+    try:
+        chain = resolve_chain(article.collection_id, {c.ulid: c for c in collections})
+    except DomainError:
+        return None
+    result = preview(article, chain)
+    return _EinblickViewModel(
+        audience=_preview_audience_label(result),
+        public=result.public,
+        fields=_preview_fields_label(result),
+        draft=article.lifecycle is Lifecycle.DRAFT,
+    )
+
+
+def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
+    """The reader's-sheet view-model for the edit surface, built from the STORED article (never from
+    the archivist's unsaved keystrokes: the sheet answers "what does a reader see of the record as it
+    stands", which is exactly why it can retire the publish-time preview). Refreshed on every save
+    because the whole #form-region re-renders."""
+    return _SheetViewModel(
+        title=article.title,
+        ref_code=article.ref_code or "",
+        # the machine value, rendered exactly as the workbench pane renders it (mono violet, register
+        # row 2) — one renderer per fact (C7); the human-German phrasing belongs to the reader's own
+        # detail header and is not restated here
+        datierung=article.date.value if article.date is not None else "",
+        thumb_url=(
+            thumbnail_url(article.ulid, article.media[0].content_hash) if article.media else ""
+        ),
+        # the FIRST body paragraph, split by the reader view's own paragraph rule (browse_views) so
+        # the sheet cannot disagree with the page it previews
+        absatz=next(iter(_body_paragraphs(article.body)), ""),
+        einblick=_einblick_view_model(article, collections),
+    )
 
 
 def _preview_audience_label(result: VisibilityPreview) -> str:

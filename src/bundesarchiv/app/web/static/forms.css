@@ -89,20 +89,10 @@
   .karte > form {
     display: contents;
   }
-  /* a card section: its fields subgrid onto ONE label axis (the ledger's idiom), so every value in
-     the card starts at the same x whichever section it sits in — by construction, not by two values
-     agreeing (C8's spirit one level down) */
-  :is(.karte, .karte > form) > :is(section, details) {
-    display: grid;
-    grid-template-columns: var(--label-spalte) minmax(0, 1fr);
-    align-content: start;
-    column-gap: var(--space-3);
-  }
   /* the section head — h2 and summary share ONE treatment (the ledger's column-head label role), so
      an open section and a folded one never read as different kinds of thing (learning G.1: the
      uniformity is proven computed, not claimed here) */
   :is(.karte, .karte > form) > :is(section, details) > :is(h2, summary) {
-    grid-column: 1 / -1;
     margin: 0;
     padding-block: var(--space-1);
     font: var(--type-label);
@@ -124,11 +114,16 @@
   .werte > span + span::before {
     content: " · ";
   }
-  /* ---- one ruled field row: label column + value, a hairline between rows, no box ---- */
+  /* ---- one ruled field row: label column + value, a hairline between rows, no box. Each row carries
+     the axis itself, out of the SHARED --label-spalte knob, rather than subgridding onto its section:
+     the section is plain flow, so a folded <details> lays its rows out identically to an open
+     <section> — a subgrid would have to reach through ::details-content to do that. The axis is
+     nonetheless one axis by construction (C3: variation travels through the knob, C8's spirit one
+     level down), not two values that happen to agree. ---- */
   :is(.karte, .karte > form) > :is(section, details) > .field {
     display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
+    grid-template-columns: var(--label-spalte) minmax(0, 1fr);
+    column-gap: var(--space-3);
     align-items: baseline;
     row-gap: var(--space-1);
     padding-block: var(--space-2);
@@ -208,14 +203,28 @@
     /* the ONE control in the card that keeps its box (elements layer): a prose area's EXTENT is part
        of what it tells the archivist, and an empty one drawn as a bare line is invisible. Every
        single-line value sits on its row's rule instead. */
-    grid-column: 1 / -1;
+    display: block;
     width: 100%;
     min-height: 8rem; /* the prose floor — about five lines; no token names a text-area minimum */
     field-sizing: content; /* law F, newly-available tier: grows with the content where supported,
        degrades to exactly the floor above where it is not */
   }
-  .karte > section#medien-drawer > :is(.media, .upload, .progress, .empty-state, p) {
-    grid-column: 1 / -1;
+  /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
+     reader's sheet carries it where the sheet exists, the card's Zugriff section where it does not.
+     Both queries below are the exact complements of the ONE 80rem pane switch (layouts.css) — no new
+     threshold is invented (law C9) and NO fact is hidden by either: at every width the statement is
+     on screen exactly once, which is also what keeps it out of Q2's way. ---- */
+  .karte > form > details > .einblick {
+    padding-top: var(--space-2);
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  @media (min-width: 80rem) {
+    .karte > form > details > .einblick {
+      display: none;
+    }
+  }
+  .einblick > p {
+    margin: 0;
   }
 
   /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
