@@ -33,7 +33,7 @@ full-page render (hx-select), so validation/conflict/state-H re-renders, their p
 expected_version on EVERY form in the row, and the reader's sheet all move together (a row left
 outside the swap would keep a stale CAS version after a conflict re-render). On a successful save the
 view sends HX-Redirect instead (spec §5). The media drawer inside re-renders harmlessly; its own
-structural POSTs swap #medien-drawer only.{% endcomment %}
+structural POSTs swap #medien-drawer plus the reader's sheet out-of-band (see the drawer).{% endcomment %}
 <div id="form-region" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
 {% comment %}The record row — the view's ONE control row and its ONE action place (owner ruling 2).
@@ -348,8 +348,15 @@ the pane.{% endcomment %}
     partial-render fork, no new render path. Its own hidden per-row + upload forms are declared as
     SIBLINGS inside the section (forms cannot nest) so a swap delivers fresh forms for the CURRENT
     row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
-    automatically because the whole drawer (cover row first) is replaced.{% endcomment %}
-    <section id="medien-drawer">
+    automatically because the whole drawer (cover row first) is replaced.
+
+    ...and hx-select-oob carries the READER'S SHEET along, inherited by every form below. A structural
+    media change is a change to what a READER sees — order is meaning, so promoting a plate re-covers
+    the record (ADR 0015) — and the sheet is rendered from the stored article. Swapping the drawer
+    alone left the old thumbnail on the sheet until a full reload, while a comment two files away
+    claimed the sheet "refreshes with #form-region". It is one response either way; only the
+    metadata save swaps #form-region.{% endcomment %}
+    <section id="medien-drawer" hx-select-oob="#lesesicht">
       <h2>Medien</h2>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}

@@ -898,8 +898,14 @@ def _einblick_view_model(
 def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
     """The reader's-sheet view-model for the edit surface, built from the STORED article (never from
     the archivist's unsaved keystrokes: the sheet answers "what does a reader see of the record as it
-    stands", which is exactly why it can retire the publish-time preview). Refreshed on every save
-    because the whole #form-region re-renders."""
+    stands", which is exactly why it can retire the publish-time preview).
+
+    It travels with EVERY write to this record, by two different mechanisms: the metadata save swaps the
+    whole ``#form-region`` (the sheet is inside it), and the structural media POSTs — which swap only
+    ``#medien-drawer`` yet change what a reader sees, because order is meaning and promoting a plate
+    re-covers the record (ADR 0015) — carry the sheet as an out-of-band fragment
+    (``hx-select-oob="#lesesicht"`` on the drawer). Both read this one view-model out of the same
+    full-page render, so there is no second render path to keep in step."""
     return _SheetViewModel(
         title=article.title,
         ref_code=article.ref_code or "",

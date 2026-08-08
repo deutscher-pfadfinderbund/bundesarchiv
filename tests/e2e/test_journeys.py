@@ -420,6 +420,26 @@ def test_the_sheet_clears_the_sticky_record_row(
     )
 
 
+def test_promoting_a_plate_refreshes_the_readers_sheet(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # A structural media POST swaps only #medien-drawer, but order is MEANING (ADR 0015): promoting the
+    # second plate re-covers the record, and the reader's sheet shows the cover. The sheet therefore
+    # kept the OLD thumbnail until a full reload — while a comment in catalog_views claimed it
+    # "refreshes with #form-region", which only the metadata save does. The drawer now carries the
+    # sheet as an out-of-band fragment of the same response.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    sheet_thumb = page.locator("#lesesicht img")
+    before = sheet_thumb.get_attribute("src")
+    rows = page.locator("#medien-drawer .media > div")
+    expect(rows).to_have_count(2)  # the corpus record's cover + one further plate
+    page.locator('#medien-drawer [aria-label="Nach oben"]').nth(1).click()
+    expect(page.locator("#medien-drawer .media > div.cover")).to_contain_text("plate.png")
+    expect(sheet_thumb).not_to_have_attribute("src", before or "")
+
+
 def test_treffer_count_rides_the_rail_and_stays_live(
     archivist_page: Page, live_workbench: str
 ) -> None:
