@@ -149,6 +149,17 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
   {% comment %}HTMX (spec §5): the save hx-posts and swaps #form-region (panels + fields) from the
   same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
   save gets HX-Redirect to the read view. No-JS baseline is the plain POST + 302.{% endcomment %}
+  {% comment %}The RECORD CARD (owner ruling 1): the whole record as one catalog card — one ruled
+  row per field, a label column so every value shares an axis, hairlines between rows, NO boxes and
+  no tab legends (the seven bordered fieldsets died with their seven drawer-tab legends: audit defect
+  2, learning G.2). Sections flow in a two-column GRID (forms.css — "no breakpoint guessing, use a
+  grid"), prose and media span every column, and Kerndaten/Einordnung stay open while the rare
+  sections fold WITH their values in the summary (ruling 4 — folding may never hide data).
+
+  #bearbeiten-form is display:contents, so it takes part in submission but not in layout: the media
+  register must hold real <form> children and forms cannot nest, so the DOM splits at the drawer
+  while the CARD does not. Gruppe 6/7 are wired back via form="bearbeiten-form" on every field.{% endcomment %}
+  <div class="karte">
   <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
@@ -156,9 +167,9 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
-    {# Gruppe 1 — Kerndaten #}
-    <fieldset>
-      <legend>Kerndaten</legend>
+    {# Gruppe 1 — Kerndaten (stays open: the identity facts) #}
+    <section>
+      <h2>Kerndaten</h2>
       <label class="field">
         <span>Titel</span>
         <input type="text" name="title" value="{{ values.title }}"
@@ -180,11 +191,11 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
         <input type="text" name="ref_code" value="{{ values.ref_code }}"
                {% if autofocus == "ref_code" %}autofocus{% endif %}>
       </label>
-    </fieldset>
+    </section>
 
-    {# Gruppe 2 — Einordnung #}
-    <fieldset>
-      <legend>Einordnung</legend>
+    {# Gruppe 2 — Einordnung (stays open: the cataloging decisions) #}
+    <section>
+      <h2>Einordnung</h2>
       <label class="field">
         <span>Medienart</span>
         {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
@@ -235,11 +246,21 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
         {% if errors.date %}<span class="error">{{ errors.date }}</span>{% endif %}
         {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
       </label>
-    </fieldset>
+    </section>
 
-    {# Gruppe 3 — Herkunft #}
-    <fieldset>
-      <legend>Herkunft</legend>
+    {% comment %}Gruppe 3 — Herkunft: rarely touched after cataloging, so it FOLDS — but its summary
+    carries its own values, so folding hides nothing (owner ruling 4). The values come from the SAME
+    context the fields print (one renderer per fact, law C7 — nothing is re-formatted here), and the
+    value line disappears while the section is open, so no fact is ever on screen twice
+    (Q2).{% endcomment %}
+    <details>
+      <summary>Herkunft
+        <span class="werte">
+          {% include "workbench/_wertmarke.html" with label="Autor" value=values.creator only %}
+          {% include "workbench/_wertmarke.html" with label="Ort" value=values.subject_place only %}
+          {% include "workbench/_wertmarke.html" with label="Standort" value=values.physical_location only %}
+        </span>
+      </summary>
       <label class="field">
         <span>Autor</span>
         <input type="text" name="creator" value="{{ values.creator }}"
@@ -256,20 +277,29 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
                {% if autofocus == "physical_location" %}autofocus{% endif %}>
         <span class="hint">Nur intern sichtbar</span>
       </label>
-    </fieldset>
+    </details>
 
-    {# Gruppe 4 — Beschreibung #}
-    <fieldset>
-      <legend>Beschreibung</legend>
-      <label class="field">
-        <span>Beschreibung</span>
-        <textarea name="body" rows="10">{{ values.body }}</textarea>
-      </label>
-    </fieldset>
+    {% comment %}Gruppe 4 — Beschreibung: the section heading IS the field's label (aria-labelledby),
+    never both (the old form printed "Beschreibung" twice — audit defect 6, Q2). The prose section
+    spans every card column; the textarea keeps a min-height floor and grows with its content where
+    field-sizing exists (forms.css).{% endcomment %}
+    <section class="prosa">
+      <h2 id="feld-beschreibung">Beschreibung</h2>
+      <textarea name="body" rows="10" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea>
+    </section>
 
-    {# Gruppe 5 — Zugriff #}
-    <fieldset>
-      <legend>Zugriff</legend>
+    {% comment %}Gruppe 5 — Zugriff: folded like Herkunft, its summary carrying the Sichtbarkeit
+    caption the select itself shows (same option source — one renderer) plus the Gruppen value. The
+    EXPOSURE statement (who gains sight) lives inside: below the pane's 80rem switch this is where
+    the archivist reads it, and above it the reader's sheet carries the same renderer's output — so
+    the fact is on screen exactly once at every width.{% endcomment %}
+    <details>
+      <summary>Zugriff
+        <span class="werte">
+          <span>{{ sichtbarkeit_caption }}</span>
+          {% include "workbench/_wertmarke.html" with label="Gruppen" value=values.gruppen only %}
+        </span>
+      </summary>
       <label class="field">
         <span>Sichtbarkeit</span>
         <select name="sichtbarkeit">
@@ -285,33 +315,35 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
         <span class="hint">Mehrere durch Komma trennen</span>
         {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
       </label>
-    </fieldset>
+    </details>
 
     {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
     real <form> children (the per-row structural forms), and forms cannot nest — so the drawer
-    cannot be a descendant of #bearbeiten-form. Gruppe 7 + the footer resume right after the drawer,
-    in original visual position, wired back to #bearbeiten-form via form= on each field so Speichern
-    and the custom-bag still ride this form's single POST.{% endcomment %}
+    cannot be a descendant of #bearbeiten-form. Gruppe 6 + 7 continue as the card's own sections,
+    wired back to #bearbeiten-form via form= on each field so Speichern and the custom-bag still
+    ride this form's single POST.{% endcomment %}
   </form>
 
-    {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar. Caption inputs
-    carry form="bearbeiten-form" so they ride THAT form's save (save_article — captions are README
-    front matter, ADR 0015) despite the drawer sitting outside it. Each row's reorder/remove buttons
-    belong to their OWN per-row form (declared below, inside this fieldset, referenced via form=) so
-    each carries exactly one unambiguous hash — never the whole register. The FIRST row's TITELBILD
-    cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per spec §6.3.
-    The upload controls sit at the drawer bottom but belong to the separate multipart
-    form#medien-upload (declared below, inside this fieldset) via form= — file inputs support form=,
-    same idiom as the row buttons.
+    {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar; it spans every
+    card column (forms.css). Caption inputs carry form="bearbeiten-form" so they ride THAT form's
+    save (save_article — captions are README front matter, ADR 0015) despite the drawer sitting
+    outside it. Each row's reorder/remove controls belong to their OWN per-row form (declared below,
+    inside this section, referenced via form=) so each carries exactly one unambiguous hash — never
+    the whole register. The FIRST row's TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never
+    amber/violet/tint) — a REVIEW GATE per spec §6.3. The upload controls sit at the section bottom
+    but belong to the separate multipart form#medien-upload (declared below, inside this section) via
+    form= — file inputs support form=, same idiom as the row buttons, and the input stays the NATIVE
+    one (owner ruling 7: a German browser renders German strings, so a label-triggered replacement
+    buys nothing).
 
     HTMX (spec §5): every structural POST below hx-posts and swaps ONLY this #medien-drawer region,
     extracted from the SAME full-page render the no-JS baseline produces (hx-select) — no
     partial-render fork, no new render path. Its own hidden per-row + upload forms are declared as
-    SIBLINGS inside the fieldset (forms cannot nest) so a swap delivers fresh forms for the CURRENT
+    SIBLINGS inside the section (forms cannot nest) so a swap delivers fresh forms for the CURRENT
     row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
     automatically because the whole drawer (cover row first) is replaced.{% endcomment %}
-    <fieldset id="medien-drawer">
-      <legend>Medien</legend>
+    <section id="medien-drawer">
+      <h2>Medien</h2>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
       <div class="media">
@@ -360,7 +392,7 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
       </div>
 
       {% comment %}Per-row media structural forms (spec §6.3) — SIBLINGS of the row markup above
-      inside this fieldset, referenced by the register buttons via form=. Each carries exactly ONE
+      inside this section, referenced by the register buttons via form=. Each carries exactly ONE
       hash, so a reorder/remove is unambiguous. Non-CAS structural POSTs, separate from the caption
       metadata save.{% endcomment %}
       {% for row in media_rows %}
@@ -392,7 +424,7 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
       {% endfor %}
 
       {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest), a SIBLING of
-      the per-row forms above inside the fieldset so it too survives the #medien-drawer swap. Its
+      the per-row forms above inside the section so it too survives the #medien-drawer swap. Its
       controls render inside this drawer via form="medien-upload" — file inputs support form=, same
       idiom as the row buttons. Appends at the end, write-once dedupe. catalog_form.js paints the
       discrete progress sliver from htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
@@ -402,15 +434,17 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
             hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
         {% csrf_token %}
       </form>
-    </fieldset>
+    </section>
 
-    {% comment %}bearbeiten-form has no open tag here — Gruppe 7 + the footer are the SAME form as
-    Gruppe 1-5 above, wired via form="bearbeiten-form" on every field (the drawer above physically
-    splits the DOM but not the submission).{% endcomment %}
-
-    {# Gruppe 7 — Weitere Angaben (custom bag) #}
+    {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded like Herkunft
+    and Zugriff, its summary naming the keys it holds so folding hides nothing (ruling 4). Its fields
+    are wired back to #bearbeiten-form via form=.{% endcomment %}
     <details id="custom-bag">
-      <summary>Weitere Angaben</summary>
+      <summary>Weitere Angaben
+        <span class="werte">
+          {% for key in custom_keys %}<span>{{ key }}</span>{% empty %}<span class="leer">keine</span>{% endfor %}
+        </span>
+      </summary>
       {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
       <div class="bag-row">
@@ -428,7 +462,7 @@ this row's toolbar slot — a new action lands in that list, never as a new butt
       </div>
       {% endfor %}
     </details>
-
+  </div>{# /.karte #}
 </main>
 </div>{# /#form-region #}
 {% endblock %}

@@ -95,10 +95,12 @@ def _hashes(corpus: _Corpus) -> list[str]:
 
 def _medien_drawer_region(body: str) -> str:
     # Mirrors what htmx's hx-select="#medien-drawer" extracts client-side from the full-page
-    # response: the <fieldset id="medien-drawer"> element, start tag through its matching close.
+    # response: the <section id="medien-drawer"> element, start tag through its matching close.
+    # (It was a <fieldset> until the form wave turned the seven group drawers into the record card's
+    # ruled sections — the region's id, and therefore the swap target, did not change.)
     start = body.index('id="medien-drawer"')
-    open_tag_start = body.rindex("<fieldset", 0, start)
-    end = body.index("</fieldset>", start) + len("</fieldset>")
+    open_tag_start = body.rindex("<section", 0, start)
+    end = body.index("</section>", start) + len("</section>")
     return body[open_tag_start:end]
 
 

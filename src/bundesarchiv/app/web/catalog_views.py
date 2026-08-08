@@ -408,7 +408,29 @@ def _edit_context(
         "ref_code": values.get("ref_code") or "",
         "edtf_echo": _edtf_echo(str(values.get("date") or "")),
         "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
+        # The folded sections' summary values (owner ruling 4, 2026-08-08: folding may never hide
+        # data). Both read the values the FIELDS already print — the Sichtbarkeit caption comes from
+        # the very option list the select renders, and the custom keys from the same rows — so a
+        # summary can never spell a fact differently from its field (law C7).
+        "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
+        "custom_keys": [key for key, _ in _custom_rows(values) if key],
     }
+
+
+def _sichtbarkeit_caption(value: str) -> str:
+    """The German caption the Sichtbarkeit select shows for ``value`` — read from the SAME option
+    list the template renders, so the folded Zugriff summary and the open select can never disagree.
+    An unknown value (only reachable from a hand-crafted POST) falls back to the inherit caption, the
+    same rung the parse layer applies to it."""
+    captions = dict(_SICHTBARKEIT_OPTIONS)
+    return captions.get(value, captions[""])
+
+
+def _custom_rows(values: dict[str, object]) -> list[tuple[str, str]]:
+    """The custom key/value rows out of a form-values dict, typed for the summary derivation above.
+    (``values`` is the flat template dict, so its rows arrive as ``object``.)"""
+    rows = values.get("custom_rows")
+    return list(rows) if isinstance(rows, list) else []
 
 
 @dataclass(frozen=True, slots=True)

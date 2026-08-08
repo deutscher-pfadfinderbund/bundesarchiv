@@ -1,14 +1,17 @@
-/* The editing views (Part 4.7/4.8 + the confirm surfaces): the work column, group drawers, media
-   register, sticky footer, field errors and the CAS panel. Role tokens ONLY (tokens.css) — a raw
-   color here is a defect. Load order: tokens, components, layouts, then this file. Semantic HTML
-   carries the structure (form/fieldset/legend/details/dl/table); classes appear only where
-   semantics cannot discriminate (law C1).
+/* The editing views (Part 4.7/4.8 + the confirm surfaces): the work column, the RECORD CARD, the
+   media register, field errors and the CAS panel. Role tokens ONLY (tokens.css) — a raw color here
+   is a defect. Load order: tokens, components, layouts, then this file. Semantic HTML carries the
+   structure (form/section/details/dl/table); classes appear only where semantics cannot discriminate
+   (law C1).
 
-   GRAMMAR (the stamp law applied per-node): the form is flat neutral chrome. The only violet ink
-   is the header Signatur mark (.c-sig), inline links, mono data and the focus ring (inherited).
-   State is INVERSION (the primary button), never a tint. The loud channels stay reserved: red
-   (--error/--on-error) for field validation + the CAS "Inzwischen geändert" panel (register row
-   5). No per-group fills, no card shadows — that flatness is load-bearing. */
+   GRAMMAR (the stamp law applied per-node): the form is flat neutral chrome. The only violet ink is
+   the Signatur — the .c-sig mark in a reader header and the card's Signatur VALUE — plus inline
+   links, mono data and the focus ring (inherited). State is INVERSION (the primary button), never a
+   tint. The loud channels stay reserved: red (--error/--on-error) for field validation + the CAS
+   "Inzwischen geändert" panel (register row 5). No per-group fills, no card shadows — that flatness
+   is load-bearing, and since the form wave it is total: the seven bordered group drawers became the
+   record card's ruled rows (owner ruling 1), and the bottom sticky action band became the record row
+   at the top (ruling 2, layouts.css). */
 
 @layer compositions {
   /* the create step is near-empty: the two required fields are the focal point */
@@ -18,7 +21,8 @@
     gap: var(--space-4);
   }
 
-  /* fields fill the column */
+  /* fields fill the column (the create step + the Bestand forms; the record card sizes its fields
+     from their CONTENT instead — see .karte below) */
   .column .field {
     display: flex;
     width: 100%;
@@ -27,51 +31,194 @@
     width: 100%;
   }
 
-  /* ---- group drawer: a fieldset whose legend is the floating drawer label (spec §3/§4 —
-     grouping reads as archive drawers). Neutral, square, hairline: no fill, no shadow. The
-     composition owns the clearance above each drawer (the legend floats into it). ---- */
-  .column fieldset {
-    --tab-height: 1.5rem; /* the drawer-label tab's height — the legend + clearance share it */
-    position: relative;
-    margin: calc(var(--tab-height) + var(--space-4)) 0 0;
-    padding: var(--space-5) var(--space-4) var(--space-4);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
+  /* ============================================================
+     THE RECORD CARD (owner ruling 1, 2026-08-08 — composition E with A's two-column behaviour
+     inside it). The whole record as ONE catalog card: one ruled row per field, a label column so
+     every value shares an axis, hairlines between rows, and NO boxes — the seven bordered fieldsets
+     died with their seven floating drawer-tab legends (audit defect 2, learning G.2: repetition
+     dilutes a mark) on a screen whose sibling, the ledger, has no boxes at all. The grammar IS the
+     ledger's: --type-label uppercase heads, --type-body values, hairline rules, mono violet for the
+     Signatur.
+
+     MATERIAL ROLE (register row 8, learning G.17 — a new surface names its role before it is
+     styled): the card is NOT a sheet. It is ruled lines drawn on the desk — no tint, no edge, no
+     depth cue. The one TRUE SHEET on this screen is the reader's pane beside it.
+
+     EVERY selector below is a DIRECT-CHILD path (law C14). A bare `.karte h2` restyled a nested
+     component's own heading in this wave's mock — the CAS conflict panel's — because the
+     compositions layer outranks components; and the card's own children are reached through
+     `:is(.karte, .karte > form) >` because the form is display:contents (the media register must
+     hold real <form> children and forms cannot nest, so the DOM splits at the drawer while the CARD
+     does not).
+     ============================================================ */
+  .karte {
+    /* the card's API (law C3/C5), all four knobs named here and consumed below:
+       --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
+                       "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold,
+                       uppercase, 0.08em tracking) measure 139px, so 9rem (144px) holds it on one
+                       line with the gap intact. Measured in the browser, and re-measured every run
+                       by test_karte_labels_share_one_axis (a label that outgrows the axis is a
+                       defect the eye misses — the grid item simply overflows into the gap).
+       --wert-min      the narrowest a value cell may become before the card gives up a column:
+                       14rem (224px) still shows the widest vocabulary Dokumenttyp caption in full.
+       --feld-signatur a Signatur carries NO SPACES and 8 characters is the practical ceiling (owner
+                       2026-08-07), so 12ch fits the ceiling code plus the caret with room to spare —
+                       a field's width is a claim about its content length (learning G.31).
+       --feld-kurz     the short domain fields (Datierung, Autor, Ort): 18ch ≈ an EDTF interval
+                       ("1948-01-01/1952-12-31" = 22ch is the outlier and scrolls in its own box) and
+                       a personal name. Everything else FILLS its cell. */
+    --label-spalte: 9rem;
+    --wert-min: 14rem;
+    --feld-signatur: 12ch;
+    --feld-kurz: 18ch;
+    /* the two-column behaviour, INTRINSIC (law C11 — "no breakpoint guessing, use a grid", owner
+       ruling 1): auto-fit lays as many section columns as the card's own width allows and shares the
+       slack between them, so there is NO width query in this card at all. The floor is DERIVED, not
+       picked: a section column must hold its label axis plus a value cell plus the gap between them,
+       i.e. 9rem + 14rem + 0.75rem = 23.75rem. Two columns therefore appear at 48.5rem of card
+       width (2 x 23.75 + the 1rem column gap) — measured live: the 1440px desk with the reader's
+       sheet open gives the card ~61rem, the 680px viewport ~40.5rem, so the desk gets two columns
+       and the narrow viewport one, by arithmetic rather than by a threshold. */
+    --spalten-boden: calc(var(--label-spalte) + var(--wert-min) + var(--space-3));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--spalten-boden), 1fr));
+    align-items: start;
+    gap: var(--space-6) var(--space-4);
   }
-  .column legend {
-    position: absolute;
-    top: calc(var(--hairline) - var(--tab-height));
-    left: var(--space-3);
-    height: var(--tab-height);
-    display: inline-flex;
-    align-items: center;
-    padding: 0 var(--space-3);
-    background: var(--surface-container-high);
-    color: var(--on-surface-variant);
-    border: var(--hairline) solid var(--outline-variant);
-    border-bottom: none;
+  /* the form takes part in submission, not in layout — so its sections are the CARD's grid items */
+  .karte > form {
+    display: contents;
+  }
+  /* a card section: its fields subgrid onto ONE label axis (the ledger's idiom), so every value in
+     the card starts at the same x whichever section it sits in — by construction, not by two values
+     agreeing (C8's spirit one level down) */
+  :is(.karte, .karte > form) > :is(section, details) {
+    display: grid;
+    grid-template-columns: var(--label-spalte) minmax(0, 1fr);
+    align-content: start;
+    column-gap: var(--space-3);
+  }
+  /* the section head — h2 and summary share ONE treatment (the ledger's column-head label role), so
+     an open section and a folded one never read as different kinds of thing (learning G.1: the
+     uniformity is proven computed, not claimed here) */
+  :is(.karte, .karte > form) > :is(section, details) > :is(h2, summary) {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding-block: var(--space-1);
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
     text-transform: uppercase;
-    /* symmetric top corners: the ASYMMETRIC leading-corner silhouette is the drawer-tab
-       signature (register row 1, .c-sig only) — a legend repeating it 7× per form dilutes the
-       mark (learning G.2) even drawn with radius instead of the cut */
-    border-radius: var(--radius-s) var(--radius-s) 0 0;
+    color: var(--on-surface-variant);
+  }
+  /* the folded sections' value line (owner ruling 4): the section's own values, muted, "·"-joined —
+     the same separator idiom the pane's meta line uses. It disappears while the section is OPEN,
+     because then the fields themselves carry those values and no fact may be on screen twice (Q2). */
+  :is(.karte, .karte > form) > details > summary > .werte {
+    text-transform: none;
+    letter-spacing: normal;
+    font: var(--type-meta);
+  }
+  :is(.karte, .karte > form) > details[open] > summary > .werte {
+    display: none;
+  }
+  .werte > span + span::before {
+    content: " · ";
+  }
+  /* ---- one ruled field row: label column + value, a hairline between rows, no box ---- */
+  :is(.karte, .karte > form) > :is(section, details) > .field {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: baseline;
+    row-gap: var(--space-1);
+    padding-block: var(--space-2);
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  /* the label sits in the axis column; everything else (control, hint, error, EDTF echo) stacks in
+     the value column, so a hint never pushes a value out of the axis */
+  :is(.karte, .karte > form) > :is(section, details) > .field > * {
+    grid-column: 2;
+  }
+  :is(.karte, .karte > form) > :is(section, details) > .field > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  /* THE RESTING LOOK — declared in :where() so it carries ZERO specificity (law C13, learning G.29):
+     every state rule below (hover, focus, a field carrying an error) outranks it without a
+     specificity contest, in this same layer. Written at normal specificity this rule silently
+     swallowed the error border in the wave's mock — the red was in the stylesheet and invisible on
+     screen. The look itself: the value sits ON the row's line, no box. */
+  :where(:is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea)) {
+    background: none;
+    border-color: transparent;
+    border-radius: 0;
+    padding-inline: 0;
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  /* worked-on: the box appears under the pointer and around the focused control (Q6 — the affordance
+     is stated exactly where the interaction is) */
+  :is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea):hover {
+    background: var(--surface-container-lowest);
+  }
+  :is(.karte, .karte > form)
+    > :is(section, details)
+    > .field
+    > :is(input, select, textarea):focus-visible {
+    background: var(--surface-container-lowest);
+    border-color: var(--on-surface);
+  }
+  /* rejected: the error border must WIN over the resting look — that is the whole point of C13, and
+     test_error_fields_compute_the_error_border walks every errored field and proves it computed */
+  :is(.karte, .karte > form) > :is(section, details) > .field:has(.error) > :is(input, select, textarea) {
+    border-color: var(--error);
+  }
+  /* the DEFAULT width claim: fill the value cell. The three content-derived exceptions below are the
+     fields whose content has a known ceiling (learning G.31) — everything else is free text or a
+     select whose caption length the vocabulary decides, so it takes the cell. */
+  :is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea) {
+    width: 100%;
+    max-width: 100%;
+  }
+  /* the Signatur value is the archive's mark: violet-ink mono (register row 2), like the ledger's
+     sig column and the reader header's code */
+  :is(.karte, .karte > form) > :is(section, details) > .field > input[name="ref_code"] {
+    width: var(--feld-signatur);
+    font: var(--type-mono);
+    font-weight: 600;
+    color: var(--primary);
+  }
+  /* content-derived widths (learning G.31 — an input's width is a claim about content length, so it
+     is derived like a breakpoint, from the domain, in ch): the short fields take --feld-kurz, every
+     other control fills its cell */
+  :is(.karte, .karte > form)
+    > :is(section, details)
+    > .field
+    > :is(input[name="date"], input[name="creator"], input[name="subject_place"]) {
+    width: var(--feld-kurz);
+  }
+  /* ---- prose + register sections span every column (a ruled two-column split would cut a
+     paragraph and a media register in half) ---- */
+  :is(.karte, .karte > form) > :is(section.prosa, section#medien-drawer) {
+    grid-column: 1 / -1;
+  }
+  /* Beschreibung: the section HEADING is the field's label (aria-labelledby on the textarea), so
+     there is no label column here — the prose fills the section */
+  .karte > form > section.prosa > textarea {
+    /* the ONE control in the card that keeps its box (elements layer): a prose area's EXTENT is part
+       of what it tells the archivist, and an empty one drawn as a bare line is invisible. Every
+       single-line value sits on its row's rule instead. */
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 8rem; /* the prose floor — about five lines; no token names a text-area minimum */
+    field-sizing: content; /* law F, newly-available tier: grows with the content where supported,
+       degrades to exactly the floor above where it is not */
+  }
+  .karte > section#medien-drawer > :is(.media, .upload, .progress, .empty-state, p) {
+    grid-column: 1 / -1;
   }
 
-  /* ---- the custom bag (Gruppe 7): a <details> drawer of key/value pairs ---- */
-  .column details {
-    margin-top: calc(var(--space-6) + var(--space-1));
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
-    padding: var(--space-3) var(--space-4) var(--space-4);
-  }
-  .column details[open] summary {
-    margin-bottom: var(--space-3);
-  }
+  /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
   .bag-row {
     display: grid;
     grid-template-columns: 1fr 1fr auto;

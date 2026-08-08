@@ -592,6 +592,13 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     return page.url
 
 
+def _open_herkunft(page: Page) -> None:
+    """Unfold the record card's Herkunft section (Autor · Ort · Standort). Since the form wave the
+    rarely-touched sections are folded <details> whose summary carries their values (owner ruling 4),
+    so a journey that edits one of those fields opens the section the way an archivist does."""
+    page.click('summary:has-text("Herkunft")')
+
+
 def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: str) -> None:
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Neuer Entwurf")
     assert "/bearbeiten" in edit_url
@@ -606,8 +613,11 @@ def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: s
 def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workbench: str) -> None:
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Zu Bearbeiten")
-    page.fill('input[name="creator"]', "K. Meyer")
     page.fill('input[name="ref_code"]', "E2E-1")
+    # Autor lives in the FOLDED Herkunft section (owner ruling 4) — its summary shows the values, and
+    # editing one means opening it, a native <details> toggle that needs no JS
+    _open_herkunft(page)
+    page.fill('input[name="creator"]', "K. Meyer")
     page.click('button:has-text("Speichern")')
     # save 302s to the read view (the detail stub in this slice)
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
@@ -709,14 +719,20 @@ def test_cas_conflict_second_saver_sees_panel(
     page2.select_option('select[name="media_type"]', "Fotografie")
 
     # archivist 1 saves first (wins)
+    _open_herkunft(archivist_page)
     archivist_page.fill('input[name="creator"]', "Erster")
     archivist_page.click('button:has-text("Speichern")')
     archivist_page.wait_for_url(lambda url: "/bearbeiten" not in url)
 
     # archivist 2 saves the now-stale form → the conflict panel appears inline, values preserved
+    _open_herkunft(page2)
     page2.fill('input[name="creator"]', "Zweiter")
     page2.click('button:has-text("Speichern")')
     expect(page2.get_by_text("Inzwischen geändert")).to_be_visible()
+    # the re-render preserves every submitted value — including the one in the folded section, whose
+    # SUMMARY now shows it without the archivist having to open anything (ruling 4)
+    expect(page2.locator("summary", has_text="Herkunft")).to_contain_text("Zweiter")
+    _open_herkunft(page2)
     expect(page2.locator('input[name="creator"]')).to_have_value("Zweiter")
     ctx2.close()
 
@@ -976,6 +992,7 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     expect(page.locator('input[name="title"]')).to_have_value("E2E Ohne JS")
     # save: a plain form POST that 302s to the read view (no JS in the loop at all)
     page.select_option('select[name="media_type"]', "Fotografie")
+    _open_herkunft(page)  # a native <details> — the fold is part of the no-JS baseline
     page.fill('input[name="creator"]', "K. Meyer")
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
