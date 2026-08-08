@@ -8,8 +8,11 @@
    member view; the active plate is a neutral-ink INVERSION frame, never a tint. */
 
 @layer compositions {
-  /* Bestand breadcrumb in the page header (next to the Zurück link) */
+  /* Bestand breadcrumb in the page header (next to the Zurück link). It NAMES its type role rather
+     than inheriting the document's body face (G.12): a crumb is header chrome, so it carries the same
+     meta role as the .back link beside it — the two were 15.2px and 13.6px on one row. */
   body > header nav a {
+    font: var(--type-meta);
     color: var(--primary);
   }
   body > header nav span {

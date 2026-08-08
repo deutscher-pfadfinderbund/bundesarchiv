@@ -1,24 +1,19 @@
 {% comment %}
-The EXPOSURE statement — "who gains sight of this record, and which fields do they get" (owner
-ruling 5, 2026-08-08: permanently on screen, so publishing is ONE click and the separate
-over-exposure preview gate retires). Param: einblick (the view-model; absent → nothing renders).
+The EXPOSURE statement — who gains sight of this record, and which fields (owner ruling 5,
+2026-08-08: permanently on screen, so publishing is ONE click). Param: einblick, the view-model.
 
-ONE RENDERER, TWO PLACEMENTS (law C7): this file is included by the reader's sheet, which exists
-above the pane's 80rem switch, AND in the record card beside Zugriff — OUTSIDE its fold, because a
-permanent fact may not live behind a disclosure — which is where the narrow / no-JS archivist reads
-it. The values are computed by the DOMAIN's preview() in the view — never re-implemented here, never
-client-side.
+ONE RENDERER, TWO PLACEMENTS (law C7): the reader's sheet above the pane's 80rem switch, and the
+record card below it — outside the Zugriff fold, because a permanent fact may not live behind a
+disclosure (G.34). The values come from the DOMAIN's preview(); nothing is computed here.
 
-Tense follows lifecycle: a draft is archivist-only today, so it reads "Nach Veröffentlichung sichtbar
-für …" — claiming a draft is already visible would be a lie. NEUTRAL by construction: no loud color
-(exposure is neither draft nor error); the public case is emphasized by WEIGHT only (spec §6.2).
+Tense follows lifecycle: a draft is archivist-only today, so claiming it is already visible would be
+a lie. NEUTRAL by construction — the public case is emphasized by WEIGHT only.
 
-FAIL-CLOSED, VISIBLY (learning G.34). An absent view-model means the domain could not resolve the
-record's Bestand chain, so there IS no honest exposure statement — and the retired preview panel's
-None branch BLOCKED publishing outright (the required `geprueft` checkbox lived inside it). Rendering
-nothing here put that fail-closed promise back to zero: the statement vanished and Veröffentlichen
-stayed one click away. So absence SAYS SO, in the same place the statement would stand, and the
-record row derives the publish affordance from this very view-model — no statement, no publish.
+FAIL-CLOSED, VISIBLY: an absent view-model means the Bestand chain does not resolve, so there IS no
+honest statement — and rendering nothing put the retired gate's fail-closed promise back to zero
+(G.34/G.43). Absence SAYS SO, here, and the record row derives the publish affordance from this same
+view-model. The REFUSAL is the server's (catalog_views._handle_edit_post): a hidden button is not a
+gate.
 {% endcomment %}
 <div class="einblick">
   {% if einblick %}

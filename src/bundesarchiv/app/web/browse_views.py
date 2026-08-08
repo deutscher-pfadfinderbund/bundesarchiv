@@ -684,13 +684,12 @@ def _collection_names() -> dict[Ulid, str]:
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /artikel/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
 
-    ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project,
-    read the version — any deny/absence/malformed/broken-chain → the byte-identical 404 (existence-
-    hiding). The template is a SINGLE file fed a projected Article, so archivist-only fields
-    (Standort, Weitere Angaben) are floored to None/() before rendering and vanish through the same
-    ``{% if value %}`` — there is no member-vs-archivist template fork (spec §4/§10). The action row
-    + ENTWURF badge are presentation-gated on ``is_archivist``; the CAS version is surfaced only then.
-    """
+    ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project —
+    any deny/absence/malformed/broken-chain → the byte-identical 404 (existence-hiding). The template
+    is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
+    floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
+    member-vs-archivist template fork (spec §4/§10). The action row + ENTWURF badge are
+    presentation-gated on ``is_archivist``."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
         return _not_found()
@@ -754,7 +753,7 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
     it) + the member-safe chain. Every value is `{% if %}`-gated in the template, so an absent field
     (or a floored archivist-only field) emits no row — no member/archivist fork, no "—" placeholders.
     The breadcrumb runs root→leaf (chain is leaf-first, so reversed); tags + Bestand link back into
-    the workbench facets (the archive's browsing loop). Version is archivist-only CAS chrome.
+    the workbench facets (the archive's browsing loop).
     ``zurueck_href`` is the sanitized return-to-search link (built in the view from ?zurueck)."""
     article = resolution.article
     media = _detail_media(article)
@@ -775,7 +774,6 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
         "ulid": article.ulid,
         "is_archivist": resolution.is_archivist,
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
-        "version": resolution.version,
         "zurueck_href": zurueck_href,
         "title": article.title,
         "ref_code": article.ref_code or "",

@@ -303,6 +303,57 @@ def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: _Corpus) -> Non
     assert "Einblick nicht ermittelbar." not in ok
 
 
+def _publish_post(corpus: _Corpus, ulid: str, **overrides: str) -> dict[str, str]:
+    """A form POST carrying the publish verb, at the article's current version so CAS passes."""
+    version = ArticleRepository(corpus.store).load(ulid).version
+    return {
+        "title": "Ohne Bestandskette",
+        "collection_id": "WAISE",
+        "media_type": "Fotografie",
+        "expected_version": str(version),
+        "lebenszyklus": "veroeffentlichen",
+        **overrides,
+    }
+
+
+def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: _Corpus) -> None:
+    # The render half above hides the affordance; this is the half that actually holds. The gate was
+    # UI-only, and the state is reachable with ordinary UI actions: re-parent a Bestand under a missing
+    # parent (the article's own version is untouched, so CAS passes), then POST Veröffentlichen — the
+    # record stored as PUBLISHED and then 404'd for everyone, its own cataloguer included, and went live
+    # at whatever rung a later repair produced with no archivist having read an exposure statement. The
+    # deleted lifecycle route said it in its own docstring: server-enforced, not just the client-side
+    # required attr.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    before = ArticleRepository(corpus.store).load(ulid)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{ulid}/bearbeiten", _publish_post(corpus, ulid, title="Frisch getippt")
+        )
+    assert response.status_code == 200  # a re-render, exactly like a validation failure
+    after = ArticleRepository(corpus.store).load(ulid)
+    assert after.article.lifecycle is Lifecycle.DRAFT  # nothing published
+    assert after.version == before.version  # ...and nothing written at all
+    body = response.content.decode()
+    assert "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt." in body
+    assert 'value="Frisch getippt"' in body  # the archivist's input is preserved
+
+
+def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: _Corpus) -> None:
+    # The refusal is about PUBLISHING. Taking a record back off the shelf needs no exposure fact, and
+    # refusing it would strand a published record with a broken chain published forever.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    articles = ArticleRepository(corpus.store)
+    articles.save(replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1)
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{ulid}/bearbeiten",
+            _publish_post(corpus, ulid, lebenszyklus="zurueckziehen"),
+        )
+    assert response.status_code == 302
+    assert articles.load(ulid).article.lifecycle is Lifecycle.DRAFT
+
+
 # --- malformed / absent ulid across every new route --------------------------------
 
 

@@ -29,11 +29,9 @@ the wordmark is always present and always links home.
 <script src="{% url 'static-htmx' %}" defer></script>
 <script>
   // htmx failures are otherwise silent — one document-level listener on both failure events reveals
-  // the banner; dismiss or a fresh success hides it (by setting [hidden], which the modes-layer CSS
-  // makes absolute). The banner is viewport-BOTTOM-fixed (layouts.css) and no sticky chrome docks
-  // there any more: since the form wave the edit surface's one action place is the sticky record row
-  // at the TOP (owner ruling 2), so a revealed banner can no longer occlude Speichern and the old
-  // measure-and-lift dance (--banner-offset) went with the bottom band.
+  // the banner; dismiss or a fresh success hides it by setting [hidden], which the modes-layer CSS
+  // makes absolute. A reveal lifts nothing: the edit surface's one action place is the sticky record
+  // row at the TOP (owner ruling 2), so a bottom-fixed banner cannot occlude it.
   (function () {
     "use strict";
     document.addEventListener("DOMContentLoaded", function () {

@@ -165,14 +165,22 @@ then two-cut bevels are forbidden like any unregistered cue.
    top as the appendix-F enhancement, never load-bearing. Every overlay is
    covered by the containment walker (section E, learning G.26).
 
-13. **A resting look is declared in `:where()`** (owner, 2026-08-08 — learning
-   G.29). Any rule that establishes a component's DEFAULT appearance wraps its
-   selector in `:where()`, so it carries zero specificity and every state rule
-   (`:hover`, `:focus-visible`, `:user-invalid`, `:has(.error)`, `[aria-*]`)
-   outranks it without a specificity contest. A default written at normal
-   specificity silently swallows the states beneath it — and in source an
-   outranked state rule is indistinguishable from a correct one, so this is
-   construction, not review.
+13. **A resting look must lose to every state rule** (owner, 2026-08-08 —
+   learnings G.29, G.47). TWO mechanisms decide that, and which one applies
+   depends on whether the default and the state sit in the SAME `@layer`:
+   - **Same layer → specificity.** Declare the default inside `:where()`, so it
+     carries zero specificity and every state rule (`:hover`,
+     `:focus-visible`, `:user-invalid`, `:has(.error)`, `[aria-*]`) outranks it
+     without a contest.
+   - **Different layers → LAYER ORDER decides, and `:where()` is only
+     documentation.** A later layer wins at any specificity, so a default
+     restated in a later layer beats the state rule below it even from
+     `:where()`. Zero specificity is not the fix there: do not declare the
+     property in the later layer at all — consume the component's knob (C3), or
+     narrow the selector to what the rule is actually about.
+
+   In source an outranked state rule is indistinguishable from a correct one, so
+   this is construction, not review, and both shapes are only findable computed.
 14. **A composition styles only the structure it placed** (owner, 2026-08-08 —
    learning G.30). Selectors reach the nodes the composition itself put on the
    page, via direct-child paths (`.karte > section > h2`), never bare
@@ -571,6 +579,32 @@ refuted):**
    — prints the machine value, so the sheet was right and the request was
    refuted. A finding against a shipped reader surface has to name that surface.)
 
+**2026-08-08, mutation audit of the cleanup wave (each invariant broken on purpose):**
+
+47. **`:where()` cannot save a rule that is in the wrong LAYER.** Deleting the
+   `:where()` from the card's resting rule left the error border RED — the border was
+   delivered by layer order (compositions > components), not by zero specificity — while
+   RESTATING `border-color` inside the compositions layer broke it, `:where()` or not.
+   Same mechanism one layer up: a components-layer ink rule for a toolbar's children
+   reached the pane's `a.button`, whose look lives in the elements layer, and won from
+   inside `:where()` — 14.98:1 down to 2.24:1. So C13's `:where()` is the SAME-LAYER
+   mechanism; across layers the only fix is not to declare the property in the outer
+   layer. A `:where()` in the wrong layer reads like a guarantee and is a comment.
+48. **A rule your linter ships DISABLED is a check you do not have — and
+   enabling it is only half.** The vendored axe ships `target-size` off by
+   default, so a "WCAG 2.2 AA pass" selected by tag ran no target-size check at
+   all for months. Enabling it was still unfailable: axe returns the
+   sub-24px-and-too-close case as `incomplete`, and a result class nobody reads
+   is a result class nobody has. Audit the tool's defaults, then audit which of
+   its result classes your assertion actually counts.
+49. **A guard whose expectation is derived from the thing under test is a
+   tautology that reports green.** The first CAS-diff guard read its expected row
+   list off `_FIELDS` — the registry it existed to protect — so deleting a field
+   deleted the expectation with it. Where a guard defends a declaration, its
+   expectation is written out verbatim (the German rows, the screen count), even
+   though duplication is normally the defect. Derive the SET under test; never
+   derive what it is compared against.
+
 ## H. Writer pre-flight checklist
 
 Run before returning from ANY UI wave. Ten lines distilled from the
@@ -603,9 +637,10 @@ operational form — learning G.28).
    owner acceptances as revisit candidates rather than settled law (G.20).
 11. **Defaults in `:where()`; selectors scoped to what you placed.** Every
     resting look must still lose to hover/focus/error (G.29), and no selector may
-    reach into a nested component's own parts (G.30). Verify on the STATE
-    renders — in source, an outranked state rule looks identical to a correct
-    one.
+    reach into a nested component's own parts (G.30). Check the LAYER, not only the
+    specificity: across layers `:where()` decides nothing, so a property restated in a
+    later layer wins anyway (C13, G.47). Verify on the STATE renders — in source, an
+    outranked state rule looks identical to a correct one.
 12. **Every enhancement's target resolves on every screen it ships to** (G.32) —
     including inherited `hx-*` selectors — and no fold hides a message, the
     focus, or a permanent fact (G.33/G.34). If a guard has to open a fold or
@@ -624,6 +659,15 @@ operational form — learning G.28).
     deleted gate's refusing branches are enumerated before the gate goes (G.43).
     "The output matches today" is never the argument.
 
-**Enforcement caveat:** none of the guards above run on a push — CI is not
-active (issue #12). Until it is, "green" means an agent ran it and said so
-in its report.
+16. **A guard you edited is a guard you must break on purpose** (G.48/G.49). A
+    wave that touches a walker, a lint rule, an inventory or a drift guard ends
+    with a mutation pass: violate each invariant, watch each guard go red,
+    revert. Twice a guard here narrowed silently and kept reporting green; the
+    only thing that caught it was breaking the code underneath it. Check the
+    tool's disabled defaults and which result classes you count, and check that
+    no expectation is derived from the thing under test.
+
+**Enforcement caveat (owner, 2026-08-08: CI stays off for now):** none of the
+guards above run on a push — CI is not active (issue #12). "Green" means an
+agent ran it and said so in its report, which makes line 16 the only thing
+standing between a narrowed guard and a false green.

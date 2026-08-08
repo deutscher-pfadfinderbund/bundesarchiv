@@ -139,6 +139,180 @@ def test_every_prod_stylesheet_is_linted() -> None:
 
 _COLOR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(")
 
+#: The CSS named colors. `color: rebeccapurple`, `background: white` and `border-color: red` are raw
+#: colors exactly like `#fff` is — the themability law's "no raw hex" is about the token layer being
+#: the ONE lever, not about notation — and the hex/function pattern above matched none of them, so all
+#: three were green. Kept as data rather than as a "looks like a color word" heuristic: the set is
+#: closed and small, and guessing would flag `cover`, `solid` or `dashed`.
+_CSS_NAMED_COLORS = frozenset(
+    {
+        "aliceblue",
+        "antiquewhite",
+        "aqua",
+        "aquamarine",
+        "azure",
+        "beige",
+        "bisque",
+        "black",
+        "blanchedalmond",
+        "blue",
+        "blueviolet",
+        "brown",
+        "burlywood",
+        "cadetblue",
+        "chartreuse",
+        "chocolate",
+        "coral",
+        "cornflowerblue",
+        "cornsilk",
+        "crimson",
+        "cyan",
+        "darkblue",
+        "darkcyan",
+        "darkgoldenrod",
+        "darkgray",
+        "darkgreen",
+        "darkgrey",
+        "darkkhaki",
+        "darkmagenta",
+        "darkolivegreen",
+        "darkorange",
+        "darkorchid",
+        "darkred",
+        "darksalmon",
+        "darkseagreen",
+        "darkslateblue",
+        "darkslategray",
+        "darkslategrey",
+        "darkturquoise",
+        "darkviolet",
+        "deeppink",
+        "deepskyblue",
+        "dimgray",
+        "dimgrey",
+        "dodgerblue",
+        "firebrick",
+        "floralwhite",
+        "forestgreen",
+        "fuchsia",
+        "gainsboro",
+        "ghostwhite",
+        "gold",
+        "goldenrod",
+        "gray",
+        "green",
+        "greenyellow",
+        "grey",
+        "honeydew",
+        "hotpink",
+        "indianred",
+        "indigo",
+        "ivory",
+        "khaki",
+        "lavender",
+        "lavenderblush",
+        "lawngreen",
+        "lemonchiffon",
+        "lightblue",
+        "lightcoral",
+        "lightcyan",
+        "lightgoldenrodyellow",
+        "lightgray",
+        "lightgreen",
+        "lightgrey",
+        "lightpink",
+        "lightsalmon",
+        "lightseagreen",
+        "lightskyblue",
+        "lightslategray",
+        "lightslategrey",
+        "lightsteelblue",
+        "lightyellow",
+        "lime",
+        "limegreen",
+        "linen",
+        "magenta",
+        "maroon",
+        "mediumaquamarine",
+        "mediumblue",
+        "mediumorchid",
+        "mediumpurple",
+        "mediumseagreen",
+        "mediumslateblue",
+        "mediumspringgreen",
+        "mediumturquoise",
+        "mediumvioletred",
+        "midnightblue",
+        "mintcream",
+        "mistyrose",
+        "moccasin",
+        "navajowhite",
+        "navy",
+        "oldlace",
+        "olive",
+        "olivedrab",
+        "orange",
+        "orangered",
+        "orchid",
+        "palegoldenrod",
+        "palegreen",
+        "paleturquoise",
+        "palevioletred",
+        "papayawhip",
+        "peachpuff",
+        "peru",
+        "pink",
+        "plum",
+        "powderblue",
+        "purple",
+        "rebeccapurple",
+        "red",
+        "rosybrown",
+        "royalblue",
+        "saddlebrown",
+        "salmon",
+        "sandybrown",
+        "seagreen",
+        "seashell",
+        "sienna",
+        "silver",
+        "skyblue",
+        "slateblue",
+        "slategray",
+        "slategrey",
+        "snow",
+        "springgreen",
+        "steelblue",
+        "tan",
+        "teal",
+        "thistle",
+        "tomato",
+        "turquoise",
+        "violet",
+        "wheat",
+        "white",
+        "whitesmoke",
+        "yellow",
+        "yellowgreen",
+    }
+)
+
+#: The color KEYWORDS legitimately in use, which are not raw colors: they resolve against the role
+#: layer or against the cascade, so a retint still reaches them (themability law).
+_LICENSED_COLOR_KEYWORDS = frozenset(
+    {"currentcolor", "transparent", "inherit", "initial", "unset", "revert", "none"}
+)
+
+
+def _value_words(raw: str) -> set[str]:
+    """The bare identifiers of a declaration's VALUE, lowercased. `var()` contents are dropped (a role
+    token is the licensed shape, and the loud-role rule owns which roles go where), as are quoted
+    strings (`content: " · Fehler"` is copy, not a value) and the property name itself."""
+    value = raw.split(":", 1)[1] if ":" in raw else raw
+    value = re.sub(r"\"[^\"]*\"|'[^']*'", "", value)
+    value = re.sub(r"var\([^)]*\)", "", value)
+    return {word.lower() for word in re.findall(r"[A-Za-z][A-Za-z-]*", value)}
+
 
 def test_no_raw_colors_outside_tokens() -> None:
     offenders = []
@@ -151,6 +325,9 @@ def test_no_raw_colors_outside_tokens() -> None:
             candidate = re.sub(r"color-mix\([^)]*\)", "", raw)
             if _COLOR_LITERAL.search(candidate):
                 offenders.append(f"{name}:{lineno}: {raw.strip()}")
+            named = (_value_words(raw) & _CSS_NAMED_COLORS) - _LICENSED_COLOR_KEYWORDS
+            if named:
+                offenders.append(f"{name}:{lineno}: named color {sorted(named)} — {raw.strip()}")
     assert not offenders, "raw color literal in component CSS (roles only):\n" + "\n".join(
         offenders
     )

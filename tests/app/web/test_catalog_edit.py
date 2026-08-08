@@ -417,14 +417,10 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Co
 # <details> has no focusable contents (the field registry holds three such fields). Both are now
 # decided server-side from the same context that renders the message — catalog_views._open_sections.
 #
-# DELIBERATE LAYERING, not accidental duplication (do not collapse into one): the tests below and
-# tests/e2e/test_journeys.py::test_a_fold_hides_neither_the_error_nor_the_focus /
-# test_a_fold_never_swallows_the_autofocus prove DIFFERENT things about the same rule. Here: the
-# server's decision, in milliseconds, over the real render — which fold carries [open] and which field
-# carries `autofocus`. There: the BROWSER's answer to the questions only a browser can answer — is the
-# message on screen, is the input actually focused, does the summary's ::after marker say why. A fast
-# server proof plus a slow browser proof is the shape the razor asks for; one of them alone would
-# either miss a regression or cost seconds per case.
+# DELIBERATE LAYERING, not duplication (do not collapse): these prove the SERVER's decision — which
+# fold carries [open], which field carries `autofocus` — while the e2e pair
+# (test_a_fold_hides_neither_the_error_nor_the_focus / test_a_fold_never_swallows_the_autofocus)
+# proves what only a browser can answer: is the message on screen, is the input actually focused.
 
 
 @dataclass
@@ -442,24 +438,42 @@ class _Fold:
 _VOID = frozenset({"input", "img", "br", "hr", "meta", "link", "source", "col", "area"})
 
 
+@dataclass(frozen=True)
+class _CardField:
+    """One rendered control of the record card: its ``name``, its element ``tag``, and whether it sits
+    inside the custom bag (whose two inputs are the escape hatch, not registry-focusable fields)."""
+
+    name: str
+    tag: str
+    in_bag: bool
+
+
 class _FoldScanner(HTMLParser):
     """Collect every ``<details>`` INSIDE THE RECORD CARD with its ``open`` state, summary label and
-    contained field names, plus the name of the ONE field carrying ``autofocus``. A real parser rather
-    than a regex, because "contained" is a nesting question.
+    contained field names, EVERY field the card renders, and the name of the ONE field carrying
+    ``autofocus``. A real parser rather than a regex, because "contained" is a nesting question.
 
     Scoped to ``.karte`` STRUCTURALLY. The record row's "Mehr …" overflow is a ``<details>`` too, and
     it used to be excluded by the accident of holding no input — which is the same accident that hid
     field-less CARD folds from the guard below. Hidden inputs are still skipped: they are plumbing
-    (CSRF, expected_version, the media hashes), not fields the archivist fills."""
+    (CSRF, expected_version, the media hashes), not fields the archivist fills.
+
+    ``fields`` collects EVERY named non-hidden control the card renders, in or out of a fold — a card
+    field outside a ``<details>`` was invisible to the fold walk, so the registry could lose a whole
+    row without a guard noticing. The media register is excluded structurally: its caption inputs and
+    its file input are per-BLOB controls belonging to ``#medien-drawer``, not fields of the record."""
 
     def __init__(self) -> None:
         super().__init__()
         self.folds: list[_Fold] = []
+        self.fields: list[_CardField] = []
         self.autofocused = ""
         self._stack: list[_Fold] = []
         self._in_summary = False
         self._depth = 0
         self._karte_depth: int | None = None
+        self._drawer_depth: int | None = None
+        self._bag_depth: int | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -467,6 +481,10 @@ class _FoldScanner(HTMLParser):
             self._depth += 1
             if self._karte_depth is None and "karte" in (values.get("class") or "").split():
                 self._karte_depth = self._depth
+            if self._drawer_depth is None and values.get("id") == "medien-drawer":
+                self._drawer_depth = self._depth
+            if self._bag_depth is None and values.get("id") == "custom-bag":
+                self._bag_depth = self._depth
         in_karte = self._karte_depth is not None
         if tag == "details" and in_karte:
             fold = _Fold(is_open="open" in values)
@@ -482,6 +500,8 @@ class _FoldScanner(HTMLParser):
                 self.autofocused = name
             for fold in self._stack:
                 fold.fields.add(name)
+            if in_karte and self._drawer_depth is None:
+                self.fields.append(_CardField(name, tag, self._bag_depth is not None))
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "details" and self._stack:
@@ -489,8 +509,9 @@ class _FoldScanner(HTMLParser):
         elif tag == "summary":
             self._in_summary = False
         if tag not in _VOID:
-            if self._karte_depth is not None and self._depth == self._karte_depth:
-                self._karte_depth = None
+            for attr in ("_karte_depth", "_drawer_depth", "_bag_depth"):
+                if getattr(self, attr) == self._depth:
+                    setattr(self, attr, None)
             self._depth -= 1
 
     def handle_data(self, data: str) -> None:
@@ -547,6 +568,188 @@ def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
         assert owners, f"„{fold.label}“ ({sorted(fold.fields)}) belongs to no declared section"
         unowned = fold.fields - _SECTION_FIELDS[owners[0]]
         assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from the registry"
+
+
+# --- the field registry's OTHER three columns ---------------------------------------
+#
+# `section` had the walk above and the other three columns had nothing: dropping `scanned=True`,
+# dropping `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite
+# green, and a new card field OUTSIDE a fold was unguarded entirely (the fold walk only sees what a
+# <details> contains). The consequential column is `diff`: `_conflict_rows` derives the CAS
+# "Inzwischen geändert" table from it, so a dropped `diff=` means a racing archivist is silently not
+# told that field changed under them — loss-adjacent, on the surface tests/CLAUDE.md calls
+# load-bearing. Each guard below joins the registry to the REAL render or the real behaviour, never to
+# a second hand-written list.
+
+#: The two registry rows that render NO control, each because of what it is: ``custom`` is the
+#: ``errors`` key for the bag as a whole (it maps to no single input), and ``lifecycle`` is the
+#: record's STATE, present in the registry only because the CAS diff shows it as a row.
+_NOT_A_CONTROL = frozenset({"custom", "lifecycle"})
+
+
+def test_the_card_renders_exactly_the_registrys_fields(corpus: _Corpus) -> None:
+    # The registry is the ONE declaration of the card's fields, so the card may not render a field it
+    # does not know about, and may not lose one silently either. Both directions in one set equality,
+    # against the real render — a new field added to the template alone lands here.
+    from bundesarchiv.app.web.catalog_views import _FIELDS
+
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    rendered = {f.name for f in _scan(body).fields}
+    assert len(rendered) >= 12, f"the scanner found {sorted(rendered)} — the guard proves nothing"
+    assert rendered == {f.name for f in _FIELDS} - _NOT_A_CONTROL, (
+        f"card fields {sorted(rendered)} vs the registry's"
+        f" {sorted({f.name for f in _FIELDS} - _NOT_A_CONTROL)}"
+    )
+
+
+#: The edit template, read to derive which controls it WIRES for autofocus.
+_EDIT_TEMPLATE = (
+    Path(__file__).resolve().parents[3]
+    / "src/bundesarchiv/app/web/templates/workbench/artikel_bearbeiten.html"
+)
+
+
+def test_focusable_marks_exactly_the_controls_the_template_can_focus() -> None:
+    # `focusable` is what `_first_error_field` scans, so a field marked focusable whose control carries
+    # no `autofocus` wiring focuses NOTHING on a validation re-render — the failure mode is silent, and
+    # in source it looks exactly like a working one. The fact is the TEMPLATE's, so it is read from the
+    # template rather than re-listed: the set of names it tests `autofocus` against IS the set of
+    # controls that can receive it.
+    import re
+
+    from bundesarchiv.app.web.catalog_views import _FIELDS
+
+    wired = set(re.findall(r'autofocus == "([a-z_]+)"', _EDIT_TEMPLATE.read_text()))
+    assert len(wired) >= 8, f"only {sorted(wired)} wired — the guard proves nothing"
+    assert wired == {f.name for f in _FIELDS if f.focusable}, (
+        f"the template can focus {sorted(wired)}; the registry marks"
+        f" {sorted({f.name for f in _FIELDS if f.focusable})} focusable"
+    )
+
+
+def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> None:
+    # `scanned` is the GET autofocus spine: the fields walked for the first EMPTY one. It is the
+    # focusable set minus exactly ONE declared exception — Gruppen, which is empty on almost every
+    # record by design (it means something only at the GROUPS rung), so scanning it would park the
+    # caret there on every fully catalogued record and pop the Zugriff fold open with it. Pinning the
+    # relation rather than the membership means a dropped `scanned=True` fails here, and a SECOND
+    # exception has to be argued for rather than typed.
+    from bundesarchiv.app.web.catalog_views import _FIELDS
+
+    scanned = {f.name for f in _FIELDS if f.scanned}
+    focusable = {f.name for f in _FIELDS if f.focusable}
+    assert scanned == focusable - {"gruppen"}, f"spine {sorted(scanned)} vs {sorted(focusable)}"
+
+
+def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
+    # ...and the spine BEHAVES: for each scanned field, a record whose earlier spine fields are all
+    # filled and this one empty must autofocus exactly it. A walker over the spine, so a field dropped
+    # from it (or reordered out of DOM order) is caught for every field, not just for `creator` — the
+    # one instance an existing e2e journey happens to pin.
+    from bundesarchiv.app.web.catalog_views import _FIELDS, _first_empty_field
+
+    spine = [f.name for f in _FIELDS if f.scanned]
+    assert len(spine) >= 8, f"the spine is {spine} — the walk proves nothing"
+    for name in spine:
+        values: dict[str, object] = {f: "gefüllt" for f in spine if f != name}
+        assert _first_empty_field(values) == name, (
+            f"with only {name} empty the autofocus went to {_first_empty_field(values)}"
+        )
+
+
+#: Every row the CAS "Inzwischen geändert" table shows when all of them changed, in the order it shows
+#: them — the archivist's contract on the loss-adjacent surface, so it is pinned VERBATIM rather than
+#: derived from the registry it guards (an expectation read off `_FIELDS` moves with a dropped `diff=`
+#: and asserts nothing: dropping `diff="Ort"` was green against it).
+#: Bestand is deliberately absent: a diff of collection MOVES is its own surface, not this one.
+_CAS_DIFF_ROWS = (
+    "Titel",
+    "Signatur",
+    "Medienart",
+    "Dokumenttyp",
+    "Schlagworte",
+    "Datierung",
+    "Autor",
+    "Ort",
+    "Standort",
+    "Beschreibung",
+    "Sichtbarkeit",
+    "Status",
+)
+
+
+def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _Corpus) -> None:
+    # `diff` drives the "Inzwischen geändert" table, and a dropped label means a racing archivist is
+    # silently not told that field changed under them. Force a conflict in which EVERY diffable field
+    # differs and compare the table against the pinned row list — so a dropped `diff=`, a reordered
+    # registry and a label the table cannot render all fail here.
+    archivist = _client_as(Archivist())
+    changed = {
+        "title": "Anderer Titel",
+        "collection_id": "MEM",
+        "ref_code": "X99",
+        "media_type": "Karte",
+        "document_type": "Wanderkarte",
+        "tags": "herbst",
+        "date": "1970",
+        "creator": "Andere Hand",
+        "subject_place": "Anderer Ort",
+        "physical_location": "Anderes Regal",
+        "body": "Andere Beschreibung",
+        "sichtbarkeit": "members",
+    }
+    with override_settings(**_settings(corpus)):
+        winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, **changed))
+        assert winner.status_code == 302
+        # The loser submits the ORIGINAL values at the now-stale version, so every field differs — and
+        # publishes, which is the only way to make the STATUS row differ too (the loser's own lifecycle
+        # is otherwise read from the article on disk, i.e. the winner's).
+        loser = archivist.post(
+            f"/artikel/{_ULID}/bearbeiten",
+            _valid_post(corpus, lebenszyklus="veroeffentlichen"),
+        )
+    assert loser.status_code == 200
+    rows = _diff_labels(loser.content.decode())
+    assert rows == list(_CAS_DIFF_ROWS), f"the CAS diff listed {rows}, not {list(_CAS_DIFF_ROWS)}"
+
+
+class _DiffLabelScanner(HTMLParser):
+    """The first ``<td>`` of every row of the conflict panel's diff table — the German field labels, in
+    render order (the registry's own field order, which the table must not reshuffle)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.labels: list[str] = []
+        self._in_diff = False
+        self._cell = 0
+        self._capture = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if "diff" in (values.get("class") or "").split():
+            self._in_diff = True
+        elif tag == "tr" and self._in_diff:
+            self._cell = 0
+        elif tag == "td" and self._in_diff:
+            self._cell += 1
+            self._capture = self._cell == 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "td":
+            self._capture = False
+        elif tag == "div" and self._in_diff:
+            self._in_diff = False
+
+    def handle_data(self, data: str) -> None:
+        if self._capture and data.strip():
+            self.labels.append(data.strip())
+
+
+def _diff_labels(body: str) -> list[str]:
+    scanner = _DiffLabelScanner()
+    scanner.feed(body)
+    return scanner.labels
 
 
 def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:

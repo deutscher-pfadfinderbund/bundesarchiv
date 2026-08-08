@@ -6,7 +6,7 @@ it — returning the projection ONLY if every check passes, else ``None`` (the c
 route's byte-identical ``_not_found``). A forbidden article is indistinguishable from a missing one
 (existence-hiding, plan §4.3), so a result link a viewer can't follow leaks nothing.
 
-``resolve_visible_detail`` is the ONE pipeline (one load → resolve → ``visible``-project + version +
+``resolve_visible_detail`` is the ONE pipeline (one load → resolve → ``visible``-project +
 is_archivist); ``resolve_visible_article`` is the pane's thin wrapper over it. Keeping one pipeline
 means the fail-closed order — malformed → absent → broken chain → denied — can never drift between
 the pane and the detail page.
@@ -43,7 +43,7 @@ def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
     (``visible`` = can_view + project), or ``None`` on any deny/absence/malformed/broken-chain.
 
     A thin wrapper over ``resolve_visible_detail`` (the ONE full-Article render pipeline): the pane
-    just takes the projected Article and ignores the detail-only extras (chain/version/is_archivist).
+    just takes the projected Article and ignores the detail-only extras (chain + is_archivist).
     Keeping one pipeline means the fail-closed order — malformed → absent → broken chain → denied —
     can never drift between the pane and the detail page."""
     resolution = resolve_visible_detail(request, ulid)
@@ -54,26 +54,23 @@ def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
 class DetailResolution:
     """One resolution of the full-Article render path: the ``visible``-projected Article (for the
     template), its owning Collection ``chain`` (leaf-first, for the 4.6 Bestand breadcrumb — names are
-    member-safe), its raw ``version`` (the archivist action-row's lifecycle CAS field), and
-    ``is_archivist`` (the presentation gate for the action row + ENTWURF badge). One store load."""
+    member-safe), and ``is_archivist`` (the presentation gate for the action row + ENTWURF badge).
+    One store load."""
 
     article: Article
     chain: ResolvedChain
-    version: int
     is_archivist: bool
 
 
 def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution | None:
-    """The full-Article render pipeline (spec §8): load ONCE, resolve the chain, ``visible``-project,
-    and read ``.version`` off the same ``LoadedArticle`` — returning the projection + chain + version
-    + is_archivist, or ``None`` on any deny/absence/malformed/broken-chain (the byte-identical 404).
+    """The full-Article render pipeline (spec §8): load ONCE, resolve the chain, ``visible``-project —
+    returning the projection + chain + is_archivist, or ``None`` on any
+    deny/absence/malformed/broken-chain.
 
     The ONE resolution path for a rendered full Article — the 4.6 detail view uses it directly;
     ``resolve_visible_article`` (the pane) wraps it. Fail-closed order: a malformed ulid, a
     missing/unreadable article, a broken chain, or a denied viewer all collapse to ``None`` —
-    indistinguishable, so a rendered page can never be an existence oracle. This kills the 4.5 stub's
-    double load (it loaded once to authorize, again for the version); the version comes free off the
-    one ``load`` the projection already needs, surfaced to the template only when ``is_archivist``."""
+    indistinguishable, so a rendered page can never be an existence oracle."""
     if not is_valid_ulid(ulid):
         return None
     store = _canonical_store()
@@ -92,7 +89,6 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     return DetailResolution(
         article=projected,
         chain=chain,
-        version=loaded.version,
         is_archivist=isinstance(viewer, Archivist),
     )
 

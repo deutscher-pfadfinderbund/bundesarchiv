@@ -9,8 +9,9 @@ It reuses the E2E stack (live server + Postgres index + the cached chromium) so 
 page, byte-for-byte what ships — not a static mock. The GET-renderable states come from THE screen
 inventory (``_pages.SCREENS``), shared with the a11y pass and the control-row/overlay walkers, so the
 gallery and the guards can never disagree about which screens the app has; the states behind an
-INTERACTION (the bulk confirm page, an unfolded card section, a rejected save) are declared here and
-reached the way a user reaches them, by driving the affordance.
+INTERACTION — an unfolded card section, a rejected save — are declared here and reached the way a user
+reaches them, by driving the affordance. A whole SCREEN that needs driving (the two bulk surfaces)
+belongs in the inventory instead, with its own reach, so every guard covers it too.
 
 Entry point: the ``gallery`` marker in ``test_gallery.py`` (``uv run pytest -m gallery -s``); the
 PNGs land in ``var/gallery/`` (override with ``BUNDESARCHIV_GALLERY_DIR``).
@@ -54,12 +55,8 @@ def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
 
 
 def _screen_state(screen: Screen) -> GalleryState:
-    """One inventory screen as a gallery state: a plain navigate to its path."""
-
-    def reach(page: Page, base: str, corpus: CorpusHandles) -> None:
-        page.goto(base + screen.path(corpus), wait_until="networkidle")
-
-    return GalleryState(screen.name, screen.what, screen.archivist, reach)
+    """One inventory screen as a gallery state — the screen already carries HOW to reach it."""
+    return GalleryState(screen.name, screen.what, screen.archivist, screen.reach)
 
 
 def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -85,14 +82,6 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.click("details.bulk > summary")
 
 
-def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    _reach_bulk(page, base, corpus)
-    page.select_option('select[name="feld"]', "creator")
-    page.fill('input[name="wert_text"]', "Sammel-Autor")
-    page.click('button:has-text("Änderung prüfen")')
-    page.wait_for_load_state("networkidle")
-
-
 def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
     # the value-carrying summaries and what they hide — including the exposure statement's in-card
@@ -114,8 +103,9 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_selector(".karte .error")
 
 
-#: The states that are NOT a plain navigate: each is reached by driving an affordance, so a path
-#: cannot describe it and it stays declared here rather than in the screen inventory.
+#: The states that are not SCREENS but STATES OF one — a fold opened, a save rejected. A screen that
+#: merely needs driving to reach (the two bulk surfaces) belongs in the inventory with its own reach,
+#: so the guards cover it too; only a second state of a screen already in the inventory lives here.
 _INTERACTION_STATES: tuple[GalleryState, ...] = (
     GalleryState(
         "workbench-rail-open",
@@ -151,7 +141,6 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         True,
         _reach_edit_rejected,
     ),
-    GalleryState("bulk-confirm", "bulk edit, confirm panel", True, _reach_bulk_confirm),
 )
 
 #: The canonical states, in a stable order (the gallery is a design contract: same states, same

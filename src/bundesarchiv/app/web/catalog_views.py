@@ -66,6 +66,11 @@ _SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
 )
 
 
+#: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
+#: resolve. Same fact as _einblick.html's absence branch, said as a field error on the Bestand.
+_EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
+
+
 def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
     """Redirect to ``location`` — a normal 302 for a plain POST, or a 200 carrying ``HX-Redirect`` for
     an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
@@ -221,22 +226,16 @@ def _handle_edit_post(
     current: Article,
     collections: tuple[Collection, ...],
 ) -> HttpResponseBase:
-    """Parse + save the edit POST. On a validation error re-render state F (first errored field
-    autofocused). On success 302 to the read view. On ``Conflict`` re-render state G with the
-    submitted values preserved (the ONE catch site is ``catalog.save_catalog_form``). A
-    ``custom_entfernen`` submit is the no-JS custom-row removal — it re-renders the form with that
-    row cleared, without saving (spec §5). The current media rides the parse so the metadata save
-    preserves it (only captions update; media structure is its own POSTs).
+    """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
+    302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
+    submit is the no-JS custom-row removal — re-render with that row cleared, no save (spec §5).
 
-    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08). Since ruling 2 put Veröffentlichen in the
-    same row as Speichern, the archivist reaches for it with unsaved edits on screen — and a separate
-    lifecycle POST rebuilt the record from disk and 302'd away, discarding them silently. So the edit
-    form's own submit carries the lifecycle verb (``lebenszyklus``): the target lifecycle simply rides
-    the parse, and the ONE existing CAS save commits the metadata and the transition together. One
-    click, nothing lost, no confirm step (that is the gate ruling 5 retired). Everything downstream is
-    unchanged by construction: a validation failure re-renders state F before any save, and a lost race
-    re-renders state G — publishing cannot behave differently from saving, because it IS saving. An
-    unknown verb is a 404 with no mutation at all, like the standalone lifecycle route's."""
+    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): the edit form's own submit carries the
+    lifecycle verb, so the ONE CAS save commits the metadata and the transition together. A separate
+    lifecycle POST rebuilt the record from disk and discarded the archivist's unsaved edits silently.
+    Everything downstream is unchanged by construction — publishing cannot behave differently from
+    saving, because it IS saving. An unknown verb is a 404 with no mutation; ``veroeffentlichen`` is
+    REFUSED when the exposure cannot be computed (the branch below)."""
     if "custom_entfernen" in request.POST:
         return _rerender_with_custom_removed(request, ulid, collections, current)
     verb = request.POST.get("lebenszyklus", "")
@@ -250,6 +249,26 @@ def _handle_edit_post(
         current_media=current.media,
         lifecycle=lifecycle,
     )
+    if (
+        result.article is not None
+        and verb == "veroeffentlichen"
+        and _einblick_view_model(result.article, collections) is None
+    ):
+        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The record row hides
+        # Veröffentlichen when the exposure view-model is None, but that is the client half only, and
+        # the state is reachable with ordinary UI actions — re-parenting a Bestand under a missing
+        # parent leaves the article's own version untouched, so CAS passes. Published, the record 404s
+        # for everyone including its cataloguer, and a later repair puts it live at whatever rung
+        # results with no archivist having read an exposure statement.
+        # Refusing as a FIELD ERROR on the Bestand is what makes the whole re-render the existing
+        # validation path: nothing written, every value preserved, the caret on the field that has to
+        # change. Zurückziehen is deliberately not gated — that is why the verb, not the target
+        # lifecycle, is the condition.
+        result = replace(
+            result,
+            article=None,
+            errors={**result.errors, "collection_id": _EINBLICK_UNRESOLVABLE},
+        )
     if result.article is None:
         context = _edit_context_from_post(
             request,
@@ -302,15 +321,11 @@ def _rerender_with_custom_removed(
     collections: tuple[Collection, ...],
     current: Article,
 ) -> HttpResponseBase:
-    """The no-JS custom-row removal: drop the row whose index rode the ``custom_entfernen`` submit,
-    then re-render the form with every OTHER value preserved and NO save (spec §5). The index names a
-    position in the RAW POST's ``custom_key``/``custom_value`` lists — what the Entfernen button
-    actually submitted — so it is popped there, BEFORE ``_post_to_form_values``' blank-row filtering
-    runs; popping after filtering would shift positions and drop the wrong row whenever an earlier row
-    was blanked in the browser. A bad index is a no-op (nothing removed) — total, never raises. The
-    media register rides along too (spec values-preserved-verbatim): the stored media with the POSTed
-    captions applied, same rule as the validation-error/conflict re-renders. ``current`` is the stored
-    Article — it supplies the lifecycle, the media, and the reader's sheet beside the card."""
+    """The no-JS custom-row removal: drop the row whose index rode the submit, re-render with every
+    other value preserved, save nothing (spec §5). The index names a position in the RAW POST's
+    lists, so it is popped BEFORE ``_post_to_form_values`` filters blank rows — popping after would
+    shift positions and drop the wrong row whenever an earlier one was blanked in the browser. A bad
+    index is a no-op, never a raise."""
     post = request.POST
     raw_rows = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
     try:
@@ -379,13 +394,11 @@ def _edit_context_from_post(
     stored: Article,
     conflict: catalog.ConflictOutcome | None = None,
 ) -> dict[str, object]:
-    """The edit form context re-seeded from the raw POST (state F/G): the archivist's just-typed
-    values are preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to
-    the winner's current version and the neutral diff rows are attached (spec §6.1). ``media`` is the
-    stored media (structure isn't POSTed via the main form), so the register renders correctly.
-    ``stored`` is the Article as it stands on disk (the conflict WINNER in state G): it supplies the
-    lifecycle and the reader's sheet, which shows what a reader sees of the SAVED record — never of
-    the unsaved keystrokes in the form."""
+    """The edit form context re-seeded from the raw POST (state F/G): the just-typed values are
+    preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to the winner's
+    and the neutral diff rows are attached (spec §6.1). ``stored`` is the Article as it stands on disk
+    (the conflict WINNER in state G): it supplies the lifecycle and the reader's sheet, which shows
+    the SAVED record, never the unsaved keystrokes."""
     values = _post_to_form_values(request, ulid, stored.lifecycle)
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(
@@ -414,14 +427,12 @@ def _edit_context(
     media: tuple[MediaRef, ...] = (),
     entfernen_hash: str = "",
 ) -> dict[str, object]:
-    """Assemble the full edit-form context: the field values, the option lists, the field errors, the
-    hidden version, the autofocus target, and the reader's sheet built from ``stored`` (the Article as
-    saved — the sheet is the READER's view of the record, so it never renders unsaved input). The
-    media register rows come from the stored media (structure is edited via its own POSTs, never the
-    main form); ``entfernen_hash`` puts one row into the two-step "Wirklich entfernen?" confirm state
-    (spec §6.3)."""
-    # the custom bag's KEYS for its folded summary. ``values`` is the flat template dict, so its rows
-    # arrive as ``object``; the isinstance narrows them here rather than in a one-caller helper.
+    """Assemble the full edit-form context: values, option lists, errors, the hidden version, the
+    autofocus target, and the reader's sheet built from ``stored`` — the Article as SAVED, so the
+    sheet never renders unsaved input. ``entfernen_hash`` puts one media row into its confirm
+    state."""
+    # the custom bag's KEYS for its folded summary. ``values`` is the flat template dict, so the rows
+    # arrive as ``object`` and the isinstance narrows them.
     rows = values.get("custom_rows")
     custom_keys = [key for key, _ in rows if key] if isinstance(rows, list) else []
     return {
@@ -435,18 +446,16 @@ def _edit_context(
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
         "edtf_echo": _edtf_echo(str(values.get("date") or "")),
         "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
-        # The folded sections' summary values (owner ruling 4, 2026-08-08: folding may never hide
-        # data). Both read the values the FIELDS already print — the Sichtbarkeit caption comes from
-        # the very option list the select renders, and the custom keys from the same rows — so a
-        # summary can never spell a fact differently from its field (law C7).
+        # The folded sections' summary values (owner ruling 4: folding may never hide data). Both
+        # read what the FIELDS print — the caption off the very option list the select renders — so a
+        # summary cannot spell a fact differently from its field (law C7).
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
         "custom_keys": custom_keys,
         # Which folded sections render OPEN: the ones holding an error message or the autofocus
         # target, so neither can end up inside a fold (see the field registry's `section`).
         "open_sections": _open_sections(errors, autofocus),
-        # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
-        # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the
-        # pane's 80rem switch, and the card itself (beside Zugriff, outside its fold) below it.
+        # The reader's sheet (ruling 1) and, through it, the exposure statement (ruling 5) — ONE
+        # view-model for both of that statement's placements.
         "sheet": _sheet_view_model(stored, collections),
     }
 
@@ -462,12 +471,10 @@ def _sichtbarkeit_caption(value: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class _MediaRow:
-    """One media register row for the edit-form template (spec §6.3). Built on the ledger grid: the
-    thumb URL (via the gated media-thumb route, which re-authorizes per request), the filename +
-    human byte size (mono marks), the caption input value, and structural flags. ``is_cover`` marks
-    the FIRST row — the TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint), a
-    position-state expressed like the active facet row. ``confirm_remove`` puts this row into the
-    two-step remove confirm. ``is_first``/``is_last`` disable the reorder links at the ends."""
+    """One media register row (spec §6.3): the thumb URL via the gated media-thumb route (which
+    re-authorizes per request), the filename + human byte size, the caption value, and the structural
+    flags. ``is_cover`` marks the FIRST row; ``confirm_remove`` puts this row into the two-step remove
+    confirm; ``is_first``/``is_last`` disable the reorder controls at the ends."""
 
     filename: str
     content_hash: str
@@ -484,9 +491,8 @@ def _media_rows(
     ulid: str, media: tuple[MediaRef, ...], entfernen_hash: str
 ) -> tuple[_MediaRow, ...]:
     """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015). The
-    thumb URL points at the gated ``/media/<ulid>/<hash>/thumb`` route (re-authorizes on its own —
-    the edit form never bypasses media auth). ``entfernen_hash`` flags the one row in remove-confirm
-    state."""
+    thumb URL points at the gated route, which re-authorizes on its own — the edit form never
+    bypasses media auth."""
     last = len(media) - 1
     return tuple(
         _MediaRow(
@@ -598,11 +604,10 @@ def _sichtbarkeit_value(article: Article) -> str:
 
 # --- THE FIELD REGISTRY ------------------------------------------------------------
 #
-# The record card's field structure, declared ONCE. It used to be declared four times — the autofocus
-# scan's field list, the folded sections' field sets, the CAS diff's label list, and the template
-# markup — and the copies had already drifted: ``_first_error_field`` hand-appended ``gruppen``
-# because that field is missing from one of the lists. Everything the view needs about a field is one
-# row here, in DOM/tab order, and each derivation below is a filter over it.
+# The record card's field structure, declared ONCE, in DOM/tab order; every derivation below is a
+# filter over it. It used to be declared four times over and the copies had already drifted.
+# Each of the four columns is guarded against the real render or the real behaviour —
+# tests/app/web/test_catalog_edit.py, the block after the fold walk.
 
 
 @dataclass(frozen=True, slots=True)
@@ -660,18 +665,23 @@ _FIELDS: tuple[_Field, ...] = (
 )
 
 
-#: The folded card sections and the fields each HOLDS, derived from the registry. Folding may never
-#: hide data (owner ruling 4) — and it may never hide a MESSAGE either: a validation error rendered
-#: inside a folded section is invisible, and an ``autofocus`` inside one focuses nothing at all (a
-#: closed ``<details>`` has no focusable contents). Both are decided from the SAME error/autofocus
-#: context the fields are rendered with, so the fix is one rule over every folded section rather than
-#: a patch per instance. test_folded_sections_own_every_field_they_hold walks the render and fails if
-#: a field moves into a fold without a ``section`` here.
+#: The folded card sections and the fields each HOLDS. Folding may hide neither DATA (owner ruling 4)
+#: nor a MESSAGE nor the FOCUS: a validation error inside a folded section is invisible, and an
+#: ``autofocus`` inside one focuses nothing at all (learning G.33). Both are decided from the SAME
+#: error/autofocus context the fields render with — one rule over every fold, not a patch per
+#: instance.
 def _derive_section_fields() -> dict[str, frozenset[str]]:
-    """Group the registry's fields by their folded section, in first-appearance order. Written as a
-    function rather than a module-level comprehension: nesting one inside another at module scope
-    segfaults CPython 3.14.0rc2 (``_PySet_AddTakeRef`` during module exec), and this file is imported
-    lazily by the urlconf, so the crash surfaces as a dead request rather than an import error."""
+    """Group the registry's fields by their folded section, in first-appearance order.
+
+    A function, not a module-level comprehension: on the pinned CPython (3.14.0rc2) writing this as
+    ``{s: frozenset(f.name for f in _FIELDS if f.section == s) for s in ...}`` at module scope
+    SEGFAULTS while executing THIS module — 5/5 runs, in ``_PySet_AddTakeRef``. The trigger is
+    narrower than "a nested comprehension" (a review refuted that shape, correctly, from a toy
+    module): it is ``frozenset(<generator>)`` inside a module-scope comprehension. Measured on this
+    file, 5 runs each — ``frozenset({set comp})`` 0/5, ``frozenset([list comp])`` 0/5,
+    ``frozenset(<genexp>)`` 5/5 with any outer iterable (``dict.fromkeys``, ``sorted``, a bare name).
+    It needs this module's own state to reproduce, so a reproduction extracted into a small file
+    passes and proves nothing. Issue #46 pins a final 3.14."""
     sections: dict[str, set[str]] = {}
     for registered in _FIELDS:
         if registered.section:
@@ -711,10 +721,9 @@ def _first_error_field(errors: catalog.FormErrors) -> str:
 
 
 def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
-    """The neutral CAS diff (spec §6.1): one row per CHANGED field, comparing the archivist's
-    submitted Article to the winner's stored Article. Only differences are listed (signals-once).
-    The rows are the registry's fields that carry a diff label, in the form's own field order; the
-    Signatur row is flagged so the template renders both cells as ``.c-sig`` marks."""
+    """The neutral CAS diff (spec §6.1): one row per CHANGED field, submitted against the winner's
+    stored Article. The rows are the registry's fields carrying a diff label, in the form's own order;
+    the Signatur row is flagged so the template renders both cells as ``.c-sig`` marks."""
     rows: list[_ConflictRow] = []
     for name, label in ((f.name, f.diff) for f in _FIELDS if f.diff):
         mine_str = _diff_value(mine, name)
@@ -889,29 +898,21 @@ def _einblick_view_model(
 
 
 def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
-    """The reader's-sheet view-model for the edit surface, built from the STORED article's READER
-    PROJECTION (never from the archivist's unsaved keystrokes: the sheet answers "what does a reader
-    see of the record as it stands", which is exactly why it can retire the publish-time preview).
+    """The reader's-sheet view-model, built from the STORED article's READER PROJECTION — never from
+    unsaved keystrokes: the sheet answers "what does a reader see of the record as it stands", which
+    is why it can retire the publish-time preview.
 
-    THE PROJECTION IS THE POINT. The app owns ONE reader pipeline —
-    ``article_auth.resolve_visible_*`` → ``access.visible`` = ``can_view`` + ``project`` — and a box
-    labelled ``aria-label="Leseansicht"`` must show what ``project()`` produces, not what the editor
-    typed. This used to read the stored Article field by field and was correct only by COINCIDENCE
-    (learning G.22): ``project`` floors exactly ``ARCHIVIST_ONLY_FIELDS`` = {physical_location,
-    custom}, and the sheet happens to show neither, so both paths printed the same bytes — on the
-    very surface whose promise retired the publish gate. The day a field joins that set, the floor
-    already holds here.
+    THE PROJECTION IS THE POINT (learning G.42). A box labelled ``aria-label="Leseansicht"`` must show
+    what the domain's ``project()`` produces. Reading the stored Article field by field printed the
+    same bytes only by COINCIDENCE — ``project`` floors exactly ``ARCHIVIST_ONLY_FIELDS`` and the
+    sheet happens to show none of them. Calling the pipeline means the floor already holds the day
+    that set grows. Only the FLOOR half runs: ``can_view`` would deny every non-archivist a DRAFT by
+    definition, and "who WOULD see this once published" is the exposure statement's question.
 
-    Only the FLOOR half of the pipeline runs: ``can_view`` would deny every non-archivist a DRAFT by
-    definition (the lifecycle gate), and "who WOULD see this once published" is precisely the
-    question the exposure statement answers below, through the domain's own ``preview()``.
-
-    It travels with EVERY write to this record, by two different mechanisms: the metadata save swaps the
-    whole ``#form-region`` (the sheet is inside it), and the structural media POSTs — which swap only
-    ``#medien-drawer`` yet change what a reader sees, because order is meaning and promoting a plate
-    re-covers the record (ADR 0015) — carry the sheet as an out-of-band fragment
-    (``hx-select-oob="#lesesicht"`` on the drawer). Both read this one view-model out of the same
-    full-page render, so there is no second render path to keep in step."""
+    It travels with EVERY write, by two mechanisms: the metadata save swaps the whole
+    ``#form-region``, and the structural media POSTs carry it out-of-band
+    (``hx-select-oob="#lesesicht"``). Both read this one view-model out of the same full-page
+    render."""
     read = project(Public(), article)
     return _SheetViewModel(
         title=read.title,
@@ -970,15 +971,13 @@ def _preview_fields_label(result: VisibilityPreview) -> str:
     return ", ".join(names)
 
 
-# --- media manager: structural POSTs (Slice D, spec §6.3 + ADR 0015) ---------------
+# --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------
 #
-# Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save
-# (captions ride the main form's save_article, spec §6.3). They are "non-CAS" in that they do NOT
-# ride the edit form's expected_version: each re-loads the article at its current version, applies a
-# pure idempotent transform of the media tuple, and saves at THAT version, retrying once on a
-# concurrent bump (safe because the transform is idempotent — "move hash X up", "drop hash Y",
-# "append these blobs" re-applied to the winner's fresh article yields the same intent). Order is
-# meaning (first = cover, ADR 0015), so reorder is re-cover and upload appends at the END.
+# Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save.
+# "Non-CAS" in that they do not ride the form's expected_version: each re-loads at the current
+# version, applies an idempotent transform of the media tuple and saves at THAT version, retrying on
+# a concurrent bump — safe precisely because the transform is idempotent. Order is meaning (first =
+# cover), so reorder is re-cover and upload appends at the END.
 
 #: How many bytes a single upload request may carry / a single file may be (spec §8). Kept modest for
 #: a v1 archive of scans; the settings mirror lets the deploy raise them. Oversize → a clean German

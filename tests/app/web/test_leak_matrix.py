@@ -522,16 +522,29 @@ def test_route_tier_matrix(
 
 
 def _prod_route_names() -> set[str]:
-    return {name for name in _prod_pattern_names() if name is not None}
+    return set(_prod_pattern_names())
 
 
-def _prod_pattern_names() -> list[str | None]:
-    """The ``.name`` of every prod pattern. The prod urlconf is deliberately FLAT (all ``path()``, no
-    ``include()``), so every entry is a ``URLPattern``; asserting that here doubles as a guard that a
-    future ``include()`` (which would nest routes past the leak matrix) is a deliberate change."""
+def _prod_pattern_names() -> list[str]:
+    """The ``.name`` of every prod pattern. Two structural asserts guard the exhaustiveness gate below,
+    because both of them are ways for a live route to leave its scope:
+
+    The prod urlconf is deliberately FLAT (all ``path()``, no ``include()``), so every entry is a
+    ``URLPattern``; asserting that doubles as a guard that a future ``include()`` — which would nest
+    routes past the leak matrix — is a deliberate change.
+
+    And every pattern must be NAMED. ``name`` is the handle the contract joins on, so an unnamed live
+    route was un-gated and un-leak-tested: this function used to drop ``None`` from the list, and the
+    set-equality then dropped it from BOTH sides and reported no drift at all. A route with no
+    ``name=`` is not an exception to the matrix, it is a route the matrix cannot see."""
     patterns = get_resolver(_PROD_URLCONF).url_patterns
     assert all(isinstance(p, URLPattern) for p in patterns), "prod urlconf is no longer flat"
-    return [p.name for p in patterns if isinstance(p, URLPattern)]
+    unnamed = [str(p.pattern) for p in patterns if isinstance(p, URLPattern) and p.name is None]
+    assert not unnamed, (
+        f"prod routes with no name=, invisible to the leak matrix: {unnamed} — every route needs a"
+        " name (it is the key the contract and the screen inventory join on)"
+    )
+    return [p.name for p in patterns if isinstance(p, URLPattern) and p.name is not None]
 
 
 def test_contract_covers_every_prod_route() -> None:
