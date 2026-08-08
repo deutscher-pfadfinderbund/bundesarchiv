@@ -416,6 +416,29 @@ for the future?"):**
    implies a pre-return action must also land as a checklist line, or it
    will be true, recorded, and ignored.
 
+**2026-08-08, form-wave exploration (three bugs in my own mock, one class):**
+
+29. **A resting look declared at high specificity swallows every state beneath
+   it.** The card's default ("value on a ruled line, no border") outranked the
+   `:has(.error)` rule in a lower layer, so an invalid Datierung rendered with a
+   normal border — the red border was in the stylesheet and invisible on screen.
+   Same leak muted the error message's ink. Declare defaults inside `:where()`
+   (zero specificity) so hover/focus/error always win. Proposed as cascade rule
+   C13 (owner decision pending, `docs/design/form-wave-brief.md`).
+30. **A composition may only style the structure it owns.** `.karte h2`
+   restyled a nested conflict panel's own heading, because the compositions
+   layer outranks components. Scope to the nodes the composition placed
+   (`.karte > section > h2`). This is C4 with teeth — components own the inside,
+   so a composition must not select descendants it did not place. Proposed as
+   C14. The same slip in flex form: a row idiom (`flex: 1 1 14rem`) inherited by
+   a column container stretched every field to 14rem of HEIGHT.
+31. **Field width is a claim about content length — derive it like a
+   breakpoint.** C9 already forbids invented width thresholds; one level down,
+   an input's width is the same kind of claim. Size fields in `ch` from the
+   domain fact (Signatur ≤ 8 characters → 12ch), never from whatever the column
+   happened to be. Uniform full-width inputs are what wasted half of a 1440px
+   desk on the old form.
+
 ## H. Writer pre-flight checklist
 
 Run before returning from ANY UI wave. Ten lines distilled from the
@@ -445,6 +468,11 @@ operational form — learning G.28).
    claim is proven computed rather than asserted in prose (G.1).
 10. **Report labels every image REAL or MOCK** (G.16), and names lukewarm
    owner acceptances as revisit candidates rather than settled law (G.20).
+11. **Defaults in `:where()`; selectors scoped to what you placed.** Every
+    resting look must still lose to hover/focus/error (G.29), and no selector may
+    reach into a nested component's own parts (G.30). Verify on the STATE
+    renders — in source, an outranked state rule looks identical to a correct
+    one.
 
 **Enforcement caveat:** none of the guards above run on a push — CI is not
 active (issue #12). Until it is, "green" means an agent ran it and said so
