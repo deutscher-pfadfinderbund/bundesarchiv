@@ -45,6 +45,57 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
+#: Counts htmx's own "the swap target is not on this page" aborts. Installed on the document before
+#: the interaction, because htmx:targetError is NOT a request failure — it fires before any request,
+#: so the global error banner never shows and the archivist sees a dead control with no clue why.
+_COUNT_TARGET_ERRORS_JS = """() => {
+    window.__targetErrors = [];
+    document.body.addEventListener('htmx:targetError', (e) => {
+        window.__targetErrors.push(String(e.detail && e.detail.target));
+    });
+}"""
+
+
+def test_search_works_from_a_screen_without_the_results_region(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The shared header (workbench/_header.html) is included by FIVE screens; #results exists on ONE.
+    # While the form carried hx-get + hx-target="#results", htmx cancelled the native submit on the
+    # other four and aborted with htmx:targetError — so with JS ON the search box on the
+    # create/edit/Bestand screens did nothing at all, and the create step had also dropped its
+    # "Zurück zur Suche" link on the grounds that the search box was the way back. The enhancement
+    # now lives on the region it swaps, so the form is plain HTML everywhere: one behaviour, and it is
+    # the no-JS one.
+    page = archivist_page
+    edit_url = _create_draft(page, live_workbench, "E2E Suche vom Formular")
+    for path, submit in (
+        ("/artikel/neu", "click"),
+        ("/bestand/neu", "click"),
+        (edit_url, "enter"),  # the edit surface, and by implicit submission rather than a click
+    ):
+        page.goto(path if path.startswith("http") else live_workbench + path)
+        page.evaluate(_COUNT_TARGET_ERRORS_JS)
+        # typing must not fire an aborted request either — off the workbench there is nothing to swap,
+        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25)
+        page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+        page.wait_for_timeout(700)  # longer than the 400ms type-to-search debounce
+        assert page.evaluate("() => window.__targetErrors") == [], (
+            f"{path}: htmx aborted a swap against an absent target"
+        )
+        assert "q=Sommerfahrt" not in page.url, f"{path}: typing navigated on its own: {page.url}"
+        # ...and submitting IS the navigation, on this screen exactly as on the workbench
+        if submit == "click":
+            page.click('button:has-text("Suchen")')
+        else:
+            page.keyboard.press("Enter")
+        page.wait_for_url("**q=Sommerfahrt**")
+        expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
+    # the create step's visible return path is back (the search box is a way back only if you type)
+    page.goto(live_workbench + "/artikel/neu")
+    page.get_by_text("Zurück zur Suche").click()
+    page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
+
+
 def test_ledger_headers_compute_one_uniform_treatment(
     archivist_page: Page, live_workbench: str
 ) -> None:
