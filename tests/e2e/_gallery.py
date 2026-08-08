@@ -115,6 +115,18 @@ def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> Non
     page.click('summary:has-text("Zugriff")')
 
 
+def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the REJECTED state of the record card, and specifically an error inside a FOLDED section:
+    # Sichtbarkeit=Gruppe(n) with an empty Gruppen field. The server decides [open] from the same error
+    # context that renders the message, and the summary carries the red "Fehler" mark — a visible cue
+    # needs a render to be judged on (learning G.7), and this shot is also the C13 error-border state.
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.click('summary:has-text("Zugriff")')
+    page.select_option('select[name="sichtbarkeit"]', "groups")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_selector(".karte .error")
+
+
 def _reach_read(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
 
@@ -209,6 +221,12 @@ STATES: tuple[GalleryState, ...] = (
         "the edit surface with Herkunft + Zugriff unfolded",
         True,
         _reach_edit_folded_open,
+    ),
+    GalleryState(
+        "edit-rejected",
+        "the edit surface rejected: an error inside a folded section (opened, summary marked)",
+        True,
+        _reach_edit_rejected,
     ),
     GalleryState("read-published", "the read view (a published article)", True, _reach_read),
     GalleryState(

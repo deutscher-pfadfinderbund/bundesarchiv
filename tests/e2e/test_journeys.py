@@ -138,15 +138,16 @@ def test_ledger_headers_compute_one_uniform_treatment(
 
 
 #: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
-#: WALKERS over all instances). Rows are DISCOVERED, never listed: a control row is any element that
-#: DECLARES the --control-height knob (its computed value differs from its parent's) plus every
-#: [role=toolbar] — so the header cluster, the filter rail, the edit surface's record row and each
-#: toolbar are found by the mechanism law C8 is written in, and the next row built the same way is
-#: covered the day it appears. A toolbar that INHERITS its row's knob (the record row's action slot)
-#: is deliberately not a row of its own: its controls belong to the row that owns the knob, which is
-#: exactly the equality C8 demands.
-#: A "control" is a button, a summary, a chip or a toolbar's icon link (the rail's clear-all link is
-#: text, not a control). Per-instance copies of this proof are forbidden.
+#: WALKERS over all instances). Rows are DISCOVERED, never listed: EVERY element that DECLARES the
+#: --control-height knob (its computed value differs from its parent's) and EVERY [role=toolbar] is
+#: walked as a row — so the header cluster, the filter rail, the edit surface's record row, each
+#: toolbar and each dropped overlay panel are found by the mechanism law C8 is written in, and the next
+#: row built the same way is covered the day it appears. A toolbar that INHERITS its owning row's knob
+#: (the record row's action slot) is walked too; that costs nothing, because the equality it then
+#: asserts inside the toolbar is a SUBSET of the one its owning row already asserts.
+#: A "control" is a button, a summary, a chip, a toolbar's icon link, or an entry of an overlay panel
+#: (`details > ul li > a` — a panel entry IS the action: "Neuer Artikel", a facet value). The rail's
+#: clear-all link is text, not a control. Per-instance copies of this proof are forbidden.
 _CONTROL_ROW_WALKER_JS = """() => {
     const declaresKnob = (el) => {
         const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
@@ -168,8 +169,16 @@ _CONTROL_ROW_WALKER_JS = """() => {
     return rows.map((row) => ({
         name: name(row),
         knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
-        controls: Array.from(
-            row.querySelectorAll('button, a.button, summary, .chip, [role=toolbar] > a'))
+        controls: Array.from(row.querySelectorAll(
+            'button, a.button, summary, .chip, [role=toolbar] > a, details > ul li > a'))
+            // an OVERLAY panel's entries belong to the panel, never to the row the panel hangs from
+            // (the law is explicit: a toolbar may own a disclosure, and its dropped contents are
+            // overlay contents). The panel is a row in its own right, so its entries are measured
+            // there — counting them twice would demand that a 44px menu entry match a 32px chrome row.
+            .filter((el) => {
+                const panel = el.closest('details > ul');
+                return panel === null || panel === row;
+            })
             // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
             // contents in the box tree (Chromium renders ::details-content with
             // content-visibility:hidden), so offsetParent still resolves for a panel item that is
@@ -182,6 +191,10 @@ _CONTROL_ROW_WALKER_JS = """() => {
                 return {
                     label: (el.getAttribute('aria-label') || el.textContent).trim(),
                     chip: el.matches('.chip'),
+                    // TYPOGRAPHY exceptions — height never deviates for these, only the treatment:
+                    // the rail chip keeps chip typography (owner-licensed), and every control in the
+                    // ACTIVE facet row carries register row 3's inversion mark, which is semibold.
+                    marked: el.matches('.chip') || !!el.closest('li:has(> [aria-current])'),
                     height: el.offsetHeight,
                     font: [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
                            s.letterSpacing].join('|'),
@@ -192,15 +205,39 @@ _CONTROL_ROW_WALKER_JS = """() => {
 
 
 def _walk_control_rows(page: Page, url: str) -> dict[str, list[dict[str, str | int | bool]]]:
-    """Every control row on ``url`` with its rendered controls, keyed by a readable row name."""
+    """Every control row on ``url`` with its rendered controls, keyed UNIQUELY.
+
+    The index suffix is load-bearing, not decoration. The name alone is not unique — every ledger row's
+    action toolbar is a bare ``<span role=toolbar>`` and names itself ``span[toolbar]`` — so keying by
+    it collapsed 50 rows into one dict entry and the walker silently proved ONE toolbar instead of all
+    of them. A guard that narrows itself and still reports green is the most dangerous kind, so the key
+    carries the row's position and the name stays a readable PREFIX (callers match on it).
+
+    A dropped overlay panel is a control row too (it declares the knob), but its entries are only
+    MEASURABLE while it is open — a closed <details> keeps them out of checkVisibility. So each overlay
+    is opened in turn and the walk repeated; one at a time, because the rail's facet groups share a
+    ``name`` and two can never be open together. Row indices are stable across the passes (same DOM), so
+    the open pass fills in the rows the closed pass saw empty."""
     page.goto(url)
     rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
-    return {str(row["name"]): row["controls"] for row in rows}  # type: ignore[misc]
+    walked: dict[str, list[dict[str, str | int | bool]]] = {}
+    for i, row in enumerate(rows):
+        walked[f"{row['name']}#{i}"] = row["controls"]  # type: ignore[assignment]
+    overlays = page.locator(_OVERLAY_SELECTOR)
+    for index in range(overlays.count()):
+        summary = overlays.nth(index).locator("summary")
+        summary.click()
+        for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS)):
+            if row["controls"]:
+                walked[f"{row['name']}#{i}"] = row["controls"]
+        summary.click()  # close before opening the next one
+    return walked
 
 
 def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — chips excepted,
-    which keep chip typography but must still match height — one font treatment."""
+    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — the licensed state
+    marks excepted (a rail chip's chip typography, an active facet row's semibold inversion), which must
+    still match on HEIGHT — one font treatment."""
     defects: list[str] = []
     for name, controls in by_name.items():
         if len(controls) < 2:
@@ -208,7 +245,7 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
         heights = {str(c["label"]): int(str(c["height"])) for c in controls}
         if max(heights.values()) - min(heights.values()) > 1:
             defects.append(f"row '{name}' computes more than one height: {heights}")
-        fonts = {c["font"] for c in controls if not c["chip"]}
+        fonts = {c["font"] for c in controls if not c["marked"]}
         if len(fonts) > 1:
             defects.append(f"row '{name}' computes mixed control fonts: {fonts}")
     return defects
@@ -218,9 +255,10 @@ def test_control_rows_compute_one_height_source(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Law C8 proven computed (the generalized G.1 pattern, section E) over every control row the app
-    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the ledger's
-    # row toolbars) and the edit surface (the record row, whose action toolbar INHERITS the row's
-    # knob — Speichern, the lifecycle action and the overflow summary must compute one height).
+    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the dropped
+    # panels' entries), the unfiltered one (four ledger rows, so four row toolbars) and the edit surface
+    # (the record row, whose action toolbar INHERITS the row's knob — Speichern, the lifecycle action and
+    # the overflow summary must compute one height).
     page = archivist_page
     by_name = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
     # the walker must actually see the rows this page composes — a silent no-find proves nothing
@@ -229,7 +267,19 @@ def test_control_rows_compute_one_height_source(
     assert len(by_name[header]) >= 2  # the Suchen button + the "+ Neu …" summary
     assert any(c["chip"] for c in by_name[rail])  # the active-filter chip is present
     assert any("[toolbar]" in n for n in by_name)  # ledger row toolbars
+    # the dropped OVERLAY panels are rows of their own (they declare the knob) and their entries are
+    # controls: the header's create menu plus the rail's facet dropdowns, all measured while open
+    panels = [n for n in by_name if n.startswith("ul#") and len(by_name[n]) >= 2]
+    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(by_name)}"
     defects = [f"[workbench] {d}" for d in _control_row_defects(by_name)]
+
+    # The UNFILTERED workbench: four hits, so four ledger row toolbars. This is where the keying
+    # regression hid — every one of them names itself "span[toolbar]", so keying rows by name collapsed
+    # them into ONE dict entry and the walk proved a single toolbar while reporting green.
+    ledger = _walk_control_rows(page, live_workbench + "/")
+    toolbars = [n for n in ledger if "[toolbar]" in n]
+    assert len(toolbars) >= 4, f"the walker sees only {toolbars} — one per ledger row is required"
+    defects += [f"[ledger] {d}" for d in _control_row_defects(ledger)]
 
     edit = _walk_control_rows(page, live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
     row = next(n for n in edit if "recordrow" in n)
