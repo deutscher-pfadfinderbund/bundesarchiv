@@ -401,3 +401,51 @@ for the future?"):**
    document horizontal scroll) at widths no gallery state rendered. Every
    overlay gets a computed containment check across the width range — as a
    generic walker, per G.21.
+
+**2026-08-07, session retrospective round 2 (owner: "what did we learn?"):**
+
+27. **Owner corrections arrive as instances but live as classes.** Every
+   round of point-by-point feedback in this session collapsed into ONE
+   structural hole: four "different" defects were one sibling-consistency
+   gap; six were one missing material-role assignment plus one relativity
+   effect. Treat a correction list as a class hunt — fix the class, add the
+   structural guard, then re-check the whole surface for other instances.
+   Fixing the N listed items and stopping guarantees round N+1.
+28. **A register that only grows stops being read.** These learnings are
+   the ARCHIVE; section H is the working memory. Every new learning that
+   implies a pre-return action must also land as a checklist line, or it
+   will be true, recorded, and ignored.
+
+## H. Writer pre-flight checklist
+
+Run before returning from ANY UI wave. Ten lines distilled from the
+learnings register (section G is the archive and the reasoning; this is the
+operational form — learning G.28).
+
+1. **Walkers green:** control-row heights (C8), overlay containment (G.26),
+   header uniformity (G.1) — plus the design lint (E). Not "should pass":
+   run them.
+2. **Every new surface has a material role** (desk / furniture / sheet /
+   overlay) named in the code and consistent with register row 8 (G.17).
+3. **Every distinctive cue cites a register row** (B) — including its
+   position. No row, no cue.
+4. **No invented numbers:** width queries derive from measured content and
+   carry the arithmetic plus a computed proof that hiding was necessary
+   (C9); flexible mechanisms were tried first (C11).
+5. **Siblings that must match consume ONE knob** (C8). Two independent
+   values that agree today are a defect, not a pass.
+6. **Re-rank what you did NOT touch:** subtraction changes relative visual
+   weight, so re-run Q9 over the whole surface (G.19).
+7. **Fixtures are realistic** (domain facts, not invented extremes), and
+   stress tests target the genuinely unbounded fields (G.6, G.24) — a proof
+   over short demo data proves nothing.
+8. **Client logic accounts for every state source the server used** (URL
+   params, not just DOM) and survives an htmx history restore (G.25).
+9. **Docs, demo pages and comments in lockstep**, and every uniformity
+   claim is proven computed rather than asserted in prose (G.1).
+10. **Report labels every image REAL or MOCK** (G.16), and names lukewarm
+   owner acceptances as revisit candidates rather than settled law (G.20).
+
+**Enforcement caveat:** none of the guards above run on a push — CI is not
+active (issue #12). Until it is, "green" means an agent ran it and said so
+in its report.
