@@ -37,6 +37,15 @@ _MEDIA_KEY = "articles/{ulid}/media/{content_hash}"
 #: browser would render, so a mislabelled blob can never become a stored-XSS vector).
 _DEFAULT_CONTENT_TYPE = "application/octet-stream"
 
+#: Cache policy for served bytes (ADR 0017). Media and thumbnail URLs are content-hash-keyed — same
+#: hash = same bytes forever — so the far-future ``immutable`` is honest. ``private`` is the
+#: leak-relevant half: it keeps SHARED caches (proxies, CDNs) from storing gated content, while a
+#: browser that cached a blob was authorized when it fetched it (ADR 0017 ratifies that a later
+#: audience downgrade cannot recall an already-delivered copy). Denials carry NO cache policy — the
+#: view's ``_not_found`` never routes through here, so a granted access is never masked by a
+#: cached 404.
+_IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
+
 
 def blob_key(ulid: str, content_hash: str) -> str:
     """The store-relative blob path for one media reference (``articles/<ulid>/media/<hash>``).
@@ -71,9 +80,12 @@ def media_response(article: Article, media_ref: MediaRef, request: HttpRequest) 
     key = blob_key(article.ulid, media_ref.content_hash)
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
-    if prefix:
-        return _x_accel(prefix, key, content_type, media_ref.filename)
-    return _dev_stream(key, content_type, media_ref.filename)
+    response: HttpResponseBase = (
+        _x_accel(prefix, key, content_type, media_ref.filename)
+        if prefix
+        else _dev_stream(key, content_type, media_ref.filename)
+    )
+    return _cacheable(response)
 
 
 def thumbnail_response(
@@ -89,12 +101,24 @@ def thumbnail_response(
     canonical media tree nginx fronts, and thumbnails are tiny — dev-style streaming is fine in prod
     too). Range is not supported (thumbnails are small; same dev-FileResponse caveat as above)."""
     path = thumbnail_path(media_ref.content_hash)
-    return FileResponse(
-        path.open("rb"),
-        content_type="image/webp",
-        as_attachment=False,
-        filename=f"{media_ref.content_hash}.webp",
+    return _cacheable(
+        FileResponse(
+            path.open("rb"),
+            content_type="image/webp",
+            as_attachment=False,
+            filename=f"{media_ref.content_hash}.webp",
+        )
     )
+
+
+def _cacheable(response: HttpResponseBase) -> HttpResponseBase:
+    """Stamp the ADR 0017 cache policy on a response that IS serving bytes.
+
+    Applied at the two public exits (``media_response``, ``thumbnail_response``) rather than inside
+    ``_x_accel`` / ``_dev_stream``, so a third serving path — the Part 7 cold-storage miss-path is
+    the expected one — cannot be added and silently miss the policy."""
+    response["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
+    return response
 
 
 def thumbnail_path(content_hash: str) -> Path:
@@ -108,7 +132,12 @@ def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpRes
     """Prod path: hand the file to nginx via ``X-Accel-Redirect`` over an ``internal;`` location.
     Empty body — nginx replaces it with the file bytes (and serves Range itself). The filename is
     encoded through Django's ``content_disposition_header`` (RFC 5987), so a hostile upload filename
-    (quotes/newlines) cannot inject a response header."""
+    (quotes/newlines) cannot inject a response header.
+
+    CONSTRAINT ON THE SIDECAR CONFIG: nginx passes this response's headers through, so the
+    ``internal;`` location must NOT set its own ``expires`` / ``add_header Cache-Control`` — that
+    would override the ``private`` policy stamped by ``_cacheable`` and let a shared cache store
+    gated bytes. The sidecar config itself lands with the deploy work (ADR 0017, GH #13)."""
     response = HttpResponse(b"", content_type=content_type)
     response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{key}"
     disposition = content_disposition_header(as_attachment=False, filename=filename)

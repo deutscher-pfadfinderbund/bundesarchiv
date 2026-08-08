@@ -321,6 +321,52 @@ def test_dev_streaming_returns_blob_bytes(corpus: _Corpus) -> None:
     assert response["Content-Type"] == "image/png"
 
 
+# --- cache policy on gated bytes (ADR 0017) ---------------------------------------
+# Leak-relevant, not a perf pin: ``private`` is what stops a shared cache (proxy, CDN) from
+# storing gated archive bytes and later handing them to a viewer who was never authorized.
+
+#: The exact policy ADR 0017 mandates. Spelled out literally rather than imported from the seam, so
+#: a weakened directive (``public``, a shorter max-age, a dropped ``immutable``) fails HERE instead
+#: of travelling silently with the constant.
+_EXPECTED_CACHE_CONTROL = "private, max-age=31536000, immutable"
+
+
+@pytest.mark.parametrize("x_accel_prefix", [None, "/_protected"], ids=["dev_stream", "x_accel"])
+def test_permitted_media_is_privately_cacheable_forever(
+    corpus: _Corpus, x_accel_prefix: str | None
+) -> None:
+    # Both serving modes must carry it: the header is set at the seam's public exit, so neither the
+    # nginx hand-off nor the dev stream can drift from the policy.
+    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX=x_accel_prefix)):
+        response = _client_as(Public()).get(corpus.url("public"))
+    assert response.status_code == 200
+    assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
+
+
+def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _Corpus) -> None:
+    # A thumbnail leaks the image, so it is gated identically — and cached identically.
+    from bundesarchiv.app import thumbnails
+
+    thumbnails.generate_thumbnail(
+        corpus.store, corpus.hash_by_tier["public"], corpus.thumbnail_root
+    )
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Public()).get(corpus.url("public", thumb=True))
+    assert response.status_code == 200
+    assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
+
+
+def test_deny_is_never_cached(corpus: _Corpus) -> None:
+    # A deny must carry NO cache policy: caching it would pin a viewer to a 404 for a year after
+    # their access is granted (a group added, an article published).
+    with override_settings(**_settings(corpus)):
+        forbidden = _client_as(Public()).get(corpus.url("members"))
+        missing_thumb = _client_as(Archivist()).get(corpus.url("members", thumb=True))
+    for name, response in (("forbidden", forbidden), ("missing_thumb", missing_thumb)):
+        assert_denied(response, name)
+        assert "Cache-Control" not in response, name
+
+
 # --- the thumbnail job ------------------------------------------------------------
 
 
