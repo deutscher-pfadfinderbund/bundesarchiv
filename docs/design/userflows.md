@@ -87,7 +87,7 @@ Journeys: `test_create_draft_lands_on_edit_form`,
 Publish is ONE click (owner ruling 5, 2026-08-08). The over-exposure preview
 GATE retired: the archivist reads who would gain sight the whole time they are
 cataloging — the exposure statement is permanent chrome on the edit surface (in
-the reader's sheet at/above 80rem, in the card's Zugriff section below it) — so
+the reader's sheet at/above 80rem, in the card beside Zugriff below it) — so
 the fact that used to cost a preview round trip, a checkbox and a second
 Veröffentlichen is simply on screen. The audience computation itself did not
 change: it is still the domain's `preview()`, still archivist-only. v1 lifecycle

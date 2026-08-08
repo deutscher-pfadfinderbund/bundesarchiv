@@ -449,7 +449,7 @@ def _edit_context(
         "open_sections": _open_sections(errors, autofocus),
         # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
         # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the
-        # pane's 80rem switch, and the Zugriff section below it.
+        # pane's 80rem switch, and the card itself (beside Zugriff, outside its fold) below it.
         "sheet": _sheet_view_model(stored, collections),
     }
 
@@ -791,7 +791,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     Publishing is ONE click (owner ruling 5, 2026-08-08): the separate over-exposure preview gate —
     POST /vorschau, its panel and the required ``geprueft`` confirm checkbox — retired when the
     exposure statement became PERMANENT chrome on the edit surface (the reader's sheet above 80rem,
-    the card's Zugriff section below it). The archivist reads who gains sight while cataloging instead
+    the card itself below it). The archivist reads who gains sight while cataloging instead
     of buying that fact with three extra interactions at the end (catechism Q10: a preview is an
     enhancement, never a toll gate). Nothing else about publishing changed: the audience computation,
     the CAS guard, the state-H index-lag hinweis, the conflict panel and the archivist-only gate all
