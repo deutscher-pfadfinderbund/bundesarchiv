@@ -46,10 +46,10 @@
 
      EVERY selector below is a DIRECT-CHILD path (law C14). A bare `.karte h2` restyled a nested
      component's own heading in this wave's mock — the CAS conflict panel's — because the
-     compositions layer outranks components; and the card's own children are reached through
-     `:is(.karte, .karte > form) >` because the form is display:contents (the media register must
-     hold real <form> children and forms cannot nest, so the DOM splits at the drawer while the CARD
-     does not).
+     compositions layer outranks components; the card's own sections carry `.fach` so those paths stay
+     direct-child without each having to name the card's DOM shape (the form is display:contents,
+     because the media register must hold real <form> children and forms cannot nest, so the DOM
+     splits at the drawer while the CARD does not).
      ============================================================ */
   .karte {
     /* the card's API (law C3/C5), all four knobs named here and consumed below:
@@ -95,10 +95,20 @@
   .karte > form {
     display: contents;
   }
+  /* ---- .fach is the CARD'S OWN SECTION (law C1 licenses a class exactly here: "a section the card
+     placed" is a distinction semantics cannot express — the card's DOM splits at the media register,
+     because that register must hold real <form> children and forms cannot nest, so the form is
+     display:contents and the card's sections are two element names at two different depths).
+
+     Every selector below is still a DIRECT-CHILD path (law C14): `.fach > …` reaches only what the
+     composition placed, so the CAS conflict panel's own `h2` — which sits in `main`, in no `.fach` —
+     is untouched, exactly as the 15 copies of `:is(.karte, .karte > form) > :is(section, details) >`
+     achieved before. That prefix was the coupling: it named element NAMES and the form's
+     display:contents split, so every one of these rules had to know the card's DOM shape. ---- */
   /* the section head — h2 and summary share ONE treatment (the ledger's column-head label role), so
      an open section and a folded one never read as different kinds of thing (learning G.1: the
      uniformity is proven computed, not claimed here) */
-  :is(.karte, .karte > form) > :is(section, details) > :is(h2, summary) {
+  .fach > :is(h2, summary) {
     margin: 0;
     padding-block: var(--space-1);
     font: var(--type-label);
@@ -109,13 +119,20 @@
   /* the folded sections' value line (owner ruling 4): the section's own values, muted, "·"-joined —
      the same separator idiom the pane's meta line uses. It disappears while the section is OPEN,
      because then the fields themselves carry those values and no fact may be on screen twice (Q2). */
-  :is(.karte, .karte > form) > details > summary > .werte {
+  details.fach > summary > .werte {
     text-transform: none;
     letter-spacing: normal;
     font: var(--type-meta);
   }
-  :is(.karte, .karte > form) > details[open] > summary > .werte {
+  details.fach[open] > summary > .werte {
     display: none;
+  }
+  /* an EMPTY value in a summary line: the hollow slot idiom (register row 6 — the licensed cue for
+     absence), so "Standort leer" cannot read as a real Standort. A dashed UNDERLINE, not a box: the
+     summary is a line of running text, and the fold's promise is that folding hides no data — a
+     named absence that looks like a value breaks that promise as surely as hiding it would. */
+  .werte > .leer {
+    border-bottom: var(--hairline) dashed var(--outline-variant);
   }
   /* a folded section that CONTAINS an error renders OPEN (the view decides [open] from the same error
      context that renders the message — catalog_views._open_sections), and its summary SAYS so: an
@@ -124,7 +141,7 @@
      so no server flag and no JS can disagree with where the .error actually is. Red is register
      row 5's licensed channel (errors); the " · " is the .werte line's own separator idiom, and the
      summary's label treatment uppercases it like every other word on that line. */
-  :is(.karte, .karte > form) > details:has(.error) > summary::after {
+  details.fach:has(.error) > summary::after {
     content: " · Fehler";
     color: var(--error);
   }
@@ -137,7 +154,7 @@
      <section> — a subgrid would have to reach through ::details-content to do that. The axis is
      nonetheless one axis by construction (C3: variation travels through the knob, C8's spirit one
      level down), not two values that happen to agree. ---- */
-  :is(.karte, .karte > form) > :is(section, details) > .field {
+  .fach > .field {
     display: grid;
     grid-template-columns: var(--label-spalte) minmax(0, 1fr);
     column-gap: var(--space-3);
@@ -148,53 +165,49 @@
   }
   /* the label sits in the axis column; everything else (control, hint, error, EDTF echo) stacks in
      the value column, so a hint never pushes a value out of the axis */
-  :is(.karte, .karte > form) > :is(section, details) > .field > * {
+  .fach > .field > * {
     grid-column: 2;
   }
-  :is(.karte, .karte > form) > :is(section, details) > .field > span:first-child {
+  .fach > .field > span:first-child {
     grid-column: 1;
     grid-row: 1;
   }
   /* THE RESTING LOOK — declared in :where() so it carries ZERO specificity (law C13, learning G.29):
-     every state rule below (hover, focus, a field carrying an error) outranks it without a
-     specificity contest, in this same layer. Written at normal specificity this rule silently
-     swallowed the error border in the wave's mock — the red was in the stylesheet and invisible on
-     screen. The look itself: the value sits ON the row's line, no box. */
-  :where(:is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea)) {
-    background: none;
-    border-color: transparent;
+     every state rule (hover, focus, a field carrying an error) outranks it without a specificity
+     contest. Written at normal specificity this rule silently swallowed the error border in the
+     wave's mock — the red was in the stylesheet and invisible on screen. The look itself: the value
+     sits ON the row's line, no box.
+
+     It is stated through the field's own KNOBS (components.css), not by restating its chrome: the
+     card used to re-declare the background, the focus border and the error border only to out-rank
+     the elements layer, and every restatement was one more place the states could be lost. Now the
+     card names two values and the state rules below it are the elements layer's own. */
+  :where(.fach > .field > :is(input, select, textarea)) {
+    --field-fill: none;
+    --field-border: transparent;
     border-radius: 0;
     padding-inline: 0;
     font: var(--type-body);
     color: var(--on-surface);
   }
   /* worked-on: the box appears under the pointer and around the focused control (Q6 — the affordance
-     is stated exactly where the interaction is) */
-  :is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea):hover {
-    background: var(--surface-container-lowest);
-  }
-  :is(.karte, .karte > form)
-    > :is(section, details)
-    > .field
-    > :is(input, select, textarea):focus-visible {
-    background: var(--surface-container-lowest);
-    border-color: var(--on-surface);
-  }
-  /* rejected: the error border must WIN over the resting look — that is the whole point of C13, and
-     test_error_fields_compute_the_error_border walks every errored field and proves it computed */
-  :is(.karte, .karte > form) > :is(section, details) > .field:has(.error) > :is(input, select, textarea) {
-    border-color: var(--error);
+     is stated exactly where the interaction is). ONE rule for both states, and only the FILL: the
+     focus border is the elements layer's own :focus-visible rule, and the error border its
+     :has(.error) rule — both out-rank the base border in their own layer, so neither needs restating
+     (test_error_fields_compute_the_error_border proves the error half computed). */
+  .fach > .field > :is(input, select, textarea):is(:hover, :focus-visible) {
+    --field-fill: var(--surface-container-lowest);
   }
   /* the DEFAULT width claim: fill the value cell. The three content-derived exceptions below are the
      fields whose content has a known ceiling (learning G.31) — everything else is free text or a
      select whose caption length the vocabulary decides, so it takes the cell. */
-  :is(.karte, .karte > form) > :is(section, details) > .field > :is(input, select, textarea) {
+  .fach > .field > :is(input, select, textarea) {
     width: 100%;
     max-width: 100%;
   }
   /* the Signatur value is the archive's mark: violet-ink mono (register row 2), like the ledger's
      sig column and the reader header's code */
-  :is(.karte, .karte > form) > :is(section, details) > .field > input[name="ref_code"] {
+  .fach > .field > input[name="ref_code"] {
     width: var(--feld-signatur);
     font: var(--type-mono);
     font-weight: 600;
@@ -203,20 +216,18 @@
   /* content-derived widths (learning G.31 — an input's width is a claim about content length, so it
      is derived like a breakpoint, from the domain, in ch): the short fields take --feld-kurz, every
      other control fills its cell */
-  :is(.karte, .karte > form)
-    > :is(section, details)
-    > .field
-    > :is(input[name="date"], input[name="creator"], input[name="subject_place"]) {
+  .fach > .field > :is(input[name="date"], input[name="creator"], input[name="subject_place"]) {
     width: var(--feld-kurz);
   }
   /* ---- prose + register sections span every column (a ruled two-column split would cut a
      paragraph and a media register in half) ---- */
-  :is(.karte, .karte > form) > :is(section.prosa, section#medien-drawer) {
+  .fach.prosa,
+  #medien-drawer.fach {
     grid-column: 1 / -1;
   }
   /* Beschreibung: the section HEADING is the field's label (aria-labelledby on the textarea), so
      there is no label column here — the prose fills the section */
-  .karte > form > section.prosa > textarea {
+  .fach.prosa > textarea {
     /* the ONE control in the card that keeps its box (elements layer): a prose area's EXTENT is part
        of what it tells the archivist, and an empty one drawn as a bare line is invisible. Every
        single-line value sits on its row's rule instead. */

@@ -173,7 +173,7 @@ the pane.{% endcomment %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
     {# Gruppe 1 — Kerndaten (stays open: the identity facts) #}
-    <section>
+    <section class="fach">
       <h2>Kerndaten</h2>
       <label class="field">
         <span>Titel</span>
@@ -199,7 +199,7 @@ the pane.{% endcomment %}
     </section>
 
     {# Gruppe 2 — Einordnung (stays open: the cataloging decisions) #}
-    <section>
+    <section class="fach">
       <h2>Einordnung</h2>
       <label class="field">
         <span>Medienart</span>
@@ -262,7 +262,7 @@ the pane.{% endcomment %}
     fields below are rendered with: a fold may hide neither a validation message nor the autofocus
     target (a closed <details> has no focusable contents, so `autofocus` inside one focuses nothing).
     Same mechanism on Zugriff and Weitere Angaben — one rule, every fold.{% endcomment %}
-    <details{% if "herkunft" in open_sections %} open{% endif %}>
+    <details class="fach"{% if "herkunft" in open_sections %} open{% endif %}>
       <summary>Herkunft
         <span class="werte">
           {% include "workbench/_wertmarke.html" with label="Autor" value=values.creator only %}
@@ -292,17 +292,20 @@ the pane.{% endcomment %}
     never both (the old form printed "Beschreibung" twice — audit defect 6, Q2). The prose section
     spans every card column; the textarea keeps a min-height floor and grows with its content where
     field-sizing exists (forms.css).{% endcomment %}
-    <section class="prosa">
+    <section class="fach prosa">
       <h2 id="feld-beschreibung">Beschreibung</h2>
       <textarea name="body" rows="10" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea>
     </section>
 
     {% comment %}Gruppe 5 — Zugriff: folded like Herkunft, its summary carrying the Sichtbarkeit
-    caption the select itself shows (same option source — one renderer) plus the Gruppen value.{% endcomment %}
-    <details{% if "zugriff" in open_sections %} open{% endif %}>
+    caption the select itself shows (same option source — one renderer) plus the Gruppen value. BOTH
+    ride _wertmarke.html like every other summary value: the caption used to be printed by a bare
+    <span> here, which is one renderer of "a value in a summary line" more than law C7 allows — and it
+    is the reason an absent value's treatment could differ between the two.{% endcomment %}
+    <details class="fach"{% if "zugriff" in open_sections %} open{% endif %}>
       <summary>Zugriff
         <span class="werte">
-          <span>{{ sichtbarkeit_caption }}</span>
+          {% include "workbench/_wertmarke.html" with label="Sichtbarkeit" value=sichtbarkeit_caption only %}
           {% include "workbench/_wertmarke.html" with label="Gruppen" value=values.gruppen only %}
         </span>
       </summary>
@@ -366,7 +369,7 @@ the pane.{% endcomment %}
     alone left the old thumbnail on the sheet until a full reload, while a comment two files away
     claimed the sheet "refreshes with #form-region". It is one response either way; only the
     metadata save swaps #form-region.{% endcomment %}
-    <section id="medien-drawer" hx-select-oob="#lesesicht">
+    <section id="medien-drawer" class="fach" hx-select-oob="#lesesicht">
       <h2>Medien</h2>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
@@ -471,10 +474,14 @@ the pane.{% endcomment %}
     {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded like Herkunft
     and Zugriff, its summary naming the keys it holds so folding hides nothing (ruling 4). Its fields
     are wired back to #bearbeiten-form via form=.{% endcomment %}
-    <details id="custom-bag"{% if "weitere" in open_sections %} open{% endif %}>
+    <details id="custom-bag" class="fach"{% if "weitere" in open_sections %} open{% endif %}>
       <summary>Weitere Angaben
         <span class="werte">
-          {% for key in custom_keys %}<span>{{ key }}</span>{% empty %}<span class="leer">keine</span>{% endfor %}
+          {% comment %}Each KEY is the value here (the bag's own field names), and the empty case says
+          so by name — both through _wertmarke.html, so the bag's summary cannot spell absence
+          differently from Herkunft's or Zugriff's (law C7). The bare "keine" it used to print was that
+          third spelling.{% endcomment %}
+          {% for key in custom_keys %}{% include "workbench/_wertmarke.html" with label="Angaben" value=key only %}{% empty %}{% include "workbench/_wertmarke.html" with label="Angaben" value="" only %}{% endfor %}
         </span>
       </summary>
       {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}

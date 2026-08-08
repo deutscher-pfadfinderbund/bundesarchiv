@@ -111,13 +111,20 @@
   input:is([type="checkbox"], [type="radio"]) {
     accent-color: var(--on-surface);
   }
+  /* TWO KNOBS are the field's API for its chrome (law C3, the mechanism --control-height already
+     demonstrates): a composition that wants a different resting look sets --field-fill /
+     --field-border and inherits every STATE rule below unchanged. The record card used to restate
+     the background, the focus border AND the error border instead, purely to win the layer contest
+     (compositions outrank elements) — and one of those restatements was the invisible-error bug
+     itself (G.29). A knob cannot swallow a state: :focus-visible and :has(.error) set border-color
+     outright, so they out-rank the base rule in this same layer whatever the knob says. */
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
     font: var(--type-meta);
     color: var(--on-surface);
-    background: var(--surface-container-lowest);
-    border: var(--hairline) solid var(--outline);
+    background: var(--field-fill, var(--surface-container-lowest));
+    border: var(--hairline) solid var(--field-border, var(--outline));
     border-radius: var(--radius-s);
     padding: var(--space-1) var(--space-2);
   }

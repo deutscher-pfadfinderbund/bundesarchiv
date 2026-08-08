@@ -1329,8 +1329,7 @@ def test_bulk_fresh_ticks_survive_paging(
 #: G.21 — never one instance), and comparing against the message's OWN ink rather than a colour
 #: constant, so the proof reads "the border is the error ink" in whatever mode/theme resolved it.
 _ERROR_FIELD_WALKER_JS = """() => {
-    const fields = document.querySelectorAll(
-        ':is(.karte, .karte > form) > :is(section, details) > .field:has(.error)');
+    const fields = document.querySelectorAll('.karte .fach > .field:has(.error)');
     return [...fields].map((field) => {
         const control = field.querySelector('input, select, textarea');
         const message = field.querySelector('.error');
@@ -1421,8 +1420,7 @@ def test_a_fold_never_swallows_the_autofocus(
 #: knob in forms.css claims it holds the longest label — both halves are measured here rather than
 #: asserted in prose (learning G.1).
 _LABEL_AXIS_JS = """() => {
-    const fields = document.querySelectorAll(
-        ':is(.karte, .karte > form) > :is(section, details) > .field');
+    const fields = document.querySelectorAll('.karte .fach > .field');
     return [...fields].map((field) => {
         // a grid item is blockified, so the label's clientWidth IS the axis track's used width
         const label = field.querySelector(':scope > span:first-child');
@@ -1460,6 +1458,35 @@ def test_karte_labels_share_one_axis(
         if int(str(label["text_width"])) > int(str(label["box"]))
     ]
     assert not overflowing, "a label outgrew the axis (--label-spalte):\n" + "\n".join(overflowing)
+
+
+def test_an_empty_summary_value_renders_the_hollow_cue(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # A folded section's promise is that folding hides NO DATA (owner ruling 4), and the summary keeps
+    # that promise by naming what is empty ("Standort leer"). `.leer` carried that name and was styled
+    # NOWHERE, so an absent Standort rendered pixel-identical to a real one — the promise stated in
+    # markup and not delivered on screen, which no assertion about the text could catch. The cue is
+    # register row 6's hollow/empty idiom (the licensed cue for absence), so the proof is that the
+    # empty mark computes a DASHED edge the filled marks beside it do not.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    marks: list[dict[str, str]] = page.evaluate(
+        """() => [...document.querySelectorAll('.karte .werte > span')].map((el) => {
+            const s = getComputedStyle(el);
+            return {text: el.textContent.trim(), leer: el.classList.contains('leer'),
+                    style: s.borderBottomStyle, width: s.borderBottomWidth};
+        })"""
+    )
+    empty = [m for m in marks if m["leer"]]
+    filled = [m for m in marks if not m["leer"]]
+    assert empty and filled, f"the record needs both an empty and a filled summary value: {marks}"
+    undressed = [m for m in empty if m["style"] != "dashed" or m["width"] == "0px"]
+    assert not undressed, f"an empty summary value renders like a real one: {undressed}"
+    assert all(m["style"] != "dashed" for m in filled), (
+        f"a real value carries the hollow cue: {filled}"
+    )
 
 
 def test_karte_absorbs_long_content(
