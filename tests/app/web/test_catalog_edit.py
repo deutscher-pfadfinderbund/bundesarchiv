@@ -9,6 +9,8 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 (see ``conftest.py``).
 """
 
+from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,7 @@ from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -403,3 +406,258 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Co
     second_body = second.content.decode()
     second_blank_pairs = second_body.count('name="custom_key" value=""')
     assert second_blank_pairs == 1
+
+
+# --- folded sections: a fold may hide neither a message nor the focus -------------
+#
+# Owner ruling 4 folds the rare sections WITH their values in the summary — folding may never hide
+# data. The form wave left two ways for it to hide something else: a validation error rendered inside
+# a folded section is invisible (Sichtbarkeit=Gruppe(n) with an empty Gruppen field; errors.custom in
+# the bag), and `autofocus` on a field inside a fold focuses nothing at all, because a closed
+# <details> has no focusable contents (_FOCUSABLE_FIELDS holds three such fields). Both are now
+# decided server-side from the same context that renders the message — catalog_views._open_sections.
+
+
+@dataclass
+class _Fold:
+    """One rendered ``<details>``: its summary label, whether it renders open, and the names of the
+    form fields it CONTAINS."""
+
+    label: str = ""
+    is_open: bool = False
+    fields: set[str] = field(default_factory=set)
+
+
+class _FoldScanner(HTMLParser):
+    """Collect every ``<details>`` with its ``open`` state, summary label and contained field names,
+    plus the name of the ONE field carrying ``autofocus``. A real parser rather than a regex, because
+    "contained" is a nesting question. Hidden inputs are skipped: they are plumbing (CSRF,
+    expected_version, the media hashes), not fields the archivist fills — which is also what keeps the
+    record row's "Mehr …" menu out of the result."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.folds: list[_Fold] = []
+        self.autofocused = ""
+        self._stack: list[_Fold] = []
+        self._in_summary = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "details":
+            fold = _Fold(is_open="open" in values)
+            self.folds.append(fold)
+            self._stack.append(fold)
+        elif tag == "summary" and self._stack:
+            self._in_summary = True
+        elif tag in ("input", "select", "textarea"):
+            name = values.get("name")
+            if not name or values.get("type") == "hidden":
+                return
+            if "autofocus" in values:
+                self.autofocused = name
+            for fold in self._stack:
+                fold.fields.add(name)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "details" and self._stack:
+            self._stack.pop()
+        elif tag == "summary":
+            self._in_summary = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_summary and self._stack and not self._stack[-1].label:
+            self._stack[-1].label = data.strip()
+
+
+def _scan(body: str) -> _FoldScanner:
+    scanner = _FoldScanner()
+    scanner.feed(body)
+    return scanner
+
+
+def _folds(body: str) -> dict[str, _Fold]:
+    """The render's field-bearing ``<details>`` sections, keyed by summary label."""
+    return {fold.label: fold for fold in _scan(body).folds if fold.fields}
+
+
+def _autofocused(body: str) -> str:
+    """The name of the field the server told the browser to focus (empty when none)."""
+    return _scan(body).autofocused
+
+
+def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
+    # The drift guard for the mechanism above: _FOLDED_SECTIONS is the ONE declaration of which
+    # fields live behind which fold, so a field moved into a fold without joining it would silently
+    # lose the open-on-error/open-on-focus behaviour. Walk the real render instead of trusting the map.
+    from bundesarchiv.app.web.catalog_views import _FOLDED_SECTIONS
+
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    folds = _folds(body)
+    assert len(folds) == 3, f"the scanner found {sorted(folds)} — the guard proves nothing"
+    declared = dict(_FOLDED_SECTIONS)
+    for label, fold in folds.items():
+        covering = [name for name, fields in _FOLDED_SECTIONS if fold.fields & fields]
+        assert len(covering) == 1, f"„{label}“ ({sorted(fold.fields)}) maps to {covering}"
+        unowned = fold.fields - declared[covering[0]]
+        assert not unowned, f"„{label}“ holds {sorted(unowned)}, absent from _FOLDED_SECTIONS"
+
+
+def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
+    # Sichtbarkeit=Gruppe(n) with an empty Gruppen field: the message and the errored input both live
+    # in the folded Zugriff section. Folded, the archivist saw a form that simply refused to save.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Bitte mindestens eine Gruppe angeben." in body
+    folds = _folds(body)
+    assert folds["Zugriff"].is_open, "the errored Zugriff section rendered folded"
+    assert not folds["Herkunft"].is_open  # the clean folds stay folded (ruling 4)
+
+
+def test_custom_bag_error_renders_the_bag_open(corpus: _Corpus) -> None:
+    # errors.custom is the same class: it renders as a <p class="error"> inside #custom-bag.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus), "custom_key": ["title"], "custom_value": ["gekapert"]},
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Bezeichnung ist reserviert." in body
+    assert _folds(body)["Weitere Angaben"].is_open, "the errored custom bag rendered folded"
+
+
+def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
+    # _FOCUSABLE_FIELDS scans for the first EMPTY field, and three of them (Autor, Ort, Standort) sit
+    # behind the Herkunft fold — so on a record whose earlier fields are all filled the autofocus
+    # landed on an input inside a closed <details>, focusing nothing at all.
+    filled = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
+    ArticleRepository(corpus.store).save(
+        Article(
+            ulid=filled,
+            title="Vollständig",
+            collection_id="PUB",
+            lifecycle=Lifecycle.DRAFT,
+            ref_code="F1",
+            media_type="Fotografie",
+            document_type="Positiv",
+            tags=("sommer",),
+            date=EdtfDate("1962"),
+        ),
+        0,
+    )
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{filled}/bearbeiten").content.decode()
+    assert _autofocused(body) == "creator"  # confirms the case this guard is about
+    folds = _folds(body)
+    assert folds["Herkunft"].is_open, "the autofocus target rendered inside a closed fold"
+    assert not folds["Zugriff"].is_open  # the other folds are untouched
+
+
+# --- publish/withdraw FROM THE EDIT SCREEN: saving is part of publishing ----------
+#
+# Owner ruling 2 put Veröffentlichen in the same row as Speichern; the lifecycle POST it fired
+# rebuilt the record from disk and 302'd away, so every unsaved edit on screen was silently
+# discarded. That is DATA LOSS, so this block gets real coverage (testing razor). The decision
+# (2026-08-08): publishing from the edit screen SAVES the form first and transitions in the same CAS
+# write. No confirm step — that is the gate ruling 5 retired.
+
+
+def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
+                "lebenszyklus": "veroeffentlichen",
+            },
+        )
+    assert response.status_code == 302
+    assert response["Location"] == f"/artikel/{_ULID}"  # same destination as a plain save
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Frisch getippt"  # the edit was NOT discarded
+    assert stored.article.creator == "Kurt Meyer"
+    assert stored.article.lifecycle is Lifecycle.PUBLISHED
+    assert stored.version == corpus.version + 1  # ONE write, not save-then-publish
+
+
+def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
+    published = "01KX7YT9E3VX0CP3A5Q49RZMWR"
+    version = ArticleRepository(corpus.store).save(
+        Article(
+            ulid=published,
+            title="Veröffentlicht",
+            collection_id="PUB",
+            lifecycle=Lifecycle.PUBLISHED,
+        ),
+        0,
+    )
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{published}/bearbeiten",
+            {
+                **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
+                "lebenszyklus": "zurueckziehen",
+            },
+        )
+    assert response.status_code == 302
+    stored = ArticleRepository(corpus.store).load(published)
+    assert stored.article.title == "Doch noch Entwurf"
+    assert stored.article.lifecycle is Lifecycle.DRAFT
+
+
+def test_publish_with_an_invalid_form_publishes_nothing(corpus: _Corpus) -> None:
+    # A validation failure must behave EXACTLY like a failed save: re-render, values preserved,
+    # nothing published. It does by construction — the parse runs before any save.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {
+                **_valid_post(corpus, title="", creator="Behalten"),
+                "lebenszyklus": "veroeffentlichen",
+            },
+        )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Titel ist erforderlich." in body
+    assert 'value="Behalten"' in body
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.lifecycle is Lifecycle.DRAFT  # nothing published
+    assert stored.version == corpus.version  # nothing saved either
+
+
+def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _Corpus) -> None:
+    archivist = _client_as(Archivist())
+    with override_settings(**_settings(corpus)):
+        archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+        loser = archivist.post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus, title="Verlierer"), "lebenszyklus": "veroeffentlichen"},
+        )
+    assert loser.status_code == 200
+    body = loser.content.decode()
+    assert "Inzwischen geändert" in body
+    assert 'value="Verlierer"' in body  # the loser's input survives the conflict re-render
+    assert f'name="expected_version" value="{corpus.version + 1}"' in body  # refreshed
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Gewinner"
+    assert stored.article.lifecycle is Lifecycle.DRAFT  # the lost race published nothing
+
+
+def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _Corpus) -> None:
+    # Same rule as the standalone lifecycle route: never mutate on a bad verb — and here that means
+    # the SAVE does not happen either.
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus, title="Gekapert"), "lebenszyklus": "sabotage"},
+        )
+    assert_denied(response)
+    stored = ArticleRepository(corpus.store).load(_ULID)
+    assert stored.article.title == "Wanderfahrt 1962"
+    assert stored.version == corpus.version

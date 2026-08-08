@@ -117,6 +117,17 @@
   :is(.karte, .karte > form) > details[open] > summary > .werte {
     display: none;
   }
+  /* a folded section that CONTAINS an error renders OPEN (the view decides [open] from the same error
+     context that renders the message — catalog_views._open_sections), and its summary SAYS so: an
+     opened section is otherwise indistinguishable from one the archivist opened themselves, and the
+     message may sit a screenful below the summary. Read off the section's own contents with :has(),
+     so no server flag and no JS can disagree with where the .error actually is. Red is register
+     row 5's licensed channel (errors); the " · " is the .werte line's own separator idiom, and the
+     summary's label treatment uppercases it like every other word on that line. */
+  :is(.karte, .karte > form) > details:has(.error) > summary::after {
+    content: " · Fehler";
+    color: var(--error);
+  }
   .werte > span + span::before {
     content: " · ";
   }
@@ -216,16 +227,23 @@
        degrades to exactly the floor above where it is not */
   }
   /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
-     reader's sheet carries it where the sheet exists, the card's Zugriff section where it does not.
-     Both queries below are the exact complements of the ONE 80rem pane switch (layouts.css) — no new
-     threshold is invented (law C9) and NO fact is hidden by either: at every width the statement is
-     on screen exactly once, which is also what keeps it out of Q2's way. ---- */
-  .karte > form > details > .einblick {
+     reader's sheet carries it where the sheet exists, the card carries it where it does not. The
+     query below is the exact complement of the ONE 80rem pane switch (layouts.css) — no new threshold
+     is invented (law C9) and NO fact is hidden by either: at every width the statement is on screen
+     exactly once, which is also what keeps it out of Q2's way.
+
+     The card's copy is a direct child of the form, NOT a child of the folded Zugriff section it used
+     to sit in: below the switch the pane is display:none, so with the fold shut the statement was on
+     screen NOWHERE — and the publish gate had already been retired BECAUSE the statement is permanent
+     (owner ruling 5). A permanent fact may not live behind a disclosure. It spans every card column
+     like the other prose. ---- */
+  .karte > form > .einblick {
+    grid-column: 1 / -1;
     padding-top: var(--space-2);
     border-top: var(--hairline) solid var(--outline-variant);
   }
   @media (min-width: 80rem) {
-    .karte > form > details > .einblick {
+    .karte > form > .einblick {
       display: none;
     }
   }

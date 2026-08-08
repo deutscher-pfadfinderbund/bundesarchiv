@@ -31,7 +31,21 @@ fragments, one per swap shape — the filter set goes whole, the count keeps its
 {% endcomment %}
 {% if oob %}{% include "workbench/_filterset.html" with facet_groups=facet_groups filter_chips=filter_chips clear_filters_query=clear_filters_query oob=True only %}
 {% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
-<main id="results">
+{% comment %}TYPE-TO-SEARCH (spec §5) — declared HERE, on the region the swap replaces, not on the
+shared header form: the header is included by five screens and #results exists on ONE of them, so a
+trigger-side hx-target="#results" aborted with htmx:targetError and killed search everywhere else.
+The enhancement now sits with its target, so it exists exactly where the target exists (by
+construction, not by a caller flag) and the header form is plain HTML that GET-navigates here from
+any screen — the no-JS baseline and the off-workbench behaviour are the same one path.
+
+It listens on the header's q input (from: resolves document-wide), sends the whole search form's
+values (hx-include — q plus the active-filter hidden inputs, GH #21), swaps ITSELF from the same
+partial the no-JS render produces, and pushes the URL so the state stays shareable. SUBMIT is
+deliberately NOT bound: Enter / "Suchen" is a plain navigation on every screen alike.{% endcomment %}
+<main id="results"
+      hx-get="{% url 'workbench' %}" hx-target="this" hx-swap="outerHTML"
+      hx-include="[role=search] input" hx-push-url="true"
+      hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% if page.hits %}
   {% if is_archivist %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"

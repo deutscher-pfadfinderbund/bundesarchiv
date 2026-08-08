@@ -45,6 +45,78 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
+#: Counts htmx's own "the swap target is not on this page" aborts. Installed on the document before
+#: the interaction, because htmx:targetError is NOT a request failure — it fires before any request,
+#: so the global error banner never shows and the archivist sees a dead control with no clue why.
+_COUNT_TARGET_ERRORS_JS = """() => {
+    window.__targetErrors = [];
+    document.body.addEventListener('htmx:targetError', (e) => {
+        window.__targetErrors.push(String(e.detail && e.detail.target));
+    });
+}"""
+
+
+def test_search_works_from_a_screen_without_the_results_region(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The shared header (workbench/_header.html) is included by FIVE screens; #results exists on ONE.
+    # While the form carried hx-get + hx-target="#results", htmx cancelled the native submit on the
+    # other four and aborted with htmx:targetError — so with JS ON the search box on the
+    # create/edit/Bestand screens did nothing at all, and the create step had also dropped its
+    # "Zurück zur Suche" link on the grounds that the search box was the way back. The enhancement
+    # now lives on the region it swaps, so the form is plain HTML everywhere: one behaviour, and it is
+    # the no-JS one.
+    page = archivist_page
+    edit_url = _create_draft(page, live_workbench, "E2E Suche vom Formular")
+    for path, submit in (
+        ("/artikel/neu", "click"),
+        ("/bestand/neu", "click"),
+        (edit_url, "enter"),  # the edit surface, and by implicit submission rather than a click
+    ):
+        page.goto(path if path.startswith("http") else live_workbench + path)
+        page.evaluate(_COUNT_TARGET_ERRORS_JS)
+        # typing must not fire an aborted request either — off the workbench there is nothing to swap,
+        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25)
+        page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
+        page.wait_for_timeout(700)  # longer than the 400ms type-to-search debounce
+        assert page.evaluate("() => window.__targetErrors") == [], (
+            f"{path}: htmx aborted a swap against an absent target"
+        )
+        assert "q=Sommerfahrt" not in page.url, f"{path}: typing navigated on its own: {page.url}"
+        # ...and submitting IS the navigation, on this screen exactly as on the workbench
+        if submit == "click":
+            page.click('button:has-text("Suchen")')
+        else:
+            page.keyboard.press("Enter")
+        page.wait_for_url("**q=Sommerfahrt**")
+        expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
+    # the create step's visible return path is back (the search box is a way back only if you type)
+    page.goto(live_workbench + "/artikel/neu")
+    page.get_by_text("Zurück zur Suche").click()
+    page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
+
+
+def test_the_edit_forms_two_small_swaps_land_their_own_partials(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # The SAME class as the header's search, found by sweeping it (learning G.27): an htmx swap
+    # selector that does not resolve where the enhancement fires. htmx inherits hx-select down the
+    # tree, so #bearbeiten-form's hx-select="#form-region" reached the two little GET enhancements
+    # inside it — whose responses are an <option> list and one <span>, containing no #form-region.
+    # htmx selected nothing and swapped exactly that: picking a Medienart EMPTIED the Dokumenttyp
+    # select (no type could be chosen at all with JS on, while the no-JS baseline worked), and typing
+    # a Datierung deleted the echo's own target. Both are enhancement-only, so no test that runs the
+    # server saw it.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Fotografie
+    dokumenttyp = page.locator("#dokumenttyp-select")
+    expect(dokumenttyp.locator("option")).to_have_count(5)  # the empty option + Fotografie's four
+    expect(dokumenttyp).to_contain_text("Lageraufnahme")
+    expect(dokumenttyp).not_to_contain_text("Wanderkarte")  # ...and only that Medienart's types
+    page.locator('input[name="date"]').press_sequentially("1962-07")
+    expect(page.locator("#datierung-echo")).to_have_text("Juli 1962")
+
+
 def test_ledger_headers_compute_one_uniform_treatment(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -66,15 +138,16 @@ def test_ledger_headers_compute_one_uniform_treatment(
 
 
 #: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
-#: WALKERS over all instances). Rows are DISCOVERED, never listed: a control row is any element that
-#: DECLARES the --control-height knob (its computed value differs from its parent's) plus every
-#: [role=toolbar] — so the header cluster, the filter rail, the edit surface's record row and each
-#: toolbar are found by the mechanism law C8 is written in, and the next row built the same way is
-#: covered the day it appears. A toolbar that INHERITS its row's knob (the record row's action slot)
-#: is deliberately not a row of its own: its controls belong to the row that owns the knob, which is
-#: exactly the equality C8 demands.
-#: A "control" is a button, a summary, a chip or a toolbar's icon link (the rail's clear-all link is
-#: text, not a control). Per-instance copies of this proof are forbidden.
+#: WALKERS over all instances). Rows are DISCOVERED, never listed: EVERY element that DECLARES the
+#: --control-height knob (its computed value differs from its parent's) and EVERY [role=toolbar] is
+#: walked as a row — so the header cluster, the filter rail, the edit surface's record row, each
+#: toolbar and each dropped overlay panel are found by the mechanism law C8 is written in, and the next
+#: row built the same way is covered the day it appears. A toolbar that INHERITS its owning row's knob
+#: (the record row's action slot) is walked too; that costs nothing, because the equality it then
+#: asserts inside the toolbar is a SUBSET of the one its owning row already asserts.
+#: A "control" is a button, a summary, a chip, a toolbar's icon link, or an entry of an overlay panel
+#: (`details > ul li > a` — a panel entry IS the action: "Neuer Artikel", a facet value). The rail's
+#: clear-all link is text, not a control. Per-instance copies of this proof are forbidden.
 _CONTROL_ROW_WALKER_JS = """() => {
     const declaresKnob = (el) => {
         const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
@@ -96,8 +169,16 @@ _CONTROL_ROW_WALKER_JS = """() => {
     return rows.map((row) => ({
         name: name(row),
         knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
-        controls: Array.from(
-            row.querySelectorAll('button, a.button, summary, .chip, [role=toolbar] > a'))
+        controls: Array.from(row.querySelectorAll(
+            'button, a.button, summary, .chip, [role=toolbar] > a, details > ul li > a'))
+            // an OVERLAY panel's entries belong to the panel, never to the row the panel hangs from
+            // (the law is explicit: a toolbar may own a disclosure, and its dropped contents are
+            // overlay contents). The panel is a row in its own right, so its entries are measured
+            // there — counting them twice would demand that a 44px menu entry match a 32px chrome row.
+            .filter((el) => {
+                const panel = el.closest('details > ul');
+                return panel === null || panel === row;
+            })
             // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
             // contents in the box tree (Chromium renders ::details-content with
             // content-visibility:hidden), so offsetParent still resolves for a panel item that is
@@ -110,6 +191,10 @@ _CONTROL_ROW_WALKER_JS = """() => {
                 return {
                     label: (el.getAttribute('aria-label') || el.textContent).trim(),
                     chip: el.matches('.chip'),
+                    // TYPOGRAPHY exceptions — height never deviates for these, only the treatment:
+                    // the rail chip keeps chip typography (owner-licensed), and every control in the
+                    // ACTIVE facet row carries register row 3's inversion mark, which is semibold.
+                    marked: el.matches('.chip') || !!el.closest('li:has(> [aria-current])'),
                     height: el.offsetHeight,
                     font: [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
                            s.letterSpacing].join('|'),
@@ -120,15 +205,39 @@ _CONTROL_ROW_WALKER_JS = """() => {
 
 
 def _walk_control_rows(page: Page, url: str) -> dict[str, list[dict[str, str | int | bool]]]:
-    """Every control row on ``url`` with its rendered controls, keyed by a readable row name."""
+    """Every control row on ``url`` with its rendered controls, keyed UNIQUELY.
+
+    The index suffix is load-bearing, not decoration. The name alone is not unique — every ledger row's
+    action toolbar is a bare ``<span role=toolbar>`` and names itself ``span[toolbar]`` — so keying by
+    it collapsed 50 rows into one dict entry and the walker silently proved ONE toolbar instead of all
+    of them. A guard that narrows itself and still reports green is the most dangerous kind, so the key
+    carries the row's position and the name stays a readable PREFIX (callers match on it).
+
+    A dropped overlay panel is a control row too (it declares the knob), but its entries are only
+    MEASURABLE while it is open — a closed <details> keeps them out of checkVisibility. So each overlay
+    is opened in turn and the walk repeated; one at a time, because the rail's facet groups share a
+    ``name`` and two can never be open together. Row indices are stable across the passes (same DOM), so
+    the open pass fills in the rows the closed pass saw empty."""
     page.goto(url)
     rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
-    return {str(row["name"]): row["controls"] for row in rows}  # type: ignore[misc]
+    walked: dict[str, list[dict[str, str | int | bool]]] = {}
+    for i, row in enumerate(rows):
+        walked[f"{row['name']}#{i}"] = row["controls"]  # type: ignore[assignment]
+    overlays = page.locator(_OVERLAY_SELECTOR)
+    for index in range(overlays.count()):
+        summary = overlays.nth(index).locator("summary")
+        summary.click()
+        for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS)):
+            if row["controls"]:
+                walked[f"{row['name']}#{i}"] = row["controls"]
+        summary.click()  # close before opening the next one
+    return walked
 
 
 def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — chips excepted,
-    which keep chip typography but must still match height — one font treatment."""
+    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — the licensed state
+    marks excepted (a rail chip's chip typography, an active facet row's semibold inversion), which must
+    still match on HEIGHT — one font treatment."""
     defects: list[str] = []
     for name, controls in by_name.items():
         if len(controls) < 2:
@@ -136,7 +245,7 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
         heights = {str(c["label"]): int(str(c["height"])) for c in controls}
         if max(heights.values()) - min(heights.values()) > 1:
             defects.append(f"row '{name}' computes more than one height: {heights}")
-        fonts = {c["font"] for c in controls if not c["chip"]}
+        fonts = {c["font"] for c in controls if not c["marked"]}
         if len(fonts) > 1:
             defects.append(f"row '{name}' computes mixed control fonts: {fonts}")
     return defects
@@ -146,9 +255,10 @@ def test_control_rows_compute_one_height_source(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # Law C8 proven computed (the generalized G.1 pattern, section E) over every control row the app
-    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the ledger's
-    # row toolbars) and the edit surface (the record row, whose action toolbar INHERITS the row's
-    # knob — Speichern, the lifecycle action and the overflow summary must compute one height).
+    # composes: the filtered workbench (header cluster + rail with chips AND dropdowns + the dropped
+    # panels' entries), the unfiltered one (four ledger rows, so four row toolbars) and the edit surface
+    # (the record row, whose action toolbar INHERITS the row's knob — Speichern, the lifecycle action and
+    # the overflow summary must compute one height).
     page = archivist_page
     by_name = _walk_control_rows(page, live_workbench + "/?schlagwort=sommer")
     # the walker must actually see the rows this page composes — a silent no-find proves nothing
@@ -157,7 +267,19 @@ def test_control_rows_compute_one_height_source(
     assert len(by_name[header]) >= 2  # the Suchen button + the "+ Neu …" summary
     assert any(c["chip"] for c in by_name[rail])  # the active-filter chip is present
     assert any("[toolbar]" in n for n in by_name)  # ledger row toolbars
+    # the dropped OVERLAY panels are rows of their own (they declare the knob) and their entries are
+    # controls: the header's create menu plus the rail's facet dropdowns, all measured while open
+    panels = [n for n in by_name if n.startswith("ul#") and len(by_name[n]) >= 2]
+    assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(by_name)}"
     defects = [f"[workbench] {d}" for d in _control_row_defects(by_name)]
+
+    # The UNFILTERED workbench: four hits, so four ledger row toolbars. This is where the keying
+    # regression hid — every one of them names itself "span[toolbar]", so keying rows by name collapsed
+    # them into ONE dict entry and the walk proved a single toolbar while reporting green.
+    ledger = _walk_control_rows(page, live_workbench + "/")
+    toolbars = [n for n in ledger if "[toolbar]" in n]
+    assert len(toolbars) >= 4, f"the walker sees only {toolbars} — one per ledger row is required"
+    defects += [f"[ledger] {d}" for d in _control_row_defects(ledger)]
 
     edit = _walk_control_rows(page, live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
     row = next(n for n in edit if "recordrow" in n)
@@ -172,19 +294,38 @@ def test_control_rows_compute_one_height_source(
 #: overlay is built from the same pattern, this proof already covers it.
 _OVERLAY_SELECTOR = "details:has(> ul)"
 
-#: One overlay's containment facts: the panel's box against the viewport, plus the document's own
-#: horizontal overflow while it is open. Both are needed — a panel can sit inside the viewport
-#: while still stretching the document, and vice versa.
+#: One overlay's containment facts: the panel's box against the viewport, the document's own
+#: horizontal overflow while it is open, and — the third fact, added after the sticky record row was
+#: found painting over the header's create menu — whether each of the panel's own entries is
+#: HIT-TESTABLE at its centre. Being on-viewport is not the same as being reachable: a panel can sit
+#: perfectly inside the viewport under an opaque sticky row that eats every click, which is the
+#: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
+#: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
+#: overlay gets it rather than the one that failed (learning G.21).
 _OVERLAY_RECT_JS = """(index) => {
     const detail = document.querySelectorAll('details:has(> ul)')[index];
     const panel = detail.querySelector(':scope > ul');
     const r = panel.getBoundingClientRect();
     const d = document.documentElement;
+    const covered = [];
+    for (const entry of panel.querySelectorAll('a, button, input, select')) {
+        const b = entry.getBoundingClientRect();
+        if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
+        const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+        if (!(hit === entry || entry.contains(hit) || entry.contains(hit && hit.parentElement))) {
+            covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
+                + ' <- ' + (hit ? hit.tagName.toLowerCase()
+                    + (typeof hit.className === 'string' && hit.className
+                        ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
+                    : 'nothing'));
+        }
+    }
     return {
         label: detail.querySelector('summary').textContent.trim(),
         left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
         viewport: d.clientWidth,
         docOverflow: d.scrollWidth - d.clientWidth,
+        covered: covered,
     };
 }"""
 
@@ -217,15 +358,17 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
             for i in range(found):
                 summary = overlays.nth(i).locator("summary")
                 summary.click()
-                rect: dict[str, float | str] = page.evaluate(_OVERLAY_RECT_JS, i)
+                rect: dict[str, object] = page.evaluate(_OVERLAY_RECT_JS, i)
                 where = f"{width}px · {path} · {rect['label']}"
-                if float(rect["left"]) < -1:
+                if rect["covered"]:
+                    defects.append(f"{where}: entries painted over: {rect['covered']}")
+                if float(str(rect["left"])) < -1:
                     defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
-                if float(rect["right"]) > float(rect["viewport"]) + 1:
+                if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
                     defects.append(
                         f"{where}: panel ends at {rect['right']}px > {rect['viewport']}px"
                     )
-                if float(rect["docOverflow"]) > 1:
+                if float(str(rect["docOverflow"])) > 1:
                     defects.append(f"{where}: the open panel scrolls the document {rect}")
                 summary.click()  # close before measuring the next one
     return defects
@@ -279,6 +422,72 @@ def test_overlays_stay_inside_the_viewport(
         f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
     ]
     assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
+
+
+def test_the_header_menu_is_clickable_on_the_edit_screen(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The recorded regression class (CLAUDE.md): a fixed/sticky element whose paint order lets it
+    # intercept clicks. The sticky record row is opaque and forms a stacking context at z 4; the
+    # header's "+ Neu …" panel is a z-2 descendant of the (then z-auto) header and drops straight into
+    # the row's band — so on the edit surface every create entry was painted over and DEAD. The guard
+    # is therefore a real CLICK, not a geometry measurement: the walker's hit-test above catches the
+    # class generically, this proves the archivist's actual path end to end.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    for entry, destination in (
+        ("Neuer Artikel", "/artikel/neu"),
+        ("Neuer Bestand", "/bestand/neu"),
+    ):
+        page.goto(live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+        page.click("header details.menu > summary")
+        page.get_by_role("link", name=entry).click(timeout=5000)
+        page.wait_for_url(f"**{destination}")
+
+
+def test_the_sheet_clears_the_sticky_record_row(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The reader's sheet is sticky beside the card, and the record row is sticky above it. The sheet's
+    # offset was a guessed constant (--space-4 = 16px) while the row measures 49px, so scrolling slid
+    # the sheet's own header — Signatur and Titel — under the row. The offset now DERIVES from the
+    # row's anatomy through one knob both consume (C5/C9), which is what this measures: whatever the
+    # row's height turns out to be, the sheet starts below it.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+    boxes: dict[str, float] = page.evaluate(
+        """() => {
+        const row = document.querySelector('.recordrow').getBoundingClientRect();
+        const sheet = document.querySelector('.pane > div').getBoundingClientRect();
+        return {rowBottom: row.bottom, sheetTop: sheet.top, rowHeight: row.height};
+    }"""
+    )
+    assert boxes["sheetTop"] >= boxes["rowBottom"], (
+        f"the record row ({boxes['rowHeight']}px tall) covers the sheet: "
+        f"sheet top {boxes['sheetTop']}px vs row bottom {boxes['rowBottom']}px"
+    )
+
+
+def test_promoting_a_plate_refreshes_the_readers_sheet(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # A structural media POST swaps only #medien-drawer, but order is MEANING (ADR 0015): promoting the
+    # second plate re-covers the record, and the reader's sheet shows the cover. The sheet therefore
+    # kept the OLD thumbnail until a full reload — while a comment in catalog_views claimed it
+    # "refreshes with #form-region", which only the metadata save does. The drawer now carries the
+    # sheet as an out-of-band fragment of the same response.
+    page = archivist_page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    sheet_thumb = page.locator("#lesesicht img")
+    before = sheet_thumb.get_attribute("src")
+    rows = page.locator("#medien-drawer .media > div")
+    expect(rows).to_have_count(2)  # the corpus record's cover + one further plate
+    page.locator('#medien-drawer [aria-label="Nach oben"]').nth(1).click()
+    expect(page.locator("#medien-drawer .media > div.cover")).to_contain_text("plate.png")
+    expect(sheet_thumb).not_to_have_attribute("src", before or "")
 
 
 def test_treffer_count_rides_the_rail_and_stays_live(
@@ -382,7 +591,9 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
     8-character ceiling, an unbounded free-text Titel, the widest vocabulary Dokumenttyp, a full-date
     EDTF interval, and an institutional Autor/Ort pair (what the record card's folded summaries have
     to absorb). Seeded per test (not into the shared corpus) so the count-asserting journeys keep
-    their canonical hit count."""
+    their canonical hit count. Every single-line field EXCEPT Standort carries a value, which also
+    makes this the record whose autofocus target sits behind the Herkunft fold
+    (test_a_fold_never_swallows_the_autofocus)."""
     from bundesarchiv.domain.edtf import EdtfDate
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
@@ -400,6 +611,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
             media_type="Plakat",
             document_type=_LONG_TYP,
             date=EdtfDate("1948-01-01/1952-12-31"),
+            tags=("pfingstlager",),
             creator=_LONG_CREATOR,
             subject_place=_LONG_PLACE,
         ),
@@ -827,26 +1039,42 @@ def test_publish_is_one_click_with_the_exposure_on_screen(
     # card, in the future tense while the record is a draft. Publishing is then one click.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
     expect(page.locator(".pane")).to_contain_text("Nach Veröffentlichung sichtbar für")
+    # ...and SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): Veröffentlichen sits in the same
+    # row as Speichern (ruling 2), so the archivist reaches for it with unsaved edits on screen. It used
+    # to POST a lifecycle transition of its own, which rebuilt the record from disk and threw those
+    # edits away without a word. Type into two fields — one inside #bearbeiten-form's subtree and one
+    # OUTSIDE it (the media/custom split), because they are wired to the form differently — then publish
+    # with ONE click and find both on the read view.
+    page.fill('input[name="ref_code"]', "E2E-42")
+    page.click('summary:has-text("Weitere Angaben")')
+    page.fill('input[name="custom_key"]', "Quelle")
+    page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
     page.click('button:has-text("Veröffentlichen")')
     # straight to the read view, published — no panel, no checkbox, no second Veröffentlichen
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
+    expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived
+    expect(page.get_by_text("Privatbesitz Meyer")).to_be_visible()  # ...and the custom row
 
 
 def test_exposure_statement_is_on_screen_at_every_width(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # ONE renderer, TWO placements (law C7): the reader's sheet carries the exposure statement where
-    # the pane's 80rem switch shows the pane, and the card's Zugriff section carries it below that —
-    # so the fact is on screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are
-    # server-rendered: this holds with JS off too.
+    # the pane's 80rem switch shows the pane, and the card carries it below that — so the fact is on
+    # screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are server-rendered: this
+    # holds with JS off too.
+    #
+    # Nothing is CLICKED here any more, and that is the point. This proof used to open the folded
+    # Zugriff section to find the statement below the switch — which meant the statement was not on
+    # screen at all on a narrow window (the pane is display:none there), while the publish gate had
+    # already been retired BECAUSE the statement is permanent (owner ruling 5). A test that has to
+    # open a fold to see a permanent fact is reporting the defect, not the promise.
     page = archivist_page
     url = live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
-    for width, in_sheet in ((1440, True), (1000, False)):
+    for width, in_sheet in ((1440, True), (1000, False), (680, False), (360, False)):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(url)
-        if not in_sheet:
-            page.click('summary:has-text("Zugriff")')  # below the switch it lives in the card
         shown = page.locator(".einblick:visible")
         assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
         expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")
@@ -932,6 +1160,17 @@ def test_bulk_enhancement_survives_a_history_restore(
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
+    # the TYPE-TO-SEARCH enhancement has to survive the same restore. It lives on #results (the region
+    # it swaps) rather than on the shared header form, and a restore replaces the whole document from
+    # htmx's snapshot — so the restored #results must be re-processed or live search dies silently on
+    # every Back (H.8/G.25).
+    page.locator('input[name="q"]').press_sequentially("Herbstlager")
+    page.wait_for_url("**q=Herbstlager**")
+    expect(page.locator(".ledger #trefferzahl")).to_have_count(
+        0
+    )  # the count rides the rail, not here
+    expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
+    expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
 
 
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
@@ -1064,6 +1303,54 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
         if set(f["sides"]) != {f["ink"]}
     ]
     assert not defects, "an error state lost to the resting look (C13/G.29):\n" + "\n".join(defects)
+
+
+def test_a_fold_hides_neither_the_error_nor_the_focus(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Owner ruling 4 folds the rare sections WITH their values, so folding hides no DATA. It must hide
+    # no MESSAGE either: Sichtbarkeit=Gruppe(n) with an empty Gruppen field re-rendered the message AND
+    # the errored input inside the folded Zugriff section, with `autofocus` focusing nothing (a closed
+    # <details> has no focusable contents). The server decides [open] from the same error context that
+    # renders the message, and the summary says so via :has(.error) — proven in the browser, because
+    # "on screen" and "focused" are browser facts.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Fehler im Fach")
+    page.click('summary:has-text("Zugriff")')
+    page.select_option('select[name="sichtbarkeit"]', "groups")  # Gruppen stays empty -> invalid
+    page.click('button:has-text("Speichern")')
+    # the swap discards whatever the archivist had opened: this is the SERVER's fold state
+    zugriff = page.locator("details", has=page.locator('input[name="gruppen"]'))
+    expect(zugriff).to_have_attribute("open", "")
+    expect(zugriff.locator(".error")).to_be_visible()
+    expect(zugriff.locator(".error")).to_have_text("Bitte mindestens eine Gruppe angeben.")
+    marker = page.evaluate(
+        """() => {
+            const d = [...document.querySelectorAll('.karte details')]
+                .find((el) => el.querySelector('[name=gruppen]'));
+            return getComputedStyle(d.querySelector('summary'), '::after').content;
+        }"""
+    )
+    assert "Fehler" in marker, f"the opened section's summary does not say why: {marker}"
+
+
+def test_a_fold_never_swallows_the_autofocus(
+    archivist_page: Page,
+    live_workbench: str,
+    _e2e_root: Path,
+    django_db_blocker: DjangoDbBlocker,
+) -> None:
+    # The other half of the same class: _FOCUSABLE_FIELDS scans for the first EMPTY field and three of
+    # them (Autor, Ort, Standort) sit behind the Herkunft fold, so on a well-catalogued record the
+    # server told the browser to focus an input inside a closed <details> — which focuses NOTHING. The
+    # fixture is the realistic long-content record (H.7): a Plakat with everything filled except its
+    # Standort, which is exactly the state an archivist reaches at the end of cataloguing.
+    _seed_long_content(_e2e_root, django_db_blocker)
+    page = archivist_page
+    page.goto(live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten")
+    standort = page.locator('input[name="physical_location"]')
+    expect(standort).to_have_attribute("autofocus", "")  # the case this guard is about
+    expect(standort).to_be_focused()
 
 
 #: Every label on the record card, with its own box width and the width its text WANTS. The card's

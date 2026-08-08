@@ -231,16 +231,30 @@ def _handle_edit_post(
     autofocused). On success 302 to the read view. On ``Conflict`` re-render state G with the
     submitted values preserved (the ONE catch site is ``catalog.save_catalog_form``). A
     ``custom_entfernen`` submit is the no-JS custom-row removal — it re-renders the form with that
-    row cleared, without saving (spec §5). The current media + lifecycle ride the parse so the
-    metadata save preserves them (only captions update; media structure is its own POSTs)."""
+    row cleared, without saving (spec §5). The current media rides the parse so the metadata save
+    preserves it (only captions update; media structure is its own POSTs).
+
+    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08). Since ruling 2 put Veröffentlichen in the
+    same row as Speichern, the archivist reaches for it with unsaved edits on screen — and a separate
+    lifecycle POST rebuilt the record from disk and 302'd away, discarding them silently. So the edit
+    form's own submit carries the lifecycle verb (``lebenszyklus``): the target lifecycle simply rides
+    the parse, and the ONE existing CAS save commits the metadata and the transition together. One
+    click, nothing lost, no confirm step (that is the gate ruling 5 retired). Everything downstream is
+    unchanged by construction: a validation failure re-renders state F before any save, and a lost race
+    re-renders state G — publishing cannot behave differently from saving, because it IS saving. An
+    unknown verb is a 404 with no mutation at all, like the standalone lifecycle route's."""
     if "custom_entfernen" in request.POST:
         return _rerender_with_custom_removed(request, ulid, collections, current)
+    verb = request.POST.get("lebenszyklus", "")
+    lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
+    if lifecycle is None:
+        return _not_found()  # unknown verb → no save, no transition, indistinguishable 404
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
         collections=tuple(c.ulid for c in collections),
         current_media=current.media,
-        current_lifecycle=current.lifecycle,
+        lifecycle=lifecycle,
     )
     if result.article is None:
         context = _edit_context_from_post(
@@ -430,9 +444,12 @@ def _edit_context(
         # summary can never spell a fact differently from its field (law C7).
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
         "custom_keys": [key for key, _ in _custom_rows(values) if key],
+        # Which folded sections render OPEN: the ones holding an error message or the autofocus
+        # target, so neither can end up inside a fold (see _FOLDED_SECTIONS).
+        "open_sections": _open_sections(errors, autofocus),
         # The reader's sheet (owner ruling 1) and — through it — the exposure statement (ruling 5).
         # ONE view-model feeds BOTH placements of that statement: the sheet beside the card above the
-        # pane's 80rem switch, and the Zugriff section below it.
+        # pane's 80rem switch, and the card itself (beside Zugriff, outside its fold) below it.
         "sheet": _sheet_view_model(stored, collections),
     }
 
@@ -606,6 +623,29 @@ _FOCUSABLE_FIELDS: tuple[str, ...] = (
 )
 
 
+# The record card's FOLDED sections (owner ruling 4: rarely-used sections stay folded, their values
+# in the summary) and the fields each one HOLDS. Folding may never hide data — and it may never hide a
+# MESSAGE either: a validation error rendered inside a folded section is invisible, and an `autofocus`
+# inside one focuses nothing at all (a closed <details> has no focusable contents). Both are decided
+# here, from the SAME error/autofocus context the fields are rendered with, so the fix is one rule
+# over every folded section rather than a patch per instance. ``custom`` is the ``errors`` key for the
+# bag as a whole (it maps to no single input), ``custom_key``/``custom_value`` are its inputs.
+# test_folded_sections_own_every_field_they_hold walks the render and fails if a field moves into a
+# fold without joining this map.
+_FOLDED_SECTIONS: tuple[tuple[str, frozenset[str]], ...] = (
+    ("herkunft", frozenset({"creator", "subject_place", "physical_location"})),
+    ("zugriff", frozenset({"sichtbarkeit", "gruppen"})),
+    ("weitere", frozenset({"custom", "custom_key", "custom_value"})),
+)
+
+
+def _open_sections(errors: catalog.FormErrors, autofocus: str) -> frozenset[str]:
+    """The folded sections that must render OPEN: the ones holding an errored field or the autofocus
+    target. Empty on a clean render, so the rare sections stay folded as ruled."""
+    marked = set(errors) | ({autofocus} if autofocus else set())
+    return frozenset(name for name, fields in _FOLDED_SECTIONS if fields & marked)
+
+
 def _first_empty_field(values: dict[str, object]) -> str:
     """The first single-line field (DOM order) whose value is empty — the fresh-edit autofocus target
     (spec §5). Falls back to Titel when every field is filled."""
@@ -751,7 +791,7 @@ def article_lifecycle(request: HttpRequest, ulid: str) -> HttpResponseBase:
     Publishing is ONE click (owner ruling 5, 2026-08-08): the separate over-exposure preview gate —
     POST /vorschau, its panel and the required ``geprueft`` confirm checkbox — retired when the
     exposure statement became PERMANENT chrome on the edit surface (the reader's sheet above 80rem,
-    the card's Zugriff section below it). The archivist reads who gains sight while cataloging instead
+    the card itself below it). The archivist reads who gains sight while cataloging instead
     of buying that fact with three extra interactions at the end (catechism Q10: a preview is an
     enhancement, never a toll gate). Nothing else about publishing changed: the audience computation,
     the CAS guard, the state-H index-lag hinweis, the conflict panel and the archivist-only gate all
@@ -858,8 +898,14 @@ def _einblick_view_model(
 def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
     """The reader's-sheet view-model for the edit surface, built from the STORED article (never from
     the archivist's unsaved keystrokes: the sheet answers "what does a reader see of the record as it
-    stands", which is exactly why it can retire the publish-time preview). Refreshed on every save
-    because the whole #form-region re-renders."""
+    stands", which is exactly why it can retire the publish-time preview).
+
+    It travels with EVERY write to this record, by two different mechanisms: the metadata save swaps the
+    whole ``#form-region`` (the sheet is inside it), and the structural media POSTs — which swap only
+    ``#medien-drawer`` yet change what a reader sees, because order is meaning and promoting a plate
+    re-covers the record (ADR 0015) — carry the sheet as an out-of-band fragment
+    (``hx-select-oob="#lesesicht"`` on the drawer). Both read this one view-model out of the same
+    full-page render, so there is no second render path to keep in step."""
     return _SheetViewModel(
         title=article.title,
         ref_code=article.ref_code or "",

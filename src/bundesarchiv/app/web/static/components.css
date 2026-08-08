@@ -350,9 +350,15 @@
      the component library's exhibit column is its own row). */
   :is(.facet, .menu) > ul {
     /* a dropped panel is a transient OVERLAY, not part of the control row it hangs from — the row's
-       (possibly compact) --control-height must not reach into it, so the knob is unset here for
-       BOTH panels and their controls fall back to the full --touch-target floor. */
-    --control-height: initial;
+       (possibly compact) --control-height must not reach into it. So the knob is RE-DECLARED here, to
+       the full touch target, and that is the panel's own ONE height source for its entries (C8 applied
+       to the panel: retuning panel density is this one line).
+       It used to say `initial`, which for a custom property is the guaranteed-invalid value: every
+       consumer then fell back to its OWN default, so the same knob resolved to two different things —
+       --touch-target for the icon-control rule (as the comment claimed) but `auto` for the generic
+       min-height rule, i.e. no floor at all. A knob with two values is the coincidence C8 exists to
+       forbid, and the comment was true of only one half. */
+    --control-height: var(--touch-target);
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
@@ -413,8 +419,16 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-s);
   }
+  /* a facet VALUE row's link. It consumes the panel's height knob like every other entry: at
+     --type-body's line box alone it stood 23px tall — under the WCAG 2.2 AA 24px target floor (law D)
+     — while the ✕ beside it in the very same row stood at the full touch target. It stays a BLOCK
+     container so the long-value ellipsis below keeps working (a flex box cannot ellipsize its own
+     text); align-content centers the line inside the floor and, where it is unsupported, the text
+     simply sits at the top of the row — acceptable without fallback code (law F). */
   .facet li > a {
     min-width: 0;
+    min-height: var(--control-height);
+    align-content: center;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -471,13 +485,19 @@
   }
   /* every entry in a menu panel reads as one list line, whether it is a link or the submit button of
      an entry that must POST (Kopieren mutates, so it cannot be a link) — ONE declaration set, so a
-     POST entry can never look like a different kind of thing than its neighbours */
+     POST entry can never look like a different kind of thing than its neighbours. The claim was false
+     until the panel got a real height source: the links took --type-body from the document and stood
+     31px tall while the button took button.link's --type-meta and stood 27px, in the same list. Height
+     and font are stated here now and proven computed by the control-row walker (learning G.1). */
   .menu li > a,
   .menu li > form > button.link {
-    display: block;
+    display: flex; /* nowrap, no ellipsis here — so the entry's own box can center its line */
+    align-items: center;
+    min-height: var(--control-height);
     width: 100%;
     text-align: start;
     padding: var(--space-1) var(--space-2);
+    font: var(--type-meta);
     border-radius: var(--radius-s);
     white-space: nowrap;
   }

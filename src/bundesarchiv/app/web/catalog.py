@@ -106,7 +106,7 @@ def parse_edit_form(
     ulid: Ulid,
     collections: Sequence[Ulid],
     current_media: tuple[MediaRef, ...] = (),
-    current_lifecycle: Lifecycle = Lifecycle.DRAFT,
+    lifecycle: Lifecycle = Lifecycle.DRAFT,
 ) -> ParseResult:
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
     error map. Total: malformed input never raises, it becomes a field error. ``collections`` is the
@@ -116,8 +116,11 @@ def parse_edit_form(
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
     captions ride the metadata CAS save; reorder/remove/upload are separate structural POSTs).
-    ``current_lifecycle`` is preserved so a metadata save never silently changes published state (the
-    lifecycle transition is its own CAS route)."""
+    ``lifecycle`` is the state the saved Article carries. The caller passes the article's CURRENT
+    lifecycle for a plain save (a metadata save never silently changes published state) — or the TARGET
+    state when the archivist's submit carried a lifecycle verb, so publishing from the edit screen saves
+    the form and transitions in ONE CAS write (owner decision 2026-08-08). This layer stays pure either
+    way: it never decides the transition, it only records the state it was handed."""
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
 
@@ -164,7 +167,7 @@ def parse_edit_form(
         title=title,
         collection_id=collection_id,
         body=_get(post, "body"),  # body stays a str ("" → "")
-        lifecycle=current_lifecycle,  # a metadata save never changes lifecycle (its own CAS route)
+        lifecycle=lifecycle,  # the state the caller handed us — see the docstring
         audience=audience,
         ref_code=_none_if_blank(_get(post, "ref_code")),
         media_type=media_type,
