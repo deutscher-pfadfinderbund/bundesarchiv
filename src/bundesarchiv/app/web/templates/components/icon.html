@@ -2,12 +2,17 @@
 Icon — THE one vendored hairline-stroke inline SVG set (cue-register row 9, owner 2026-08-07):
 24px grid, stroke-width 2, stroke=currentColor — matching the hairline/ink aesthetic. Param:
 name — one of
-  pencil  (Bearbeiten)
-  panel   (Vorschau — the split-view glyph)
-  x       (Schließen)
+  pencil      (Bearbeiten)
+  panel       (Vorschau — the split-view glyph)
+  x           (Schließen / Entfernen)
+  arrow-up    (nach oben — media register reorder)
+  arrow-down  (nach unten — media register reorder)
 Icons are decorative by construction (aria-hidden): the OWNING control carries the accessible
 name via aria-label (a11y floor — every icon-only control is named). Licensed slots are the
 toolbar slots (role="toolbar") and the pane's Schließen; new glyphs join this ONE set
 deliberately, demo page in lockstep — no second style, no icon fonts, no ad-hoc picks.
+The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08: the three
+text links per row died). Both are drawn on the same 24px grid at stroke-width 2 as the rest — a
+shaft plus a two-stroke head, so they read as siblings of x rather than as a second style.
 {% endcomment %}
-{% if name == "pencil" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>{% elif name == "panel" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>{% elif name == "x" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>{% endif %}
+{% if name == "pencil" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>{% elif name == "panel" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>{% elif name == "arrow-up" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>{% elif name == "arrow-down" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>{% elif name == "x" %}<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>{% endif %}

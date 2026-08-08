@@ -280,12 +280,14 @@ components; this storyboard updates in lockstep with them.
     <div class="row">
       <span title="pencil (Bearbeiten)">{% include "components/icon.html" with name="pencil" only %}</span>
       <span title="panel (Vorschau)">{% include "components/icon.html" with name="panel" only %}</span>
-      <span title="x (Schließen)">{% include "components/icon.html" with name="x" only %}</span>
+      <span title="x (Schließen / Entfernen)">{% include "components/icon.html" with name="x" only %}</span>
+      <span title="arrow-up (nach oben)">{% include "components/icon.html" with name="arrow-up" only %}</span>
+      <span title="arrow-down (nach unten)">{% include "components/icon.html" with name="arrow-down" only %}</span>
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/icon.html · name=pencil|panel|x — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: role="toolbar" + the pane ✕</code>
+<code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: role="toolbar" + the pane ✕. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
 
 <h2>Facet group — the filter-rail dropdown</h2>
 {% comment %} The dropped panel positions absolutely against its CONTROL ROW — here the exhibit

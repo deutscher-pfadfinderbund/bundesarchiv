@@ -84,7 +84,10 @@
     background: color-mix(in oklab, var(--error), var(--on-error) 12%);
     border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
   }
-  /* a button that reads as an inline text affordance (reorder, entfernen, banner ✕) */
+  /* a button that reads not like a button: an inline text affordance (the custom bag's Entfernen, the
+     remove-confirm's Ja/Nein, a menu-panel entry that must POST) or, inside a toolbar slot, an icon
+     control (the media register's reorder/remove — the shared icon-control rule below gives it the
+     hit area, this rule takes the chrome away) */
   button.link {
     background: none;
     border: none;
@@ -220,15 +223,16 @@
     display: inline;
     margin: 0;
   }
-  /* icon-control hit-area mechanics, ONCE for every quiet icon control (toolbar slots, the pane ✕,
-     the facet remove, the chip ✕) — ink/hover stay per-site deltas. Scoped to a toolbar's DIRECT
-     children: a toolbar may also own a disclosure whose dropped panel holds plain text links, and
-     those are overlay contents, not row controls. Inside a control row the
+  /* icon-control hit-area mechanics, ONCE for every quiet icon control (toolbar slots — icon LINKS
+     like the ledger's row actions and icon BUTTONS like the media register's, the pane ✕, the facet
+     remove, the chip ✕) — ink/hover stay per-site deltas. Scoped to a toolbar's DIRECT children: a
+     toolbar may also own a disclosure whose dropped panel holds plain text links, and those are
+     overlay contents, not row controls. Inside a control row the
      row's --control-height knob is the size source (C8); outside one the --hit-fallback knob
      decides, defaulting to the full touch target (the pane ✕). The rail chip's ✕ is the ONE
      licensed compact deviation (owner 2026-08-07, rail round 2): .chip sets --hit-fallback so its
      ✕ is compact even in the demo exhibit, where no row knob exists. */
-  [role="toolbar"] > a,
+  [role="toolbar"] > :is(a, button.link),
   .pane header > a,
   .facet .remove,
   .chip > a {

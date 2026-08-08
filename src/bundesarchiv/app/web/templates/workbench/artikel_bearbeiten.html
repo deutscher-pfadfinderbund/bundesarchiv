@@ -315,7 +315,8 @@ the pane.{% endcomment %}
     save (save_article — captions are README front matter, ADR 0015) despite the drawer sitting
     outside it. Each row's reorder/remove controls belong to their OWN per-row form (declared below,
     inside this section, referenced via form=) so each carries exactly one unambiguous hash — never
-    the whole register. The FIRST row's TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never
+    the whole register. Those controls are ONE role="toolbar" of icons from the vendored set (owner
+    ruling 6, register row 9). The FIRST row's TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never
     amber/violet/tint) — a REVIEW GATE per spec §6.3. The upload controls sit at the section bottom
     but belong to the separate multipart form#medien-upload (declared below, inside this section) via
     form= — file inputs support form=, same idiom as the row buttons, and the input stays the NATIVE
@@ -346,19 +347,27 @@ the pane.{% endcomment %}
             <input type="text" name="caption[{{ row.content_hash }}]"
                    value="{{ row.caption }}" aria-label="Bildunterschrift" form="bearbeiten-form">
           </label>
-          <span class="move">
-            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
-                    name="richtung" value="hoch"{% if row.is_first %} disabled{% endif %}>nach oben</button>
-            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
-                    name="richtung" value="runter"{% if row.is_last %} disabled{% endif %}>nach unten</button>
-          </span>
+          {% comment %}The row's actions: ONE role="toolbar" of icon buttons from the one vendored set
+          (owner ruling 6, register row 9) — the three text links per row died. Each carries its
+          accessible name via aria-label; the first/last row's arrow is natively disabled, so a
+          dead-end control is non-interactive rather than merely quiet. The two-step remove keeps its
+          WORDS: a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
           <span class="confirm">Wirklich entfernen?
             <button class="link" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
             <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
-          <button class="link" type="submit" form="entfernen-frage-{{ row.content_hash }}">Entfernen</button>
+          <span role="toolbar" aria-label="Medienaktionen">
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="hoch" aria-label="Nach oben"
+                    {% if row.is_first %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-up" only %}</button>
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="runter" aria-label="Nach unten"
+                    {% if row.is_last %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-down" only %}</button>
+            <button class="link" type="submit" form="entfernen-frage-{{ row.content_hash }}"
+                    aria-label="Entfernen">{% include "components/icon.html" with name="x" only %}</button>
+          </span>
           {% endif %}
         </div>
         {% endfor %}

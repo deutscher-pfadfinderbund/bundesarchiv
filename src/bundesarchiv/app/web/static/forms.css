@@ -55,10 +55,11 @@
     /* the card's API (law C3/C5), all four knobs named here and consumed below:
        --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
                        "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold,
-                       uppercase, 0.08em tracking) measure 139px, so 9rem (144px) holds it on one
-                       line with the gap intact. Measured in the browser, and re-measured every run
-                       by test_karte_labels_share_one_axis (a label that outgrows the axis is a
-                       defect the eye misses — the grid item simply overflows into the gap).
+                       uppercase, 0.08em tracking) measure 137px, so 9rem (144px) holds it on one
+                       line. Measured in the browser, and re-measured every run by
+                       test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
+                       a second line, which is a defect the eye skims past (at 8rem the test reports
+                       "Datierung (EDTF): wants 137px in a 128px column").
        --wert-min      the narrowest a value cell may become before the card gives up a column:
                        14rem (224px) still shows the widest vocabulary Dokumenttyp caption in full.
        --feld-signatur a Signatur carries NO SPACES and 8 characters is the practical ceiling (owner
@@ -81,7 +82,12 @@
        and the narrow viewport one, by arithmetic rather than by a threshold. */
     --spalten-boden: calc(var(--label-spalte) + var(--wert-min) + var(--space-3));
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--spalten-boden), 1fr));
+    /* min(floor, 100%) — a bare minmax(floor, 1fr) has the FLOOR as its real minimum, so on a
+       viewport narrower than one section column the track stayed 380px wide and pushed the page body
+       into horizontal scroll (the G.24 class, caught by the overlay-containment walker on the edit
+       surface at 360px). With min() the single column simply shrinks below the floor instead: one
+       column was already the answer at that width, so nothing is lost. */
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--spalten-boden), 100%), 1fr));
     align-items: start;
     gap: var(--space-6) var(--space-4);
   }
@@ -291,10 +297,12 @@
   }
 
   /* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register
-     the archivist already knows. Row: [thumb][datei][caption][reorder][remove]. Scrolls in its
-     own box on narrow viewports (the page body never scrolls sideways). ---- */
+     the archivist already knows. Row: [thumb][datei][caption][action toolbar] — the reorder and
+     remove columns merged into ONE toolbar slot when the three text links became icons (owner
+     ruling 6, 2026-08-08; learning G.9: actions live in named slots). Scrolls in its own box on
+     narrow viewports (the page body never scrolls sideways). ---- */
   .media {
-    --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content max-content;
+    --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content;
     display: grid;
     grid-template-columns: var(--media-cols);
     border: var(--hairline) solid var(--outline-variant);
@@ -354,10 +362,24 @@
     text-transform: uppercase;
     border-radius: var(--radius-s);
   }
-  .move {
-    display: inline-flex;
-    gap: var(--space-2);
-    white-space: nowrap;
+  /* the row's icon toolbar: hit-area mechanics come from the shared icon-control rule
+     (components.css, sized by the toolbar's own --control-height knob); only the ink is local, and it
+     is the ledger row toolbar's ink — quiet until the pointer is on it. A DISABLED end-of-register
+     arrow keeps the elements layer's disabled treatment (muted, no pointer): non-interactive, and
+     visibly so (no false affordance, catechism Q6). */
+  .media [role="toolbar"] button {
+    color: var(--on-surface-variant);
+  }
+  .media [role="toolbar"] button:hover:not(:disabled) {
+    color: var(--on-surface);
+    background: var(--surface-container-high);
+  }
+  /* the first row's up-arrow and the last row's down-arrow: natively disabled AND visibly so — the
+     elements layer's button.link:disabled ink cannot reach here (this rule is in the same layer and
+     more specific), so the quiet state is restated rather than lost. An enabled-looking dead control
+     is a false affordance (catechism Q6). */
+  .media [role="toolbar"] button:disabled {
+    color: color-mix(in oklab, var(--on-surface-variant), var(--surface) 55%);
   }
   .confirm {
     display: inline-flex;
