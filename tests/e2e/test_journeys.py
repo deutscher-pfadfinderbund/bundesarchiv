@@ -912,16 +912,20 @@ def test_exposure_statement_is_on_screen_at_every_width(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # ONE renderer, TWO placements (law C7): the reader's sheet carries the exposure statement where
-    # the pane's 80rem switch shows the pane, and the card's Zugriff section carries it below that —
-    # so the fact is on screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are
-    # server-rendered: this holds with JS off too.
+    # the pane's 80rem switch shows the pane, and the card carries it below that — so the fact is on
+    # screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are server-rendered: this
+    # holds with JS off too.
+    #
+    # Nothing is CLICKED here any more, and that is the point. This proof used to open the folded
+    # Zugriff section to find the statement below the switch — which meant the statement was not on
+    # screen at all on a narrow window (the pane is display:none there), while the publish gate had
+    # already been retired BECAUSE the statement is permanent (owner ruling 5). A test that has to
+    # open a fold to see a permanent fact is reporting the defect, not the promise.
     page = archivist_page
     url = live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
-    for width, in_sheet in ((1440, True), (1000, False)):
+    for width, in_sheet in ((1440, True), (1000, False), (680, False), (360, False)):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(url)
-        if not in_sheet:
-            page.click('summary:has-text("Zugriff")')  # below the switch it lives in the card
         shown = page.locator(".einblick:visible")
         assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
         expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")

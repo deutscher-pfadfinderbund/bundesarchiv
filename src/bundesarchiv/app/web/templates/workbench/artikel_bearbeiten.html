@@ -286,10 +286,7 @@ the pane.{% endcomment %}
     </section>
 
     {% comment %}Gruppe 5 — Zugriff: folded like Herkunft, its summary carrying the Sichtbarkeit
-    caption the select itself shows (same option source — one renderer) plus the Gruppen value. The
-    EXPOSURE statement (who gains sight) lives inside: below the pane's 80rem switch this is where
-    the archivist reads it, and above it the reader's sheet carries the same renderer's output — so
-    the fact is on screen exactly once at every width.{% endcomment %}
+    caption the select itself shows (same option source — one renderer) plus the Gruppen value.{% endcomment %}
     <details{% if "zugriff" in open_sections %} open{% endif %}>
       <summary>Zugriff
         <span class="werte">
@@ -312,8 +309,17 @@ the pane.{% endcomment %}
         <span class="hint">Mehrere durch Komma trennen</span>
         {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
       </label>
-      {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
     </details>
+
+    {% comment %}The EXPOSURE statement below the pane's 80rem switch — OUTSIDE the fold, deliberately
+    (owner ruling 5: the statement is PERMANENTLY on screen, which is what let the over-exposure
+    preview gate retire). It used to sit inside the Zugriff <details> above, so on a narrow window the
+    fact was on screen NOWHERE — the pane is display:none there and the fold was shut — and an
+    archivist published blind against a gate that had been deleted precisely because the statement was
+    permanent. Still ONE renderer (workbench/_einblick.html): the reader's sheet carries it at/above
+    80rem, this placement below, and forms.css hides this one with the exact complement of that ONE
+    switch — so the fact is on screen exactly once at every width and never twice (Q2).{% endcomment %}
+    {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
 
     {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
     real <form> children (the per-row structural forms), and forms cannot nest — so the drawer
