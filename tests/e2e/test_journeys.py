@@ -235,12 +235,26 @@ def _walk_control_rows(page: Page, url: str) -> dict[str, list[dict[str, str | i
     return walked
 
 
+#: The WCAG 2.2 AA target-size floor (law D's a11y floor, 24 CSS px). A row's controls agreeing on a
+#: height that is BELOW it is a uniform defect, which C8's equality check cannot see — the 23px facet
+#: entry (learning G.38) agreed with nothing and was found by eye. Checked per control, so it holds for
+#: a lone control too, where there is no equality to compare.
+_AA_TARGET_FLOOR = 24
+
+
 def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) -> list[str]:
-    """Law C8, computed: within every row, one height (offsetHeight within 1px) and — the licensed state
-    marks excepted (a rail chip's chip typography, an active facet row's semibold inversion), which must
-    still match on HEIGHT — one font treatment."""
+    """Law C8 + the AA target floor, computed: every control clears 24px, and within every row all
+    controls share one height (offsetHeight within 1px) and — the licensed state marks excepted (a rail
+    chip's chip typography, an active facet row's semibold inversion), which must still match on
+    HEIGHT — one font treatment."""
     defects: list[str] = []
     for name, controls in by_name.items():
+        defects.extend(
+            f"row '{name}' control '{c['label']}' is {c['height']}px — under the WCAG 2.2 AA"
+            f" {_AA_TARGET_FLOOR}px target floor"
+            for c in controls
+            if int(str(c["height"])) < _AA_TARGET_FLOOR
+        )
         if len(controls) < 2:
             continue  # nothing to compare within this row
         heights = {str(c["label"]): int(str(c["height"])) for c in controls}

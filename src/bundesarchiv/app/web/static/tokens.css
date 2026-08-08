@@ -106,6 +106,14 @@
   --error: light-dark(var(--red-50), var(--red-75));
   --on-error: light-dark(var(--neutral-99), var(--red-25));
 
+  /* Disabled ink (role token, added 2026-08-08): the quiet ink faded toward the surface, for a
+     control that is present, non-interactive and visibly so (the media register's end-of-register
+     arrows). A ROLE, not a mix written in component CSS: a hard-coded
+     color-mix(--on-surface-variant, --surface 55%) is unreachable by the planned
+     `prefers-contrast: more` remap, and by the themability law an unreachable value IS the defect —
+     that remap wants a HARDER disabled ink, and it can only reach one that lives here. */
+  --on-surface-disabled: color-mix(in oklab, var(--on-surface-variant), var(--surface) 55%);
+
   --outline: light-dark(var(--neutral-50), var(--neutral-72));
   --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
   --focus-ring: light-dark(var(--tone-50), var(--tone-78));

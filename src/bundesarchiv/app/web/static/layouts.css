@@ -178,11 +178,11 @@
     background: var(--surface);
     border-bottom: var(--hairline) solid var(--outline-variant);
   }
-  /* the toolbar INHERITS the row's knob instead of setting its own (components.css gives every
-     [role=toolbar] the full --touch-target): ONE height source per control row (law C8) — a
-     per-component height inside a control row is the defect that rule exists to forbid. */
+  /* ONE height source per control row (law C8) needs no line here any more: a toolbar declares only
+     its FALLBACK hit size (components.css), so inside this row the row's own knob wins by
+     construction. The `--control-height: inherit` this rule used to carry was a per-instance patch
+     for a knob the toolbar had no standing to set. */
   .recordrow > [role="toolbar"] {
-    --control-height: inherit;
     margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
   }
 
@@ -334,16 +334,11 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  /* the ✕ close (icon set's x): hit-area mechanics come from the shared icon-control rule
-     (components.css); local deltas only — top-aligned because an icon-only flex item has no
-     text baseline to share */
+  /* the ✕ close (icon set's x): hit area AND ink come from the shared icon-control rule
+     (components.css). The ONE local delta is alignment — top-aligned because an icon-only flex item
+     has no text baseline to share with the header's Signatur and Titel. */
   .pane header > a {
     align-self: flex-start;
-    color: var(--on-surface-variant);
-  }
-  .pane header > a:hover {
-    color: var(--on-surface);
-    text-decoration: none;
   }
   .pane h2 {
     font: var(--type-title);

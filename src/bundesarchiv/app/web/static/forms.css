@@ -378,25 +378,13 @@
     text-transform: uppercase;
     border-radius: var(--radius-s);
   }
-  /* the row's icon toolbar: hit-area mechanics come from the shared icon-control rule
-     (components.css, sized by the toolbar's own --control-height knob); only the ink is local, and it
-     is the ledger row toolbar's ink — quiet until the pointer is on it. A DISABLED end-of-register
-     arrow keeps the elements layer's disabled treatment (muted, no pointer): non-interactive, and
-     visibly so (no false affordance, catechism Q6). */
-  .media [role="toolbar"] button {
-    color: var(--on-surface-variant);
-  }
-  .media [role="toolbar"] button:hover:not(:disabled) {
-    color: var(--on-surface);
-    background: var(--surface-container-high);
-  }
-  /* the first row's up-arrow and the last row's down-arrow: natively disabled AND visibly so — the
-     elements layer's button.link:disabled ink cannot reach here (this rule is in the same layer and
-     more specific), so the quiet state is restated rather than lost. An enabled-looking dead control
-     is a false affordance (catechism Q6). */
-  .media [role="toolbar"] button:disabled {
-    color: color-mix(in oklab, var(--on-surface-variant), var(--surface) 55%);
-  }
+  /* the row's icon toolbar carries NOTHING local: hit area, resting/hover/disabled ink and the hit
+     floor all come from the shared icon-control rule (components.css) — including the first row's
+     up-arrow and the last row's down-arrow, which are natively disabled and visibly so through the
+     --on-surface-disabled role. This block used to re-type the ledger row toolbar's ink verbatim and
+     then RESTATE a disabled treatment as a hard-coded color-mix, because a compositions rule outranks
+     the elements layer's button.link:disabled — a mix no `prefers-contrast: more` remap can reach,
+     which by the themability law made the mix itself the defect. */
   .confirm {
     display: inline-flex;
     align-items: baseline;

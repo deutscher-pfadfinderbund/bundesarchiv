@@ -176,14 +176,14 @@
    ============================================================ */
 @layer components {
   /* ---- control rows (law C8): ONE height source per row. A control row — the header's control
-     cluster, the filter rail, each [role=toolbar] — sets --control-height ONCE; every interactive
-     child consumes it here as its min-height, so equal control heights hold BY CONSTRUCTION
-     (learning G.22 — never by two components' values happening to agree). Outside a control row
-     the knob is unset and the fallback changes nothing. The chip and the icon controls consume
-     the same knob in their own rules below (their non-row fallbacks differ). The generic e2e
+     cluster, the filter rail, the edit surface's record row — sets --control-height ONCE; every
+     interactive child consumes it here as its min-height, so equal control heights hold BY
+     CONSTRUCTION (learning G.22 — never by two components' values happening to agree). Outside any
+     control row --hit-fallback decides, and outside that the control keeps its own content height.
+     The chip and the icon controls consume the same chain in their own rules below. The generic e2e
      walker (test_control_rows_compute_one_height_source) proves this computed on every row. ---- */
   :is(button, a.button, summary, input, select) {
-    min-height: var(--control-height, auto);
+    min-height: var(--control-height, var(--hit-fallback, auto));
   }
 
   /* screen-reader-only text (accessible names for icon-only/quiet controls) */
@@ -211,10 +211,15 @@
     align-items: center;
     gap: var(--space-2);
   }
-  /* every toolbar is a control row (law C8): it sets the ONE height source its icon controls
-     consume below — the full touch-target hit size */
+  /* A toolbar declares the FALLBACK hit size, not the row knob. It cannot know whether it IS the
+     control row or merely sits inside one — and when it sits inside one (the record row's action
+     slot) the row owns the height by law C8. Setting --control-height here made the toolbar claim a
+     row knob it has no standing to set, which the record row then had to undo with a per-instance
+     `--control-height: inherit`; a toolbar now consumes the same chain the icon rule below already
+     used, so a toolbar inside a control row needs no line at all. Standing alone (the pane's action
+     row, a ledger row's actions, the media register's) it still gets the full touch target. */
   [role="toolbar"] {
-    --control-height: var(--touch-target);
+    --hit-fallback: var(--touch-target);
   }
   /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline —
      in a plain .actions row AND in a [role=toolbar] slot (the record row's lifecycle action), so
@@ -242,6 +247,27 @@
     min-width: var(--control-height, var(--hit-fallback, var(--touch-target)));
     min-height: var(--control-height, var(--hit-fallback, var(--touch-target)));
     border-radius: var(--radius-s);
+  }
+  /* ...and its INK, the same three states, once. The icon control is a component, so its resting,
+     hover and disabled ink belong here beside its hit area — the ledger's row actions, the media
+     register's row toolbar and the pane's ✕ had each re-typed the same two declarations at their own
+     site, and the media register additionally had to RESTATE a disabled treatment because a
+     compositions rule outranked the elements layer's `button.link:disabled`. Quiet until the pointer
+     is on it; a disabled control keeps a visibly non-interactive ink, so a dead-end arrow is not a
+     false affordance (catechism Q6). The chip's ✕ is deliberately NOT in this group: it sits on the
+     register-row-3 inversion and carries the inverted ink instead (see .chip > a).
+     The declaration is in :where() so it carries zero specificity (law C13): every per-site delta —
+     the facet panel's active-row inversion, a future marked state — outranks it without a contest. */
+  :where([role="toolbar"] > :is(a, button.link), .pane header > a) {
+    color: var(--on-surface-variant);
+  }
+  :is([role="toolbar"] > :is(a, button.link), .pane header > a):hover:not(:disabled) {
+    color: var(--on-surface);
+    background: var(--surface-container-high);
+    text-decoration: none;
+  }
+  :is([role="toolbar"] > button.link):disabled {
+    color: var(--on-surface-disabled);
   }
 
   /* ---- badges: small flat marks. Neutral outline by default (visibility); the ENTWURF badge is
@@ -419,15 +445,29 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-s);
   }
-  /* a facet VALUE row's link. It consumes the panel's height knob like every other entry: at
-     --type-body's line box alone it stood 23px tall — under the WCAG 2.2 AA 24px target floor (law D)
-     — while the ✕ beside it in the very same row stood at the full touch target. It stays a BLOCK
-     container so the long-value ellipsis below keeps working (a flex box cannot ellipsize its own
-     text); align-content centers the line inside the floor and, where it is unsupported, the text
-     simply sits at the top of the row — acceptable without fallback code (law F). */
+  /* ---- ONE PANEL ENTRY, both dropped panels. .facet values and .menu entries share material
+     role 12 (a transient overlay), so they share the two things an entry IS: the HIT FLOOR — the
+     panel's own --control-height knob, re-declared on the panel because a panel is not part of the
+     row it hangs from — and the TYPE ROLE. They were sized twice with divergent mechanics and
+     divergent type: a facet value took --type-body from the document and stood at its bare 23px line
+     box, under the WCAG 2.2 AA 24px target floor (law D), while the ✕ beside it in the same row stood
+     at the full touch target. The C8 walker compares WITHIN a row, so a facet-vs-menu mismatch could
+     never fail it — which is precisely why the sizing has to be shared rather than reviewed.
+     PER-PANEL DELTAS ONLY, below: the facet's ellipsis (its values are unbounded) and the menu's
+     nowrap padding (its labels are fixed). ---- */
+  .facet li > a,
+  .menu li > a,
+  .menu li > form > button.link {
+    min-height: var(--control-height);
+    font: var(--type-meta);
+    border-radius: var(--radius-s);
+  }
+  /* facet delta: a facet VALUE is unbounded, so its entry ellipsizes — it stays a BLOCK container
+     because a flex box cannot ellipsize its own text; align-content centers the line inside the hit
+     floor and, where it is unsupported, the text simply sits at the top of the row — acceptable
+     without fallback code (law F). Its padding is on the <li> (the count rides beside it). */
   .facet li > a {
     min-width: 0;
-    min-height: var(--control-height);
     align-content: center;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -483,22 +523,19 @@
     inset-inline-end: 0;
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
-  /* every entry in a menu panel reads as one list line, whether it is a link or the submit button of
-     an entry that must POST (Kopieren mutates, so it cannot be a link) — ONE declaration set, so a
-     POST entry can never look like a different kind of thing than its neighbours. The claim was false
-     until the panel got a real height source: the links took --type-body from the document and stood
-     31px tall while the button took button.link's --type-meta and stood 27px, in the same list. Height
-     and font are stated here now and proven computed by the control-row walker (learning G.1). */
+  /* menu delta: an entry's label is a fixed German string, so it neither wraps nor ellipsizes and the
+     entry's own box carries the padding and centers its line — whether it is a link or the submit
+     button of an entry that must POST (Kopieren mutates, so it cannot be a link). Hit floor and type
+     role come from the shared panel-entry rule above, so a POST entry can never read as a different
+     kind of thing from its neighbours; before the panel had a real height source the links stood 31px
+     and the button 27px in the same list. Proven computed by the control-row walker (learning G.1). */
   .menu li > a,
   .menu li > form > button.link {
-    display: flex; /* nowrap, no ellipsis here — so the entry's own box can center its line */
+    display: flex;
     align-items: center;
-    min-height: var(--control-height);
     width: 100%;
     text-align: start;
     padding: var(--space-1) var(--space-2);
-    font: var(--type-meta);
-    border-radius: var(--radius-s);
     white-space: nowrap;
   }
   .menu li > form {
@@ -775,14 +812,8 @@
   .ledger [role="rowgroup"] .aktion [role="toolbar"] {
     justify-content: flex-end;
   }
-  /* hit-area mechanics come from the shared icon-control rule above; only the ink is local */
-  .ledger [role="rowgroup"] .aktion a {
-    color: var(--on-surface-variant);
-  }
-  .ledger [role="rowgroup"] .aktion a:hover {
-    color: var(--on-surface);
-    background: var(--surface-container-high);
-  }
+  /* hit area AND ink come from the shared icon-control rule above (a toolbar's direct icon child) —
+     nothing about these controls is local any more */
   /* row actions are quiet until the row is hovered / keyboard-focused — POINTER devices only
      (CSS-only reveal; touch has no hover, so there the controls simply stay visible) */
   @media (hover: hover) {
