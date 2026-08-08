@@ -288,6 +288,13 @@
   /* ---- preview pane: present only when ?artikel resolves (server-rendered). THE pulled sheet
      (register row 8): sheet tint + hairline + the one resting-contact shadow. ---- */
   .pane {
+    /* HIDDEN BY DEFAULT — the pane column is switched ON by the one width query at the bottom of
+       this file, never off by a second (negated) one. That is what leaves exactly ONE 80rem literal
+       in the whole app: with two queries the second was a complement that had to be kept true by
+       hand, and the in-card exposure statement's own copy of it was NOT the complement it claimed
+       (it hid on width alone while the pane needs body.vorschau too, so a card without body.vorschau
+       lost the statement outright above 80rem — publish-blind, one layer up). */
+    display: none;
     grid-column: pane;
     /* the pane column spans the frame's ROW, overriding the frame's align-items: start. Without it a
        grid item is only as tall as its content, so the sheet's `position: sticky` below had no slack
@@ -480,25 +487,35 @@
   }
 
   /* ============================================================
-     Viewport composition switches. ≥1280px the open pane adds a second frame column (the ledger
-     re-densifies by ITSELF — it is a size container). Below, the pane vanishes and rows navigate
-     to the detail page.
+     THE ONE VIEWPORT COMPOSITION SWITCH. ≥1280px an open pane adds a second frame column (the
+     ledger re-densifies by ITSELF — it is a size container). Below it, or without a pane to show,
+     the pane column simply never appears and rows navigate to the detail page.
+
+     Every consequence of this switch is declared HERE, inside the ONE query, so the app contains a
+     single 80rem literal and no complement can drift out of step. There are three consequences:
+     the frame grows its pane track, the pane becomes visible, and the record card's own copy of the
+     exposure statement stands down — because the sheet inside the pane is carrying it. The
+     complement is expressed by the DEFAULTS above (.pane { display: none }, the card's statement
+     shown), so it is the same condition read once rather than a negated query kept true by hand.
      ============================================================ */
   /* REM, not px: the ledger's last-resort fold is a 32rem CONTAINER query (components.css) whose
      "never folds while the pane is open" guarantee (decision 1) is an inequality against this
      switch — pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem
      > 32rem (the sidebar's death only WIDENED the margin). Both sides must share the rem unit or
      a non-default root font size silently breaks the margin. */
-  @media (min-width: 80rem) {
+  @media (min-width: 80rem) { /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */
     body.vorschau .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
-  }
-  /* the exact complement of the switch above — a negated query instead of an epsilon, so no
-     fractional-width dead zone exists (a 79.98rem epsilon left a 0.32px window where the pane
-     rendered without its frame column) */
-  @media not (min-width: 80rem) {
-    .pane {
+    body.vorschau .pane {
+      display: block; /* the pane column exists here (it is a grid item, so this only un-hides it) */
+    }
+    /* the reader's sheet is on screen, so the CARD's copy of the exposure statement stands down —
+       the fact is on screen exactly once at every width (Q2) and, crucially, never zero times: a
+       card rendered WITHOUT body.vorschau has no sheet, so this rule does not fire and the card
+       keeps the statement (owner ruling 5 / learning G.34 — the fact is permanent). The card's own
+       placement lives in forms.css; only its SUPPRESSION belongs to the switch that replaces it. */
+    body.vorschau .karte > form > .einblick {
       display: none;
     }
   }

@@ -65,10 +65,20 @@ publishes).{% endcomment %}
     submits the EDIT form with the lifecycle verb attached, so the save and the transition are one
     CAS-guarded write — a validation failure behaves exactly like a failed save (re-render, values
     preserved, nothing published) and a lost race exactly like a save conflict. No confirm step: that
-    is the gate the owner retired.{% endcomment %}
+    is the gate the owner retired.
+
+    ...but the gate's FAIL-CLOSED half did not retire with it (learning G.34). The retired panel
+    blocked publishing whenever the exposure could not be computed, because its required `geprueft`
+    checkbox lived inside the branch that rendered the statement. So the affordance derives from the
+    SAME view-model the statement does: no exposure statement, no Veröffentlichen — an archivist may
+    not publish a record whose audience the domain cannot resolve. Zurückziehen is NOT gated: taking a
+    record back off the shelf needs no exposure fact, and refusing it would strand the record
+    published. The note itself is written where the statement stands (_einblick.html).{% endcomment %}
     {% if values.is_draft %}
+    {% if sheet.einblick %}
     <button type="submit" form="bearbeiten-form"
             name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
+    {% endif %}
     {% else %}
     <button type="submit" form="bearbeiten-form"
             name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>

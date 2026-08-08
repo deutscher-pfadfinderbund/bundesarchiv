@@ -37,7 +37,7 @@ from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.access import VisibilityPreview, preview
+from bundesarchiv.domain.access import VisibilityPreview, preview, project
 from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.errors import DomainError
@@ -50,7 +50,7 @@ from bundesarchiv.domain.models import (
     MediaRef,
     Ulid,
 )
-from bundesarchiv.domain.viewer import Archivist
+from bundesarchiv.domain.viewer import Archivist, Public
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -60,10 +60,10 @@ from bundesarchiv.persistence.repository import ArticleRepository, Stored
 # The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
 # 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
 _SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("", "Vom Bestand erben"),
-    ("public", "Öffentlich"),
-    ("members", "Alle Mitglieder"),
-    ("groups", "Gruppe(n)"),
+    ("", vocab.SICHTBARKEIT_ERBEN),
+    ("public", vocab.SICHTBARKEIT_PUBLIC),
+    ("members", vocab.SICHTBARKEIT_MEMBERS),
+    ("groups", vocab.SICHTBARKEIT_GRUPPEN),
 )
 
 
@@ -549,7 +549,7 @@ def _article_to_form_values(article: Article) -> dict[str, object]:
         "media_type": article.media_type or "",
         "document_type": article.document_type or "",
         "tags": ", ".join(article.tags),
-        "date": article.date.value if article.date is not None else "",
+        "date": vocab.datierung_mono(article.date),
         "creator": article.creator or "",
         "subject_place": article.subject_place or "",
         "physical_location": article.physical_location or "",
@@ -710,7 +710,7 @@ def _diff_value(article: Article, name: str) -> str:
         case "tags":
             return ", ".join(article.tags)
         case "date":
-            return article.date.value if article.date is not None else ""
+            return vocab.datierung_mono(article.date)
         case "sichtbarkeit":
             return _audience_label(article)
         case "lifecycle":
@@ -896,9 +896,22 @@ def _einblick_view_model(
 
 
 def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
-    """The reader's-sheet view-model for the edit surface, built from the STORED article (never from
-    the archivist's unsaved keystrokes: the sheet answers "what does a reader see of the record as it
-    stands", which is exactly why it can retire the publish-time preview).
+    """The reader's-sheet view-model for the edit surface, built from the STORED article's READER
+    PROJECTION (never from the archivist's unsaved keystrokes: the sheet answers "what does a reader
+    see of the record as it stands", which is exactly why it can retire the publish-time preview).
+
+    THE PROJECTION IS THE POINT. The app owns ONE reader pipeline —
+    ``article_auth.resolve_visible_*`` → ``access.visible`` = ``can_view`` + ``project`` — and a box
+    labelled ``aria-label="Leseansicht"`` must show what ``project()`` produces, not what the editor
+    typed. This used to read the stored Article field by field and was correct only by COINCIDENCE
+    (learning G.22): ``project`` floors exactly ``ARCHIVIST_ONLY_FIELDS`` = {physical_location,
+    custom}, and the sheet happens to show neither, so both paths printed the same bytes — on the
+    very surface whose promise retired the publish gate. The day a field joins that set, the floor
+    already holds here.
+
+    Only the FLOOR half of the pipeline runs: ``can_view`` would deny every non-archivist a DRAFT by
+    definition (the lifecycle gate), and "who WOULD see this once published" is precisely the
+    question the exposure statement answers below, through the domain's own ``preview()``.
 
     It travels with EVERY write to this record, by two different mechanisms: the metadata save swaps the
     whole ``#form-region`` (the sheet is inside it), and the structural media POSTs — which swap only
@@ -906,19 +919,21 @@ def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> 
     re-covers the record (ADR 0015) — carry the sheet as an out-of-band fragment
     (``hx-select-oob="#lesesicht"`` on the drawer). Both read this one view-model out of the same
     full-page render, so there is no second render path to keep in step."""
+    read = project(Public(), article)
     return _SheetViewModel(
-        title=article.title,
-        ref_code=article.ref_code or "",
-        # the machine value, rendered exactly as the workbench pane renders it (mono violet, register
-        # row 2) — one renderer per fact (C7); the human-German phrasing belongs to the reader's own
-        # detail header and is not restated here
-        datierung=article.date.value if article.date is not None else "",
-        thumb_url=(
-            thumbnail_url(article.ulid, article.media[0].content_hash) if article.media else ""
-        ),
+        title=read.title,
+        ref_code=read.ref_code or "",
+        # the machine value through the ONE machine-date renderer (vocab.datierung_mono, law C7) —
+        # exactly what the workbench pane, the reader's own preview of a record, prints in this very
+        # .meta hook (mono violet, register row 2). The human-German spelling has its own single
+        # renderer (vocab.edtf_to_german) and belongs to the detail reader's header.
+        datierung=vocab.datierung_mono(read.date),
+        thumb_url=(thumbnail_url(read.ulid, read.media[0].content_hash) if read.media else ""),
         # the FIRST body paragraph, split by the reader view's own paragraph rule (browse_views) so
         # the sheet cannot disagree with the page it previews
-        absatz=next(iter(_body_paragraphs(article.body)), ""),
+        absatz=next(iter(_body_paragraphs(read.body)), ""),
+        # the EXPOSURE statement is computed from the STORED article: it reports who gains sight of
+        # the record, which is a question about the record, not about the projection of it.
         einblick=_einblick_view_model(article, collections),
     )
 

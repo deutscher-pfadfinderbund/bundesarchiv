@@ -16,6 +16,7 @@ did not happen (nothing created / article still exists / lifecycle unchanged / n
 The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
+from bundesarchiv.domain.access import project
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -233,6 +235,86 @@ def test_edit_form_exposure_is_archivist_only(corpus: _Corpus, viewer: Viewer) -
     body = response.content.decode()
     assert "sichtbar für" not in body
     assert "Sichtbare Felder" not in body
+
+
+def test_the_readers_sheet_is_built_from_the_reader_projection(
+    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The app owns ONE reader pipeline (article_auth.resolve_visible_* -> access.visible = can_view +
+    # project), and a box labelled aria-label="Leseansicht" must show what project() produces. That
+    # cannot be proven from the RENDER today: project floors exactly {physical_location, custom} and
+    # the sheet shows neither, so reading the stored Article printed identical bytes — equality by
+    # coincidence (G.22) on the very surface whose promise retired the publish gate. What CAN be
+    # proven is that the projection is IN THE PATH, so the floor already holds the day a field joins
+    # ARCHIVIST_ONLY_FIELDS: floor a field the sheet does read and watch only the SHEET follow.
+    def floor_the_title(viewer: Viewer, article: Article) -> Article:
+        return replace(project(viewer, article), title="GEFLOORT")
+
+    monkeypatch.setattr("bundesarchiv.app.web.catalog_views.project", floor_the_title)
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/bearbeiten").content.decode()
+    assert "<h2>GEFLOORT</h2>" in body, "the reader's sheet does not go through access.project()"
+    # ...and the EDITABLE card still shows the stored record: the projection is the reader's view of
+    # the record, never a filter on what the archivist may type into it.
+    assert 'value="Entwurf Lagerchronik"' in body
+
+
+def test_the_readers_sheet_prints_the_title_plain(corpus: _Corpus) -> None:
+    # The sheet used to invent `default:"Ohne Titel"` — a sheet-only spelling of an absence no reader
+    # surface names (the pane prints {{ pane.title }} plain), i.e. one renderer more than law C7
+    # allows for the fact. A stored record with an empty Titel is only reachable past the form's own
+    # validation, and even then the sheet stays silent about it.
+    untitled = "01KX7YT9E3VX0CP3A5Q49RZMWN"
+    ArticleRepository(corpus.store).save(
+        Article(ulid=untitled, title="", collection_id="PUB", lifecycle=Lifecycle.DRAFT), 0
+    )
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{untitled}/bearbeiten").content.decode()
+    assert "Ohne Titel" not in body
+
+
+# --- fail-closed: no exposure statement, no publish affordance (learning G.34) ------
+
+_UNRESOLVABLE = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
+
+
+def _article_whose_bestand_chain_is_broken(corpus: _Corpus) -> str:
+    """Save an article filed under a collection whose PARENT does not exist, so ``resolve_chain``
+    raises ``BrokenCollectionTree`` and ``preview()`` can compute no exposure at all. The collection
+    itself IS in the store, so the Bestand select still offers it and the edit form renders."""
+    CollectionRepository(corpus.store).save(
+        Collection("WAISE", "Waise", "FEHLT", Audience(AudienceTier.PUBLIC)), 0
+    )
+    ArticleRepository(corpus.store).save(
+        Article(
+            ulid=_UNRESOLVABLE,
+            title="Ohne Bestandskette",
+            collection_id="WAISE",
+            lifecycle=Lifecycle.DRAFT,
+        ),
+        0,
+    )
+    return _UNRESOLVABLE
+
+
+def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: _Corpus) -> None:
+    # The retired preview gate BLOCKED publishing when the audience chain could not be resolved — its
+    # required `geprueft` checkbox lived inside the branch that rendered the statement. The permanent
+    # statement inherited the promise but not the teeth: the view-model was None, the statement
+    # rendered as nothing at all, and Veröffentlichen stayed one click away (G.34). Both halves are
+    # asserted here: the absence is STATED, and the affordance is gone.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    with override_settings(**_settings(corpus)):
+        body = _client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
+    assert "Einblick nicht ermittelbar." in body
+    # the affordance itself is gone — asserted on the submit that carries the verb, because the
+    # German note deliberately NAMES Veröffentlichen to say it is locked
+    assert 'value="veroeffentlichen"' not in body
+    # a resolvable record is unaffected — the gate is the missing FACT, not the screen
+    with override_settings(**_settings(corpus)):
+        ok = _client_as(Archivist()).get(f"/artikel/{_DRAFT}/bearbeiten").content.decode()
+    assert 'value="veroeffentlichen"' in ok
+    assert "Einblick nicht ermittelbar." not in ok
 
 
 def test_unpublish_sets_draft(corpus: _Corpus) -> None:

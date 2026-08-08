@@ -1079,6 +1079,21 @@ def test_exposure_statement_is_on_screen_at_every_width(
         assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
         expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")
         assert page.locator(".pane:visible").count() == (1 if in_sheet else 0)
+    # ...AND on a record card with NO SHEET BESIDE IT. The pane appears on ONE condition — ≥80rem AND
+    # body.vorschau — while the card's copy of the statement used to hide on the WIDTH HALF ALONE, so
+    # any card render without body.vorschau was publish-blind above 80rem: no sheet, no in-card
+    # statement, nothing on screen. This walk drove only the edit surface, which always sets the
+    # class, so the hole was invisible to it. Removing the class in the browser reaches the state
+    # exactly (the question is CSS-only), and there is now ONE condition to answer it.
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(url)
+    page.evaluate("() => document.body.classList.remove('vorschau')")
+    assert page.locator(".pane:visible").count() == 0  # confirms the state this half is about
+    shown = page.locator(".einblick:visible")
+    assert shown.count() == 1, (
+        f"1440px without body.vorschau: {shown.count()} exposure statements on screen — a card with"
+        " no sheet beside it must keep the statement (owner ruling 5 / G.34)"
+    )
 
 
 # --- bulk select → confirm → result ------------------------------------------------

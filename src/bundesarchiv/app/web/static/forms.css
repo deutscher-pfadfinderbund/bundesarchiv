@@ -227,10 +227,13 @@
        degrades to exactly the floor above where it is not */
   }
   /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
-     reader's sheet carries it where the sheet exists, the card carries it where it does not. The
-     query below is the exact complement of the ONE 80rem pane switch (layouts.css) — no new threshold
-     is invented (law C9) and NO fact is hidden by either: at every width the statement is on screen
-     exactly once, which is also what keeps it out of Q2's way.
+     reader's sheet carries it where the sheet exists, the card carries it where it does not. The card
+     is the DEFAULT placement — always rendered, always shown — and layouts.css's ONE pane switch is
+     the only thing that ever suppresses it, inside the same query that puts the sheet on screen. So
+     no threshold is invented or restated here (law C9): this file owns the card's LOOK, the file that
+     owns the switch owns the swap. At every width the statement is on screen exactly once, and never
+     zero times — the previous arrangement hid this copy on WIDTH ALONE while the sheet additionally
+     needs body.vorschau, so a card without body.vorschau lost the fact entirely above 80rem.
 
      The card's copy is a direct child of the form, NOT a child of the folded Zugriff section it used
      to sit in: below the switch the pane is display:none, so with the fold shut the statement was on
@@ -241,11 +244,6 @@
     grid-column: 1 / -1;
     padding-top: var(--space-2);
     border-top: var(--hairline) solid var(--outline-variant);
-  }
-  @media (min-width: 80rem) {
-    .karte > form > .einblick {
-      display: none;
-    }
   }
   .einblick > p {
     margin: 0;
