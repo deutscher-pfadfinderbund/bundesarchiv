@@ -296,12 +296,12 @@ it on-viewport at every width; the columns reserve its height so the open exhibi
 annotation. {% endcomment %}
 <div class="probe">
   {% for mode in modes %}
-  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 14rem">
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 16rem">
     {% include "components/facet_group.html" with heading="Bestand" items=facet_items_bestand open=True only %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12) and positions against its control row — pinned to the row's leading edge and capped at its width, so it is on-viewport by construction, with anchor positioning refining it to the trigger where available (law F); the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it. On the rail the groups share a `name`, so opening one closes the others (native exclusive accordion — they all drop from one place)</code>
+<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel floats on the one overlay shadow (register row 12) and positions against its control row — pinned to the row's leading edge and capped at its width, so it is on-viewport by construction, with anchor positioning refining it to the trigger where available (law F); the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it. On the rail the groups share a `name`, so opening one closes the others (native exclusive accordion — they all drop from one place). Every ENTRY consumes the PANEL's own --control-height knob (--touch-target): a panel is not part of the row it hangs from, so it declares its own height source and its value link is not left at a bare line box (23px, under the WCAG 2.2 AA 24px target floor)</code>
 
 <h2>Header create menu — the "+ Neu …" disclosure</h2>
 {% comment %} Like the facet exhibit: the dropped panel positions absolutely against its control
@@ -309,7 +309,7 @@ row (here the exhibit column), so the columns reserve its height. Served open to
 floating overlay panel. {% endcomment %}
 <div class="probe">
   {% for mode in modes %}
-  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 8rem">
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; padding-bottom: 12rem">
     <details class="menu" open>
       <summary>+ Neu …</summary>
       <ul>
@@ -321,7 +321,7 @@ floating overlay panel. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: the summary IS a button visually — it shares the button rule's whole treatment (round-2 C8 correction) and consumes the header row's --control-height knob; panel = transient overlay on --overlay-shadow (register row 12), pinned to the header row's TRAILING edge and capped at its width so it stays on-viewport even when the header wraps; the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active</code>
+<code class="doc">details.menu (workbench header, Mock B — owner 2026-08-07) · the ONE create disclosure replacing the header's create buttons: the summary IS a button visually — it shares the button rule's whole treatment (round-2 C8 correction) and consumes the header row's --control-height knob; panel = transient overlay on --overlay-shadow (register row 12), pinned to the header row's TRAILING edge and capped at its width so it stays on-viewport even when the header wraps; the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">

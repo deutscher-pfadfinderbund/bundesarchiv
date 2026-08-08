@@ -1160,6 +1160,17 @@ def test_bulk_enhancement_survives_a_history_restore(
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
+    # the TYPE-TO-SEARCH enhancement has to survive the same restore. It lives on #results (the region
+    # it swaps) rather than on the shared header form, and a restore replaces the whole document from
+    # htmx's snapshot — so the restored #results must be re-processed or live search dies silently on
+    # every Back (H.8/G.25).
+    page.locator('input[name="q"]').press_sequentially("Herbstlager")
+    page.wait_for_url("**q=Herbstlager**")
+    expect(page.locator(".ledger #trefferzahl")).to_have_count(
+        0
+    )  # the count rides the rail, not here
+    expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
+    expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
 
 
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
