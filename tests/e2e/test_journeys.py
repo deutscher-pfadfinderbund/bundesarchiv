@@ -9,6 +9,7 @@ Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two c
 loop · Löschen confirm · one-click publish · bulk select→confirm→partial result.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -46,15 +47,28 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
-#: Counts htmx's own "the swap target is not on this page" aborts. Installed on the document before
-#: the interaction, because htmx:targetError is NOT a request failure — it fires before any request,
-#: so the global error banner never shows and the archivist sees a dead control with no clue why.
-_COUNT_TARGET_ERRORS_JS = """() => {
+#: Counts htmx's own "the swap target is not on this page" aborts AND every request htmx starts.
+#: Installed on the document before the interaction, because htmx:targetError is NOT a request failure
+#: — it fires before any request, so the global error banner never shows and the archivist sees a dead
+#: control with no clue why. The REQUEST counter is what lets the assertion below be an assertion
+#: instead of a sleep: "the enhancement is not attached here" means htmx started nothing at all.
+_COUNT_HTMX_JS = """() => {
     window.__targetErrors = [];
+    window.__requests = [];
     document.body.addEventListener('htmx:targetError', (e) => {
         window.__targetErrors.push(String(e.detail && e.detail.target));
     });
+    document.body.addEventListener('htmx:beforeRequest', (e) => {
+        window.__requests.push(String(e.detail && e.detail.pathInfo
+            && e.detail.pathInfo.requestPath));
+    });
 }"""
+
+#: Just past the type-to-search debounce (hx-trigger="keyup changed delay:400ms" on #results). Long
+#: enough that a debounced request WOULD have fired, short enough not to be a sleep in disguise: the
+#: assertions are on the request counter above, and this only opens the window in which a request could
+#: appear. It replaced a 700ms wait on each of three screens.
+_PAST_SEARCH_DEBOUNCE_MS = 450
 
 
 def test_search_works_from_a_screen_without_the_results_region(
@@ -75,13 +89,17 @@ def test_search_works_from_a_screen_without_the_results_region(
         (edit_url, "enter"),  # the edit surface, and by implicit submission rather than a click
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
-        page.evaluate(_COUNT_TARGET_ERRORS_JS)
+        page.evaluate(_COUNT_HTMX_JS)
         # typing must not fire an aborted request either — off the workbench there is nothing to swap,
-        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25)
+        # so the enhancement is simply not attached (it may not "hide" a failure, learning G.25). That
+        # is ASSERTED on the request counter rather than waited out: htmx must start nothing at all.
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
-        page.wait_for_timeout(700)  # longer than the 400ms type-to-search debounce
+        page.wait_for_timeout(_PAST_SEARCH_DEBOUNCE_MS)
         assert page.evaluate("() => window.__targetErrors") == [], (
             f"{path}: htmx aborted a swap against an absent target"
+        )
+        assert page.evaluate("() => window.__requests") == [], (
+            f"{path}: htmx fired a request from a screen the enhancement does not live on"
         )
         assert "q=Sommerfahrt" not in page.url, f"{path}: typing navigated on its own: {page.url}"
         # ...and submitting IS the navigation, on this screen exactly as on the workbench
@@ -724,6 +742,29 @@ _DOC_OVERFLOW_JS = """() => {
             scrollX: (window.scrollTo(99999, 0), window.scrollX)};
 }"""
 
+
+def _sideways_scroll_defects(
+    page: Page,
+    cases: tuple[tuple[int, str], ...],
+    extra: Callable[[Page], list[str]] | None = None,
+) -> list[str]:
+    """The standing contract, ONE walker for every surface that has to keep it: the PAGE BODY never
+    scrolls sideways, at each (width, url) in ``cases``. Both long-content proofs need it — the record
+    card's was a clone of the ledger's tail, driven by the same seed — so the walk lives once and each
+    caller passes its own ``extra`` probe (the ledger's own scroll box and its Titel ellipsis) to run
+    inside the same navigation rather than paying for a second pass."""
+    defects: list[str] = []
+    for width, url in cases:
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(url)
+        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
+        if doc["overflow"] > 1 or doc["scrollX"] > 1:
+            defects.append(f"{width}px: the page body scrolls sideways {doc}")
+        if extra is not None:
+            defects.extend(f"{width}px: {d}" for d in extra(page))
+    return defects
+
+
 #: Is the long TITEL actually ELLIPSIZED at this width? Its rendered box vs the width its text wants
 #: (Range-measured). The Titel is the elastic track and the archive's one unbounded field, so it is
 #: the column that must give space back — if it never tightens, nothing does, and the .titel
@@ -765,29 +806,32 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
             expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
         overflow: int = page.evaluate(_TABLE_OVERFLOW_JS)
         assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+
     # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
     # never scrolls sideways, the [role=table] absorbs the long row without a scrollbar of its own
     # (a scrolling table hides columns, which is exactly what C11 forbids), and the long Titel gives
     # its space back by ELLIPSIZING (proof the tracks are shrinkable and the .titel ellipsis is live
     # styling, not dead — Q6).
-    defects: list[str] = []
-    for width, path in (
-        (560, "/"),
-        (640, "/"),
-        (800, "/"),
-        (1280, f"/?artikel={e2e_corpus.published_ulid}"),
-    ):
-        page.set_viewport_size({"width": width, "height": 900})
-        page.goto(live_workbench + path)
-        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
-        if doc["overflow"] > 1 or doc["scrollX"] > 1:
-            defects.append(f"{width}px: document scrolls sideways {doc}")
-        table: int = page.evaluate(_TABLE_OVERFLOW_JS)
+    def ledger_probes(current: Page) -> list[str]:
+        found: list[str] = []
+        table: int = current.evaluate(_TABLE_OVERFLOW_JS)
         if table > 1:
-            defects.append(f"{width}px: the ledger overflows its own box by {table}px")
-        titel: dict[str, float] = page.evaluate(_LONG_TITEL_JS)
+            found.append(f"the ledger overflows its own box by {table}px")
+        titel: dict[str, float] = current.evaluate(_LONG_TITEL_JS)
         if titel["box"] >= titel["text"] - 1:
-            defects.append(f"{width}px: the long Titel never tightened {titel}")
+            found.append(f"the long Titel never tightened {titel}")
+        return found
+
+    defects = _sideways_scroll_defects(
+        page,
+        (
+            (560, live_workbench + "/"),
+            (640, live_workbench + "/"),
+            (800, live_workbench + "/"),
+            (1280, live_workbench + f"/?artikel={e2e_corpus.published_ulid}"),
+        ),
+        ledger_probes,
+    )
     assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
         defects
     )
@@ -1503,18 +1547,14 @@ def test_karte_absorbs_long_content(
     # place on this surface where unbounded text is laid out with no input box around it. Walked at the
     # narrow width where the card is one column and at the wide one where the sheet sits beside it.
     _seed_long_content(_e2e_root, django_db_blocker)
-    page = archivist_page
     url = live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten"
-    defects: list[str] = []
     # 360 is in the range because that is where the card's own two-column floor bit: a bare
     # minmax(floor, 1fr) track cannot shrink below its floor (G.24), so the single column stayed
-    # 380px wide inside a 328px column and scrolled the page body.
-    for width in (360, 680, 1000, 1440):
-        page.set_viewport_size({"width": width, "height": 900})
-        page.goto(url)
-        doc: dict[str, float] = page.evaluate(_DOC_OVERFLOW_JS)
-        if doc["overflow"] > 1 or doc["scrollX"] > 1:
-            defects.append(f"{width}px: the edit surface scrolls the page body sideways {doc}")
+    # 380px wide inside a 328px column and scrolled the page body. The walk itself is the shared one
+    # (the ledger proof drives it too, with its own extra probes) — this used to be a clone of its tail.
+    defects = _sideways_scroll_defects(
+        archivist_page, tuple((width, url) for width in (360, 680, 1000, 1440))
+    )
     assert not defects, "the record card does not absorb long content:\n" + "\n".join(defects)
 
 

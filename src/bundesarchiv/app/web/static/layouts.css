@@ -145,10 +145,15 @@
   /* The region that HOLDS the record row owns the row's dimensions, because TWO things consume them
      (C5, and C8's spirit: one source, never two values that happen to agree) — the row is that tall,
      and the sticky reader's sheet beside it has to clear exactly that much or the row occludes the
-     sheet's own header on scroll. Selected structurally rather than by id: whatever region holds a
-     record row gets the knobs, and the row and the sheet are siblings, so a shared ancestor is the
-     only place a custom property can reach both. */
-  :has(> .recordrow) {
+     sheet's own header on scroll. The row and the sheet are siblings, so a shared ancestor is the only
+     place a custom property can reach both, and #form-region IS that ancestor: it is the swap region
+     the whole edit surface lives in, declared in one template.
+     Named by its id rather than found structurally. `:has(> .recordrow)` was the only UNQUALIFIED
+     :has() in the codebase — a selector with no tag, class or id to bucket it, so the engine puts it
+     in the universal bucket and evaluates it against every element of every page, including the
+     50-row ledger where no record row exists at all. The knobs belong to one region on one screen;
+     paying for them everywhere bought nothing. */
+  #form-region {
     --recordrow-control: var(--touch-target-compact);
     /* the sheet's sticky offset, DERIVED from the row's own anatomy (C9's rule one level down — a
        guessed constant is what put the sheet under the row): the row's control height + its block
@@ -162,7 +167,7 @@
        consumes (components.css' consumption rule) — Speichern, the lifecycle action and the overflow
        summary can never drift apart by coincidence (G.22). Value: the compact control height, the
        same the header and the rail set, so the standing chrome rows read as one system — taken from
-       the region's knob above, which is also what --pane-top is computed from. */
+       #form-region's knob above, which is also what --pane-top is computed from. */
     --control-height: var(--recordrow-control);
     /* sticky ALSO makes this the containing block for the overlay panel its overflow disclosure
        drops (components.css: an overlay positions against its CONTROL ROW, not its trigger — law
@@ -307,8 +312,8 @@
   .pane > div {
     position: sticky;
     /* the sheet clears whatever sticky chrome stands above it: on the edit surface that is the record
-       row, whose own height arrives as --pane-top from the region that owns both (see :has(>
-       .recordrow) above) — one knob, two consumers. On the workbench nothing is sticky above the
+       row, whose own height arrives as --pane-top from the region that owns both (#form-region,
+       above) — one knob, two consumers. On the workbench nothing is sticky above the
        sheet, so the fallback is the frame's own gap. */
     top: var(--pane-top, var(--space-4));
     display: flex;
