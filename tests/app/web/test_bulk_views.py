@@ -198,6 +198,24 @@ def test_confirm_page_lists_field_value_count_articles(corpus: _Corpus) -> None:
     assert corpus.article(_A).creator is None
 
 
+def test_the_bulk_surfaces_carry_the_shared_header(corpus: _Corpus) -> None:
+    # Lockstep: workbench/_header.html exists so that NO archivist screen hand-draws a reduced version
+    # of the approved chrome (the precedent rule — the form wave retired the edit/create screens' own
+    # headers and left these two, plus the delete confirm, still drawing one lone back link). The
+    # user-visible consequence is the SEARCH affordance: from these screens an archivist could not
+    # search at all. Asserted on both phases, since each is its own template.
+    with override_settings(**_settings(corpus)):
+        client = _client_as(Archivist())
+        payload = {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer"}
+        pruefen = client.post("/artikel/sammelbearbeitung", payload).content.decode()
+        ergebnis = client.post(
+            "/artikel/sammelbearbeitung", {**payload, "bestaetigt": "1"}
+        ).content.decode()
+    for name, body in (("prüfen", pruefen), ("ergebnis", ergebnis)):
+        assert 'placeholder="Archiv durchsuchen…"' in body, f"{name}: no search box in the header"
+        assert "+ Neu …" in body, f"{name}: no create disclosure in the header"
+
+
 def test_confirm_does_not_write(corpus: _Corpus) -> None:
     with override_settings(**_settings(corpus)):
         _client_as(Archivist()).post(

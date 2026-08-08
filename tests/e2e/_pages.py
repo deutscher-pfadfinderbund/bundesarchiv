@@ -80,7 +80,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _at("/?schlagwort=sommer"),
         overlays=2,
-        control_rows=("header", "div.filterrail"),
+        control_rows=("header", "nav.filterrail"),
     ),
     Screen(
         "workbench-facets",
@@ -88,7 +88,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _at("/?schlagwort=sommer&medienart=Fotografie"),
         overlays=4,
-        control_rows=("header", "div.filterrail"),
+        control_rows=("header", "nav.filterrail"),
     ),
     Screen(
         "workbench-pane",
@@ -96,7 +96,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         lambda c: f"/?artikel={c.published_ulid}",
         overlays=1,
-        control_rows=("header", "div[toolbar]"),
+        control_rows=("header", "span[toolbar]"),
     ),
     Screen(
         "workbench-bulk-url",

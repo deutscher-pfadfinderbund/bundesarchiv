@@ -16,11 +16,14 @@ Params (all optional — an empty value simply renders less):
                     not chrome: a literal here would hand the create menu to the first lower-tier
                     viewer that ever reaches a shared-header screen
   aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
-  zurueck         — renders the "Zurück zur Suche" link at the end of the row. For the screens whose
-                    own body carries no way back: the create/rename forms. The edit surface has it in
-                    its record row, and the workbench IS the search — both leave it empty. Typing an
-                    empty query and submitting technically lands on the workbench, but that is not an
-                    affordance an archivist can see, so the explicit link stays.
+  zurueck         — renders the back link at the end of the row. For the screens whose own body
+                    carries no way back: the create/rename forms, the confirm and result surfaces. The
+                    edit surface has it in its record row, and the workbench IS the search — both leave
+                    it empty. Typing an empty query and submitting technically lands on the workbench,
+                    but that is not an affordance an archivist can see, so the explicit link stays.
+  zurueck_href    — where the back link goes; defaults to the workbench. The delete-confirm surface
+                    points at the article it is about, not at the search.
+  zurueck_label   — the back link's German words; defaults to "Zurück zur Suche".
 
 The wordmark itself lives in base.html (always present, always links home). The header is the page's
 one CONTROL ROW at the top (layouts.css sets its --control-height knob) — the search input, Suchen
@@ -53,4 +56,4 @@ button. Native <details> — no JS; plain details close behavior is owner-accept
   </ul>
 </details>
 {% endif %}
-{% if zurueck %}<a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endif %}
+{% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}

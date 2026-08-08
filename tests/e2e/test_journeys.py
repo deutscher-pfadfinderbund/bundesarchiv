@@ -324,31 +324,44 @@ _OVERLAY_SELECTOR = "details:has(> ul)"
 #: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
 #: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
 #: overlay gets it rather than the one that failed (learning G.21).
-_OVERLAY_RECT_JS = """(index) => {
-    const detail = document.querySelectorAll('details:has(> ul)')[index];
-    const panel = detail.querySelector(':scope > ul');
-    const r = panel.getBoundingClientRect();
-    const d = document.documentElement;
-    const covered = [];
-    for (const entry of panel.querySelectorAll('a, button, input, select')) {
-        const b = entry.getBoundingClientRect();
-        if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
-        const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-        if (!(hit === entry || entry.contains(hit) || entry.contains(hit && hit.parentElement))) {
-            covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
-                + ' <- ' + (hit ? hit.tagName.toLowerCase()
-                    + (typeof hit.className === 'string' && hit.className
-                        ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
-                    : 'nothing'));
+#: Opens EVERY overlay on the page in turn (one at a time — the rail's facet groups share a `name`, so
+#: two can never be open together anyway) and returns one facts record per panel. One evaluate per
+#: (screen, width) instead of two clicks plus an evaluate per panel: the whole measurement is
+#: synchronous DOM work (setting `.open` forces layout before getBoundingClientRect reads it), so
+#: paying a Playwright round-trip per open/close bought nothing but wall clock.
+_OVERLAY_WALK_JS = """() => {
+    const facts = [];
+    const details = [...document.querySelectorAll('details:has(> ul)')];
+    for (const detail of details) {
+        const wasOpen = detail.open;
+        detail.open = true;
+        const panel = detail.querySelector(':scope > ul');
+        const r = panel.getBoundingClientRect();
+        const d = document.documentElement;
+        const covered = [];
+        for (const entry of panel.querySelectorAll('a, button, input, select')) {
+            const b = entry.getBoundingClientRect();
+            if (b.width === 0 || b.height === 0) continue;   // not rendered — nothing to reach
+            const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+            if (!(hit === entry || entry.contains(hit)
+                  || entry.contains(hit && hit.parentElement))) {
+                covered.push((entry.textContent || entry.getAttribute('aria-label') || '?').trim()
+                    + ' <- ' + (hit ? hit.tagName.toLowerCase()
+                        + (typeof hit.className === 'string' && hit.className
+                            ? '.' + hit.className.trim().split(/\\s+/).join('.') : '')
+                        : 'nothing'));
+            }
         }
+        facts.push({
+            label: detail.querySelector('summary').textContent.trim(),
+            left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
+            viewport: d.clientWidth,
+            docOverflow: d.scrollWidth - d.clientWidth,
+            covered: covered,
+        });
+        detail.open = wasOpen;
     }
-    return {
-        label: detail.querySelector('summary').textContent.trim(),
-        left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
-        viewport: d.clientWidth,
-        docOverflow: d.scrollWidth - d.clientWidth,
-        covered: covered,
-    };
+    return facts;
 }"""
 
 #: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
@@ -361,29 +374,26 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
     containment defects.
 
     The screens come from the ONE inventory (``_pages.SCREENS``), each carrying the MINIMUM number of
-    overlay panels it must compose, so a silent no-find can never pass as a green walk. Overlays open
-    one at a time so panels never mask each other's geometry.
+    overlay panels it must compose, so a silent no-find can never pass as a green walk — and a new
+    screen is covered the day it joins the inventory (G.21 applied to page coverage).
 
-    ONE ``goto`` per screen, widths swept INSIDE it: containment is a pure CSS-geometry question, so
-    re-loading the same page at each width bought nothing and cost a page load per (width, page) —
-    16 avoidable loads on the old two-page list, and the inventory has nine screens with overlays."""
+    ONE ``goto`` per screen, widths swept INSIDE it, and one ``evaluate`` per (screen, width):
+    containment and reachability are pure CSS-geometry questions, so re-loading the page at each width
+    and paying two click round-trips per panel bought nothing. The old two-page list spent 16 avoidable
+    page loads on it; this walk visits nine more screens for less wall clock."""
     defects: list[str] = []
     for screen in SCREENS:
         if not screen.overlays:
             continue
         path = screen.path(corpus)
         page.goto(live_workbench + path)
-        overlays = page.locator(_OVERLAY_SELECTOR)
-        found = overlays.count()
+        found = page.locator(_OVERLAY_SELECTOR).count()
         assert found >= screen.overlays, (
             f"the overlay walker found only {found} panels on {path} ({screen.name})"
         )
         for width in _CONTAINMENT_WIDTHS:
             page.set_viewport_size({"width": width, "height": 900})
-            for i in range(found):
-                summary = overlays.nth(i).locator("summary")
-                summary.click()
-                rect: dict[str, object] = page.evaluate(_OVERLAY_RECT_JS, i)
+            for rect in page.evaluate(_OVERLAY_WALK_JS):
                 where = f"{width}px · {path} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")
@@ -395,7 +405,6 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
                     )
                 if float(str(rect["docOverflow"])) > 1:
                     defects.append(f"{where}: the open panel scrolls the document {rect}")
-                summary.click()  # close before measuring the next one
     return defects
 
 
