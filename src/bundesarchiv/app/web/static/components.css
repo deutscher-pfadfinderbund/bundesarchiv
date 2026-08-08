@@ -813,7 +813,7 @@
      (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
      ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
      (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
-  @container (max-width: 32rem) {
+  @container (max-width: 32rem) { /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the e2e proof); no token names a content minimum */
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
     }
