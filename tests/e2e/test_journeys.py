@@ -1504,6 +1504,34 @@ def test_karte_labels_share_one_axis(
     assert not overflowing, "a label outgrew the axis (--label-spalte):\n" + "\n".join(overflowing)
 
 
+def test_the_custom_bag_enhancement_survives_a_form_region_swap(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # G.27 sweep of a PRE-EXISTING bug the wave enlarged: catalog_form.js bound the custom-bag
+    # listeners to the #custom-bag node it found AT LOAD, so after any #form-region swap — every
+    # validation error, CAS conflict and index-lag re-render performs one — the bag in the DOM was a new
+    # node and the client-side row add/remove was dead until a full reload. Nothing said so: the no-JS
+    # baseline still worked, one round-trip per row. The wave's fix for the sibling class covered the
+    # OTHER enhancement only (catalog_bulk.js on htmx:historyRestore).
+    page = archivist_page
+    edit_url = _create_draft(page, live_workbench, "E2E Fachwerk")
+    page.goto(edit_url)
+    page.click('summary:has-text("Weitere Angaben")')
+    rows = page.locator("#custom-bag .bag-row")
+    expect(rows).to_have_count(1)  # the always-present trailing empty add-row
+    page.fill('input[name="custom_key"]', "Quelle")
+    expect(rows).to_have_count(2)  # ...grew a fresh spare: the enhancement is live before the swap
+    # now force a #form-region swap: an empty Titel re-renders the whole region inline via htmx
+    page.fill('input[name="title"]', "")
+    page.click('button:has-text("Speichern")')
+    expect(page.locator(".karte .error").first).to_be_visible()
+    page.click('summary:has-text("Weitere Angaben")')
+    swapped = page.locator("#custom-bag .bag-row")
+    before = swapped.count()
+    swapped.last.locator('input[name="custom_key"]').fill("Querverweis")
+    expect(swapped).to_have_count(before + 1)
+
+
 def test_an_empty_summary_value_renders_the_hollow_cue(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
