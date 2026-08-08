@@ -22,7 +22,6 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app import create_collection, save_collection
@@ -30,10 +29,9 @@ from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Audience, Collection, Version
-from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -44,10 +42,6 @@ def _canonical_store() -> ObjectStore:
     """The canonical files-store, built per request from settings — same construction the cataloging
     views use. Monkeypatchable in tests."""
     return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-
-
-def _is_archivist(request: HttpRequest) -> bool:
-    return isinstance(viewer_of(request), Archivist)
 
 
 def _collections(store: ObjectStore) -> tuple[Collection, ...]:
@@ -93,12 +87,12 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
             query = urlencode({"bestand": result.ulid, "angelegt": name})
             return HttpResponseRedirect(f"{reverse('artikel-neu')}?{query}")
-        return render(
+        return render_screen(
             request,
             "workbench/bestand_neu.html",
             _create_context(collections, name, parent_id, sichtbarkeit, gruppen, errors),
         )
-    return render(
+    return render_screen(
         request,
         "workbench/bestand_neu.html",
         _create_context(collections, "", "", "", "", {}),
@@ -166,7 +160,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
         name = request.POST.get("name", "").strip()
         expected_version = parse_version(request.POST.get("expected_version", ""))
         if not name:
-            return render(
+            return render_screen(
                 request,
                 "workbench/bestand_bearbeiten.html",
                 _edit_context(
@@ -181,7 +175,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
             # preserved (parity with the article form) — never a 500 (security LOW).
             winner = CollectionRepository(store).load(ulid)
-            return render(
+            return render_screen(
                 request,
                 "workbench/bestand_bearbeiten.html",
                 _edit_context(
@@ -194,7 +188,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                 ),
             )
         return HttpResponseRedirect(f"{reverse('workbench')}?bestand={ulid}")
-    return render(
+    return render_screen(
         request,
         "workbench/bestand_bearbeiten.html",
         _edit_context(store, stored, stored.collection.name, {}, stored.version),

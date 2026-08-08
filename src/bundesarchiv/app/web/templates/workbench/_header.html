@@ -1,0 +1,59 @@
+{% comment %}
+The ONE header chrome every archivist screen carries (precedent rule: a new view copies the nearest
+approved view — the workbench's header IS that view). Before the form wave the edit/create screens
+each drew their own reduced header (no search, one lone "Zurück zur Suche"), so the approved chrome
+existed on exactly one screen; this partial is the chrome itself, included from the {% templatetag openblock %} block header {% templatetag closeblock %} of
+every screen that has it.
+
+Params (all optional — an empty value simply renders less):
+  text            — the current search text (the workbench's q); blank elsewhere
+  filter_params   — the ACTIVE facet/sort filters as hidden inputs, so typing q refines WITHIN
+                    the current scope instead of dropping it (GH #21); empty elsewhere
+  is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). It comes from the VIEW,
+                    resolved from viewer_of (viewers.render_screen stamps every screen's context) —
+                    never asserted as `is_archivist=True` at an include site. Whether archivist chrome
+                    renders is an authorization-shaped fact, and the leak matrix asserts route gates,
+                    not chrome: a literal here would hand the create menu to the first lower-tier
+                    viewer that ever reaches a shared-header screen
+  aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
+  zurueck         — renders the back link at the end of the row. For the screens whose own body
+                    carries no way back: the create/rename forms, the confirm and result surfaces. The
+                    edit surface has it in its record row, and the workbench IS the search — both leave
+                    it empty. Typing an empty query and submitting technically lands on the workbench,
+                    but that is not an affordance an archivist can see, so the explicit link stays.
+  zurueck_href    — where the back link goes; defaults to the workbench. The delete-confirm surface
+                    points at the article it is about, not at the search.
+  zurueck_label   — the back link's German words; defaults to "Zurück zur Suche".
+
+The wordmark itself lives in base.html (always present, always links home). The header is the page's
+one CONTROL ROW at the top (layouts.css sets its --control-height knob) — the search input, Suchen
+and the "+ Neu …" summary all consume it, so their heights hold by construction (law C8).
+
+The form is PLAIN HTML on purpose, and that is what makes it work identically on every screen: a GET
+navigation to the workbench, with JS and without. It used to carry hx-get + hx-target="#results",
+which exists only on the workbench — so on the edit/create/Bestand screens htmx cancelled the native
+submit and aborted with htmx:targetError, and searching from those screens did NOTHING. The
+type-to-search ENHANCEMENT therefore lives on the region it swaps (#results, workbench/_results.html)
+instead of on the shared trigger: it exists exactly where its target exists, by construction, and the
+form below degrades to the plain navigation everywhere else without knowing anything about its page.
+{% endcomment %}
+<form role="search" method="get" action="{% url 'workbench' %}">
+  <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
+  {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
+  {% endfor %}<button type="submit">Suchen</button>
+</form>
+{% comment %}ONE quiet "+ Neu …" disclosure (owner 2026-08-07, rail round 2 — Mock B: the two
+create buttons died; the search submit went quiet with them). The panel's list is the header's
+create SLOT (learning G.9): a new create action lands in this list, never as a new header
+button. Native <details> — no JS; plain details close behavior is owner-accepted.{% endcomment %}
+{% if is_archivist %}
+<details class="menu">
+  <summary>+ Neu …</summary>
+  <ul>
+    <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
+    <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
+    {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
+  </ul>
+</details>
+{% endif %}
+{% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}

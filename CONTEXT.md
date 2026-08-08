@@ -25,7 +25,7 @@ A future thematic, browse-only grouping of Articles (many per Article, no effect
 A distinct physical object embodying an Article when one Article has several physical copies/manifestations in different places. In v1 this is collapsed into the single `physical_location` field below; multiple Carriers come later (with Album).
 
 **Reference code** (*Signatur*) — code field `ref_code`:
-The identifier an Archivist assigns to an Article and writes on the physical object (e.g. `Foto-1955/007`). Optional, free-text, sorts numeric-aware, soft-unique (duplicates warned, not blocked). It is human-facing metadata, **not** the Article's stable identity (which is an internal ULID).
+The identifier an Archivist assigns to an Article and writes on the physical object (e.g. `F12/3-b2`). Optional, free-text, sorts numeric-aware, soft-unique (duplicates warned, not blocked). It is human-facing metadata, **not** the Article's stable identity (which is an internal ULID). **Shape (owner, 2026-08-07):** a Signatur carries **no spaces**, and **8 characters is the practical ceiling** ("they could get longer, but I don't expect them to") — demo corpora and layout renders use codes at or under that ceiling; where a layout needs stressing, the unbounded field is the Titel.
 _Avoid_: signature (false friend — means autograph in English), ref_id (implies identity — the ULID is the identity), call number, ID, key.
 
 ### People & audience

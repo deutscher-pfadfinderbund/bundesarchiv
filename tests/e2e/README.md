@@ -49,12 +49,17 @@ so a review brief can reference a shot. Override the output dir with
 `BUNDESARCHIV_GALLERY_DIR`.
 
 The states live in `_gallery.py:STATES`: the workbench (empty / results /
-filtered / pane-open / bulk cold-start + selection / public), the create + edit
-forms, the 4.6 detail read view (member with cover + filmstrip / no-media /
-archivist draft), and the POST-gated confirm surfaces (bulk-confirm,
-delete-confirm, publish-preview) — the confirm group reached by driving the
-affordance, so they appear in the gallery too. Read-only states only: no gallery
-render mutates the shared corpus (so every shot shows clean canonical data).
+filtered / pane-open / bulk cold — proving NO Sammelbearbeitung shows without a
+selection — + bulk selection / public), the create step, the edit surface in its
+three shapes (draft / published / with the folded card sections unfolded), the 4.6
+detail read view (member with cover + filmstrip / no-media / archivist draft), and
+the confirm surfaces (bulk-confirm, delete-confirm) — the states behind an
+interaction reached by driving the affordance, so they appear in the gallery too.
+Read-only states only: no gallery render mutates the shared corpus (so every shot
+shows clean canonical data). The `publish-preview` state retired with the
+over-exposure gate itself (owner ruling 5, 2026-08-08): publishing is one click
+from the edit surface's record row, and the exposure statement is permanent chrome
+there — `edit-form` is where that state is now judged.
 
 ## Add a journey
 
@@ -78,5 +83,7 @@ non-empty PNG.
 - `conftest.py` — fixtures (per-test corpus, live server, viewer cookies, pages).
 - `_corpus.py` — `build_corpus` + the fixed ULIDs the journeys reference.
 - `test_journeys.py` — the journeys.
+- `test_a11y.py` — the axe-core WCAG 2.2 AA pass over the journey pages.
 - `_gallery.py` — the state list + `render_all`.
 - `test_gallery.py` — the gallery entry point + smoke test.
+- `vendor/` — the vendored axe-core (MPL-2.0; pages are offline-only by design).

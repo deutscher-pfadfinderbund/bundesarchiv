@@ -1,521 +1,517 @@
-/* Cataloging-form styles (Part 4.7, spec §4/§6). Role tokens from tokens.css ONLY — a hex value
-   here is a defect (design-system.md, "Roles, not colors"). Load
-   order: tokens.css, components.css, then this file (it reuses the atom classes .c-field/.c-input/
-   .c-select/.c-btn/.c-sig and only adds the form column, drawers, sticky footer, field-error and
-   CAS-panel chrome). No new tokens, no new type roles, no motion.
+/* The editing views (Part 4.7/4.8 + the confirm surfaces): the work column, the RECORD CARD, the
+   media register, field errors and the CAS panel. Role tokens ONLY (tokens.css) — a raw color here
+   is a defect. Load order: tokens, components, layouts, then this file. Semantic HTML carries the
+   structure (form/section/details/dl/table); classes appear only where semantics cannot discriminate
+   (law C1).
 
-   GRAMMAR (design-system.md, the stamp law applied per-node): the form is flat neutral chrome. The
-   only violet ink is the header Signatur mark (.c-sig, from the atom), inline links, and the focus
-   ring (inherited). State is INVERSION (the primary button), never a tint. The two loud channels are
-   reserved: amber (--draft/--on-draft) for the "ungespeichert" register only, red (--error/
-   --on-error) for field validation + the CAS "Inzwischen geändert" panel. No per-group fills, no
-   card shadows, no colored inputs — that flatness is load-bearing (one loud element per state). */
+   GRAMMAR (the stamp law applied per-node): the form is flat neutral chrome. The only violet ink is
+   the Signatur — the .c-sig mark in a reader header and the card's Signatur VALUE — plus inline
+   links, mono data and the focus ring (inherited). State is INVERSION (the primary button), never a
+   tint. The loud channels stay reserved: red (--error/--on-error) for field validation + the CAS
+   "Inzwischen geändert" panel (register row 5). No per-group fills, no card shadows — that flatness
+   is load-bearing, and since the form wave it is total: the seven bordered group drawers became the
+   record card's ruled rows (owner ruling 1), and the bottom sticky action band became the record row
+   at the top (ruling 2, layouts.css). */
 
-/* ---- the work column: a single centered editing column (spec §1) ---- */
+@layer compositions {
+  /* the create step is near-empty: the two required fields are the focal point */
+  .column.narrow form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
 
-.c-form {
-  max-width: 52rem;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4) calc(var(--space-8) * 2);
-}
-.c-form-titel {
-  margin: 0 0 var(--space-5);
-  font: var(--type-display);
-  color: var(--on-surface);
-}
+  /* fields fill the column (the create step + the Bestand forms; the record card sizes its fields
+     from their CONTENT instead — see .karte below) */
+  .column .field {
+    display: flex;
+    width: 100%;
+  }
+  .column :is(input, select, textarea):not([type="checkbox"], [type="file"]) {
+    width: 100%;
+  }
 
-/* the create step is near-empty: the two required fields are the focal point, so give them air */
-.c-form--neu { max-width: 32rem; }
-.c-form--neu .c-form-felder { display: flex; flex-direction: column; gap: var(--space-4); }
-.c-form--neu .c-field { width: 100%; }
+  /* ============================================================
+     THE RECORD CARD (owner ruling 1, 2026-08-08 — composition E with A's two-column behaviour
+     inside it). The whole record as ONE catalog card: one ruled row per field, a label column so
+     every value shares an axis, hairlines between rows, and NO boxes — the seven bordered fieldsets
+     died with their seven floating drawer-tab legends (audit defect 2, learning G.2: repetition
+     dilutes a mark) on a screen whose sibling, the ledger, has no boxes at all. The grammar IS the
+     ledger's: --type-label uppercase heads, --type-body values, hairline rules, mono violet for the
+     Signatur.
 
-/* ---- the persistent form header (spec §3): h1 Titel + ENTWURF badge + live Signatur mark ---- */
+     MATERIAL ROLE (register row 8, learning G.17 — a new surface names its role before it is
+     styled): the card is NOT a sheet. It is ruled lines drawn on the desk — no tint, no edge, no
+     depth cue. The one TRUE SHEET on this screen is the reader's pane beside it.
 
-.c-form-kopf {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-6);
-}
-.c-form-kopf-titel {
-  margin: 0;
-  font: var(--type-display);
-  color: var(--on-surface);
-}
-.c-form-kopf-marken {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
+     EVERY selector below is a DIRECT-CHILD path (law C14). A bare `.karte h2` restyled a nested
+     component's own heading in this wave's mock — the CAS conflict panel's — because the
+     compositions layer outranks components; the card's own sections carry `.fach` so those paths stay
+     direct-child without each having to name the card's DOM shape (the form is display:contents,
+     because the media register must hold real <form> children and forms cannot nest, so the DOM
+     splits at the drawer while the CARD does not).
+     ============================================================ */
+  .karte {
+    /* the card's API (law C3/C5), all four knobs named here and consumed below:
+       --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
+                       "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold,
+                       uppercase, 0.08em tracking) measure 137px, so 9rem (144px) holds it on one
+                       line. Measured in the browser, and re-measured every run by
+                       test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
+                       a second line, which is a defect the eye skims past (at 8rem the test reports
+                       "Datierung (EDTF): wants 137px in a 128px column").
+       --wert-min      the narrowest a value cell may become before the card gives up a column:
+                       14rem (224px) still shows the widest vocabulary Dokumenttyp caption in full.
+       --feld-signatur a Signatur carries NO SPACES and 8 characters is the practical ceiling (owner
+                       2026-08-07), so 12ch fits the ceiling code plus the caret with room to spare —
+                       a field's width is a claim about its content length (learning G.31).
+       --feld-kurz     the short domain fields (Datierung, Autor, Ort): 18ch ≈ an EDTF interval
+                       ("1948-01-01/1952-12-31" = 22ch is the outlier and scrolls in its own box) and
+                       a personal name. Everything else FILLS its cell. */
+    --label-spalte: 9rem;
+    --wert-min: 14rem;
+    --feld-signatur: 12ch;
+    --feld-kurz: 18ch;
+    /* the two-column behaviour, INTRINSIC (law C11 — "no breakpoint guessing, use a grid", owner
+       ruling 1): auto-fit lays as many section columns as the card's own width allows and shares the
+       slack between them, so there is NO width query in this card at all. The floor is DERIVED, not
+       picked: a section column must hold its label axis plus a value cell plus the gap between them,
+       i.e. 9rem + 14rem + 0.75rem = 23.75rem. Two columns therefore appear at 48.5rem of card
+       width (2 x 23.75 + the 1rem column gap) — measured live: the 1440px desk with the reader's
+       sheet open gives the card ~61rem, the 680px viewport ~40.5rem, so the desk gets two columns
+       and the narrow viewport one, by arithmetic rather than by a threshold. */
+    --spalten-boden: calc(var(--label-spalte) + var(--wert-min) + var(--space-3));
+    display: grid;
+    /* min(floor, 100%) — a bare minmax(floor, 1fr) has the FLOOR as its real minimum, so on a
+       viewport narrower than one section column the track stayed 380px wide and pushed the page body
+       into horizontal scroll (the G.24 class, caught by the overlay-containment walker on the edit
+       surface at 360px). With min() the single column simply shrinks below the floor instead: one
+       column was already the answer at that width, so nothing is lost. */
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--spalten-boden), 100%), 1fr));
+    align-items: start;
+    gap: var(--space-6) var(--space-4);
+  }
+  /* the form takes part in submission, not in layout — so its sections are the CARD's grid items */
+  .karte > form {
+    display: contents;
+  }
+  /* ---- .fach is the CARD'S OWN SECTION (law C1 licenses a class exactly here: "a section the card
+     placed" is a distinction semantics cannot express — the card's DOM splits at the media register,
+     because that register must hold real <form> children and forms cannot nest, so the form is
+     display:contents and the card's sections are two element names at two different depths).
 
-/* ---- field: full-width in the column; the label + input come from the atoms ---- */
+     Every selector below is still a DIRECT-CHILD path (law C14): `.fach > …` reaches only what the
+     composition placed, so the CAS conflict panel's own `h2` — which sits in `main`, in no `.fach` —
+     is untouched, exactly as the 15 copies of `:is(.karte, .karte > form) > :is(section, details) >`
+     achieved before. That prefix was the coupling: it named element NAMES and the form's
+     display:contents split, so every one of these rules had to know the card's DOM shape. ---- */
+  /* the section head — h2 and summary share ONE treatment (the ledger's column-head label role), so
+     an open section and a folded one never read as different kinds of thing (learning G.1: the
+     uniformity is proven computed, not claimed here) */
+  .fach > :is(h2, summary) {
+    margin: 0;
+    padding-block: var(--space-1);
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  /* the folded sections' value line (owner ruling 4): the section's own values, muted, "·"-joined —
+     the same separator idiom the pane's meta line uses. It disappears while the section is OPEN,
+     because then the fields themselves carry those values and no fact may be on screen twice (Q2). */
+  details.fach > summary > .werte {
+    text-transform: none;
+    letter-spacing: normal;
+    font: var(--type-meta);
+  }
+  details.fach[open] > summary > .werte {
+    display: none;
+  }
+  /* an EMPTY value in a summary line: the hollow slot idiom (register row 6 — the licensed cue for
+     absence), so "Standort leer" cannot read as a real Standort. A dashed UNDERLINE, not a box: the
+     summary is a line of running text, and the fold's promise is that folding hides no data — a
+     named absence that looks like a value breaks that promise as surely as hiding it would. */
+  .werte > .leer {
+    border-bottom: var(--hairline) dashed var(--outline-variant);
+  }
+  /* a folded section that CONTAINS an error renders OPEN (the view decides [open] from the same error
+     context that renders the message — catalog_views._open_sections), and its summary SAYS so: an
+     opened section is otherwise indistinguishable from one the archivist opened themselves, and the
+     message may sit a screenful below the summary. Read off the section's own contents with :has(),
+     so no server flag and no JS can disagree with where the .error actually is. Red is register
+     row 5's licensed channel (errors); the " · " is the .werte line's own separator idiom, and the
+     summary's label treatment uppercases it like every other word on that line. */
+  details.fach:has(.error) > summary::after {
+    content: " · Fehler";
+    color: var(--error);
+  }
+  .werte > span + span::before {
+    content: " · ";
+  }
+  /* ---- one ruled field row: label column + value, a hairline between rows, no box. Each row carries
+     the axis itself, out of the SHARED --label-spalte knob, rather than subgridding onto its section:
+     the section is plain flow, so a folded <details> lays its rows out identically to an open
+     <section> — a subgrid would have to reach through ::details-content to do that. The axis is
+     nonetheless one axis by construction (C3: variation travels through the knob, C8's spirit one
+     level down), not two values that happen to agree. ---- */
+  .fach > .field {
+    display: grid;
+    grid-template-columns: var(--label-spalte) minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: baseline;
+    row-gap: var(--space-1);
+    padding-block: var(--space-2);
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  /* the label sits in the axis column; everything else (control, hint, error, EDTF echo) stacks in
+     the value column, so a hint never pushes a value out of the axis */
+  .fach > .field > * {
+    grid-column: 2;
+  }
+  .fach > .field > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  /* THE RESTING LOOK — declared in :where() so it carries ZERO specificity (law C13, learning G.29):
+     every state rule (hover, focus, a field carrying an error) outranks it without a specificity
+     contest. Written at normal specificity this rule silently swallowed the error border in the
+     wave's mock — the red was in the stylesheet and invisible on screen. The look itself: the value
+     sits ON the row's line, no box.
 
-.c-form .c-field { display: flex; width: 100%; }
-.c-form .c-input,
-.c-form .c-select,
-.c-form textarea.c-input { width: 100%; }
-.c-form-hint {
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-/* state-H index-lag hinweis (ADR 0014): quiet on-surface-variant body — NOT loud (the save
-   succeeded; only search lags). Sits above the form header after a saved-but-lagged POST. */
-.c-form-hinweis {
-  margin: 0 0 var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
+     It is stated through the field's own KNOBS (components.css), not by restating its chrome: the
+     card used to re-declare the background, the focus border and the error border only to out-rank
+     the elements layer, and every restatement was one more place the states could be lost. Now the
+     card names two values and the state rules below it are the elements layer's own. */
+  :where(.fach > .field > :is(input, select, textarea)) {
+    --field-fill: none;
+    --field-border: transparent;
+    border-radius: 0;
+    padding-inline: 0;
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  /* worked-on: the box appears under the pointer and around the focused control (Q6 — the affordance
+     is stated exactly where the interaction is). ONE rule for both states, and only the FILL: the
+     focus border is the elements layer's own :focus-visible rule, and the error border its
+     :has(.error) rule — both out-rank the base border in their own layer, so neither needs restating
+     (test_error_fields_compute_the_error_border proves the error half computed). */
+  .fach > .field > :is(input, select, textarea):is(:hover, :focus-visible) {
+    --field-fill: var(--surface-container-lowest);
+  }
+  /* the DEFAULT width claim: fill the value cell. The three content-derived exceptions below are the
+     fields whose content has a known ceiling (learning G.31) — everything else is free text or a
+     select whose caption length the vocabulary decides, so it takes the cell. */
+  .fach > .field > :is(input, select, textarea) {
+    width: 100%;
+    max-width: 100%;
+  }
+  /* the Signatur value is the archive's mark: violet-ink mono (register row 2), like the ledger's
+     sig column and the reader header's code */
+  .fach > .field > input[name="ref_code"] {
+    width: var(--feld-signatur);
+    font: var(--type-mono);
+    font-weight: 600;
+    color: var(--primary);
+  }
+  /* content-derived widths (learning G.31 — an input's width is a claim about content length, so it
+     is derived like a breakpoint, from the domain, in ch): the short fields take --feld-kurz, every
+     other control fills its cell */
+  .fach > .field > :is(input[name="date"], input[name="creator"], input[name="subject_place"]) {
+    width: var(--feld-kurz);
+  }
+  /* ---- prose + register sections span every column (a ruled two-column split would cut a
+     paragraph and a media register in half) ---- */
+  .fach.prosa,
+  #medien-drawer.fach {
+    grid-column: 1 / -1;
+  }
+  /* Beschreibung: the section HEADING is the field's label (aria-labelledby on the textarea), so
+     there is no label column here — the prose fills the section */
+  .fach.prosa > textarea {
+    /* the ONE control in the card that keeps its box (elements layer): a prose area's EXTENT is part
+       of what it tells the archivist, and an empty one drawn as a bare line is invisible. Every
+       single-line value sits on its row's rule instead. */
+    display: block;
+    width: 100%;
+    min-height: 8rem; /* the prose floor — about five lines; no token names a text-area minimum */
+    field-sizing: content; /* law F, newly-available tier: grows with the content where supported,
+       degrades to exactly the floor above where it is not */
+  }
+  /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
+     reader's sheet carries it where the sheet exists, the card carries it where it does not. The card
+     is the DEFAULT placement — always rendered, always shown — and layouts.css's ONE pane switch is
+     the only thing that ever suppresses it, inside the same query that puts the sheet on screen. So
+     no threshold is invented or restated here (law C9): this file owns the card's LOOK, the file that
+     owns the switch owns the swap. At every width the statement is on screen exactly once, and never
+     zero times — the previous arrangement hid this copy on WIDTH ALONE while the sheet additionally
+     needs body.vorschau, so a card without body.vorschau lost the fact entirely above 80rem.
 
-/* ---- field error (spec §6.1: the LIGHT treatment, never the panel) ---- */
+     The card's copy is a direct child of the form, NOT a child of the folded Zugriff section it used
+     to sit in: below the switch the pane is display:none, so with the fold shut the statement was on
+     screen NOWHERE — and the publish gate had already been retired BECAUSE the statement is permanent
+     (owner ruling 5). A permanent fact may not live behind a disclosure. It spans every card column
+     like the other prose. ---- */
+  .karte > form > .einblick {
+    grid-column: 1 / -1;
+    padding-top: var(--space-2);
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  .einblick > p {
+    margin: 0;
+  }
 
-.c-field--fehler .c-input,
-.c-field--fehler .c-select,
-.c-field--fehler textarea.c-input {
-  border-color: var(--error);
-}
-.c-field-fehler {
-  font: var(--type-meta);
-  color: var(--error);
-}
+  /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
+  .bag-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+    gap: var(--space-3);
+  }
+  .bag-row + .bag-row {
+    margin-top: var(--space-3);
+  }
+  .bag-row button {
+    white-space: nowrap;
+  }
 
-/* Read-only display rows (4.8 rename: parent + Sichtbarkeit shown, not editable). The dashed
-   baseline reads as a printed record fact — clearly NOT an input (no box, no fill). */
-.c-field--nurlesen {
-  gap: calc(var(--space-1) / 2);
-}
-.c-field-wert {
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-  padding: var(--space-1) 0;
-  border-bottom: 1px dashed var(--outline-variant);
-}
+  /* ---- read-only facts (4.8 rename: parent + Sichtbarkeit shown, not editable): a <dl>. The
+     dashed baseline reads as a printed record fact — clearly NOT an input. ---- */
+  .column dl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+  }
+  .column dt {
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+  }
+  .column dd {
+    margin: 0;
+    font: var(--type-body);
+    color: var(--on-surface-variant);
+    padding: var(--space-1) 0;
+    border-bottom: var(--hairline) dashed var(--outline-variant);
+  }
 
-/* ---- group drawer: a fieldset whose legend reuses the .c-facet-tab drawer-label silhouette ----
-   (spec §3/§4 — grouping reads as archive drawers). The panel is neutral, square, hairline: no
-   fill, no shadow (flatness is load-bearing). */
+  /* ---- footer action bar (spec §3): the create/confirm pages' one action row. The edit form's
+     bottom-docked .sticky variant and the separate .lifecycle band are GONE (owner ruling 2,
+     2026-08-08): that surface has exactly ONE action place, the sticky record row at the top
+     (layouts.css). With them went the --banner-offset lift, whose whole purpose was keeping a
+     bottom-docked Speichern clear of the viewport-bottom failure banner. ---- */
+  .column footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .column footer .actions {
+    margin-left: auto;
+  }
 
-.c-form-group {
-  position: relative;
-  margin: calc(1.5rem + var(--space-4)) 0 0;
-  padding: var(--space-5) var(--space-4) var(--space-4);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-.c-form-legend {
-  position: absolute;
-  top: calc(1px - 1.5rem);
-  left: var(--space-3);
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding: 0 var(--space-3);
-  background: var(--surface-container-high);
-  color: var(--on-surface-variant);
-  border: 1px solid var(--outline-variant);
-  border-bottom: none;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  /* the drawer-label silhouette: one beveled leading corner (same as .c-facet-tab) */
-  corner-shape: bevel;
-  border-radius: var(--radius-m) 0 0 0;
-}
-.c-form-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.c-form-row + .c-form-row { margin-top: var(--space-4); }
-
-/* ---- the custom bag (Gruppe 7): a <details> drawer reusing wb-facet; two-cell rows ---- */
-
-.c-form-details {
-  margin-top: calc(1.5rem + var(--space-4));
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-.c-form-details-summary {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-  cursor: pointer;
-}
-.c-form-details[open] .c-form-details-summary { margin-bottom: var(--space-3); }
-.c-form-bag-zeile {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  align-items: end;
-  gap: var(--space-3);
-}
-.c-form-bag-zeile + .c-form-bag-zeile { margin-top: var(--space-3); }
-.c-form-bag-entfernen {
-  /* inline remove link = stamp ink (an interactive text affordance) */
-  font: var(--type-meta);
-  color: var(--primary);
-  text-decoration: none;
-  padding: var(--space-1) 0;
-  white-space: nowrap;
-}
-.c-form-bag-entfernen:hover { text-decoration: underline; }
-
-/* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register the
-   archivist already knows — NOT a bespoke system. Row: [thumb][datei][caption][reorder][remove].
-   The whole register is ONE grid; each row is a subgrid row on the shared tracks. Scrolls in its own
-   box on narrow viewports (the page body never scrolls sideways). ---- */
-
-.c-medien {
-  --c-medien-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content max-content;
-  display: grid;
-  grid-template-columns: var(--c-medien-cols);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  overflow-x: auto;
-}
-.c-medien-zeile {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-.c-medien-zeile + .c-medien-zeile { border-top: 1px solid var(--outline-variant); }
-/* the cover row may sit a hair raised (spec §6.3) — a position cue, still neutral */
-.c-medien-zeile--cover { background: var(--surface-container-mid); }
-
-/* thumb: gated image or a dashed placeholder; neutral border, small radius */
-.c-medien-thumb {
-  width: 3rem;
-  height: 3rem;
-  object-fit: cover;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-  background: var(--surface-container-low);
-}
-
-/* datei: filename (mono ink data mark) + byte size (mono-meta, quiet) */
-.c-medien-datei { min-width: 0; }
-.c-medien-name {
-  display: block;
-  font: var(--type-mono);
-  color: var(--primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.c-medien-groesse { font: var(--type-mono-meta); color: var(--on-surface-variant); }
-
-/* the TITELBILD cover mark — INVERSION, not tint (spec §6.3, the single most likely grammar
-   violation): a solid NEUTRAL-INK stamp (on-surface bg, surface fg), like the active facet row and
-   the primary button. NOT amber, NOT violet. A position-state, expressed as a pressed stamp. */
-.c-medien-titelbild {
-  display: inline-block;
-  margin-top: calc(var(--space-1) / 2);
-  padding: 0 var(--space-1);
-  background: var(--on-surface);
-  color: var(--surface);
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  border-radius: var(--radius-s);
-}
-
-/* reorder: nach oben / nach unten inline links (stamp ink); disabled at the ends */
-.c-medien-reihenfolge {
-  display: inline-flex;
-  gap: var(--space-2);
-  white-space: nowrap;
-}
-.c-medien-pfeil {
-  font: var(--type-meta);
-  color: var(--primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-}
-.c-medien-pfeil:hover { text-decoration: underline; }
-.c-medien-pfeil:disabled { color: var(--on-surface-variant); cursor: default; text-decoration: none; }
-
-/* remove: inline link, two-step confirm re-render */
-.c-medien-entfernen {
-  font: var(--type-meta);
-  color: var(--primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-  white-space: nowrap;
-}
-.c-medien-entfernen:hover { text-decoration: underline; }
-.c-medien-confirm {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-
-/* upload row + error line below the register */
-.c-medien-upload {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-.c-medien-fehler {
-  margin-top: var(--space-2);
-  font: var(--type-meta);
-  color: var(--error);
-}
-/* upload progress sliver (spec §6.3): a neutral on-surface fill in a surface-container-low track,
-   grown in discrete XHR-reported steps by catalog_form.js — NO easing, NO transition (no-motion
-   law). Zero-width at rest; enhancement-only (absent when JS never paints it). */
-.c-medien-fortschritt {
-  height: 2px;
-  margin-top: var(--space-2);
-  background: var(--surface-container-low);
-}
-.c-medien-fortschritt-fill {
-  width: 0;
-  height: 100%;
-  background: var(--on-surface);
-}
-
-/* in-flight cue for HTMX swaps (spec §5, no-motion): a static opacity dim while a request is in
-   flight — no spinner, no transition. The media drawer + form region dim during their own swap. */
-#medien-drawer.htmx-request,
-.c-form-felder.htmx-request { opacity: 0.6; }
-
-/* ---- EDTF echo: neutral body text, at most one violet fragment (spec §0) ---- */
-
-.c-form-echo {
-  margin-top: var(--space-1);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-
-/* ---- sticky footer action bar (spec §3) ---- */
-
-.c-form-footer {
-  position: sticky;
-  /* Docks at the viewport bottom normally. The global htmx-error banner (layouts.css,
-     .wb-error-banner) is ALSO viewport-bottom-fixed, so a revealed banner would stack directly over
-     this footer, occluding Speichern exactly when a failed save needs a retry (design-gate finding,
-     fix-wave 2026-07-17). base.html's failure-listener JS measures the banner's real rendered height
-     (it can wrap to two lines) into --wb-error-banner-height on reveal/dismiss; lifting by that
-     amount keeps Speichern clickable while the error shows. 0px — both the fallback and the value
-     while the banner sits [hidden] — reproduces the old plain `bottom: 0` exactly. */
-  bottom: var(--wb-error-banner-height, 0px);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-container-high);
-  border-top: 1px solid var(--outline-variant);
-}
-/* the create step's footer is not sticky — the page is short (no scroll to pin against), and it
-   drops the footer bar's fill + top border so the near-empty page stays plain (spec focal-point A) */
-.c-form-footer--neu {
-  position: static;
-  margin-top: 0;
-  padding: var(--space-2) 0 0;
-  background: none;
-  border-top: none;
-}
-.c-form-footer-aktionen {
-  display: inline-flex;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-/* the dirty register: amber, LEFT side; enhancement-only (JS toggles it) — hidden at rest */
-.c-form-status {
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-draft);
-  background: var(--draft);
-  border: 1px solid var(--on-draft);
-  border-radius: var(--radius-s);
-  padding: calc(var(--space-1) / 2) var(--space-2);
+  /* the composition owns the space between stacked panels and the form region */
+  .column .panel {
+    margin-bottom: var(--space-6);
+  }
 }
 
-/* lifecycle control: reads as a continuation of the sticky footer band — same surface, flush against
-   it (no gap), a subtle action right-aligned. Separate forms so Enter never fires a lifecycle action
-   (spec §6.2). The footer's own hairline top border already separates the pair from the fields. */
-.c-form-lebenszyklus {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0;
-  padding: 0 var(--space-4) var(--space-3);
-  background: var(--surface-container-high);
-}
+@layer components {
+  /* ---- EDTF echo: neutral meta text under the Datierung field (spec §0) ---- */
+  .echo {
+    font: var(--type-meta); /* sits inside label.field — the field's gap owns the spacing (C4) */
+    color: var(--on-surface-variant);
+  }
 
-/* ---- panel: shared square hairline base + the konflikt modifier (spec §6.1) ---- */
+  /* ---- media register (Gruppe 6, spec §6.3): the ledger subgrid grammar reused as a register
+     the archivist already knows. Row: [thumb][datei][caption][action toolbar] — the reorder and
+     remove columns merged into ONE toolbar slot when the three text links became icons (owner
+     ruling 6, 2026-08-08; learning G.9: actions live in named slots). Scrolls in its own box on
+     narrow viewports (the page body never scrolls sideways). ---- */
+  .media {
+    --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content;
+    display: grid;
+    grid-template-columns: var(--media-cols);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    overflow-x: auto;
+  }
+  .media > div {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  .media > div + div {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  /* the cover row sits a hair raised (spec §6.3) — a position cue, still neutral */
+  .media > div.cover {
+    background: var(--surface-container-mid);
+  }
+  .media img {
+    width: 3rem; /* the register thumbnail box — one structural size, no token fits */
+    height: 3rem; /* (same box) */
+    object-fit: cover;
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    background: var(--surface-container-low);
+  }
+  /* datei: filename (mono ink data mark) + byte size (quiet) — its own little stack (C4) */
+  .file {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-1) / 2);
+  }
+  .file > span {
+    font: var(--type-mono);
+    color: var(--primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file small {
+    font: var(--type-mono-meta);
+    color: var(--on-surface-variant);
+  }
+  /* the TITELBILD cover mark — INVERSION (register row 3), never amber/violet/tint: a solid
+     neutral-ink stamp, like the active facet row and the primary button. */
+  .titelbild {
+    align-self: flex-start;
+    padding: 0 var(--space-1);
+    background: var(--on-surface);
+    color: var(--surface);
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    border-radius: var(--radius-s);
+  }
+  /* the row's icon toolbar carries NOTHING local: hit area, resting/hover/disabled ink and the hit
+     floor all come from the shared icon-control rule (components.css) — including the first row's
+     up-arrow and the last row's down-arrow, which are natively disabled and visibly so through the
+     --on-surface-disabled role. This block used to re-type the ledger row toolbar's ink verbatim and
+     then RESTATE a disabled treatment as a hard-coded color-mix, because a compositions rule outranks
+     the elements layer's button.link:disabled — a mix no `prefers-contrast: more` remap can reach,
+     which by the themability law made the mix itself the defect. */
+  .confirm {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  .upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* upload progress sliver (spec §6.3): a neutral fill grown in discrete XHR-reported steps by
+     catalog_form.js — NO easing (no-motion law). Zero-width at rest; enhancement-only. */
+  .progress {
+    height: 2px; /* the sliver's own thickness — a hairline reads too faint over the track */
+    background: var(--surface-container-low);
+  }
+  .progress > div {
+    width: 0;
+    height: 100%;
+    background: var(--on-surface);
+  }
 
-.c-panel {
-  margin-bottom: var(--space-6);
-  padding: var(--space-4);
-  background: var(--surface-container-low);
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-s);
-}
-/* the CAS "Inzwischen geändert" panel: red LEFT border + error heading only — NOT a flood fill
-   (spec §6.1; red is spent on the heading, the diff table stays neutral) */
-.c-panel--konflikt { border-left: 3px solid var(--error); }
-.c-panel-titel {
-  margin: 0 0 var(--space-2);
-  font: var(--type-title);
-  color: var(--error);
-}
-.c-panel-hinweis {
-  margin: 0 0 var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-/* the neutral field diff: changed values in mono; scrolls in its own box on narrow viewports */
-.c-panel-diff-wrap { overflow-x: auto; }
-.c-panel-diff {
-  width: 100%;
-  border-collapse: collapse;
-  font: var(--type-meta);
-}
-.c-panel-diff th {
-  text-align: left;
-  font: var(--type-label);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-  padding: var(--space-1) var(--space-3) var(--space-1) 0;
-  border-bottom: 1px solid var(--outline-variant);
-}
-.c-panel-diff td {
-  padding: var(--space-2) var(--space-3) var(--space-2) 0;
-  border-bottom: 1px solid var(--outline-variant);
-  color: var(--on-surface);
-  vertical-align: top;
-}
-.c-panel-diff-feld { color: var(--on-surface-variant); white-space: nowrap; }
-.c-panel-diff-wert { font: var(--type-mono); font-variant-numeric: tabular-nums; }
+  /* in-flight cue for HTMX swaps (spec §5, no-motion): a static opacity dim, no spinner */
+  #medien-drawer.htmx-request,
+  #form-region form.htmx-request {
+    opacity: 0.6;
+  }
 
-/* the over-exposure preview panel (spec §6.2): NEUTRAL chrome, NO loud color — confirming
-   who-gains-sight is neither draft nor error, so emphasis is by WEIGHT only (inventing a warning
-   color here is the subtlest law trap). It shares the .c-panel base; the heading stays on-surface. */
-.c-panel--vorschau .c-panel-titel { color: var(--on-surface); }
-.c-panel-zeile {
-  margin: 0 0 var(--space-2);
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-.c-panel-marken {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-/* the loudest case (public) is emphasized by WEIGHT alone — never a color (spec §6.2) */
-.c-panel-oeffentlich { font-weight: 600; }
-.c-panel-felder {
-  margin: 0 0 var(--space-4);
-  font: var(--type-meta);
-  color: var(--on-surface-variant);
-}
-/* the required confirm checkbox row gates the enabled Veröffentlichen (spec §6.2) */
-.c-panel-bestaetigen {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  font: var(--type-body);
-  color: var(--on-surface);
-}
-.c-panel-aktionen { display: inline-flex; gap: var(--space-2); }
+  /* ---- panel: shared TRUE-SHEET base (register row 8 — confirm panels are sheets: tint +
+     the one resting-contact shadow); .konflikt is the CAS "Inzwischen geändert" case (spec §6.1):
+     red LEFT border + error heading only — NOT a flood fill; the diff stays neutral. The
+     over-exposure preview panel that used to share this base is gone (owner ruling 5, 2026-08-08 —
+     one-click publish), and its confirm-checkbox row rule went with it rather than lingering as
+     dead styling (catechism Q6). ---- */
+  .panel {
+    padding: var(--space-4);
+    background: var(--sheet);
+    border: var(--hairline) solid var(--outline-variant);
+    border-radius: var(--radius-s);
+    box-shadow: var(--sheet-shadow);
+  }
+  .panel.konflikt {
+    border-left: var(--state-border) solid var(--error);
+  }
+  .panel h2 {
+    margin: 0 0 var(--space-2);
+    font: var(--type-title);
+    color: var(--on-surface);
+  }
+  .panel.konflikt h2 {
+    color: var(--error);
+  }
+  .panel p {
+    margin: 0 0 var(--space-2);
+    font: var(--type-body);
+    color: var(--on-surface);
+  }
+  /* register rows inside a panel (bulk confirm/result lists): c-sig + Titel + quiet sub-marks */
+  .panel ul {
+    list-style: none;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+  }
+  .panel li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-1) 0;
+  }
+  .panel li + li {
+    border-top: var(--hairline) solid var(--outline-variant);
+  }
+  .panel small {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+  }
+  /* the neutral field diff: changed values in mono; scrolls in its own box on narrow viewports */
+  .diff {
+    overflow-x: auto;
+  }
+  .diff table {
+    width: 100%;
+    border-collapse: collapse;
+    font: var(--type-meta);
+  }
+  .diff th {
+    text-align: left;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    padding: var(--space-1) var(--space-3) var(--space-1) 0;
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  .diff td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border-bottom: var(--hairline) solid var(--outline-variant);
+    vertical-align: top;
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface);
+  }
+  .diff td:first-child {
+    font: var(--type-meta);
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+  }
 
-/* ---- c-btn--gefahr: the ONE destructive filled variant (spec §7). Error INVERSION (--error /
-   --on-error), used ONLY on the delete/discard CONFIRM button — never on a read-view trigger (that
-   would spend the loud channel on a non-error and desensitize the CAS panel). ---- */
-.c-btn--gefahr {
-  background: var(--error);
-  color: var(--on-error);
-  border: 1px solid var(--error);
+  /* the saved-count line on the bulk result page: mono data */
+  .count {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--on-surface);
+  }
 }
-.c-btn--gefahr:hover {
-  /* deepen toward the button's own ink role (role-only mix — no raw color); mirrors the primary
-     button's hover idiom which mixes on-surface toward surface */
-  background: color-mix(in oklab, var(--error), var(--on-error) 12%);
-  border-color: color-mix(in oklab, var(--error), var(--on-error) 12%);
-}
-
-/* ---- the delete / discard confirm page (spec §7 states M/N): a centered narrow column, the .c-sig
-   + Titel context, the danger button the ONE loud element ---- */
-.c-confirm { max-width: 34rem; }
-.c-confirm-titel { margin: 0 0 var(--space-4); font: var(--type-display); color: var(--on-surface); }
-.c-confirm-kontext {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.c-confirm-kontext-titel { font: var(--type-title); color: var(--on-surface); }
-.c-confirm-text {
-  margin: 0 0 var(--space-6);
-  font: var(--type-body);
-  color: var(--on-surface-variant);
-}
-.c-confirm-aktionen { display: inline-flex; gap: var(--space-2); }
-
-/* ---- the read-view archivist action row (spec §7): top-of-column, right-aligned, subtle buttons.
-   Löschen stays NEUTRAL at rest here (never red — red only on the confirm-page button). ---- */
-.c-artikel-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-/* lifecycle actions are their own forms (Enter never fires a destructive/lifecycle action) but sit
-   inline in the row */
-.c-artikel-aktionen form { display: inline; margin: 0; }
-
-/* ---- Zurück-zur-Suche header link (the form uses only the wordmark + this) ---- */
-
-.wb-zurueck {
-  margin-left: auto;
-  font: var(--type-meta);
-  color: var(--primary);
-  text-decoration: none;
-}
-.wb-zurueck:hover { text-decoration: underline; }
-
-/* ---- bulk edit (Sammelbearbeitung) confirm + result pages (spec §2 D/R) ---- */
-
-.c-bulk-summe {
-  margin: 0 0 var(--space-2);
-  font: var(--type-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--on-surface);
-}
-.c-bulk-liste { list-style: none; margin: 0; padding: 0; }
-.c-bulk-zeile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-1) 0;
-}
-.c-bulk-zeile + .c-bulk-zeile { border-top: 1px solid var(--outline-variant); }
-.c-bulk-titel { font: var(--type-body); color: var(--on-surface); }
-/* the doctype-orphan + conflict sub-marks: quiet on-surface-variant, NEVER red (a race/clear is not
-   an error — spec §7); emphasis by placement only */
-.c-bulk-orphan,
-.c-bulk-konflikt { font: var(--type-meta); color: var(--on-surface-variant); }
-/* the orphan-warning heading: WEIGHT emphasis only, no loud color (spec §7) */
-.c-panel-achtung { color: var(--on-surface); font-weight: 700; }

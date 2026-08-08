@@ -1,9 +1,10 @@
 """Archivist entry points to the 4.8 Bestand routes on the workbench.
 
-"+ Neuer Bestand" sits beside "+ Neuer Artikel" in the header (archivist-only chrome, absent for
-everyone else). A per-Bestand "Bestand bearbeiten" affordance appears only when a ?bestand= filter is
-active (the archivist has a specific Bestand in focus) — the simplest honest entry, no separate list
-page. Neither is a visibility decision: the routes are independently archivist-gated.
+"Neuer Bestand" lives beside "Neuer Artikel" in the header's "+ Neu …" disclosure panel (Mock B,
+owner 2026-08-07 — archivist-only chrome, absent for everyone else). A per-Bestand "Bestand
+bearbeiten" affordance joins the panel only when a ?bestand= filter is active (the archivist has a
+specific Bestand in focus) — the simplest honest entry, no separate list page. Neither is a
+visibility decision: the routes are independently archivist-gated.
 """
 
 from pathlib import Path
@@ -52,7 +53,7 @@ def _client_as(viewer: Viewer | None) -> Client:
 def test_archivist_workbench_shows_neuer_bestand(root: Path) -> None:
     with override_settings(**_settings(root)):
         body = _client_as(Archivist()).get("/").content.decode()
-    assert "+ Neuer Bestand" in body
+    assert "Neuer Bestand" in body
     assert "/bestand/neu" in body
 
 
@@ -60,7 +61,7 @@ def test_archivist_workbench_shows_neuer_bestand(root: Path) -> None:
 def test_public_workbench_hides_neuer_bestand(root: Path) -> None:
     with override_settings(**_settings(root)):
         body = _client_as(Public()).get("/").content.decode()
-    assert "+ Neuer Bestand" not in body
+    assert "Neuer Bestand" not in body
     assert "/bestand/neu" not in body
 
 

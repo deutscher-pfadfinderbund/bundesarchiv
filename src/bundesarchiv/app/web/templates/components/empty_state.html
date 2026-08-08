@@ -1,10 +1,11 @@
 {% comment %}
 Honest empty state. Params: title (default "Keine Treffer"); hint (optional second line).
-The .c-empty-zeichen div is the EXTENSION SLOT (spec "Extensions"): empty in v1; a Kohte
-silhouette / Waldläuferzeichen can land there later without touching the structure.
+A hollow slot (cue-register row 6) on the quietest sheet (row 8). The .zeichen div is the
+EXTENSION SLOT (spec "Extensions"): empty in v1; a Kohte silhouette / Waldläuferzeichen can land
+there later without touching the structure.
 {% endcomment %}
-<div class="c-empty">
-  <div class="c-empty-zeichen" aria-hidden="true"></div>
-  <p class="c-empty-titel">{{ title|default:"Keine Treffer" }}</p>
-  {% if hint %}<p class="c-empty-hinweis">{{ hint }}</p>{% endif %}
+<div class="empty-state">
+  <div class="zeichen" aria-hidden="true"></div>
+  <p>{{ title|default:"Keine Treffer" }}</p>
+  {% if hint %}<p>{{ hint }}</p>{% endif %}
 </div>

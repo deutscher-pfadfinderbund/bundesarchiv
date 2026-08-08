@@ -1,0 +1,45 @@
+{% comment %}
+The reader's sheet on the edit surface (owner ruling 1, 2026-08-08 — composition E: the record card
+in the work column and THE pulled sheet beside it). Param: sheet (the view-model).
+
+It is the WORKBENCH PANE, reused: same .pane frame, same 80rem switch (layouts.css, driven by
+body.vorschau — which is literally what this is: the record's Vorschau). No second threshold exists,
+so below 80rem this column simply is not there and the exposure statement is read in the card itself,
+beside Zugriff and outside its fold (one renderer, two placements — workbench/_einblick.html).
+
+MATERIAL ROLE (register row 8): a TRUE SHEET — the --sheet tint, a hairline cut edge and the ONE
+resting-contact shadow, exactly like the workbench pane it shares its rules with. The card next to it
+is not a sheet; it is ruled lines on the desk. That contrast is the point: this is a piece of paper
+pulled out beside the work.
+
+The id is the OOB swap handle: the media register's structural POSTs (reorder / remove / upload) swap
+only #medien-drawer, but they CHANGE what a reader sees — promoting a plate to cover changes this
+sheet's thumbnail — so those forms carry hx-select-oob="#lesesicht" and this fragment rides along in
+the same response. Without it the sheet kept showing the old cover until a full reload.
+
+Contents are the READER's facts, server-rendered from the stored article's READER PROJECTION
+(catalog_views._sheet_view_model runs it through the domain's own access.project, the floor half of
+the ONE reader pipeline — so no archivist-only field can reach a box labelled "Leseansicht", now or
+when ARCHIVIST_ONLY_FIELDS grows): Titel, Signatur, the machine Datierung (mono violet, register
+row 2 — vocab.datierung_mono, the same ONE renderer the workbench pane uses), the cover thumbnail via
+the gated /media/.../thumb route (which re-authorizes on its own), the first body paragraph, and the
+exposure statement. Nothing here is editable and nothing is recomputed in the browser.
+
+The Titel prints PLAIN, exactly as the pane prints it. There used to be a `default:"Ohne Titel"` here
+— a second, sheet-only rendering of an absence no reader surface names (Titel is a required field, so
+the fallback described a state the form cannot produce) and one more spelling of a fact than law C7
+allows. An absent Signatur likewise renders NO mark rather than the hollow "ohne Signatur" slot: on
+this screen absence is carried by the Signatur INPUT (owner finding, signals-once).
+{% endcomment %}
+<aside id="lesesicht" class="pane" aria-label="Leseansicht">
+  <div>
+    <header>
+      {% if sheet.ref_code %}{% include "components/signatur_tab.html" with ref_code=sheet.ref_code only %}{% endif %}
+      <h2>{{ sheet.title }}</h2>
+    </header>
+    {% if sheet.datierung %}<p class="meta"><span>{{ sheet.datierung }}</span></p>{% endif %}
+    {% if sheet.thumb_url %}<img src="{{ sheet.thumb_url }}" alt="" loading="lazy">{% endif %}
+    {% if sheet.absatz %}<p>{{ sheet.absatz }}</p>{% endif %}
+    {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
+  </div>
+</aside>

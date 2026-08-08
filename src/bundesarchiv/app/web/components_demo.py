@@ -1,16 +1,14 @@
-"""Dev-only component library page (``/_dev/components/`` + ``/_dev/components/<variant>/``).
+"""Dev-only component library page (``/_dev/components/``).
 
 Referenced ONLY from ``dev_urls`` (the switcher pattern): production settings never mount it, so
 it is unreachable in prod by absence of a code path, not by a flag. It renders every design-system
-atom (``templates/components/``) in all its variants, each shown side-by-side in light and dark —
-the two columns force ``color-scheme`` per container, and ``light-dark()`` resolves per element,
-so both modes render in one document without JS.
+component (``templates/components/``), each shown side-by-side in light and dark — the two columns
+force ``color-scheme`` per container, and ``light-dark()`` resolves per element, so both modes
+render in one document without JS.
 
-DESIGN-VARIANT ROUTES (owner process, 2026-07-10): design iterations happen ON the real atoms.
-``/_dev/components/`` renders the baseline stylesheet (components.css); ``/_dev/components/
-<variant>/`` renders the SAME page with a variant stylesheet from the explicit ``VARIANTS``
-whitelist. Unknown variant → 404. Variant stylesheets are dev experiments, so they are served by
-a dev-only route (``/_dev/static/<filename>``), never mounted in prod.
+ONE theme (owner ruling, 2026-08-06): the papier variant file and the variant toggle are gone —
+the papier recipe (sheet material) was promoted into the baseline as cue-register row 8
+(``docs/design/design-review-law.md``). Design iterations happen ON the real components.
 
 Doubles as developer documentation: every sample is annotated with its include path + params, and
 a token-swatch section shows the surface ramp and the primary/draft/error pairs with role names.
@@ -19,19 +17,7 @@ UI copy). Sample data below is inert demo fixture data — no store, no index, n
 """
 
 from django.http import HttpRequest, HttpResponse
-from django.http.response import HttpResponseBase
 from django.shortcuts import render
-
-from bundesarchiv.app.web.browse_views import _serve_static
-
-#: The design-variant whitelist: variant name -> stylesheet filename under ``static/``. An entry
-#: here is the ONLY way a variant becomes routable (both the page and its stylesheet). Baseline
-#: (components.css) is not an entry — it is the no-variant route and now CARRIES the stamp grammar
-#: (spec law; the former "stamp" variant folded into baseline). ``papier`` is the one remaining dev
-#: variant — the owner's materiality experiment (tinted sheets), still browsable.
-VARIANTS: dict[str, str] = {
-    "papier": "components-papier.css",
-}
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
 _MODES = ("light", "dark")
@@ -49,72 +35,56 @@ _FACET_ITEMS_BESTAND = (
     {"label": "Vorstandsunterlagen", "count": 3, "query": "bestand=VORSTAND", "active": False},
 )
 
-_FACET_ITEMS_SCHLAGWORTE = (
-    {"label": "sommer", "count": 12, "query": "schlagwort=sommer", "active": False},
-    {"label": "fahrt", "count": 7, "query": "schlagwort=fahrt", "active": False},
-)
-
 #: Ledger sample rows — the known demo set. Each dict carries a ledger_row's params; the draft row
-#: carries a ref_code (lifecycle is decoupled from the sig slot) and shows the ENTWURF badge as its
-#: sole SICHTBARKEIT signal.
-_LEDGER_ROWS = (
+#: carries a ref_code (lifecycle is decoupled from the sig slot) and its ENTWURF mark rides the
+#: title (the SICHTBARKEIT column died, owner 2026-08-07 — quiet default: published shows nothing).
+#: The sample Signaturen obey the domain fact (owner 2026-08-07): no spaces, 8 characters is the
+#: practical ceiling — one row sits AT that ceiling so the storyboard shows the widest real code.
+_ROW_CONTENT = (
     {
         "title": "Sommerfahrt 1962",
         "href": "#demo-detail",
-        "ref_code": "F 12",
+        "ref_code": "F12",
         "datierung": "1962",
         "typ": "Foto",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
+        # The Signatur at the domain ceiling (owner 2026-08-07: no spaces, 8 characters is the
+        # practical top) — the widest realistic code the sig column has to seat.
         "title": "Jahresbericht 1974",
         "href": "#demo-detail",
-        "ref_code": "B 3",
+        "ref_code": "B3/1974a",
         "datierung": "1974",
         "typ": "Bericht",
         "draft": False,
-        "visibility": "Alle Mitglieder",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         "title": "Vorstandsprotokoll März 1980",
         "href": "#demo-detail",
-        "ref_code": "V 7",
+        "ref_code": "V7",
         "datierung": "1980-03",
         "typ": "Protokoll",
         "draft": False,
-        "visibility": "Gruppe: vorstand",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # A draft WITH a Signatur: lifecycle (ENTWURF badge) is decoupled from the sig slot.
         "title": "Lagerchronik",
         "href": "#demo-detail",
-        "ref_code": "C 5",
+        "ref_code": "C5",
         "datierung": "1984",
         "typ": "Chronik",
         "draft": True,
-        "visibility": "",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Absence renders as absence (no em-dash). Datierung present, Typ absent: in the narrow fold
         # this shows just "1990" with NO dangling separator.
         "title": "Undatierter Zugang",
         "href": "#demo-detail",
-        "ref_code": "Z 1",
+        "ref_code": "Z1",
         "datierung": "1990",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Typ present, Datierung absent: the fold shows just "Notiz" with NO leading separator.
@@ -124,9 +94,6 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "Notiz",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
     {
         # Neither Datierung nor Typ: the narrow fold shows NO second line at all.
@@ -136,10 +103,13 @@ _LEDGER_ROWS = (
         "datierung": "",
         "typ": "",
         "draft": False,
-        "visibility": "Öffentlich",
-        "action_label": "Bearbeiten",
-        "action_href": "#demo-edit",
     },
+)
+
+#: Shared action hrefs spliced once — content dicts above stay content-only.
+_LEDGER_ROWS = tuple(
+    {**row, "bearbeiten_href": "#demo-edit", "vorschau_href": "#demo-vorschau"}
+    for row in _ROW_CONTENT
 )
 
 #: Sortable column headers for the ledger demo: (label, key matching the cell modifier, query stub,
@@ -180,6 +150,10 @@ _SWATCH_SURFACE_RAMP = (
     ("surface-container-mid", "on-surface"),
     ("surface-container-high", "on-surface"),
 )
+_SWATCH_SHEETS = (
+    ("sheet-lowest", "on-surface"),
+    ("sheet", "on-surface"),
+)
 _SWATCH_PAIRS = (
     ("primary", "on-primary"),
     ("primary-container", "on-primary-container"),
@@ -188,43 +162,22 @@ _SWATCH_PAIRS = (
 )
 
 
-def component_library(request: HttpRequest, variant: str | None = None) -> HttpResponse:
-    """GET: the component library — baseline (no variant) or a whitelisted design variant.
+def component_library(request: HttpRequest) -> HttpResponse:
+    """GET: the component library — the ONE baseline stylesheet (components.css).
 
-    The variant only swaps the STYLESHEET the page links; template and sample data are identical,
-    so what iterates is the design system itself. Unknown variant → 404 (whitelist, never a path
-    interpolation). Never mounted in production."""
-    if variant is None:
-        stylesheet = "/static/components.css"
-    else:
-        filename = VARIANTS.get(variant)
-        if filename is None:
-            return HttpResponse(b"Unknown variant", status=404, content_type="text/plain")
-        stylesheet = f"/_dev/static/{filename}"
+    Never mounted in production."""
     return render(
         request,
         "components_demo.html",
         {
-            "stylesheet": stylesheet,
-            "variant": variant,
-            "variant_names": sorted(VARIANTS),
+            "stylesheet": "/static/components.css",
             "modes": _MODES,
             "sort_options": _SORT_OPTIONS,
             "facet_items_bestand": _FACET_ITEMS_BESTAND,
-            "facet_items_schlagworte": _FACET_ITEMS_SCHLAGWORTE,
             "swatch_surface_ramp": _SWATCH_SURFACE_RAMP,
+            "swatch_sheets": _SWATCH_SHEETS,
             "swatch_pairs": _SWATCH_PAIRS,
-            "card_meta": ("Signatur F 12", "Datierung 1962-22", "Foto"),
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
         },
     )
-
-
-def serve_variant_stylesheet(request: HttpRequest, filename: str) -> HttpResponseBase:
-    """``GET /_dev/static/<filename>`` — a WHITELISTED variant stylesheet (dev-only route).
-    Variant css files are design experiments; they never get a production static route. Anything
-    not registered in ``VARIANTS`` → 404, so the route cannot serve arbitrary static files."""
-    if filename not in VARIANTS.values():
-        return HttpResponse(b"Unknown stylesheet", status=404, content_type="text/plain")
-    return _serve_static(filename, "text/css")

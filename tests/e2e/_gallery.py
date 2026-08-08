@@ -6,9 +6,11 @@ states in the same order — not a hand-driven click-through. This module is tha
 which drives each one twice (light + dark ``prefers-color-scheme``) and writes ``<name>.<mode>.png``.
 
 It reuses the E2E stack (live server + Postgres index + the cached chromium) so a shot is the REAL
-page, byte-for-byte what ships — not a static mock. GET-renderable states are a plain navigate;
-the POST-gated confirm surfaces (bulk-confirm, delete-confirm, publish-preview) are reached the way
-a user reaches them, by driving the affordance, so those states appear in the gallery too.
+page, byte-for-byte what ships — not a static mock. The GET-renderable states come from THE screen
+inventory (``_pages.SCREENS``), shared with the a11y pass and the control-row/overlay walkers, so the
+gallery and the guards can never disagree about which screens the app has; the states behind an
+INTERACTION (the bulk confirm page, an unfolded card section, a rejected save) are declared here and
+reached the way a user reaches them, by driving the affordance.
 
 Entry point: the ``gallery`` marker in ``test_gallery.py`` (``uv run pytest -m gallery -s``); the
 PNGs land in ``var/gallery/`` (override with ``BUNDESARCHIV_GALLERY_DIR``).
@@ -22,6 +24,7 @@ from typing import Literal
 
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import CorpusHandles
+from tests.e2e._pages import SCREENS, Screen
 
 #: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
 #: ``light-dark()`` tokens, resolved by ``prefers-color-scheme`` — no JS toggle). Every state is
@@ -50,15 +53,36 @@ def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
     return reach
 
 
-def _reach_pane(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/?artikel={corpus.published_ulid}", wait_until="networkidle")
+def _screen_state(screen: Screen) -> GalleryState:
+    """One inventory screen as a gallery state: a plain navigate to its path."""
+
+    def reach(page: Page, base: str, corpus: CorpusHandles) -> None:
+        page.goto(base + screen.path(corpus), wait_until="networkidle")
+
+    return GalleryState(screen.name, screen.what, screen.archivist, reach)
+
+
+def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the filter rail with one facet dropdown open — the dropped overlay panel over the ledger
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.locator(".filterrail summary", has_text="Bestand").click()
+
+
+def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the header's "+ Neu …" create disclosure open (Mock B, owner 2026-08-07) — the floating
+    # overlay panel with Neuer Artikel / Neuer Bestand
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.click("details.menu > summary")
 
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
+    # the collapsed cold state is its own gallery state (workbench-bulk-cold)
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
+    page.click("details.bulk > summary")
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -69,110 +93,74 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_load_state("networkidle")
 
 
-def _reach_delete_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
-    page.click('a:has-text("Löschen")')
-    page.wait_for_load_state("networkidle")
+def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
+    # the value-carrying summaries and what they hide — including the exposure statement's in-card
+    # placement
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.click('summary:has-text("Herkunft")')
+    page.click('summary:has-text("Zugriff")')
 
 
-def _reach_publish_preview(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the draft carries a Medienart already (corpus builds it so publish is not validation-blocked)
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
-    page.click('button:has-text("Veröffentlichen")')
-    page.wait_for_load_state("networkidle")
+def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the REJECTED state of the record card, and specifically an error inside a FOLDED section:
+    # Sichtbarkeit=Gruppe(n) with an empty Gruppen field. The server decides [open] from the same error
+    # context that renders the message, and the summary carries the red "Fehler" mark — a visible cue
+    # needs a render to be judged on (learning G.7), and this shot is also the C13 error-border state.
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.click('summary:has-text("Zugriff")')
+    page.select_option('select[name="sichtbarkeit"]', "groups")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_selector(".karte .error")
 
 
-def _reach_edit(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
-
-
-def _reach_read(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
-
-
-def _reach_detail_cover(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the published article WITH media — the cover Platte + filmstrip (a member view: no cookie)
-    page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
-
-
-def _reach_detail_no_media(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the second published article has no media — the no-media rule (title focal, no empty frame)
-    page.goto(f"{base}/artikel/{corpus.second_ulid}", wait_until="networkidle")
-
-
-def _reach_detail_draft(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the draft — archivist-only: ENTWURF badge + action row (the one amber mark)
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
-
-
-def _reach_bestand_bearbeiten(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # rename form for an existing Bestand — Name editable, parent + Sichtbarkeit read-only (4.8).
-    # Uses the ULID-keyed collection (the route validates a real ULID, not a literal id).
-    page.goto(f"{base}/bestand/{corpus.renamable_ulid}/bearbeiten", wait_until="networkidle")
-
-
-def _reach_bestand_landing(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the post-create landing: the create-article form with the new Bestand pre-selected + the
-    # success hinweis (4.8 create→catalog flow).
-    page.goto(
-        f"{base}/artikel/neu?bestand={corpus.renamable_ulid}&angelegt=Karten",
-        wait_until="networkidle",
-    )
-
-
-#: The canonical states, in a stable order (the gallery is a design contract: same states, same
-#: order, every run). Read-only workbench variants first, then the write surfaces, then the
-#: POST-gated confirm panels. ``draft_ulid`` is a saveable draft (Medienart set); ``published_ulid``
-#: is the published article the pane/copy/bulk paths reference.
-STATES: tuple[GalleryState, ...] = (
-    GalleryState("workbench-empty", "workbench, no results", True, _goto("/?q=zzzznomatch")),
-    GalleryState("workbench-results", "workbench, the corpus", True, _goto("/")),
+#: The states that are NOT a plain navigate: each is reached by driving an affordance, so a path
+#: cannot describe it and it stays declared here rather than in the screen inventory.
+_INTERACTION_STATES: tuple[GalleryState, ...] = (
     GalleryState(
-        "workbench-filtered", "workbench, tag facet applied", True, _goto("/?schlagwort=sommer")
+        "workbench-rail-open",
+        "workbench, Bestand filter dropdown open on the rail",
+        True,
+        _reach_rail_open,
     ),
-    GalleryState("workbench-pane", "workbench, preview pane open", True, _reach_pane),
+    GalleryState(
+        "header-neu-open",
+        "workbench, header '+ Neu …' create disclosure open (Mock B overlay panel)",
+        True,
+        _reach_header_neu_open,
+    ),
     GalleryState(
         "workbench-bulk-cold",
-        "workbench, bulk bar cold start (affordances, no selection)",
+        "workbench cold (no selection) — NO Sammelbearbeitung visible (progressive, owner"
+        " 2026-08-07: JS hides the disclosure at count 0; that absence is the point of the shot)",
         True,
         _goto("/"),
     ),
-    GalleryState("workbench-bulk", "workbench, bulk selection bar", True, _reach_bulk),
-    GalleryState("workbench-public", "workbench as a public visitor", False, _goto("/")),
-    GalleryState("create-form", "the create step", True, _goto("/artikel/neu")),
-    GalleryState("bestand-neu", "create a Bestand", True, _goto("/bestand/neu")),
     GalleryState(
-        "bestand-bearbeiten", "rename a Bestand (Name only)", True, _reach_bestand_bearbeiten
+        "workbench-bulk", "workbench, selection + expanded Sammelbearbeitung", True, _reach_bulk
     ),
     GalleryState(
-        "bestand-landing",
-        "create-article form after a new Bestand (pre-selected + hinweis)",
+        "edit-folded-open",
+        "the edit surface with Herkunft + Zugriff unfolded",
         True,
-        _reach_bestand_landing,
-    ),
-    GalleryState("edit-form", "the full edit form (a draft)", True, _reach_edit),
-    GalleryState("read-published", "the read view (a published article)", True, _reach_read),
-    GalleryState(
-        "detail-member-cover",
-        "detail read view, member, with cover + filmstrip",
-        False,
-        _reach_detail_cover,
+        _reach_edit_folded_open,
     ),
     GalleryState(
-        "detail-no-media",
-        "detail read view, member, no media (title focal)",
-        False,
-        _reach_detail_no_media,
-    ),
-    GalleryState(
-        "detail-archivist-draft",
-        "detail read view, archivist draft (ENTWURF + action row)",
+        "edit-rejected",
+        "the edit surface rejected: an error inside a folded section (opened, summary marked)",
         True,
-        _reach_detail_draft,
+        _reach_edit_rejected,
     ),
     GalleryState("bulk-confirm", "bulk edit, confirm panel", True, _reach_bulk_confirm),
-    GalleryState("delete-confirm", "delete, confirm page", True, _reach_delete_confirm),
-    GalleryState("publish-preview", "publish, over-exposure preview", True, _reach_publish_preview),
+)
+
+#: The canonical states, in a stable order (the gallery is a design contract: same states, same
+#: order, every run): every GET-reachable SCREEN from the one inventory (_pages.SCREENS — so a new
+#: screen is shot the day it joins it, and the gallery can never disagree with what the guards walk),
+#: then the interaction states above.
+STATES: tuple[GalleryState, ...] = (
+    *(_screen_state(screen) for screen in SCREENS),
+    *_INTERACTION_STATES,
 )
 
 #: The gallery is rendered at each of these widths (the design-system's desktop + narrow breakpoints,

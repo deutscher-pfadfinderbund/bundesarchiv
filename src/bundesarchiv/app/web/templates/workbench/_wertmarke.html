@@ -1,0 +1,10 @@
+{% comment %}
+One value in a folded section's summary line (owner ruling 4, 2026-08-08: a rare section may fold,
+but folding may never hide data — so the summary carries the section's own values). Params: label,
+value.
+
+The value is printed VERBATIM from the same context the section's input prints (law C7, one renderer
+per fact — nothing is re-formatted here; a date in a summary must never be a second spelling of the
+date in its field). An EMPTY field says so by name, so a folded section never looks complete when it
+is not. The "·" separators and the muted treatment come from .werte (forms.css).
+{% endcomment %}{% if value %}<span>{{ value }}</span>{% else %}<span class="leer">{{ label }} leer</span>{% endif %}

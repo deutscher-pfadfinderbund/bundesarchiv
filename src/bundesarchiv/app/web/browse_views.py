@@ -72,7 +72,7 @@ def _bulk_collection_options(names: _NamesLoader) -> tuple[tuple[str, str], ...]
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /`` — the workbench: search field, results, facet sidebar, "Neuer Artikel" button.
+    """``GET /`` — the workbench: search field, filter rail, results, "Neuer Artikel" button.
 
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
@@ -117,8 +117,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
     # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
-    # The ledger folds narrow while the pane is open (the split-narrow layout); the frame class
-    # drives it (and the <1280px media query hides the pane + unfolds the ledger — css owns that).
+    # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
+    # the ledger re-densifies by itself — it is a size container (components.css). Width is the
+    # ONLY density input (charter item 5 settled 2026-08-07; the ?fold switch and the pane-open
+    # fold died with the verdict), absorbed intrinsically per law C11 — no drop thresholds.
     context["vorschau"] = pane is not None
     # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
@@ -126,6 +128,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-History-Restore-Request"):
         return render(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
+        # The hit count lives on the filter rail (law C10), OUTSIDE the #results swap target —
+        # the partial therefore prepends an hx-swap-oob fragment updating the rail's count in
+        # the same response (oob gates it: the full page renders the count once, from the rail).
+        context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render(request, "workbench/workbench.html", context)
 
@@ -144,11 +150,59 @@ class _FacetItem:
 
 @dataclass(frozen=True, slots=True)
 class _FacetGroup:
-    """A sidebar facet section: its German heading and its items. Every group shows a bare
-    right-aligned count (collection counts are subtree counts now — no "direkt:" hedge)."""
+    """A filter-rail facet group (one ``<details>`` dropdown): its German heading and its items.
+    Every group shows a bare right-aligned count (collection counts are subtree counts now — no
+    "direkt:" hedge)."""
 
     heading: str
     items: tuple[_FacetItem, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _FilterChip:
+    """One active filter as a rail chip (register row 3 inversion): its group heading, the active
+    value's label, and the query string that REMOVES it (``browse.without_param`` — the chip ✕ and
+    the dropdown's active row clear the same filter through the same link algebra)."""
+
+    group: str
+    label: str
+    query: str
+
+
+def _filter_chips(
+    params: dict[str, str], parsed: browse.ParsedQuery, names: _NamesLoader
+) -> tuple[_FilterChip, ...]:
+    """Every active filter as a rail chip, derived from the PARSED URL state — not from the facet
+    counts. The distinction matters exactly on the zero-hit page: a filter that matches nothing
+    vanishes from the recomputed counts (so the dropdown shows no active row), but its chip must
+    stay — the empty state says "Entferne einzelne Filter", and the chip ✕ is that affordance.
+    Labels mirror the dropdowns' (collection ULIDs resolve to names; the Datum bounds/toggle
+    reuse the group's own spellings); headings mirror the group headings."""
+    f = parsed.filters
+    chips: list[_FilterChip] = []
+
+    def chip(param: str, group: str, label: str) -> None:
+        chips.append(
+            _FilterChip(group=group, label=label, query=browse.without_param(params, param))
+        )
+
+    if f.collection is not None:
+        chip(browse.PARAM_COLLECTION, "Bestand", names().get(f.collection, f.collection))
+    if f.media_type is not None:
+        chip(browse.PARAM_MEDIA_TYPE, "Medienart", f.media_type)
+    if f.document_type is not None:
+        chip(browse.PARAM_DOCUMENT_TYPE, "Dokumenttyp", f.document_type)
+    if f.tag is not None:
+        chip(browse.PARAM_TAG, "Schlagworte", f.tag)
+    if f.decade is not None:
+        chip(browse.PARAM_DECADE, "Jahrzehnte", str(f.decade))
+    if f.date_from is not None:
+        chip(browse.PARAM_DATE_FROM, "Datum", f"von: {f.date_from.isoformat()}")
+    if f.date_to is not None:
+        chip(browse.PARAM_DATE_TO, "Datum", f"bis: {f.date_to.isoformat()}")
+    if f.dateless:
+        chip(browse.PARAM_DATELESS, "Datum", "Ohne Datum")
+    return tuple(chips)
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,7 +219,8 @@ class _PaneMedia:
 class _Pane:
     """The preview pane view-model, built ONLY from a ``visible``-projected Article (so no floored
     field can reach it). ``media`` is cover-first (the tuple's order is meaning, ADR 0015). The
-    Bearbeiten href is archivist-only (empty otherwise); Öffnen points at the detail stub."""
+    Bearbeiten href is archivist-only (empty otherwise) and points at the edit form; Öffnen goes
+    to the detail read view."""
 
     ulid: str
     title: str
@@ -208,12 +263,12 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         ulid=article.ulid,
         title=article.title,
         ref_code=article.ref_code or "",
-        datierung=article.date.value if article.date is not None else "",
+        datierung=vocab.datierung_mono(article.date),
         typ=article.document_type or "",
         media=media,
         oeffnen_href=f"{reverse('artikel-detail', args=[article.ulid])}{_zurueck_suffix(search_params)}",
-        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
-        bearbeiten_href=reverse("artikel-detail", args=[article.ulid]) if is_archivist else "",
+        # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
+        bearbeiten_href=reverse("artikel-bearbeiten", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
@@ -227,7 +282,7 @@ def _zurueck_suffix(search_params: dict[str, str]) -> str:
     return f"?{urlencode({'zurueck': current})}" if current else ""
 
 
-# Which index facet key feeds which sidebar group: (facet key, param key, German heading). The
+# Which index facet key feeds which rail facet group: (facet key, param key, German heading). The
 # collection group resolves ULIDs → names separately (below); the rest show the value verbatim.
 _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("media_type", browse.PARAM_MEDIA_TYPE, "Medienart"),
@@ -239,8 +294,9 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
 # The ledger's column headers: (German label, css-modifier key, sortierung label or None). SIG /
 # TITEL / DATIERUNG are sortable (their sortierung label is a key in browse._SORT_BY_LABEL minus
 # relevanz, which has no column). TYP is NOT a sortable index column, so it is a plain header (None).
-# SICHTBARKEIT + the action gutter are added by the ledger component. Presentation only — sort is
-# browse.
+# The action gutter is added by the ledger component. This IS the whole column anatomy (owner
+# 2026-08-07): the SICHTBARKEIT column died — visibility strings render nowhere in the ledger, and
+# the ENTWURF deviation rides with the title. Presentation only — sort is browse.
 _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
     ("Sig", "sig", "signatur"),
     ("Titel", "titel", "titel"),
@@ -249,59 +305,45 @@ _LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
 )
 
 
-def _visibility_label(tier: str | None, groups: tuple[str, ...]) -> str:
-    """Render a hit's STRUCTURED scope data (tier + group names) to the German Sichtbarkeit string.
-
-    Presentation only — it maps the index scope columns the hit already carries; it does NOT
-    re-derive visibility (that is search()/_viewer_scope). Only the archivist ledger renders this
-    (the template gates it), and the data is leak-free on scoped rows by construction (SearchHit
-    docstring). ``tier is None`` is an archivist-only row (a fail-closed row that is not a draft) —
-    it has no ladder rung, so it shows nothing here. The rung captions come from the shared ``vocab``
-    source (the index scope strings differ from the domain enum, so the mapping stays here)."""
-    match tier:
-        case "PUBLIC":
-            return vocab.SICHTBARKEIT_PUBLIC
-        case "MEMBERS":
-            return vocab.SICHTBARKEIT_MEMBERS
-        case "GROUPS":
-            return vocab.groups_label(groups)
-        case _:
-            return ""
-
-
 def _ledger_row(
     hit: SearchHit,
     *,
     is_archivist: bool,
     selected_ulid: str | None,
+    vorschau_prefix: str,
     auswahl: frozenset[str],
     zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
-    logic in the template). The Sichtbarkeit string + ENTWURF flag + Bearbeiten action + bulk
-    checkbox are archivist chrome: left EMPTY/False for non-archivists here (and the ledger component
-    also omits those columns), so nothing rides in the DOM for them. ``selected_ulid`` marks the row
-    shown in the pane; ``auswahl`` is the bulk-selected set (this row's checkbox is checked + the row
-    inverts when its ulid is in it). ``zurueck`` is the encoded ``?zurueck=`` suffix carrying the
-    current search so the detail page's "Zurück zur Suche" returns here (empty when no search)."""
+    logic in the template). The ENTWURF flag + Bearbeiten href + bulk checkbox are archivist
+    chrome: left EMPTY/False for non-archivists here (and the ledger component renders no control
+    without them), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in
+    the pane; ``auswahl`` is the bulk selection as a set (this row's checkbox is checked + the row
+    inverts when its ulid is in it). ``vorschau_prefix`` is the row-invariant encoded pane-link
+    prefix (``browse.pane_query_prefix`` — search state + the whole selection), computed once per
+    page; only the trailing ``artikel=<ulid>`` differs per row. ``zurueck`` is the encoded
+    ``?zurueck=`` suffix carrying the current search so the detail page's "Zurück zur Suche"
+    returns here (empty when no search)."""
     return {
         "title": hit.title,
-        # BASELINE href = the canonical detail route: it works without JS on every viewport (below
-        # 1280px the pane is CSS-hidden, so ?artikel would be a dead click for a no-JS narrow user).
-        # ledger_pane.js progressively upgrades this to the ?artikel pane on wide viewports (see the
-        # data-artikel hook). No-JS behavior: the detail link everywhere. ?zurueck carries the search
-        # back so detail's "Zurück zur Suche" restores it (spec §2).
+        # ONE-CLICK ENTRY (owner 2026-08-07): the Titel IS the canonical detail navigation — no
+        # pane interception. ?zurueck carries the search back so detail's "Zurück zur Suche"
+        # restores it (spec §2).
         "href": f"{reverse('artikel-detail', args=[hit.ulid])}{zurueck}",
-        "artikel_ulid": hit.ulid,
         "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
         "datierung": hit.date_edtf or "",
         "typ": hit.document_type or "",
         "draft": hit.is_draft if is_archivist else False,
-        "visibility": _visibility_label(hit.tier, hit.groups) if is_archivist else "",
-        # Bearbeiten target is the detail stub for now; 4.7 repoints it at the edit form.
-        "action_label": "Bearbeiten" if is_archivist else "",
-        "action_href": reverse("artikel-detail", args=[hit.ulid]) if is_archivist else "",
+        "bearbeiten_href": reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else "",
+        # The explicit pane affordance for EVERY viewer (the pane itself re-authorizes
+        # fail-closed): a plain GET link, keeping search + selection state. ULIDs are
+        # Crockford base32, so the one per-row pair needs no encoding.
+        "vorschau_href": (
+            f"?{vorschau_prefix}&{_PANE_PARAM}={hit.ulid}"
+            if vorschau_prefix
+            else f"?{_PANE_PARAM}={hit.ulid}"
+        ),
         "selected": hit.ulid == selected_ulid,
         "gewaehlt": is_archivist and hit.ulid in auswahl,
     }
@@ -312,20 +354,23 @@ def _ledger_rows(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
+    vorschau_prefix: str,
     auswahl: frozenset[str],
     zurueck: str,
 ) -> tuple[dict[str, object], ...]:
-    """The ledger row view-models for the page's SearchHits. The title link's BASELINE points at the
-    canonical detail route ``/artikel/<ulid>`` (works with no JS, every viewport); ``ledger_pane.js``
-    progressively upgrades it to the ``?artikel`` pane on wide viewports. No visibility logic — that
-    already happened in ``search``; the archivist chrome is a presentation gate off ``is_archivist``.
-    ``zurueck`` is the shared encoded return suffix (same for every row — the current search)."""
+    """The ledger row view-models for the page's SearchHits. The title link points at the
+    canonical detail route ``/artikel/<ulid>`` (plain navigation, works with no JS on every
+    viewport); the pane opens via each row's explicit Vorschau link. No visibility logic — that
+    already happened in ``search``; the archivist chrome is a presentation gate off
+    ``is_archivist``. ``zurueck`` is the shared encoded return suffix (same for every row — the
+    current search)."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
         _ledger_row(
             hit,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
+            vorschau_prefix=vorschau_prefix,
             auswahl=auswahl,
             zurueck=zurueck,
         )
@@ -371,25 +416,17 @@ def _ledger_columns(
 
 
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
-#: render order. Every ``browse`` search-state key EXCEPT ``q`` (the form's own live input, never
-#: duplicated as hidden) and ``seite`` (a new search deliberately resets to page 1 — kept as-is).
-_FORM_FILTER_PARAMS: tuple[str, ...] = (
-    browse.PARAM_COLLECTION,
-    browse.PARAM_MEDIA_TYPE,
-    browse.PARAM_DOCUMENT_TYPE,
-    browse.PARAM_TAG,
-    browse.PARAM_DECADE,
-    browse.PARAM_DATELESS,
-    browse.PARAM_DATE_FROM,
-    browse.PARAM_DATE_TO,
-    browse.PARAM_SORT,
-)
+#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the rail's
+#: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
+#: live input, never duplicated as hidden) and ``seite`` (a new search deliberately resets to
+#: page 1 — kept as-is).
+_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     """The active filter params as ``(key, value)`` pairs for the search form's hidden inputs — read
     from the SAME ``params`` mapping the facet/sort/pagination links below build from, so the form
-    and the sidebar can never drift out of sync (GH #21: typing refines WITHIN the active filter
+    and the rail can never drift out of sync (GH #21: typing refines WITHIN the active filter
     scope). A blank or absent param is omitted entirely — never an empty-value hidden input."""
     return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
 
@@ -404,7 +441,7 @@ def _results_context(
     auswahl: list[str],
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
-    sidebar/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
+    rail/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
     template calls no functions with args), so the raw query dict itself is never handed to the
     template. No visibility logic — that already happened in ``search``; the ledger's archivist
     chrome is a presentation gate off ``is_archivist``.
@@ -419,7 +456,6 @@ def _results_context(
     }
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
-    auswahl_set = frozenset(auswahl)
     # The ONE per-request collection-names load, memoized and shared by its two consumers (the
     # Bestand facet labels + the bulk drawer's options) — and LAZY: a page that resolves no names
     # (zero hits, no collection counts, non-archivist) never loads at all (issue #2 P1, pinned).
@@ -434,11 +470,19 @@ def _results_context(
         "filter_params": _form_filters(params),
         "page": page,
         "facet_groups": _facet_groups(params, parsed, page, names),
+        # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
+        # its removal affordance even after it vanishes from the recomputed facet counts.
+        "filter_chips": _filter_chips(params, parsed, names),
+        # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
+        # drops every filter param, keeps q + sort. The template renders it only alongside chips.
+        "clear_filters_query": browse.clear_filters_query(params),
         "ledger_rows": _ledger_rows(
             page,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            auswahl=auswahl_set,
+            # both row-invariant: encoded once here, not once per row
+            vorschau_prefix=browse.pane_query_prefix(params, auswahl),
+            auswahl=frozenset(auswahl),
             zurueck=zurueck,
         ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
@@ -485,11 +529,20 @@ def _bulk_bar_context(
 ) -> dict[str, object]:
     """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
 
-    The bar's AFFORDANCES render whenever there are hits (cold-start fix, #16): the "Änderung prüfen"
-    submit (POSTs the checked boxes — a zero-check submit hits the existing "Keine Artikel
-    ausgewählt." reject) and the "Alle auf dieser Seite" page-select link, so the feature is reachable
-    with no prior selection. Signals-once still holds for STATUS: ``has_auswahl`` gates the
-    "{n} ausgewählt" count + "Auswahl aufheben" so an empty selection shows no "0 ausgewählt".
+    The bar's AFFORDANCES render whenever there are hits: the "Änderung prüfen" submit (POSTs the
+    checked boxes — a zero-check submit hits the existing "Keine Artikel ausgewählt." reject) and
+    the "Alle auf dieser Seite" page-select link, so the NO-JS path reaches the feature with no
+    prior selection. Visibility is PROGRESSIVE (owner 2026-08-07, reverses the #16 cold-start
+    ruling): the server always renders the disclosure visible; catalog_bulk.js hides it while the
+    live selection count is 0 and reveals it on the first tick. Signals-once still holds for
+    STATUS: ``has_auswahl`` gates the "{n} ausgewählt" count + "Auswahl aufheben" so an empty
+    selection shows no "0 ausgewählt".
+
+    The client can only hide what it fully accounts for (learning G.25): ``auswahl_offpage_count``
+    is the part of the URL-borne selection that is NOT on this page, so the enhancement can add its
+    own live checkbox count to a number it cannot otherwise see. Without it the JS counted this
+    page's boxes alone and hid a live cross-page selection — the archivist on page 2 could neither
+    see, clear nor apply it.
 
     Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
     the whole results block on ``page.hits``, so this returns the off flag defensively for that case.
@@ -498,10 +551,12 @@ def _bulk_bar_context(
     if not hits:
         return {"bulk_bar": False}
     page_ulids = [h.ulid for h in hits]
+    on_page = set(page_ulids)
     context: dict[str, object] = {
         "auswahl": auswahl,
         "bulk_bar": True,
         "has_auswahl": bool(auswahl),
+        "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
         "bulk_feld_options": _BULK_FELD_OPTIONS,
         "bulk_media_type_options": vocab.media_type_options(),
@@ -522,7 +577,7 @@ def _facet_groups(
     page: object,
     names: _NamesLoader,
 ) -> tuple[_FacetGroup, ...]:
-    """Build every sidebar facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
+    """Build every rail facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
     collection group resolves ULID facet values to Collection names (via ``names``, the shared
     per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
     facets = page.facets  # type: ignore[attr-defined]
@@ -725,7 +780,7 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
         "title": article.title,
         "ref_code": article.ref_code or "",
         "datierung_prose": vocab.edtf_to_german(article.date),
-        "datierung_mono": article.date.value if article.date is not None else "",
+        "datierung_mono": vocab.datierung_mono(article.date),
         "typ": article.document_type or article.media_type or "",
         "creator": article.creator or "",
         "ort": article.subject_place or "",
@@ -761,14 +816,6 @@ def serve_htmx(request: HttpRequest) -> HttpResponseBase:
     return _serve_static("htmx.min.js", "application/javascript")
 
 
-def serve_ledger_pane_js(request: HttpRequest) -> HttpResponseBase:
-    """``GET /static/ledger_pane.js`` — the ledger-row pane enhancement: on viewports ≥1280px a
-    plain click on a row title opens the ?artikel pane in place (preserving the other query params)
-    instead of the detail page. Best-effort: the no-JS baseline is the canonical /artikel detail
-    link, so if this file is unavailable rows still navigate correctly."""
-    return _serve_static("ledger_pane.js", "application/javascript")
-
-
 def serve_catalog_form_js(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/catalog_form.js`` — the Part 4.7 cataloging-form enhancement (dirty register,
     client-side custom-bag add/remove, discrete upload-progress sliver). Enhancement-only: every
@@ -785,7 +832,7 @@ def serve_catalog_bulk_js(request: HttpRequest) -> HttpResponseBase:
 
 def serve_layouts_css(request: HttpRequest) -> HttpResponseBase:
     """``GET /static/layouts.css`` — the workbench LAYOUT stylesheet (the page frame: grid, header,
-    sidebar, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
+    filter rail, ledger density, pane). Consumes role tokens only (load tokens.css + components.css
     first); graduated from the dev layout demo into production. Self-contained, no external
     requests."""
     return _serve_static("layouts.css", "text/css")

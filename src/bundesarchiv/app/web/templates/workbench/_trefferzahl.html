@@ -1,0 +1,10 @@
+{% comment %}
+The ONE renderer for the hit count (law C7: one renderer per fact type). It rides the filter
+rail's line, right-aligned (law C10: status text rides an OCCUPIED band — the old status-only
+toolrow died, owner round-2 correction 2026-08-07); aria-live keeps the polite announcement on
+htmx swaps. The rail lives OUTSIDE the #results swap target, so the HX-Request partial re-renders
+this same include with oob=True: htmx swaps the fresh text out-of-band INTO the rail's #trefferzahl
+(innerHTML, so the live region node itself survives and announces) — a live q-swap never leaves
+the count stale. Full-page renders include it exactly once, from the rail.
+{% endcomment %}
+<p id="trefferzahl" aria-live="polite"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>{{ total }} Treffer</p>

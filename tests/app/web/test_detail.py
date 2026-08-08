@@ -78,7 +78,7 @@ class _Corpus:
                 collection_id="FOTOS",
                 lifecycle=Lifecycle.PUBLISHED,
                 body="Erste Zeile.\n\nZweite Zeile.",
-                ref_code="F 12",
+                ref_code="F12",
                 media_type="Fotografie",
                 document_type="Porträt",
                 tags=("fahrt", "sommer"),
@@ -157,7 +157,7 @@ def _body(corpus: _Corpus, viewer: Viewer, ulid: str, query: str = "") -> str:
 def test_detail_renders_title_and_record_card(corpus: _Corpus) -> None:
     body = _body(corpus, Public(), corpus.pub)
     assert "Sommerfahrt 1962" in body
-    assert "F 12" in body  # Signatur
+    assert "F12" in body  # Signatur
     assert "K. Meyer" in body  # Autor
     assert "Harz" in body  # Ort
     assert "Porträt" in body  # Typ (document_type preferred)
@@ -211,7 +211,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Co
     member = _body(corpus, Member(groups=()), corpus.pub)
     archivist = _body(corpus, Archivist(), corpus.pub)
     # both carry the shared reading structure
-    for shared in ("Sommerfahrt 1962", "Juli 1962", "F 12", "K. Meyer", "Erste Zeile."):
+    for shared in ("Sommerfahrt 1962", "Juli 1962", "F12", "K. Meyer", "Erste Zeile."):
         assert shared in member
         assert shared in archivist
     # the archivist-only VALUES appear only for the archivist
@@ -243,14 +243,14 @@ def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _Corpus) -> N
 
 def test_member_published_view_carries_no_action_row(corpus: _Corpus) -> None:
     body = _body(corpus, Member(groups=()), corpus.pub)
-    assert "c-artikel-aktionen" not in body  # no action row for a member
+    assert 'class="actions"' not in body  # no action row for a member
     assert "/bearbeiten" not in body
 
 
 def test_member_published_view_has_no_amber_or_red(corpus: _Corpus) -> None:
     # §0/§9: a member published view carries NO draft (amber) or error (red) chrome.
     body = _body(corpus, Member(groups=()), corpus.pub)
-    assert "c-badge--entwurf" not in body
+    assert 'class="badge entwurf"' not in body
     assert "--draft" not in body
     assert "--error" not in body
 
@@ -300,7 +300,7 @@ def test_markup_bearing_fields_render_escaped(corpus: _Corpus) -> None:
 def test_zurueck_default_when_no_return_query(corpus: _Corpus) -> None:
     # no ?zurueck → the return link is a bare "/" (unchanged behavior).
     body = _body(corpus, Public(), corpus.pub)
-    assert '<a class="l-zurueck" href="/">' in body
+    assert '<a class="back" href="/">' in body
 
 
 def test_zurueck_round_trips_a_clean_search_query(corpus: _Corpus) -> None:
@@ -309,7 +309,7 @@ def test_zurueck_round_trips_a_clean_search_query(corpus: _Corpus) -> None:
     body = _body(
         corpus, Public(), corpus.pub, "?zurueck=q%3Dfahrt%26schlagwort%3Dsommer%26seite%3D2"
     )
-    assert "l-zurueck" in body
+    assert 'class="back"' in body
     for fragment in ("q=fahrt", "schlagwort=sommer", "seite=2"):
         assert fragment in body
 
@@ -323,10 +323,10 @@ def test_zurueck_drops_unknown_and_pane_params(corpus: _Corpus) -> None:
     assert "q=fahrt" in body
     assert "artikel=" not in body
     assert "evil" not in body
-    assert "script" not in body.lower().split("l-zurueck")[1][:200]
+    assert "script" not in body.lower().split('class="back"')[1][:200]
 
 
 def test_zurueck_malformed_falls_back_to_root(corpus: _Corpus) -> None:
     # a ?zurueck with no recognizable search params → the return link is a bare "/".
     body = _body(corpus, Public(), corpus.pub, "?zurueck=%7Bnot-a-query%7D")
-    assert '<a class="l-zurueck" href="/">' in body
+    assert '<a class="back" href="/">' in body

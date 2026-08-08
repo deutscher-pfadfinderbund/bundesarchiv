@@ -12,7 +12,7 @@ Two halves:
   default (garbage never raises, never 500s — plan §4.5). Text comes from ``q``; the rest build a
   ``SearchFilters`` + sort + page.
 - The link helpers (``with_param`` / ``without_param`` / ``page_query``) — pure query-string
-  algebra the templates emit for facet clicks, sidebar removal and pagination. Adding or removing a
+  algebra the templates emit for facet clicks, rail chip removal and pagination. Adding or removing a
   facet resets ``seite`` (the result set changed, so the old page number is stale).
 
 No visibility logic lives here (that is ``search`` / ``can_view``); this module only shuffles
@@ -224,6 +224,33 @@ def without_param(params: Mapping[str, str], key: str) -> str:
     return urlencode(updated)
 
 
+#: The FILTER dimensions of the search state — exactly the params the rail renders chips for, in
+#: a fixed order (the search form echoes the same list as hidden inputs, plus the sort:
+#: ``browse_views._FORM_FILTER_PARAMS`` extends THIS one). Deliberately excludes the text query
+#: (``q``), the sort and the page: "Alle Filter entfernen" (owner ruling 2026-08-07, rail round 2)
+#: clears the same set the chips remove one-by-one, so the two affordances share one semantics.
+FILTER_PARAMS: tuple[str, ...] = (
+    PARAM_COLLECTION,
+    PARAM_MEDIA_TYPE,
+    PARAM_DOCUMENT_TYPE,
+    PARAM_TAG,
+    PARAM_DECADE,
+    PARAM_DATELESS,
+    PARAM_DATE_FROM,
+    PARAM_DATE_TO,
+)
+
+
+def clear_filters_query(params: Mapping[str, str]) -> str:
+    """The query string for the current state MINUS every filter param — the rail's "Alle Filter
+    entfernen" link (owner 2026-08-07, rail round 2). Keeps the text query + sort (chip semantics:
+    a chip removes one filter and keeps ``q``; this removes them all) and resets ``seite`` for the
+    same reason ``without_param`` does — the narrowing changed."""
+    updated = {k: v for k, v in _clean(params).items() if k not in FILTER_PARAMS}
+    updated.pop(PARAM_PAGE, None)
+    return urlencode(updated)
+
+
 def page_query(params: Mapping[str, str], page: int) -> str:
     """The query string for the current state at ``page`` (pagination). Preserves every filter,
     text and sort; only ``seite`` moves — URL-as-state, back-button-honest, no infinite scroll."""
@@ -257,6 +284,17 @@ def select_page_query(
     merged = list(dict.fromkeys([*auswahl, *page_ulids]))
     pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
     pairs.extend((PARAM_AUSWAHL, u) for u in merged)
+    return urlencode(pairs)
+
+
+def pane_query_prefix(params: Mapping[str, str], auswahl: Sequence[str]) -> str:
+    """The row-invariant prefix of every Vorschau (pane) link: the current search state (blanks
+    dropped) plus the multi-valued ``auswahl`` selection — everything EXCEPT the trailing
+    ``artikel=<ulid>`` pair, which is the one per-row difference. Encoded once per page; each
+    ledger row appends its own ``artikel`` pair. Empty string when there is neither search state
+    nor a selection (the row link is then just ``?artikel=<ulid>``)."""
+    pairs: list[tuple[str, str]] = list(_clean(params).items())
+    pairs.extend((PARAM_AUSWAHL, u) for u in auswahl)
     return urlencode(pairs)
 
 

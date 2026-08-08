@@ -12,7 +12,9 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 - **Dataclass/framework/library-mechanics tests** (frozen raises, equality of
   equal values, `isinstance`, re-proving Postgres stemming beyond one lock case).
 - **Style lints as tests** (color sweeps, import-direction AST police) — that is
-  linter/type-checker territory.
+  linter/type-checker territory. ONE deliberate exception by owner ruling
+  (design-review-law section E): `app/web/test_design_lint.py` enforces the
+  law's lintable subset over the prod stylesheets.
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
   behavior.
 - **Byte-identical response comparisons** — the byte-identical-404 law was
@@ -49,3 +51,16 @@ gate fails otherwise.
   canonical files — deny-changes-nothing asserts are load-bearing.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
+  `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages
+  (color-contrast disabled per the 2026-08 audit ruling; axe vendored under
+  `e2e/vendor/`).
+  **`e2e/_pages.py` is THE screen inventory**: every GET-reachable screen, once,
+  with its viewer tier, the minimum overlay panels it composes and the control
+  rows it must show. The axe pass, both control-row walks, the overlay
+  containment walk and the gallery's GET states all derive from it — a new screen
+  joins that tuple and is covered everywhere the same day (G.21 applied to page
+  coverage). Never re-type a page list in a test; add the screen.
+  Some invariants are deliberately proven TWICE, at two layers — the server's
+  decision in the fast suite, the browser's answer in `e2e/` (the folded-section
+  rule is the canonical pair). That is layering, not duplication; the comment at
+  each site says so.

@@ -17,7 +17,8 @@ never an error — only ever an anonymous viewer.
 
 from django.conf import settings
 from django.core import signing
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -88,3 +89,26 @@ def viewer_of(request: HttpRequest) -> Viewer:
     except signing.BadSignature:
         return Public()
     return _parse_viewer(payload) or Public()
+
+
+def render_screen(request: HttpRequest, template: str, context: dict[str, object]) -> HttpResponse:
+    """Render a screen with ``is_archivist`` resolved HERE, from ``viewer_of``.
+
+    The shared header's "+ Neu …" create disclosure is ARCHIVIST CHROME, so whether it renders is an
+    authorization-shaped fact — and an authorization fact is the view's to decide, exactly as
+    ``browse_views`` decides it for the workbench and the detail reader. Four include sites used to
+    ASSERT it (``{% include "workbench/_header.html" with is_archivist=True %}``) on the grounds that
+    their routes are archivist-gated. True today, and unfalsifiable by the leak matrix, which asserts
+    route gates and never chrome: the day a screen with this header is reached by a lower tier — a
+    member-facing Lesesaal composition, a capability-link surface — the template would hand out
+    archivist chrome without a word. One helper, and the fact comes from the viewer everywhere.
+
+    Any ``is_archivist`` the caller already put in ``context`` wins, so a view that computed the same
+    fact for other purposes stays the one source on its own screen."""
+    return render(request, template, {"is_archivist": _is_archivist(request), **context})
+
+
+def _is_archivist(request: HttpRequest) -> bool:
+    """Whether the request's viewer is an Archivist — the presentation gate for archivist chrome and
+    the route gate for every cataloging route."""
+    return isinstance(viewer_of(request), Archivist)

@@ -1,49 +1,61 @@
 {% comment %}
-Bulk bar + chooser drawer (Sammelbearbeitung state B/C, spec §2). Renders inside the wb-sammelform
-(the row checkboxes name="auswahl" are the selection source). Docked sticky under the header —
-pushes content, never covers rows. The AFFORDANCES render whenever there are hits (cold-start fix,
-#16) so the feature is reachable with no prior selection; the STATUS parts are selection-gated.
+Sammelbearbeitung — a COLLAPSED disclosure directly above the ledger (no wrapper band, law C10;
+owner 2026-08-07;
+bulk tools are occasional chrome and recede, learning G.4; native <details> per construction
+law, no-JS by construction). Renders inside the results form — the row checkboxes name="auswahl"
+are the selection source. PROGRESSIVE visibility (owner 2026-08-07, reverses the #16 cold-start
+ruling): the server renders the disclosure VISIBLE (this template carries no hidden attribute),
+so the no-JS archivist always reaches "Alle auf dieser Seite"; catalog_bulk.js hides the whole
+disclosure via [hidden] while the TOTAL selection count is 0 and reveals it on the first tick.
+The count span is ALWAYS present (empty when no selection) so catalog_bulk.js has a live target
+to write into; the server fills it for the no-JS path (signals-once: no "0 ausgewählt").
 
-Affordances (always): "Alle auf dieser Seite" (GET link appending the page's ulids) + Feld select +
-every value widget (no-JS renders all; catalog_bulk.js shows only the matching one; the server reads
-the one matching feld) + Änderung prüfen (submit → confirm POST; a zero-check submit hits the
-existing "Keine Artikel ausgewählt." reject). Status (has_auswahl only, signals-once — no "0
-ausgewählt"): "{n} ausgewählt" (mono) + Auswahl aufheben (clears selection → ledger). No loud color;
-the primary is the one anchor.
+data-bulk-offpage is the second half of that contract (learning G.25: an enhancement may only hide
+what it can ACCOUNT for). It carries the part of the URL-borne ?auswahl= selection that is not on
+this page — invisible to a client counting checkboxes — so the JS total is
+data-bulk-offpage + this page's checked boxes. Counting only the boxes hid a live cross-page
+selection and stranded the archivist on page 2.
+
+Expanded: "Alle auf dieser Seite" (GET link appending the page's ulids), "Auswahl aufheben"
+(selection-gated), then the Feld chooser + Änderung prüfen (submit → confirm POST; a zero-check
+submit hits the existing "Keine Artikel ausgewählt." reject). Exactly ONE value widget shows —
+the one matching the chosen Feld — via CSS :has over the select's own checked option
+(layouts.css .chooser; no JS, identical no-JS behavior; the server reads only the matching
+widget either way). No loud color; the primary is the one anchor.
 {% endcomment %}
-<div class="wb-sammelleiste">
-  <div class="wb-sammelleiste-status">
-    {% comment %}The count span is ALWAYS present (empty when no selection — no "0 ausgewählt", so
-    signals-once holds) so catalog_bulk.js has a live target to write into on the first tick without
-    an early-return. The server fills it for the no-JS path when a selection exists.{% endcomment %}
-    <span class="wb-sammelleiste-zahl">{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span>
+<details class="bulk" data-bulk-offpage="{{ auswahl_offpage_count|default:0 }}">
+  {% comment %}The count is a plain status span, NOT an <output>: a form-associated element
+  inside a <summary> counts as interactive and swallows the toggle click (Chrome). role=status
+  keeps the polite announcement; data-bulk-zahl is the JS contract (catalog_bulk.js writes the
+  live count here) — behavior binds to the hook, not to today's markup.{% endcomment %}
+  <summary>Sammelbearbeitung …<span role="status" data-bulk-zahl>{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span></summary>
+  <div>
     {% comment %}data-bulk-alle: catalog_bulk.js (GH #22) folds unsubmitted ticks into this link's
     ?auswahl= so it keeps meaning "current selection ∪ this page". "Auswahl aufheben" below must
     NEVER carry the hook — its purpose is clearing the selection.{% endcomment %}
-    <a class="wb-sammelleiste-link" href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
-    {% if has_auswahl %}<a class="wb-sammelleiste-link" href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
+    <a href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
+    {% if has_auswahl %}<a href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
   </div>
 
-  <div class="wb-sammelleiste-chooser c-form-group">
-    <label class="c-field">
-      <span class="c-field-label">Feld</span>
-      <select class="c-select" name="feld" data-bulk-feld>
+  <div class="chooser">
+    <label class="field">
+      <span>Feld</span>
+      <select name="feld">
         {% for value, caption in bulk_feld_options %}
         <option value="{{ value }}">{{ caption }}</option>
         {% endfor %}
       </select>
     </label>
 
-    {% comment %}All value widgets render (no-JS baseline); the server reads only the one matching the
-    chosen feld. catalog_bulk.js shows just the matching widget. Each is wrapped with a data-bulk-wert
-    hook naming which feld it belongs to.{% endcomment %}
-    <label class="c-field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
-      <span class="c-field-label">Neuer Wert</span>
-      <input class="c-input" type="text" name="wert_text">
+    {% comment %}All value widgets are in the DOM (the server reads the one matching the chosen
+    feld); CSS shows only that one. data-bulk-wert names which felder a widget belongs to.{% endcomment %}
+    <label class="field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
+      <span>Neuer Wert</span>
+      <input type="text" name="wert_text">
     </label>
-    <label class="c-field" data-bulk-wert="media_type">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_media_type" data-bulk-media-type
+    <label class="field" data-bulk-wert="media_type">
+      <span>Neuer Wert</span>
+      <select name="wert_media_type"
               hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
               hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
         {% for value, caption in bulk_media_type_options %}
@@ -51,9 +63,9 @@ the primary is the one anchor.
         {% endfor %}
       </select>
     </label>
-    <label class="c-field" data-bulk-wert="document_type">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_document_type" id="bulk-dokumenttyp-select">
+    <label class="field" data-bulk-wert="document_type">
+      <span>Neuer Wert</span>
+      <select name="wert_document_type" id="bulk-dokumenttyp-select">
         <option value="">— kein Dokumenttyp —</option>
         {% for group_label, group_options in bulk_document_type_groups %}
         <optgroup label="{{ group_label }}">
@@ -64,17 +76,17 @@ the primary is the one anchor.
         {% endfor %}
       </select>
     </label>
-    <label class="c-field" data-bulk-wert="collection_id">
-      <span class="c-field-label">Neuer Wert</span>
-      <select class="c-select" name="wert_collection_id">
+    <label class="field" data-bulk-wert="collection_id">
+      <span>Neuer Wert</span>
+      <select name="wert_collection_id">
         {% for value, caption in bulk_collection_options %}
         <option value="{{ value }}">{{ caption }}</option>
         {% endfor %}
       </select>
     </label>
 
-    <div class="wb-sammelleiste-aktionen">
-      <button class="c-btn c-btn--primary" type="submit">Änderung prüfen</button>
+    <div class="actions">
+      <button class="primary" type="submit">Änderung prüfen</button>
     </div>
   </div>
-</div>
+</details>

@@ -18,3 +18,5 @@ htmlcov/
 *.local
 *.local.*
 tests/test_data/archive_items.txt
+# Agent scratch worktrees (harness-created, never part of the archive)
+.claude/worktrees/

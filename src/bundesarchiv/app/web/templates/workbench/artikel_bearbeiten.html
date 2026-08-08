@@ -1,46 +1,134 @@
 {% extends "workbench/base.html" %}
 {% comment %}
-Full edit form (Part 4.7 Slice B, spec §3/§4/§5/§6.1). Archivist-only (the view gates it). No-JS
-baseline only: one real <form>, native controls, one POST, server re-render preserving every value.
-Field order/grouping follows how an archivist catalogs (spec §3). The header carries the two
-reserved marks once (amber ENTWURF, violet Signatur). The sticky footer's Speichern is first in
-source so Enter submits it; the hidden expected_version rides the form for CAS (ADR 0013). On a
-Conflict the c-panel--konflikt renders at top (state G) with a neutral changed-fields diff.
+The archivist edit surface (Part 4.7 Slice B + the form wave, spec §3/§4/§5/§6.1; owner rulings
+2026-08-08 in docs/requirements/owner-interview-2026-08.md). Archivist-only (the view gates it).
+No-JS baseline only: one real <form>, native controls, one POST, server re-render preserving every
+value. Field order/grouping follows how an archivist catalogs (spec §3).
+
+Composition E (owner ruling 1): the ruled record card in the work column + the reader's sheet in the
+pane column — the SAME frame the workbench uses (.frame · main · .pane), so the sheet appears and
+disappears on the ONE 80rem switch (layouts.css) and no second threshold is invented. body.vorschau
+is that switch's hook and is literally true here: the pulled sheet IS this record's Vorschau.
+
+There is exactly ONE place to act (owner ruling 2): the sticky .recordrow under the header. The
+bottom sticky footer band and the separate .lifecycle band are GONE. There is NO title header
+(ruling 3): every identity fact is a field, so a header repeating Titel/Signatur would be a Q2
+duplication — the <title> still names the record.
+
+The hidden expected_version rides the form for CAS (ADR 0013); on a Conflict the panel.konflikt
+renders at top (state G) with a neutral changed-fields diff.
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% url 'static-forms' %}">
 <script src="{% url 'static-catalog-form' %}" defer></script>{% endblock %}
-{% block header %}<a class="wb-zurueck" href="{% url 'workbench' %}">Zurück zur Suche</a>{% endblock %}
+{% block body_class %}vorschau{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist %}{% endblock %}
 {% block body %}
-{% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this main carries the token via
+{% comment %}HTMX CSRF (spec §5): every hx-get/hx-post from inside this region carries the token via
 hx-headers, inherited by descendants — so the enhancement POSTs clear CsrfViewMiddleware exactly like
-the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.{% endcomment %}
-<main class="c-form" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-{% comment %}#form-region wraps the panels + header + edit form — the save hx-post swaps exactly this
-from the SAME full-page render (hx-select), so validation/conflict/state-H re-renders and their panels
-appear without a partial-render fork. On a successful save the view sends HX-Redirect instead (spec
-§5). The media drawer inside re-renders harmlessly; its own structural POSTs swap #medien-drawer
-only.{% endcomment %}
-<div id="form-region">
+the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %}.
+
+#form-region wraps the record row + the frame — the save hx-post swaps exactly this from the SAME
+full-page render (hx-select), so validation/conflict/state-H re-renders, their panels, the refreshed
+expected_version on EVERY form in the row, and the reader's sheet all move together (a row left
+outside the swap would keep a stale CAS version after a conflict re-render). On a successful save the
+view sends HX-Redirect instead (spec §5). The media drawer inside re-renders harmlessly; its own
+structural POSTs swap #medien-drawer plus the reader's sheet out-of-band (see the drawer).{% endcomment %}
+<div id="form-region" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+{% comment %}The record row — the view's ONE control row and its ONE action place (owner ruling 2).
+It occupies the slot the workbench spends on the filter rail and STICKS there, so Speichern is
+reachable at any scroll position without a second band at the bottom. Contents in reading order: the
+back affordance · the save-state output (enhancement-only) and the ENTWURF badge · then ONE
+role="toolbar" holding Speichern (primary), the lifecycle action, and the overflow disclosure. Kopieren
+is its OWN form (it posts elsewhere) but rides this row's toolbar slot — a new action lands in that
+list, never as a new button position (learning G.9).
+
+The LIFECYCLE action is a submit button of #bearbeiten-form (owner decision 2026-08-08): since ruling 2
+put Veröffentlichen in the same row as Speichern, a lifecycle POST of its own rebuilt the record from
+disk and threw the archivist's unsaved edits away without a word. It now SAVES the form and transitions
+in one round trip under the one expected_version, so one click still means one click and nothing is
+lost. Enter is unaffected: implicit submission fires the FIRST submit button in tree order, which is
+Speichern above (pinned by test_edit_and_save_redirects_to_read_view — spec §6.2, Enter never
+publishes).{% endcomment %}
+<div class="recordrow">
+  <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
+  {% include "components/badge_lifecycle.html" with draft=values.is_draft only %}
+  {% comment %}The dirty register is a neutral <output> badge (amber is licensed ONLY on the ENTWURF
+  badge, register row 4) — enhancement-only: JS reveals it on the first edit, and the no-JS baseline
+  simply never shows it (catalog_form.js).{% endcomment %}
+  <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
+  <div role="toolbar" aria-label="Satzaktionen">
+    <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
+    {% comment %}Publishing is ONE click (owner ruling 5): the separate over-exposure preview gate
+    retired with the permanent exposure statement (the sheet ≥80rem, the card below it). The click
+    submits the EDIT form with the lifecycle verb attached, so the save and the transition are one
+    CAS-guarded write — a validation failure behaves exactly like a failed save (re-render, values
+    preserved, nothing published) and a lost race exactly like a save conflict. No confirm step: that
+    is the gate the owner retired.
+
+    ...but the gate's FAIL-CLOSED half did not retire with it (learning G.34). The retired panel
+    blocked publishing whenever the exposure could not be computed, because its required `geprueft`
+    checkbox lived inside the branch that rendered the statement. So the affordance derives from the
+    SAME view-model the statement does: no exposure statement, no Veröffentlichen — an archivist may
+    not publish a record whose audience the domain cannot resolve. Zurückziehen is NOT gated: taking a
+    record back off the shelf needs no exposure fact, and refusing it would strand the record
+    published. The note itself is written where the statement stands (_einblick.html).{% endcomment %}
+    {% if values.is_draft %}
+    {% if sheet.einblick %}
+    <button type="submit" form="bearbeiten-form"
+            name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
+    {% endif %}
+    {% else %}
+    <button type="submit" form="bearbeiten-form"
+            name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
+    {% endif %}
+    {% comment %}The overflow: the row's rare actions. Same native <details> disclosure as the
+    header's "+ Neu …" (ONE pattern), so its panel is the licensed transient OVERLAY (register
+    row 12) and positions against THIS control row (law C12).{% endcomment %}
+    <details class="menu">
+      <summary>Mehr …</summary>
+      <ul>
+        <li><a href="{% url 'artikel-detail' values.ulid %}">Ansehen</a></li>
+        <li>
+          <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
+            {% csrf_token %}
+            <button class="link" type="submit">Kopieren</button>
+          </form>
+        </li>
+        <li><a href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
+        {% comment %}Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm
+        page (spec §7 — the destructive idiom lives on its own page, never inline).{% endcomment %}
+        {% if values.is_draft %}<li><a href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
+      </ul>
+    </details>
+  </div>
+</div>
+
+{% comment %}The page frame, shared with the workbench (layouts.css): the work column plus the pane
+column, the latter present only at/above 80rem. The card fills the work column; the reader's sheet is
+the pane.{% endcomment %}
+<div class="frame">
+<main>
 
   {% if conflict %}
-  <section class="c-panel c-panel--konflikt" aria-labelledby="konflikt-titel">
-    <h2 class="c-panel-titel" id="konflikt-titel">Inzwischen geändert</h2>
-    <p class="c-panel-hinweis">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
+  <section class="panel konflikt" aria-labelledby="konflikt-titel">
+    <h2 id="konflikt-titel">Inzwischen geändert</h2>
+    <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
     {% if conflict_rows %}
-    <div class="c-panel-diff-wrap">
-      <table class="c-panel-diff">
+    <div class="diff">
+      <table>
         <thead><tr><th>Feld</th><th>Deine Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
         <tbody>
           {% for row in conflict_rows %}
           <tr>
-            <td class="c-panel-diff-feld">{{ row.label }}</td>
+            <td>{{ row.label }}</td>
             {% if row.is_sig %}
             <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
             <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
             {% else %}
-            <td class="c-panel-diff-wert">{{ row.mine }}</td>
-            <td class="c-panel-diff-wert">{{ row.theirs }}</td>
+            <td>{{ row.mine }}</td>
+            <td>{{ row.theirs }}</td>
             {% endif %}
           </tr>
           {% endfor %}
@@ -51,266 +139,283 @@ only.{% endcomment %}
   </section>
   {% endif %}
 
-  {% comment %}Over-exposure preview (spec §6.2): NEUTRAL panel — no loud color; the public case is
-  emphasized by WEIGHT only. The required confirm checkbox gates Veröffentlichen (server re-checks
-  it).{% endcomment %}
-  {% if vorschau %}
-  <section class="c-panel c-panel--vorschau" aria-labelledby="vorschau-titel">
-    <h2 class="c-panel-titel" id="vorschau-titel">Wer bekommt nach Veröffentlichung Einblick?</h2>
-    <p class="c-panel-zeile">Nach Veröffentlichung sichtbar für: {{ vorschau.audience }}.</p>
-    <p class="c-panel-marken">{% include "components/badge_visibility.html" with text=vorschau.audience %}</p>
-    {% if vorschau.public %}<p class="c-panel-zeile c-panel-oeffentlich">Öffentlich sichtbar</p>{% endif %}
-    <p class="c-panel-felder">Sichtbare Felder: {{ vorschau.fields }}. Standort und interne Felder bleiben verborgen.</p>
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="veroeffentlichen">
-      <label class="c-panel-bestaetigen">
-        <input type="checkbox" name="geprueft" value="1" required>
-        <span>Ich habe geprüft, wer Einblick erhält.</span>
-      </label>
-      <div class="c-panel-aktionen">
-        <button class="c-btn c-btn--primary" type="submit">Veröffentlichen</button>
-      </div>
-    </form>
-  </section>
-  {% endif %}
-
-  {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet on-surface-variant
-  hinweis — NOT loud (it is not an error; the save succeeded).{% endcomment %}
-  {% if index_lag %}<p class="c-form-hinweis" role="status">{{ index_lag }}</p>{% endif %}
-
-  <header class="c-form-kopf">
-    <h1 class="c-form-kopf-titel">{{ values.title|default:"Ohne Titel" }}</h1>
-    <span class="c-form-kopf-marken">
-      {% include "components/badge_lifecycle.html" with draft=values.is_draft %}
-      {% comment %}Edit-header omits the hollow "ohne Signatur" slot — the Signatur INPUT on this same
-      screen carries absence (owner finding, signals-once). Show the mark only when a code exists.{% endcomment %}
-      {% if ref_code %}{% include "components/signatur_tab.html" with ref_code=ref_code %}{% endif %}
-    </span>
-  </header>
+  {% comment %}State H (ADR 0014): saved, but the search index lagged. Quiet hinweis — NOT loud
+  (it is not an error; the save succeeded).{% endcomment %}
+  {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
 
   {% comment %}HTMX (spec §5): the save hx-posts and swaps #form-region (panels + fields) from the
   same full-page render (hx-select) — validation/conflict/state-H panels appear inline; a successful
   save gets HX-Redirect to the read view. No-JS baseline is the plain POST + 302.{% endcomment %}
-  <form id="bearbeiten-form" class="c-form-felder" method="post"
+  {% comment %}The RECORD CARD (owner ruling 1): the whole record as one catalog card — one ruled
+  row per field, a label column so every value shares an axis, hairlines between rows, NO boxes and
+  no tab legends (the seven bordered fieldsets died with their seven drawer-tab legends: audit defect
+  2, learning G.2). Sections flow in a two-column GRID (forms.css — "no breakpoint guessing, use a
+  grid"), prose and media span every column, and Kerndaten/Einordnung stay open while the rare
+  sections fold WITH their values in the summary (ruling 4 — folding may never hide data).
+
+  #bearbeiten-form is display:contents, so it takes part in submission but not in layout: the media
+  register must hold real <form> children and forms cannot nest, so the DOM splits at the drawer
+  while the CARD does not. Gruppe 6/7 are wired back via form="bearbeiten-form" on every field.{% endcomment %}
+  <div class="karte">
+  {% comment %}hx-disinherit is load-bearing, not tidiness: htmx INHERITS hx-target/hx-select/hx-swap
+  down the tree, so the two small GET enhancements inside this form (the Dokumenttyp option list, the
+  Datierung echo) inherited hx-select="#form-region" — and their responses are an <option> list and
+  one <span>, which contain no #form-region at all. htmx selected NOTHING out of them and swapped
+  exactly that in: changing Medienart emptied the Dokumenttyp select outright, and typing a Datierung
+  deleted the echo's own swap target. Same class as the header's search (a swap selector that does not
+  resolve where the enhancement fires), so it dies the same way — at the boundary, once.{% endcomment %}
+  <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
-        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
+        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML"
+        hx-disinherit="hx-target hx-select hx-swap">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
-    {# Gruppe 1 — Kerndaten #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Kerndaten</legend>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.title %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Titel</span>
-          <input class="c-input" type="text" name="title" value="{{ values.title }}"
-                 {% if autofocus == "title" %}autofocus{% endif %}>
-          {% if errors.title %}<span class="c-field-fehler">{{ errors.title }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.collection_id %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Bestand</span>
-          <select class="c-select" name="collection_id"
-                  {% if autofocus == "collection_id" %}autofocus{% endif %}>
-            {% for value, caption in collection_options %}
-            <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </select>
-          {% if errors.collection_id %}<span class="c-field-fehler">{{ errors.collection_id }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Signatur</span>
-          <input class="c-input" type="text" name="ref_code" value="{{ values.ref_code }}"
-                 {% if autofocus == "ref_code" %}autofocus{% endif %}>
-        </label>
-      </div>
-    </fieldset>
+    {# Gruppe 1 — Kerndaten (stays open: the identity facts) #}
+    <section class="fach">
+      <h2>Kerndaten</h2>
+      <label class="field">
+        <span>Titel</span>
+        <input type="text" name="title" value="{{ values.title }}"
+               {% if autofocus == "title" %}autofocus{% endif %}>
+        {% if errors.title %}<span class="error">{{ errors.title }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Bestand</span>
+        <select name="collection_id"
+                {% if autofocus == "collection_id" %}autofocus{% endif %}>
+          {% for value, caption in collection_options %}
+          <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.collection_id %}<span class="error">{{ errors.collection_id }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Signatur</span>
+        <input type="text" name="ref_code" value="{{ values.ref_code }}"
+               {% if autofocus == "ref_code" %}autofocus{% endif %}>
+      </label>
+    </section>
 
-    {# Gruppe 2 — Einordnung #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Einordnung</legend>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.media_type %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Medienart</span>
-          {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
-          them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
-          server pairing re-validation still stand.{% endcomment %}
-          <select class="c-select" name="media_type"
-                  hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
-                  hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
-                  {% if autofocus == "media_type" %}autofocus{% endif %}>
-            {% for value, caption in media_type_options %}
-            <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
+    {# Gruppe 2 — Einordnung (stays open: the cataloging decisions) #}
+    <section class="fach">
+      <h2>Einordnung</h2>
+      <label class="field">
+        <span>Medienart</span>
+        {% comment %}HTMX (spec §5): on change, fetch the dependent Dokumenttyp options and swap
+        them into the select below. No-JS baseline unchanged — the full grouped optgroup list +
+        server pairing re-validation still stand.{% endcomment %}
+        <select name="media_type"
+                hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
+                hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
+                {% if autofocus == "media_type" %}autofocus{% endif %}>
+          {% for value, caption in media_type_options %}
+          <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.media_type %}<span class="error">{{ errors.media_type }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Dokumenttyp</span>
+        <select id="dokumenttyp-select" name="document_type"
+                {% if autofocus == "document_type" %}autofocus{% endif %}>
+          <option value="">— kein Dokumenttyp —</option>
+          {% for group_label, group_options in document_type_groups %}
+          <optgroup label="{{ group_label }}">
+            {% for value, caption in group_options %}
+            <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
             {% endfor %}
-          </select>
-          {% if errors.media_type %}<span class="c-field-fehler">{{ errors.media_type }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.document_type %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Dokumenttyp</span>
-          <select class="c-select" id="dokumenttyp-select" name="document_type"
-                  {% if autofocus == "document_type" %}autofocus{% endif %}>
-            <option value="">— kein Dokumenttyp —</option>
-            {% for group_label, group_options in document_type_groups %}
-            <optgroup label="{{ group_label }}">
-              {% for value, caption in group_options %}
-              <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
-              {% endfor %}
-            </optgroup>
-            {% endfor %}
-          </select>
-          {% if errors.document_type %}<span class="c-field-fehler">{{ errors.document_type }}</span>{% endif %}
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Schlagworte</span>
-          <input class="c-input" type="text" name="tags" value="{{ values.tags }}"
-                 {% if autofocus == "tags" %}autofocus{% endif %}>
-          <span class="c-form-hint">Mehrere durch Komma trennen</span>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.date %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Datierung (EDTF)</span>
-          {% comment %}HTMX (spec §5): debounced keyup fetches the human-German echo and swaps the
-          line below. No-JS baseline unchanged — the echo also renders server-side after any
-          submit/reload.{% endcomment %}
-          <input class="c-input" type="text" name="date" value="{{ values.date }}"
-                 hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
-                 hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
-                 hx-swap="outerHTML"
-                 {% if autofocus == "date" %}autofocus{% endif %}>
-          <span class="c-form-hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
-          {% if errors.date %}<span class="c-field-fehler">{{ errors.date }}</span>{% endif %}
-          {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
-        </label>
-      </div>
-    </fieldset>
+          </optgroup>
+          {% endfor %}
+        </select>
+        {% if errors.document_type %}<span class="error">{{ errors.document_type }}</span>{% endif %}
+      </label>
+      <label class="field">
+        <span>Schlagworte</span>
+        <input type="text" name="tags" value="{{ values.tags }}"
+               {% if autofocus == "tags" %}autofocus{% endif %}>
+        <span class="hint">Mehrere durch Komma trennen</span>
+      </label>
+      <label class="field">
+        <span>Datierung (EDTF)</span>
+        {% comment %}HTMX (spec §5): debounced keyup fetches the human-German echo and swaps the
+        line below. No-JS baseline unchanged — the echo also renders server-side after any
+        submit/reload.{% endcomment %}
+        <input type="text" name="date" value="{{ values.date }}"
+               hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
+               hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
+               hx-swap="outerHTML"
+               {% if autofocus == "date" %}autofocus{% endif %}>
+        <span class="hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
+        {% if errors.date %}<span class="error">{{ errors.date }}</span>{% endif %}
+        {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
+      </label>
+    </section>
 
-    {# Gruppe 3 — Herkunft #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Herkunft</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Autor</span>
-          <input class="c-input" type="text" name="creator" value="{{ values.creator }}"
-                 {% if autofocus == "creator" %}autofocus{% endif %}>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Ort</span>
-          <input class="c-input" type="text" name="subject_place" value="{{ values.subject_place }}"
-                 {% if autofocus == "subject_place" %}autofocus{% endif %}>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Standort</span>
-          <input class="c-input" type="text" name="physical_location" value="{{ values.physical_location }}"
-                 {% if autofocus == "physical_location" %}autofocus{% endif %}>
-          <span class="c-form-hint">Nur intern sichtbar</span>
-        </label>
-      </div>
-    </fieldset>
+    {% comment %}Gruppe 3 — Herkunft: rarely touched after cataloging, so it FOLDS — but its summary
+    carries its own values, so folding hides nothing (owner ruling 4). The values come from the SAME
+    context the fields print (one renderer per fact, law C7 — nothing is re-formatted here), and the
+    value line disappears while the section is open, so no fact is ever on screen twice (Q2).
 
-    {# Gruppe 4 — Beschreibung #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Beschreibung</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Beschreibung</span>
-          <textarea class="c-input" name="body" rows="10">{{ values.body }}</textarea>
-        </label>
-      </div>
-    </fieldset>
+    [open] is SERVER-DECIDED (catalog_views._open_sections) from the same error/autofocus context the
+    fields below are rendered with: a fold may hide neither a validation message nor the autofocus
+    target (a closed <details> has no focusable contents, so `autofocus` inside one focuses nothing).
+    Same mechanism on Zugriff and Weitere Angaben — one rule, every fold.{% endcomment %}
+    <details class="fach"{% if "herkunft" in open_sections %} open{% endif %}>
+      <summary>Herkunft
+        <span class="werte">
+          {% include "workbench/_wertmarke.html" with label="Autor" value=values.creator only %}
+          {% include "workbench/_wertmarke.html" with label="Ort" value=values.subject_place only %}
+          {% include "workbench/_wertmarke.html" with label="Standort" value=values.physical_location only %}
+        </span>
+      </summary>
+      <label class="field">
+        <span>Autor</span>
+        <input type="text" name="creator" value="{{ values.creator }}"
+               {% if autofocus == "creator" %}autofocus{% endif %}>
+      </label>
+      <label class="field">
+        <span>Ort</span>
+        <input type="text" name="subject_place" value="{{ values.subject_place }}"
+               {% if autofocus == "subject_place" %}autofocus{% endif %}>
+      </label>
+      <label class="field">
+        <span>Standort</span>
+        <input type="text" name="physical_location" value="{{ values.physical_location }}"
+               {% if autofocus == "physical_location" %}autofocus{% endif %}>
+        <span class="hint">Nur intern sichtbar</span>
+      </label>
+    </details>
 
-    {# Gruppe 5 — Zugriff #}
-    <fieldset class="c-form-group">
-      <legend class="c-form-legend">Zugriff</legend>
-      <div class="c-form-row">
-        <label class="c-field">
-          <span class="c-field-label">Sichtbarkeit</span>
-          <select class="c-select" name="sichtbarkeit">
-            {% for value, caption in sichtbarkeit_options %}
-            <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-      <div class="c-form-row">
-        <label class="c-field{% if errors.gruppen %} c-field--fehler{% endif %}">
-          <span class="c-field-label">Gruppen</span>
-          <input class="c-input" type="text" name="gruppen" value="{{ values.gruppen }}"
-                 {% if autofocus == "gruppen" %}autofocus{% endif %}>
-          <span class="c-form-hint">Mehrere durch Komma trennen</span>
-          {% if errors.gruppen %}<span class="c-field-fehler">{{ errors.gruppen }}</span>{% endif %}
-        </label>
-      </div>
-    </fieldset>
+    {% comment %}Gruppe 4 — Beschreibung: the section heading IS the field's label (aria-labelledby),
+    never both (the old form printed "Beschreibung" twice — audit defect 6, Q2). The prose section
+    spans every card column; the textarea keeps a min-height floor and grows with its content where
+    field-sizing exists (forms.css).{% endcomment %}
+    <section class="fach prosa">
+      <h2 id="feld-beschreibung">Beschreibung</h2>
+      <textarea name="body" rows="10" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea>
+    </section>
+
+    {% comment %}Gruppe 5 — Zugriff: folded like Herkunft, its summary carrying the Sichtbarkeit
+    caption the select itself shows (same option source — one renderer) plus the Gruppen value. BOTH
+    ride _wertmarke.html like every other summary value: the caption used to be printed by a bare
+    <span> here, which is one renderer of "a value in a summary line" more than law C7 allows — and it
+    is the reason an absent value's treatment could differ between the two.{% endcomment %}
+    <details class="fach"{% if "zugriff" in open_sections %} open{% endif %}>
+      <summary>Zugriff
+        <span class="werte">
+          {% include "workbench/_wertmarke.html" with label="Sichtbarkeit" value=sichtbarkeit_caption only %}
+          {% include "workbench/_wertmarke.html" with label="Gruppen" value=values.gruppen only %}
+        </span>
+      </summary>
+      <label class="field">
+        <span>Sichtbarkeit</span>
+        <select name="sichtbarkeit">
+          {% for value, caption in sichtbarkeit_options %}
+          <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>Gruppen</span>
+        <input type="text" name="gruppen" value="{{ values.gruppen }}"
+               {% if autofocus == "gruppen" %}autofocus{% endif %}>
+        <span class="hint">Mehrere durch Komma trennen</span>
+        {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
+      </label>
+    </details>
+
+    {% comment %}The EXPOSURE statement below the pane's 80rem switch — OUTSIDE the fold, deliberately
+    (owner ruling 5: the statement is PERMANENTLY on screen, which is what let the over-exposure
+    preview gate retire). It used to sit inside the Zugriff <details> above, so on a narrow window the
+    fact was on screen NOWHERE — the pane is display:none there and the fold was shut — and an
+    archivist published blind against a gate that had been deleted precisely because the statement was
+    permanent. Still ONE renderer (workbench/_einblick.html): the reader's sheet carries it at/above
+    80rem, this placement below, and forms.css hides this one with the exact complement of that ONE
+    switch — so the fact is on screen exactly once at every width and never twice (Q2).{% endcomment %}
+    {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
 
     {% comment %}bearbeiten-form closes here, BEFORE Medien (spec §6.3): #medien-drawer must hold
     real <form> children (the per-row structural forms), and forms cannot nest — so the drawer
-    cannot be a descendant of #bearbeiten-form. Gruppe 7 + the footer resume right after the drawer,
-    in original visual position, wired back to #bearbeiten-form via form= on each field so Speichern
-    and the custom-bag still ride this form's single POST.{% endcomment %}
+    cannot be a descendant of #bearbeiten-form. Gruppe 6 + 7 continue as the card's own sections,
+    wired back to #bearbeiten-form via form= on each field so Speichern and the custom-bag still
+    ride this form's single POST.{% endcomment %}
   </form>
 
-    {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar. Caption inputs
-    carry form="bearbeiten-form" so they ride THAT form's save (save_article — captions are README
-    front matter, ADR 0015) despite the drawer sitting outside it. Each row's reorder/remove buttons
-    belong to their OWN per-row form (declared below, inside this fieldset, referenced via form=) so
-    each carries exactly one unambiguous hash — never the whole register. The FIRST row's TITELBILD
-    cover stamp is a NEUTRAL-INK INVERSION (never amber/violet/tint) — a REVIEW GATE per spec §6.3.
-    The upload controls sit at the drawer bottom but belong to the separate multipart
-    form#medien-upload (declared below, inside this fieldset) via form= — file inputs support form=,
-    same idiom as the row buttons.
+    {% comment %}Gruppe 6 — Medien (spec §6.3), built on the ledger subgrid grammar; it spans every
+    card column (forms.css). Caption inputs carry form="bearbeiten-form" so they ride THAT form's
+    save (save_article — captions are README front matter, ADR 0015) despite the drawer sitting
+    outside it. Each row's reorder/remove controls belong to their OWN per-row form (declared below,
+    inside this section, referenced via form=) so each carries exactly one unambiguous hash — never
+    the whole register. Those controls are ONE role="toolbar" of icons from the vendored set (owner
+    ruling 6, register row 9). The FIRST row's TITELBILD cover stamp is a NEUTRAL-INK INVERSION (never
+    amber/violet/tint) — a REVIEW GATE per spec §6.3. The upload controls sit at the section bottom
+    but belong to the separate multipart form#medien-upload (declared below, inside this section) via
+    form= — file inputs support form=, same idiom as the row buttons, and the input stays the NATIVE
+    one (owner ruling 7: a German browser renders German strings, so a label-triggered replacement
+    buys nothing).
 
     HTMX (spec §5): every structural POST below hx-posts and swaps ONLY this #medien-drawer region,
     extracted from the SAME full-page render the no-JS baseline produces (hx-select) — no
-    partial-render fork, no new render path. Its own hidden per-row + upload forms are declared as
-    SIBLINGS inside the fieldset (forms cannot nest) so a swap delivers fresh forms for the CURRENT
-    row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
-    automatically because the whole drawer (cover row first) is replaced.{% endcomment %}
-    <fieldset class="c-form-group" id="medien-drawer">
-      <legend class="c-form-legend">Medien</legend>
-      {% if medien_fehler %}<p class="c-medien-fehler">{{ medien_fehler }}</p>{% endif %}
+    partial-render fork, no new render path. The swap TRIPLE is declared once, HERE, on the region it
+    names: htmx inherits hx-target/hx-select/hx-swap down the tree, and every one of the five forms
+    below had carried its own verbatim copy of it. Nothing inside this section issues a request except
+    those forms, so there is nothing for the inherited selectors to reach that does not want them
+    (G.32's rule is that a swap selector must resolve WHERE IT FIRES — on this region it does, by
+    construction, and the two little GET enhancements that must NOT inherit live inside
+    #bearbeiten-form, which stops inheritance at its own boundary with hx-disinherit). Its own hidden
+    per-row + upload forms are declared as SIBLINGS inside the section (forms cannot nest) so a swap
+    delivers fresh forms for the CURRENT row set — a freshly uploaded row's buttons work without a full
+    reload. TITELBILD re-stamps automatically because the whole drawer (cover row first) is replaced.
+
+    ...and hx-select-oob carries the READER'S SHEET along, inherited by every form below. A structural
+    media change is a change to what a READER sees — order is meaning, so promoting a plate re-covers
+    the record (ADR 0015) — and the sheet is rendered from the stored article. Swapping the drawer
+    alone left the old thumbnail on the sheet until a full reload, while a comment two files away
+    claimed the sheet "refreshes with #form-region". It is one response either way; only the
+    metadata save swaps #form-region.{% endcomment %}
+    <section id="medien-drawer" class="fach"
+             hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML"
+             hx-select-oob="#lesesicht">
+      <h2>Medien</h2>
+      {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
-      <div class="c-medien">
+      <div class="media">
         {% for row in media_rows %}
-        <div class="c-medien-zeile{% if row.is_cover %} c-medien-zeile--cover{% endif %}">
-          <img class="c-medien-thumb" src="{{ row.thumb_url }}" alt="" loading="lazy">
-          <span class="c-medien-datei">
-            <span class="c-medien-name">{{ row.filename }}</span>
-            {% if row.size %}<span class="c-medien-groesse">{{ row.size }}</span>{% endif %}
-            {% if row.is_cover %}<span class="c-medien-titelbild">Titelbild</span>{% endif %}
+        <div{% if row.is_cover %} class="cover"{% endif %}>
+          <img src="{{ row.thumb_url }}" alt="" loading="lazy">
+          <span class="file">
+            <span>{{ row.filename }}</span>
+            {% if row.size %}<small>{{ row.size }}</small>{% endif %}
+            {% if row.is_cover %}<span class="titelbild">Titelbild</span>{% endif %}
           </span>
-          <label class="c-field">
-            <span class="c-visually-hidden">Bildunterschrift</span>
-            <input class="c-input" type="text" name="caption[{{ row.content_hash }}]"
+          <label class="field">
+            <span class="visually-hidden">Bildunterschrift</span>
+            <input type="text" name="caption[{{ row.content_hash }}]"
                    value="{{ row.caption }}" aria-label="Bildunterschrift" form="bearbeiten-form">
           </label>
-          <span class="c-medien-reihenfolge">
-            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
-                    name="richtung" value="hoch"{% if row.is_first %} disabled{% endif %}>nach oben</button>
-            <button class="c-medien-pfeil" type="submit" form="verschieben-{{ row.content_hash }}"
-                    name="richtung" value="runter"{% if row.is_last %} disabled{% endif %}>nach unten</button>
-          </span>
+          {% comment %}The row's actions: ONE role="toolbar" of icon buttons from the one vendored set
+          (owner ruling 6, register row 9) — the three text links per row died. Each carries its
+          accessible name via aria-label; the first/last row's arrow is natively disabled, so a
+          dead-end control is non-interactive rather than merely quiet. The two-step remove keeps its
+          WORDS: a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
-          <span class="c-medien-confirm">Wirklich entfernen?
-            <button class="c-medien-entfernen" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
-            <button class="c-medien-entfernen" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
+          <span class="confirm">Wirklich entfernen?
+            <button class="link" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
+            <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
-          <button class="c-medien-entfernen" type="submit" form="entfernen-frage-{{ row.content_hash }}">Entfernen</button>
+          <span role="toolbar" aria-label="Medienaktionen">
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="hoch" aria-label="Nach oben"
+                    {% if row.is_first %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-up" only %}</button>
+            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+                    name="richtung" value="runter" aria-label="Nach unten"
+                    {% if row.is_last %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-down" only %}</button>
+            <button class="link" type="submit" form="entfernen-frage-{{ row.content_hash }}"
+                    aria-label="Entfernen">{% include "components/icon.html" with name="x" only %}</button>
+          </span>
           {% endif %}
         </div>
         {% endfor %}
@@ -318,123 +423,90 @@ only.{% endcomment %}
       {% else %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
-      <div class="c-medien-upload">
-        <input class="c-input" type="file" name="dateien" form="medien-upload" multiple>
-        <button class="c-btn c-btn--subtle" type="submit" form="medien-upload">Hinzufügen</button>
+      <div class="upload">
+        <input type="file" name="dateien" form="medien-upload" multiple aria-label="Dateien auswählen">
+        <button type="submit" form="medien-upload">Hinzufügen</button>
       </div>
       {% comment %}Upload progress sliver — enhancement-only (HTMX/XHR paints it via
       catalog_form.js). Absent in the no-JS baseline; a static track with a discrete on-surface fill,
       NO easing (spec §6.3).{% endcomment %}
-      <div class="c-medien-fortschritt" aria-hidden="true">
-        <div class="c-medien-fortschritt-fill" id="medien-fortschritt-fill"></div>
+      <div class="progress" aria-hidden="true">
+        <div id="medien-fortschritt-fill"></div>
       </div>
 
       {% comment %}Per-row media structural forms (spec §6.3) — SIBLINGS of the row markup above
-      inside this fieldset, referenced by the register buttons via form=. Each carries exactly ONE
+      inside this section, referenced by the register buttons via form=. Each carries exactly ONE
       hash, so a reorder/remove is unambiguous. Non-CAS structural POSTs, separate from the caption
       metadata save.{% endcomment %}
       {% for row in media_rows %}
       <form id="verschieben-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-frage-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-ja-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
         <input type="hidden" name="bestaetigt" value="1">
       </form>
       <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}
       </form>
       {% endfor %}
 
       {% comment %}Upload — a separate multipart form (spec §6.3, forms cannot nest), a SIBLING of
-      the per-row forms above inside the fieldset so it too survives the #medien-drawer swap. Its
+      the per-row forms above inside the section so it too survives the #medien-drawer swap. Its
       controls render inside this drawer via form="medien-upload" — file inputs support form=, same
       idiom as the row buttons. Appends at the end, write-once dedupe. catalog_form.js paints the
       discrete progress sliver from htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
       <form id="medien-upload" method="post" enctype="multipart/form-data"
             action="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hidden>
         {% csrf_token %}
       </form>
-    </fieldset>
+    </section>
 
-    {% comment %}bearbeiten-form has no open tag here — Gruppe 7 + the footer are the SAME form as
-    Gruppe 1-5 above, wired via form="bearbeiten-form" on every field (the drawer above physically
-    splits the DOM but not the submission).{% endcomment %}
-
-    {# Gruppe 7 — Weitere Angaben (custom bag) #}
-    <details class="c-form-details">
-      <summary class="c-form-details-summary">Weitere Angaben</summary>
-      {% if errors.custom %}<p class="c-field-fehler">{{ errors.custom }}</p>{% endif %}
+    {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded like Herkunft
+    and Zugriff, its summary naming the keys it holds so folding hides nothing (ruling 4). Its fields
+    are wired back to #bearbeiten-form via form=.{% endcomment %}
+    <details id="custom-bag" class="fach"{% if "weitere" in open_sections %} open{% endif %}>
+      <summary>Weitere Angaben
+        <span class="werte">
+          {% comment %}Each KEY is the value here (the bag's own field names), and the empty case says
+          so by name — both through _wertmarke.html, so the bag's summary cannot spell absence
+          differently from Herkunft's or Zugriff's (law C7). The bare "keine" it used to print was that
+          third spelling.{% endcomment %}
+          {% for key in custom_keys %}{% include "workbench/_wertmarke.html" with label="Angaben" value=key only %}{% empty %}{% include "workbench/_wertmarke.html" with label="Angaben" value="" only %}{% endfor %}
+        </span>
+      </summary>
+      {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
-      <div class="c-form-bag-zeile">
-        <label class="c-field">
-          <span class="c-field-label">Feld</span>
-          <input class="c-input" type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
+      <div class="bag-row">
+        <label class="field">
+          <span>Feld</span>
+          <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
         </label>
-        <label class="c-field">
-          <span class="c-field-label">Wert</span>
-          <input class="c-input" type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
+        <label class="field">
+          <span>Wert</span>
+          <input type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
         </label>
         {% if key or val %}
-        <button class="c-form-bag-entfernen" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
+        <button class="link" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
         {% endif %}
       </div>
       {% endfor %}
     </details>
-
-    {% comment %}Sticky footer: Speichern first in source (Enter default), Verwerfen subtle.
-    Verwerfen shows ONLY for drafts and routes through the Entwurf-verwerfen confirm page
-    (spec §7 — the destructive idiom lives on its own page, never inline).{% endcomment %}
-    <div class="c-form-footer">
-      <span class="c-form-status" hidden>Nicht gespeicherte Änderungen</span>
-      <div class="c-form-footer-aktionen">
-        <button class="c-btn c-btn--primary" type="submit" form="bearbeiten-form">Speichern</button>
-        {% if values.is_draft %}
-        <a class="c-btn c-btn--subtle" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a>
-        {% endif %}
-      </div>
-    </div>
-  </div>{# /#form-region #}
-
-  {% comment %}Lifecycle control — SEPARATE forms (Enter in the edit form never fires these),
-  adjacent to the footer (spec §6.2). Draft: Veröffentlichen opens the over-exposure preview (POST
-  /vorschau) that re-renders this page with c-panel--vorschau at top; the panel's own Veröffentlichen
-  (gated by the confirm checkbox) POSTs /lebenszyklus. Published: one-step Als Entwurf zurückziehen,
-  no preview.{% endcomment %}
-  <section class="c-form-lebenszyklus">
-    {% if values.is_draft %}
-    {# HTMX (spec §5): the preview swaps #form-region so c-panel--vorschau appears inline at top. #}
-    <form method="post" action="{% url 'artikel-vorschau' values.ulid %}"
-          hx-post="{% url 'artikel-vorschau' values.ulid %}"
-          hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
-      {% csrf_token %}
-      <button class="c-btn c-btn--subtle" type="submit">Veröffentlichen</button>
-    </form>
-    {% else %}
-    <form method="post" action="{% url 'artikel-lebenszyklus' values.ulid %}">"
-      {% csrf_token %}
-      <input type="hidden" name="expected_version" value="{{ version }}">
-      <input type="hidden" name="aktion" value="zurueckziehen">
-      <button class="c-btn c-btn--subtle" type="submit">Als Entwurf zurückziehen</button>
-    </form>
-    {% endif %}
-  </section>
+  </div>{# /.karte #}
 </main>
+{% include "workbench/_lesesicht.html" with sheet=sheet only %}
+</div>{# /.frame #}
+</div>{# /#form-region #}
 {% endblock %}

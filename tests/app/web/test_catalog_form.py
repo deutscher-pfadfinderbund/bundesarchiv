@@ -84,7 +84,7 @@ def test_body_stays_a_string_when_empty() -> None:
 def test_present_optionals_round_trip() -> None:
     art = _parse(
         _post(
-            ref_code="F 12/3-b",
+            ref_code="F12/3-b",
             document_type="Porträt",
             creator="Kurt Meyer",
             subject_place="Kassel",
@@ -93,7 +93,7 @@ def test_present_optionals_round_trip() -> None:
         )
     ).article
     assert art is not None
-    assert art.ref_code == "F 12/3-b"
+    assert art.ref_code == "F12/3-b"
     assert art.document_type == "Porträt"
     assert art.creator == "Kurt Meyer"
     assert art.subject_place == "Kassel"

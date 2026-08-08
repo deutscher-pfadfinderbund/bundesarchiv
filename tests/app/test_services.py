@@ -184,7 +184,7 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
         title="Sommerfahrt 1962",
         collection_id="FOTOS",
         lifecycle=Lifecycle.PUBLISHED,
-        ref_code="F 12/3",
+        ref_code="F12/3",
         media_type="Foto",
         tags=("fahrt", "sommer"),
         physical_location="Regal 4",
@@ -218,10 +218,10 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
 @pytest.mark.django_db
 def test_copy_article_source_untouched(store: InMemoryObjectStore) -> None:
     articles = ArticleRepository(store)
-    articles.save(Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F 1"), 0)
+    articles.save(Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F1"), 0)
     copy_article(store, "01SRC")
     original = articles.load("01SRC").article
-    assert original.ref_code == "F 1"  # source Signatur intact
+    assert original.ref_code == "F1"  # source Signatur intact
     assert original.title == "Original"
 
 

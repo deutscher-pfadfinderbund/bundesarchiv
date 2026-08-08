@@ -1,0 +1,31 @@
+{% comment %}
+The EXPOSURE statement — "who gains sight of this record, and which fields do they get" (owner
+ruling 5, 2026-08-08: permanently on screen, so publishing is ONE click and the separate
+over-exposure preview gate retires). Param: einblick (the view-model; absent → nothing renders).
+
+ONE RENDERER, TWO PLACEMENTS (law C7): this file is included by the reader's sheet, which exists
+above the pane's 80rem switch, AND in the record card beside Zugriff — OUTSIDE its fold, because a
+permanent fact may not live behind a disclosure — which is where the narrow / no-JS archivist reads
+it. The values are computed by the DOMAIN's preview() in the view — never re-implemented here, never
+client-side.
+
+Tense follows lifecycle: a draft is archivist-only today, so it reads "Nach Veröffentlichung sichtbar
+für …" — claiming a draft is already visible would be a lie. NEUTRAL by construction: no loud color
+(exposure is neither draft nor error); the public case is emphasized by WEIGHT only (spec §6.2).
+
+FAIL-CLOSED, VISIBLY (learning G.34). An absent view-model means the domain could not resolve the
+record's Bestand chain, so there IS no honest exposure statement — and the retired preview panel's
+None branch BLOCKED publishing outright (the required `geprueft` checkbox lived inside it). Rendering
+nothing here put that fail-closed promise back to zero: the statement vanished and Veröffentlichen
+stayed one click away. So absence SAYS SO, in the same place the statement would stand, and the
+record row derives the publish affordance from this very view-model — no statement, no publish.
+{% endcomment %}
+<div class="einblick">
+  {% if einblick %}
+  <p>{% if einblick.draft %}Nach Veröffentlichung sichtbar für{% else %}Sichtbar für{% endif %}: {% if einblick.public %}<strong>{{ einblick.audience }}</strong>{% else %}{{ einblick.audience }}{% endif %}.</p>
+  {% if einblick.fields %}<p class="hint">Sichtbare Felder: {{ einblick.fields }}. Verborgen: Standort, interne Felder.</p>{% endif %}
+  {% else %}
+  <p>Einblick nicht ermittelbar.</p>
+  <p class="hint">Der Bestand dieses Artikels lässt sich nicht auflösen — Veröffentlichen ist gesperrt, bis der Bestand wieder stimmt.</p>
+  {% endif %}
+</div>

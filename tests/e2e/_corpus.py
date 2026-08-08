@@ -4,6 +4,11 @@ Built once per session into a temp store and indexed. Returns ``CorpusHandles`` 
 what it needs (the draft to edit, the published article to copy/delete, a second collection to move
 into) instead of hard-coding ULIDs. Kept deliberately tiny: two collections, a handful of articles
 covering search/filter, edit, copy, delete, publish-preview, and bulk paths.
+
+SIGNATUREN here obey the domain fact (owner, 2026-08-07): NO SPACES, and 8 characters is the
+practical ceiling. One article sits AT that ceiling (``CEILING_REF_CODE``) so every render and
+design judgment happens on realistic codes; layout guards that need to stress a column stress the
+Titel, which is genuinely unbounded free text.
 """
 
 from dataclasses import dataclass
@@ -39,6 +44,11 @@ def _png(color: tuple[int, int, int]) -> bytes:
 PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
 SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
+CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # sorts last in browse order (ulid), so it renders last
+
+#: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
+#: subdivision · volume, the longest code the archive is expected to carry.
+CEILING_REF_CODE = "F12/3-b2"
 # A ULID-keyed collection (unlike the literal "ROOT"/"FOTOS" ids) for the 4.8 rename route + gallery
 # state: /bestand/<ulid>/bearbeiten validates a real ULID (real collections created via the app get
 # one), so the rename state needs a genuine ULID, not a literal.
@@ -94,7 +104,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
                 "Aufgenommen wurden Porträts am Lagerfeuer sowie ein Gruppenbild vor der Hütte.\n\n"
                 "Der Bestand dokumentiert die Ferienlager der frühen 1960er Jahre."
             ),
-            ref_code="F 12",
+            ref_code="F12",
             media_type="Fotografie",
             document_type="Porträt",
             tags=("fahrt", "sommer"),
@@ -114,21 +124,41 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             title="Herbstlager 1963",
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
-            ref_code="F 13",
+            ref_code="F13",
             media_type="Fotografie",
             tags=("lager",),
             date=EdtfDate("1963"),
         ),
         0,
     )
+    # Corpus realism (learning G.6): the draft's TITLE is plain archive content — its draft-ness
+    # is lifecycle state (the ENTWURF mark), never words in the title. "Entwurf Lagerchronik"
+    # once made every render lie about badge duplication.
     articles.save(
         Article(
             ulid=DRAFT_ULID,
-            title="Entwurf Lagerchronik",
+            title="Lagerchronik",
             collection_id="FOTOS",
             lifecycle=Lifecycle.DRAFT,
-            ref_code="F 9",
+            ref_code="F9",
             media_type="Fotografie",
+        ),
+        0,
+    )
+    # The Signatur ceiling (owner, 2026-08-07): ONE article at 8 characters, no spaces, so the
+    # ledger's sig column and every gallery shot are judged on the widest REALISTIC code. Filed in
+    # AKTEN with its own Medienart, so it neither joins the "sommer" tag facet nor the Fotografie
+    # count the filter journeys narrow on.
+    articles.save(
+        Article(
+            ulid=CEILING_ULID,
+            title="Gauversammlung Rhön",
+            collection_id="AKTEN",
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code=CEILING_REF_CODE,
+            media_type="Schriftgut",
+            document_type="Protokoll",
+            date=EdtfDate("1958-05"),
         ),
         0,
     )

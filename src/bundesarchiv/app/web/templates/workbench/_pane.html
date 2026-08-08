@@ -1,40 +1,47 @@
 {% comment %}
-The preview pane (Part 4.5, rebuilt) — server-rendered from a `visible`-projected Article (pane
-view-model), so no floored field can reach it. Present only when ?artikel resolves to a viewable
-article; a denied/absent/malformed ulid renders no pane at all (the view returns pane=None), so the
-pane can never be an existence oracle. Cover image leads (media is cover-first, ADR 0015); each
-media file shows its thumbnail (via the gated /media/.../thumb route, which re-authorizes) + caption.
-Bearbeiten is archivist-only (empty href otherwise → not rendered); Öffnen goes to the detail stub.
-Below 1280px layouts.css hides the pane; the row links then open the detail stub directly.
+The preview pane (Part 4.5) — THE pulled sheet, server-rendered from a `visible`-projected
+Article (pane view-model), so no floored field can reach it. Present only when ?artikel resolves
+to a viewable article; a denied/absent/malformed ulid renders no pane at all (the view returns
+pane=None), so the pane can never be an existence oracle.
+
+Anatomy (owner 2026-08-07): header row = Signatur tab (register row 1's licensed context) +
+Titel side by side, ✕ (Schließen, the icon set's x) at the end; below it ONE role="toolbar" —
+Öffnen (primary) then Bearbeiten (archivist-only; empty href renders nothing); then the mono
+meta line. One consistent gap unit (the sheet's own column gap) runs header → toolbar → meta.
+
+Cover image leads (media is cover-first, ADR 0015); each media file shows its thumbnail (via the
+gated /media/.../thumb route, which re-authorizes) + caption. Below 1280px layouts.css hides the
+pane; the row links then open the detail page directly. The layout demo includes THIS file over
+static demo context (lockstep by construction).
 {% endcomment %}
-<aside class="wb-pane" aria-label="Vorschau">
-  <div class="wb-pane-inner">
-    <div class="wb-pane-kopf">
+<aside class="pane" aria-label="Vorschau">
+  <div>
+    <header>
       {% include "components/signatur_tab.html" with ref_code=pane.ref_code only %}
-      <a class="wb-pane-schliessen" href="{{ pane.close_href }}" aria-label="Vorschau schließen">✕</a>
+      <h2>{{ pane.title }}</h2>
+      <a href="{{ pane.close_href }}" aria-label="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
+    </header>
+    <div role="toolbar" aria-label="Artikelaktionen">
+      <a class="button primary" href="{{ pane.oeffnen_href }}">Öffnen</a>
+      {% if pane.bearbeiten_href %}<a class="button" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
     </div>
-    <h2 class="wb-pane-titel">{{ pane.title }}</h2>
     {% if pane.datierung or pane.typ %}
-    <p class="wb-pane-meta">
+    <p class="meta">
       {% if pane.datierung %}<span>{{ pane.datierung }}</span>{% endif %}
       {% if pane.typ %}<span>{{ pane.typ }}</span>{% endif %}
     </p>
     {% endif %}
     {% if pane.media %}
-    <ul class="wb-pane-medien">
+    <ul>
       {% for m in pane.media %}
-      <li class="wb-pane-medium">
-        <img class="wb-pane-bild" src="{{ m.thumb_url }}" alt="" loading="lazy">
-        {% if m.caption %}<p class="wb-pane-caption">{{ m.caption }}</p>{% endif %}
+      <li>
+        <img src="{{ m.thumb_url }}" alt="" loading="lazy">
+        {% if m.caption %}<p>{{ m.caption }}</p>{% endif %}
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <div class="wb-pane-bild wb-pane-bild--leer" aria-hidden="true"></div>
+    <div class="hollow" aria-hidden="true"></div>
     {% endif %}
-    <div class="wb-pane-aktionen">
-      {% if pane.bearbeiten_href %}<a class="c-btn c-btn--subtle" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
-      <a class="c-btn c-btn--primary" href="{{ pane.oeffnen_href }}">Öffnen</a>
-    </div>
   </div>
 </aside>
