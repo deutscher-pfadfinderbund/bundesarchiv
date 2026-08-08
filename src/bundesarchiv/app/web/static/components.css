@@ -228,10 +228,12 @@
   [role="toolbar"] {
     --hit-fallback: var(--touch-target);
   }
-  /* lifecycle/destructive actions are their own <form>s (Enter never fires them) but sit inline —
-     in a plain .actions row AND in a [role=toolbar] slot (the record row's lifecycle action), so
-     one rule covers both flavors */
-  :is(.actions, [role="toolbar"]) form {
+  /* destructive/mutating actions are their own <form>s (Enter never fires them) but sit inline in a
+     plain .actions row — the detail reader's Kopieren. NOT a [role=toolbar] clause any more: the
+     record row's lifecycle action became a plain submit button of the edit form mid-wave, and the one
+     form left inside a toolbar is the overflow panel's Kopieren entry, which `.menu li > form`
+     already owns (display: block — a panel entry is a list line, not an inline run). */
+  .actions form {
     display: inline;
     margin: 0;
   }

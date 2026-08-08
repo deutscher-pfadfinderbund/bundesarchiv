@@ -358,10 +358,16 @@ the pane.{% endcomment %}
 
     HTMX (spec §5): every structural POST below hx-posts and swaps ONLY this #medien-drawer region,
     extracted from the SAME full-page render the no-JS baseline produces (hx-select) — no
-    partial-render fork, no new render path. Its own hidden per-row + upload forms are declared as
-    SIBLINGS inside the section (forms cannot nest) so a swap delivers fresh forms for the CURRENT
-    row set — a freshly uploaded row's buttons work without a full reload. TITELBILD re-stamps
-    automatically because the whole drawer (cover row first) is replaced.
+    partial-render fork, no new render path. The swap TRIPLE is declared once, HERE, on the region it
+    names: htmx inherits hx-target/hx-select/hx-swap down the tree, and every one of the five forms
+    below had carried its own verbatim copy of it. Nothing inside this section issues a request except
+    those forms, so there is nothing for the inherited selectors to reach that does not want them
+    (G.32's rule is that a swap selector must resolve WHERE IT FIRES — on this region it does, by
+    construction, and the two little GET enhancements that must NOT inherit live inside
+    #bearbeiten-form, which stops inheritance at its own boundary with hx-disinherit). Its own hidden
+    per-row + upload forms are declared as SIBLINGS inside the section (forms cannot nest) so a swap
+    delivers fresh forms for the CURRENT row set — a freshly uploaded row's buttons work without a full
+    reload. TITELBILD re-stamps automatically because the whole drawer (cover row first) is replaced.
 
     ...and hx-select-oob carries the READER'S SHEET along, inherited by every form below. A structural
     media change is a change to what a READER sees — order is meaning, so promoting a plate re-covers
@@ -369,7 +375,9 @@ the pane.{% endcomment %}
     alone left the old thumbnail on the sheet until a full reload, while a comment two files away
     claimed the sheet "refreshes with #form-region". It is one response either way; only the
     metadata save swaps #form-region.{% endcomment %}
-    <section id="medien-drawer" class="fach" hx-select-oob="#lesesicht">
+    <section id="medien-drawer" class="fach"
+             hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML"
+             hx-select-oob="#lesesicht">
       <h2>Medien</h2>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
@@ -433,27 +441,23 @@ the pane.{% endcomment %}
       {% for row in media_rows %}
       <form id="verschieben-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-frage-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-ja-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
         <input type="hidden" name="bestaetigt" value="1">
       </form>
       <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
         {% csrf_token %}
       </form>
       {% endfor %}
@@ -465,8 +469,7 @@ the pane.{% endcomment %}
       discrete progress sliver from htmx:xhr:progress (no easing, spec §6.3).{% endcomment %}
       <form id="medien-upload" method="post" enctype="multipart/form-data"
             action="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML" hidden>
+            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hidden>
         {% csrf_token %}
       </form>
     </section>

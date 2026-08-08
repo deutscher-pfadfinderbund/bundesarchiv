@@ -420,6 +420,10 @@ def _edit_context(
     media register rows come from the stored media (structure is edited via its own POSTs, never the
     main form); ``entfernen_hash`` puts one row into the two-step "Wirklich entfernen?" confirm state
     (spec §6.3)."""
+    # the custom bag's KEYS for its folded summary. ``values`` is the flat template dict, so its rows
+    # arrive as ``object``; the isinstance narrows them here rather than in a one-caller helper.
+    rows = values.get("custom_rows")
+    custom_keys = [key for key, _ in rows if key] if isinstance(rows, list) else []
     return {
         "values": values,
         "version": version,
@@ -429,7 +433,6 @@ def _edit_context(
         "media_type_options": vocab.media_type_options(),
         "document_type_groups": vocab.grouped_document_type_options(),
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
-        "ref_code": values.get("ref_code") or "",
         "edtf_echo": _edtf_echo(str(values.get("date") or "")),
         "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
         # The folded sections' summary values (owner ruling 4, 2026-08-08: folding may never hide
@@ -437,7 +440,7 @@ def _edit_context(
         # the very option list the select renders, and the custom keys from the same rows — so a
         # summary can never spell a fact differently from its field (law C7).
         "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
-        "custom_keys": [key for key, _ in _custom_rows(values) if key],
+        "custom_keys": custom_keys,
         # Which folded sections render OPEN: the ones holding an error message or the autofocus
         # target, so neither can end up inside a fold (see _FOLDED_SECTIONS).
         "open_sections": _open_sections(errors, autofocus),
@@ -455,13 +458,6 @@ def _sichtbarkeit_caption(value: str) -> str:
     same rung the parse layer applies to it."""
     captions = dict(_SICHTBARKEIT_OPTIONS)
     return captions.get(value, captions[""])
-
-
-def _custom_rows(values: dict[str, object]) -> list[tuple[str, str]]:
-    """The custom key/value rows out of a form-values dict, typed for the summary derivation above.
-    (``values`` is the flat template dict, so its rows arrive as ``object``.)"""
-    rows = values.get("custom_rows")
-    return list(rows) if isinstance(rows, list) else []
 
 
 @dataclass(frozen=True, slots=True)
