@@ -95,6 +95,16 @@ and 31.2% of the templates were comment, and the wave's own additions were 69%
 (CSS) and 98% (templates) comment lines. That is the habit this rule exists to
 break.
 
+Three specifics that follow from the same rule:
+
+- **Test docstrings name the contract under test**, never the assertions. If the
+  test name already says it, write nothing.
+- **Never advertise a gate that does not exist.** When a planned test is dropped,
+  grep for comments promising it — a false promise is worse than silence, and it
+  survives as apparent coverage.
+- **A comment may not deform the code it describes.** If a trailing comment forces
+  a one-line call across three, move it above or drop it.
+
 ## Standing law changes update the briefs in the same wave
 
 When a ruling changes standing law (a testing rule, a contract like the deny

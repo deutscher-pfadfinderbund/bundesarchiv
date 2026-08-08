@@ -49,6 +49,9 @@ gate fails otherwise.
 - `app/web/` — HTTP gates (leak matrix, media serving, viewer_of) and the
   editing surface (CAS conflicts, bulk buckets, media order). Editing writes
   canonical files — deny-changes-nothing asserts are load-bearing.
+  `/static/*` is served by WhiteNoise, not the urlconf, so the leak matrix
+  cannot see it: its public-by-design contract lives in `test_static_assets.py`
+  (asset whitelist, unhashed and uncollected paths not served).
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
   `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages
