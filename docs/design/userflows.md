@@ -84,19 +84,24 @@ Journeys: `test_create_draft_lands_on_edit_form`,
 
 ## 3. Publish (lifecycle)
 
-Publish is gated by the over-exposure preview: the archivist sees what the
-lowest tier would see before flipping the switch. v1 lifecycle is binary;
-absence of the ENTWURF badge = published.
+Publish is ONE click (owner ruling 5, 2026-08-08). The over-exposure preview
+GATE retired: the archivist reads who would gain sight the whole time they are
+cataloging — the exposure statement is permanent chrome on the edit surface (in
+the reader's sheet at/above 80rem, in the card's Zugriff section below it) — so
+the fact that used to cost a preview round trip, a checkbox and a second
+Veröffentlichen is simply on screen. The audience computation itself did not
+change: it is still the domain's `preview()`, still archivist-only. v1 lifecycle
+is binary; absence of the ENTWURF badge = published.
 
 ```mermaid
 flowchart TD
-    EDIT["Edit form (draft)"] -->|"Veröffentlichen"| PREV["Over-exposure preview\n(artikel-vorschau)"]
-    DET["Detail (draft)"] -->|"Veröffentlichen"| PREV
-    PREV -->|"confirm (POST artikel-lebenszyklus)"| READ["Read view, published"]
-    PREV -->|"back / abort"| EDIT
+    EDIT["Edit surface (draft)\nexposure statement on screen"] -->|"Veröffentlichen\n(POST artikel-lebenszyklus, CAS)"| READ["Read view, published"]
+    DET["Detail (draft)"] -->|"Veröffentlichen"| EDIT
+    READ -->|"Als Entwurf zurückziehen"| EDIT
 ```
 
-Journey: `test_publish_requires_over_exposure_confirm`.
+Journeys: `test_publish_is_one_click_with_the_exposure_on_screen`,
+`test_exposure_statement_is_on_screen_at_every_width`.
 
 ## 4. Delete
 

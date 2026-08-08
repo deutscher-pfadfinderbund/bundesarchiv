@@ -50,12 +50,16 @@ so a review brief can reference a shot. Override the output dir with
 
 The states live in `_gallery.py:STATES`: the workbench (empty / results /
 filtered / pane-open / bulk cold — proving NO Sammelbearbeitung shows without a
-selection — + bulk selection / public), the create + edit
-forms, the 4.6 detail read view (member with cover + filmstrip / no-media /
-archivist draft), and the POST-gated confirm surfaces (bulk-confirm,
-delete-confirm, publish-preview) — the confirm group reached by driving the
-affordance, so they appear in the gallery too. Read-only states only: no gallery
-render mutates the shared corpus (so every shot shows clean canonical data).
+selection — + bulk selection / public), the create step, the edit surface in its
+three shapes (draft / published / with the folded card sections unfolded), the 4.6
+detail read view (member with cover + filmstrip / no-media / archivist draft), and
+the confirm surfaces (bulk-confirm, delete-confirm) — the states behind an
+interaction reached by driving the affordance, so they appear in the gallery too.
+Read-only states only: no gallery render mutates the shared corpus (so every shot
+shows clean canonical data). The `publish-preview` state retired with the
+over-exposure gate itself (owner ruling 5, 2026-08-08): publishing is one click
+from the edit surface's record row, and the exposure statement is permanent chrome
+there — `edit-form` is where that state is now judged.
 
 ## Add a journey
 

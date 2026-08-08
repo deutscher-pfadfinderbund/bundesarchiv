@@ -281,7 +281,7 @@ contexts.
 | Treffer count | ends the filter-rail line, right-aligned (law C10 — no status-only band): `mono-meta`, muted, `aria-live=polite`; one renderer (`workbench/_trefferzahl.html`, law C7), refreshed out-of-band on htmx swaps |
 | Header actions | QUIET (owner 2026-08-07, rail round 2 — Mock B): "Suchen" is the plain hairline button; the create actions live in the ONE "+ Neu …" disclosure (`details.menu`) — quiet hairline summary, panel floating on `--overlay-shadow` (register row 12); "Bestand bearbeiten" joins the panel only while a Bestand filter is active. `.primary` inversion survives on form submits (Anlegen, Speichern, Veröffentlichen, Änderung prüfen) |
 | ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
-| Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); the badge component survives only on the publish over-exposure preview |
+| Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); its last live usage, the publish over-exposure preview panel, died with the form wave (owner ruling 5, 2026-08-08 — one-click publish), so `components/badge_visibility.html` is now an EXHIBIT: demo-page-only, a park-or-delete verdict for the owner (catechism Q1). The exposure statement it used to accompany renders as plain text with WEIGHT emphasis instead |
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 

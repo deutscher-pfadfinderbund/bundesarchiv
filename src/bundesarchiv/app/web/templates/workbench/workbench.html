@@ -11,40 +11,15 @@ Multi-line notes MUST use comment blocks — Django's hash-comment syntax is sin
 {% comment %} body.vorschau grows the pane column (layouts.css, ≥1280px); the ledger re-densifies
 by itself — it is a size container. <1280px the media query hides the pane. {% endcomment %}
 {% block body_class %}workbench{% if vorschau %} vorschau{% endif %}{% endblock %}
-{% block header %}
-  {% comment %}
-  GET → same page (param q). hx-* enhance it: type-to-search swaps only #results and pushes the
-  URL; without JS the form still submits normally to "/". The hidden inputs (GH #21) carry every
-  ACTIVE facet/sort filter, so typing q refines WITHIN that scope instead of dropping it — seite
-  is deliberately excluded (a new search resets to page 1).
-  {% endcomment %}
-  <form role="search" method="get" action="{% url 'workbench' %}"
-        hx-get="{% url 'workbench' %}" hx-target="#results" hx-swap="outerHTML"
-        hx-indicator="#results" hx-push-url="true"
-        hx-trigger="submit, keyup changed delay:400ms from:input[name=q]">
-    <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
-    {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
-    {% endfor %}<button type="submit">Suchen</button>
-  </form>
-  {% comment %}
-  Archivist chrome only (presentation off the view-computed bool — §11 scoping itself stays in
-  search()/can_view; the /artikel/neu ROUTE is independently gated either way).
-  {% endcomment %}
-  {% comment %}ONE quiet "+ Neu …" disclosure (owner 2026-08-07, rail round 2 — Mock B: the two
-  create buttons died; the search submit went quiet with them). The panel's list is the header's
-  create SLOT (learning G.9): a new create action lands in this list, never as a new header
-  button. Native <details> — no JS; plain details close behavior is owner-accepted.{% endcomment %}
-  {% if is_archivist %}
-  <details class="menu">
-    <summary>+ Neu …</summary>
-    <ul>
-      <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
-      <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
-      {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
-    </ul>
-  </details>
-  {% endif %}
-{% endblock %}
+{% comment %}
+The header chrome (search form + "+ Neu …" create disclosure) is ONE partial shared with every
+archivist screen (workbench/_header.html) — the form wave gave the edit/create screens the same
+approved chrome instead of their own reduced headers. GET → same page (param q); hx-* enhance it
+(type-to-search swaps only #results and pushes the URL). Archivist chrome is gated on the
+view-computed bool (§11: scoping itself stays in search()/can_view; the /artikel/neu ROUTE is
+independently gated either way).
+{% endcomment %}
+{% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
 {% include "workbench/_filterrail.html" %}
 <div class="frame">

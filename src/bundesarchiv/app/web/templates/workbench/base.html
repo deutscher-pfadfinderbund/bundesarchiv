@@ -30,27 +30,17 @@ the wordmark is always present and always links home.
 <script>
   // htmx failures are otherwise silent — one document-level listener on both failure events reveals
   // the banner; dismiss or a fresh success hides it (by setting [hidden], which the modes-layer CSS
-  // makes absolute). The banner is viewport-bottom-fixed (layouts.css), same as bottom-docked sticky
-  // chrome like the edit form's sticky footer — so a reveal must also lift that chrome, or it
-  // occludes Speichern exactly when the archivist needs to retry (design-gate fix-wave). Measure the
-  // banner's REAL rendered height (it wraps to two lines on a narrow viewport) into a CSS var rather
-  // than guessing a pixel number; forms.css reads it via `bottom: var(--banner-offset, 0px)`,
-  // so 0px both while [hidden] and as the fallback reproduces a plain `bottom: 0` exactly.
+  // makes absolute). The banner is viewport-BOTTOM-fixed (layouts.css) and no sticky chrome docks
+  // there any more: since the form wave the edit surface's one action place is the sticky record row
+  // at the TOP (owner ruling 2), so a revealed banner can no longer occlude Speichern and the old
+  // measure-and-lift dance (--banner-offset) went with the bottom band.
   (function () {
     "use strict";
     document.addEventListener("DOMContentLoaded", function () {
       var banner = document.querySelector(".error-banner");
       if (!banner) return;
-      var closeBtn = banner.querySelector("button");
-      function syncBannerHeight() {
-        document.documentElement.style.setProperty(
-          "--banner-offset",
-          banner.hidden ? "0px" : banner.offsetHeight + "px"
-        );
-      }
       function setBannerHidden(hidden) {
         banner.hidden = hidden;
-        syncBannerHeight();
       }
       document.body.addEventListener("htmx:responseError", function () {
         setBannerHidden(false);
@@ -61,13 +51,9 @@ the wordmark is always present and always links home.
       document.body.addEventListener("htmx:afterRequest", function (event) {
         if (event.detail.successful) setBannerHidden(true);
       });
-      closeBtn.addEventListener("click", function () {
+      banner.querySelector("button").addEventListener("click", function () {
         setBannerHidden(true);
       });
-      // the message can wrap to a second line on a narrow viewport, changing the banner's height
-      // while it stays shown — recompute so the reserved space never falls stale (hidden → 0px, a
-      // no-op re-set).
-      window.addEventListener("resize", syncBannerHeight);
     });
   })();
 </script>

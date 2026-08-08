@@ -7,8 +7,9 @@ which drives each one twice (light + dark ``prefers-color-scheme``) and writes `
 
 It reuses the E2E stack (live server + Postgres index + the cached chromium) so a shot is the REAL
 page, byte-for-byte what ships — not a static mock. GET-renderable states are a plain navigate;
-the POST-gated confirm surfaces (bulk-confirm, delete-confirm, publish-preview) are reached the way
-a user reaches them, by driving the affordance, so those states appear in the gallery too.
+the states behind an interaction (the bulk confirm page, the delete confirm, an unfolded card
+section) are reached the way a user reaches them, by driving the affordance, so those appear in the
+gallery too.
 
 Entry point: the ``gallery`` marker in ``test_gallery.py`` (``uv run pytest -m gallery -s``); the
 PNGs land in ``var/gallery/`` (override with ``BUNDESARCHIV_GALLERY_DIR``).
@@ -91,15 +92,27 @@ def _reach_delete_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_load_state("networkidle")
 
 
-def _reach_publish_preview(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the draft carries a Medienart already (corpus builds it so publish is not validation-blocked)
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
-    page.click('button:has-text("Veröffentlichen")')
-    page.wait_for_load_state("networkidle")
-
-
 def _reach_edit(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the DRAFT edit surface: ENTWURF badge + Veröffentlichen on the record row, and the reader's
+    # sheet stating the exposure in the future tense
     page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
+
+
+def _reach_edit_published(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the PUBLISHED edit surface — the state the retired publish-preview shot used to occupy (owner
+    # ruling 5, 2026-08-08): no badge (quiet default), the lifecycle action reads "Als Entwurf
+    # zurückziehen", and the sheet states the exposure in the present tense. It also carries the
+    # media register with rows, which the draft has none of.
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+
+
+def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
+    # the value-carrying summaries and what they hide — including the exposure statement's in-card
+    # placement
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.click('summary:has-text("Herkunft")')
+    page.click('summary:has-text("Zugriff")')
 
 
 def _reach_read(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -184,7 +197,19 @@ STATES: tuple[GalleryState, ...] = (
         True,
         _reach_bestand_landing,
     ),
-    GalleryState("edit-form", "the full edit form (a draft)", True, _reach_edit),
+    GalleryState("edit-form", "the edit surface (a draft)", True, _reach_edit),
+    GalleryState(
+        "edit-published",
+        "the edit surface (a published record: media rows, retract action)",
+        True,
+        _reach_edit_published,
+    ),
+    GalleryState(
+        "edit-folded-open",
+        "the edit surface with Herkunft + Zugriff unfolded",
+        True,
+        _reach_edit_folded_open,
+    ),
     GalleryState("read-published", "the read view (a published article)", True, _reach_read),
     GalleryState(
         "detail-member-cover",
@@ -206,7 +231,6 @@ STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState("bulk-confirm", "bulk edit, confirm panel", True, _reach_bulk_confirm),
     GalleryState("delete-confirm", "delete, confirm page", True, _reach_delete_confirm),
-    GalleryState("publish-preview", "publish, over-exposure preview", True, _reach_publish_preview),
 )
 
 #: The gallery is rendered at each of these widths (the design-system's desktop + narrow breakpoints,
