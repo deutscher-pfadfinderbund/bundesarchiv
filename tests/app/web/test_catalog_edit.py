@@ -414,8 +414,17 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Co
 # data. The form wave left two ways for it to hide something else: a validation error rendered inside
 # a folded section is invisible (Sichtbarkeit=Gruppe(n) with an empty Gruppen field; errors.custom in
 # the bag), and `autofocus` on a field inside a fold focuses nothing at all, because a closed
-# <details> has no focusable contents (_FOCUSABLE_FIELDS holds three such fields). Both are now
+# <details> has no focusable contents (the field registry holds three such fields). Both are now
 # decided server-side from the same context that renders the message — catalog_views._open_sections.
+#
+# DELIBERATE LAYERING, not accidental duplication (do not collapse into one): the tests below and
+# tests/e2e/test_journeys.py::test_a_fold_hides_neither_the_error_nor_the_focus /
+# test_a_fold_never_swallows_the_autofocus prove DIFFERENT things about the same rule. Here: the
+# server's decision, in milliseconds, over the real render — which fold carries [open] and which field
+# carries `autofocus`. There: the BROWSER's answer to the questions only a browser can answer — is the
+# message on screen, is the input actually focused, does the summary's ::after marker say why. A fast
+# server proof plus a slow browser proof is the shape the razor asks for; one of them alone would
+# either miss a regression or cost seconds per case.
 
 
 @dataclass

@@ -521,6 +521,56 @@ for the future?"):**
    the pane column was only as tall as its own content and the declaration had no
    slack to work in. Dead styling reads exactly like live styling in source.
 
+**2026-08-08, four-angle cleanup review of the form wave (twenty findings, one
+refuted):**
+
+40. **A guard's SET must be derived, or the walker only protects what someone
+   remembered to type.** G.21 made invariants walkers over all instances; one
+   level up, the instances are SCREENS, and four hand-maintained page lists (the
+   gallery's states, the axe paths, the overlay walker's pages, three URLs in the
+   C8 test) had already drifted from the app in the same direction: only the
+   PUBLISHED record has media, so the wave's new media-register toolbar was
+   composed on a screen none of the guards loaded. One inventory, every guard
+   derives its view of it, each screen NAMES the minimum it must compose so a
+   no-find cannot pass as a green walk.
+41. **A lint cannot exempt what it cannot see.** The px/rem rule never inspected
+   at-rule CONDITIONS — a width threshold, the most consequential literal a
+   stylesheet holds — and never checked that the file list it lints is the file
+   list on disk. Both are the same defect: a check whose SCOPE is asserted rather
+   than derived. Every value rule runs over at-rule conditions; the stylesheet
+   list is gated against the glob.
+42. **Equality by coincidence hides best where the code is right for the wrong
+   reason.** The reader's sheet hand-picked fields off the stored Article instead
+   of the domain's projection, and printed identical bytes because the floored
+   field set happens not to intersect what the sheet shows — on the very surface
+   whose promise retired the publish gate. When a value must come from a
+   pipeline, CALL the pipeline; "the output matches today" is the G.22 argument
+   in a new costume.
+43. **A retired gate takes its affordance, never its FAIL-CLOSED branch.** The
+   preview panel blocked publishing whenever exposure could not be computed,
+   because the confirm checkbox lived inside the branch that rendered the
+   statement. Replacing the panel with permanent chrome kept the promise and
+   dropped the teeth: no statement rendered, and Veröffentlichen stayed one click
+   away. When a gate is deleted, enumerate its branches — the ones that REFUSED
+   are the ones a replacement forgets.
+44. **A complement is a second source unless one condition states both sides.**
+   The in-card exposure statement hid on WIDTH while the sheet replacing it needs
+   width AND a body class, so a card without the class lost the fact entirely.
+   Express the switch once, in the file that owns it, and let the DEFAULTS be the
+   other side — a negated query is a copy that has to be kept true by hand.
+45. **A knob a component cannot know it owns is a patch waiting to happen.**
+   `[role=toolbar]` set the ROW height knob; inside a control row the row owns it,
+   so the row had to undo the toolbar with a per-instance `inherit`. A component
+   declares its own FALLBACK and consumes the row's knob — then "inside a row" and
+   "standing alone" are the same code.
+46. **Two spellings of one fact need two renderers, not five call sites.** C7 is
+   satisfied by one implementation per SPELLING: the machine date and the human
+   date are both licensed, and each now has exactly one renderer. (This review
+   asked for the sheet's machine date to become human German; the preview pane —
+   the reader surface the sheet reuses, sharing its `.meta` hook and its CSS rule
+   — prints the machine value, so the sheet was right and the request was
+   refuted. A finding against a shipped reader surface has to name that surface.)
+
 ## H. Writer pre-flight checklist
 
 Run before returning from ANY UI wave. Ten lines distilled from the
@@ -564,6 +614,15 @@ operational form — learning G.28).
     is proven to MOVE something, and any clearance derives from the box it must
     clear, through one knob both sides consume (G.39, C5/C9). A custom property
     is never `initial` when a value is meant (G.38).
+
+14. **Every guard's SET is derived, not typed** (G.40/G.41): screens come from the
+    one inventory (`tests/e2e/_pages.py`), stylesheets from the glob, rows and
+    fields from the registry that declares them. If you added a screen, a
+    stylesheet or a field and had to edit a second list by hand, that second list
+    is the defect.
+15. **A value that must come from a pipeline CALLS the pipeline** (G.42), and a
+    deleted gate's refusing branches are enumerated before the gate goes (G.43).
+    "The output matches today" is never the argument.
 
 **Enforcement caveat:** none of the guards above run on a push — CI is not
 active (issue #12). Until it is, "green" means an agent ran it and said so
