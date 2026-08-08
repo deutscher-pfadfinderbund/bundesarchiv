@@ -27,15 +27,15 @@
        an overlay positions against its CONTROL ROW, not its trigger — that is what keeps it
        on-viewport at every width, learning G.26) */
     position: relative;
-    /* ...and it must OUT-STACK the sticky record row below it (z 4), because the "+ Neu …" panel it
+    /* ...and it must OUT-STACK the sticky record row below it, because the "+ Neu …" panel it
        drops hangs into the row's band. The panel's own z-index cannot reach past the row: the row is
        a stacking context, so a descendant of this header competes with it through THIS value. Without
        it the row painted over the panel AND swallowed its clicks — the recorded regression class
        (CLAUDE.md: sticky chrome intercepting clicks), proven by the overlay walker's hit-test rather
        than by reasoning about paint order. The header's own BOX never overlaps the row: the row is
        sticky inside a containing block that starts at the header's bottom edge, so it can never rise
-       above it. */
-    z-index: 5;
+       above it. The whole stacking model, in order, lives at --z-* in tokens.css. */
+    z-index: var(--z-header);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -169,7 +169,7 @@
        C12/learning G.26), so containment holds by construction here too */
     position: sticky;
     top: 0;
-    z-index: 4; /* above the sticky pane sheet and its own dropped panel (z 2) — the row is chrome */
+    z-index: var(--z-control-row); /* above the sticky pane sheet and its own dropped panel — the row is chrome (the scale + why: tokens.css) */
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -452,14 +452,16 @@
 
   /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by the failure
      listener in base.html. Hiding is the modes-layer [hidden] rule (which outranks this display),
-     so the banner can never intercept clicks while hidden — the recorded regression class. A
-     reveal lifts bottom-docked sticky chrome by the banner's measured height (see base.html's
-     listener and --error-banner-height in forms.css). ---- */
+     so the banner can never intercept clicks while hidden — the recorded regression class. A reveal
+     lifts NOTHING: the measure-and-lift dance (--error-banner-height) died with the bottom-docked
+     action band (owner ruling 2, 2026-08-08), because the edit surface's one action place is the
+     sticky record row at the TOP — a revealed banner cannot occlude it, which
+     test_failed_save_banner_leaves_speichern_clickable pins with a real hit-test. ---- */
   .error-banner {
     position: fixed;
     inset-block-end: 0;
     inset-inline: 0;
-    z-index: 10; /* above the sticky bulk bar and everything in-flow */
+    z-index: var(--z-banner); /* above every row and everything in flow (the scale: tokens.css) */
     display: flex;
     align-items: center;
     justify-content: space-between;

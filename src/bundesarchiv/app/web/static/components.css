@@ -388,7 +388,7 @@
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
-    z-index: 2; /* above the (sticky, positioned) pane sheet the open panel may overlap */
+    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
     list-style: none;
     margin: 0;
     padding: var(--space-2);

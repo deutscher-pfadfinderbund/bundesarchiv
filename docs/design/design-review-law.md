@@ -113,7 +113,17 @@ then two-cut bevels are forbidden like any unregistered cue.
    owner ruling 2026-08-07, rail round 2), `--hairline` (1px),
    `--state-border` (3px). A dimension used once,
    structurally, may be a literal **with a comment naming why no token
-   fits**; a bare literal is an S3 defect.
+   fits**; a bare literal is an S3 defect. This binds **at-rule conditions**
+   too — a width threshold is the most consequential literal in a stylesheet
+   (see C9) and is linted like any other (section E).
+   **Stacking is one scale, `--z-*` in `tokens.css`** (recorded 2026-08-08;
+   owner may veto): a bare `z-index` is a literal whose RELATIONSHIP to its
+   neighbours is its entire meaning, so the model is stated once, in order —
+   flow (incl. the sticky sheet) < a dropped overlay panel < a sticky control
+   row < the page header < the viewport-fixed banner. A new layer joins the
+   scale; it is never guessed at its use site. (The header must out-stack the
+   rows because a sticky row is a stacking context, so a panel dropped by a
+   header control can only win through its ancestor's value — learning G.36.)
 6. **Deviation = registration.** A new cue means a new cue-register row
    (an owner decision) before any styling exists.
 7. **One renderer per fact type.** A date, a Signatur, a count renders

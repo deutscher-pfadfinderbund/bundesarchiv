@@ -217,6 +217,31 @@
      so their equal height holds by construction. */
   --hairline: 1px; /* the hairline edge — a contrast mode may thicken it globally */
   --state-border: 3px; /* the state-marking left border (e.g. the CAS conflict panel) */
+
+  /* THE STACKING MODEL (C5 one level down: a bare z-index is a raw literal whose RELATIONSHIP to its
+     neighbours is the whole meaning, and that relationship used to live only in prose scattered across
+     two files). The complete order, lowest first:
+
+       (auto)             the desk, the record card, the ledger — everything in normal flow, plus the
+                          pane column's sticky reader's sheet, which needs no value: nothing in flow
+                          competes with it
+       --z-overlay-panel  a dropped overlay panel (register row 12) — above the sticky sheet it may
+                          overlap while open
+       --z-control-row    a STICKY control row (the edit surface's record row): chrome, above the work
+                          scrolling under it and above the sheet beside it
+       --z-header         the page header — above every control row, because the overlay panel its own
+                          disclosure drops hangs INTO the row's band, and a sticky row is a stacking
+                          context, so a descendant of the header can only out-stack it through THIS
+                          value
+       --z-banner         the viewport-fixed failure banner: above everything, always reachable
+
+     Named rather than guessed because the committed view-switching wave adds another sticky row, and
+     a wrong guess reproduces the click-eating class exactly (learning G.36: an opaque sticky row that
+     sat on top and swallowed every entry of the panel beneath it). A new layer joins this scale. */
+  --z-overlay-panel: 2;
+  --z-control-row: 4;
+  --z-header: 5;
+  --z-banner: 10;
 }
 
 } /* @layer tokens */
