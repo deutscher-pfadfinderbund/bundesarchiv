@@ -162,7 +162,9 @@ then two-cut bevels are forbidden like any unregistered cue.
    filter rail, the header cluster), so both its edges stay inside that
    row's box and the panel can never leave the viewport — the trigger's own
    viewport offset is not expressible in CSS. Per-trigger anchoring
-   (`anchor-scope` + `position-area` + `position-try-fallbacks`) rides on
+   (`anchor-scope` + `anchor()` insets + `justify-self: anchor-center`,
+   which clamps to the row — see G.50 for why not
+   `position-area`/`position-try`) rides on
    top as the appendix-F enhancement, never load-bearing. Every overlay is
    covered by the containment walker (section E, learning G.26).
 
@@ -606,7 +608,21 @@ refuted):**
    though duplication is normally the defect. Derive the SET under test; never
    derive what it is compared against.
 
-## H. Writer pre-flight checklist
+**2026-08-22, overlay panels over their own trigger (issue #53, owner priority #1):**
+
+50. **`@supports` proves parsing, not behavior — an enhancement needs a computed
+   proof of its own PROMISE in the gate browser.** The anchored tier matched its
+   `@supports`, then landed both panels over their own trigger: the pinned
+   Chromium (149) resolves `position-area` against the row instead of the anchor
+   even in the minimal two-sibling case, and `position-try` fallbacks can never
+   engage for a panel that by design escapes its row's block end (no try option
+   ever "fits", so the base placement silently sticks). The containment walker
+   asserted viewport edges and hit-testability but never "panel below its
+   trigger", so the broken tier pre-empted a correct fallback for weeks. Two
+   rules: an enhancement's defining behavior gets its own walker fact (here:
+   panel top ≥ trigger bottom), and prefer the anchor primitives whose result is
+   provable per-element (`anchor()` insets, `justify-self: anchor-center`) over
+   the composite properties whose failure mode is a silent wrong position.
 
 Run before returning from ANY UI wave. Ten lines distilled from the
 learnings register (section G is the archive and the reasoning; this is the

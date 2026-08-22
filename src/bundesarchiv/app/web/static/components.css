@@ -355,12 +355,16 @@
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
   }
   /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
-     positioning exists the panel drops from its OWN trigger and flips away from the edge; where it
-     does not, the row-pinned rule above stands unchanged. anchor-scope keeps each disclosure
-     resolving its own trigger, not a later sibling's.
+     positioning exists the panel drops from its OWN trigger, centered on it and shifted only as far
+     as the row's edges demand (anchor-center clamps to the inset-modified containing block, which
+     the inline insets keep at the row — the C12 containment, preserved in this tier); where it does
+     not, the row-pinned rule above stands unchanged. anchor-scope keeps each disclosure resolving
+     its own trigger, not a later sibling's. anchor() + anchor-center, never position-area or
+     position-try — learning G.50.
      `--anchor-probe` is also the e2e hook: the containment walker serves this stylesheet with that
      one condition falsified, so the FALLBACK tier gets its own computed proof. */
-  @supports (anchor-name: --anchor-probe) and (position-area: block-end span-inline-end) {
+  @supports (anchor-name: --anchor-probe) and (inset-block-start: anchor(end)) and
+    (justify-self: anchor-center) {
     .facet,
     .menu {
       anchor-name: --dropdown;
@@ -368,19 +372,10 @@
     }
     :is(.facet, .menu) > ul {
       position-anchor: --dropdown;
-      position-try-fallbacks: flip-inline;
-      /* position-area replaces the row-edge insets and supplies the containing block */
-      top: auto;
-      inset-inline: auto;
+      inset-block-start: anchor(end); /* replaces the row-edge `top` calc above */
+      inset-inline: 0;
+      justify-self: anchor-center;
       margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
-    }
-    /* each panel keeps the direction it drops in — the rail's groups open rightward from their
-       button, the header's create menu leftward from its own trailing edge */
-    .facet > ul {
-      position-area: block-end span-inline-end;
-    }
-    .menu > ul {
-      position-area: block-end span-inline-start;
     }
   }
 

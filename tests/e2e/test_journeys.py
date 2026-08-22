@@ -466,10 +466,11 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 #: overlay is built from the same pattern, this proof already covers it.
 _OVERLAY_SELECTOR = "details:has(> ul)"
 
-#: One overlay's containment facts: the panel's box against the viewport, the document's own
-#: horizontal overflow while it is open, and — the third fact, added after the sticky record row was
-#: found painting over the header's create menu — whether each of the panel's own entries is
-#: HIT-TESTABLE at its centre. Being on-viewport is not the same as being reachable: a panel can sit
+#: One overlay's containment facts: the panel's box against the viewport, the panel's top edge
+#: against its own trigger's bottom edge (issue #53 — the anchored tier landed both panels OVER
+#: their trigger row, and no fact here measured it), the document's own horizontal overflow while it
+#: is open, and — added after the sticky record row was found painting over the header's create
+#: menu — whether each of the panel's own entries is HIT-TESTABLE at its centre. Being on-viewport is not the same as being reachable: a panel can sit
 #: perfectly inside the viewport under an opaque sticky row that eats every click, which is the
 #: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
 #: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
@@ -487,6 +488,7 @@ _OVERLAY_WALK_JS = """() => {
         detail.open = true;
         const panel = detail.querySelector(':scope > ul');
         const r = panel.getBoundingClientRect();
+        const trigger = detail.querySelector(':scope > summary').getBoundingClientRect();
         const d = document.documentElement;
         const covered = [];
         for (const entry of panel.querySelectorAll('a, button, input, select')) {
@@ -504,6 +506,7 @@ _OVERLAY_WALK_JS = """() => {
         }
         facts.push({
             label: detail.querySelector('summary').textContent.trim(),
+            top: Math.round(r.top), triggerBottom: Math.round(trigger.bottom),
             left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
             viewport: d.clientWidth,
             docOverflow: d.scrollWidth - d.clientWidth,
@@ -549,6 +552,11 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
                 where = f"{width}px · {screen.name} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")
+                if float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
+                    defects.append(
+                        f"{where}: panel top {rect['top']}px covers its trigger "
+                        f"(bottom {rect['triggerBottom']}px)"
+                    )
                 if float(str(rect["left"])) < -1:
                     defects.append(f"{where}: panel starts off-viewport at {rect['left']}px")
                 if float(str(rect["right"])) > float(str(rect["viewport"])) + 1:
@@ -584,7 +592,7 @@ def test_overlays_stay_inside_the_viewport(
     # header create menu landed at left:-89px once the header wrapped, its labels clipped; the
     # rail's trailing dropdowns ran past the right edge and pushed the document into horizontal
     # scroll). Walked over BOTH availability tiers (law F): the ANCHORED render, where anchor
-    # positioning drops each panel from its own trigger and flips it away from the edge, and the
+    # positioning drops each panel from its own trigger and shifts it clear of the row's edges, and the
     # FALLBACK render, where the row-pinned placement has to hold containment alone — a
     # pre-Baseline feature is licensed only where its absence is acceptable, so the fallback is
     # not something to reason about from the enhanced render.
@@ -600,9 +608,9 @@ def test_overlays_stay_inside_the_viewport(
     page.locator("details.menu summary").click()
     assert (
         page.evaluate(
-            "() => getComputedStyle(document.querySelector('details.menu > ul')).positionArea"
+            "() => getComputedStyle(document.querySelector('details.menu > ul')).positionAnchor"
         )
-        == "none"
+        != "--dropdown"
     ), "the enhancement is still live — the fallback tier would go unproven"
     defects += [
         f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
