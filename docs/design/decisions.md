@@ -26,6 +26,9 @@ then this index, in the same wave.
 | North Star "The Archivist's Desk"; seed = "Stamp-Ink Violet" (hue unchanged) | DESIGN.md; owner 2026-08-22 |
 | Design is IN DEVELOPMENT — never treat incumbent patterns as complete/settled | owner 2026-08-22 |
 | Pane = scent surface: preview; details on the article's own page | pane-lifecycle-brief.md; owner 2026-08-22 |
+| Shared views: archivists browse/research like members — one experience, capabilities layer on | owner-interview 2026-08 §Strategic rulings |
+| Media v1 = designed essentials, simple (image viewing, native players, PDF hand-off); exotic viewers future | owner-interview 2026-08 §Strategic rulings |
+| Entry surfaces: one-sentence sheet door, silent link arrival, no identity chrome, footer Abmelden, quiet dead-link hint | entry-surfaces-brief.md; owner 2026-08-22 |
 | Lifecycle mark = gray ENTWURF word (no amber, no box), all surfaces | pane-lifecycle-brief.md; owner 2026-08-22 — **lukewarm ("for now"), revisit candidate (G.20)** |
 | Quiet defaults stand: hover-revealed bulk boxes/row toolbars, self-hiding Sammelbearbeitung | owner 2026-08-07, reconfirmed 2026-08-22 |
 
@@ -60,6 +63,21 @@ then this index, in the same wave.
     re-check against propagated learnings → member Lesesicht (serif
     reading role is RESERVED, licensed with that wave) → demo pages in
     lockstep throughout.
+
+### Strategic shape queue (owner order, 2026-08-22)
+
+- **D3 entry surfaces — SHAPED** (`entry-surfaces-brief.md`); build rides
+  the auth wave (ADR 0018, the deployment-1 blocker).
+- **D1 detail page + media presentation — next shape.** The reader for
+  every tier (shared-views ruling), phone-first, media = designed
+  essentials.
+- **D2 member arrival/browse** — largely collapsed by the shared-views
+  ruling into D1's reader + view switching; remaining open question from
+  exploration 04: how readers FILTER in the Lesesaal view.
+- **D4 Bestand/collections navigation** — browsing/selecting the tree
+  (member browse + archivist filing); no designed surface yet.
+- **D5 search-grammar exposure** — how much query power gets visible UI;
+  cheapest, trails.
 
 ## Deferred / future (recorded, not queued)
 

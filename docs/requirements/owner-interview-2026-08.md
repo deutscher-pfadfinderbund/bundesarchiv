@@ -309,6 +309,44 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   handwritten face for the draft mark — would be a new type role + register
   decision if ever picked up.
 
+## Strategic rulings (owner, 2026-08-22 — application-wide shape session)
+
+- **Shared views:** "Archivists not only manage the content, they also
+  browse and research, just like the other members. So their views should
+  be the same or similar." There is NO separate member UI: one shared
+  browse/read experience for every tier; archivist capabilities layer onto
+  the same views (role-gated actions), and the Lesesaal/table/cards
+  switching serves everyone. Catechism Q3 reads accordingly: archivist
+  CHROME stays out of what members see, but the underlying views are one.
+- **Media viewing, v1 scope:** "Designed essentials, but simple for now.
+  Everything else can be done in a future release." Proper image viewing,
+  native audio/video players, PDF hand-off — designed, nothing exotic;
+  multi-page scan navigation / in-page PDF / waveform-class viewers are a
+  future release.
+- **Shape order:** entry surfaces (D3) first — rides the deployment-1 auth
+  blocker; detail+media (D1) next; member arrival (D2) largely collapses
+  into the shared-views ruling plus D1's reader.
+
+## Entry-surface rulings (owner, 2026-08-22 — D3 interview)
+
+- **The door (root, unauthenticated):** wordmark + ONE sentence of context
+  + Anmelden. Plus a quiet path for members without accounts: "Maybe we
+  need to add a link for members who have no account yet and are
+  confused" → resolved: the link contacts the archivists (mailto/contact
+  address; a human answers, no page to maintain).
+- **Capability-link arrival: straight into content.** Cookie minted
+  silently, the reader/collection opens immediately — the link IS the
+  door. No interstitial, no welcome step.
+- **Identity chrome: none.** The header shows no name, no tier, no login
+  state — for any tier ("Nothing visible"). Archivist identity is implicit
+  in the editing capabilities present on the page.
+- **Dead/revoked capability link:** the denied page adds one quiet line on
+  this path only — "Dieser Zugangslink ist nicht mehr gültig" + contact
+  hint. Revealing that a link existed is acceptable (consistent with the
+  relaxed byte-identical-404 ruling above).
+- **Abmelden lives in the footer** — a quiet line at every page's end,
+  present only when a session exists. No logout in the header.
+
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
 
 Asked whether login state may live in the database, the owner ruled:
