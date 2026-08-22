@@ -346,6 +346,22 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   relaxed byte-identical-404 ruling above).
 - **Abmelden lives in the footer** — a quiet line at every page's end,
   present only when a session exists. No logout in the header.
+- **Keycloak round-trip failure is unrecoverable** — "Nothing we can
+  really do." No designed error surface; the plain error page suffices.
+
+## Reader rulings (owner, 2026-08-22 — D1 interview)
+
+- **Record first.** The reader sheet leads with the identity header
+  (Signatur tab, Titel, Datierung, gray ENTWURF when draft), then media,
+  then the Akte facts. One composition for every article type.
+- **Image series = vertical roll.** All images full-width in ADR-0015
+  order, captions beneath each — scroll to see everything, no
+  lightbox/strip machinery.
+- **Bearbeiten is the reader's ONLY archivist action.** "The workhorse for
+  bulk edits by the archivists is the table" — Kopieren, Löschen and
+  everything serial stay on the workbench; the reader offers the one jump
+  into deliberate editing.
+
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
 

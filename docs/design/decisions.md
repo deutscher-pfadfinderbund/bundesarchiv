@@ -68,9 +68,9 @@ then this index, in the same wave.
 
 - **D3 entry surfaces — SHAPED** (`entry-surfaces-brief.md`); build rides
   the auth wave (ADR 0018, the deployment-1 blocker).
-- **D1 detail page + media presentation — next shape.** The reader for
-  every tier (shared-views ruling), phone-first, media = designed
-  essentials.
+- **D1 detail page + media — SHAPED** (`reader-brief.md`): record first,
+  vertical media roll, Bearbeiten the only reader action; inferences
+  i1–i5 awaiting the correction round.
 - **D2 member arrival/browse** — largely collapsed by the shared-views
   ruling into D1's reader + view switching; remaining open question from
   exploration 04: how readers FILTER in the Lesesaal view.
