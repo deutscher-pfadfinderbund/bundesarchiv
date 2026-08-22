@@ -58,7 +58,7 @@ Originals byte-exact, write-once. Image thumbnails (+ optional PDF first page) a
 
 ## 9. Framework  (→ ADR 0004)
 
-**Django + HTMX** (server-rendered; Alpine.js only for local UI). The Django **admin is not the cataloging UI** (it would bypass the storage port + sole-writer lock); Archivist screens are custom forms through the port. Background jobs on a single **Postgres-backed worker** (no Redis). Keycloak OIDC via `mozilla-django-oidc`.
+**Django + HTMX** (server-rendered; Alpine.js only for local UI). The Django **admin is not the cataloging UI** (it would bypass the storage port + sole-writer lock); Archivist screens are custom forms through the port. Background jobs on a single **Postgres-backed worker** (no Redis). Keycloak OIDC via `authlib` (ADR 0018).
 
 ## 10. Components to plan (the build "parts")
 
