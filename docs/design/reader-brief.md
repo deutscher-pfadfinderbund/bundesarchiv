@@ -54,10 +54,9 @@ images) · mixed media (image + audio + PDF) · custom fields present
 
 ## Open decisions the builder must not invent
 
-- Whether the reader shows the **Audience/exposure fact** to archivists
-  (the ledger dropped its visibility column; the edit screen carries the
-  exposure statement — does the reader say who can see this?). Owner
-  decision pending.
+- ~~Audience/exposure fact on the reader~~ — RULED (owner, 2026-08-22):
+  **No — edit screen only.** Exposure lives where it is changed; the
+  reader carries no access chrome for any tier.
 - German copy (captions' empty state, file-card labels) — gate, on renders.
 - Datierung spelling on the reader (machine vs human German) — G.46
   licenses both with one renderer each; which one the reader header uses
