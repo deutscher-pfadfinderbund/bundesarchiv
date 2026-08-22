@@ -2,7 +2,7 @@
 
 The application is built with **Django** (Python) using **HTMX** for interactivity (server-rendered HTML fragment swaps), plus a sprinkle of Alpine.js only for purely-local UI. No SPA, no separate JS frontend, no API layer.
 
-Chosen because the application is **server-render-shaped** (CRUD + faceted search + media display), not SPA-shaped — HTMX covers the needed interactivity (autocomplete, search-as-you-type, inline edit, the publish-time visibility preview) with no build pipeline to maintain over a decade. Django is a mature, stable, batteries-included fit for this shape, existing Django expertise is available, and Python is the strongest ecosystem for the deferred OCR/content-search goal (OCRmyPDF + Tesseract `deu`). Keycloak OIDC integrates via `mozilla-django-oidc`.
+Chosen because the application is **server-render-shaped** (CRUD + faceted search + media display), not SPA-shaped — HTMX covers the needed interactivity (autocomplete, search-as-you-type, inline edit, the publish-time visibility preview) with no build pipeline to maintain over a decade. Django is a mature, stable, batteries-included fit for this shape, existing Django expertise is available, and Python is the strongest ecosystem for the deferred OCR/content-search goal (OCRmyPDF + Tesseract `deu`). Keycloak OIDC integrates via `authlib` (ADR 0018).
 
 ## Considered options
 

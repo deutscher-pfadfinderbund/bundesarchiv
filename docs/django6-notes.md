@@ -28,4 +28,4 @@ Verified against the Django 6.0 release notes + topic docs (2026-06). Adopt thes
 - `DEFAULT_AUTO_FIELD` defaults to `BigAutoField` (no settings line needed).
 - `Model.save()` may raise `Model.NotUpdated` on a forced zero-row update; `Field.pre_save()` may be called more than once (keep idempotent).
 - Our custom `ObjectStore` is **not** Django's `Storage` API → unaffected by 6.0 (only the obscure `OS_OPEN_FLAGS` was removed).
-- Keycloak OIDC is unaffected by 6.0 (handled by the OIDC library, e.g. `mozilla-django-oidc`).
+- Keycloak OIDC is unaffected by 6.0 (handled by `authlib`'s httpx client — ADR 0018).
