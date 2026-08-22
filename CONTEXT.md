@@ -39,7 +39,7 @@ Any authenticated DPB member (identity via Keycloak). In v1, reads/browses/searc
 _Avoid_: user.
 
 **Public** (*Öffentlich*):
-An unauthenticated visitor. Public access is a _deferred_ feature for sharing a single Article by link — never a public listing, browse, or search.
+**Link-accessible**, not the open internet: a visitor holding a capability link, with no login prompt. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner ruling 2026-08, `docs/requirements/owner-interview-2026-08.md`). The `PUBLIC` code identifier keeps its name for now.
 
 **Viewer** (code term, no single UI label):
 *Who is asking* — the union of Archivist, Member, and Public. The value object the access model takes (with the asker's Group names) to decide what they may see; data only, never reads Keycloak itself.
