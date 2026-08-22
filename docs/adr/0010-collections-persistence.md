@@ -33,9 +33,10 @@ Wire keys: `name` (required), `parent_id` (optional — absent means root),
   but under the single-writer invariant (ADR 0002) multi-node atomicity is not
   needed. A single file also grows without bound and couples every tree-read to a
   full-file parse.
-- `CollectionRepository.save` is last-write-wins (no optimistic versioning).
-  Collections change rarely; a version counter can be added later without
-  changing the caller interface.
+- `CollectionRepository.save` was last-write-wins when this was decided.
+  **Superseded on this point by ADR 0013:** the collection README carries a
+  `version`, and `save(collection, expected_version)` raises the shared
+  `Conflict` on a stale version.
 - Dangling `parent_id` references are not the repository's problem. The
   `resolve_chain` function in the domain already fails closed on a broken tree
   (`BrokenCollectionTree`). The repository only guarantees well-formed single
