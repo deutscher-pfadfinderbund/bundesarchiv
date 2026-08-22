@@ -14,13 +14,13 @@ mid-wave, ACK it and hold — do not silently continue on a changed spec.
 
 ## Gates green on every commit
 
-Every commit must pass, run in this order:
+Every commit must pass: `mise run gate` (starts and waits for the dev
+Postgres itself; the task definition in `mise.toml` is the single source of
+what the gate runs).
 
-```
-uv run ruff check
-uv run mypy            # --strict per pyproject
-uv run pytest          # the fast suite; e2e + gallery are excluded by marker
-```
+In an agent worktree, additionally run `uv run pyrefly check src tests`
+verbatim — a bare `pyrefly check` there resolves zero files and passes
+vacuously.
 
 The pre-commit hook runs these too. Do not `--no-verify` except on a docs-only
 commit where the hooks are irrelevant, and only when the full gates ran clean on
