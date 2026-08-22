@@ -40,3 +40,7 @@ row-for-row agreement is pinned by a comparison test.
   still indexed, but as archivist-only (`archivist_only=True`, no tier, no groups) with its
   text intact, so an Archivist can find and fix it. It is never dropped and its visibility is
   never guessed.
+
+**Amended 2026-08:** byte-for-byte deny comparison is no longer a contract, only that a deny
+reveals and changes nothing (see the amendment in ADR 0001). The scope filter keeping
+unauthorized rows out of results, listings and facet counts stays binding.

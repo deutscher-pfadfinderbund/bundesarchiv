@@ -17,6 +17,12 @@ second identity system ending in the same mapping. OIDC is used purely as an
 authentication event: callback → validated claims → cookie. The transient
 `state`/`nonce` ride a short-lived signed cookie across the redirect.
 
+**Amended 2026-08** (`docs/requirements/owner-interview-2026-08.md`): guest
+passwords are superseded by **capability links** — the link's token mints the
+Viewer cookie, revocation = revoke the token. Keycloak group mapping is promoted
+from "unused for now" to **required soon** (after the first preview). The
+uniform-redirect byte-uniformity contract below falls with the 404 relaxation.
+
 ## Claims contract
 
 | Login | Source | Viewer | Cookie lifetime |
