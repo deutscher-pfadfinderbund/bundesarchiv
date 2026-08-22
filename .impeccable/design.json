@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-22T00:00:00Z",
+  "title": "Design System: Bundesarchiv",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Stamp-Ink Violet",
+        "canonical": "light-dark(oklch(from var(--seed) 0.45 0.05 h), oklch(from var(--seed) 0.78 c h))",
+        "tonalRamp": ["oklch(0.25 0.035 300)", "oklch(0.32 0.045 300)", "oklch(0.35 0.045 300)", "oklch(0.45 0.05 300)", "oklch(0.50 0.055 300)", "oklch(0.78 0.055 300)", "oklch(0.88 0.035 300)", "oklch(0.92 0.022 300)"]
+      },
+      "primary-container": {
+        "role": "primary",
+        "displayName": "Violet Sheet Tint",
+        "canonical": "light-dark(var(--tone-92), var(--tone-35))",
+        "tonalRamp": ["oklch(0.25 0.035 300)", "oklch(0.32 0.045 300)", "oklch(0.35 0.045 300)", "oklch(0.45 0.05 300)", "oklch(0.50 0.055 300)", "oklch(0.78 0.055 300)", "oklch(0.88 0.035 300)", "oklch(0.92 0.022 300)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper Gray",
+        "canonical": "light-dark(var(--neutral-98), var(--neutral-22))",
+        "tonalRamp": ["oklch(0.22 0 300)", "oklch(0.28 0 300)", "oklch(0.34 0 300)", "oklch(0.46 0 300)", "oklch(0.72 0 300)", "oklch(0.84 0 300)", "oklch(0.92 0 300)", "oklch(0.98 0 300)"]
+      },
+      "on-surface": {
+        "role": "neutral",
+        "displayName": "Ink Gray",
+        "canonical": "light-dark(var(--neutral-25), var(--neutral-93))",
+        "tonalRamp": ["oklch(0.22 0 300)", "oklch(0.25 0 300)", "oklch(0.31 0 300)", "oklch(0.46 0 300)", "oklch(0.72 0 300)", "oklch(0.84 0 300)", "oklch(0.93 0 300)", "oklch(0.99 0 300)"]
+      },
+      "draft": {
+        "role": "semantic",
+        "displayName": "Draft Amber",
+        "canonical": "light-dark(var(--amber-92), var(--amber-32))",
+        "tonalRamp": ["oklch(0.32 0.06 80)", "oklch(0.42 0.11 72)", "oklch(0.85 0.14 85)", "oklch(0.90 0.10 85)"]
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Error Red",
+        "canonical": "light-dark(var(--red-50), var(--red-75))",
+        "tonalRamp": ["oklch(0.25 0.09 25)", "oklch(0.52 0.20 27)", "oklch(0.75 0.14 25)"]
+      }
+    },
+    "typographyMeta": {
+      "wordmark": { "displayName": "Wordmark", "purpose": "The header's Bundesarchiv mark only — Kapitälchen serif, the one face with character." },
+      "label": { "displayName": "Label", "purpose": "Facet headings, column heads, badges — letterspaced uppercase small caps." },
+      "mono": { "displayName": "Mono", "purpose": "Signaturen, Datierungen, counts — tabular archival figures in stamp ink." }
+    },
+    "shadows": [
+      { "name": "sheet-shadow", "value": "0 1px 2px 0 light-dark(color-mix(in oklab, var(--neutral-22) 20%, transparent), color-mix(in oklab, var(--neutral-22) 55%, transparent))", "purpose": "Resting-contact shadow: TRUE SHEETS only (preview sheet, confirm panels, empty state). The one depth cue a resting surface may carry." },
+      { "name": "overlay-shadow", "value": "0 2px 8px 0 light-dark(color-mix(in oklab, var(--neutral-22) 22%, transparent), color-mix(in oklab, var(--neutral-22) 60%, transparent))", "purpose": "Transient floating panels only: rail dropdowns, the create menu. No other shadows exist." }
+    ],
+    "motion": [],
+    "breakpoints": [
+      { "name": "pane-switch", "value": "80rem viewport", "purpose": "Below this the preview pane disappears; rows navigate to the detail page." },
+      { "name": "ledger-fold", "value": "32rem container", "purpose": "Phone-width last resort: two-line fold, derived from the track floors (law C9)." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The default action: quiet hairline furniture. Buttons, link-buttons and menu summaries share one declaration set.",
+      "html": "<button class=\"ds-btn\">Suchen</button>",
+      "css": ".ds-btn { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--surface-container-low, oklch(0.94 0 300)); color: var(--on-surface, oklch(0.25 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); cursor: pointer; white-space: nowrap; min-height: 2.75rem; } .ds-btn:hover { background: var(--surface-container-high, oklch(0.9 0 300)); } .ds-btn:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Form submits only (Anlegen, Speichern, Veröffentlichen): neutral ink inversion, never violet.",
+      "html": "<button class=\"ds-btn-primary\">Speichern</button>",
+      "css": ".ds-btn-primary { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--on-surface, oklch(0.25 0 300)); color: var(--surface, oklch(0.98 0 300)); border: 1px solid var(--on-surface, oklch(0.25 0 300)); border-radius: var(--radius-s, 4px); cursor: pointer; min-height: 2.75rem; } .ds-btn-primary:hover { background: color-mix(in oklab, var(--on-surface, oklch(0.25 0 300)), var(--surface, oklch(0.98 0 300)) 16%); } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "The one destructive filled variant — confirm surfaces only.",
+      "html": "<button class=\"ds-btn-danger\">Endgültig löschen</button>",
+      "css": ".ds-btn-danger { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--error, oklch(0.52 0.2 27)); color: var(--on-error, oklch(0.99 0 300)); border: 1px solid var(--error, oklch(0.52 0.2 27)); border-radius: var(--radius-s, 4px); cursor: pointer; min-height: 2.75rem; } .ds-btn-danger:hover { background: color-mix(in oklab, var(--error, oklch(0.52 0.2 27)), var(--on-error, oklch(0.99 0 300)) 12%); } .ds-btn-danger:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "One active filter on the rail: full ink inversion with labeled remove ✕. A chip IS the active state.",
+      "html": "<span class=\"ds-chip\"><b>Medienart</b> Foto <a href=\"#\" aria-label=\"Filter Medienart entfernen\">✕</a></span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: var(--space-1, 0.25rem); min-height: 2rem; font: var(--type-meta, 400 0.85rem/1.4 system-ui); background: var(--on-surface, oklch(0.25 0 300)); color: var(--surface, oklch(0.98 0 300)); border-radius: var(--radius-s, 4px); padding-inline-start: var(--space-2, 0.5rem); } .ds-chip b { font-weight: 400; color: color-mix(in oklab, var(--surface, oklch(0.98 0 300)), var(--on-surface, oklch(0.25 0 300)) 30%); } .ds-chip > a { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; min-height: 2rem; border-radius: var(--radius-s, 4px); color: var(--surface, oklch(0.98 0 300)); text-decoration: none; }"
+    },
+    {
+      "name": "Labeled Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Stacked label + input: label type above, quiet lowest-container fill, error via message-node presence.",
+      "html": "<label class=\"ds-field\"><span>Titel</span><input type=\"text\" value=\"Sommerfahrt 1967\"></label>",
+      "css": ".ds-field { display: inline-flex; flex-direction: column; gap: var(--space-1, 0.25rem); color: var(--on-surface, oklch(0.25 0 300)); } .ds-field > span { font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-surface-variant, oklch(0.46 0 300)); } .ds-field input { font: var(--type-meta, 400 0.85rem/1.4 system-ui); color: var(--on-surface, oklch(0.25 0 300)); background: var(--surface-container-lowest, oklch(0.96 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); } .ds-field input:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; border-color: var(--on-surface, oklch(0.25 0 300)); }"
+    },
+    {
+      "name": "ENTWURF Badge",
+      "kind": "chip",
+      "refersTo": "badge-entwurf",
+      "description": "The one amber mark — draft lifecycle. Published renders no badge at all.",
+      "html": "<span class=\"ds-badge-entwurf\">Entwurf</span>",
+      "css": ".ds-badge-entwurf { display: inline-block; font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.125rem var(--space-2, 0.5rem); background: var(--draft, oklch(0.9 0.1 85)); color: var(--on-draft, oklch(0.42 0.11 72)); border: 1px solid var(--on-draft, oklch(0.42 0.11 72)); border-radius: var(--radius-s, 4px); white-space: nowrap; }"
+    },
+    {
+      "name": "Signatur Tab",
+      "kind": "custom",
+      "refersTo": "sig-tab",
+      "description": "The reader header's drawer-tab: mono stamp-ink code on tinted paper with the beveled leading corner (house shape signature).",
+      "html": "<span class=\"ds-sig\"><span class=\"ds-sig-code\">F12/3-b2</span></span>",
+      "css": ".ds-sig { display: inline-flex; align-items: baseline; gap: var(--space-2, 0.5rem); font: var(--type-mono, 400 0.85rem/1.4 ui-monospace); font-variant-numeric: tabular-nums; background: var(--surface-container-low, oklch(0.94 0 300)); border: 1px solid var(--outline-variant, oklch(0.84 0 300)); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem) var(--space-1, 0.25rem) var(--space-3, 0.75rem); corner-shape: bevel; border-radius: var(--radius-m, 6px) 0 0 0; } .ds-sig-code { color: var(--primary, oklch(0.45 0.05 300)); font-weight: 600; }"
+    },
+    {
+      "name": "Facet Dropdown",
+      "kind": "nav",
+      "refersTo": "button-quiet",
+      "description": "Native details on the filter rail: flat hairline summary (furniture), panel floats on the overlay shadow, active row inverted.",
+      "html": "<details class=\"ds-facet\" open><summary>Medienart</summary><ul><li><a href=\"#\" aria-current=\"true\">Foto</a><span>412</span></li><li><a href=\"#\">Tonband</a><span>38</span></li></ul></details>",
+      "css": ".ds-facet { position: relative; display: inline-block; } .ds-facet > summary { display: inline-flex; align-items: center; gap: var(--space-1, 0.25rem); list-style: none; cursor: pointer; font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-surface-variant, oklch(0.46 0 300)); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); background: var(--surface, oklch(0.98 0 300)); border: 1px solid var(--outline-variant, oklch(0.84 0 300)); border-radius: var(--radius-s, 4px); min-height: 2rem; } .ds-facet > summary::after { content: '▾'; font-size: 0.85em; } .ds-facet[open] > summary { background: var(--surface-container-mid, oklch(0.92 0 300)); border-color: var(--outline, oklch(0.5 0 300)); } .ds-facet > ul { position: absolute; top: calc(100% + 0.25rem); inset-inline-start: 0; min-width: 16rem; list-style: none; margin: 0; padding: var(--space-2, 0.5rem); background: var(--surface-container-lowest, oklch(0.96 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); box-shadow: 0 2px 8px 0 color-mix(in oklab, oklch(0.22 0 300) 22%, transparent); z-index: 2; } .ds-facet li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2, 0.5rem); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); border-radius: var(--radius-s, 4px); } .ds-facet li a { font: var(--type-meta, 400 0.85rem/1.4 system-ui); color: var(--primary, oklch(0.45 0.05 300)); text-decoration: none; min-height: 2.75rem; align-content: center; } .ds-facet li a:hover { text-decoration: underline; } .ds-facet li span { font: var(--type-mono-meta, 400 0.78rem/1.4 ui-monospace); font-variant-numeric: tabular-nums; color: var(--on-surface-variant, oklch(0.46 0 300)); } .ds-facet li:has(> [aria-current]) { background: var(--on-surface, oklch(0.25 0 300)); } .ds-facet li:has(> [aria-current]) a, .ds-facet li:has(> [aria-current]) span { color: var(--surface, oklch(0.98 0 300)); font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Archivist's Desk",
+    "overview": "Every screen is a scene of physical archive objects on a gray desk. A new element must answer \"what is this on the desk?\" — a cut paper sheet, a bound register, a drawer tab, a stamp mark. The chrome is hueless paper: pure-gray surfaces, hairline edges, no decoration. Color is information, applied like ink: the desaturated stamp violet appears only on archival marks (Signatur codes, dates, counts, links, focus), draft amber and error red are the only loud voices, and everything else signals through neutral ink inversions. This is a weekly work tool for volunteer archivists, not a showcase: density is workbench-compact, keyboard flow ranks with the visual laws, and simplicity is an owner requirement — waves remove complexity before adding capability. The system is seed-parametric: one --seed line retints the whole light+dark palette for a sibling DPB service.",
+    "keyCharacteristics": [
+      "Hueless paper chrome (chroma-0 neutrals); hue only on archival marks",
+      "Flat furniture: hairline borders, exactly two shadow tokens, no elevation ramps",
+      "Bound-register density: ruled rows, tabular mono figures, quiet hover reveals",
+      "Semantic HTML styled by the cascade (@layer), tokens as the single visual truth",
+      "German UI text, system font stacks, OS-following light/dark — no toggle"
+    ],
+    "rules": [
+      { "name": "The Stamp Grammar Rule", "body": "Seed tint appears only on archival marks. Selection, active, and primary states are neutral ink inversions (swap fg/bg), never tint fills. Draft amber and error red are the only loud colors.", "section": "colors" },
+      { "name": "The One-Line-Swap Rule", "body": "A sibling service changes exactly one line — the seed — and inherits a coherent light+dark palette. Nothing below the ramp layer mixes color by hand; a hex in component CSS is a defect.", "section": "colors" },
+      { "name": "The One Role Rule", "body": "Every text node maps to exactly one type role (font: var(--type-*)). An ad-hoc font-size, weight, or case in component CSS is the typographic raw hex. New roles enter tokens.css deliberately.", "section": "typography" },
+      { "name": "The Furniture-vs-Sheet Rule", "body": "Facet panels and control chrome are furniture: flat, hairline-edged, shadowless. Only true sheets carry the seed-tinted material (--sheet) and the contact shadow. Only transient overlays float.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reference role tokens only; new colors enter via the ramp layer or not at all.",
+      "Do reach for native semantic HTML first (details, dialog, fieldset, output, …); style it with the cascade in the declared @layer order (tokens < elements < components < compositions < modes).",
+      "Do copy the nearest approved view and change the minimum (the precedent rule); one pattern per problem.",
+      "Do let every signal carry information exactly once — no labels restating the visible, no badges for default states.",
+      "Do size controls from the row's --control-height knob and adapt views with container queries over intrinsic track floors.",
+      "Do trace every visible element to an archivist wish, an owner ruling, or a spec section."
+    ],
+    "donts": [
+      "Don't put a hex, ad-hoc font-size, bare px dimension, or bare z-index in component CSS — tokens are the single visual truth.",
+      "Don't use seed violet as a fill or state color; states invert neutral ink. Amber is ENTWURF's, red is validation's — do not repurpose.",
+      "Don't add shadows beyond the two tokens — no elevation ramps, no ripple, no gradients-as-lighting, no textures.",
+      "Don't extend the deprecated c-*/l-* class taxonomy; classes only where semantics cannot discriminate, named for meaning.",
+      "Don't un-hide [hidden] via display rules (the one sanctioned !important enforces it); JS reveals by removing the attribute.",
+      "Don't invent chrome \"for completeness\" — the system must ship complete with every Pfadfinder extension removed."
+    ]
+  }
+}
