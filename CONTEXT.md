@@ -14,9 +14,9 @@ The domain of the Deutscher Pfadfinderbund (DPB) multimedia archive — a long-l
 A single catalog record describing one archived thing — digital file(s), a physical object, or both.
 _Avoid_: Item, entry, document.
 
-**Collection** (*Sammlung*):
-The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree. Exactly one per Article.
-_Avoid_: Catalogue, Fonds; do not also use "Collection" for thematic grouping (see Album).
+**Collection** (*Bestand*):
+The single owning, nestable division an Article belongs to, and the source of its Audience. Collections form a single-parent tree (shallow in practice: a handful of top Bestände, ≤2–3 levels — owner 2026-08-22). Exactly one per Article. May carry an optional description (owner 2026-08-22).
+_Avoid_: Sammlung (superseded UI label — owner ruling 2026-08-22: "Bestand" is law), Catalogue, Fonds; do not also use "Collection" for thematic grouping (see Album).
 
 **Album** (*Album*) — _deferred, not in v1_:
 A future thematic, browse-only grouping of Articles (many per Article, no effect on Audience). Name provisional.

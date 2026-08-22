@@ -376,6 +376,21 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   reserving them as the future Eingereicht/Submission lifecycle channel
   (post-v1) — not deleted, not licensed.
 
+## Bestand rulings (owner, 2026-08-22 — D4 interview)
+
+- **The real tree is SHALLOW**: a handful of top Bestände, ≤2–3 levels —
+  the UI may show the whole tree at once; no drill-down machinery needed.
+- **Browsing: facet only, for now.** "I'm not sure. Let's go with facet
+  only for now" — the BESTAND rail dropdown is the tree's whole UI; no
+  shelf page, no Bestand header on the filtered workbench. **Lukewarm
+  (G.20): revisit candidate**, likely after real data lands (deployment 2)
+  when the archivists' browsing habits are visible.
+- **A Bestand may carry an optional description.** Data model + edit form
+  now; a reader-facing display surface exists only when a Bestand gets a
+  face (deferred with the browse-entry revisit). Empty = nothing renders.
+- **"Bestand" is law.** The CONTEXT.md label *Sammlung* is superseded;
+  the registry is corrected in the same turn.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral

@@ -81,8 +81,12 @@ then this index, in the same wave.
 - **D2 member arrival/browse** — largely collapsed by the shared-views
   ruling into D1's reader + view switching; remaining open question from
   exploration 04: how readers FILTER in the Lesesaal view.
-- **D4 Bestand/collections navigation** — browsing/selecting the tree
-  (member browse + archivist filing); no designed surface yet.
+- **D4 Bestand navigation — RULED (owner 2026-08-22):** tree is shallow
+  (≤2–3 levels); facet-only browsing for now (**lukewarm — revisit after
+  real data**, G.20); optional Bestand description (display surface
+  deferred); the term is "Bestand" (CONTEXT.md corrected). The facet
+  panel presents the shallow tree indented *(inference i6 — correction
+  round)*.
 - **D5 search-grammar exposure** — how much query power gets visible UI;
   cheapest, trails.
 
