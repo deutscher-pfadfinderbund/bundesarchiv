@@ -59,8 +59,8 @@ Mode: Operate (the task is: get in). Phone-first for door and denied pages
 
 Door (logged out) · door with active session (footer shows Abmelden) ·
 denied plain · denied dead-link · a capability-link arrival landing in the
-reader · Keycloak round-trip failure (the auth layer's error surface —
-copy TBD at the gate).
+reader. (Keycloak round-trip failure: ruled unrecoverable, owner
+2026-08-22 — no designed surface; the plain error page suffices.)
 
 ## Scope and boundaries
 
