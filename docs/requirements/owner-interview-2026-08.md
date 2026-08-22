@@ -278,6 +278,37 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   drop as the table narrows. Decide at the design gate on before/after
   renders — not settled here.
 
+## Design rulings (owner, 2026-08-22 — workbench critique + shape session)
+
+- **Standing frame:** "Don't treat the existing design as 'complete' — it's
+  still in development and has flaws." Critiques and issues must not codify
+  incumbent patterns as settled law; "make A match B" findings become design
+  questions unless the pattern is owner-ratified and undisputed.
+- **Lifecycle mark — the gray ENTWURF word:** "Let's only keep the grey
+  Entwurf. It's good enough for now." Quiet mono-meta text in
+  `--on-surface-variant`; no amber, no box, no badge chrome; one treatment
+  for the ledger and every reader header (pane, detail, edit). Register
+  row 4 (amber badge) superseded when the wave lands. **"For now" is a
+  lukewarm acceptance — revisit candidate per learning G.20.** Parked idea
+  recorded below (cursive face).
+- **Pane contract — scent:** "It kind of depends on the content and the
+  available space. But in general, it should show a preview. Details on
+  its own page." The pulled sheet previews (identity, media scent, few key
+  facts); the detail page reads. Composition may flex with content and
+  container; the pane never grows into the full reader. Full brief:
+  `docs/design/pane-lifecycle-brief.md`.
+- **Sortable column heads:** quiet resting affordance licensed in
+  principle; concrete treatment open, decide on mocks at the gate. The
+  2026-08-07 quiet-default rulings (hover-revealed bulk checkboxes, row
+  toolbars, self-hiding Sammelbearbeitung) explicitly stand — NOT reopened.
+- **Naming (via DESIGN.md, same day):** Creative North Star "The
+  Archivist's Desk"; the seed violet's descriptive name "Stamp-Ink Violet"
+  (hue itself unchanged — the Flaschengrün one-line-swap record stands).
+- **Parked idea (inspiration annex, not licensed):** "Maybe a
+  cursive/handwritten font for Entwurf… not important right now." A
+  handwritten face for the draft mark — would be a new type role + register
+  decision if ever picked up.
+
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
 
 Asked whether login state may live in the database, the owner ruled:
