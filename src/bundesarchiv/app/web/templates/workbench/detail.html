@@ -1,4 +1,5 @@
 {% extends "workbench/base.html" %}
+{% load static %}
 {% comment %}
 Artikel DETAIL read view (Part 4.6, the Lesesaal). ONE template fed a visible-projected Article:
 the archivist-only rows (Standort, Weitere Angaben) are floored to None/() by project() before
@@ -11,7 +12,7 @@ where the transition rides that form's own CAS write. The record card is a real 
 No JS, no HTMX — the app's purest no-JS surface (§7).
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% url 'static-detail' %}">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% endblock %}
 {% block header %}
 <a class="back" href="{{ zurueck_href }}">Zurück zur Suche</a>
 {% if crumbs %}

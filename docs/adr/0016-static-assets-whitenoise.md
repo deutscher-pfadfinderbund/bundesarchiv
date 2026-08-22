@@ -10,8 +10,9 @@ dev), and nginx (present as the media sidecar, ADR 0017) takes no static
 role, so its config stays minimal.
 
 Archive media and thumbnails are **not static assets**: every byte is
-authorized per request per viewer, and every failure collapses to the
-byte-identical 404 (ADR 0001, 0012). How their bytes are served is ADR 0017.
+authorized per request per viewer, and every failure collapses to the same
+revealing-nothing 404 (ADR 0001, 0012; the byte-identical form of that law was
+relaxed by the owner in 2026-08). How their bytes are served is ADR 0017.
 
 The app server is **gunicorn with `gthread` workers**, not an ASGI server:
 the app is fully synchronous (no async views, no websockets; HTMX is plain
@@ -39,11 +40,35 @@ the BREACH caveat).
 
 ## Consequences
 
-- In the route × tier leak matrix, the `/static/` prefix is a
-  public-by-design allowlist with one sanity row. The byte-identical-404 law
-  is untouched — it protects articles and collections, never assets.
+- `/static/*` is served by WhiteNoise middleware, not the URLconf, so the
+  route × tier leak matrix (which walks the URLconf) never sees it. Its
+  public-by-design contract lives in its own test (`test_static_assets.py`): a
+  fail-loud whitelist of the asset set, an uncollected path that is not served
+  (no existence oracle), and the unhashed-path pin below. The deny contract is
+  untouched — it protects articles and collections, never assets.
+- **No traversal test, deliberately.** An earlier draft promised
+  directory-traversal containment here. There is no traversal surface to gate:
+  outside autorefresh mode (so, prod and the test gate) WhiteNoise answers a URL
+  by `self.files[url]` — a dict built once by scanning `STATIC_ROOT` — so no user
+  input ever reaches a path join. A test there would pin library mechanics, which
+  the testing razor excludes (owner ruling 2026-08, `tests/CLAUDE.md`).
 - The manifest storage makes `{% static %}` **raise** for any file missing
   from the manifest: dead asset references fail loudly instead of 404ing
-  silently. Dev-only variant stylesheets stay on their `/_dev/` routes outside
-  the manifest.
-- `collectstatic` becomes a deploy step.
+  silently. This fail-loud is enforced in the **test gate** (which runs under
+  the manifest storage), not on the dev `runserver`: dev overrides to the
+  non-manifest backend so `runserver` needs no `collectstatic`, which trades
+  dev-side fail-loud for zero-friction iteration. The parity the ADR defends —
+  *WhiteNoise* serving in dev, not nginx — holds (WhiteNoise is in the dev
+  middleware too). Dev-only variant stylesheets stay on their `/_dev/` routes
+  outside the manifest.
+- **Only hashed names are collected** (`WHITENOISE_KEEP_ONLY_HASHED_FILES`), which
+  closes the one hole in that fail-loud: `{% static %}` raises for a missing file,
+  but a *hardcoded* `/static/tokens.css` never calls the tag, and by default
+  `collectstatic` keeps an unhashed copy that would serve it (at a 60s max-age)
+  as if nothing were wrong. Without those copies such a reference 404s in prod,
+  and `STATIC_ROOT` holds one file per asset instead of two — each with gzip and
+  brotli variants. Dev is unaffected (non-manifest backend; `runserver` serves
+  from the finders), as are the `/_dev/static/` stylesheets, which read the
+  source static dir rather than `STATIC_ROOT`.
+- `collectstatic` becomes a deploy step (and a session fixture in the test
+  gate, so the manifest exists for `{% static %}` and WhiteNoise to resolve).

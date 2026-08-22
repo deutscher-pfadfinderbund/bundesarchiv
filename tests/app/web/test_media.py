@@ -321,6 +321,44 @@ def test_dev_streaming_returns_blob_bytes(corpus: _Corpus) -> None:
     assert response["Content-Type"] == "image/png"
 
 
+# --- cache policy on gated bytes (ADR 0017) ---------------------------------------
+
+#: Spelled out, not imported from the seam, so a weakened directive fails HERE.
+_EXPECTED_CACHE_CONTROL = "private, max-age=31536000, immutable"
+
+
+@pytest.mark.parametrize("x_accel_prefix", [None, "/_protected"], ids=["dev_stream", "x_accel"])
+def test_permitted_media_is_privately_cacheable_forever(
+    corpus: _Corpus, x_accel_prefix: str | None
+) -> None:
+    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX=x_accel_prefix)):
+        response = _client_as(Public()).get(corpus.url("public"))
+    assert response.status_code == 200
+    assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
+
+
+def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _Corpus) -> None:
+    from bundesarchiv.app import thumbnails
+
+    thumbnails.generate_thumbnail(
+        corpus.store, corpus.hash_by_tier["public"], corpus.thumbnail_root
+    )
+    with override_settings(**_settings(corpus)):
+        response = _client_as(Public()).get(corpus.url("public", thumb=True))
+    assert response.status_code == 200
+    assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
+
+
+def test_deny_is_never_cached(corpus: _Corpus) -> None:
+    # Caching a deny would pin a viewer to a 404 for a year after their access is granted.
+    with override_settings(**_settings(corpus)):
+        forbidden = _client_as(Public()).get(corpus.url("members"))
+        missing_thumb = _client_as(Archivist()).get(corpus.url("members", thumb=True))
+    for name, response in (("forbidden", forbidden), ("missing_thumb", missing_thumb)):
+        assert_denied(response, name)
+        assert "Cache-Control" not in response, name
+
+
 # --- the thumbnail job ------------------------------------------------------------
 
 

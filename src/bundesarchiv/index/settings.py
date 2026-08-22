@@ -1,9 +1,8 @@
 """Minimal Django settings — deliberately kept tiny, forever (ADR 0004, 0005).
 
-Django is present ONLY as an adapter for the derived Postgres search index. Nothing
-here serves HTTP: no admin, auth, sessions, middleware, URLconf, templates, or static
-files. The only installed apps are ``django.contrib.postgres`` (for ``ArrayField`` /
-FTS / trigram expressions used by the index) and our own ``bundesarchiv.index``.
+Django is present as a thin adapter (ADR 0004, 0005): the derived Postgres search index
+plus the server-rendered workbench — templates, one CSRF middleware, a URLconf, and static
+CSS/JS via staticfiles + WhiteNoise (ADR 0016). No admin, auth, or sessions.
 
 The database is configured from the ``BUNDESARCHIV_PG_DSN`` environment variable so dev,
 tests, and (later) the VPS all point at the same connection string. It defaults to the
@@ -20,6 +19,10 @@ _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 # APP_DIRS: ``app.web`` is not a Django app (ADR 0004/0005 — Django is an adapter), so templates are
 # addressed by directory, not by app autodiscovery.
 _WEB_TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "web" / "templates"
+
+# Same reason as the template dir above: ``app.web`` is not a Django app, so staticfiles finds these
+# via ``STATICFILES_DIRS`` (ADR 0016).
+_WEB_STATIC = Path(__file__).resolve().parent.parent / "app" / "web" / "static"
 
 
 def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
@@ -47,6 +50,7 @@ DATABASES = _databases_from_dsn(os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_P
 
 INSTALLED_APPS = [
     "django.contrib.postgres",
+    "django.contrib.staticfiles",  # CSS/JS collected + served by WhiteNoise (ADR 0016)
     "procrastinate.contrib.django",  # Postgres-table-only worker queue (ADR 0014, Part 4.2)
     "bundesarchiv.index",
     # The application-service shell — installed so Procrastinate autodiscovers its ``tasks.py`` and
@@ -80,7 +84,9 @@ ROOT_URLCONF = "bundesarchiv.app.web.urls"
 # default, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a Django session),
 # no auth/admin. This bends the "tiny settings, no middleware" stance (ADR 0004) for a real security
 # hole; subject to owner ratification, and the 4.10 hardening gate revisits the middleware surface.
+# WhiteNoise serves /static/* (ADR 0016) and short-circuits before CSRF — it must stay first.
 MIDDLEWARE = [
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
 ]
 
@@ -140,17 +146,23 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
 # file); the default 1000 is fine for a v1 item, set explicitly so a large item never trips it.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))
 
-# This project serves its few static assets through explicit routes (serve_*_css/js), NOT
-# django.contrib.staticfiles (not installed). But STATIC_URL/STATIC_ROOT must be valid non-None
-# values: Django 6 defaults STATIC_URL to None, so any code that urlparse()s it — notably the test
-# live-server's static handler — yields BYTES paths and 500s every request; and that handler's fall-
-# through serve() needs a real STATIC_ROOT dir (a None root raises instead of a clean 404-then-
-# fallthrough to our own /static/* routes). Neither enables real static serving here.
+# Static assets via staticfiles + WhiteNoise (ADR 0016); ``collectstatic`` is a deploy step. Manifest
+# storage hashes names and makes {% static %} RAISE on a missing file. Dev overrides to non-manifest.
 STATIC_URL = "/static/"
 STATIC_ROOT = os.environ.get(
     "BUNDESARCHIV_STATIC_ROOT",
     str(Path(__file__).resolve().parent.parent.parent.parent / "var" / "static"),
 )
+STATICFILES_DIRS = [str(_WEB_STATIC)]
+# STORAGES replaces Django's whole default dict, so ``default`` must be restated alongside the
+# WhiteNoise staticfiles backend.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+# Completes the fail-loud: a hardcoded "/static/tokens.css" bypasses {% static %} and would
+# otherwise serve from the unhashed copy. No-op under dev's non-manifest backend.
+WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True

@@ -35,9 +35,21 @@ ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 # write forms are protected in dev exactly as in prod (the dev switcher + every {% csrf_token %} form
 # carry the token); DevViewerMiddleware then attaches request.viewer for the views below.
 MIDDLEWARE = [
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]
+
+# Dev uses the NON-manifest staticfiles backend so ``runserver`` (whose StaticFilesHandler serves
+# /static/ from the finders) needs no ``collectstatic`` and {% static %} yields plain unhashed URLs.
+# REBIND, never mutate: ``from settings import *`` aliases prod's STORAGES dict, and settings_dev is
+# imported at collection time by conftests — an in-place ``STORAGES["staticfiles"] = ...`` would flip
+# the whole test process (which runs under prod settings = manifest) to non-manifest. The manifest
+# storage + its fail-loud {% static %} is exercised by the test gate under prod settings, not here.
+STORAGES = {
+    **STORAGES,  # noqa: F405  (star-imported from settings)
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 # Local runserver ergonomics — dev-only by construction (prod never imports this module).
 DEBUG = True

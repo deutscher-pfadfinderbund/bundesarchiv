@@ -3,7 +3,7 @@
 Original media blobs are served through an **nginx sidecar via
 `X-Accel-Redirect`**: Django runs the full authorization gate per request
 (`media_views._authorize` — viewer, tier, chain, hash-on-article, every
-failure the byte-identical 404), then answers with an empty body and an
+failure the same revealing-nothing 404), then answers with an empty body and an
 `X-Accel-Redirect` header; nginx serves the file from an `internal;` location
 over the canonical media tree. The seam already exists
 (`media.media_response`, `BUNDESARCHIV_X_ACCEL_PREFIX`); this ADR ratifies it
@@ -19,7 +19,8 @@ never answers HTTP Range requests, so video seeking re-downloads the entire
 file. nginx isolates slow clients, does zero-copy sendfile, and serves
 Range/206 natively. Authorization stays entirely in Django, per request; the
 `internal;` location is unreachable except via the app's redirect header, so
-the byte-identical-404 law is untouched.
+the deny contract is untouched (a 404 revealing nothing — the byte-identical
+form of that law was relaxed by the owner in 2026-08).
 
 **Thumbnails keep streaming from Django** (`media.thumbnail_response`): tiny
 WebP files from a local derived cache, gated identically to originals (a
@@ -55,6 +56,13 @@ deliberately non-load-bearing component load-bearing.
 - nginx is in the stack, but only as a ~20-line media sidecar (`internal;`
   location + `proxy_pass` to gunicorn). Static assets deliberately stay with
   WhiteNoise (ADR 0016).
+- **The sidecar must not set its own cache headers.** nginx passes the app's
+  response headers through on an X-Accel redirect, so an `expires` or
+  `add_header Cache-Control` in the `internal;` location would override the
+  `private` policy Django stamps and let a shared cache store gated bytes. The
+  app side ships with the header applied at the seam's public exits
+  (`media.media_response`, `media.thumbnail_response`); the sidecar config that
+  has to respect it lands with the deploy work (GH #13).
 - Dev keeps the direct `FileResponse` path (prefix unset) — no Range in dev,
   documented and accepted in `media.media_response`.
 - **Tiering door**: when the archive outgrows the app host's disk, the

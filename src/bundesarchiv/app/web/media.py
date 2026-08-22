@@ -1,4 +1,4 @@
-"""The media-serving seam (Part 4.3) — ``media_response`` + the byte-identical 404.
+"""The media-serving seam (Part 4.3) — ``media_response`` + the shared 404.
 
 THE POINT OF THIS MODULE: it is the SINGLE place in the whole system that knows media
 bytes live on the local filesystem. Every media/thumbnail byte reaches a browser through
@@ -15,8 +15,8 @@ port is the openness").
 
 Denial is NEVER expressed here — the view owns 404s (see ``_not_found``). This function is
 only ever reached for an authorized (article, media_ref) pair; if the blob is unexpectedly
-absent on disk it raises, which the view turns into the same byte-identical 404 (a
-not-yet-mirrored / pruned-thumbnail blob is indistinguishable from a forbidden one).
+absent on disk it raises, which the view turns into the same 404 (a not-yet-mirrored /
+pruned-thumbnail blob is indistinguishable from a forbidden one).
 """
 
 from pathlib import Path
@@ -36,6 +36,9 @@ _MEDIA_KEY = "articles/{ulid}/media/{content_hash}"
 #: Default MIME when a MediaRef carries no media_type — the safe generic (never text/html, which a
 #: browser would render, so a mislabelled blob can never become a stored-XSS vector).
 _DEFAULT_CONTENT_TYPE = "application/octet-stream"
+
+#: ADR 0017. ``private`` is the leak-relevant half — a shared cache must never store gated bytes.
+_IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
 
 def blob_key(ulid: str, content_hash: str) -> str:
@@ -66,14 +69,17 @@ def media_response(article: Article, media_ref: MediaRef, request: HttpRequest) 
 
     The blob location is derived HERE and NOWHERE ELSE (the tiering door). A missing blob raises
     (``FileNotFoundError`` in dev; prod hands the path to nginx which 404s internally) — the view
-    treats absence as the same byte-identical 404 as a denial, so existence never leaks.
+    treats absence as the same 404 as a denial, so existence never leaks.
     """
     key = blob_key(article.ulid, media_ref.content_hash)
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
-    if prefix:
-        return _x_accel(prefix, key, content_type, media_ref.filename)
-    return _dev_stream(key, content_type, media_ref.filename)
+    response: HttpResponseBase = (
+        _x_accel(prefix, key, content_type, media_ref.filename)
+        if prefix
+        else _dev_stream(key, content_type, media_ref.filename)
+    )
+    return _cacheable(response)
 
 
 def thumbnail_response(
@@ -83,18 +89,27 @@ def thumbnail_response(
     ``media_response`` (a thumbnail leaks the image, so it is gated identically). The thumbnail is a
     LOCAL derived cache keyed by content-hash (``BUNDESARCHIV_THUMBNAIL_ROOT/<hash>.webp``): not
     canonical, not the ObjectStore, prunable. A not-yet-generated thumbnail raises absence, which
-    the view turns into the same byte-identical 404 (indistinguishable from a forbidden one).
+    the view turns into the same 404 (indistinguishable from a forbidden one).
 
     Served straight from the local thumbnail cache: no X-Accel path (the thumbnail root is not the
     canonical media tree nginx fronts, and thumbnails are tiny — dev-style streaming is fine in prod
     too). Range is not supported (thumbnails are small; same dev-FileResponse caveat as above)."""
     path = thumbnail_path(media_ref.content_hash)
-    return FileResponse(
-        path.open("rb"),
-        content_type="image/webp",
-        as_attachment=False,
-        filename=f"{media_ref.content_hash}.webp",
+    return _cacheable(
+        FileResponse(
+            path.open("rb"),
+            content_type="image/webp",
+            as_attachment=False,
+            filename=f"{media_ref.content_hash}.webp",
+        )
     )
+
+
+def _cacheable(response: HttpResponseBase) -> HttpResponseBase:
+    """Stamped at both public exits, not inside ``_x_accel``/``_dev_stream``, so a future third
+    serving path cannot silently miss the policy."""
+    response["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
+    return response
 
 
 def thumbnail_path(content_hash: str) -> Path:
@@ -108,7 +123,9 @@ def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpRes
     """Prod path: hand the file to nginx via ``X-Accel-Redirect`` over an ``internal;`` location.
     Empty body — nginx replaces it with the file bytes (and serves Range itself). The filename is
     encoded through Django's ``content_disposition_header`` (RFC 5987), so a hostile upload filename
-    (quotes/newlines) cannot inject a response header."""
+    (quotes/newlines) cannot inject a response header.
+
+    ADR 0017: the sidecar's ``internal;`` location must not set its own ``expires``/``Cache-Control``."""
     response = HttpResponse(b"", content_type=content_type)
     response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{key}"
     disposition = content_disposition_header(as_attachment=False, filename=filename)

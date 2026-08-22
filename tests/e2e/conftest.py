@@ -78,6 +78,9 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
     settings: dict[str, object] = {
         "ROOT_URLCONF": settings_dev.ROOT_URLCONF,
         "MIDDLEWARE": settings_dev.MIDDLEWARE,
+        # Non-manifest storage: live_server's StaticFilesHandler serves from the finders, so the e2e
+        # run needs no collectstatic (ADR 0016).
+        "STORAGES": settings_dev.STORAGES,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),

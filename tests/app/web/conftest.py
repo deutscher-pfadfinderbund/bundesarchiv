@@ -19,6 +19,15 @@ from collections.abc import Iterator
 import pytest
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _collect_static_assets() -> None:
+    """Build STATIC_ROOT + the manifest once per session — the web tests run under prod settings,
+    where {% static %} RAISES without one (ADR 0016). ``--clear`` drops a prior asset set's orphans."""
+    from django.core.management import call_command
+
+    call_command("collectstatic", "--no-input", "--clear", verbosity=0)
+
+
 @pytest.fixture(autouse=True)
 def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """No-op the index write and every worker enqueue on ``app.articles`` for the duration of a web

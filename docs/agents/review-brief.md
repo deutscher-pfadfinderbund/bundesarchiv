@@ -30,6 +30,12 @@ Read `REVIEW-LEDGER.md.local` first; never re-report anything listed there.
    list in `tests/CLAUDE.md`). House idiom:
    {# #}-hygiene grep-tests. Style sweeps and load-count pins were removed in
    the 2026-08 audit as overkill — do not propose them again.
+7. **Review the comments too** (`docs/agents/writer-brief.md`, "Comments").
+   Flag: an ADR's argument restated beside its own citation, commit-message
+   prose pasted into a docstring, a test docstring narrating its asserts,
+   history narration ("now used only by…"), and rationale mirrored across
+   source, test and ADR. A comment that promises a gate which does not exist
+   is a CONFIRMED finding, not a style note.
 
 ## Conduct
 
