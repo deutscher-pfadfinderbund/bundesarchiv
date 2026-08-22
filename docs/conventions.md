@@ -6,12 +6,12 @@ How code in this repo is written. Binds human contributors and AI agents alike.
 
 - **Python ≥ 3.14**, managed by **uv** (`uv.lock` pinned, `.python-version`).
 - **Sync, not async** (WSGI) — see rationale below.
-- **ruff** = lint + format (line length 100; rules `E,F,I,UP,B,SIM,RUF`).
-- **mypy `--strict`** = the **committed** type checker; gates merges via pre-commit. `django-stubs` is added when Django arrives (parts 3–4) — it is the only checker today with first-class Django ORM typing.
-- **pyrefly / ty** may be run **advisory / in-editor only** — they are *not* the merge gate (Django ORM typing is immature in both as of 2026; see `docs/django6-notes.md`).
-- Editor LSP: Pylance / pyright / pyrefly / ty — any; not the gate.
+- **ruff** = lint + format (line length 100; ruff's defaults `E4,E7,E9,F` extended with `I,UP,B,SIM,RUF,C4,FURB,PERF,PIE,PTH,RET`).
+- **mypy `--strict`** = the **canonical** type checker, gating at the **pre-push** hook. `django-stubs` + `mypy_django_plugin` are wired in — it is the only checker today with first-class Django ORM typing.
+- **pyrefly** = a fast **blocking** second opinion, zero-error policy: commit-stage pre-commit hook plus an agent Stop hook (Django ORM typing is immature in pyrefly / ty as of 2026, so mypy stays canonical; see `docs/django6-notes.md`).
+- Editor LSP: Pylance / pyright / ty — any; not the gate.
 - **pytest** + **TDD** (red → green → refactor). Test *through* interfaces (replace-don't-layer; in-memory fakes).
-- **pre-commit** runs ruff → mypy → pytest (all via `uv run`).
+- **pre-commit**, two stages (all via `uv run`): commit = uv-lock → ruff → pyrefly; push = mypy → pytest. Running the full gate on every commit is writer-agent discipline (`docs/agents/writer-brief.md`), not the commit hook.
 
 ## Why sync (not async)
 
@@ -39,4 +39,4 @@ Django 6's async ORM is still partial — transactions raise `SynchronousOnlyOpe
 ## Git
 
 - **Conventional Commits.**
-- Local-only for now (no remote); GitHub Actions CI added when a remote exists.
+- `origin` is a public GitHub repo (issues + PRDs live there). No CI backstop yet — tracked in #12.
