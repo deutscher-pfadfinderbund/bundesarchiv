@@ -59,10 +59,13 @@ then this index, in the same wave.
    error-copy taxonomy (what the archivist is told, when), then mechanical.
 7. **Bulk chooser composition** — "— Feld wählen —" state shows no value
    widget and strands the primary button far right; recompose.
-8. **badge_visibility exhibit** — demo-only template; park-or-delete
-   verdict (catechism Q1).
-9. **Chip type role** — the one four-axis C8 exemption without a ruling
-   (issue #45, open owner question).
+8. ~~badge_visibility exhibit~~ — **RULED: DELETE** (owner 2026-08-22);
+   demo entry drops in the same change. Rides the next cleanup wave.
+9. ~~Chip type role~~ — **RULED: chips keep meta** ("values shouldn't
+   shout", owner 2026-08-22; closes #45's question). NEW open item it
+   spawned: **label-role case treatment** — "labels don't necessarily
+   need to be Caps either"; mock round (uppercase vs mixed) across rail /
+   ledger head / reader, decide at a gate (G.7/G.14).
 10. **Empty-media hollow weight** — a postcard of absence on the quiet
     sheet; revisit when the pane wave touches that template.
 11. **Screen propagation (the precedent rule):** workbench exemplar →

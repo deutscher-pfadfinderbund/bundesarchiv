@@ -408,6 +408,23 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   Archive research is date-driven; this does not wait for preview
   feedback.
 
+## Closing rulings (owner, 2026-08-22 — board-clearing round)
+
+- **Reader/entry inferences i1–i6 all stand** (see the briefs): native
+  players in the roll, PDF file cards with browser hand-off, tap-to-
+  original (no lightbox), one quiet Bearbeiten header button, desktop
+  reader at reading measure, Bestand facet shows the shallow tree
+  indented.
+- **badge_visibility.html: DELETE** (catechism Q1 verdict on the exhibit;
+  the demo page drops its entry in the same change).
+- **Chips keep `--type-meta` — "values shouldn't shout."** Closes the #45
+  exemption question in the chips' favor. AND: **"labels don't
+  necessarily need to be Caps either"** — the label role's
+  uppercase/letterspacing treatment itself is now an OPEN question,
+  system-wide (facet headings, column heads, badges). Decide on renders
+  (G.7/G.14): a mock round showing uppercase vs mixed-case labels across
+  the rail, ledger head, and reader — not ruled in prose.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
