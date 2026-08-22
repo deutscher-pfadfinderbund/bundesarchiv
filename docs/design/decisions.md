@@ -83,18 +83,16 @@ sign is a literal 404; an empty result set points onward). Motion passed
 for now (stays licensed, unscheduled). Workbench stays quiet — character
 only from the system's reserved carriers.
 
-Mock-gate queue for the program:
-- **Type round:** 2–3 sans + serif pairings rendered on real screens
-  (workbench + reader header + wordmark), both modes. OFL candidates to
-  render (not decided): sans — Instrument Sans, Schibsted Grotesk, Source
-  Sans 3; serif — Literata, Source Serif 4, Newsreader; mono stays
-  system/It's-fine until it bothers someone.
-- **Waldläuferzeichen round:** empty-results, 404/denied, and
-  "ohne Signatur"/"noch nicht eingeordnet" states with trail-sign marks —
-  hairline-stroke, ink-colored, register row needed before shipping
-  (owner decision at the gate).
-- **Label-case round** (already queued) and **sortable-heads round** ride
-  the same gate — one render set, four decisions.
+Mock-gate VERDICTS (2026-08-22, on MOCK renders):
+- **Typefaces: keep system stacks for now** ("can't really see the
+  difference") — revisit candidate, verdict was indifference not
+  endorsement.
+- **Label role: MIXED CASE** — uppercase retires system-wide (ENTWURF
+  register mark excluded). Implementation wave pending.
+- **Sortable heads: HOLLOW GLYPH at rest** — new register row with the
+  wave.
+- **Waldläuferzeichen round: still pending** (deferred, low priority —
+  owner 2026-08-22); first peak stays the empty/404 states when it runs.
 
 ### Strategic shape queue (owner order, 2026-08-22)
 

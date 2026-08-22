@@ -430,6 +430,23 @@ its character carriers are each used once or never. Chosen levers:
   stays quiet; no new chroma, tints, or effects — character comes from
   the system's own reserved carriers.
 
+## Mock-gate verdicts (owner, 2026-08-22 — on MOCK renders, G.16-labeled)
+
+- **Typefaces: keep the system stacks for now.** "I can't really see the
+  difference." No OFL swap; the vendored-faces option stays the recorded
+  later drop-in decision. Revisit candidate — the verdict was
+  indifference, not endorsement (G.20 flavor).
+- **Label role: MIXED CASE.** `text-transform: none`, tracking ~0.02em —
+  the letterspaced-uppercase label voice retires across the system (rail
+  summaries, column heads, field labels, badges' base treatment). The
+  ENTWURF register mark was excluded from the mock and keeps its own
+  ruling (gray word). Tokens change: `--label-tracking` value +
+  consumers drop `text-transform: uppercase`.
+- **Sortable-head resting mark: HOLLOW GLYPH.** Muted △ at rest on
+  sortable heads; the real direction glyph keeps the active sort. New
+  cue-register row required when the wave lands (same slot family as the
+  active-sort glyph).
+
 ## Closing rulings (owner, 2026-08-22 — board-clearing round)
 
 - **Reader/entry inferences i1–i6 all stand** (see the briefs): native
