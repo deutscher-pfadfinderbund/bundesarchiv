@@ -34,6 +34,15 @@ pass (`superpowers:test-driven-development` / the `tdd` skill). Prove a
 security/gate test is non-vacuous by MUTATION: neuter the guard, watch the test
 go red, restore. A gate that never bit is not a gate.
 
+Restore a mutation by re-editing the exact lines (or commit before mutating) —
+never `git checkout <file>`: it wipes every uncommitted change in that file,
+including work you haven't committed yet.
+
+The e2e and gallery suites run only when the design-gate rules demand it (UI
+waves: CSS/template/JS, position/overlay changes). Never run them as general
+diligence in a non-UI wave — an e2e failure outside your wave's scope is the
+coordinator's problem, not yours.
+
 ## No heavy mocking
 
 Exercise the real code path, not mocks of the unit under test. The web subtree

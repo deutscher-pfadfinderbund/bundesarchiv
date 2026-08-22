@@ -1,7 +1,8 @@
 # Task runner (mise). `mise run gate` = the full commit gate from CLAUDE.md.
 
 [tasks.gate]
-description = "Full gate: ruff, format, pyrefly, mypy, pytest (needs dev Postgres, see pg)"
+description = "Full gate: ruff, format, pyrefly, mypy, pytest"
+depends = ["pg:wait"]
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
@@ -13,6 +14,18 @@ run = [
 [tasks.pg]
 description = "Start the dev Postgres (Apple container CLI, host port 5434)"
 run = "container system start && container start bundesarchiv-pg"
+
+[tasks."pg:wait"]
+description = "Block until the dev Postgres accepts connections"
+depends = ["pg"]
+run = """
+for i in $(seq 1 30); do
+  container exec bundesarchiv-pg pg_isready -U postgres >/dev/null 2>&1 && exit 0
+  sleep 1
+done
+echo "Postgres did not become ready in time" >&2
+exit 1
+"""
 
 [tasks.dev]
 description = "Dev server on :8000"
