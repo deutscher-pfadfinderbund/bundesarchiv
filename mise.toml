@@ -1,0 +1,19 @@
+# Task runner (mise). `mise run gate` = the full commit gate from CLAUDE.md.
+
+[tasks.gate]
+description = "Full gate: ruff, format, pyrefly, mypy, pytest (needs dev Postgres, see pg)"
+run = [
+  "uv run ruff check",
+  "uv run ruff format --check .",
+  "uv run pyrefly check src tests",
+  "uv run mypy",
+  "uv run pytest",
+]
+
+[tasks.pg]
+description = "Start the dev Postgres (Apple container CLI, host port 5434)"
+run = "container system start && container start bundesarchiv-pg"
+
+[tasks.dev]
+description = "Dev server on :8000"
+run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"

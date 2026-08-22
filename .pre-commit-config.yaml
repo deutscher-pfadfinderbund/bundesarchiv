@@ -25,7 +25,8 @@ repos:
       # mypy stays canonical; noise policy lives at [tool.pyrefly] in pyproject.toml.
       - id: pyrefly
         name: pyrefly
-        entry: uv run pyrefly check
+        # Explicit paths: bare `pyrefly check` resolves zero files in .claude/worktrees/.
+        entry: uv run pyrefly check src tests
         language: system
         pass_filenames: false
       - id: mypy
