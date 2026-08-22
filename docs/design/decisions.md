@@ -106,6 +106,16 @@ Mock-gate VERDICTS (2026-08-22, on MOCK renders):
 - **Waldläuferzeichen round: still pending** (deferred, low priority —
   owner 2026-08-22); first peak stays the empty/404 states when it runs.
 
+### Radical exploration (owner verdicts, 2026-08-23)
+
+Three concept mocks (`explorations/2026-08-23-radical/`): **R1
+Registratur-Brutalismus endorsed as a DIRECTION** (typographic conviction,
+white paper, heavy letterhead rule, oversized folio) — but its sig-forward
+thesis rejected (domain fact: members don't care about Signaturen; Q9
+rank). Rejected outright: beige/warm neutrals ("looks AI"), guide-card
+dividers (fragile under dynamic sort). R2 night-ramp + R3 postmark/margin:
+inspiration annex. No build authorized.
+
 ### Strategic shape queue (owner order, 2026-08-22)
 
 - **D3 entry surfaces — SHAPED** (`entry-surfaces-brief.md`); build rides

@@ -461,6 +461,28 @@ its character carriers are each used once or never. Chosen levers:
   cue-register row required when the wave lands (same slot family as the
   active-sort glyph).
 
+## Radical-exploration verdicts (owner, 2026-08-23 — three concept mocks)
+
+Context: owner asked for a radical personality redesign of the workbench;
+three MOCK concept directions were rendered (sources preserved in
+`docs/design/explorations/2026-08-23-radical/`).
+
+- **R1 "Registratur-Brutalismus" looks best** — typographic conviction on
+  white paper, black ink, heavy letterhead rule, oversized folio; the
+  DIRECTION is endorsed. **But its central thesis is rejected: "The
+  signatures aren't as important as you make them. Members don't really
+  care for them at all."** Domain fact recorded: Signatur relevance is
+  archivist-side; on shared views its visual rank must not exceed a
+  member's interest (catechism Q9 — rank by the primary user's frequency).
+- **Beige/warm paper: rejected** — "beige looks AI again" (the earlier
+  warm-manila mock). Neutrals stay hueless.
+- **Guide-card dividers: rejected for the real table** — nice, but fragile
+  under dynamic sort.
+- **R2 "Nachtarchiv" and R3 "Stempel & Marginalie": not adopted** —
+  inspiration annex only (the circular postmark, margin-notes idea, and
+  the night-ramp dark identity remain available motifs).
+- **Session closed by the owner** — no build authorized from this round.
+
 ## Closing rulings (owner, 2026-08-22 — board-clearing round)
 
 - **Reader/entry inferences i1–i6 all stand** (see the briefs): native

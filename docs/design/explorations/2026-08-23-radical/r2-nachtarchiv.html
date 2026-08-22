@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>R2 Nachtarchiv</title>
+<style>
+/* DIRECTION 2 — NACHTARCHIV: the vault at night. Deep violet-black desk,
+   documents as lit sheets, chalk-violet marks. Dark-first drama. */
+:root {
+  --desk: oklch(0.17 0.02 300);
+  --sheet: oklch(0.235 0.018 300);
+  --sheet-high: oklch(0.28 0.02 300);
+  --ink: oklch(0.91 0.008 90);
+  --ink-2: oklch(0.66 0.015 300);
+  --rule: oklch(0.34 0.02 300);
+  --violet: oklch(0.79 0.09 300);
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--ink); font: 400 0.95rem/1.5 var(--sans); }
+header { display: flex; align-items: center; gap: 1rem; padding: 1rem 2.5rem; }
+.wordmark { font: 600 1.55rem/1 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.15em; color: var(--violet); margin-right: auto; text-shadow: 0 0 24px oklch(0.6 0.12 300 / 0.35); }
+header input { font: 400 0.88rem/1.4 var(--sans); background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: 4px; padding: 0.4rem 0.7rem; width: 18rem; }
+header .btn { font: 400 0.85rem/1.4 var(--sans); background: none; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0.4rem 0.85rem; }
+.rail { display: flex; align-items: center; gap: 0.55rem; padding: 0.2rem 2.5rem 1.1rem; flex-wrap: wrap; }
+.facet { font: 500 0.76rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0.32rem 0.6rem; }
+.facet::after { content: " ▾"; font-size: 0.85em; }
+.chip { display: inline-flex; gap: 0.4rem; align-items: center; font: 400 0.85rem/1 var(--sans); background: var(--violet); color: oklch(0.2 0.05 300); border-radius: 4px; padding: 0.45rem 0.4rem 0.45rem 0.65rem; }
+.chip b { font-weight: 400; opacity: 0.6; }
+.clear { font: 400 0.85rem/1 var(--sans); color: var(--violet); }
+.count { margin-left: auto; font: 400 0.85rem/1.4 var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.count b { color: var(--violet); font-weight: 600; }
+main { padding: 0 2.5rem 2.5rem; }
+.pagehead { display: flex; align-items: baseline; margin: 0.1rem 0 0.8rem; }
+.pagehead h1 { font: 600 1.2rem/1.2 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.07em; margin: 0; color: var(--ink); }
+.folio { margin-left: auto; font: 400 0.78rem/1.4 var(--mono); color: var(--ink-2); }
+.register {
+  background: linear-gradient(180deg, var(--sheet-high), var(--sheet) 7rem);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: 0 12px 40px oklch(0.05 0.02 300 / 0.55), 0 1px 0 oklch(0.4 0.03 300 / 0.5) inset;
+}
+table { width: 100%; border-collapse: collapse; }
+th { font: 600 0.7rem/1.3 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 0.8rem 1.1rem 0.55rem; border-bottom: 1px solid var(--rule); }
+th.num { text-align: right; }
+td { padding: 0.5rem 1.1rem; border-bottom: 1px solid oklch(0.29 0.02 300); vertical-align: baseline; }
+tr:last-child td { border-bottom: none; }
+td.sig { font: 600 0.88rem/1.4 var(--mono); color: var(--violet); width: 8rem; white-space: nowrap; }
+td.sig.leer { color: var(--ink-2); font-weight: 400; }
+td.titel { font: 400 0.95rem/1.45 var(--sans); color: var(--ink); }
+td.titel .entwurf { font: 400 0.75rem/1 var(--mono); letter-spacing: 0.1em; color: var(--ink-2); margin-left: 0.6rem; }
+td.num { font: 400 0.85rem/1.4 var(--mono); text-align: right; color: var(--violet); font-variant-numeric: tabular-nums; width: 8rem; }
+td.typ { font: 400 0.82rem/1.4 var(--sans); color: var(--ink-2); width: 7rem; }
+.mock { position: fixed; bottom: 10px; right: 10px; font: 700 11px/1 var(--mono); letter-spacing: 0.1em; background: oklch(0.5 0.19 25); color: #fff; padding: 5px 9px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="mock">MOCK — R2 NACHTARCHIV</div>
+<header>
+  <span class="wordmark">Bundesarchiv</span>
+  <input value="fahrt">
+  <span class="btn">Suchen</span>
+  <span class="btn">+ Neu …</span>
+</header>
+<div class="rail">
+  <span class="facet">Bestand</span><span class="facet">Medienart</span><span class="facet">Dokumenttyp</span><span class="facet">Datierung</span><span class="facet">Schlagwort</span>
+  <span class="chip"><b>Medienart</b> Fotografie ✕</span>
+  <span class="clear">Alle Filter entfernen</span>
+  <span class="count"><b>17</b> Treffer</span>
+</div>
+<main>
+  <div class="pagehead"><h1>Suchergebnisse</h1><span class="folio">Blatt 1 von 3</span></div>
+  <div class="register">
+    <table>
+      <thead><tr><th>Sig</th><th>Titel</th><th class="num">Datierung</th><th>Typ</th></tr></thead>
+      <tbody>
+        <tr><td class="sig">F3/1-a</td><td class="titel">Gründungsfahrt an die Lahn</td><td class="num">1953-08</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F3/1-b</td><td class="titel">Erstes Bundeslager, Gruppenbild</td><td class="num">1955</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig leer">ohne Signatur</td><td class="titel">Kohtenaufbau am Flussufer <span class="entwurf">ENTWURF</span></td><td class="num">195X</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F12/3-b2</td><td class="titel">Sommerfahrt 1962, Morgenrunde am Zeltplatz</td><td class="num">1962-07</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F12/4</td><td class="titel">Singewettstreit, Bühne und Publikum</td><td class="num">1964~</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F14/1</td><td class="titel">Winterfahrt in den Harz <span class="entwurf">ENTWURF</span></td><td class="num">1967-01</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F21/2-c</td><td class="titel">Bundesthing, Abstimmung im großen Rund</td><td class="num">1971-05</td><td class="typ">Fotografie</td></tr>
+        <tr><td class="sig">F22/8</td><td class="titel">Fahrtenmesser-Werkstatt, Detailaufnahmen</td><td class="num">1974/1976</td><td class="typ">Fotografie</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

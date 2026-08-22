@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>R1 Registratur-Brutalismus</title>
+<style>
+/* DIRECTION 1 — REGISTRATUR-BRUTALISMUS: the Signatur system IS the design.
+   Pure white paper, black ink, violet only as stamp marks. Scale contrast = personality. */
+:root {
+  --paper: oklch(0.99 0.002 90);
+  --ink: oklch(0.17 0.005 300);
+  --ink-2: oklch(0.45 0.008 300);
+  --rule: oklch(0.82 0.005 300);
+  --violet: oklch(0.44 0.07 300);
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 0.95rem/1.5 var(--sans); }
+header {
+  display: flex; align-items: baseline; gap: 1.4rem;
+  padding: 1.1rem 3rem 0;
+}
+.wordmark { font: 600 1.4rem/1 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.14em; }
+.hairspace { flex: 1; }
+header input { font: 400 0.9rem/1 var(--mono); border: none; border-bottom: 2px solid var(--ink); background: none; padding: 0.3rem 0.1rem; width: 17rem; }
+header .btn { font: 600 0.72rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; border: 2px solid var(--ink); padding: 0.55rem 0.9rem; }
+header .btn.primary { background: var(--ink); color: var(--paper); }
+.rule-heavy { border: none; border-top: 3px solid var(--ink); margin: 0.9rem 3rem 0; }
+.metaline {
+  display: flex; align-items: baseline; gap: 2rem; padding: 0.55rem 3rem;
+  font: 500 0.72rem/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2);
+}
+.metaline .count { color: var(--violet); font-weight: 700; }
+.metaline .folio { margin-left: auto; font: 200 2.6rem/0.9 var(--mono); letter-spacing: 0; color: var(--ink); }
+.metaline .folio small { font-size: 40%; color: var(--ink-2); letter-spacing: 0.1em; }
+.rail { display: flex; gap: 0; padding: 0 3rem 1.2rem; flex-wrap: wrap; align-items: center; }
+.facet {
+  font: 500 0.72rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  border: 1px solid var(--rule); border-right: none; padding: 0.55rem 0.8rem; color: var(--ink-2);
+}
+.facet:last-of-type { border-right: 1px solid var(--rule); }
+.chip {
+  font: 600 0.72rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  background: var(--ink); color: var(--paper); padding: 0.6rem 0.9rem; margin-left: 1rem;
+}
+.chip span { opacity: 0.55; margin-right: 0.5rem; }
+.clear { font: 400 0.8rem/1 var(--sans); color: var(--violet); margin-left: 1rem; }
+main { padding: 0 3rem 3rem; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  font: 500 0.66rem/1 var(--mono); letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-2); text-align: left; padding: 0 0.9rem 0.5rem 0;
+  border-bottom: 2px solid var(--ink);
+}
+th.num { text-align: right; }
+td { padding: 0.72rem 0.9rem 0.72rem 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+td.sig { font: 700 1.28rem/1.1 var(--mono); color: var(--violet); width: 11rem; white-space: nowrap; letter-spacing: -0.01em; }
+td.sig.leer { color: var(--rule); font-weight: 400; font-size: 0.85rem; letter-spacing: 0.04em; }
+td.titel { font: 400 0.95rem/1.4 var(--sans); }
+td.titel .entwurf { font: 500 0.68rem/1 var(--mono); letter-spacing: 0.14em; color: var(--ink-2); margin-left: 0.6rem; border: 1px solid var(--rule); padding: 0.15rem 0.35rem; }
+td.num { font: 400 0.9rem/1.4 var(--mono); text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; width: 8rem; }
+td.typ { font: 400 0.8rem/1.4 var(--sans); color: var(--ink-2); width: 7rem; }
+.mock { position: fixed; bottom: 10px; right: 10px; font: 700 11px/1 var(--mono); letter-spacing: 0.1em; background: oklch(0.5 0.19 25); color: #fff; padding: 5px 9px; }
+</style>
+</head>
+<body>
+<div class="mock">MOCK — R1 REGISTRATUR</div>
+<header>
+  <span class="wordmark">Bundesarchiv</span>
+  <span class="hairspace"></span>
+  <input value="fahrt">
+  <span class="btn">Suchen</span>
+  <span class="btn primary">+ Neu …</span>
+</header>
+<hr class="rule-heavy">
+<div class="metaline">
+  <span>Suchergebnisse</span>
+  <span class="count">17 Treffer</span>
+  <span class="folio">01<small> / 03</small></span>
+</div>
+<div class="rail">
+  <span class="facet">Bestand</span><span class="facet">Medienart</span><span class="facet">Dokumenttyp</span><span class="facet">Datierung</span><span class="facet">Schlagwort</span>
+  <span class="chip"><span>Medienart</span>Fotografie ✕</span>
+  <span class="clear">Alle Filter entfernen</span>
+</div>
+<main>
+<table>
+  <thead><tr><th>Signatur</th><th>Titel</th><th class="num">Datierung</th><th>Typ</th></tr></thead>
+  <tbody>
+    <tr><td class="sig">F3/1-a</td><td class="titel">Gründungsfahrt an die Lahn</td><td class="num">1953-08</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F3/1-b</td><td class="titel">Erstes Bundeslager, Gruppenbild</td><td class="num">1955</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig leer">ohne Signatur</td><td class="titel">Kohtenaufbau am Flussufer <span class="entwurf">ENTWURF</span></td><td class="num">195X</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F12/3-b2</td><td class="titel">Sommerfahrt 1962, Morgenrunde am Zeltplatz</td><td class="num">1962-07</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F12/4</td><td class="titel">Singewettstreit, Bühne und Publikum</td><td class="num">1964~</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F14/1</td><td class="titel">Winterfahrt in den Harz <span class="entwurf">ENTWURF</span></td><td class="num">1967-01</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F21/2-c</td><td class="titel">Bundesthing, Abstimmung im großen Rund</td><td class="num">1971-05</td><td class="typ">Fotografie</td></tr>
+    <tr><td class="sig">F22/8</td><td class="titel">Fahrtenmesser-Werkstatt, Detailaufnahmen</td><td class="num">1974/1976</td><td class="typ">Fotografie</td></tr>
+  </tbody>
+</table>
+</main>
+</body>
+</html>
