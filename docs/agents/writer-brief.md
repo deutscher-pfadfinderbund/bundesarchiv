@@ -22,7 +22,8 @@ In an agent worktree, additionally run `uv run pyrefly check src tests`
 verbatim — a bare `pyrefly check` there resolves zero files and passes
 vacuously.
 
-The pre-commit hook runs these too. Do not `--no-verify` except on a docs-only
+The commit-stage hook runs only uv-lock, ruff and pyrefly; mypy and pytest run
+at pre-push. Do not `--no-verify` except on a docs-only
 commit where the hooks are irrelevant, and only when the full gates ran clean on
 the immediately prior code commit. The baseline is whatever the ledger records
 (e.g. 1068 unit + 13 e2e at the Part 4 exit) — never let it drop.
