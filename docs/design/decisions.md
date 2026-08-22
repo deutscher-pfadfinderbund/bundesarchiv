@@ -55,6 +55,18 @@ then this index, in the same wave.
 5b. **A11y mechanicals** — workbench lacks an `h1` and a skip link (live
    critique finds, 2026-08-22). WCAG 2.2 AA is already law (§D); no
    ruling needed, pure fixes.
+5c. **Edit-form bugs** (critique 2026-08-22, no rulings needed): CAS
+   conflict renders no autofocus and no alert role (P1 — the silent-
+   data-loss state); English EDTF parser error in German UI (P2);
+   Datierung echo keyup-only, misses paste (P3); dirty flag resets on
+   error re-render (P3). Plus ruled changes: Speichern stays on form;
+   Titel autofocus on plain edits; reader-page onward-link target sizes.
+5d. **Detail-page bugs** (critique 2026-08-22): dead plate-state cue
+   (dies with the reader wave); img width/height missing (CLS on slow
+   connections); lazy-loading the LCP cover; caption-less media =
+   nameless links (alt gate); ENTWURF inside the h1 (state-in-title at
+   the SR layer); `rgb(0,0,0)` detector advisory class — one computed
+   check.
 6. **Error voice** — one generic banner string today; needs a small
    error-copy taxonomy (what the archivist is told, when), then mechanical.
 7. **Bulk chooser composition** — "— Feld wählen —" state shows no value

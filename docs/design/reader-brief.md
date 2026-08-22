@@ -11,18 +11,31 @@ landing, the member's research destination, the archivist's inspection
 view. Phone-first by law (links arrive via chat/mail); full truth lives
 here (pane = scent). Mode: Read.
 
-## Composition (ruled: record first)
+## Composition (ruled: record first; amended per critique 2026-08-22)
 
 One composition for every article type, top to bottom:
 
 1. **Identity header** — Signatur tab (register row 1's licensed context),
    Titel, Datierung, gray ENTWURF when draft (pane-lifecycle-brief.md).
-2. **Media roll** — all media full-width in ADR-0015 order (first =
+2. **Beschreibung** — the article's body text as real paragraphs at the
+   reading measure (amendment, owner 2026-08-22: the incumbent's 65ch
+   prose section survives — a reading surface keeps the thing that is
+   read).
+3. **Media roll** — all media full-width in ADR-0015 order (first =
    cover), caption beneath each. Ruled: vertical roll, no
-   lightbox/thumbnail machinery.
-3. **Akte facts** — the record's key/value list. Custom fields render for
-   Archivists only (ADR 0009), layered into the same list.
-4. **Bearbeiten** — the reader's ONLY archivist action (ruled: "the
+   lightbox/thumbnail machinery. **Precondition (owner 2026-08-22):
+   reader-size image derivatives (~1200–1600px or srcset) ship BEFORE the
+   roll** — the current 480px thumbnails upscale blurry at full width
+   (critique P0; invisible on the flat-color corpus, G.6).
+4. **Akte facts** — the record's key/value list. Custom fields render for
+   Archivists only (ADR 0009), layered into the same list. **The Umfang
+   row is DROPPED** (owner 2026-08-22): it equals len(media), a
+   fabrication risk — returns only with a real extent field.
+5. **Onward paths** (amendment, owner 2026-08-22): the Bestand breadcrumb
+   chain and Schlagwort links survive into the new reader — the page must
+   not dead-end for members. All onward links meet the 24px AA target
+   floor (critique P1: incumbent tag links measure 19px tall).
+6. **Bearbeiten** — the reader's ONLY archivist action (ruled: "the
    workhorse for bulk edits is the table"); members see no action chrome.
 
 ## Media roll — designed essentials (ruled scope)

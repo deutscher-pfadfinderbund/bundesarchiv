@@ -430,7 +430,21 @@ its character carriers are each used once or never. Chosen levers:
   stays quiet; no new chroma, tints, or effects — character comes from
   the system's own reserved carriers.
 
-## Mock-gate verdicts (owner, 2026-08-22 — on MOCK renders, G.16-labeled)
+## Edit-form & reader rulings (owner, 2026-08-22 — post-critique round)
+
+- **Reader brief amended (all four):** the Beschreibung prose section
+  joins the composition; onward paths (Bestand crumbs + Schlagwort links)
+  survive; reader-size image derivatives ship BEFORE the media roll; the
+  Umfang row drops (len(media) is not a physical extent).
+- **Speichern stays on the form** — save is a heartbeat with a saved
+  confirmation; leaving is an explicit act (Zurück/Öffnen). Supersedes
+  the save-and-exit flow; the "view first, edit deliberately" law is
+  about ENTERING edit mode, unchanged.
+- **Kopieren copies fields only, never media** — ratified (was unstated;
+  copy is a cataloging template, scans attach fresh).
+- **Autofocus on plain edits: Titel** — the first-empty walk runs only on
+  the create→edit continuation; rare folds stay shut on re-edits. The
+  serial flow keeps `?fokus=signatur`.
 
 - **Typefaces: keep the system stacks for now.** "I can't really see the
   difference." No OFL swap; the vendored-faces option stays the recorded
