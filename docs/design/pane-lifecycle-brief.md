@@ -15,9 +15,10 @@ Precedent format: `form-wave-brief.md`.
      the boxed amber badge.
    Published renders nothing (absence = published — unchanged law).
    Cue-register consequence: row 4 (the one amber mark) is superseded by
-   this treatment; `--draft`/`--on-draft` roles stay in tokens.css (form
-   validation-adjacent uses may remain) but no register row licenses amber
-   lifecycle marks anymore.
+   this treatment; no register row licenses amber lifecycle marks anymore.
+   `--draft`/`--on-draft` PARK in tokens.css with a comment reserving them
+   as the future Eingereicht/Submission lifecycle channel (owner
+   2026-08-22 — post-v1; not deleted, not licensed).
 2. **Pane contract: scent.** The pulled sheet is a PREVIEW — identity
    (Signatur tab, Titel, gray ENTWURF when draft), media scent, a few key
    facts. Details live on the Article's own page. Composition may flex

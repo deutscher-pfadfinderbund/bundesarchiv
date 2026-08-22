@@ -53,7 +53,9 @@ Mode: Operate (the task is: get in). Phone-first for door and denied pages
 - **Header carries NO identity** — no name, tier, or login state, for any
   tier. Archivist identity is implicit in the capabilities on the page.
 - **Abmelden lives in the footer**: a quiet line at every page's end,
-  rendered only while a session exists.
+  rendered only while a session exists. The footer carries NOTHING else
+  (owner 2026-08-22 — "Abmelden only"); it is the app's first and only
+  footer, material role: bare desk, no band.
 
 ## States to render (gallery, both modes, phone + desktop)
 

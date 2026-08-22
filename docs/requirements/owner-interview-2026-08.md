@@ -361,6 +361,21 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   bulk edits by the archivists is the table" — Kopieren, Löschen and
   everything serial stay on the workbench; the reader offers the one jump
   into deliberate editing.
+- **No audience fact on the reader** — exposure lives on the edit screen
+  only; the reader carries no access chrome for any tier.
+
+## Craft rulings (owner, 2026-08-22 — spacing/color/hierarchy round)
+
+- **Footer carries Abmelden only.** One quiet line at page end, rendered
+  only while a session exists; nothing else lives there.
+- **Reading-measure token: yes.** One deliberate non-color token
+  (~65–70ch class) for prose surfaces; sheet compositions consume it.
+  Enters tokens.css with the wave that first needs it (reader/door).
+- **Amber parks for Submission.** Once the gray-ENTWURF wave supersedes
+  register row 4, `--draft`/`--on-draft` stay in tokens.css with a comment
+  reserving them as the future Eingereicht/Submission lifecycle channel
+  (post-v1) — not deleted, not licensed.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral

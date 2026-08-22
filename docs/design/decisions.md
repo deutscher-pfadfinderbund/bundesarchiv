@@ -29,6 +29,10 @@ then this index, in the same wave.
 | Shared views: archivists browse/research like members — one experience, capabilities layer on | owner-interview 2026-08 §Strategic rulings |
 | Media v1 = designed essentials, simple (image viewing, native players, PDF hand-off); exotic viewers future | owner-interview 2026-08 §Strategic rulings |
 | Entry surfaces: one-sentence sheet door, silent link arrival, no identity chrome, footer Abmelden, quiet dead-link hint | entry-surfaces-brief.md; owner 2026-08-22 |
+| Reader: record first → vertical media roll → facts; Bearbeiten only; no audience fact | reader-brief.md; owner 2026-08-22 |
+| Footer = Abmelden only (the app's one footer; bare desk) | owner 2026-08-22 §Craft rulings |
+| Reading-measure token (~65–70ch) for prose surfaces — enters with the wave that needs it | owner 2026-08-22 §Craft rulings |
+| Amber parks for Submission once gray ENTWURF lands (reserved, not licensed) | owner 2026-08-22 §Craft rulings |
 | Lifecycle mark = gray ENTWURF word (no amber, no box), all surfaces | pane-lifecycle-brief.md; owner 2026-08-22 — **lukewarm ("for now"), revisit candidate (G.20)** |
 | Quiet defaults stand: hover-revealed bulk boxes/row toolbars, self-hiding Sammelbearbeitung | owner 2026-08-07, reconfirmed 2026-08-22 |
 
@@ -48,6 +52,9 @@ then this index, in the same wave.
    promise at zero? (Also touches the C10 status-only-band tension.)
 5. **Fail-open labels** — ULID fallback ("Unbekannter Bestand") +
    Medienart display vocab. Mechanical once copy is chosen; file as issue.
+5b. **A11y mechanicals** — workbench lacks an `h1` and a skip link (live
+   critique finds, 2026-08-22). WCAG 2.2 AA is already law (§D); no
+   ruling needed, pure fixes.
 6. **Error voice** — one generic banner string today; needs a small
    error-copy taxonomy (what the archivist is told, when), then mechanical.
 7. **Bulk chooser composition** — "— Feld wählen —" state shows no value
