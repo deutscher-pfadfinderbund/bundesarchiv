@@ -78,17 +78,22 @@ then this index, in the same wave.
 - **D1 detail page + media — SHAPED** (`reader-brief.md`): record first,
   vertical media roll, Bearbeiten the only reader action; inferences
   i1–i5 awaiting the correction round.
-- **D2 member arrival/browse** — largely collapsed by the shared-views
-  ruling into D1's reader + view switching; remaining open question from
-  exploration 04: how readers FILTER in the Lesesaal view.
+- **D2 — CLOSED (owner 2026-08-22):** Lesesaal is the third result view
+  under the SAME rail (table default). No separate reading-mode filters;
+  serif reading role stays reserved for that view's wave.
 - **D4 Bestand navigation — RULED (owner 2026-08-22):** tree is shallow
   (≤2–3 levels); facet-only browsing for now (**lukewarm — revisit after
   real data**, G.20); optional Bestand description (display surface
   deferred); the term is "Bestand" (CONTEXT.md corrected). The facet
   panel presents the shallow tree indented *(inference i6 — correction
   round)*.
-- **D5 search-grammar exposure** — how much query power gets visible UI;
-  cheapest, trails.
+- **D5 — RULED (owner 2026-08-22):** Datierung von/bis range joins the
+  rail now (EDTF bounds support it); further grammar UI waits for
+  archivist feedback.
+- **Zero-hit rail — RULED (owner 2026-08-22): smart facet counts** (each
+  dropdown computed with its own filter excluded) — fixes the pivot dead
+  end and stabilizes rail geometry. Index/query work rides the wave that
+  builds it.
 
 ## Deferred / future (recorded, not queued)
 

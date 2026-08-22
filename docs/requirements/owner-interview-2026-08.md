@@ -391,6 +391,23 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
 - **"Bestand" is law.** The CONTEXT.md label *Sammlung* is superseded;
   the registry is corrected in the same turn.
 
+## Filter & search rulings (owner, 2026-08-22 — D2/D5 interview)
+
+- **Lesesaal is the third result view under the SAME rail** (with table
+  and cards; table stays default). Exploration 04's open question ("how
+  do readers filter in this mode") is CLOSED: the rail filters all views
+  identically; no separate reading-mode filter system. The serif reading
+  role stays reserved for the Lesesaal view's own wave.
+- **Smart facet counts.** Each rail dropdown's counts are computed with
+  its OWN filter excluded (standard faceted-search counting) — a dropdown
+  shows what switching that filter would yield. This fixes the zero-hit
+  dead end (pivot stays possible) and stabilizes rail geometry between
+  queries (groups no longer appear/vanish with the result set).
+- **Datierung range: now.** Von/bis year inputs join the rail as a
+  dropdown (EDTF `date_earliest/latest` bounds already support it).
+  Archive research is date-driven; this does not wait for preview
+  feedback.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
