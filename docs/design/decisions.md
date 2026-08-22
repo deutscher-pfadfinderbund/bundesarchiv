@@ -74,6 +74,28 @@ then this index, in the same wave.
     reading role is RESERVED, licensed with that wave) → demo pages in
     lockstep throughout.
 
+### Character program (owner, 2026-08-22 — anti-boring rulings)
+
+Levers chosen: real OFL typefaces (mock gate picks the faces) ·
+Waldläuferzeichen layer · Lesesaal reading view. **First peak: the
+empty/404 states** — Waldläuferzeichen debut (the "nach Hause gegangen"
+sign is a literal 404; an empty result set points onward). Motion passed
+for now (stays licensed, unscheduled). Workbench stays quiet — character
+only from the system's reserved carriers.
+
+Mock-gate queue for the program:
+- **Type round:** 2–3 sans + serif pairings rendered on real screens
+  (workbench + reader header + wordmark), both modes. OFL candidates to
+  render (not decided): sans — Instrument Sans, Schibsted Grotesk, Source
+  Sans 3; serif — Literata, Source Serif 4, Newsreader; mono stays
+  system/It's-fine until it bothers someone.
+- **Waldläuferzeichen round:** empty-results, 404/denied, and
+  "ohne Signatur"/"noch nicht eingeordnet" states with trail-sign marks —
+  hairline-stroke, ink-colored, register row needed before shipping
+  (owner decision at the gate).
+- **Label-case round** (already queued) and **sortable-heads round** ride
+  the same gate — one render set, four decisions.
+
 ### Strategic shape queue (owner order, 2026-08-22)
 
 - **D3 entry surfaces — SHAPED** (`entry-surfaces-brief.md`); build rides

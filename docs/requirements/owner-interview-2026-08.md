@@ -408,6 +408,28 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   Archive research is date-driven; this does not wait for preview
   feedback.
 
+## Character rulings (owner, 2026-08-22 — "the design is pretty boring" round)
+
+Diagnosis accepted: the system is under-expressed, not under-designed —
+its character carriers are each used once or never. Chosen levers:
+
+- **Real typefaces (OFL, vendored)** — the drop-in swap tokens.css always
+  reserved: a characterful working sans + serif replace the system
+  stacks; roles and layout untouched. Candidates decided at a mock gate
+  on renders, never in prose.
+- **Waldläuferzeichen layer** — build the sanctioned personality
+  extension (empty states, 404, micro-icons in trail-sign language).
+- **Lesesaal reading view** — build the third result view with the
+  reserved serif reading role.
+- **First boldness peak: the EMPTY/404 states** — the Waldläuferzeichen
+  debut where nothing competes. (The door stays briefed but is not the
+  first peak.)
+- **Motion: passed for now** — desk-plane motion stays licensed law,
+  unscheduled.
+- Standing constraint reaffirmed by the round's framing: the workbench
+  stays quiet; no new chroma, tints, or effects — character comes from
+  the system's own reserved carriers.
+
 ## Closing rulings (owner, 2026-08-22 — board-clearing round)
 
 - **Reader/entry inferences i1–i6 all stand** (see the briefs): native
