@@ -285,6 +285,26 @@ contexts.
 | Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
 | Focus | `focus-ring`, 2px offset outline |
 
+## Named voice patterns (extracted 2026-08-28)
+
+Composition precedents the critique round confirmed as this product's voice.
+Not cues (nothing here needs a register row) — precedent-rule targets: a new
+surface with the same job copies these, not a fresh invention.
+
+- **Consequence disclosure** (`sammelbearbeitung_pruefen.html`, the orphan
+  branch): a side effect is enumerated at the record level — one quiet row
+  per affected record, `{alt} → {neu}` (or `→ (leer)`), weight emphasis, no
+  loud color — and the committing button relabels itself to name the full
+  consequence ("Medienart setzen, Dokumenttyp leeren"). Any surface that
+  destroys or overwrites data per-record renders this grammar; a bare count
+  is not a disclosure. (The bulk-overwrite P0 wave extends this to the main
+  apply path.)
+- **Conflict is not an error** (`sammelbearbeitung_ergebnis.html`): a CAS
+  race or stale-selection outcome renders as quiet register rows — no red,
+  no alert tone — each row carrying its own onward action ("Diesen Artikel
+  bearbeiten"), plus one collective recovery ("Diese N erneut auswählen").
+  Red stays reserved for the archivist's own invalid input.
+
 ## Contrast
 
 Contrast for the pairs in the table above is judged at the design gate

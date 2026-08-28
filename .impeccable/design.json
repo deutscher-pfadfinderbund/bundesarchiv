@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-22T00:00:00Z",
+  "generatedAt": "2026-08-28T00:00:00Z",
   "title": "Design System: Bundesarchiv",
   "extensions": {
     "colorMeta": {
@@ -93,7 +93,7 @@
       "name": "Labeled Field",
       "kind": "input",
       "refersTo": "input",
-      "description": "Stacked label + input: label type above, quiet lowest-container fill, error via message-node presence.",
+      "description": "Stacked label + input: label type above, quiet lowest-container fill. A field carrying an error/hint message is a div.field with an explicit <label for> and the message as a SIBLING node wired via aria-describedby (never inside the label — it would join the accessible name); error presence turns the border red and sets aria-invalid.",
       "html": "<label class=\"ds-field\"><span>Titel</span><input type=\"text\" value=\"Sommerfahrt 1967\"></label>",
       "css": ".ds-field { display: inline-flex; flex-direction: column; gap: var(--space-1, 0.25rem); color: var(--on-surface, oklch(0.25 0 300)); } .ds-field > span { font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.02em; color: var(--on-surface-variant, oklch(0.46 0 300)); } .ds-field input { font: var(--type-meta, 400 0.85rem/1.4 system-ui); color: var(--on-surface, oklch(0.25 0 300)); background: var(--surface-container-lowest, oklch(0.96 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); } .ds-field input:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; border-color: var(--on-surface, oklch(0.25 0 300)); }"
     },

@@ -306,6 +306,15 @@ border, no fill ("ohne Signatur", empty state).
   (C14), `aria-labelledby` on the label span.
 - **File input stays native** (German browser renders German strings).
 
+### Voice patterns (precedent targets)
+- **Consequence disclosure:** per-record `{alt} → {neu}` rows (weight, not
+  color) + a commit button that relabels itself to name the full
+  consequence. Any surface overwriting or clearing data copies this grammar;
+  a bare count is not a disclosure.
+- **Conflict is not an error:** CAS/stale-selection outcomes render as quiet
+  rows with per-row onward links and one collective recovery — no red. Red
+  is reserved for the archivist's own invalid input.
+
 ### Badges
 - **Default:** hairline outline, label type, transparent — quiet.
 - **ENTWURF:** the one amber mark. Boxed on reader/edit headers; in the
