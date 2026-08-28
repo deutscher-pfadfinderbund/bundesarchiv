@@ -500,6 +500,12 @@ three MOCK concept directions were rendered (sources preserved in
   (G.7/G.14): a mock round showing uppercase vs mixed-case labels across
   the rail, ledger head, and reader — not ruled in prose.
 
+## Follow-up ruling (owner, 2026-08-28)
+
+- **ENTWURF carve-out dropped.** When the label role's uppercase retires
+  (mock-gate verdict 2026-08-22), the draft register mark loses its
+  exception too: it renders "Entwurf", mixed case, like every other label.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral

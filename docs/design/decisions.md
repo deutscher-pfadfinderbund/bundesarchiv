@@ -99,8 +99,10 @@ Mock-gate VERDICTS (2026-08-22, on MOCK renders):
 - **Typefaces: keep system stacks for now** ("can't really see the
   difference") — revisit candidate, verdict was indifference not
   endorsement.
-- **Label role: MIXED CASE** — uppercase retires system-wide (ENTWURF
-  register mark excluded). Implementation wave pending.
+- **Label role: MIXED CASE** — uppercase retires system-wide. The ENTWURF
+  register mark was excluded at first; the owner dropped that carve-out on
+  2026-08-28 — the draft mark reads "Entwurf" like every other label.
+  Implementation wave pending.
 - **Sortable heads: HOLLOW GLYPH at rest** — new register row with the
   wave.
 - **Waldläuferzeichen round: still pending** (deferred, low priority —
