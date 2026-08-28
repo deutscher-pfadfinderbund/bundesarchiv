@@ -8,69 +8,41 @@ facets — pinned by a test.
 """
 
 import re
-from pathlib import Path
+from collections.abc import Callable
 
 import pytest
-from django.core import signing
-from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
-
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
-from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import (
-    Article,
-    Audience,
-    AudienceTier,
-    Collection,
-    Lifecycle,
+from tests.app.web._fixtures import (
+    ROOT,
+    Corpus,
+    client_as,
+    make_article,
+    make_collection,
 )
-from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
-_DEV_KEY = "test-bestand-edit-key"
+from bundesarchiv.domain.identity import new_ulid
+from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 FOTOS = new_ulid()
 
 
 @pytest.fixture
-def root(tmp_path: Path) -> Path:
-    store = LocalFsObjectStore(tmp_path / "canonical")
-    collections = CollectionRepository(store)
-    articles = ArticleRepository(store)
-    collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
-    collections.save(Collection(FOTOS, "Fotografien", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
-    articles.save(
-        Article(
-            ulid=new_ulid(),
-            title="Ein Foto",
-            collection_id=FOTOS,
-            lifecycle=Lifecycle.PUBLISHED,
-        ),
-        0,
+def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
+    """One MEMBERS Bestand holding one article. ROOT is renamed because the form prints the PARENT's
+    name and a test pins it — under the shared default name that assert would pass on the page's
+    wordmark alone."""
+    corpus = make_corpus()
+    corpus.collections.save(make_collection(ROOT, "Bundesarchiv", parent_id=None), 1)
+    corpus.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.MEMBERS))
     )
-    return tmp_path / "canonical"
+    corpus.add_article(make_article(new_ulid(), collection_id=FOTOS, title="Ein Foto"))
+    return corpus
 
 
-def _settings(root: Path) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(root),
-    }
-
-
-def _client_as(viewer: Viewer | None) -> Client:
-    client = Client()
-    if viewer is not None:
-        signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-        client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
-
-
-def _name_of(root: Path, ulid: str) -> str:
-    return CollectionRepository(LocalFsObjectStore(root)).load(ulid).collection.name
+def _name_of(corpus: Corpus, ulid: str) -> str:
+    return corpus.collections.load(ulid).collection.name
 
 
 # --- archivist gate + 404 discipline ----------------------------------------------
@@ -78,32 +50,28 @@ def _name_of(root: Path, ulid: str) -> str:
 
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=())])
 @pytest.mark.parametrize("method", ["get", "post"])
-def test_non_archivist_gets_404(root: Path, viewer: Viewer | None, method: str) -> None:
-    with override_settings(**_settings(root)):
-        response = getattr(_client_as(viewer), method)(f"/bestand/{FOTOS}/bearbeiten")
+def test_non_archivist_gets_404(archive: Corpus, viewer: Viewer | None, method: str) -> None:
+    response = getattr(client_as(viewer), method)(f"/bestand/{FOTOS}/bearbeiten")
     assert_denied(response)
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
-def test_malformed_or_absent_ulid_is_404(root: Path, ulid: str) -> None:
-    with override_settings(**_settings(root)):
-        response = _client_as(Archivist()).get(f"/bestand/{ulid}/bearbeiten")
+def test_malformed_or_absent_ulid_is_404(archive: Corpus, ulid: str) -> None:
+    response = client_as(Archivist()).get(f"/bestand/{ulid}/bearbeiten")
     assert_denied(response)
 
 
 @pytest.mark.django_db
-def test_non_archivist_post_leaves_name_unchanged(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        _client_as(Public()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Gehackt"})
-    assert _name_of(root, FOTOS) == "Fotografien"  # unchanged
+def test_non_archivist_post_leaves_name_unchanged(archive: Corpus) -> None:
+    client_as(Public()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Gehackt"})
+    assert _name_of(archive, FOTOS) == "Fotografien"  # unchanged
 
 
 # --- GET renders the rename form (Name editable, parent + Sichtbarkeit read-only) --
 
 
-def test_get_renders_name_field_and_readonly_rows(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
     assert 'name="name"' in body  # Name is editable
     assert "Fotografien" in body  # current name seeded
     assert "Bundesarchiv" in body  # parent shown read-only (the parent's name)
@@ -118,36 +86,31 @@ def test_get_renders_name_field_and_readonly_rows(root: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_post_renames_and_redirects(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        response = _client_as(Archivist()).post(
-            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
-        )
+def test_post_renames_and_redirects(archive: Corpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
+    )
     assert response.status_code == 302
-    assert _name_of(root, FOTOS) == "Lichtbilder"
+    assert _name_of(archive, FOTOS) == "Lichtbilder"
 
 
 @pytest.mark.django_db
-def test_post_blank_name_re_renders_with_error_unchanged(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        response = _client_as(Archivist()).post(
-            f"/bestand/{FOTOS}/bearbeiten", {"name": "", "expected_version": "1"}
-        )
+def test_post_blank_name_re_renders_with_error_unchanged(archive: Corpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/bestand/{FOTOS}/bearbeiten", {"name": "", "expected_version": "1"}
+    )
     assert response.status_code == 200
     assert "Name ist erforderlich." in response.content.decode()
-    assert _name_of(root, FOTOS) == "Fotografien"  # unchanged
+    assert _name_of(archive, FOTOS) == "Fotografien"  # unchanged
 
 
 @pytest.mark.django_db
-def test_rename_shows_new_name_in_workbench_facets(root: Path) -> None:
+def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
     # the reindex path must surface the new name in the collection facet group (the denormalized
     # ancestors reindex + the live name resolution).
-    with override_settings(**_settings(root)):
-        client = _client_as(Archivist())
-        client.post(
-            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
-        )
-        body = client.get("/").content.decode()
+    client = client_as(Archivist())
+    client.post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"})
+    body = client.get("/").content.decode()
     assert "Lichtbilder" in body  # the renamed Bestand's new name in the rail's Bestand dropdown
     assert "Fotografien" not in body  # the old name is gone
 
@@ -155,11 +118,10 @@ def test_rename_shows_new_name_in_workbench_facets(root: Path) -> None:
 # --- read-only display grammar (matches the shared 4.7 source strings) --------------
 
 
-def test_readonly_sichtbarkeit_uses_shared_source_strings(root: Path) -> None:
+def test_readonly_sichtbarkeit_uses_shared_source_strings(archive: Corpus) -> None:
     # FOTOS is MEMBERS in this fixture → "Alle Mitglieder"; the inherit + groups captions must match
     # the 4.7 source ("Vom Bestand erben", "Gruppe: ") — grammar fixups 5 + 6.
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
     assert "Alle Mitglieder" in body
     assert "Vom Eltern-Bestand erben" not in body  # the old, non-matching inherit string is gone
     assert "Gruppe(n):" not in body  # the old, non-matching groups prefix is gone
@@ -177,37 +139,35 @@ def _expected_version_of(body: str) -> str:
 
 
 @pytest.mark.django_db
-def test_get_seeds_hidden_expected_version(root: Path) -> None:
-    with override_settings(**_settings(root)):
-        body = _client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+def test_get_seeds_hidden_expected_version(archive: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
     assert _expected_version_of(body) == "1"  # FOTOS was saved once in the fixture -> v1
 
 
 @pytest.mark.django_db
-def test_stale_expected_version_loses_the_race_and_preserves_input(root: Path) -> None:
+def test_stale_expected_version_loses_the_race_and_preserves_input(archive: Corpus) -> None:
     # The genuine race the brief describes: the form is GET'd at v1, a CONCURRENT rename (a second
     # archivist, or this same one in another tab) bumps the store to v2, and the ORIGINAL stale form
     # then POSTs expected_version=1. The CAS check must reject that stale version — a rename that
     # raced another rename must NOT silently win (lost update) — and re-render the "Inzwischen
     # geändert" panel with the winner's name shown and the submitted name preserved.
-    with override_settings(**_settings(root)):
-        client = _client_as(Archivist())
-        get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-        stale_version = _expected_version_of(get_body)
-        assert stale_version == "1"
+    client = client_as(Archivist())
+    get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    stale_version = _expected_version_of(get_body)
+    assert stale_version == "1"
 
-        # a concurrent rename lands first (its own fresh GET+POST at v1), bumping the store to v2
-        client.post(
-            f"/bestand/{FOTOS}/bearbeiten",
-            {"name": "Lichtbilder", "expected_version": stale_version},
-        )
-        assert _name_of(root, FOTOS) == "Lichtbilder"
+    # a concurrent rename lands first (its own fresh GET+POST at v1), bumping the store to v2
+    client.post(
+        f"/bestand/{FOTOS}/bearbeiten",
+        {"name": "Lichtbilder", "expected_version": stale_version},
+    )
+    assert _name_of(archive, FOTOS) == "Lichtbilder"
 
-        # the ORIGINAL stale form now POSTs, still carrying expected_version=1
-        response = client.post(
-            f"/bestand/{FOTOS}/bearbeiten",
-            {"name": "Gestohlen", "expected_version": stale_version},
-        )
+    # the ORIGINAL stale form now POSTs, still carrying expected_version=1
+    response = client.post(
+        f"/bestand/{FOTOS}/bearbeiten",
+        {"name": "Gestohlen", "expected_version": stale_version},
+    )
     assert response.status_code == 200  # not a 500, and NOT a redirect (no save happened)
     body = response.content.decode()
     assert "Inzwischen geändert" in body  # the conflict panel
@@ -215,30 +175,29 @@ def test_stale_expected_version_loses_the_race_and_preserves_input(root: Path) -
     assert 'value="Gestohlen"' in body  # the just-submitted (losing) name is preserved in the input
     assert _expected_version_of(body) == "2"  # refreshed to the winner's version
     assert (
-        _name_of(root, FOTOS) == "Lichtbilder"
+        _name_of(archive, FOTOS) == "Lichtbilder"
     )  # the stale rename never took effect (no lost update)
 
 
 @pytest.mark.django_db
-def test_matching_expected_version_still_saves_and_redirects(root: Path) -> None:
+def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) -> None:
     # Pin: a fresh rename (matching version) still saves and redirects, now that expected_version
     # rides the form.
-    with override_settings(**_settings(root)):
-        client = _client_as(Archivist())
-        get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-        version = _expected_version_of(get_body)
-        response = client.post(
-            f"/bestand/{FOTOS}/bearbeiten",
-            {"name": "Lichtbilder", "expected_version": version},
-        )
+    client = client_as(Archivist())
+    get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    version = _expected_version_of(get_body)
+    response = client.post(
+        f"/bestand/{FOTOS}/bearbeiten",
+        {"name": "Lichtbilder", "expected_version": version},
+    )
     assert response.status_code == 302
     assert response["Location"] == f"/?bestand={FOTOS}"
-    assert _name_of(root, FOTOS) == "Lichtbilder"
+    assert _name_of(archive, FOTOS) == "Lichtbilder"
 
 
 @pytest.mark.django_db
 def test_racing_rename_conflict_re_renders_panel_not_500(
-    root: Path, monkeypatch: pytest.MonkeyPatch
+    archive: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # A concurrent rename won between GET and POST: the CAS save raises Conflict; the view must
     # re-render the "Inzwischen geändert" panel (200) with a refreshed version — never a 500.
@@ -249,10 +208,7 @@ def test_racing_rename_conflict_re_renders_panel_not_500(
         raise Conflict("someone else saved first")
 
     monkeypatch.setattr(collection_views, "save_collection", boom)
-    with override_settings(**_settings(root)):
-        response = _client_as(Archivist()).post(
-            f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder"}
-        )
+    response = client_as(Archivist()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder"})
     assert response.status_code == 200  # not a 500
     body = response.content.decode()
     assert "Inzwischen geändert" in body  # the conflict panel

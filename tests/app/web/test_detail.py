@@ -9,30 +9,25 @@ for archivists, the EDTF human-vs-mono double render, and no amber/red on a memb
 Pure request-handling against a local FS store (load + resolve + visible) — no Postgres.
 """
 
-from pathlib import Path
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import pytest
-from django.core import signing
-from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
+from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import (
-    Article,
-    Audience,
-    AudienceTier,
-    Collection,
-    Lifecycle,
-    MediaRef,
-)
+from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
-_DEV_KEY = "test-detail-dev-key"
+# The detail page only PRINTS the Bestand id (as a ?bestand= facet link) and never routes on it, so
+# a mnemonic reads better here than a ULID.
+FOTOS = "FOTOS"
+
+PUB = new_ulid()
+DRAFT = new_ulid()
+MARKUP = new_ulid()
 
 _STANDORT = "Magazin 3, Regal 7"
 _CUSTOM_VALUE = "Restaurierung 1998"
@@ -48,114 +43,80 @@ def _png(color: tuple[int, int, int]) -> bytes:
     return buf.getvalue()
 
 
-class _Corpus:
-    """A small FS archive with ONE richly-populated published article (all card fields + two media +
-    archivist-only Standort/custom) and one draft, in a public collection under a named root — enough
-    to exercise the record card, filmstrip, per-tier projection, and the draft gate. Media blobs are
-    stored via ``add_media`` (the repository refuses an Article referencing an unstored blob), and
-    the returned refs' real content hashes are captured for the media-URL assertions."""
+@dataclass(frozen=True)
+class _DetailArchive:
+    """The record ulids of this suite's archive plus the two media content hashes, which only the
+    store can hand out."""
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.store = LocalFsObjectStore(root)
-        self._build()
-
-    def _build(self) -> None:
-        collections = CollectionRepository(self.store)
-        articles = ArticleRepository(self.store)
-        collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
-        collections.save(
-            Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0
-        )
-        cover = articles.add_media(self.pub, "a.png", _png((200, 40, 60)), media_type="image/png")
-        second = articles.add_media(self.pub, "b.png", _png((40, 200, 60)), media_type="image/png")
-        self.cover_hash = cover.content_hash
-        self.second_hash = second.content_hash
-        articles.save(
-            Article(
-                ulid=self.pub,
-                title="Sommerfahrt 1962",
-                collection_id="FOTOS",
-                lifecycle=Lifecycle.PUBLISHED,
-                body="Erste Zeile.\n\nZweite Zeile.",
-                ref_code="F12",
-                media_type="Fotografie",
-                document_type="Porträt",
-                tags=("fahrt", "sommer"),
-                date=EdtfDate("1962-07"),
-                creator="K. Meyer",
-                subject_place="Harz",
-                physical_location=_STANDORT,
-                custom=(("Bearbeitung", _CUSTOM_VALUE),),
-                media=(
-                    MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
-                    MediaRef(second.filename, second.content_hash, caption="Gruppenbild"),
-                ),
-            ),
-            0,
-        )
-        articles.save(
-            Article(
-                ulid=self.draft,
-                title="Entwurf",
-                collection_id="FOTOS",
-                lifecycle=Lifecycle.DRAFT,
-            ),
-            0,
-        )
-        # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
-        # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
-        evil = articles.add_media(self.markup, "e.png", _png((90, 90, 90)), media_type="image/png")
-        articles.save(
-            Article(
-                ulid=self.markup,
-                title="<script>alert('titel')</script>",
-                collection_id="FOTOS",
-                lifecycle=Lifecycle.PUBLISHED,
-                body="Harmlos.\n\n<script>alert('body')</script>",
-                creator="<b>Autor</b>",
-                media=(
-                    MediaRef(evil.filename, evil.content_hash, caption="<img src=x onerror=1>"),
-                ),
-            ),
-            0,
-        )
-
-    pub = new_ulid()
-    draft = new_ulid()
-    markup = new_ulid()
+    pub: str
+    draft: str
+    markup: str
+    cover_hash: str
+    second_hash: str
 
 
 @pytest.fixture
-def corpus(tmp_path: Path) -> _Corpus:
-    return _Corpus(tmp_path / "canonical")
+def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
+    """Overrides the standard corpus: the read page needs ONE richly-populated published article
+    (all card fields + two media + archivist-only Standort/custom) alongside a draft and a
+    markup-bearing record — content the frozen standard shape cannot hold. Media blobs are stored
+    via ``add_media`` (the repository refuses an Article referencing an unstored blob), and the
+    returned refs' real content hashes travel back for the media-URL assertions."""
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    cover = archive.articles.add_media(PUB, "a.png", _png((200, 40, 60)), media_type="image/png")
+    second = archive.articles.add_media(PUB, "b.png", _png((40, 200, 60)), media_type="image/png")
+    archive.add_article(
+        make_article(
+            PUB,
+            collection_id=FOTOS,
+            title="Sommerfahrt 1962",
+            body="Erste Zeile.\n\nZweite Zeile.",
+            ref_code="F12",
+            media_type="Fotografie",
+            document_type="Porträt",
+            tags=("fahrt", "sommer"),
+            date=EdtfDate("1962-07"),
+            creator="K. Meyer",
+            subject_place="Harz",
+            physical_location=_STANDORT,
+            custom=(("Bearbeitung", _CUSTOM_VALUE),),
+            media=(
+                MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
+                MediaRef(second.filename, second.content_hash, caption="Gruppenbild"),
+            ),
+        )
+    )
+    archive.add_article(
+        make_article(DRAFT, collection_id=FOTOS, lifecycle=Lifecycle.DRAFT, title="Entwurf")
+    )
+    # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
+    # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
+    evil = archive.articles.add_media(MARKUP, "e.png", _png((90, 90, 90)), media_type="image/png")
+    archive.add_article(
+        make_article(
+            MARKUP,
+            collection_id=FOTOS,
+            title="<script>alert('titel')</script>",
+            body="Harmlos.\n\n<script>alert('body')</script>",
+            creator="<b>Autor</b>",
+            media=(MediaRef(evil.filename, evil.content_hash, caption="<img src=x onerror=1>"),),
+        )
+    )
+    return _DetailArchive(PUB, DRAFT, MARKUP, cover.content_hash, second.content_hash)
 
 
-def _settings(corpus: _Corpus) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
-    }
-
-
-def _client_as(viewer: Viewer) -> Client:
-    client = Client()
-    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-    client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
-
-
-def _body(corpus: _Corpus, viewer: Viewer, ulid: str, query: str = "") -> str:
-    with override_settings(**_settings(corpus)):
-        return _client_as(viewer).get(f"/artikel/{ulid}{query}").content.decode()
+def _body(viewer: Viewer, ulid: str, query: str = "") -> str:
+    return client_as(viewer).get(f"/artikel/{ulid}{query}").content.decode()
 
 
 # --- the read view renders the record ---------------------------------------------
 
 
-def test_detail_renders_title_and_record_card(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_detail_renders_title_and_record_card(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert "Sommerfahrt 1962" in body
     assert "F12" in body  # Signatur
     assert "K. Meyer" in body  # Autor
@@ -164,14 +125,14 @@ def test_detail_renders_title_and_record_card(corpus: _Corpus) -> None:
     assert "Erste Zeile." in body  # Beschreibung prose
 
 
-def test_detail_renders_edtf_human_and_mono(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_detail_renders_edtf_human_and_mono(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert "Juli 1962" in body  # human German under the title (edtf_to_german)
     assert "1962-07" in body  # raw machine value in the card mono row
 
 
-def test_detail_renders_cover_and_filmstrip_thumbs(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_detail_renders_cover_and_filmstrip_thumbs(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert f"/media/{corpus.pub}/{corpus.cover_hash}/thumb" in body  # cover
     assert f"/media/{corpus.pub}/{corpus.second_hash}/thumb" in body  # filmstrip plate
     assert "Am Lagerfeuer" in body  # cover caption
@@ -185,31 +146,33 @@ def test_detail_renders_cover_and_filmstrip_thumbs(corpus: _Corpus) -> None:
 # --- projection / per-tier (the leak surface, §9) ---------------------------------
 
 
-def test_member_never_sees_archivist_only_field_values(corpus: _Corpus) -> None:
-    body = _body(corpus, Member(groups=()), corpus.pub)
+def test_member_never_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
+    body = _body(Member(groups=()), corpus.pub)
     assert _STANDORT not in body  # physical_location floored to None → row absent
     assert _CUSTOM_VALUE not in body  # custom floored to () → rows absent
     assert "Standort" not in body
 
 
-def test_public_never_sees_archivist_only_field_values(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_public_never_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert _STANDORT not in body
     assert _CUSTOM_VALUE not in body
 
 
-def test_archivist_sees_archivist_only_field_values(corpus: _Corpus) -> None:
-    body = _body(corpus, Archivist(), corpus.pub)
+def test_archivist_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
+    body = _body(Archivist(), corpus.pub)
     assert _STANDORT in body
     assert _CUSTOM_VALUE in body
     assert "Standort" in body
 
 
-def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Corpus) -> None:
+def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
+    corpus: _DetailArchive,
+) -> None:
     # guards against a NEW archivist-only field silently reaching members: the two renders must
     # differ ONLY by the archivist-only values + the archivist chrome (action row, its markers).
-    member = _body(corpus, Member(groups=()), corpus.pub)
-    archivist = _body(corpus, Archivist(), corpus.pub)
+    member = _body(Member(groups=()), corpus.pub)
+    archivist = _body(Archivist(), corpus.pub)
     # both carry the shared reading structure
     for shared in ("Sommerfahrt 1962", "Juli 1962", "F12", "K. Meyer", "Erste Zeile."):
         assert shared in member
@@ -223,15 +186,13 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(corpus: _Co
 
 
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
-def test_draft_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).get(f"/artikel/{corpus.draft}")
+def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) -> None:
+    response = client_as(viewer).get(f"/artikel/{corpus.draft}")
     assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
 
 
-def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{corpus.draft}")
+def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _DetailArchive) -> None:
+    response = client_as(Archivist()).get(f"/artikel/{corpus.draft}")
     assert response.status_code == 200
     body = response.content.decode()
     assert "Entwurf" in body  # ENTWURF badge
@@ -241,15 +202,15 @@ def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _Corpus) -> N
 # --- action row / archivist chrome ------------------------------------------------
 
 
-def test_member_published_view_carries_no_action_row(corpus: _Corpus) -> None:
-    body = _body(corpus, Member(groups=()), corpus.pub)
+def test_member_published_view_carries_no_action_row(corpus: _DetailArchive) -> None:
+    body = _body(Member(groups=()), corpus.pub)
     assert 'class="actions"' not in body  # no action row for a member
     assert "/bearbeiten" not in body
 
 
-def test_member_published_view_has_no_amber_or_red(corpus: _Corpus) -> None:
+def test_member_published_view_has_no_amber_or_red(corpus: _DetailArchive) -> None:
     # §0/§9: a member published view carries NO draft (amber) or error (red) chrome.
-    body = _body(corpus, Member(groups=()), corpus.pub)
+    body = _body(Member(groups=()), corpus.pub)
     assert 'class="badge entwurf"' not in body
     assert "--draft" not in body
     assert "--error" not in body
@@ -258,14 +219,14 @@ def test_member_published_view_has_no_amber_or_red(corpus: _Corpus) -> None:
 # --- Bestand + Schlagworte links (the browsing loop) ------------------------------
 
 
-def test_bestand_breadcrumb_links_into_collection_facet(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_bestand_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert "Fotografien" in body  # leaf collection name
     assert "?bestand=FOTOS" in body  # links into the collection facet
 
 
-def test_schlagworte_link_into_tag_facet(corpus: _Corpus) -> None:
-    body = _body(corpus, Public(), corpus.pub)
+def test_schlagworte_link_into_tag_facet(corpus: _DetailArchive) -> None:
+    body = _body(Public(), corpus.pub)
     assert "?schlagwort=fahrt" in body
     assert "?schlagwort=sommer" in body
 
@@ -273,21 +234,21 @@ def test_schlagworte_link_into_tag_facet(corpus: _Corpus) -> None:
 # --- design-gate fixups ------------------------------------------------------------
 
 
-def test_cover_platte_links_to_full_image(corpus: _Corpus) -> None:
+def test_cover_platte_links_to_full_image(corpus: _DetailArchive) -> None:
     # LOW-MED: the cover always links its full gated byte route, so a single-media article (no
     # filmstrip) still has a path to the full image.
-    body = _body(corpus, Public(), corpus.pub)
+    body = _body(Public(), corpus.pub)
     assert f'href="/media/{corpus.pub}/{corpus.cover_hash}"' in body
 
 
 # --- escaping: free-text values round-trip inert (the leak-surface pin) -------------
 
 
-def test_markup_bearing_fields_render_escaped(corpus: _Corpus) -> None:
+def test_markup_bearing_fields_render_escaped(corpus: _DetailArchive) -> None:
     # The detail template auto-escapes every value (no |safe / mark_safe anywhere). A <script> in the
     # title, body, creator, or a media caption must round-trip as escaped text — never as live markup
     # (stored-XSS closed: an archivist-typed field cannot execute in a reader's browser).
-    body = _body(corpus, Public(), corpus.markup)
+    body = _body(Public(), corpus.markup)
     # the payloads appear ESCAPED …
     assert "&lt;script&gt;alert(&#x27;body&#x27;)&lt;/script&gt;" in body
     assert "&lt;script&gt;alert(&#x27;titel&#x27;)&lt;/script&gt;" in body
@@ -297,36 +258,32 @@ def test_markup_bearing_fields_render_escaped(corpus: _Corpus) -> None:
     assert "<img src=x onerror=1>" not in body
 
 
-def test_zurueck_default_when_no_return_query(corpus: _Corpus) -> None:
+def test_zurueck_default_when_no_return_query(corpus: _DetailArchive) -> None:
     # no ?zurueck → the return link is a bare "/" (unchanged behavior).
-    body = _body(corpus, Public(), corpus.pub)
+    body = _body(Public(), corpus.pub)
     assert '<a class="back" href="/">' in body
 
 
-def test_zurueck_round_trips_a_clean_search_query(corpus: _Corpus) -> None:
+def test_zurueck_round_trips_a_clean_search_query(corpus: _DetailArchive) -> None:
     # MED: the return link carries the search back (q + facet + page), sanitized through the browse
     # param whitelist and re-serialized (never echoed raw).
-    body = _body(
-        corpus, Public(), corpus.pub, "?zurueck=q%3Dfahrt%26schlagwort%3Dsommer%26seite%3D2"
-    )
+    body = _body(Public(), corpus.pub, "?zurueck=q%3Dfahrt%26schlagwort%3Dsommer%26seite%3D2")
     assert 'class="back"' in body
     for fragment in ("q=fahrt", "schlagwort=sommer", "seite=2"):
         assert fragment in body
 
 
-def test_zurueck_drops_unknown_and_pane_params(corpus: _Corpus) -> None:
+def test_zurueck_drops_unknown_and_pane_params(corpus: _DetailArchive) -> None:
     # the sanitizer whitelists known search params only: an injected artikel= (pane state) or a
     # bogus key must not survive into the return link (no reflection / existence oracle).
-    body = _body(
-        corpus, Public(), corpus.pub, "?zurueck=q%3Dfahrt%26artikel%3DXYZ%26evil%3D%3Cscript%3E"
-    )
+    body = _body(Public(), corpus.pub, "?zurueck=q%3Dfahrt%26artikel%3DXYZ%26evil%3D%3Cscript%3E")
     assert "q=fahrt" in body
     assert "artikel=" not in body
     assert "evil" not in body
     assert "script" not in body.lower().split('class="back"')[1][:200]
 
 
-def test_zurueck_malformed_falls_back_to_root(corpus: _Corpus) -> None:
+def test_zurueck_malformed_falls_back_to_root(corpus: _DetailArchive) -> None:
     # a ?zurueck with no recognizable search params → the return link is a bare "/".
-    body = _body(corpus, Public(), corpus.pub, "?zurueck=%7Bnot-a-query%7D")
+    body = _body(Public(), corpus.pub, "?zurueck=%7Bnot-a-query%7D")
     assert '<a class="back" href="/">' in body

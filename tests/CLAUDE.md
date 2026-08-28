@@ -22,6 +22,9 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 - **Markup minutiae** (CSS classes, glyphs, htmx attributes, copy strings) —
   the design gate (gallery + e2e) is the instrument for that. Exception:
   verbatim German UI/error strings ARE the user contract — assert those.
+- **Hand-rolled DB gating** (a connection probe, a `skipif`, a manual
+  `requires_pg`) — `tests/conftest.py` derives the marker from each test's
+  fixture closure. Mark by hand only for DB use that closure cannot see.
 - **A second proof of a fact already pinned elsewhere.** One proof per fact, at
   the layer closest to the user (the `de_numeric` collation was once pinned in
   four files).
@@ -53,10 +56,11 @@ gate fails otherwise.
   cannot see it: its public-by-design contract lives in `test_static_assets.py`
   (asset whitelist, unhashed and uncollected paths not served).
   Build the archive with the `corpus` / `make_corpus` fixtures and the
-  `client_as` / `make_*` helpers from `app/web/_fixtures.py` — never clone
-  another file's `_Corpus` / `_client_as` / `_settings` (files predating the
-  shared module still carry copies: migrate one, don't imitate it). The
-  standard `corpus` shape is frozen; a test asserting a global count or
+  `client_as` / `make_*` helpers from `app/web/_fixtures.py` — one `client_as`
+  signs every viewer, and no module keeps a local `_Corpus` / `_client_as` /
+  `_settings` to clone. Reach for the standard `corpus` and the `make_*`
+  builders first; wire something bespoke only when the standard shape genuinely
+  does not fit. That shape is frozen — a test asserting a global count or
   listing builds its own content with `make_corpus`.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.

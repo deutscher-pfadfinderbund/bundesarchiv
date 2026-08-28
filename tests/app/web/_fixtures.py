@@ -34,7 +34,9 @@ from bundesarchiv.persistence.repository import ArticleRepository
 DEV_KEY = "test-web-dev-viewer-key"
 
 ROOT = "ROOT"
-PUB = "PUB"
+# A real ULID: the collection routes validate their ``<ulid>`` in-view, so a mnemonic literal
+# would 404 there instead of failing loudly.
+PUB = "01KX7YT9E3VX0CP3A5Q49RZMPB"
 PUBLISHED_ULID = "01KX7YT9E3VX0CP3A5Q49RZMWK"
 DRAFT_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 

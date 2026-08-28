@@ -17,25 +17,21 @@ Structure:
 """
 
 import io
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from django.core import signing
-from django.test import Client, override_settings
+from django.test import override_settings
 from PIL import Image
 from tests.app.web._asserts import assert_denied
+from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.app.web import media as media_seam
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
-
-_DEV_KEY = "test-media-dev-key"
 
 # Media serving is pure request handling against a local FS store — no Postgres.
 
@@ -52,27 +48,29 @@ def _jpeg_bytes() -> bytes:
     return buf.getvalue()
 
 
-class _Corpus:
-    """The fixture archive: a store, its canonical/thumbnail roots, and one Article per tier with a
-    known media content-hash. Every Article carries exactly one image blob."""
+class _TierCorpus:
+    """The fixture archive over a shared ``Corpus``: one Article per tier with a known media
+    content-hash, plus the thumbnail root the seam serves its derived cache from. Every Article
+    carries exactly one image blob. The frozen standard corpus is PUBLIC and media-free, so the
+    tier grid builds its own content."""
 
-    def __init__(self, canonical_root: Path, thumbnail_root: Path) -> None:
-        self.canonical_root = canonical_root
+    def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
         self.thumbnail_root = thumbnail_root
-        self.store = LocalFsObjectStore(canonical_root)
+        self.store = base.store
         self.hash_by_tier: dict[str, str] = {}
         self.ulid_by_tier: dict[str, str] = {}
-        self._build()
+        self._build(base)
 
-    def _build(self) -> None:
-        collections = CollectionRepository(self.store)
-        articles = ArticleRepository(self.store)
-        # ROOT (Members default) → tier collections.
-        collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
-        collections.save(Collection("PUB", "Public", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-        collections.save(Collection("MEM", "Members", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
-        collections.save(
-            Collection("GRP", "Groups", "ROOT", Audience(AudienceTier.GROUPS, ("vorstand",))), 0
+    def _build(self, base: Corpus) -> None:
+        # ROOT (Members default, saved by ``Corpus``) → tier collections.
+        base.add_collection(
+            make_collection("PUB", "Public", audience=Audience(AudienceTier.PUBLIC))
+        )
+        base.add_collection(
+            make_collection("MEM", "Members", audience=Audience(AudienceTier.MEMBERS))
+        )
+        base.add_collection(
+            make_collection("GRP", "Groups", audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
         )
         # public, members, groups, draft (non-published → archivist-only via lifecycle),
         # archivist-only (draft under groups). Each blob is a DISTINCT colour so every content-hash
@@ -86,16 +84,17 @@ class _Corpus:
         ]
         for tier, coll, lifecycle, color in specs:
             ulid = new_ulid()
-            ref = articles.add_media(ulid, f"{tier}.png", _png_bytes(color), media_type="image/png")
-            articles.save(
-                Article(
-                    ulid=ulid,
-                    title=f"{tier} article",
+            ref = base.articles.add_media(
+                ulid, f"{tier}.png", _png_bytes(color), media_type="image/png"
+            )
+            base.add_article(
+                make_article(
+                    ulid,
                     collection_id=coll,
                     lifecycle=lifecycle,
+                    title=f"{tier} article",
                     media=(ref,),
-                ),
-                0,
+                )
             )
             self.hash_by_tier[tier] = ref.content_hash
             self.ulid_by_tier[tier] = ulid
@@ -106,28 +105,20 @@ class _Corpus:
 
 
 @pytest.fixture
-def corpus(tmp_path: Path) -> _Corpus:
-    return _Corpus(tmp_path / "canonical", tmp_path / "thumbnails")
+def corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_TierCorpus]:
+    """The tier archive — this module's ``corpus``, deliberately in place of the frozen standard one.
 
-
-def _settings(corpus: _Corpus, **extra: object) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.canonical_root),
-        "BUNDESARCHIV_THUMBNAIL_ROOT": str(corpus.thumbnail_root),
-        "BUNDESARCHIV_X_ACCEL_PREFIX": None,
-        **extra,
-    }
-
-
-def _client_as(viewer: Viewer) -> Client:
-    """A test client carrying a valid dev-viewer cookie for ``viewer`` (signed with the test dev
-    key, exactly as the switcher would)."""
-    client = Client()
-    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-    client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
+    The two settings ``settings_for`` does not carry stay here: the thumbnail root and the X-Accel
+    prefix (``None`` = Django streams the bytes, so the probes read a body). Build BEFORE entering
+    the override — ``make_corpus`` enters a settings context of its own that tears down last, so
+    this one has to nest inside it to unwind in order.
+    """
+    thumbnail_root = tmp_path / "thumbnails"
+    built = _TierCorpus(make_corpus(), thumbnail_root)
+    with override_settings(
+        BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
+    ):
+        yield built
 
 
 def _body(response: object) -> bytes:
@@ -171,10 +162,9 @@ def _grid() -> Iterator[tuple[str, str, bool]]:
 
 @pytest.mark.parametrize(("tier", "viewer_name", "allowed"), list(_grid()))
 def test_original_per_tier_grid(
-    corpus: _Corpus, tier: str, viewer_name: str, allowed: bool
+    corpus: _TierCorpus, tier: str, viewer_name: str, allowed: bool
 ) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(_VIEWERS[viewer_name]).get(corpus.url(tier))
+    response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier))
     if allowed:
         assert response.status_code == 200, f"{tier}/{viewer_name} should be served"
         assert _body(response) == corpus.store.read(
@@ -186,15 +176,14 @@ def test_original_per_tier_grid(
 
 @pytest.mark.parametrize(("tier", "viewer_name", "allowed"), list(_grid()))
 def test_thumbnail_per_tier_grid(
-    corpus: _Corpus, tier: str, viewer_name: str, allowed: bool
+    corpus: _TierCorpus, tier: str, viewer_name: str, allowed: bool
 ) -> None:
     # Generate every thumbnail first so a 404 for a denied viewer is authorization, not absence.
     from bundesarchiv.app import thumbnails
 
     for t in corpus.hash_by_tier:
         thumbnails.generate_thumbnail(corpus.store, corpus.hash_by_tier[t], corpus.thumbnail_root)
-    with override_settings(**_settings(corpus)):
-        response = _client_as(_VIEWERS[viewer_name]).get(corpus.url(tier, thumb=True))
+    response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier, thumb=True))
     if allowed:
         assert response.status_code == 200, f"thumb {tier}/{viewer_name} should be served"
         assert response["Content-Type"] == "image/webp"
@@ -205,25 +194,24 @@ def test_thumbnail_per_tier_grid(
 # --- 404 across every deny reason ---------------------------------------------------
 
 
-def test_404_across_all_deny_reasons(corpus: _Corpus) -> None:
+def test_404_across_all_deny_reasons(corpus: _TierCorpus) -> None:
     good_hash = corpus.hash_by_tier["members"]
     real_ulid = corpus.ulid_by_tier["members"]
     responses = {}
-    with override_settings(**_settings(corpus)):
-        # (a) nonexistent ulid (well-formed but no such article)
-        responses["nonexistent_ulid"] = _client_as(Archivist()).get(
-            f"/media/01BX5ZZKBKACTAV9WEVGEMMVRZ/{good_hash}"
-        )
-        # (b) real-but-forbidden article (members-only, Public viewer)
-        responses["forbidden"] = _client_as(Public()).get(corpus.url("members"))
-        # (c) valid article + wrong hash (a hash that belongs to a DIFFERENT article)
-        responses["wrong_hash"] = _client_as(Archivist()).get(
-            f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
-        )
-        # (d) malformed ulid
-        responses["malformed_ulid"] = _client_as(Archivist()).get(f"/media/not-a-ulid/{good_hash}")
-        # (e) missing thumbnail on a permitted article (never generated)
-        responses["missing_thumb"] = _client_as(Archivist()).get(corpus.url("members", thumb=True))
+    # (a) nonexistent ulid (well-formed but no such article)
+    responses["nonexistent_ulid"] = client_as(Archivist()).get(
+        f"/media/01BX5ZZKBKACTAV9WEVGEMMVRZ/{good_hash}"
+    )
+    # (b) real-but-forbidden article (members-only, Public viewer)
+    responses["forbidden"] = client_as(Public()).get(corpus.url("members"))
+    # (c) valid article + wrong hash (a hash that belongs to a DIFFERENT article)
+    responses["wrong_hash"] = client_as(Archivist()).get(
+        f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
+    )
+    # (d) malformed ulid
+    responses["malformed_ulid"] = client_as(Archivist()).get(f"/media/not-a-ulid/{good_hash}")
+    # (e) missing thumbnail on a permitted article (never generated)
+    responses["missing_thumb"] = client_as(Archivist()).get(corpus.url("members", thumb=True))
     statuses = {name: r.status_code for name, r in responses.items()}
     assert set(statuses.values()) == {404}, statuses
 
@@ -232,7 +220,7 @@ def test_404_across_all_deny_reasons(corpus: _Corpus) -> None:
 
 
 def test_authz_denies_before_any_blob_lookup(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Monkeypatch the seam (the genuine boundary that touches the blob) with a recorder. A FORBIDDEN
     # request must NEVER reach it — authorization denies before existence is probed.
@@ -243,14 +231,13 @@ def test_authz_denies_before_any_blob_lookup(
         raise AssertionError("blob lookup reached for a forbidden request")
 
     monkeypatch.setattr("bundesarchiv.app.web.media.media_response", recorder)
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Public()).get(corpus.url("members"))
+    response = client_as(Public()).get(corpus.url("members"))
     assert_denied(response)
     assert reached == [], "the seam (blob lookup) was reached for a forbidden article"
 
 
 def test_authz_denies_before_lookup_for_thumbnail(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     reached: list[str] = []
 
@@ -259,8 +246,7 @@ def test_authz_denies_before_lookup_for_thumbnail(
         raise AssertionError("thumbnail lookup reached for a forbidden request")
 
     monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Public()).get(corpus.url("members", thumb=True))
+    response = client_as(Public()).get(corpus.url("members", thumb=True))
     assert_denied(response)
     assert reached == []
 
@@ -268,9 +254,9 @@ def test_authz_denies_before_lookup_for_thumbnail(
 # --- X-Accel mode -----------------------------------------------------------------
 
 
-def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX="/_protected")):
-        response = _client_as(Public()).get(corpus.url("public"))
+def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _TierCorpus) -> None:
+    with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
+        response = client_as(Public()).get(corpus.url("public"))
     assert response.status_code == 200
     assert response.content == b""
     ulid, chash = corpus.ulid_by_tier["public"], corpus.hash_by_tier["public"]
@@ -279,14 +265,14 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _Corpus)
     assert "inline" in response["Content-Disposition"]
 
 
-def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX="/_protected")):
-        response = _client_as(Public()).get(corpus.url("members"))
+def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _TierCorpus) -> None:
+    with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
+        response = client_as(Public()).get(corpus.url("members"))
     assert_denied(response)
     assert "X-Accel-Redirect" not in response
 
 
-def test_hostile_filename_cannot_inject_a_response_header(corpus: _Corpus) -> None:
+def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -> None:
     # A MediaRef filename is user-controlled (upload). The seam must encode it safely so a
     # quote/CRLF in the name cannot break out of Content-Disposition into an injected header.
     from bundesarchiv.app.web.media import media_response
@@ -297,7 +283,7 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _Corpus) -> No
         ulid=corpus.ulid_by_tier["public"], title="x", collection_id="PUB", media=(ref,)
     )
     factory_request = None  # media_response ignores request for header building
-    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX="/_protected")):
+    with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
         response = media_response(article, ref, factory_request)  # type: ignore[arg-type]
     disposition = response["Content-Disposition"]
     assert "\r" not in disposition and "\n" not in disposition
@@ -309,9 +295,9 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _Corpus) -> No
 # --- dev streaming mode -----------------------------------------------------------
 
 
-def test_dev_streaming_returns_blob_bytes(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):  # no X-Accel prefix → dev FileResponse
-        response = _client_as(Public()).get(corpus.url("public"))
+def test_dev_streaming_returns_blob_bytes(corpus: _TierCorpus) -> None:
+    # the fixture leaves BUNDESARCHIV_X_ACCEL_PREFIX at None → dev FileResponse
+    response = client_as(Public()).get(corpus.url("public"))
     assert response.status_code == 200
     blob = corpus.store.read(
         f"articles/{corpus.ulid_by_tier['public']}/media/{corpus.hash_by_tier['public']}"
@@ -328,31 +314,29 @@ _EXPECTED_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
 @pytest.mark.parametrize("x_accel_prefix", [None, "/_protected"], ids=["dev_stream", "x_accel"])
 def test_permitted_media_is_privately_cacheable_forever(
-    corpus: _Corpus, x_accel_prefix: str | None
+    corpus: _TierCorpus, x_accel_prefix: str | None
 ) -> None:
-    with override_settings(**_settings(corpus, BUNDESARCHIV_X_ACCEL_PREFIX=x_accel_prefix)):
-        response = _client_as(Public()).get(corpus.url("public"))
+    with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX=x_accel_prefix):
+        response = client_as(Public()).get(corpus.url("public"))
     assert response.status_code == 200
     assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
 
 
-def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _Corpus) -> None:
+def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _TierCorpus) -> None:
     from bundesarchiv.app import thumbnails
 
     thumbnails.generate_thumbnail(
         corpus.store, corpus.hash_by_tier["public"], corpus.thumbnail_root
     )
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Public()).get(corpus.url("public", thumb=True))
+    response = client_as(Public()).get(corpus.url("public", thumb=True))
     assert response.status_code == 200
     assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
 
 
-def test_deny_is_never_cached(corpus: _Corpus) -> None:
+def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
     # Caching a deny would pin a viewer to a 404 for a year after their access is granted.
-    with override_settings(**_settings(corpus)):
-        forbidden = _client_as(Public()).get(corpus.url("members"))
-        missing_thumb = _client_as(Archivist()).get(corpus.url("members", thumb=True))
+    forbidden = client_as(Public()).get(corpus.url("members"))
+    missing_thumb = client_as(Archivist()).get(corpus.url("members", thumb=True))
     for name, response in (("forbidden", forbidden), ("missing_thumb", missing_thumb)):
         assert_denied(response, name)
         assert "Cache-Control" not in response, name

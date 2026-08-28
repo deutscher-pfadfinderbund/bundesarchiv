@@ -31,21 +31,16 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from django.core import signing
-from django.test import Client, override_settings
+from django.test import override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
 from tests.app.web._asserts import assert_denied
+from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
-_DEV_KEY = "test-leak-matrix-dev-key"
 _PROD_URLCONF = "bundesarchiv.app.web.urls"
 _DEV_URLCONF = "bundesarchiv.app.web.dev_urls"
 
@@ -59,78 +54,71 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
     return buf.getvalue()
 
 
-class _Corpus:
-    """A tiny FS archive with one Collection per tier and one published, group-scoped Article that
-    carries a real media blob — enough to give an Archivist a 200 on every ulid/hash-bearing route
-    and to make the media route's authorization non-trivial. The GROUPS tier names ``vorstand`` so a
-    matching-group Member is distinguishable from a non-matching one."""
+class _MatrixCorpus:
+    """The shared ``Corpus`` filled with one GROUPS-tier Collection and one published, group-scoped
+    Article that carries a real media blob — enough to give an Archivist a 200 on every
+    ulid/hash-bearing route and to make the media route's authorization non-trivial. The GROUPS tier
+    names ``vorstand`` so a matching-group Member is distinguishable from a non-matching one; the
+    frozen standard corpus is PUBLIC and media-free, so the matrix builds its own content."""
 
-    def __init__(self, root: Path, thumbnail_root: Path) -> None:
-        self.root = root
+    def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
+        self.base = base
         self.thumbnail_root = thumbnail_root
-        self.store = LocalFsObjectStore(root)
         self._build()
 
     def _build(self) -> None:
-        collections = CollectionRepository(self.store)
-        articles = ArticleRepository(self.store)
         # The editable collection carries a REAL ULID — ``collection_edit`` validates the ulid in-view
         # (a literal like "GRP" would 404 as malformed), so ``bestand-bearbeiten`` needs a valid one.
         self.collection_ulid = new_ulid()
-        collections.save(Collection("ROOT", "Wurzel", None), 0)
-        collections.save(
-            Collection(
+        self.base.add_collection(
+            make_collection(
                 self.collection_ulid,
                 "Gruppen",
-                "ROOT",
+                ROOT,
                 Audience(AudienceTier.GROUPS, ("vorstand",)),
-            ),
-            0,
+            )
         )
         # A GROUPS-tier published article: an Archivist sees it, a matching-group Member sees it, a
         # non-matching Member and Public do not — so every ulid/hash route resolves for the Archivist.
         self.article_ulid = new_ulid()
-        ref = articles.add_media(
+        ref = self.base.articles.add_media(
             self.article_ulid, "cover.png", _png_bytes((30, 60, 90)), media_type="image/png"
         )
-        articles.save(
-            Article(
-                ulid=self.article_ulid,
-                title="Matrix Artikel",
+        self.base.add_article(
+            make_article(
+                self.article_ulid,
                 collection_id=self.collection_ulid,
                 lifecycle=Lifecycle.PUBLISHED,
+                title="Matrix Artikel",
                 media=(ref,),
-            ),
-            0,
+            )
         )
         self.content_hash = ref.content_hash
         # The CAS version the store landed the article at (a save writes the NEXT version), read back
         # so the lifecycle route's expected_version matches and the retract succeeds (302, not a
         # conflict re-render).
-        self.article_version = articles.load(self.article_ulid).version
+        self.article_version = self.base.articles.load(self.article_ulid).version
 
     def generate_thumbnail(self) -> None:
         from bundesarchiv.app import thumbnails
 
-        thumbnails.generate_thumbnail(self.store, self.content_hash, self.thumbnail_root)
+        thumbnails.generate_thumbnail(self.base.store, self.content_hash, self.thumbnail_root)
 
 
 @pytest.fixture
-def corpus(tmp_path: Path) -> _Corpus:
-    # No thumbnail here: only the media-thumb route's allowed probes read it (the test generates
-    # it for that route alone) — everything else would pay the PIL round-trip for nothing.
-    return _Corpus(tmp_path / "canonical", tmp_path / "thumbnails")
-
-
-def _settings(corpus: _Corpus, **extra: object) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": _PROD_URLCONF,
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
-        "BUNDESARCHIV_THUMBNAIL_ROOT": str(corpus.thumbnail_root),
-        "BUNDESARCHIV_X_ACCEL_PREFIX": None,
-        **extra,
-    }
+def matrix_corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_MatrixCorpus]:
+    # The two settings ``settings_for`` does not carry stay local: the thumbnail root (per-test tmp
+    # dir) and the X-Accel prefix (None = Django serves the bytes, so the media probes read a body).
+    # No thumbnail is generated here: only the media-thumb route's allowed probes read it (the test
+    # generates it for that route alone) — everything else would pay the PIL round-trip for nothing.
+    # Build BEFORE entering the override — ``make_corpus`` enters a settings context of its own that
+    # tears down last, so this one has to nest inside it to unwind in order.
+    thumbnail_root = tmp_path / "thumbnails"
+    built = _MatrixCorpus(make_corpus(), thumbnail_root)
+    with override_settings(
+        BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
+    ):
+        yield built
 
 
 # --- the tiers under test -------------------------------------------------------------------------
@@ -152,17 +140,6 @@ _TIERS: dict[str, Viewer | None] = {
 _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
 
 
-def _client(tier: str) -> Client:
-    """A test client for ``tier``: no cookie for ``anonymous``, else a valid dev-viewer cookie signed
-    with the test dev key exactly as the switcher would."""
-    client = Client()
-    viewer = _TIERS[tier]
-    if viewer is not None:
-        signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-        client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
-
-
 # --- the contract: expected status per route x method, and how to reach each -----------------------
 
 # Status classes. A route entry declares, for each of GET and POST, the expected status for a
@@ -180,7 +157,7 @@ class Route:
     def __init__(
         self,
         *,
-        build_path: Callable[[_Corpus], str],
+        build_path: Callable[[_MatrixCorpus], str],
         get_nonarch: int | None,
         get_arch: int | None,
         post_nonarch: int | None,
@@ -203,71 +180,71 @@ class Route:
         self.stub_search = stub_search
 
 
-def _p_root(_c: _Corpus) -> str:
+def _p_root(_c: _MatrixCorpus) -> str:
     return "/"
 
 
-def _p_artikel_neu(_c: _Corpus) -> str:
+def _p_artikel_neu(_c: _MatrixCorpus) -> str:
     return "/artikel/neu"
 
 
-def _p_bestand_neu(_c: _Corpus) -> str:
+def _p_bestand_neu(_c: _MatrixCorpus) -> str:
     return "/bestand/neu"
 
 
-def _p_bestand_bearbeiten(c: _Corpus) -> str:
+def _p_bestand_bearbeiten(c: _MatrixCorpus) -> str:
     return f"/bestand/{c.collection_ulid}/bearbeiten"
 
 
-def _p_sammel_dok(_c: _Corpus) -> str:
+def _p_sammel_dok(_c: _MatrixCorpus) -> str:
     return "/artikel/sammelbearbeitung/dokumenttypen"
 
 
-def _p_sammel(_c: _Corpus) -> str:
+def _p_sammel(_c: _MatrixCorpus) -> str:
     return "/artikel/sammelbearbeitung"
 
 
-def _p_edit(c: _Corpus) -> str:
+def _p_edit(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/bearbeiten"
 
 
-def _p_kopieren(c: _Corpus) -> str:
+def _p_kopieren(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/kopieren"
 
 
-def _p_loeschen(c: _Corpus) -> str:
+def _p_loeschen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
 
 
-def _p_medien_verschieben(c: _Corpus) -> str:
+def _p_medien_verschieben(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/verschieben"
 
 
-def _p_medien_entfernen(c: _Corpus) -> str:
+def _p_medien_entfernen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/entfernen"
 
 
-def _p_medien_hochladen(c: _Corpus) -> str:
+def _p_medien_hochladen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/hochladen"
 
 
-def _p_dokumenttypen(c: _Corpus) -> str:
+def _p_dokumenttypen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/dokumenttypen"
 
 
-def _p_datierung_echo(c: _Corpus) -> str:
+def _p_datierung_echo(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/datierung-echo"
 
 
-def _p_detail(c: _Corpus) -> str:
+def _p_detail(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}"
 
 
-def _p_media(c: _Corpus) -> str:
+def _p_media(c: _MatrixCorpus) -> str:
     return f"/media/{c.article_ulid}/{c.content_hash}"
 
 
-def _p_media_thumb(c: _Corpus) -> str:
+def _p_media_thumb(c: _MatrixCorpus) -> str:
     return f"/media/{c.article_ulid}/{c.content_hash}/thumb"
 
 
@@ -407,7 +384,7 @@ _CONTRACT: dict[str, Route] = {
 }
 
 
-def _sammel_post_data(c: _Corpus) -> dict[str, object]:
+def _sammel_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """A valid confirm-phase bulk POST: one real ulid selected + a field + its value → the confirm
     page (200) for an archivist. Non-archivists never reach validation (gate denies first)."""
     return {"auswahl": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
@@ -463,16 +440,16 @@ _POST_DATA_BUILDERS = {
 
 @pytest.mark.parametrize(("name", "tier", "method"), list(_matrix_cases()))
 def test_route_tier_matrix(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch, name: str, tier: str, method: str
+    matrix_corpus: _MatrixCorpus, monkeypatch: pytest.MonkeyPatch, name: str, tier: str, method: str
 ) -> None:
     route = _CONTRACT[name]
     expected = _expected_for(route, tier, method)
     if name == "media-thumb":
-        corpus.generate_thumbnail()
-    path = route.build_path(corpus)
+        matrix_corpus.generate_thumbnail()
+    path = route.build_path(matrix_corpus)
     data: dict[str, object] = route.post_data
     if name in _POST_DATA_BUILDERS:
-        data = _POST_DATA_BUILDERS[name](corpus)
+        data = _POST_DATA_BUILDERS[name](matrix_corpus)
     if route.stub_search:
         # The workbench's only DB dependency is search(); stub it so the STATUS/tier-chrome path runs
         # DB-free. The real view code (viewer resolution, template render, archivist-chrome gating)
@@ -480,9 +457,8 @@ def test_route_tier_matrix(
         monkeypatch.setattr(
             "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
         )
-    with override_settings(**_settings(corpus)):
-        client = _client(tier)
-        response = client.post(path, data=data) if method == "POST" else client.get(path)
+    client = client_as(_TIERS[tier])
+    response = client.post(path, data=data) if method == "POST" else client.get(path)
     if expected == FOUR_OH_FOUR:
         assert_denied(response, f"{method} {name} as {tier}")
     else:

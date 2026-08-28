@@ -7,61 +7,35 @@ discoverable). Validation state B re-renders the form with the verbatim error an
 no create.
 """
 
-from pathlib import Path
+from collections.abc import Callable
 
 import pytest
-from django.core import signing
-from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
+from tests.app.web._fixtures import Corpus, client_as, make_collection
 
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection
+from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
-
-_DEV_KEY = "test-catalog-create-key"
-
-
-class _Corpus:
-    """A tiny FS-store archive with two collections to file into."""
-
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.store = LocalFsObjectStore(root)
-        collections = CollectionRepository(self.store)
-        collections.save(Collection("ROOT", "Wurzel", None), 0)
-        collections.save(Collection("PUB", "Öffentlich", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-        collections.save(Collection("MEM", "Mitglieder", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
 
 
 @pytest.fixture
-def corpus(tmp_path: Path) -> _Corpus:
-    return _Corpus(tmp_path / "canonical")
-
-
-def _settings(corpus: _Corpus) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
-    }
-
-
-def _client_as(viewer: Viewer) -> Client:
-    client = Client()
-    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-    client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
+def empty_archive(make_corpus: Callable[[], Corpus]) -> Corpus:
+    """Two collections to file into and NO articles: every create test reads the whole store to
+    assert what was (not) created, so the standard corpus' own articles would count as creations."""
+    corpus = make_corpus()
+    corpus.add_collection(
+        make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+    )
+    corpus.add_collection(
+        make_collection("MEM", "Mitglieder", audience=Audience(AudienceTier.MEMBERS))
+    )
+    return corpus
 
 
 # --- GET: the create form ----------------------------------------------------------
 
 
-def test_create_form_renders_for_archivist(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get("/artikel/neu")
+def test_create_form_renders_for_archivist(empty_archive: Corpus) -> None:
+    response = client_as(Archivist()).get("/artikel/neu")
     assert response.status_code == 200
     body = response.content.decode()
     assert "Neuer Artikel" in body
@@ -78,51 +52,45 @@ def test_create_form_renders_for_archivist(corpus: _Corpus) -> None:
 # (The GET deny is the leak matrix's cell for this route — only the POST twin adds the
 # nothing-was-created side-effect assert the matrix can't see.)
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_create_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).post("/artikel/neu", {"title": "X", "collection_id": "PUB"})
+def test_create_post_is_404_for_non_archivist(empty_archive: Corpus, viewer: Viewer) -> None:
+    response = client_as(viewer).post("/artikel/neu", {"title": "X", "collection_id": "PUB"})
     assert_denied(response)
     # nothing was created
-    assert list(ArticleRepository(corpus.store).list_ulids()) == []
+    assert list(empty_archive.articles.list_ulids()) == []
 
 
 # --- POST: create + redirect -------------------------------------------------------
 
 
-def test_create_post_creates_draft_and_redirects_to_edit(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            "/artikel/neu", {"title": "Wanderfahrt 1962", "collection_id": "PUB"}
-        )
+def test_create_post_creates_draft_and_redirects_to_edit(empty_archive: Corpus) -> None:
+    response = client_as(Archivist()).post(
+        "/artikel/neu", {"title": "Wanderfahrt 1962", "collection_id": "PUB"}
+    )
     assert response.status_code == 302
-    ulids = list(ArticleRepository(corpus.store).list_ulids())
+    ulids = list(empty_archive.articles.list_ulids())
     assert len(ulids) == 1
     assert response["Location"] == f"/artikel/{ulids[0]}/bearbeiten"
-    stored = ArticleRepository(corpus.store).load(ulids[0])
+    stored = empty_archive.articles.load(ulids[0])
     assert stored.article.title == "Wanderfahrt 1962"
     assert stored.article.collection_id == "PUB"
 
 
-def test_create_post_missing_title_re_renders_state_b(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            "/artikel/neu", {"title": "", "collection_id": "PUB"}
-        )
+def test_create_post_missing_title_re_renders_state_b(empty_archive: Corpus) -> None:
+    response = client_as(Archivist()).post("/artikel/neu", {"title": "", "collection_id": "PUB"})
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body
     # the chosen Bestand is preserved
-    assert list(ArticleRepository(corpus.store).list_ulids()) == []
+    assert list(empty_archive.articles.list_ulids()) == []
 
 
-def test_create_post_missing_collection_re_renders_state_b(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            "/artikel/neu", {"title": "Wanderfahrt", "collection_id": ""}
-        )
+def test_create_post_missing_collection_re_renders_state_b(empty_archive: Corpus) -> None:
+    response = client_as(Archivist()).post(
+        "/artikel/neu", {"title": "Wanderfahrt", "collection_id": ""}
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Bitte einen Bestand wählen." in body
     # the typed title is preserved
     assert "Wanderfahrt" in body
-    assert list(ArticleRepository(corpus.store).list_ulids()) == []
+    assert list(empty_archive.articles.list_ulids()) == []

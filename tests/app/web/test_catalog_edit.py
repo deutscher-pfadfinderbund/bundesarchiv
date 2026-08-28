@@ -9,77 +9,65 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 (see ``conftest.py``).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
-from django.core import signing
 from django.http import HttpRequest
-from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
+from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
     Audience,
     AudienceTier,
-    Collection,
     Lifecycle,
+    Version,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
-_DEV_KEY = "test-catalog-edit-key"
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 
 
-class _Corpus:
-    """A tiny FS-store archive: two collections + one DRAFT article under PUB to edit."""
+class _EditCorpus:
+    """The archive this file edits against: PUB (public) + MEM (members, the Bestand the CAS-diff
+    test moves to) and one DRAFT article, plus the version that article was stored at — every CAS
+    expectation here is written relative to it. The standard corpus does not fit: its draft carries
+    another Titel and Signatur, and these renders assert both verbatim."""
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.store = LocalFsObjectStore(root)
-        collections = CollectionRepository(self.store)
-        collections.save(Collection("ROOT", "Wurzel", None), 0)
-        collections.save(Collection("PUB", "Öffentlich", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-        collections.save(Collection("MEM", "Mitglieder", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
-        self.version = ArticleRepository(self.store).save(
-            Article(
-                ulid=_ULID,
-                title="Wanderfahrt 1962",
+    def __init__(self, corpus: Corpus) -> None:
+        self._corpus = corpus
+        self.articles = corpus.articles
+        corpus.add_collection(
+            make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+        )
+        corpus.add_collection(
+            make_collection("MEM", "Mitglieder", audience=Audience(AudienceTier.MEMBERS))
+        )
+        self.version = corpus.add_article(
+            make_article(
+                _ULID,
                 collection_id="PUB",
                 lifecycle=Lifecycle.DRAFT,
+                title="Wanderfahrt 1962",
                 ref_code="F12/3",
-            ),
-            0,
+            )
         )
+
+    def add_article(self, article: Article) -> Version:
+        return self._corpus.add_article(article)
 
 
 @pytest.fixture
-def corpus(tmp_path: Path) -> _Corpus:
-    return _Corpus(tmp_path / "canonical")
+def corpus(make_corpus: Callable[[], Corpus]) -> _EditCorpus:
+    """Shadows the standard ``corpus`` fixture on purpose — see ``_EditCorpus``."""
+    return _EditCorpus(make_corpus())
 
 
-def _settings(corpus: _Corpus) -> dict[str, object]:
-    return {
-        "ROOT_URLCONF": "bundesarchiv.app.web.urls",
-        "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
-        "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
-    }
-
-
-def _client_as(viewer: Viewer) -> Client:
-    client = Client()
-    signer = signing.TimestampSigner(key=_DEV_KEY, salt=_DEV_VIEWER_SALT)
-    client.cookies["dev_viewer"] = signer.sign(encode_viewer(viewer))
-    return client
-
-
-def _valid_post(corpus: _Corpus, **overrides: str) -> dict[str, str]:
+def _valid_post(corpus: _EditCorpus, **overrides: str) -> dict[str, str]:
     """A minimally-valid edit POST at the article's current version."""
     base = {
         "title": "Wanderfahrt 1962",
@@ -104,9 +92,8 @@ def _valid_post(corpus: _Corpus, **overrides: str) -> dict[str, str]:
 # --- GET: the seeded form ----------------------------------------------------------
 
 
-def test_edit_form_renders_seeded_for_archivist(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten")
+def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten")
     assert response.status_code == 200
     body = response.content.decode()
     # the stored values are seeded into the form
@@ -124,17 +111,15 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _Corpus) -> None:
     assert "F12/3" in body
 
 
-def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> None:
+def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus) -> None:
     # fix-wave (owner finding): the edit header shows the Signatur mark ONLY when a code exists —
     # absence is carried by the Signatur INPUT on the same screen, not a hollow "ohne Signatur" slot
     # (signals-once). The hollow slot stays in the ledger + read view, not here.
     no_sig = "01KX7YT9E3VX0CP3A5Q49RZMWK"
-    ArticleRepository(corpus.store).save(
-        Article(ulid=no_sig, title="Unbetitelt", collection_id="PUB", lifecycle=Lifecycle.DRAFT),
-        0,
+    corpus.add_article(
+        make_article(no_sig, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Unbetitelt")
     )
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{no_sig}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/artikel/{no_sig}/bearbeiten").content.decode()
     # the sr-only "Ohne Signatur" text (rendered by the hollow-slot signatur_tab) must NOT appear —
     # the edit header omits the slot entirely; the Signatur input carries absence instead
     assert "Ohne Signatur" not in body
@@ -149,71 +134,63 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _Corpus) -> 
 # (The GET deny is the leak matrix's cell for this route — only the POST twin adds the
 # nothing-was-changed side-effect assert the matrix can't see.)
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
-def test_edit_post_is_404_for_non_archivist(corpus: _Corpus, viewer: Viewer) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(viewer).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gekapert")
-        )
+def test_edit_post_is_404_for_non_archivist(corpus: _EditCorpus, viewer: Viewer) -> None:
+    response = client_as(viewer).post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gekapert")
+    )
     assert_denied(response)
     # the non-archivist POST changed nothing
-    assert ArticleRepository(corpus.store).load(_ULID).article.title == "Wanderfahrt 1962"
+    assert corpus.articles.load(_ULID).article.title == "Wanderfahrt 1962"
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
-def test_edit_malformed_or_absent_ulid_is_404(corpus: _Corpus, ulid: str) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten")
+def test_edit_malformed_or_absent_ulid_is_404(corpus: _EditCorpus, ulid: str) -> None:
+    response = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten")
     assert_denied(response)
 
 
 # --- POST: save success + read-view redirect ---------------------------------------
 
 
-def test_edit_post_saves_and_redirects_to_read_view(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            _valid_post(corpus, title="Neuer Titel", creator="Kurt Meyer"),
-        )
+def test_edit_post_saves_and_redirects_to_read_view(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        _valid_post(corpus, title="Neuer Titel", creator="Kurt Meyer"),
+    )
     assert response.status_code == 302
     assert response["Location"] == f"/artikel/{_ULID}"
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Neuer Titel"
     assert stored.article.creator == "Kurt Meyer"
     assert stored.version == corpus.version + 1
 
 
-def test_edit_post_empties_optional_to_none(corpus: _Corpus) -> None:
+def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
     # Clearing the Signatur field must store None, not "" (the "" -> None boundary, spec §8).
-    with override_settings(**_settings(corpus)):
-        _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, ref_code="")
-        )
-    assert ArticleRepository(corpus.store).load(_ULID).article.ref_code is None
+    client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, ref_code=""))
+    assert corpus.articles.load(_ULID).article.ref_code is None
 
 
 # --- POST: validation state F ------------------------------------------------------
 
 
-def test_edit_post_missing_title_re_renders_state_f(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="", creator="Behalten")
-        )
+def test_edit_post_missing_title_re_renders_state_f(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="", creator="Behalten")
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body
     assert 'value="Behalten"' in body  # the just-typed value is preserved
     # nothing saved
-    assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
+    assert corpus.articles.load(_ULID).version == corpus.version
 
 
-def test_edit_post_bad_document_type_pair_re_renders(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            _valid_post(corpus, media_type="Fotografie", document_type="Brief"),
-        )
+def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        _valid_post(corpus, media_type="Fotografie", document_type="Brief"),
+    )
     assert response.status_code == 200
     # the straight closing quote in the verbatim string is HTML-escaped to &quot; in the render
     assert "Dieser Dokumenttyp gehört nicht zu „Fotografie&quot;." in response.content.decode()
@@ -222,19 +199,16 @@ def test_edit_post_bad_document_type_pair_re_renders(corpus: _Corpus) -> None:
 # --- POST: CAS conflict state G (two racing clients through the real form) ---------
 
 
-def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _Corpus) -> None:
-    archivist = _client_as(Archivist())
-    with override_settings(**_settings(corpus)):
-        # Both clients load the form at the same version (corpus.version). The FIRST save wins.
-        winner = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner")
-        )
-        assert winner.status_code == 302
-        # The SECOND save carries the now-stale version -> Conflict -> state G re-render.
-        loser = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten",
-            _valid_post(corpus, title="Verlierer", creator="Meine Eingabe"),
-        )
+def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpus) -> None:
+    archivist = client_as(Archivist())
+    # Both clients load the form at the same version (corpus.version). The FIRST save wins.
+    winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    assert winner.status_code == 302
+    # The SECOND save carries the now-stale version -> Conflict -> state G re-render.
+    loser = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        _valid_post(corpus, title="Verlierer", creator="Meine Eingabe"),
+    )
     assert loser.status_code == 200
     body = loser.content.decode()
     assert "Inzwischen geändert" in body  # the conflict panel heading
@@ -243,36 +217,33 @@ def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _Corpus) -
     # the diff lists the changed Titel field (winner's value vs mine)
     assert "Gewinner" in body
     # the store is at the WINNER's value + version (no last-writer-wins)
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"
     assert stored.version == corpus.version + 1
 
 
-def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _Corpus) -> None:
-    archivist = _client_as(Archivist())
-    with override_settings(**_settings(corpus)):
-        archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
-        loser = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Verlierer")
-        )
-        body = loser.content.decode()
-        # the re-rendered form now carries the WINNER's current version
-        new_version = corpus.version + 1
-        assert f'name="expected_version" value="{new_version}"' in body
-        # re-submitting at that refreshed version now WINS
-        retry = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten",
-            _valid_post(corpus, title="Verlierer", expected_version=str(new_version)),
-        )
+def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _EditCorpus) -> None:
+    archivist = client_as(Archivist())
+    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    loser = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Verlierer"))
+    body = loser.content.decode()
+    # the re-rendered form now carries the WINNER's current version
+    new_version = corpus.version + 1
+    assert f'name="expected_version" value="{new_version}"' in body
+    # re-submitting at that refreshed version now WINS
+    retry = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        _valid_post(corpus, title="Verlierer", expected_version=str(new_version)),
+    )
     assert retry.status_code == 302
-    assert ArticleRepository(corpus.store).load(_ULID).article.title == "Verlierer"
+    assert corpus.articles.load(_ULID).article.title == "Verlierer"
 
 
 # --- POST: stale save against a hard-deleted article -------------------------------
 
 
 def test_stale_save_against_deleted_article_is_404(
-    corpus: _Corpus, monkeypatch: pytest.MonkeyPatch
+    corpus: _EditCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The archivist opened the form at version 1 (the gate passes and loads the article); an
     # archivist hard-deletes it before THIS POST's save runs — the exact race window between the
@@ -286,54 +257,51 @@ def test_stale_save_against_deleted_article_is_404(
 
     def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
         gated = real_gated(request, ulid)
-        ArticleRepository(corpus.store).hard_delete(_ULID)
+        corpus.articles.hard_delete(_ULID)
         return gated
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
+    response = client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
     assert_denied(response)
 
 
 # --- no-JS custom-row removal ------------------------------------------------------
 
 
-def test_custom_entfernen_drops_the_row_without_saving(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus),
-                "custom_key": ["Fotograf", "Auflage"],
-                "custom_value": ["Meyer", "500"],
-                "custom_entfernen": "0",
-            },
-        )
+def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus),
+            "custom_key": ["Fotograf", "Auflage"],
+            "custom_value": ["Meyer", "500"],
+            "custom_entfernen": "0",
+        },
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert 'value="Auflage"' in body  # the surviving row
     assert 'value="Meyer"' not in body  # the removed row's value is gone
     # nothing was saved (removal is a re-render, not a save)
-    assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
+    assert corpus.articles.load(_ULID).version == corpus.version
 
 
 def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
-    corpus: _Corpus,
+    corpus: _EditCorpus,
 ) -> None:
     # A blanked-out earlier row shifts positions once `_post_to_form_values` drops it — but
     # `custom_entfernen` names a position in the RAW POST lists (what the Entfernen button actually
     # submitted), not in that filtered result. Rows A/B/C, A blanked, Entfernen on B (raw index 1)
     # must drop B and keep C — not drop C because the filtered list only has two entries left.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus),
-                "custom_key": ["", "Bkey", "Ckey", ""],
-                "custom_value": ["", "Bval", "Cval", ""],
-                "custom_entfernen": "1",
-            },
-        )
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus),
+            "custom_key": ["", "Bkey", "Ckey", ""],
+            "custom_value": ["", "Bval", "Cval", ""],
+            "custom_entfernen": "1",
+        },
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert 'value="Bkey"' not in body  # the removed row is gone
@@ -341,67 +309,64 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
     assert 'value="Ckey"' in body  # the surviving row is preserved
     assert 'value="Cval"' in body
     # nothing was saved (removal is a re-render, not a save)
-    assert ArticleRepository(corpus.store).load(_ULID).version == corpus.version
+    assert corpus.articles.load(_ULID).version == corpus.version
 
 
 # --- POST re-render fidelity: lifecycle + custom-row accumulation ------------------
 
 
-def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _Corpus) -> None:
+def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _EditCorpus) -> None:
     # fix-wave: `_post_to_form_values` hardcoded is_draft=True, so a PUBLISHED article's
     # validation-error re-render wrongly showed the ENTWURF badge.
     published = "01KX7YT9E3VX0CP3A5Q49RZMWP"
-    ArticleRepository(corpus.store).save(
-        Article(
-            ulid=published,
-            title="Veröffentlicht",
+    corpus.add_article(
+        make_article(
+            published,
             collection_id="PUB",
             lifecycle=Lifecycle.PUBLISHED,
+            title="Veröffentlicht",
             ref_code="F99/1",
-        ),
-        0,
-    )
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{published}/bearbeiten",
-            {
-                **_valid_post(corpus, expected_version="0"),
-                "title": "",  # invalid -> validation error re-render (state F)
-            },
         )
+    )
+    response = client_as(Archivist()).post(
+        f"/artikel/{published}/bearbeiten",
+        {
+            **_valid_post(corpus, expected_version="0"),
+            "title": "",  # invalid -> validation error re-render (state F)
+        },
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body  # confirms we hit the error re-render
     assert 'class="badge entwurf"' not in body  # no ENTWURF badge for PUBLISHED
 
 
-def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Corpus) -> None:
+def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:
     # fix-wave: the POSTed custom rows already include the trailing blank add-row; unconditionally
     # appending another produced +1 blank row per error re-render.
-    with override_settings(**_settings(corpus)):
-        first = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus, title=""),
-                "custom_key": ["Fotograf", ""],
-                "custom_value": ["Meyer", ""],
-            },
-        )
-        assert first.status_code == 200
-        first_body = first.content.decode()
-        first_blank_pairs = first_body.count('name="custom_key" value=""')
-        assert first_blank_pairs == 1  # exactly one trailing blank row, not two
+    first = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus, title=""),
+            "custom_key": ["Fotograf", ""],
+            "custom_value": ["Meyer", ""],
+        },
+    )
+    assert first.status_code == 200
+    first_body = first.content.decode()
+    first_blank_pairs = first_body.count('name="custom_key" value=""')
+    assert first_blank_pairs == 1  # exactly one trailing blank row, not two
 
-        # re-send the same hand-built payload (the first assertion pinned it equivalent to the
-        # re-rendered form) — the blank-row count must not grow
-        second = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus, title=""),
-                "custom_key": ["Fotograf", ""],
-                "custom_value": ["Meyer", ""],
-            },
-        )
+    # re-send the same hand-built payload (the first assertion pinned it equivalent to the
+    # re-rendered form) — the blank-row count must not grow
+    second = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus, title=""),
+            "custom_key": ["Fotograf", ""],
+            "custom_value": ["Meyer", ""],
+        },
+    )
     assert second.status_code == 200
     second_body = second.content.decode()
     second_blank_pairs = second_body.count('name="custom_key" value=""')
@@ -547,7 +512,7 @@ def _fold(body: str, label: str) -> _Fold:
     return matches[0]
 
 
-def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
+def test_folded_sections_own_every_field_they_hold(corpus: _EditCorpus) -> None:
     # The drift guard for the mechanism above: the field registry is the ONE declaration of which
     # fields live behind which fold, so a field moved into a fold without a `section` would silently
     # lose the open-on-error/open-on-focus behaviour. Walk the real render instead of trusting the map.
@@ -557,8 +522,7 @@ def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
     # lines that used to rule out that impossibility went with it.
     from bundesarchiv.app.web.catalog_views import _SECTION_FIELDS
 
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
     folds = _folds(body)
     assert len(folds) == 3, (
         f"the scanner found {[f.label for f in folds]} — the guard proves nothing"
@@ -587,14 +551,13 @@ def test_folded_sections_own_every_field_they_hold(corpus: _Corpus) -> None:
 _NOT_A_CONTROL = frozenset({"custom", "lifecycle"})
 
 
-def test_the_card_renders_exactly_the_registrys_fields(corpus: _Corpus) -> None:
+def test_the_card_renders_exactly_the_registrys_fields(corpus: _EditCorpus) -> None:
     # The registry is the ONE declaration of the card's fields, so the card may not render a field it
     # does not know about, and may not lose one silently either. Both directions in one set equality,
     # against the real render — a new field added to the template alone lands here.
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
     rendered = {f.name for f in _scan(body).fields}
     assert len(rendered) >= 12, f"the scanner found {sorted(rendered)} — the guard proves nothing"
     assert rendered == {f.name for f in _FIELDS} - _NOT_A_CONTROL, (
@@ -679,12 +642,12 @@ _CAS_DIFF_ROWS = (
 )
 
 
-def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _Corpus) -> None:
+def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpus) -> None:
     # `diff` drives the "Inzwischen geändert" table, and a dropped label means a racing archivist is
     # silently not told that field changed under them. Force a conflict in which EVERY diffable field
     # differs and compare the table against the pinned row list — so a dropped `diff=`, a reordered
     # registry and a label the table cannot render all fail here.
-    archivist = _client_as(Archivist())
+    archivist = client_as(Archivist())
     changed = {
         "title": "Anderer Titel",
         "collection_id": "MEM",
@@ -699,16 +662,15 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _Corpus) -
         "body": "Andere Beschreibung",
         "sichtbarkeit": "members",
     }
-    with override_settings(**_settings(corpus)):
-        winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, **changed))
-        assert winner.status_code == 302
-        # The loser submits the ORIGINAL values at the now-stale version, so every field differs — and
-        # publishes, which is the only way to make the STATUS row differ too (the loser's own lifecycle
-        # is otherwise read from the article on disk, i.e. the winner's).
-        loser = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten",
-            _valid_post(corpus, lebenszyklus="veroeffentlichen"),
-        )
+    winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, **changed))
+    assert winner.status_code == 302
+    # The loser submits the ORIGINAL values at the now-stale version, so every field differs — and
+    # publishes, which is the only way to make the STATUS row differ too (the loser's own lifecycle
+    # is otherwise read from the article on disk, i.e. the winner's).
+    loser = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        _valid_post(corpus, lebenszyklus="veroeffentlichen"),
+    )
     assert loser.status_code == 200
     rows = _diff_labels(loser.content.decode())
     assert rows == list(_CAS_DIFF_ROWS), f"the CAS diff listed {rows}, not {list(_CAS_DIFF_ROWS)}"
@@ -752,13 +714,12 @@ def _diff_labels(body: str) -> list[str]:
     return scanner.labels
 
 
-def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
+def test_error_inside_a_folded_section_renders_it_open(corpus: _EditCorpus) -> None:
     # Sichtbarkeit=Gruppe(n) with an empty Gruppen field: the message and the errored input both live
     # in the folded Zugriff section. Folded, the archivist saw a form that simply refused to save.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
-        )
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Bitte mindestens eine Gruppe angeben." in body
@@ -766,41 +727,38 @@ def test_error_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
     assert not _fold(body, "Herkunft").is_open  # the clean folds stay folded (ruling 4)
 
 
-def test_custom_bag_error_renders_the_bag_open(corpus: _Corpus) -> None:
+def test_custom_bag_error_renders_the_bag_open(corpus: _EditCorpus) -> None:
     # errors.custom is the same class: it renders as a <p class="error"> inside #custom-bag.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {**_valid_post(corpus), "custom_key": ["title"], "custom_value": ["gekapert"]},
-        )
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {**_valid_post(corpus), "custom_key": ["title"], "custom_value": ["gekapert"]},
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Bezeichnung ist reserviert." in body
     assert _fold(body, "Weitere Angaben").is_open, "the errored custom bag rendered folded"
 
 
-def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpus) -> None:
+def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _EditCorpus) -> None:
     # The GET autofocus scans the cataloguing spine for the first EMPTY field, and three of its
     # fields (Autor, Ort, Standort) sit
     # behind the Herkunft fold — so on a record whose earlier fields are all filled the autofocus
     # landed on an input inside a closed <details>, focusing nothing at all.
     filled = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
-    ArticleRepository(corpus.store).save(
-        Article(
-            ulid=filled,
-            title="Vollständig",
+    corpus.add_article(
+        make_article(
+            filled,
             collection_id="PUB",
             lifecycle=Lifecycle.DRAFT,
+            title="Vollständig",
             ref_code="F1",
             media_type="Fotografie",
             document_type="Positiv",
             tags=("sommer",),
             date=EdtfDate("1962"),
-        ),
-        0,
+        )
     )
-    with override_settings(**_settings(corpus)):
-        body = _client_as(Archivist()).get(f"/artikel/{filled}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/artikel/{filled}/bearbeiten").content.decode()
     assert _scan(body).autofocused == "creator"  # confirms the case this guard is about
     assert _fold(body, "Herkunft").is_open, "the autofocus target rendered inside a closed fold"
     assert not _fold(body, "Zugriff").is_open  # the other folds are untouched
@@ -815,96 +773,90 @@ def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _Corpu
 # write. No confirm step — that is the gate ruling 5 retired.
 
 
-def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
-                "lebenszyklus": "veroeffentlichen",
-            },
-        )
+def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
+            "lebenszyklus": "veroeffentlichen",
+        },
+    )
     assert response.status_code == 302
     assert response["Location"] == f"/artikel/{_ULID}"  # same destination as a plain save
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Frisch getippt"  # the edit was NOT discarded
     assert stored.article.creator == "Kurt Meyer"
     assert stored.article.lifecycle is Lifecycle.PUBLISHED
     assert stored.version == corpus.version + 1  # ONE write, not save-then-publish
 
 
-def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _Corpus) -> None:
+def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
     published = "01KX7YT9E3VX0CP3A5Q49RZMWR"
-    version = ArticleRepository(corpus.store).save(
-        Article(
-            ulid=published,
-            title="Veröffentlicht",
+    version = corpus.add_article(
+        make_article(
+            published,
             collection_id="PUB",
             lifecycle=Lifecycle.PUBLISHED,
-        ),
-        0,
-    )
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{published}/bearbeiten",
-            {
-                **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
-                "lebenszyklus": "zurueckziehen",
-            },
+            title="Veröffentlicht",
         )
+    )
+    response = client_as(Archivist()).post(
+        f"/artikel/{published}/bearbeiten",
+        {
+            **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
+            "lebenszyklus": "zurueckziehen",
+        },
+    )
     assert response.status_code == 302
-    stored = ArticleRepository(corpus.store).load(published)
+    stored = corpus.articles.load(published)
     assert stored.article.title == "Doch noch Entwurf"
     assert stored.article.lifecycle is Lifecycle.DRAFT
 
 
-def test_publish_with_an_invalid_form_publishes_nothing(corpus: _Corpus) -> None:
+def test_publish_with_an_invalid_form_publishes_nothing(corpus: _EditCorpus) -> None:
     # A validation failure must behave EXACTLY like a failed save: re-render, values preserved,
     # nothing published. It does by construction — the parse runs before any save.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {
-                **_valid_post(corpus, title="", creator="Behalten"),
-                "lebenszyklus": "veroeffentlichen",
-            },
-        )
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus, title="", creator="Behalten"),
+            "lebenszyklus": "veroeffentlichen",
+        },
+    )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body
     assert 'value="Behalten"' in body
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.lifecycle is Lifecycle.DRAFT  # nothing published
     assert stored.version == corpus.version  # nothing saved either
 
 
-def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _Corpus) -> None:
-    archivist = _client_as(Archivist())
-    with override_settings(**_settings(corpus)):
-        archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
-        loser = archivist.post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {**_valid_post(corpus, title="Verlierer"), "lebenszyklus": "veroeffentlichen"},
-        )
+def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCorpus) -> None:
+    archivist = client_as(Archivist())
+    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    loser = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {**_valid_post(corpus, title="Verlierer"), "lebenszyklus": "veroeffentlichen"},
+    )
     assert loser.status_code == 200
     body = loser.content.decode()
     assert "Inzwischen geändert" in body
     assert 'value="Verlierer"' in body  # the loser's input survives the conflict re-render
     assert f'name="expected_version" value="{corpus.version + 1}"' in body  # refreshed
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"
     assert stored.article.lifecycle is Lifecycle.DRAFT  # the lost race published nothing
 
 
-def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _Corpus) -> None:
+def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _EditCorpus) -> None:
     # Same rule as the standalone lifecycle route: never mutate on a bad verb — and here that means
     # the SAVE does not happen either.
-    with override_settings(**_settings(corpus)):
-        response = _client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
-            {**_valid_post(corpus, title="Gekapert"), "lebenszyklus": "sabotage"},
-        )
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {**_valid_post(corpus, title="Gekapert"), "lebenszyklus": "sabotage"},
+    )
     assert_denied(response)
-    stored = ArticleRepository(corpus.store).load(_ULID)
+    stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Wanderfahrt 1962"
     assert stored.version == corpus.version
