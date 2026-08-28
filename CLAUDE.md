@@ -26,6 +26,11 @@ the gate.
 A raw `uv run pytest -m requires_pg` drags in the browser suites: a command-line
 `-m` replaces the addopts e2e/gallery exclusion. Use `mise run test:db`.
 
+Reach the browser suites through their mise tasks, never through a raw
+`uv run pytest -m e2e`: the tasks depend on `e2e:browsers`, which installs the
+chromium build the current Playwright wants. A dependency bump moves that build,
+and only the task path picks the new one up.
+
 CSS changes touching position/overlay on `hidden`-gated elements: run the
 e2e suite, not just the gallery — snapshots render but never click
 (regression class: fixed-position banner whose `display` rule overrode

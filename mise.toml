@@ -77,12 +77,16 @@ description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
 depends = ["pg:wait"]
 run = "uv run pytest tests/app"
 
+[tasks."e2e:browsers"]
+description = "Install/refresh the Playwright chromium build (idempotent)"
+run = "uv run playwright install chromium"
+
 [tasks."test:e2e"]
 description = "Real-browser journeys (excluded from default run)"
-depends = ["pg:wait"]
+depends = ["pg:wait", "e2e:browsers"]
 run = "uv run pytest -m e2e"
 
 [tasks."test:gallery"]
 description = "State gallery, renders screenshots (excluded from default run)"
-depends = ["pg:wait"]
+depends = ["pg:wait", "e2e:browsers"]
 run = "uv run pytest -m gallery -s"
