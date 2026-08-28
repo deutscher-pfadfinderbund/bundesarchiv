@@ -1,0 +1,41 @@
+# The Postgres image (Postgres plus the German Hunspell dictionary,
+# docker/postgres/Dockerfile) is built here and only here. CI's `db` job and the
+# VPS both pull it, so tests and production run the same bytes. It rebuilds when
+# docker/postgres/** changes, or on manual dispatch.
+name: Postgres image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/postgres/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: |
+          docker build \
+            -t ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest \
+            -t ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:sha-${{ github.sha }} \
+            docker/postgres/
+
+      - name: Push
+        run: |
+          docker push ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
+          docker push ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:sha-${{ github.sha }}

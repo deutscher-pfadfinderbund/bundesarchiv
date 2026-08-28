@@ -12,7 +12,7 @@
 # back to ISO-8859-1 can't silently corrupt umlauts (the whole point of German FTS).
 # Pinned to the exact minor we built and tested against (VPS rebuilds must not drift
 # across the 18.x series unseen) — bump deliberately.
-FROM postgres:18.4
+FROM postgres:18.6
 
 RUN set -eux; \
     apt-get update; \
