@@ -1,4 +1,8 @@
-"""Web-subtree test wiring: stub the genuine external service seams (index + worker queue).
+"""Web-subtree test wiring: the shared corpus fixtures + the genuine external service seams.
+
+The ``corpus`` / ``make_corpus`` fixtures hand out ``_fixtures.Corpus`` with
+``override_settings(**settings_for(...))`` already entered, so a web test neither builds the store
+wiring nor wraps its request in a settings block.
 
 The Part 4.7 cataloging views drive the REAL write path — ``create_article`` / ``save_article`` /
 ``hard_delete_article`` — which exercises the repository, the README round-trip, and the ADR-0013
@@ -13,9 +17,38 @@ canonical-write + CAS path real. ``_sync_index`` swallows the index step's outco
 assert against unless a test overrides the seam to force the ADR-0014 lag path.
 """
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
+from itertools import count
+from pathlib import Path
 
 import pytest
+from django.test import override_settings
+from tests.app.web._fixtures import Corpus, settings_for, standard_corpus
+
+
+@pytest.fixture
+def corpus(tmp_path: Path) -> Iterator[Corpus]:
+    """The frozen standard corpus (see ``_fixtures``), live for the test's duration."""
+    built = standard_corpus(tmp_path / "canonical")
+    with override_settings(**settings_for(built)):
+        yield built
+
+
+@pytest.fixture
+def make_corpus(tmp_path: Path) -> Iterator[Callable[[], Corpus]]:
+    """Build a fresh ROOT-only corpus to fill with bespoke content. Each call gets its own store
+    and becomes the canonical root, so a test that needs two archives builds them in the order it
+    wants to query them."""
+    roots = count()
+    with ExitStack() as stack:
+
+        def build() -> Corpus:
+            built = Corpus(tmp_path / f"canonical-{next(roots)}")
+            stack.enter_context(override_settings(**settings_for(built)))
+            return built
+
+        yield build
 
 
 @pytest.fixture(scope="session", autouse=True)

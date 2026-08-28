@@ -52,6 +52,12 @@ gate fails otherwise.
   `/static/*` is served by WhiteNoise, not the urlconf, so the leak matrix
   cannot see it: its public-by-design contract lives in `test_static_assets.py`
   (asset whitelist, unhashed and uncollected paths not served).
+  Build the archive with the `corpus` / `make_corpus` fixtures and the
+  `client_as` / `make_*` helpers from `app/web/_fixtures.py` — never clone
+  another file's `_Corpus` / `_client_as` / `_settings` (files predating the
+  shared module still carry copies: migrate one, don't imitate it). The
+  standard `corpus` shape is frozen; a test asserting a global count or
+  listing builds its own content with `make_corpus`.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
   `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages

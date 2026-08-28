@@ -46,7 +46,8 @@ run = "uv run pytest -m \"not requires_pg\""
 [tasks."test:db"]
 description = "Only the Postgres-backed tests"
 depends = ["pg:wait"]
-run = "uv run pytest -m requires_pg"
+# A command-line -m REPLACES the addopts deselection, so e2e/gallery must be re-excluded here.
+run = "uv run pytest -m \"requires_pg and not e2e and not gallery\""
 
 [tasks."test:domain"]
 description = "Visibility policy + value objects (pure Python, no DB)"
