@@ -13,16 +13,17 @@ them here on purpose.
 
 - Postgres up on `:5434` (the same dev DB the other DB suites use — a down
   Postgres fails, not skips, with a hint).
-- The Playwright chromium browser cached (chromium-1228). It is already present
-  on this machine; if a fresh checkout needs it: `uv run playwright install
-  chromium`. Point `PLAYWRIGHT_BROWSERS_PATH` at an existing ms-playwright cache
-  to avoid a re-download.
+- The Playwright chromium build the installed Playwright wants. Both mise tasks
+  depend on `e2e:browsers`, which installs it — that is why these suites are run
+  through the tasks and not through a raw `pytest`. Point
+  `PLAYWRIGHT_BROWSERS_PATH` at an existing ms-playwright cache to avoid a
+  re-download.
 
 ## Run the journeys
 
 ```
-uv run pytest -m e2e            # all journeys
-uv run pytest -m e2e -q         # quiet
+mise run test:e2e               # all journeys
+mise run test:e2e -- -q         # quiet
 ```
 
 Each journey builds its own corpus into a fresh store and runs against
@@ -39,7 +40,7 @@ the archivist with JavaScript disabled (the no-JS baseline).
 ## Render the state gallery
 
 ```
-uv run pytest -m gallery -s
+mise run test:gallery
 ```
 
 One invocation renders every canonical state to `var/gallery/` (gitignored) as

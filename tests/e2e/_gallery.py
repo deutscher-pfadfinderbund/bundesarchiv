@@ -13,7 +13,7 @@ INTERACTION — an unfolded card section, a rejected save — are declared here 
 reaches them, by driving the affordance. A whole SCREEN that needs driving (the two bulk surfaces)
 belongs in the inventory instead, with its own reach, so every guard covers it too.
 
-Entry point: the ``gallery`` marker in ``test_gallery.py`` (``uv run pytest -m gallery -s``); the
+Entry point: the ``gallery`` marker in ``test_gallery.py`` (``mise run test:gallery``); the
 PNGs land in ``var/gallery/`` (override with ``BUNDESARCHIV_GALLERY_DIR``).
 """
 

@@ -152,7 +152,7 @@ For any UI change: restart the dev server after EVERY commit (`:8000` runs
 `--noreload` and serves stale code otherwise), then judge on the live pages —
 never ship PNGs to the owner (he browses live himself). Agents keep their own
 internal screenshot self-verification loop; the state gallery
-(`uv run pytest -m gallery -s`) is the shared review medium. See
+(`mise run test:gallery`) is the shared review medium. See
 `design-gate-brief.md`.
 
 ## Report before you idle

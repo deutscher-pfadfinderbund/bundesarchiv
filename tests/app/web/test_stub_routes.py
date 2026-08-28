@@ -1,16 +1,14 @@
-"""Detail-stub auth discipline for the workbench (Part 4.5-MVP).
+"""The visibility gate on the article detail route (``/artikel/<ulid>``, ``artikel-detail``).
 
-``/artikel/<ulid>`` (``artikel-detail``) is the result-link target, a STUB for 4.6 that registers
-its URL name now and — critically — ships its VISIBILITY GATE with the workbench, not after it. It
-applies the SAME rule the real detail view will: load + resolve the chain + ``can_view``; any deny
-(forbidden article, missing article, malformed ulid, broken chain) collapses to a plain 404 with
-no leaked content (existence-hiding; the byte-identical-404 law was relaxed by the owner, 2026-08).
+The route loads the article, resolves its chain and asks ``can_view``. Every deny — forbidden
+article, missing article, malformed ulid, broken chain — is a plain 404 that leaks nothing, the
+article's existence included.
 
-``/artikel/neu`` serves the real create form; its archivist gate is pinned by
+``/artikel/neu`` serves the create form; its archivist gate is pinned by
 ``test_catalog_create.py``.
 
-These are pure request-handling against a local FS store (load + resolve + can_view) — no Postgres,
-so they run with no container (no DB fixture, hence no derived ``requires_pg`` marker).
+Pure request handling against a local FS store, so these run without Postgres (no DB fixture,
+hence no derived ``requires_pg`` marker).
 """
 
 from collections.abc import Callable

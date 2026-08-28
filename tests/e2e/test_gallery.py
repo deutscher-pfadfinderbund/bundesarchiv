@@ -1,4 +1,4 @@
-"""The state-gallery entry point (Part #26): ``uv run pytest -m gallery -s``.
+"""The state-gallery entry point (Part #26): ``mise run test:gallery``.
 
 ONE invocation renders every canonical UI state to a PNG in both color modes — the standard input
 for a design gate and an owner phone review. It is a pytest test (not a management command) so it
@@ -6,7 +6,7 @@ reuses the E2E stack verbatim: the isolated per-run corpus, the live server + re
 and the cached chromium — a real page, never a mock, and never the production database.
 
 Marked ``gallery`` (its own marker, like ``e2e``): excluded from the default run, so the fast gate
-never spends a browser render. The ``-s`` flag surfaces the "wrote N PNGs to ..." line.
+never spends a browser render. The task passes ``-s``, which surfaces the "wrote N PNGs to ..." line.
 """
 
 import pytest

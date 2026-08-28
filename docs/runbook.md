@@ -16,8 +16,8 @@ uses Apple's `container` CLI (README).
   `postgresql://postgres:postgres@localhost:5434/bundesarchiv`).
 - DB-backed tests require a running Postgres and **fail** (not skip) if
   unreachable. They carry the `requires_pg` marker, derived from their fixture
-  closure by `tests/conftest.py`; `uv run pytest -m "not requires_pg"` runs the
-  DB-free rest for domain-only work.
+  closure by `tests/conftest.py`; `mise run test:nodb` runs the DB-free rest for
+  domain-only work.
 
 ## Background worker (Procrastinate) — ADR 0014
 

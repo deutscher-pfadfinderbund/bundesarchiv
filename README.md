@@ -47,11 +47,15 @@ DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py procrast
 
 ## Tests
 
+Tests run through [mise](https://mise.jdx.dev/) tasks; `mise.toml` is the single
+source of what each one does.
+
 ```sh
-uv run pytest                            # full suite (needs the database from Setup)
-uv run pytest -m "not requires_pg"       # without a database
-uv run pytest -m requires_pg             # only the Postgres-backed tests
-pre-commit install                       # lint + type-check + tests on every commit
+mise run gate                # lint, types and the full suite (needs the database from Setup)
+mise run check               # the fast subset: no database, no mypy
+mise run test:nodb           # only the tests that run without a database
+mise run test:db             # only the Postgres-backed tests
+pre-commit install           # run the checks on every commit
 ```
 
 ## Learn more

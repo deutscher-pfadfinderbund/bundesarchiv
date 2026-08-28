@@ -7,7 +7,7 @@ common flow, so a review no longer re-derives them by hand.
 ## 1. Render the state gallery
 
 ```
-uv run pytest -m gallery -s
+mise run test:gallery
 ```
 
 One invocation writes every canonical UI state to `var/gallery/` as a PNG in
@@ -25,7 +25,7 @@ Override the output dir with `BUNDESARCHIV_GALLERY_DIR` (e.g. a scratchpad).
 ## 2. Run the journeys
 
 ```
-uv run pytest -m e2e
+mise run test:e2e
 ```
 
 The canonical flows driven end to end in a real browser (live server + Postgres
