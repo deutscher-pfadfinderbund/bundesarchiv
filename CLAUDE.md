@@ -20,8 +20,11 @@
 | Postgres-backed tests only | `mise run test:db` |
 | UI change | `mise run test:gallery` and `mise run test:e2e`, per the design-gate brief |
 
+Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.
+
 pyrefly is a second opinion on mypy under a zero-error policy; both are part of
-the gate.
+the gate. Every invocation is `uv run pyrefly check src tests` — bare
+`pyrefly check` resolves zero files in a worktree.
 
 A raw `uv run pytest -m requires_pg` drags in the browser suites: a command-line
 `-m` replaces the addopts e2e/gallery exclusion. Use `mise run test:db`.

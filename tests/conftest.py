@@ -40,7 +40,7 @@ _UNREACHABLE_HINT = (
     "or (Docker VPS path): docker compose up -d\n"
     "No container runtime (cloud sandbox)? bash scripts/dev-pg-cloud.sh (idempotent — also\n"
     "the fix when a sandbox reclaimed a previously running server mid-session).\n"
-    'To run only the DB-free tests instead: uv run pytest -m "not requires_pg"'
+    "To run only the DB-free tests instead: mise run test:nodb"
 )
 
 

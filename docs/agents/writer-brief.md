@@ -21,9 +21,8 @@ schema — `src/bundesarchiv/index/`, migrations, search-relevant persistence �
 and before you declare a task done. The task definitions in `mise.toml` are the
 single source of what each runs.
 
-In an agent worktree, additionally run `uv run pyrefly check src tests`
-verbatim — a bare `pyrefly check` there resolves zero files and passes
-vacuously.
+pyrefly is always invoked as `uv run pyrefly check src tests`; a bare
+`pyrefly check` resolves zero files in a worktree and passes vacuously.
 
 The commit-stage hook runs uv-lock, ruff and pyrefly; the push-stage hook runs
 the full gate. Do not `--no-verify` except on a docs-only
