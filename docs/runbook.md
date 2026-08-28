@@ -13,10 +13,8 @@ time. Postgres 18 with the German Hunspell dictionary baked in
 uses Apple's `container` CLI (README).
 
 The VPS pulls `ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest`,
-published by `.github/workflows/postgres-image.yml` from `docker/postgres/`. The
-pull needs a one-time `docker login ghcr.io` with a read-only packages PAT. Local
-dev builds that same Dockerfile itself with the `container` CLI — no registry, no
-login.
+published by `.github/workflows/postgres-image.yml` from `docker/postgres/`.
+Local dev builds that same Dockerfile itself with the `container` CLI.
 
 - `BUNDESARCHIV_PG_DSN` — connection string (default
   `postgresql://postgres:postgres@localhost:5434/bundesarchiv`).
