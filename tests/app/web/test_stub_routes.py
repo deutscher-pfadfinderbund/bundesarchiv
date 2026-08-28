@@ -6,8 +6,8 @@ applies the SAME rule the real detail view will: load + resolve the chain + ``ca
 (forbidden article, missing article, malformed ulid, broken chain) collapses to a plain 404 with
 no leaked content (existence-hiding; the byte-identical-404 law was relaxed by the owner, 2026-08).
 
-(``/artikel/neu`` was a stub here too until Part 4.7 replaced it with the real create form — its
-archivist-gate is now pinned by ``test_catalog_create.py``.)
+``/artikel/neu`` serves the real create form; its archivist gate is pinned by
+``test_catalog_create.py``.
 
 These are pure request-handling against a local FS store (load + resolve + can_view) — no Postgres,
 so they run with no container (no DB fixture, hence no derived ``requires_pg`` marker).

@@ -12,18 +12,21 @@ writer per task, reviews are fresh one-shot subagents). Never make a tree write
 while another writer's wave is open. If you receive a tree-touching instruction
 mid-wave, ACK it and hold — do not silently continue on a changed spec.
 
-## Gates green on every commit
+## Gates green
 
-Every commit must pass: `mise run gate` (starts and waits for the dev
-Postgres itself; the task definition in `mise.toml` is the single source of
-what the gate runs).
+Every commit must pass `mise run check` — ruff, format, pyrefly, the no-DB
+tests. The full `mise run gate` (mypy and every suite; it starts and waits for
+the dev Postgres itself) is required when the change touches index, search or
+schema — `src/bundesarchiv/index/`, migrations, search-relevant persistence —
+and before you declare a task done. The task definitions in `mise.toml` are the
+single source of what each runs.
 
 In an agent worktree, additionally run `uv run pyrefly check src tests`
 verbatim — a bare `pyrefly check` there resolves zero files and passes
 vacuously.
 
-The commit-stage hook runs only uv-lock, ruff and pyrefly; mypy and pytest run
-at pre-push. Do not `--no-verify` except on a docs-only
+The commit-stage hook runs uv-lock, ruff and pyrefly; the push-stage hook runs
+the full gate. Do not `--no-verify` except on a docs-only
 commit where the hooks are irrelevant, and only when the full gates ran clean on
 the immediately prior code commit. The baseline is whatever the ledger records
 (e.g. 1068 unit + 13 e2e at the Part 4 exit) — never let it drop.

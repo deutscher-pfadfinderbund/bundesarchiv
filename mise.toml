@@ -1,4 +1,14 @@
-# Task runner (mise). `mise run gate` = the full commit gate from CLAUDE.md.
+# Task runner (mise). `mise run check` = the fast pre-commit checks,
+# `mise run gate` = the full gate (see CLAUDE.md for when each applies).
+
+[tasks.check]
+description = "Fast commit check (no Postgres)"
+run = [
+  "uv run ruff check",
+  "uv run ruff format --check .",
+  "uv run pyrefly check src tests",
+  "uv run pytest -m \"not requires_pg\"",
+]
 
 [tasks.gate]
 description = "Full gate: ruff, format, pyrefly, mypy, pytest"

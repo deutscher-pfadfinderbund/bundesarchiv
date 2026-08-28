@@ -4,15 +4,32 @@
   CLI, `docker` only when `container` is not installed. (`docker-compose.yml` is a VPS deploy artifact):
   `container system start && container start bundesarchiv-pg`
   (first-time setup: see README).
-- Full gate (run before every commit; all must pass):
-  `uv run ruff check && uv run ruff format --check . && uv run mypy && uv run pytest`
-- Fast type check (~0.2s second opinion; zero-error policy): `uv run pyrefly check`
-- Dev server: `DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`
-- E2E/gallery (excluded from default run): `uv run pytest -m e2e`, `uv run pytest -m gallery -s`
-- CSS changes touching position/overlay on `hidden`-gated elements: run the
-  e2e suite, not just the gallery — snapshots render but never click
-  (regression class: fixed-position banner whose `display` rule overrode
-  `[hidden]` and intercepted clicks).
+- Dev server: `mise run dev`
+  (`DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver`).
+- `mise.toml` is the single source of what each command runs.
+
+### When to run what
+
+| Moment | Command |
+| --- | --- |
+| Inner loop | `mise run test:nodb` (~5s, no container), or path-scoped `uv run pytest tests/<suite>/...` |
+| One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
+| Before a commit | `mise run check` — ruff, format, pyrefly, no-DB tests. The pre-commit hook runs the same class of checks. |
+| Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run gate` — the full gate, mypy and every suite included |
+| Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
+| Postgres-backed tests only | `mise run test:db` |
+| UI change | `mise run test:gallery` and `mise run test:e2e`, per the design-gate brief |
+
+pyrefly is a second opinion on mypy under a zero-error policy; both are part of
+the gate.
+
+A raw `uv run pytest -m requires_pg` drags in the browser suites: a command-line
+`-m` replaces the addopts e2e/gallery exclusion. Use `mise run test:db`.
+
+CSS changes touching position/overlay on `hidden`-gated elements: run the
+e2e suite, not just the gallery — snapshots render but never click
+(regression class: fixed-position banner whose `display` rule overrode
+`[hidden]` and intercepted clicks).
 
 ## Agent skills
 
@@ -38,7 +55,7 @@ Test depth is proportional to risk: extensive coverage only where a defect is do
 
 ### Design-gate / QA brief
 
-Before reviewing any UI change: render the state gallery (`uv run pytest -m gallery -s`) and run the journeys (`uv run pytest -m e2e`), then judge on live `:8000` pages. See `docs/agents/design-gate-brief.md`.
+Before reviewing any UI change: render the state gallery (`mise run test:gallery`) and run the journeys (`mise run test:e2e`), then judge on live `:8000` pages. See `docs/agents/design-gate-brief.md`.
 
 ### Writer discipline
 
