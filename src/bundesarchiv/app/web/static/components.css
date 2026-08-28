@@ -32,6 +32,10 @@
      .danger = the one destructive filled variant (row 5, confirm pages only). */
   :is(button, a.button, .menu > summary) {
     display: inline-block;
+    /* a <button> centers its content natively; the min-height knob (below) stretches an
+       inline-block a.button PAST its line box, so the shared set centers explicitly —
+       one geometry for both elements. */
+    align-content: center;
     font: var(--type-meta);
     padding: var(--space-1) var(--space-3);
     background: var(--surface-container-low);
