@@ -55,6 +55,14 @@ then this index, in the same wave.
 5b. **A11y mechanicals** — workbench lacks an `h1` and a skip link (live
    critique finds, 2026-08-22). WCAG 2.2 AA is already law (§D); no
    ruling needed, pure fixes.
+5b2. **Edit-form RECOMPOSE** (owner critique 2026-08-29 — supersedes patch
+   thinking on this surface): section-heading rank above the label role,
+   horizontal-rule diet, exposure-card diet (Signatur presence budget —
+   owner fatigue signal on file), field order/IA (kill the
+   open/collapsed/open sandwich), Medien row composition, record-row
+   clarity (Zurück+Entwurf under the search bar). Shape first, 2–3 mocks
+   at a gate; R1 direction is the raw material. Source:
+   owner-interview-2026-08.md §Edit-form critique.
 5c. **Edit-form bugs** (critique 2026-08-22, no rulings needed): CAS
    conflict renders no autofocus and no alert role (P1 — the silent-
    data-loss state); English EDTF parser error in German UI (P2);
