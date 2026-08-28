@@ -64,7 +64,6 @@
     margin: 0 0 var(--space-2);
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   .prose p {
@@ -183,7 +182,6 @@
     margin: 0 0 var(--space-2);
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   .filmstrip h2 span {

@@ -202,7 +202,6 @@
   details.bulk summary [data-bulk-zahl] {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    text-transform: none;
     color: var(--on-surface);
     padding-inline-start: var(--space-3);
   }

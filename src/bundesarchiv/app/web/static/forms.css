@@ -32,17 +32,17 @@
   .karte {
     /* the card's API (law C3/C5), all four knobs named here and consumed below:
        --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
-                       "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold,
-                       uppercase, 0.08em tracking) measure 137px, so 9rem (144px) holds it on one
-                       line. Measured in the browser, and re-measured every run by
+                       "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold, mixed
+                       case, 0.02em tracking) measure 102px, so 7rem (112px) holds it on one line.
+                       Measured in the browser, and re-measured every run by
                        test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
-                       a second line, which is a defect the eye skims past (at 8rem the test reports
-                       "Datierung (EDTF): wants 137px in a 128px column").
+                       a second line, which is a defect the eye skims past (at 6rem the test reports
+                       "Datierung (EDTF): wants 102px in a 96px column").
        --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full.
        --feld-signatur 12ch: a Signatur carries no spaces and tops out at 8 characters (owner
                        2026-08-07), so the ceiling code plus the caret fits (learning G.31).
        --feld-kurz     18ch — an EDTF interval and a personal name. Everything else fills its cell. */
-    --label-spalte: 9rem;
+    --label-spalte: 7rem;
     --wert-min: 14rem;
     --feld-signatur: 12ch;
     --feld-kurz: 18ch;
@@ -50,8 +50,8 @@
        ruling 1): auto-fit lays as many section columns as the card's own width allows and shares the
        slack between them, so there is NO width query in this card at all. The floor is DERIVED, not
        picked: a section column must hold its label axis plus a value cell plus the gap between them,
-       i.e. 9rem + 14rem + 0.75rem = 23.75rem. Two columns therefore appear at 48.5rem of card
-       width (2 x 23.75 + the 1rem column gap) — measured live: the 1440px desk with the reader's
+       i.e. 7rem + 14rem + 0.75rem = 21.75rem. Two columns therefore appear at 44.5rem of card
+       width (2 x 21.75 + the 1rem column gap) — measured live: the 1440px desk with the reader's
        sheet open gives the card ~61rem, the 680px viewport ~40.5rem, so the desk gets two columns
        and the narrow viewport one, by arithmetic rather than by a threshold. */
     --spalten-boden: calc(var(--label-spalte) + var(--wert-min) + var(--space-3));
@@ -79,13 +79,11 @@
     padding-block: var(--space-1);
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   /* the folded sections' value line (owner ruling 4). It disappears while the section is OPEN,
      because then the fields carry those values and no fact may be on screen twice (Q2). */
   details.fach > summary > .werte {
-    text-transform: none;
     letter-spacing: normal;
     font: var(--type-meta);
   }
@@ -218,7 +216,6 @@
   .column dt {
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   .column dd {
@@ -313,7 +310,6 @@
     color: var(--surface);
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     border-radius: var(--radius-s);
   }
   /* the row's icon toolbar carries NOTHING local — hit area, ink and hit floor all come from the
@@ -407,7 +403,6 @@
     text-align: left;
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
     padding: var(--space-1) var(--space-3) var(--space-1) 0;
     border-bottom: var(--hairline) solid var(--outline-variant);

@@ -125,7 +125,6 @@
   .field > span:first-child {
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   /* one source for the message and the border: the .error node's presence */
@@ -146,7 +145,6 @@
     cursor: pointer;
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
 }
@@ -236,7 +234,6 @@
     display: inline-block;
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     padding: calc(var(--space-1) / 2) var(--space-2);
     border: var(--hairline) solid var(--outline);
     border-radius: var(--radius-s);
@@ -424,8 +421,7 @@
     display: inline-flex; /* centers the label inside the row's --control-height (C8) */
     align-items: center;
     list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
-    letter-spacing: normal; /* undo the bare-summary label treatment the button set leaves alone */
-    text-transform: none; /* (same) */
+    letter-spacing: normal; /* undo the bare-summary label tracking the button set leaves alone */
   }
   .menu[open] > summary {
     background: var(--surface-container-mid);
@@ -587,7 +583,6 @@
   .ledger [role="columnheader"] a {
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
-    text-transform: uppercase;
     color: var(--on-surface-variant);
   }
   .ledger [role="columnheader"] a {

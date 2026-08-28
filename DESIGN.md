@@ -56,8 +56,7 @@ typography:
     fontSize: "0.72rem"
     fontWeight: 600
     lineHeight: 1.3
-    letterSpacing: "0.08em"
-    fontFeature: "uppercase"
+    letterSpacing: "0.02em"
   mono:
     fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
     fontSize: "0.85rem"
@@ -213,7 +212,8 @@ layer mixes color by hand; a hex in component CSS is a defect.
 
 **Character:** plain working sans everywhere, tabular mono for archival
 figures, and exactly one face with character: the Kapitälchen-serif wordmark.
-Labels are letterspaced uppercase small caps (0.08em).
+Labels read mixed case at a hair of tracking (0.02em) — the letterspaced
+uppercase label voice retired system-wide (owner 2026-08-22/28).
 
 ### Hierarchy
 - **Wordmark** (600, 1.5rem/1.2, 0.12em tracking, small-caps serif): header mark only.
@@ -221,7 +221,7 @@ Labels are letterspaced uppercase small caps (0.08em).
 - **Title** (600, 1.05rem/1.35): card and reader titles.
 - **Body** (400, 0.95rem/1.5): running text, ledger titles.
 - **Meta** (400, 0.85rem/1.4): dense controls, buttons, secondary cells.
-- **Label** (600, 0.72rem/1.3, 0.08em, uppercase): facet headings, column heads, badges.
+- **Label** (600, 0.72rem/1.3, 0.02em, mixed case): facet headings, column heads, badges.
 - **Mono / Mono-meta** (400, 0.85 / 0.78rem, tabular-nums): Signaturen, dates, counts.
 
 ### Named Rules

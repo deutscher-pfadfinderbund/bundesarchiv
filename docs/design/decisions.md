@@ -102,9 +102,10 @@ Mock-gate VERDICTS (2026-08-22, on MOCK renders):
 - **Label role: MIXED CASE** — uppercase retires system-wide. The ENTWURF
   register mark was excluded at first; the owner dropped that carve-out on
   2026-08-28 — the draft mark reads "Entwurf" like every other label.
-  Implementation wave pending.
-- **Sortable heads: HOLLOW GLYPH at rest** — new register row with the
-  wave.
+  Implementation wave DONE 2026-08-28: every label-role consumer dropped
+  `text-transform: uppercase`, `--label-tracking` went 0.08em → 0.02em.
+- **Sortable heads: HOLLOW GLYPH at rest** — recorded as cue-register row
+  13 (2026-08-28); its selectors land with the sort wave.
 - **Waldläuferzeichen round: still pending** (deferred, low priority —
   owner 2026-08-22); first peak stays the empty/404 states when it runs.
 
