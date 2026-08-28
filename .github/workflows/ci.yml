@@ -1,16 +1,16 @@
 # Two jobs, split by what they cost.
 #
-# `fast` runs on every event: lint, format, both type checkers and the
-# Postgres-free bulk of the suite. `db` runs the Postgres-backed tests — it
-# builds the repo's own image (docker/postgres/Dockerfile, Postgres with the
-# German Hunspell dictionary baked in; a `services:` block cannot build a local
-# Dockerfile). That job is skipped when no DB-relevant path changed, and always
-# runs on a push to main.
+# `fast` runs on every event and takes its checks from mise.toml's `check` task
+# — the same command a developer runs before every commit — plus mypy, which is
+# deliberately push-time-only locally and so stays its own step here.
 #
-# CI does not call the mise tasks: the Postgres tasks drive Apple's `container`
-# CLI, which the runners do not have — they have docker. The pytest marker
-# expressions are the shared source of truth between the two, so the split here
-# and the split in mise.toml select the same tests.
+# `db` runs the Postgres-backed tests and does NOT go through mise: the mise pg
+# tasks drive Apple's `container` CLI, which the runners do not have — they have
+# docker. It builds the repo's own image (docker/postgres/Dockerfile, Postgres
+# with the German Hunspell dictionary baked in; a `services:` block cannot build
+# a local Dockerfile). The pytest marker expressions are the shared source of
+# truth, so this job and mise's `test:db` select the same tests. The job is
+# skipped when no DB-relevant path changed, and always runs on a push to main.
 name: CI
 
 on:
@@ -24,10 +24,10 @@ jobs:
     outputs:
       db: ${{ steps.changes.outputs.db }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Detect DB-relevant changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: changes
         with:
           filters: |
@@ -45,31 +45,25 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install mise
+        uses: jdx/mise-action@v4
+
       # uv installs the pinned Python (.python-version: 3.14) itself.
       - name: Install dependencies
         run: uv sync
 
-      - name: ruff check
-        run: uv run ruff check
-
-      - name: ruff format
-        run: uv run ruff format --check .
-
-      - name: pyrefly
-        run: uv run pyrefly check src tests
+      - name: Fast checks (ruff, format, pyrefly, no-Postgres tests)
+        run: mise run check
 
       - name: mypy
         run: uv run mypy
-
-      - name: pytest (no Postgres)
-        run: uv run pytest -m "not requires_pg"
 
   db:
     runs-on: ubuntu-latest
     needs: fast
     if: github.event_name == 'push' || needs.fast.outputs.db == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10
