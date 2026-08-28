@@ -197,8 +197,7 @@ def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> Non
         _valid_post(corpus, media_type="Foto(s)", document_type="Brief"),
     )
     assert response.status_code == 200
-    # the straight closing quote in the verbatim string is HTML-escaped to &quot; in the render
-    assert "Dieser Dokumenttyp gehört nicht zu „Foto(s)&quot;." in response.content.decode()
+    assert "Dieser Dokumenttyp gehört nicht zu „Foto(s)“." in response.content.decode()
 
 
 # --- POST: CAS conflict state G (two racing clients through the real form) ---------

@@ -97,7 +97,7 @@ def _validate(
         loaded = _load_all(archive, auswahl)
         if not bulk.document_type_fits_all(wert.strip(), loaded):
             return (
-                f'„{wert.strip()}" gehört nicht zur Medienart aller ausgewählten Artikel. '
+                f"„{wert.strip()}“ gehört nicht zur Medienart aller ausgewählten Artikel. "
                 "Bitte zuerst die Medienart angleichen oder die Auswahl einschränken."
             )
     return None

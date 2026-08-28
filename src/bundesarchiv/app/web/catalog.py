@@ -143,7 +143,7 @@ def parse_edit_form(
         errors["document_type"] = (
             "Bitte zuerst eine Medienart wählen."
             if media_type is None
-            else f'Dieser Dokumenttyp gehört nicht zu „{media_type}".'
+            else f"Dieser Dokumenttyp gehört nicht zu „{media_type}“."
         )
 
     date, date_error = _parse_date(_get(post, "date"))

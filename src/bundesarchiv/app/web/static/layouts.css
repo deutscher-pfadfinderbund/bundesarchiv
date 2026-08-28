@@ -385,8 +385,14 @@
     font: var(--type-title);
     color: var(--on-surface);
   }
+  /* the BETWEEN is the composition's, whatever the paragraph is (law C4) */
   .column > p {
     margin: 0 0 var(--space-4);
+  }
+  /* ...the LOOK only for the plain running paragraph. `.count` and `.hint` carry their own
+     component roles, and this layer sits above theirs, so an unnarrowed rule would silently
+     outrank them (law C13's second mechanism). */
+  .column > p:not([class]) {
     font: var(--type-body);
     color: var(--on-surface-variant);
   }

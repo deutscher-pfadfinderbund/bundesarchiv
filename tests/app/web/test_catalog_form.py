@@ -152,7 +152,7 @@ def test_media_type_not_in_vocabulary_is_a_field_error() -> None:
 
 def test_document_type_not_belonging_to_media_type_is_rejected() -> None:
     result = _parse(_post(media_type="Foto(s)", document_type="Brief"))
-    assert result.errors["document_type"] == 'Dieser Dokumenttyp gehört nicht zu „Foto(s)".'
+    assert result.errors["document_type"] == "Dieser Dokumenttyp gehört nicht zu „Foto(s)“."
 
 
 def test_document_type_belonging_to_media_type_is_accepted() -> None:
