@@ -506,6 +506,41 @@ three MOCK concept directions were rendered (sources preserved in
   (mock-gate verdict 2026-08-22), the draft register mark loses its
   exception too: it renders "Entwurf", mixed case, like every other label.
 
+## Edit-form critique (owner, 2026-08-29 — on the post-label-wave render)
+
+Owner reviewed `edit-form.light.1440` and rejected the surface's composition:
+"in general the interface lacks hierarchy and structure." Findings, verbatim
+in substance:
+
+- **Section headings carry no rank** — "Kerndaten" and "Einordnung" are the
+  same size as the field labels beneath them.
+- **Too many horizontal lines** — the ruled-field underlines plus section
+  rules read as noise.
+- **The exposure card (right) is overloaded** — "way too overloaded", and
+  the F9 Signatur chip "looks out of place". Broader signal: **"I'm getting
+  more and more tired of the Signature label, it's overused."** Extends the
+  2026-08-23 domain fact (members don't care about Signaturen) toward
+  archivist surfaces: presence budget, not just member-side rank. Cue
+  register rows 1–2 stand until an explicit ruling; new surfaces spend
+  Signatur marks sparingly.
+- **Ragged field rhythm** — empty underline inputs with hints/echoes on
+  their own rows read as "values on another row".
+- **Field order unclear** — Kerndaten/Einordnung columns, then a collapsed
+  Herkunft ("3x leer"), then Beschreibung, then collapsed Zugriff, then
+  Medien, then a trailing collapsed Weitere Angaben: open/collapsed/open
+  sandwich with no discernible logic.
+- **Medien section spacing broken**; the native file input + "Hinzufügen"
+  pairing is not understood as an affordance.
+- **Trailing collapsed section feels wrong** as a page ending.
+- **The record row confuses**: "Zurück zur Suche" beside the amber Entwurf
+  badge, with the search bar directly above. (The amber box already dies
+  with the ruled gray-ENTWURF wave.)
+
+Consequence: the edit form needs a RECOMPOSE wave (shape first, mocks at a
+gate), not patches. The endorsed R1 Registratur-Brutalismus direction
+(typographic conviction, heavy letterhead rule) is the raw material for the
+hierarchy answer.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
