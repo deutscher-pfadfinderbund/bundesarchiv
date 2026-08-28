@@ -6,11 +6,12 @@
 #
 # `db` runs the Postgres-backed tests and does NOT go through mise: the mise pg
 # tasks drive Apple's `container` CLI, which the runners do not have — they have
-# docker. It builds the repo's own image (docker/postgres/Dockerfile, Postgres
-# with the German Hunspell dictionary baked in; a `services:` block cannot build
-# a local Dockerfile). The pytest marker expressions are the shared source of
-# truth, so this job and mise's `test:db` select the same tests. The job is
-# skipped when no DB-relevant path changed, and always runs on a push to main.
+# docker. The Postgres image (docker/postgres/Dockerfile, Postgres with the
+# German Hunspell dictionary baked in) is built and published to GHCR by
+# postgres-image.yml and only pulled here, so CI runs the same bytes as the VPS.
+# The pytest marker expressions are the shared source of truth, so this job and
+# mise's `test:db` select the same tests. The job is skipped when no DB-relevant
+# path changed, and always runs on a push to main.
 name: CI
 
 on:
@@ -62,6 +63,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: fast
     if: github.event_name == 'push' || needs.fast.outputs.db == 'true'
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v7
 
@@ -73,14 +77,33 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Build and start Postgres (German Hunspell dict)
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retries because a docker/postgres change triggers postgres-image.yml in
+      # parallel: the new :latest may still be publishing when this job starts.
+      - name: Pull Postgres image (German Hunspell dict)
         run: |
-          docker build -t bundesarchiv-postgres docker/postgres/
+          for i in $(seq 1 30); do
+            if docker pull ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Could not pull the Postgres image" >&2
+          exit 1
+
+      - name: Start Postgres
+        run: |
           docker run -d --name pg -p 5434:5432 \
             -e POSTGRES_DB=bundesarchiv \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=postgres \
-            bundesarchiv-postgres
+            ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
 
       - name: Wait for Postgres
         run: |

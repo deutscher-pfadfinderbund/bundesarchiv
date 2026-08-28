@@ -7,8 +7,7 @@
 # avoids host clashes; 5434 because 5433 was already taken on the dev machine.
 services:
   postgres:
-    build: ./docker/postgres
-    image: bundesarchiv-postgres
+    image: ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
     environment:
       POSTGRES_DB: bundesarchiv
       POSTGRES_USER: postgres
