@@ -22,7 +22,7 @@ No JS, no HTMX — the app's purest no-JS surface (§7).
 {% endif %}
 {% endblock %}
 {% block body %}
-<main class="column wide">
+<main id="inhalt" class="column wide">
   {% if is_archivist %}
   <div class="actions">
     <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>

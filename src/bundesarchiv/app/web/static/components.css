@@ -115,14 +115,17 @@
   }
 
   /* <label class="field"><span>Titel</span><input …></label> — the class is law C1's licence:
-     semantics cannot discriminate a stacked labeled field from an inline checkbox label. */
+     semantics cannot discriminate a stacked labeled field from an inline checkbox label.
+     A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
+     field carrying one is a <div> with an explicit <label for> — or, on the record card's bare
+     label rows (workbench/_feld.html), the control names itself via aria-labelledby. */
   .field {
     display: inline-flex;
     flex-direction: column;
     gap: var(--space-1);
     color: var(--on-surface);
   }
-  .field > span:first-child {
+  .field > :is(label, span):first-child {
     font: var(--type-label);
     letter-spacing: var(--label-tracking);
     color: var(--on-surface-variant);
@@ -161,8 +164,9 @@
     min-height: var(--control-height, var(--hit-fallback, auto));
   }
 
-  /* screen-reader-only text */
-  .visually-hidden {
+  /* screen-reader-only text — and the skip link, which is exactly that until it takes focus */
+  .visually-hidden,
+  .skip:not(:focus) {
     position: absolute;
     width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
     height: 1px; /* (same) */
@@ -172,6 +176,17 @@
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+  }
+  /* it belongs to no control row, so it names its own hit floor (C8's out-of-row mechanism) */
+  .skip {
+    --hit-fallback: var(--touch-target);
+  }
+  /* focused it lands ON the page rather than in the flow, so nothing below it shifts */
+  .skip:focus {
+    position: absolute;
+    inset-block-start: var(--space-2);
+    inset-inline-start: var(--space-2);
+    z-index: var(--z-banner);
   }
 
   /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,

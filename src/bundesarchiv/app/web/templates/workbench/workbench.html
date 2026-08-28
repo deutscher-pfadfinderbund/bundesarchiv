@@ -21,6 +21,7 @@ view-computed bool (§11: scoping itself stays in search()/can_view; the /artike
 independently gated either way).
 {% endcomment %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
+{% block skip_ziel %}results{% endblock %}
 {% block body %}
 {% include "workbench/_filterrail.html" %}
 <div class="frame">

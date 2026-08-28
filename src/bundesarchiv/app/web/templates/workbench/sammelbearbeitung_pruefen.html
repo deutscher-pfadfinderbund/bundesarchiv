@@ -16,7 +16,7 @@ screen — the partial exists precisely so no screen hand-draws a reduced versio
 rule). This one kept its own lone back link through the form wave.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="column">
+<main id="inhalt" class="column">
   <h1>Sammelbearbeitung prüfen</h1>
 
   {% if fehler %}
@@ -28,8 +28,10 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
     <p class="hint">{{ anzahl }} ausgewählt</p>
+    {% comment %}Before the chooser, so the message precedes the submit it is about in source AND
+    visual order; role=alert announces it on the re-render.{% endcomment %}
+    <p class="error" role="alert">{{ fehler }}</p>
     {% include "workbench/_feldwahl.html" %}
-    <p class="error">{{ fehler }}</p>
   </form>
   <p><a href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
   {% else %}
@@ -43,8 +45,8 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   {% if orphans %}
   {% comment %}Orphan case: weight-emphasized heading, NO loud color (spec §7). Per-row listing of
   the Dokumenttypen that will be cleared; commit requires dokumenttyp_leeren=1.{% endcomment %}
-  <section class="panel">
-    <h2>Medienart ändern — Achtung</h2>
+  <section class="panel" aria-labelledby="orphans-titel">
+    <h2 id="orphans-titel">Medienart ändern — Achtung</h2>
     <p>Medienart wird auf „{{ wert }}“ gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
     <ul>
       {% for row in orphans %}
@@ -58,7 +60,10 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   </section>
   {% endif %}
 
-  <section class="panel">
+  {% comment %}The affected articles are their own region: the list had no heading at all, so it
+  read as a continuation of the summary panel above it.{% endcomment %}
+  <section class="panel" aria-labelledby="betroffene-titel">
+    <h2 id="betroffene-titel">Betroffene Artikel</h2>
     <ul>
       {% for row in artikel_liste %}
       <li>

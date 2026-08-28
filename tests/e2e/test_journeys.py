@@ -1597,7 +1597,7 @@ _LABEL_AXIS_JS = """() => {
     const fields = document.querySelectorAll('.karte .fach > .field');
     return [...fields].map((field) => {
         // a grid item is blockified, so the label's clientWidth IS the axis track's used width
-        const label = field.querySelector(':scope > span:first-child');
+        const label = field.querySelector(':scope > :is(label, span):first-child');
         const box = label.clientWidth;
         // what the label WANTS on one line. Measured with wrapping suppressed, because a label that
         // does not fit its column simply wraps to a second line — a Range around the wrapped text

@@ -13,7 +13,7 @@ screen since the form wave.
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="column narrow">
+<main id="inhalt" class="column narrow">
   <h1>Bestand bearbeiten</h1>
   {% if conflict_name %}
   {% comment %}Racing rename (ADR 0013): another archivist renamed this Bestand while this form was
@@ -27,11 +27,12 @@ screen since the form wave.
   <form method="post" action="{% url 'bestand-bearbeiten' ulid %}">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
-    <label class="field">
-      <span>Name</span>
-      <input type="text" name="name" value="{{ name }}" autofocus>
-      {% if errors.name %}<span class="error">{{ errors.name }}</span>{% endif %}
-    </label>
+    <div class="field">
+      <label for="feld-name">Name</label>
+      <input type="text" name="name" id="feld-name" value="{{ name }}" autofocus
+             {% if errors.name %}aria-invalid="true" aria-describedby="feld-name-fehler"{% endif %}>
+      {% if errors.name %}<span class="error" id="feld-name-fehler">{{ errors.name }}</span>{% endif %}
+    </div>
     <dl>
       <div>
         <dt>Eltern-Bestand</dt>

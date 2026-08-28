@@ -12,40 +12,44 @@ Anlegen is first-in-source so Enter submits it. Chrome: the shared WORKBENCH hea
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="column narrow">
+<main id="inhalt" class="column narrow">
   <h1>Neuer Bestand</h1>
   <form method="post" action="{% url 'bestand-neu' %}">
     {% csrf_token %}
-    <label class="field">
-      <span>Name</span>
-      <input type="text" name="name" value="{{ name }}"
+    <div class="field">
+      <label for="feld-name">Name</label>
+      <input type="text" name="name" id="feld-name" value="{{ name }}"
+             {% if errors.name %}aria-invalid="true" aria-describedby="feld-name-fehler"{% endif %}
              {% if autofocus == "name" %}autofocus{% endif %}>
-      {% if errors.name %}<span class="error">{{ errors.name }}</span>{% endif %}
-    </label>
-    <label class="field">
-      <span>Eltern-Bestand</span>
-      <select name="parent_id"
+      {% if errors.name %}<span class="error" id="feld-name-fehler">{{ errors.name }}</span>{% endif %}
+    </div>
+    <div class="field">
+      <label for="feld-parent_id">Eltern-Bestand</label>
+      <select name="parent_id" id="feld-parent_id"
+              {% if errors.parent_id %}aria-invalid="true" aria-describedby="feld-parent_id-fehler"{% endif %}
               {% if autofocus == "parent_id" %}autofocus{% endif %}>
         {% for value, caption in parent_options %}
         <option value="{{ value }}"{% if value == parent_id %} selected{% endif %}>{{ caption }}</option>
         {% endfor %}
       </select>
-      {% if errors.parent_id %}<span class="error">{{ errors.parent_id }}</span>{% endif %}
-    </label>
-    <label class="field">
-      <span>Sichtbarkeit</span>
-      <select name="sichtbarkeit">
+      {% if errors.parent_id %}<span class="error" id="feld-parent_id-fehler">{{ errors.parent_id }}</span>{% endif %}
+    </div>
+    <div class="field">
+      <label for="feld-sichtbarkeit">Sichtbarkeit</label>
+      <select name="sichtbarkeit" id="feld-sichtbarkeit"
+              {% if errors.sichtbarkeit %}aria-invalid="true" aria-describedby="feld-sichtbarkeit-fehler"{% endif %}>
         {% for value, caption in sichtbarkeit_options %}
         <option value="{{ value }}"{% if value == sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
         {% endfor %}
       </select>
-      {% if errors.sichtbarkeit %}<span class="error">{{ errors.sichtbarkeit }}</span>{% endif %}
-    </label>
-    <label class="field">
-      <span>Gruppen</span>
-      <input type="text" name="gruppen" value="{{ gruppen }}">
-      <span class="hint">Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)</span>
-    </label>
+      {% if errors.sichtbarkeit %}<span class="error" id="feld-sichtbarkeit-fehler">{{ errors.sichtbarkeit }}</span>{% endif %}
+    </div>
+    <div class="field">
+      <label for="feld-gruppen">Gruppen</label>
+      <input type="text" name="gruppen" id="feld-gruppen" value="{{ gruppen }}"
+             aria-describedby="feld-gruppen-hinweis">
+      <span class="hint" id="feld-gruppen-hinweis">Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)</span>
+    </div>
     <footer>
       <button class="primary" type="submit">Anlegen</button>
     </footer>

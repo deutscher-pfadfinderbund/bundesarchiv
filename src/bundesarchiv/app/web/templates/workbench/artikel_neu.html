@@ -15,27 +15,29 @@ type something, so the create step had no visible return path at all.
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="column narrow">
+<main id="inhalt" class="column narrow">
   <h1>Neuer Artikel</h1>
   {% if angelegt %}<p class="hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
   <form method="post" action="{% url 'artikel-neu' %}">
     {% csrf_token %}
-    <label class="field">
-      <span>Titel</span>
-      <input type="text" name="title" value="{{ title }}"
+    <div class="field">
+      <label for="feld-title">Titel</label>
+      <input type="text" name="title" id="feld-title" value="{{ title }}"
+             {% if errors.title %}aria-invalid="true" aria-describedby="feld-title-fehler"{% endif %}
              {% if autofocus == "title" %}autofocus{% endif %}>
-      {% if errors.title %}<span class="error">{{ errors.title }}</span>{% endif %}
-    </label>
-    <label class="field">
-      <span>Bestand</span>
-      <select name="collection_id"
+      {% if errors.title %}<span class="error" id="feld-title-fehler">{{ errors.title }}</span>{% endif %}
+    </div>
+    <div class="field">
+      <label for="feld-collection_id">Bestand</label>
+      <select name="collection_id" id="feld-collection_id"
+              {% if errors.collection_id %}aria-invalid="true" aria-describedby="feld-collection_id-fehler"{% endif %}
               {% if autofocus == "collection_id" %}autofocus{% endif %}>
         {% for value, caption in collection_options %}
         <option value="{{ value }}"{% if value == collection_id %} selected{% endif %}>{{ caption }}</option>
         {% endfor %}
       </select>
-      {% if errors.collection_id %}<span class="error">{{ errors.collection_id }}</span>{% endif %}
-    </label>
+      {% if errors.collection_id %}<span class="error" id="feld-collection_id-fehler">{{ errors.collection_id }}</span>{% endif %}
+    </div>
     <footer>
       <button class="primary" type="submit">Anlegen</button>
     </footer>

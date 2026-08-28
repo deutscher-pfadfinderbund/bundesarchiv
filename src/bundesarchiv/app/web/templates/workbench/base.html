@@ -18,6 +18,10 @@ the wordmark is always present and always links home.
   {% block head_extra %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+{% comment %}Skip link — the first focusable element on every screen (a11y floor, ruling D). Its
+target is a BLOCK because the workbench's landmark is the htmx swap target #results and cannot
+take a second id; every other screen leaves the default.{% endcomment %}
+<a class="button skip" href="#{% block skip_ziel %}inhalt{% endblock %}">Zum Inhalt springen</a>
 <header>
   <a class="wordmark" href="{% url 'workbench' %}">Bundesarchiv</a>
   {% block header %}{% endblock %}

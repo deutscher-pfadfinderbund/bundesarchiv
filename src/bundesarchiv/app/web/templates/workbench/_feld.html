@@ -5,17 +5,19 @@ value/error/focus. The card's sections loop this partial, so the registry is the
 of the record card exists.
 
 It stays a bare <label>: forms.css reaches its parts through `.fach > .field > …`, a direct-child
-path (law C14), so a wrapper here would drop the row off its own axis.
-{% endcomment %}<label class="field">
-  <span>{{ feld.label }}</span>
+path (law C14), so a wrapper here would drop the row off its own axis. Inside a label the hint and
+error text would join the control's accessible name, so the control names itself from the label span
+alone (aria-labelledby) and takes the messages — and the Datierung echo — as its description.
+{% endcomment %}{% with base="feld-"|add:feld.name %}<label class="field">
+  <span id="{{ base }}-label">{{ feld.label }}</span>
   {% if feld.control == "select" %}
-  <select name="{{ feld.name }}"{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <select name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
     {% for value, caption in feld.options %}
     <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
     {% endfor %}
   </select>
   {% elif feld.control == "groups" %}
-  <select id="{{ feld.element_id }}" name="{{ feld.name }}"{% if feld.autofocus %} autofocus{% endif %}>
+  <select id="{{ feld.element_id }}" name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
     <option value="">{{ feld.blank }}</option>
     {% for group_label, group_options in feld.options %}
     <optgroup label="{{ group_label }}">
@@ -26,9 +28,10 @@ path (law C14), so a wrapper here would drop the row off its own axis.
     {% endfor %}
   </select>
   {% else %}
-  <input type="text" name="{{ feld.name }}" value="{{ feld.value }}"{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <input type="text" name="{{ feld.name }}" value="{{ feld.value }}" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
   {% endif %}
-  {% if feld.hint %}<span class="hint">{{ feld.hint }}</span>{% endif %}
-  {% if feld.error %}<span class="error">{{ feld.error }}</span>{% endif %}
+  {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}</span>{% endif %}
+  {% if feld.error %}<span class="error" id="{{ base }}-fehler">{{ feld.error }}</span>{% endif %}
   {% if feld.echo %}{% include "workbench/_datierung_echo.html" with edtf_echo=feld.echo_text only %}{% endif %}
 </label>
+{% endwith %}

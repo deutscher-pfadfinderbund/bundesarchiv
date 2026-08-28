@@ -14,13 +14,13 @@ screen. Its back link keeps pointing at the ARTICLE this page is about rather th
 that is a per-screen parameter of the one partial, not a reason to hand-draw a second header.{% endcomment %}
 {% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
 {% block body %}
-<main class="column narrow">
+<main id="inhalt" class="column narrow">
   <h1>{{ titel_confirm }}</h1>
   {% comment %}The record being confirmed sits on a true sheet (register row 8: confirm panels
   are sheets) — same material grammar as the bulk-confirm page, one look per confirm surface.{% endcomment %}
-  <section class="panel">
+  <section class="panel" aria-labelledby="loeschen-titel">
     <header>
-      <strong>„{{ title }}“</strong>
+      <strong id="loeschen-titel">„{{ title }}“</strong>
       {% include "components/signatur_tab.html" with ref_code=ref_code %}
     </header>
     <p>

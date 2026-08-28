@@ -15,7 +15,7 @@ screen — the partial exists precisely so no screen hand-draws a reduced versio
 rule). This one kept its own lone back link through the form wave.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
 {% block body %}
-<main class="column">
+<main id="inhalt" class="column">
   {% if conflict_count %}
   <h1>Sammelbearbeitung: teilweise abgeschlossen</h1>
   <p class="count">{{ saved }} gespeichert · {{ conflict_count }} inzwischen geändert</p>
@@ -35,8 +35,8 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   {% endif %}
 
   {% if conflicted %}
-  <section class="panel">
-    <p>Nicht gespeichert — ein anderer Bearbeiter war schneller:</p>
+  <section class="panel" aria-labelledby="konflikt-titel">
+    <p id="konflikt-titel">Nicht gespeichert — ein anderer Bearbeiter war schneller:</p>
     <ul>
       {% for row in conflicted %}
       <li>
@@ -52,8 +52,8 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   {% endif %}
 
   {% if missing %}
-  <section class="panel">
-    <p>Nicht mehr vorhanden:</p>
+  <section class="panel" aria-labelledby="fehlend-titel">
+    <p id="fehlend-titel">Nicht mehr vorhanden:</p>
     <ul>
       {% for ulid in missing %}<li><span>{{ ulid }}</span></li>{% endfor %}
     </ul>

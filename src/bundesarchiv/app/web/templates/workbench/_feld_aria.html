@@ -1,0 +1,3 @@
+{% comment %}The control attributes that tie a _feld.html row together: name from the label span only,
+hint/error/echo as description, aria-invalid while the error shows. Needs `feld` and `base`.
+{% endcomment %}aria-labelledby="{{ base }}-label"{% if feld.hint or feld.error or feld.echo %} aria-describedby="{% if feld.hint %}{{ base }}-hinweis {% endif %}{% if feld.error %}{{ base }}-fehler {% endif %}{% if feld.echo %}datierung-echo{% endif %}"{% endif %}{% if feld.error %} aria-invalid="true"{% endif %}

@@ -299,7 +299,11 @@ border, no fill ("ohne Signatur", empty state).
   labels above in label type via `.field`.
 - **Focus:** 2px `--focus-ring` outline at 2px offset (global invariant)
   plus border deepening to `on-surface`.
-- **Error:** `.error` message node's presence turns the field border red.
+- **Error:** `.error` message node's presence turns the field border red. A
+  message never joins the control's accessible name: it is wired by
+  `aria-describedby`, and the name comes from the label text alone — an explicit
+  `<label for>` on a `div.field`, or, on the record card's bare `<label>` rows
+  (C14), `aria-labelledby` on the label span.
 - **File input stays native** (German browser renders German strings).
 
 ### Badges

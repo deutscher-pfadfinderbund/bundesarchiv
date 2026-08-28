@@ -210,11 +210,16 @@ components; this storyboard updates in lockstep with them.
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    <label class="field"><span>Datierung (EDTF)</span><input type="text" name="date" value="19x2"><span class="error">Ungültige EDTF-Datierung.</span></label>
+    <div class="field">
+      <label for="demo-date-{{ mode }}">Datierung (EDTF)</label>
+      <input type="text" name="date" id="demo-date-{{ mode }}" value="19x2"
+             aria-invalid="true" aria-describedby="demo-date-{{ mode }}-fehler">
+      <span class="error" id="demo-date-{{ mode }}-fehler">Ungültige EDTF-Datierung.</span>
+    </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">the .error line inside label.field also drives the control's red border (:has — one source, no drift)</code>
+<code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. The .error line still drives the red border (:has — one source, no drift)</code>
 
 <h2>Badges — lifecycle</h2>
 <div class="probe">
