@@ -18,7 +18,7 @@ Run dev with ``DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev``.
 
 import os
 
-from bundesarchiv.index.settings import *  # noqa: F403  (dev = prod + the dev-viewer additions below)
+from bundesarchiv.index.settings import *
 
 # A DEDICATED dev-only signing key — NOT the production SECRET_KEY (that is the whole point: a
 # leaked/replayed dev cookie must be worthless against prod). Fixed value: this file is dev-only and
@@ -47,7 +47,7 @@ MIDDLEWARE = [
 # the whole test process (which runs under prod settings = manifest) to non-manifest. The manifest
 # storage + its fail-loud {% static %} is exercised by the test gate under prod settings, not here.
 STORAGES = {
-    **STORAGES,  # noqa: F405  (star-imported from settings)
+    **STORAGES,
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 

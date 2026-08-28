@@ -152,7 +152,11 @@ def test_prod_process_boots_clean_under_prod_settings() -> None:
     env.pop("SECRET_KEY", None)
     env.pop("BUNDESARCHIV_DEV_VIEWER_SIGNING_KEY", None)
     result = subprocess.run(
-        [sys.executable, "manage.py", "check"], capture_output=True, text=True, env=env
+        [sys.executable, "manage.py", "check"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
     )
     assert result.returncode == 0, (
         f"prod `manage.py check` failed:\n{result.stdout}\n{result.stderr}"

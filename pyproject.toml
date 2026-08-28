@@ -77,6 +77,10 @@ extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH
 # Django migration classes own `dependencies`/`operations` as bare class attributes (the
 # framework mutates them); RUF012 (ClassVar) does not apply and 0002 is auto-generated.
 "**/migrations/*.py" = ["RUF012"]
+# The README codecs reject corrupt canonical file CONTENT — a value/decode contract the persistence
+# tests pin as ValueError, not the argument-type situation TRY004 targets.
+"src/bundesarchiv/persistence/readme.py" = ["TRY004"]
+"src/bundesarchiv/persistence/collection_readme.py" = ["TRY004"]
 
 [tool.mypy]
 strict = true

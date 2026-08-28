@@ -302,4 +302,4 @@ def _current_year() -> int:
     Imported locally so the pure ``build_row`` path never depends on the clock module."""
     import datetime
 
-    return datetime.date.today().year
+    return datetime.date.today().year  # noqa: DTZ011 — decade bucketing wants the LOCAL year

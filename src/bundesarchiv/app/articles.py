@@ -169,7 +169,7 @@ def _enqueue_mirror_keys(keys: list[str]) -> None:
     try:
         for key in keys:
             enqueue_mirror_push(key)
-    except Exception:  # queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> mirror lag heals at the next reconcile
         return
 
 
@@ -179,7 +179,7 @@ def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:
     """
     try:
         index_article(store, ulid)
-    except Exception:  # the canonical write stood; the sync index is best-effort, retry via queue
+    except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
         _enqueue_reindex(ulid)
         return False
     return True
@@ -189,5 +189,5 @@ def _enqueue_reindex(ulid: Ulid) -> None:
     """Enqueue a reindex retry, swallowing failure — the periodic full rebuild heals the lag."""
     try:
         enqueue_reindex_article(ulid)
-    except Exception:
+    except Exception:  # noqa: BLE001 — ADR 0014 fail-open seam
         return

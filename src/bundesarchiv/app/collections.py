@@ -75,7 +75,7 @@ def _enqueue_mirror(store: ObjectStore, ulid: str) -> None:
     try:
         for key in CollectionRepository(store).keys_for(ulid):
             enqueue_mirror_push(key)
-    except Exception:  # queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> mirror lag heals at the next reconcile
         return
 
 
@@ -84,7 +84,7 @@ def _sync_index_subtree(store: ObjectStore, collection_ulid: str) -> bool:
     False (never re-raise — the canonical write already stood). Returns True on success."""
     try:
         index_subtree(store, collection_ulid)
-    except Exception:  # the canonical write stood; the sync index is best-effort, retry via queue
+    except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
         enqueue_reindex_subtree(collection_ulid)
         return False
     return True
