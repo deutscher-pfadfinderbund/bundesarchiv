@@ -48,9 +48,10 @@ DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py procrast
 ## Tests
 
 ```sh
-uv run pytest                          # full suite (needs the database from Setup)
-BUNDESARCHIV_SKIP_PG=1 uv run pytest   # without a database (skips index + app tests)
-pre-commit install                     # lint + type-check + tests on every commit
+uv run pytest                            # full suite (needs the database from Setup)
+uv run pytest -m "not requires_pg"       # without a database
+uv run pytest -m requires_pg             # only the Postgres-backed tests
+pre-commit install                       # lint + type-check + tests on every commit
 ```
 
 ## Learn more

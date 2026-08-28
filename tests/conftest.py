@@ -14,8 +14,11 @@ Design constraints (Task 4 / 4.2 brief):
   before pytest-django creates the test database — a down container reports the fix instead of a
   raw ``OperationalError`` deep inside test-database creation.
 
-- Escape hatch: ``BUNDESARCHIV_SKIP_PG=1`` (honored per-directory by the ``tests/index`` and
-  ``tests/app`` conftests, which own their own collection-skip scoping).
+- Which tests need Postgres is DERIVED, never listed: ``pytest_collection_modifyitems`` marks every
+  item whose (transitive) fixture closure pulls in a pytest-django database fixture with
+  ``requires_pg``. Run without a container via ``uv run pytest -m "not requires_pg"``. A test that
+  reaches Postgres out of band — a subprocess, say — is invisible to the derivation and carries the
+  marker explicitly.
 
 This lives at the repo-test root so BOTH the index adapter tests and the app-service tests inherit
 the same guarded ``django_db_setup``; the pure architecture checks still run without Postgres.
@@ -24,6 +27,8 @@ the same guarded ``django_db_setup``; the pure architecture checks still run wit
 import os
 
 import pytest
+
+_DB_FIXTURES = frozenset({"db", "transactional_db", "django_db_reset_sequences", "live_server"})
 
 _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 
@@ -35,8 +40,22 @@ _UNREACHABLE_HINT = (
     "or (Docker VPS path): docker compose up -d\n"
     "No container runtime (cloud sandbox)? bash scripts/dev-pg-cloud.sh (idempotent — also\n"
     "the fix when a sandbox reclaimed a previously running server mid-session).\n"
-    "To skip the DB-backed suites instead: BUNDESARCHIV_SKIP_PG=1"
+    'To run only the DB-free tests instead: uv run pytest -m "not requires_pg"'
 )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Mark every item that reaches the database through pytest-django with ``requires_pg``.
+
+    ``fixturenames`` is the resolved closure, so a test using only a conftest fixture that itself
+    depends on ``db`` is caught too. The ``django_db`` marker is checked separately: pytest-django
+    grants DB access for it through a fixture it injects in its own (tryfirst) collection hook, so
+    the closure this hook sees does not yet mention any database fixture.
+    """
+    for item in items:
+        by_fixture = _DB_FIXTURES.intersection(getattr(item, "fixturenames", ()))
+        if by_fixture or item.get_closest_marker("django_db") is not None:
+            item.add_marker(pytest.mark.requires_pg)
 
 
 @pytest.fixture(scope="session")

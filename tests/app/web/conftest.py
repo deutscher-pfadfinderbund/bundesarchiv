@@ -8,8 +8,7 @@ worker queue (``enqueue_*``). ``app.articles`` imports both as module-level name
 are monkeypatchable (its docstring calls them "a genuine boundary").
 
 This autouse fixture no-ops exactly those boundaries, so the web tests keep the whole
-canonical-write + CAS path real while staying DB-free (the ``tests/app/web`` subtree is exempt from
-SKIP_PG by ``tests/app/conftest.py``). ``_sync_index`` swallows the index step's outcome into
+canonical-write + CAS path real. ``_sync_index`` swallows the index step's outcome into
 ``index_updated``; a no-op that returns None reads as a successful index, which is what these tests
 assert against unless a test overrides the seam to force the ADR-0014 lag path.
 """

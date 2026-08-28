@@ -108,8 +108,8 @@ testpaths = ["tests"]
 # imported) to run django.setup(). Setting it here does NOT force a database on the pure
 # suites: django.setup() is cheap and DB-free; pytest-django only creates the test database
 # when a test actually uses the `db`/`django_db` fixture. tests/domain and tests/persistence
-# use neither, so they still run with no Postgres. Only tests/index touches the DB, gated by
-# tests/index/conftest.py (which fails, not skips, when Postgres is unreachable).
+# use neither, so they still run with no Postgres. The guarded `django_db_setup` in
+# tests/conftest.py fails (never skips) when Postgres is unreachable.
 DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
 # The E2E journey suite + state gallery (tests/e2e/, Part #26) drive a real browser against a live
 # server — slow and heavyweight, so both are EXCLUDED from the default run (the fast gate +
@@ -118,5 +118,6 @@ DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
 markers = [
     "e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)",
     "gallery: renders the canonical-state screenshot gallery (excluded from the default run; -m gallery to run)",
+    "requires_pg: needs the real Postgres on :5434 (auto-derived from DB fixtures; add explicitly only for out-of-band DB use)",
 ]
-addopts = "-m 'not e2e and not gallery'"
+addopts = "--strict-markers -m 'not e2e and not gallery'"

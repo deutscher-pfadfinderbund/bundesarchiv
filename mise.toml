@@ -30,3 +30,48 @@ exit 1
 [tasks.dev]
 description = "Dev server on :8000"
 run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"
+
+# Test suites. The DB-backed ones share a single test database — run them sequentially,
+# never in parallel.
+
+[tasks.test]
+description = "Full default pytest run (needs Postgres)"
+depends = ["pg:wait"]
+run = "uv run pytest"
+
+[tasks."test:nodb"]
+description = "Everything that runs without Postgres (derived requires_pg marker)"
+run = "uv run pytest -m \"not requires_pg\""
+
+[tasks."test:db"]
+description = "Only the Postgres-backed tests"
+depends = ["pg:wait"]
+run = "uv run pytest -m requires_pg"
+
+[tasks."test:domain"]
+description = "Visibility policy + value objects (pure Python, no DB)"
+run = "uv run pytest tests/domain"
+
+[tasks."test:persistence"]
+description = "Canonical file store: codecs, CAS, durability (no DB)"
+run = "uv run pytest tests/persistence"
+
+[tasks."test:index"]
+description = "Viewer-scoped search: leaks, equivalence, indexer (needs Postgres)"
+depends = ["pg:wait"]
+run = "uv run pytest tests/index"
+
+[tasks."test:app"]
+description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
+depends = ["pg:wait"]
+run = "uv run pytest tests/app"
+
+[tasks."test:e2e"]
+description = "Real-browser journeys (excluded from default run)"
+depends = ["pg:wait"]
+run = "uv run pytest -m e2e"
+
+[tasks."test:gallery"]
+description = "State gallery, renders screenshots (excluded from default run)"
+depends = ["pg:wait"]
+run = "uv run pytest -m gallery -s"

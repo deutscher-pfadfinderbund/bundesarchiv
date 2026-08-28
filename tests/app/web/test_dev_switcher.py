@@ -138,6 +138,9 @@ def test_switcher_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
         reverse("dev-switch-viewer")
 
 
+# Explicit: the subprocess connects to Postgres out of band, so no DB fixture appears in this
+# test's closure and the requires_pg derivation in tests/conftest.py cannot see it.
+@pytest.mark.requires_pg
 def test_prod_process_boots_clean_under_prod_settings() -> None:
     # The strongest, realest prod-safety proof: a fresh process runs ``manage.py check`` under the
     # PRODUCTION settings module (no SECRET_KEY, no MIDDLEWARE, no ROOT_URLCONF) and passes. If prod

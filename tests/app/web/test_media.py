@@ -37,8 +37,7 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 _DEV_KEY = "test-media-dev-key"
 
-# Media serving is pure request handling against a local FS store — no Postgres. (The tests/app
-# conftest already exempts the web/ subtree from SKIP_PG.)
+# Media serving is pure request handling against a local FS store — no Postgres.
 
 
 def _png_bytes(color: tuple[int, int, int] = (200, 40, 60)) -> bytes:

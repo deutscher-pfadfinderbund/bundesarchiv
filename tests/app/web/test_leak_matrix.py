@@ -22,8 +22,8 @@ never the urlconf. Its public-by-design contract is pinned in ``test_static_asse
 Dev-only routes (``dev_urls.py``) are covered by their own prod-by-absence assertions here:
 ``test_dev_routes_absent_from_prod_urlconf`` proves each is a ``Resolver404`` under the prod urlconf.
 
-Pure request handling against a local FS store — no Postgres (the web/ subtree is exempt from
-SKIP_PG), and the index-write / worker-enqueue seams are the conftest autouse no-ops.
+Pure request handling against a local FS store — no Postgres, and the index-write /
+worker-enqueue seams are the conftest autouse no-ops.
 """
 
 import io

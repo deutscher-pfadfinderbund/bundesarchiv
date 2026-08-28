@@ -14,9 +14,10 @@ uses Apple's `container` CLI (README).
 
 - `BUNDESARCHIV_PG_DSN` — connection string (default
   `postgresql://postgres:postgres@localhost:5434/bundesarchiv`).
-- Index tests require a running Postgres and **fail** (not skip) if unreachable;
-  `BUNDESARCHIV_SKIP_PG=1` skips the DB-backed suites (`tests/index/`,
-  `tests/app/`) for domain-only work.
+- DB-backed tests require a running Postgres and **fail** (not skip) if
+  unreachable. They carry the `requires_pg` marker, derived from their fixture
+  closure by `tests/conftest.py`; `uv run pytest -m "not requires_pg"` runs the
+  DB-free rest for domain-only work.
 
 ## Background worker (Procrastinate) — ADR 0014
 

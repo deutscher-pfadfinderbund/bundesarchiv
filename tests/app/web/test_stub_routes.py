@@ -10,7 +10,7 @@ no leaked content (existence-hiding; the byte-identical-404 law was relaxed by t
 archivist-gate is now pinned by ``test_catalog_create.py``.)
 
 These are pure request-handling against a local FS store (load + resolve + can_view) — no Postgres,
-so they run with no container (the web/ subtree is exempt from SKIP_PG).
+so they run with no container (no DB fixture, hence no derived ``requires_pg`` marker).
 """
 
 from pathlib import Path
