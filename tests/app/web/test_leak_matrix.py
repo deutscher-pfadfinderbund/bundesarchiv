@@ -184,6 +184,18 @@ def _p_root(_c: _MatrixCorpus) -> str:
     return "/"
 
 
+def _p_login(_c: _MatrixCorpus) -> str:
+    return "/login"
+
+
+def _p_oidc_callback(_c: _MatrixCorpus) -> str:
+    return "/oidc/callback"
+
+
+def _p_logout(_c: _MatrixCorpus) -> str:
+    return "/logout"
+
+
 def _p_artikel_neu(_c: _MatrixCorpus) -> str:
     return "/artikel/neu"
 
@@ -259,6 +271,32 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=OK,
         post_arch=OK,
         stub_search=True,
+    ),
+    # The login surface (ADR 0018) with NO realm configured — the deploy-misconfiguration case, which
+    # is what these settings are. ``/login`` and the callback fall closed to the shared 404 (no
+    # signing key, no realm, no state cookie); their configured behaviour is test_auth_views.py's.
+    # ``/logout`` is the deliberate exception: signing somebody OUT may not fail closed, so it
+    # answers every tier the same 302 (cookie cleared, land on the workbench).
+    "login": Route(
+        build_path=_p_login,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,
+    ),
+    "oidc-callback": Route(
+        build_path=_p_oidc_callback,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,
+    ),
+    "logout": Route(
+        build_path=_p_logout,
+        get_nonarch=FOUR_OH_FOUR,  # GET disallowed
+        get_arch=FOUR_OH_FOUR,
+        post_nonarch=REDIRECT,
+        post_arch=REDIRECT,
     ),
     # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.

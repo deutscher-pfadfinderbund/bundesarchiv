@@ -60,6 +60,13 @@ matches = "src/bundesarchiv/index/query.py"
 errors = { bad-argument-type = false }
 
 [[tool.pyrefly.sub-config]]
+# authlib's `OAuth2Client` (the httpx integration) inherits from `httpx.Client`, and the library
+# ships no types — pyrefly resolves only authlib's own base and reports httpx's `close()` as
+# missing. mypy (with the authlib override below) and the runtime both disagree.
+matches = "src/bundesarchiv/app/web/keycloak.py"
+errors = { missing-attribute = false }
+
+[[tool.pyrefly.sub-config]]
 # procrastinate's `Task[..., Concatenate[int, Args]]` ParamSpec generics — pyrefly can't unify
 # the defer-call signature mypy accepts via the library's own stubs.
 matches = "src/bundesarchiv/app/tasks.py"
@@ -105,6 +112,13 @@ django_settings_module = "bundesarchiv.index.settings"
 # typed WebDavObjectStore + httpx, not depended on for types.
 [[tool.mypy.overrides]]
 module = ["wsgidav.*", "cheroot.*"]
+ignore_missing_imports = true
+
+# authlib ships no type stubs. It is reached from ONE module (app/web/keycloak.py), whose whole job
+# is to turn the library's answers into a typed `Mapping | None` — nothing above that seam sees an
+# authlib type.
+[[tool.mypy.overrides]]
+module = ["authlib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

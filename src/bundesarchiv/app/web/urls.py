@@ -11,6 +11,7 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 
 from django.urls import path
 
+from bundesarchiv.app.web.auth_views import login, logout, oidc_callback
 from bundesarchiv.app.web.browse_views import article_detail, workbench
 from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
 from bundesarchiv.app.web.catalog_views import (
@@ -36,6 +37,12 @@ from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 #: ``<str:ulid>`` capture (``neu`` is not a valid ULID anyway, but ordering makes intent explicit).
 urlpatterns = [
     path("", workbench, name="workbench"),
+    # The login surface (ADR 0018). English paths: these are protocol endpoints, not UI — the
+    # callback path is registered in the realm client, and /login is what the anonymous gate points
+    # at. They are the routes the gate exempts, so they must stay reachable to an anonymous visitor.
+    path("login", login, name="login"),
+    path("oidc/callback", oidc_callback, name="oidc-callback"),
+    path("logout", logout, name="logout"),
     # /static/* is served by WhiteNoise middleware (ADR 0016), not the urlconf — hence no route here.
     path("artikel/neu", article_create, name="artikel-neu"),
     path("bestand/neu", collection_create, name="bestand-neu"),
