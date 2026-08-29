@@ -571,6 +571,19 @@ signature").** The Signatur is working data, not an identity mark:
    Akte facts. The bevel cut returns to RESERVED (no licensed context).
 6. New surfaces spend no Signatur mark without a ruling.
 
+## Session close + next direction (owner, 2026-08-29)
+
+- **Recompose build wave: PARKED** (direction ruled, see mock-gate verdicts
+  above; dispatch when scheduled).
+- **Next session, first: an architecture discussion** before more component
+  work — how components and the design system are implemented and kept
+  maintainable. Owner's open questions: stay HTML + plain CSS? Web
+  components? An existing system (shadcn-like)? "The css needs to be
+  maintainable."
+- **Strategic goal: feature-complete for a FIRST DEPLOYMENT to the
+  archivists** — real test + feedback loop outranks further polish. Scope
+  planning for that milestone is the other next-session topic.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
