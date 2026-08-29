@@ -159,11 +159,13 @@ flowchart TD
 
 Journey: `test_create_bestand_then_file_an_article_under_it`.
 
-## 7. Arrival and access (designed, not built)
+## 7. Arrival and access
 
 How each viewer tier reaches the workbench, per ADR 0018 as amended by the
-2026-08 rulings (`docs/requirements/owner-interview-2026-08.md`). Only the
-dev viewer-switcher exists today; this flow is the auth wave's target (#11).
+2026-08 rulings (`docs/requirements/owner-interview-2026-08.md`). The Keycloak
+branch and the login redirect are built (2026-08-30); the capability link is
+still designed only. Dev keeps the viewer-switcher instead — the gate is off
+there.
 
 ```mermaid
 flowchart TD
@@ -174,4 +176,6 @@ flowchart TD
     CAP --> WB
 ```
 
-No journey yet — lands with the auth wave.
+No browser journey: the flow leaves the app for Keycloak. It is covered by
+`tests/app/web/test_auth_views.py` and `test_anonymous_gate.py` against an
+in-memory realm, plus the runbook's one-real-login smoke step.
