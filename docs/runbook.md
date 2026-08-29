@@ -39,7 +39,7 @@ in `settings_dev` — deliberately not env-tunable.
 
 Values in `<…>` arrive at smoke time.
 
-- Client `<client-id>`: **client authentication on** (confidential), standard
+- Client `bundesarchiv`: **client authentication on** (confidential), standard
   flow on, direct access grants off, service accounts off.
 - **Valid redirect URI: exactly `https://<host>/oidc/callback`** — no wildcard.
   The app sends this URI in both the authorize and the token request; a
