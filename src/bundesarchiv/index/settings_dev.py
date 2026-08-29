@@ -28,6 +28,12 @@ DEV_VIEWER_SIGNING_KEY = os.environ.get(
     "BUNDESARCHIV_DEV_VIEWER_SIGNING_KEY", "dev-viewer-signing-key-not-a-secret"
 )
 
+# Dev browses anonymously as Public and picks a viewer through the switcher, so the ADR 0018
+# anonymous gate — which would bounce every anonymous request to Keycloak — is off here. It stays ON
+# in the base settings this module imports from: disabling it is a deliberate dev-only act, never an
+# omission (settings.py).
+ANONYMOUS_GATE_ENABLED = False
+
 # The dev switcher's URLconf and the middleware that reads the signed cookie into ``request.viewer``.
 ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 

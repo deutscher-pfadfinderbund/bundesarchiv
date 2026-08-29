@@ -90,6 +90,23 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
 ]
 
+# Authentication (ADR 0018): OIDC against the DPB Keycloak realm, ending in ONE signed Viewer
+# cookie — no Django sessions, no contrib.auth, no stored tokens. Every value arrives from the
+# deploy environment and every one of them is OPTIONAL HERE ON PURPOSE: absent settings must fall
+# closed (no key -> no cookie can be minted or verified -> Public), exactly like the dev-key pattern
+# in ``app/web/viewers.py``. A misconfigured deploy therefore authenticates nobody rather than
+# trusting an unsigned or SECRET_KEY-signed cookie.
+VIEWER_SIGNING_KEY = os.environ.get("BUNDESARCHIV_VIEWER_SIGNING_KEY") or None
+OIDC_ISSUER = os.environ.get("BUNDESARCHIV_OIDC_ISSUER") or None
+OIDC_CLIENT_ID = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_ID") or None
+OIDC_CLIENT_SECRET = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_SECRET") or None
+
+# The anonymous gate (ADR 0018): an anonymous content request is redirected to the login instead of
+# being answered. ON here, in the base settings, and disabled ONLY in ``settings_dev`` — the
+# fail-closed direction: a production deploy that forgets its OIDC env vars still cannot fall open
+# to anonymous browsing, it redirects to a login that itself falls closed.
+ANONYMOUS_GATE_ENABLED = True
+
 # Templates for the server-rendered workbench (Part 4.5). The Django template backend only — no
 # context processors that need auth/sessions (this project has none): the viewer is passed in the
 # view's context, never read from ``request.user``. Autoescape is on (the default), so German UI
