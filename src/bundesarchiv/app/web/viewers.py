@@ -1,18 +1,20 @@
 """``viewer_of(request) -> Viewer`` — THE request→Viewer trust boundary (Part 4.4).
 
 ONE function the whole web layer calls to answer *who is asking* (domain ``Viewer``: Archivist |
-Member(groups) | Public). Part 5 re-implements this same seam against OIDC/Keycloak claims — one
-seam, two adapters; the UI code above never knows which is wired.
+Member(groups) | Public). TWO adapters answer it, each reading its own signed cookie under its own
+dedicated key; the UI code above never knows which one spoke:
 
-The Part 4 adapter reads a SIGNED cookie set by the dev-only switcher (``dev`` module). The cookie
-is verified with a DEDICATED dev-only signing key (``DEV_VIEWER_SIGNING_KEY``, defined only in
-``settings_dev``) — NEVER the production ``SECRET_KEY`` — so a leaked/replayed dev cookie is
-worthless against any production deployment, and under production settings (which define no such
-key) this seam simply falls closed.
+- the production cookie an OIDC login mints here (``mint_viewer_cookie``, ADR 0018), keyed by
+  ``VIEWER_SIGNING_KEY``;
+- the cookie the dev-only switcher sets (``dev`` module), keyed by ``DEV_VIEWER_SIGNING_KEY``,
+  which only ``settings_dev`` defines.
 
-Fail-closed everywhere: no cookie, no dev key configured, a tampered/expired signature, or a
-payload that does not parse to a known viewer shape ALL resolve to ``Public()``. A bad cookie is
-never an error — only ever an anonymous viewer.
+Neither key is ever the production ``SECRET_KEY``: a leaked dev cookie is worthless against a
+deployment, and each seam falls closed wherever its key is absent.
+
+Fail-closed everywhere: no cookie, no key configured, a tampered/expired signature, a superseded
+format version, or a payload that does not parse to a known viewer shape ALL resolve to
+``Public()``. A bad cookie is never an error — only ever an anonymous viewer.
 """
 
 from django.conf import settings
@@ -31,6 +33,26 @@ _DEV_VIEWER_SALT = "dev-viewer"
 #: How long a dev-viewer cookie stays valid (12h — a working day; expired ones fall back to Public).
 _DEV_VIEWER_MAX_AGE = 12 * 60 * 60
 
+#: Name of the signed cookie a production OIDC login mints and this seam reads. The ``__Host-``
+#: prefix is a browser-enforced lock, and this deployment needs it: Keycloak lives on a sibling host
+#: of the same registrable domain, and any such host could otherwise set a ``Domain=``-scoped cookie
+#: of this name that shadows ours — an unclearable login loop. The dev cookie above carries no
+#: prefix on purpose: ``__Host-`` requires Secure, which dev's plain http cannot satisfy.
+VIEWER_COOKIE = "__Host-viewer"
+
+#: Signer salt for the production cookie — its own namespace, never the dev cookie's.
+_VIEWER_SALT = "viewer"
+
+#: Format version carried in the cookie payload. Bumping it invalidates every outstanding cookie
+#: at once — the emergency lever ADR 0018 relies on instead of a session table.
+_VIEWER_FORMAT_VERSION = "v1"
+
+#: Per-tier cookie lifetimes (ADR 0018): archivists work on shared machines and re-authenticate
+#: every other day; members stay signed in for a month. Enforced on read, not only offered to the
+#: browser. The member window is also the OUTER bound — no viewer cookie verifies beyond it.
+_ARCHIVIST_MAX_AGE = 48 * 60 * 60
+_MEMBER_MAX_AGE = 30 * 24 * 60 * 60
+
 
 def _dev_signer() -> signing.TimestampSigner | None:
     """The dev-viewer signer, keyed by ``settings.DEV_VIEWER_SIGNING_KEY`` — or ``None`` when that
@@ -41,6 +63,39 @@ def _dev_signer() -> signing.TimestampSigner | None:
     if not key:
         return None
     return signing.TimestampSigner(key=key, salt=_DEV_VIEWER_SALT)
+
+
+def _viewer_signer() -> signing.TimestampSigner | None:
+    """The production viewer signer, keyed by ``settings.VIEWER_SIGNING_KEY`` — or ``None`` when the
+    deploy supplied no key. Passing ``key`` explicitly keeps Django from falling back to
+    ``SECRET_KEY``, so this cookie is signed and verified ONLY with its dedicated key."""
+    key = settings.VIEWER_SIGNING_KEY
+    if not key:
+        return None
+    return signing.TimestampSigner(key=key, salt=_VIEWER_SALT)
+
+
+def _max_age(viewer: Viewer) -> int:
+    return _ARCHIVIST_MAX_AGE if isinstance(viewer, Archivist) else _MEMBER_MAX_AGE
+
+
+def mint_viewer_cookie(viewer: Viewer, response: HttpResponse) -> bool:
+    """Set the signed production Viewer cookie for ``viewer`` on ``response``, for the tier's own
+    lifetime. Returns ``False`` having set NOTHING when no ``VIEWER_SIGNING_KEY`` is configured —
+    the caller must then deny rather than hand out an identity nobody can verify."""
+    signer = _viewer_signer()
+    if signer is None:
+        return False
+    payload = signer.sign(f"{_VIEWER_FORMAT_VERSION}:{encode_viewer(viewer)}")
+    response.set_cookie(
+        VIEWER_COOKIE,
+        payload,
+        max_age=_max_age(viewer),
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+    )
+    return True
 
 
 def encode_viewer(viewer: Viewer) -> str:
@@ -73,22 +128,48 @@ def _parse_viewer(payload: str) -> Viewer | None:
     return None
 
 
-def viewer_of(request: HttpRequest) -> Viewer:
-    """Resolve the request's ``Viewer`` — the single web-layer trust boundary. Returns ``Public()``
-    unless a dev-viewer cookie is present, correctly signed with the dedicated dev key, unexpired,
-    and parses to a known viewer shape. Every failure mode falls closed to ``Public()``; a bad
-    cookie never raises."""
+def _unsign(signer: signing.TimestampSigner, raw: str | None, max_age: int) -> str | None:
+    """The verified payload of ``raw``, or ``None`` for anything the signer rejects — absent,
+    tampered or expired (``SignatureExpired`` is a ``BadSignature``)."""
+    if not raw:
+        return None
+    try:
+        return signer.unsign(raw, max_age=max_age)
+    except signing.BadSignature:
+        return None
+
+
+def _minted_viewer(request: HttpRequest) -> Viewer | None:
+    """The viewer of the production cookie, or ``None`` when there is no verified one to read."""
+    signer = _viewer_signer()
+    if signer is None:
+        return None
+    raw = request.COOKIES.get(VIEWER_COOKIE)
+    version, _, encoded = (_unsign(signer, raw, _MEMBER_MAX_AGE) or "").partition(":")
+    if version != _VIEWER_FORMAT_VERSION:
+        return None
+    viewer = _parse_viewer(encoded)
+    if viewer is None:
+        return None
+    # The window above is only the outer bound; each tier's cookie dies on its own.
+    return viewer if _unsign(signer, raw, _max_age(viewer)) is not None else None
+
+
+def _switched_viewer(request: HttpRequest) -> Viewer | None:
+    """The viewer of the dev switcher's cookie, or ``None`` — including under production settings,
+    which define no dev key at all."""
     signer = _dev_signer()
     if signer is None:
-        return Public()
-    raw = request.COOKIES.get(DEV_VIEWER_COOKIE)
-    if not raw:
-        return Public()
-    try:
-        payload = signer.unsign(raw, max_age=_DEV_VIEWER_MAX_AGE)
-    except signing.BadSignature:
-        return Public()
-    return _parse_viewer(payload) or Public()
+        return None
+    payload = _unsign(signer, request.COOKIES.get(DEV_VIEWER_COOKIE), _DEV_VIEWER_MAX_AGE)
+    return _parse_viewer(payload) if payload is not None else None
+
+
+def viewer_of(request: HttpRequest) -> Viewer:
+    """Resolve the request's ``Viewer`` — the single web-layer trust boundary. A real login outranks
+    the dev switcher, which only ever answers where a dev key is configured. Every failure mode of
+    either adapter falls closed to ``Public()``; a bad cookie never raises."""
+    return _minted_viewer(request) or _switched_viewer(request) or Public()
 
 
 def render_screen(request: HttpRequest, template: str, context: dict[str, object]) -> HttpResponse:
