@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>E3 Ein Blatt — Artikel bearbeiten</title>
+<style>
+/* E3 EIN BLATT — Hierarchie allein aus Typoskala und Weißraum.
+   Keine Kästen: Felder sind stille Flächen, die erst im Fokus erscheinen.
+   Eine einzige schwere Regel ganz oben. Leere Gruppen schrumpfen auf eine Zeile.
+   Die Seite endet auf dem Medienblatt, nicht auf einem zugeklappten Rest. */
+:root {
+  --paper: oklch(0.98 0 300);
+  --lowest: oklch(0.96 0 300);
+  --low: oklch(0.94 0 300);
+  --ink: oklch(0.25 0 300);
+  --ink-2: oklch(0.46 0 300);
+  --ink-3: oklch(0.62 0 300);
+  --violet: oklch(0.45 0.05 300);
+  --focus: oklch(0.50 0.055 300);
+  --hair: oklch(0.84 0 300);
+  --sheet-tint: oklch(0.96 0.008 300);
+  --sheet-shadow: 0 1px 2px oklch(0.25 0 300 / 0.14);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 0.95rem/1.5 var(--sans); }
+.blatt { max-width: 56rem; margin: 0 auto; padding: 0 3rem 7rem; }
+.note { padding: 1.6rem 0 2.2rem; font: 400 0.78rem/1.55 var(--sans); color: var(--ink-2); max-width: 44rem; }
+.note b { font-weight: 600; color: var(--ink); }
+
+header { display: flex; align-items: baseline; gap: 1.2rem; padding-bottom: 1.4rem; }
+.wordmark { font: 600 1.5rem/1.2 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.12em; }
+header .spacer { flex: 1; }
+header input[type=search] { width: 18rem; font: 400 0.85rem/1.4 var(--sans); background: var(--lowest); border: 1px solid var(--hair); border-radius: 4px; padding: 0.35rem 0.6rem; }
+.btn { font: 400 0.85rem/1.4 var(--sans); color: var(--ink); background: var(--low); border: 1px solid var(--hair); border-radius: 4px; padding: 0.35rem 0.8rem; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; }
+a { color: var(--violet); }
+.back { display: inline-block; margin-top: 0.9rem; font: 400 0.85rem/1.4 var(--sans); text-decoration: none; }
+.back:hover { text-decoration: underline; }
+.rule-heavy { border: none; border-top: 3px solid var(--ink); margin: 0.7rem 0 0; }
+
+/* Datensatzzeile unter der einen Regel: Titel, Zustand als stilles graues Wort, Aktionen. */
+.record { display: flex; align-items: flex-end; gap: 2rem; margin-top: 2.4rem; }
+.record h1 { margin: 0; font: 600 2.4rem/1.1 var(--sans); letter-spacing: -0.015em; }
+.record .state { margin: 0.6rem 0 0; font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); }
+.record .actions { margin-left: auto; display: flex; gap: 0.5rem; }
+
+h2 { margin: 4rem 0 0; font: 600 1.6rem/1.2 var(--sans); letter-spacing: -0.01em; }
+h2 + .lead { margin: 0.35rem 0 0; font: 400 0.85rem/1.5 var(--sans); color: var(--ink-2); }
+
+/* Felder: keine Kästen. Die Fläche erscheint erst im Fokus. */
+.group { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.75rem 2.5rem; margin-top: 1.75rem; }
+.f { grid-column: span 6; }
+.f.half { grid-column: span 3; }
+.f.third { grid-column: span 2; }
+label { display: block; font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); margin-bottom: 0.15rem; }
+input.q, select.q, textarea.q {
+  width: 100%; font: 400 1.05rem/1.5 var(--sans); color: var(--ink);
+  background: none; border: none; border-radius: 4px;
+  padding: 0.3rem 0.5rem; margin-left: -0.5rem;
+}
+input.q { appearance: none; }
+/* Der Freitext ist die eine Fläche, die auch in Ruhe sichtbar bleibt:
+   ohne sie bliebe an dieser Stelle nichts zu sehen, in das man schreiben könnte. */
+textarea.q { min-height: 5.5rem; resize: vertical; font-size: 0.95rem; background: var(--lowest); }
+input.q::placeholder, textarea.q::placeholder { color: var(--ink-3); }
+input.q:focus, select.q:focus, textarea.q:focus { background: var(--low); outline: 2px solid var(--focus); outline-offset: 2px; }
+input.q:hover, select.q:hover, textarea.q:hover { background: var(--lowest); }
+input.sig { font-family: var(--mono); color: var(--violet); }
+
+/* Leere optionale Gruppen: eine ruhige Zeile statt eines zugeklappten Abschnitts. */
+.leerzeile { display: flex; align-items: baseline; gap: 0.75rem; margin-top: 3.25rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--hair); }
+.leerzeile .name { font: 600 1.05rem/1.35 var(--sans); }
+.leerzeile .felder { font: 400 0.85rem/1.4 var(--sans); color: var(--ink-2); }
+.leerzeile a { margin-left: auto; font: 400 0.85rem/1.4 var(--sans); text-decoration: none; }
+.leerzeile a:hover { text-decoration: underline; }
+
+.exposure { margin-top: 1.75rem; max-width: 40rem; font: 400 0.95rem/1.65 var(--sans); color: var(--ink-2); }
+.exposure b { font-weight: 600; color: var(--ink); }
+
+/* Medienblatt: das einzige echte Blatt der Seite — Auflagekante und Auflageschatten. */
+.medienblatt { margin-top: 2rem; background: var(--sheet-tint); border: 1px solid var(--hair); border-radius: 6px; box-shadow: var(--sheet-shadow); padding: 2.25rem 2rem; text-align: center; }
+.medienblatt p { margin: 0 0 0.35rem; font: 600 1.05rem/1.35 var(--sans); }
+.medienblatt .sub { margin: 0 0 1.5rem; font: 400 0.85rem/1.5 var(--sans); color: var(--ink-2); font-weight: 400; }
+.filebtn { display: inline-block; font: 600 0.95rem/1.4 var(--sans); color: var(--paper); background: var(--ink); border-radius: 4px; padding: 0.55rem 1.4rem; }
+.filebtn input { display: none; }
+.medienblatt .formate { margin: 1rem 0 0; font: 400 0.78rem/1.4 var(--sans); color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="blatt">
+
+<p class="note"><b>E3 „Ein Blatt“.</b> Radikal ruhig: die Hierarchie trägt allein die Typoskala und der
+Weißraum — keine Kästen, keine Trennlinien zwischen den Feldern, eine einzige schwere Regel ganz oben.
+Leere optionale Gruppen schrumpfen auf je eine Zeile, statt als zugeklappter Abschnitt Platz zu belegen;
+das Blatt endet auf den Medien und damit auf Substanz.</p>
+
+<header>
+  <span class="wordmark">Bundesarchiv</span>
+  <span class="spacer"></span>
+  <input type="search" placeholder="Suchen …">
+  <span class="btn">Suchen</span>
+</header>
+<hr class="rule-heavy">
+
+<a class="back" href="#">← Zurück zur Suche</a>
+
+<div class="record">
+  <div>
+    <h1>Lagerchronik</h1>
+    <p class="state">Entwurf</p>
+  </div>
+  <div class="actions">
+    <span class="btn primary">Speichern</span>
+    <span class="btn">Veröffentlichen</span>
+    <span class="btn">Mehr …</span>
+  </div>
+</div>
+
+<h2>Kerndaten</h2>
+<div class="group">
+  <div class="f"><label for="titel">Titel</label>
+    <input class="q" id="titel" value="Lagerchronik"></div>
+  <div class="f half"><label for="bestand">Bestand</label>
+    <select class="q" id="bestand"><option>Fotografien</option></select></div>
+  <div class="f third"><label for="signatur">Signatur</label>
+    <input class="q sig" id="signatur" value="F9"></div>
+</div>
+
+<h2>Einordnung</h2>
+<div class="group">
+  <div class="f half"><label for="medienart">Medienart</label>
+    <select class="q" id="medienart"><option>Fotografie</option></select></div>
+  <div class="f half"><label for="doktyp">Dokumenttyp</label>
+    <select class="q" id="doktyp"><option>— kein Dokumenttyp —</option></select></div>
+  <div class="f half"><label for="schlag">Schlagworte</label>
+    <input class="q" id="schlag" placeholder="Mehrere durch Komma trennen"></div>
+  <div class="f half"><label for="dat">Datierung (EDTF)</label>
+    <input class="q" id="dat" placeholder="z. B. 1962, 1984/1995, 1970~"></div>
+</div>
+
+<h2>Beschreibung</h2>
+<p class="lead">Was ist zu sehen, wer, wo, bei welchem Anlass.</p>
+<div class="group">
+  <div class="f"><textarea class="q" id="besch" aria-label="Beschreibung" placeholder="Freitext …"></textarea></div>
+</div>
+
+<h2>Zugriff</h2>
+<div class="group">
+  <div class="f half"><label for="sicht">Sichtbarkeit</label>
+    <select class="q" id="sicht"><option>Vom Bestand erben</option></select></div>
+  <div class="f half"><label for="gruppen">Gruppen</label>
+    <input class="q" id="gruppen" placeholder="Gruppe hinzufügen …"></div>
+</div>
+<p class="exposure">Nach Veröffentlichung <b>öffentlich sichtbar</b> — mit Titel, Medienart, Dokumenttyp,
+  Schlagworten, Datierung, Autor, Ort, Beschreibung und Medien. Standort und interne Felder bleiben
+  verborgen.</p>
+
+<div class="leerzeile">
+  <span class="name">Herkunft</span>
+  <span class="felder">Autor · Ort · Standort — leer</span>
+  <a href="#">ausfüllen</a>
+</div>
+
+<div class="leerzeile">
+  <span class="name">Weitere Angaben</span>
+  <span class="felder">eigene Felder — keine</span>
+  <a href="#">Feld hinzufügen</a>
+</div>
+
+<h2>Medien</h2>
+<div class="medienblatt">
+  <p>Noch keine Medien</p>
+  <p class="sub">Das erste hochgeladene Bild wird zum Titelbild.</p>
+  <label class="filebtn">Bilder auswählen …<input type="file" multiple></label>
+  <p class="formate">JPEG, PNG oder TIFF — mehrere Dateien auf einmal möglich.</p>
+</div>
+
+</div>
+</body>
+</html>

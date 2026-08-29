@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>E2 Erfassungsbogen — Artikel bearbeiten</title>
+<style>
+/* E2 ERFASSUNGSBOGEN — Werkbank-Dichte, aber mit Rang.
+   Folio-Abschnittsköpfe über einem strengen Feldraster; rechts nur eine schmale
+   Meta-Marge (Zustand + eine Zeile Sichtbarkeit); Medien als volle Registerbande. */
+:root {
+  --paper: oklch(0.98 0 300);
+  --lowest: oklch(0.96 0 300);
+  --low: oklch(0.94 0 300);
+  --ink: oklch(0.25 0 300);
+  --ink-2: oklch(0.46 0 300);
+  --violet: oklch(0.45 0.05 300);
+  --outline: oklch(0.50 0 300);
+  --hair: oklch(0.84 0 300);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 0.95rem/1.5 var(--sans); }
+.wrap { max-width: 84rem; margin: 0 auto; padding: 0 3rem 5rem; }
+.note { padding: 1.6rem 0 2rem; font: 400 0.78rem/1.55 var(--sans); color: var(--ink-2); max-width: 48rem; }
+.note b { font-weight: 600; color: var(--ink); }
+
+header { display: flex; align-items: baseline; gap: 1.2rem; padding-bottom: 1.4rem; }
+.wordmark { font: 600 1.5rem/1.2 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.12em; }
+header .spacer { flex: 1; }
+header input { width: 18rem; font: 400 0.85rem/1.4 var(--sans); background: var(--lowest); border: 1px solid var(--hair); border-radius: 4px; padding: 0.35rem 0.6rem; }
+.btn { font: 400 0.85rem/1.4 var(--sans); color: var(--ink); background: var(--low); border: 1px solid var(--outline); border-radius: 4px; padding: 0.35rem 0.8rem; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; }
+.back { font: 400 0.85rem/1.4 var(--sans); color: var(--violet); text-decoration: none; }
+.back:hover { text-decoration: underline; }
+
+/* Datensatzzeile: Titel + Aktionen. Der Zustand steht in der Marge, nicht hier. */
+.record { display: flex; align-items: flex-end; gap: 2rem; margin-top: 1.4rem; }
+.record h1 { margin: 0; font: 600 2rem/1.15 var(--sans); letter-spacing: -0.01em; }
+.record .actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.rule-heavy { border: none; border-top: 3px solid var(--ink); margin: 0.9rem 0 0; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 0 3.5rem; }
+
+/* Folio-Kopf: oversized Ziffer, Name im Rang deutlich über der Feldbeschriftung. */
+section { margin-top: 2.6rem; }
+section:first-of-type { margin-top: 2rem; }
+.folio { display: flex; align-items: baseline; gap: 1rem; border-bottom: 1px solid var(--hair); padding-bottom: 0.5rem; }
+.folio .num { font: 400 1.9rem/1 var(--mono); color: var(--hair); }
+.folio h2 { margin: 0; font: 600 1.35rem/1.2 var(--sans); }
+
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.1rem 1.5rem; margin-top: 1.2rem; }
+.f { grid-column: span 12; }
+.f.s6 { grid-column: span 6; }
+.f.s4 { grid-column: span 4; }
+.f.s3 { grid-column: span 3; }
+.labelrow { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.3rem; }
+label { font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); }
+.labelrow .hint { margin-left: auto; font: 400 0.78rem/1.3 var(--sans); color: var(--ink-2); }
+input.field, select, textarea { width: 100%; font: 400 0.95rem/1.5 var(--sans); color: var(--ink); background: var(--lowest); border: 1px solid var(--hair); border-radius: 4px; padding: 0.4rem 0.6rem; }
+textarea { min-height: 7.5rem; resize: vertical; }
+input.sig { font: 400 0.95rem/1.5 var(--mono); color: var(--violet); }
+.emptyline { grid-column: span 12; display: flex; align-items: center; gap: 1.25rem; }
+.emptyline p { margin: 0; font: 400 0.85rem/1.4 var(--sans); color: var(--ink-2); }
+
+/* Marge: nur Zustand und eine Zeile Wirkung. Keine Karte, kein Chip, kein Rahmen. */
+.rail { border-left: 1px solid var(--hair); padding: 2rem 0 0 1.5rem; }
+.rail dt { font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); }
+.rail dd { margin: 0.3rem 0 2rem; font: 400 0.95rem/1.5 var(--sans); }
+.rail dd.quiet { font-size: 0.85rem; line-height: 1.6; color: var(--ink-2); }
+
+/* Registerbande Medien: volle Breite, klarer Aufnahmeknopf. */
+.band { margin-top: 3rem; background: var(--lowest); border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding: 1.6rem 1.75rem; display: flex; align-items: center; gap: 1.5rem; }
+.band .head { min-width: 14rem; display: flex; align-items: baseline; gap: 1rem; }
+.band .head h2 { margin: 0; font: 600 1.35rem/1.2 var(--sans); }
+.band .head .num { font: 400 1.9rem/1 var(--mono); color: var(--ink-2); }
+.band p { margin: 0; font: 400 0.95rem/1.5 var(--sans); }
+.band p span { display: block; font-size: 0.85rem; color: var(--ink-2); }
+.filebtn { margin-left: auto; white-space: nowrap; font: 600 0.85rem/1.4 var(--sans); color: var(--paper); background: var(--ink); border: 1px solid var(--ink); border-radius: 4px; padding: 0.45rem 1rem; }
+.filebtn input { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="note"><b>E2 „Erfassungsbogen“.</b> Die zweispaltige Werkbank bleibt, bekommt aber Rang: Folio-Köpfe
+mit oversized Ziffer über einem strengen, durchgehend ausgerichteten Feldraster. Rechts steht keine Karte
+mehr, sondern eine schmale Marge mit genau zwei Angaben — Zustand und Wirkung der Veröffentlichung. Die
+früher eingeklappten Abschnitte sind in das Raster aufgelöst, Medien ist eine Bande über die volle Breite.</p>
+
+<header>
+  <span class="wordmark">Bundesarchiv</span>
+  <span class="spacer"></span>
+  <input type="search" placeholder="Suchen …">
+  <span class="btn">Suchen</span>
+</header>
+
+<a class="back" href="#">← Zurück zur Suche</a>
+
+<div class="record">
+  <h1>Lagerchronik</h1>
+  <div class="actions">
+    <span class="btn primary">Speichern</span>
+    <span class="btn">Veröffentlichen</span>
+    <span class="btn">Mehr …</span>
+  </div>
+</div>
+<hr class="rule-heavy">
+
+<div class="cols">
+  <div>
+
+    <section>
+      <div class="folio"><span class="num">01</span><h2>Kerndaten</h2></div>
+      <div class="grid">
+        <div class="f s6"><div class="labelrow"><label for="titel">Titel</label></div>
+          <input class="field" id="titel" value="Lagerchronik"></div>
+        <div class="f s3"><div class="labelrow"><label for="bestand">Bestand</label></div>
+          <select id="bestand"><option>Fotografien</option></select></div>
+        <div class="f s3"><div class="labelrow"><label for="signatur">Signatur</label></div>
+          <input class="field sig" id="signatur" value="F9"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="folio"><span class="num">02</span><h2>Einordnung</h2></div>
+      <div class="grid">
+        <div class="f s6"><div class="labelrow"><label for="medienart">Medienart</label></div>
+          <select id="medienart"><option>Fotografie</option></select></div>
+        <div class="f s6"><div class="labelrow"><label for="doktyp">Dokumenttyp</label></div>
+          <select id="doktyp"><option>— kein Dokumenttyp —</option></select></div>
+        <div class="f s6"><div class="labelrow"><label for="schlag">Schlagworte</label>
+          <span class="hint">Mehrere durch Komma trennen</span></div>
+          <input class="field" id="schlag"></div>
+        <div class="f s6"><div class="labelrow"><label for="dat">Datierung (EDTF)</label>
+          <span class="hint">z. B. 1962, 1984/1995, 1970~</span></div>
+          <input class="field" id="dat"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="folio"><span class="num">03</span><h2>Beschreibung</h2></div>
+      <div class="grid">
+        <div class="f"><div class="labelrow"><label for="besch">Beschreibung</label>
+          <span class="hint">Was ist zu sehen, wer, wo, bei welchem Anlass</span></div>
+          <textarea id="besch"></textarea></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="folio"><span class="num">04</span><h2>Herkunft</h2></div>
+      <div class="grid">
+        <div class="f s4"><div class="labelrow"><label for="autor">Autor</label></div>
+          <input class="field" id="autor"></div>
+        <div class="f s4"><div class="labelrow"><label for="ort">Ort</label></div>
+          <input class="field" id="ort"></div>
+        <div class="f s4"><div class="labelrow"><label for="standort">Standort</label></div>
+          <input class="field" id="standort"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="folio"><span class="num">05</span><h2>Zugriff</h2></div>
+      <div class="grid">
+        <div class="f s6"><div class="labelrow"><label for="sicht">Sichtbarkeit</label></div>
+          <select id="sicht"><option>Vom Bestand erben</option></select></div>
+        <div class="f s6"><div class="labelrow"><label for="gruppen">Gruppen</label></div>
+          <input class="field" id="gruppen"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="folio"><span class="num">06</span><h2>Weitere Angaben</h2></div>
+      <div class="grid">
+        <div class="emptyline">
+          <p>Noch keine eigenen Felder — für Angaben, die in kein Feld oben passen.</p>
+          <span class="btn">Feld hinzufügen</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <aside class="rail">
+    <dl>
+      <dt>Zustand</dt>
+      <dd>Entwurf</dd>
+      <dt>Nach Veröffentlichung</dt>
+      <dd class="quiet">Öffentlich sichtbar. Standort und interne Felder bleiben verborgen.</dd>
+    </dl>
+  </aside>
+</div>
+
+<div class="band">
+  <div class="head"><span class="num">07</span><h2>Medien</h2></div>
+  <p>Noch keine Medien
+    <span>Das erste hochgeladene Bild wird zum Titelbild.</span></p>
+  <label class="filebtn">Medien hinzufügen …<input type="file" multiple></label>
+</div>
+
+</div>
+</body>
+</html>

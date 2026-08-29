@@ -35,6 +35,7 @@ then this index, in the same wave.
 | Amber parks for Submission once gray ENTWURF lands (reserved, not licensed) | owner 2026-08-22 §Craft rulings |
 | Lifecycle mark = gray ENTWURF word (no amber, no box), all surfaces | pane-lifecycle-brief.md; owner 2026-08-22 — **lukewarm ("for now"), revisit candidate (G.20)** |
 | Quiet defaults stand: hover-revealed bulk boxes/row toolbars, self-hiding Sammelbearbeitung | owner 2026-08-07, reconfirmed 2026-08-22 |
+| Signatur presence budget: working data only (ledger, edit field, confirm identification); no chips/tabs/summaries; reader tab demoted to a fact row; bevel back to reserved | owner-interview 2026-08 §Signatur ruling 2026-08-29; review-law row 1 |
 
 ## Open queue — work through in this order
 
@@ -55,14 +56,17 @@ then this index, in the same wave.
 5b. **A11y mechanicals** — workbench lacks an `h1` and a skip link (live
    critique finds, 2026-08-22). WCAG 2.2 AA is already law (§D); no
    ruling needed, pure fixes.
-5b2. **Edit-form RECOMPOSE** (owner critique 2026-08-29 — supersedes patch
-   thinking on this surface): section-heading rank above the label role,
-   horizontal-rule diet, exposure-card diet (Signatur presence budget —
-   owner fatigue signal on file), field order/IA (kill the
-   open/collapsed/open sandwich), Medien row composition, record-row
-   clarity (Zurück+Entwurf under the search bar). Shape first, 2–3 mocks
-   at a gate; R1 direction is the raw material. Source:
-   owner-interview-2026-08.md §Edit-form critique.
+5b2. **Edit-form RECOMPOSE — direction ruled (mock gate 2026-08-29), build
+   pending.** E1 Registerbogen + E2 Erfassungsbogen endorsed as a hybrid;
+   E3 rejected ("too loose"); E2's full-width Medien band rejected (but
+   horizontal-space use endorsed). Deliverables are FIELD-AGNOSTIC layouts
+   and components only (owner: article fields change anytime — ADR 0009):
+   numbered section head above the label role, aligned field grid, slim
+   meta margin (replaces the exposure card), one-rule-per-section +
+   boxed quiet inputs, Medien register inside the column, clear record
+   row. Open in the build: title duplication (page heading vs Titel
+   field). Sources preserved under `explorations/2026-08-29-editform/`.
+   Source: owner-interview-2026-08.md §Edit-form mock-gate verdicts.
 5c. **Edit-form bugs** (critique 2026-08-22, no rulings needed): CAS
    conflict renders no autofocus and no alert role (P1 — the silent-
    data-loss state); English EDTF parser error in German UI (P2);

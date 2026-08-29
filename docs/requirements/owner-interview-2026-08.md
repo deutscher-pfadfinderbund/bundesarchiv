@@ -541,6 +541,36 @@ gate), not patches. The endorsed R1 Registratur-Brutalismus direction
 (typographic conviction, heavy letterhead rule) is the raw material for the
 hierarchy answer.
 
+## Edit-form mock-gate verdicts + Signatur ruling (owner, 2026-08-29)
+
+On the recompose mocks (`docs/design/explorations/2026-08-29-editform/`):
+
+- **E1 "Registerbogen" + E2 "Erfassungsbogen": endorsed** — "nice in
+  general". The build direction is their hybrid.
+- **E3 "Ein Blatt": rejected** — "too loose".
+- **E2's full-width Medien band: rejected** — "breaks the layout without
+  any real reason". BUT: "making use of the horizontal space on larger
+  screens is good" — the two-column density itself is endorsed.
+- **Title duplication flagged** (open question for the build): "Lagerchronik"
+  as page heading AND as the Titel field "maybe confusing".
+- **Scope law for the recompose:** "Only focus on general extractable
+  layouts and components. Specific details about article fields might
+  change anytime." The article's field set is deliberately dynamic (custom
+  fields, ADR 0009) — the composition must be field-agnostic: section
+  head, field grid, meta margin are the deliverables, never a hard-coded
+  field order.
+
+**Signatur presence budget (ruled, point 5 included: "demote the
+signature").** The Signatur is working data, not an identity mark:
+
+1. Ledger column — stays (mono, margin rule).
+2. Edit form — stays, one editable field among Kerndaten.
+3. Confirm surfaces — quiet mono after the Titel, identification only.
+4. Exposure card / summaries — cut; the article is named by Titel alone.
+5. Reader header tab — DEMOTED: the Signatur becomes one row among the
+   Akte facts. The bevel cut returns to RESERVED (no licensed context).
+6. New surfaces spend no Signatur mark without a ruling.
+
 
 
 ## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral

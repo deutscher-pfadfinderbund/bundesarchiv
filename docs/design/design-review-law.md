@@ -73,7 +73,7 @@ adding a row first, and rows are owner decisions.
 
 | # | Cue | Licensed selectors + position | Everywhere else |
 |---|-----|-------------------------------|-----------------|
-| 1 | Bevel cut | `.c-sig` only — single cut, leading (top-left) corner (owner 2026-08-06). Licensed CONTEXT (2026-08-07, scarcity — learning G.2): the article reader header (detail page and pane), NOT ledger rows — there the Signatur renders as plain violet-ink mono (row 2). `.c-facet-tab` no longer exists in live markup. | forbidden |
+| 1 | Bevel cut | **RESERVED — no licensed context** (owner 2026-08-29, Signatur presence budget: the reader-header tab demoted to a fact row; the Signatur renders as plain violet-ink mono everywhere it appears — row 2). History: single cut, leading corner, reader-header context 2026-08-06/07. | forbidden |
 | 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
 | 3 | Inversion (solid fg/bg swap) | the active filter mark — the facet sidebar's active row, and the filter rail's active chip once the rail lands (rail = primary filter interaction). Ledger bulk selection is NO LONGER an inversion — the checked box is the mark, unchecked boxes reveal on row hover/focus (both owner 2026-08-07) | forbidden — especially as hover, and never as a tonal tint wash |
 | 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |

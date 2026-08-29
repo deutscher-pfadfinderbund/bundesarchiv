@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>E1 Registerbogen — Artikel bearbeiten</title>
+<style>
+/* E1 REGISTERBOGEN — the form as ONE archival sheet, top to bottom.
+   Title block + one heavy letterhead rule; numbered oversized section heads;
+   exactly one hairline per section (none per field); boxed quiet inputs. */
+:root {
+  --paper: oklch(0.98 0 300);
+  --lowest: oklch(0.96 0 300);
+  --low: oklch(0.94 0 300);
+  --high: oklch(0.90 0 300);
+  --ink: oklch(0.25 0 300);
+  --ink-2: oklch(0.46 0 300);
+  --violet: oklch(0.45 0.05 300);
+  --outline: oklch(0.50 0 300);
+  --hair: oklch(0.84 0 300);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 0.95rem/1.5 var(--sans); }
+.sheet { max-width: 62rem; margin: 0 auto; padding: 0 3rem 6rem; }
+
+.note { padding: 1.6rem 0 2rem; font: 400 0.78rem/1.55 var(--sans); color: var(--ink-2); max-width: 44rem; }
+.note b { font-weight: 600; color: var(--ink); }
+
+/* Kopf: Wortmarke + Suche. Keine Regel — die eine schwere Regel gehört dem Briefkopf. */
+header { display: flex; align-items: baseline; gap: 1.2rem; padding-bottom: 1.6rem; }
+.wordmark { font: 600 1.5rem/1.2 var(--serif); font-variant-caps: small-caps; letter-spacing: 0.12em; }
+header .spacer { flex: 1; }
+header input { width: 18rem; font: 400 0.85rem/1.4 var(--sans); background: var(--lowest); border: 1px solid var(--hair); border-radius: 4px; padding: 0.35rem 0.6rem; }
+.btn { font: 400 0.85rem/1.4 var(--sans); color: var(--ink); background: var(--low); border: 1px solid var(--outline); border-radius: 4px; padding: 0.35rem 0.8rem; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; }
+
+/* Navigation — eigene Zeile, klar getrennt von den Aktionen des Datensatzes. */
+.back { font: 400 0.85rem/1.4 var(--sans); color: var(--violet); text-decoration: none; }
+.back:hover { text-decoration: underline; }
+
+/* Briefkopf: Titel, Zustand, Aktionen — darunter die eine schwere Regel. */
+.letterhead { display: flex; align-items: flex-end; gap: 2rem; margin-top: 1.6rem; }
+.letterhead h1 { margin: 0; font: 600 2.1rem/1.15 var(--sans); letter-spacing: -0.01em; }
+.letterhead .state { margin: 0.5rem 0 0; font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); }
+.actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.rule-heavy { border: none; border-top: 3px solid var(--ink); margin: 0.9rem 0 0; }
+
+/* Abschnitt: Nummer in der Marge, Überschrift im Rang über der Feldbeschriftung,
+   eine Haarlinie je Abschnitt. */
+section { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); column-gap: 1.5rem; margin-top: 3rem; }
+section .num { font: 400 1.35rem/1.2 var(--mono); color: var(--hair); text-align: right; }
+section h2 { margin: 0; font: 600 1.35rem/1.2 var(--sans); }
+section .sub { grid-column: 2; margin: 0.25rem 0 0; font: 400 0.85rem/1.4 var(--sans); color: var(--ink-2); }
+section .sectionrule { grid-column: 1 / -1; border: none; border-top: 1px solid var(--hair); margin: 0.9rem 0 0; }
+.fields { grid-column: 2; display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.25rem 1.5rem; margin-top: 1.4rem; }
+.f { grid-column: span 6; }
+.f.half { grid-column: span 3; }
+.f.third { grid-column: span 2; }
+.labelrow { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 0.35rem; }
+label { font: 600 0.72rem/1.3 var(--sans); letter-spacing: 0.02em; color: var(--ink-2); }
+.labelrow .hint { margin-left: auto; font: 400 0.78rem/1.3 var(--sans); color: var(--ink-2); }
+input.field, select, textarea { width: 100%; font: 400 0.95rem/1.5 var(--sans); color: var(--ink); background: var(--lowest); border: 1px solid var(--hair); border-radius: 4px; padding: 0.45rem 0.6rem; }
+textarea { min-height: 9rem; resize: vertical; }
+input.sig { font: 400 0.95rem/1.5 var(--mono); color: var(--violet); }
+
+/* Medien: eine verständliche Aufnahme statt eines nackten Dateifeldes. */
+.medien { grid-column: 2; margin-top: 1.4rem; border: 1px dashed var(--hair); border-radius: 6px; padding: 1.5rem; display: flex; align-items: center; gap: 1.25rem; }
+.medien p { margin: 0; font: 400 0.95rem/1.5 var(--sans); }
+.medien p span { display: block; font-size: 0.85rem; color: var(--ink-2); }
+.filebtn { margin-left: auto; white-space: nowrap; font: 400 0.85rem/1.4 var(--sans); background: var(--low); border: 1px solid var(--outline); border-radius: 4px; padding: 0.4rem 0.9rem; }
+.filebtn input { display: none; }
+
+.exposure { grid-column: 2; margin: 1.4rem 0 0; max-width: 44rem; font: 400 0.85rem/1.6 var(--sans); color: var(--ink-2); }
+.empty { grid-column: 2; display: flex; align-items: center; gap: 1.25rem; margin-top: 1.4rem; }
+.empty p { margin: 0; font: 400 0.85rem/1.4 var(--sans); color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<p class="note"><b>E1 „Registerbogen“.</b> Der Bogen als ein einziges Dokument: Titelblock, eine schwere
+Briefkopf-Regel, danach nummerierte Abschnitte in einer Spalte — jeder Abschnitt mit genau einer Haarlinie
+statt einer Linie je Feld. Alle Abschnitte offen, in Arbeitsreihenfolge; die Signatur ist ein Feld unter
+Kerndaten, nicht das Wappen der Seite.</p>
+
+<header>
+  <span class="wordmark">Bundesarchiv</span>
+  <span class="spacer"></span>
+  <input type="search" placeholder="Suchen …">
+  <span class="btn">Suchen</span>
+</header>
+
+<a class="back" href="#">← Zurück zur Suche</a>
+
+<div class="letterhead">
+  <div>
+    <h1>Lagerchronik</h1>
+    <p class="state">Entwurf</p>
+  </div>
+  <div class="actions">
+    <span class="btn primary">Speichern</span>
+    <span class="btn">Veröffentlichen</span>
+    <span class="btn">Mehr …</span>
+  </div>
+</div>
+<hr class="rule-heavy">
+
+<section>
+  <span class="num">01</span>
+  <h2>Kerndaten</h2>
+  <hr class="sectionrule">
+  <div class="fields">
+    <div class="f"><div class="labelrow"><label for="titel">Titel</label></div>
+      <input class="field" id="titel" value="Lagerchronik"></div>
+    <div class="f half"><div class="labelrow"><label for="bestand">Bestand</label></div>
+      <select id="bestand"><option>Fotografien</option></select></div>
+    <div class="f third"><div class="labelrow"><label for="signatur">Signatur</label></div>
+      <input class="field sig" id="signatur" value="F9"></div>
+  </div>
+</section>
+
+<section>
+  <span class="num">02</span>
+  <h2>Beschreibung</h2>
+  <hr class="sectionrule">
+  <div class="fields">
+    <div class="f"><div class="labelrow"><label for="besch">Beschreibung</label>
+      <span class="hint">Was ist zu sehen, wer, wo, bei welchem Anlass</span></div>
+      <textarea id="besch"></textarea></div>
+  </div>
+</section>
+
+<section>
+  <span class="num">03</span>
+  <h2>Einordnung</h2>
+  <hr class="sectionrule">
+  <div class="fields">
+    <div class="f half"><div class="labelrow"><label for="medienart">Medienart</label></div>
+      <select id="medienart"><option>Fotografie</option></select></div>
+    <div class="f half"><div class="labelrow"><label for="doktyp">Dokumenttyp</label></div>
+      <select id="doktyp"><option>— kein Dokumenttyp —</option></select></div>
+    <div class="f half"><div class="labelrow"><label for="schlag">Schlagworte</label>
+      <span class="hint">Mehrere durch Komma trennen</span></div>
+      <input class="field" id="schlag"></div>
+    <div class="f half"><div class="labelrow"><label for="dat">Datierung (EDTF)</label>
+      <span class="hint">z. B. 1962, 1984/1995, 1970~</span></div>
+      <input class="field" id="dat"></div>
+  </div>
+</section>
+
+<section>
+  <span class="num">04</span>
+  <h2>Herkunft</h2>
+  <hr class="sectionrule">
+  <div class="fields">
+    <div class="f third"><div class="labelrow"><label for="autor">Autor</label></div>
+      <input class="field" id="autor"></div>
+    <div class="f third"><div class="labelrow"><label for="ort">Ort</label></div>
+      <input class="field" id="ort"></div>
+    <div class="f third"><div class="labelrow"><label for="standort">Standort</label></div>
+      <input class="field" id="standort"></div>
+  </div>
+</section>
+
+<section>
+  <span class="num">05</span>
+  <h2>Medien</h2>
+  <hr class="sectionrule">
+  <div class="medien">
+    <p>Noch keine Medien
+      <span>Das erste hochgeladene Bild wird zum Titelbild.</span></p>
+    <label class="filebtn">Bilder auswählen …<input type="file" multiple></label>
+  </div>
+</section>
+
+<section>
+  <span class="num">06</span>
+  <h2>Zugriff</h2>
+  <hr class="sectionrule">
+  <div class="fields">
+    <div class="f half"><div class="labelrow"><label for="sicht">Sichtbarkeit</label></div>
+      <select id="sicht"><option>Vom Bestand erben</option></select></div>
+    <div class="f half"><div class="labelrow"><label for="gruppen">Gruppen</label></div>
+      <input class="field" id="gruppen"></div>
+  </div>
+  <p class="exposure">Nach Veröffentlichung öffentlich sichtbar — mit Titel, Medienart, Dokumenttyp,
+    Schlagworten, Datierung, Autor, Ort, Beschreibung und Medien. Standort und interne Felder bleiben
+    verborgen.</p>
+</section>
+
+<section>
+  <span class="num">07</span>
+  <h2>Weitere Angaben</h2>
+  <hr class="sectionrule">
+  <div class="empty">
+    <p>Noch keine eigenen Felder — für Angaben, die in kein Feld oben passen.</p>
+    <span class="btn">Feld hinzufügen</span>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

@@ -15,7 +15,9 @@ here (pane = scent). Mode: Read.
 
 One composition for every article type, top to bottom:
 
-1. **Identity header** — Signatur tab (register row 1's licensed context),
+1. **Identity header** — Titel-led *(amended, owner 2026-08-29 Signatur
+   budget: the Signatur tab is demoted — the Signatur is one row among the
+   Akte facts, plain mono; the bevel returned to reserved)*,
    Titel, Datierung, gray ENTWURF when draft (pane-lifecycle-brief.md).
 2. **Beschreibung** — the article's body text as real paragraphs at the
    reading measure (amendment, owner 2026-08-22: the incumbent's 65ch
