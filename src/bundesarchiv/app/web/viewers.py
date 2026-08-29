@@ -173,7 +173,7 @@ def viewer_of(request: HttpRequest) -> Viewer:
 
 
 def render_screen(request: HttpRequest, template: str, context: dict[str, object]) -> HttpResponse:
-    """Render a screen with ``is_archivist`` resolved HERE, from ``viewer_of``.
+    """Render a screen with ``is_archivist`` and ``is_signed_in`` resolved HERE, from ``viewer_of``.
 
     The shared header's "+ Neu …" create disclosure is ARCHIVIST CHROME, so whether it renders is an
     authorization-shaped fact — and an authorization fact is the view's to decide, exactly as
@@ -184,9 +184,22 @@ def render_screen(request: HttpRequest, template: str, context: dict[str, object
     member-facing Lesesaal composition, a capability-link surface — the template would hand out
     archivist chrome without a word. One helper, and the fact comes from the viewer everywhere.
 
-    Any ``is_archivist`` the caller already put in ``context`` wins, so a view that computed the same
-    fact for other purposes stays the one source on its own screen."""
-    return render(request, template, {"is_archivist": _is_archivist(request), **context})
+    ``is_signed_in`` is the shared header's OTHER gate, and a different question: Abmelden belongs to
+    whoever holds a cookie, not to archivists (a Member's cookie is the longer-lived of the two, and
+    the shared workstation is the normal case — ADR 0018).
+
+    Any value the caller already put in ``context`` wins, so a view that computed the same fact for
+    other purposes stays the one source on its own screen."""
+    viewer = viewer_of(request)
+    return render(
+        request,
+        template,
+        {
+            "is_archivist": isinstance(viewer, Archivist),
+            "is_signed_in": not isinstance(viewer, Public),
+            **context,
+        },
+    )
 
 
 def _is_archivist(request: HttpRequest) -> bool:

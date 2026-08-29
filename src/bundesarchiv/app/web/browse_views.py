@@ -36,7 +36,7 @@ from bundesarchiv.app.web.article_auth import (
 )
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
@@ -105,14 +105,14 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # the whole document on a Back-button restore (a cache miss), so this branch must win over the
     # plain HX-Request check below — otherwise the restore renders the chrome-less results partial.
     if request.headers.get("HX-History-Restore-Request"):
-        return render(request, "workbench/workbench.html", context)
+        return render_screen(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
         # The hit count lives on the filter rail (law C10), OUTSIDE the #results swap target —
         # the partial therefore prepends an hx-swap-oob fragment updating the rail's count in
         # the same response (oob gates it: the full page renders the count once, from the rail).
         context["oob"] = True
         return render(request, "workbench/_results.html", context)
-    return render(request, "workbench/workbench.html", context)
+    return render_screen(request, "workbench/workbench.html", context)
 
 
 @dataclass(frozen=True, slots=True)
@@ -663,7 +663,9 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # spec §2). Falls back to a bare "/" when absent or nothing survives sanitizing.
     clean = browse.sanitize_query(request.GET.get("zurueck", ""))
     zurueck_href = f"{reverse('workbench')}?{clean}" if clean else reverse("workbench")
-    return render(request, "workbench/detail.html", _detail_context(resolution, zurueck_href))
+    return render_screen(
+        request, "workbench/detail.html", _detail_context(resolution, zurueck_href)
+    )
 
 
 @dataclass(frozen=True, slots=True)

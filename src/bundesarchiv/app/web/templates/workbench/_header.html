@@ -9,6 +9,8 @@ Params (all optional — an empty value simply renders less):
   text            — the current search text (the workbench's q); blank elsewhere
   filter_params   — the ACTIVE facet/sort filters as hidden inputs, so typing q refines WITHIN
                     the current scope instead of dropping it (GH #21); empty elsewhere
+  is_signed_in    — gates Abmelden: the sign-out belongs to whoever holds a cookie, Member included
+                    (ADR 0018 — shared workstations, and a Member's cookie is the longer-lived one)
   is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). It comes from the VIEW,
                     resolved from viewer_of (viewers.render_screen stamps every screen's context) —
                     never asserted as `is_archivist=True` at an include site. Whether archivist chrome
@@ -57,3 +59,11 @@ button. Native <details> — no JS; plain details close behavior is owner-accept
 </details>
 {% endif %}
 {% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
+{% comment %}Abmelden — for whoever is SIGNED IN, not for archivists: a Member's cookie is the
+longer-lived of the two tiers, and this header is the only screen a Member reaches. Shared computers
+are the normal case (ADR 0018), so the sign-out is on every screen that carries this header, never on
+a page of its own. A POST form, not a link: a logout changes state, and it carries the CSRF token
+every other write form does.{% endcomment %}
+{% if is_signed_in %}
+<form class="abmelden" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Abmelden</button></form>
+{% endif %}

@@ -310,6 +310,21 @@ def test_neuer_artikel_chrome_only_for_archivist(indexed_corpus: Corpus) -> None
     assert "Neuer Artikel" not in _get(Member(groups=())).content.decode()
 
 
+@pytest.mark.parametrize("viewer", [Archivist(), Member(groups=())])
+def test_abmelden_is_offered_to_everyone_who_is_signed_in(
+    indexed_corpus: Corpus, viewer: Viewer
+) -> None:
+    # NOT archivist chrome: a Member's cookie lives 30 days (the longest of the two tiers), and this
+    # header is the only screen they reach — gating the sign-out on is_archivist would leave them no
+    # way off a shared workstation, the case ADR 0018 calls normal. The German label IS the contract.
+    assert "Abmelden" in _get(viewer).content.decode()
+
+
+def test_abmelden_is_not_offered_to_an_anonymous_visitor(indexed_corpus: Corpus) -> None:
+    # Nothing to sign out of, and offering it would say somebody could be signed in here.
+    assert "Abmelden" not in _get(Public()).content.decode()
+
+
 # --- §11 render-path leaks: floored fields + archivist chrome (the reviewer's mutation targets) --
 
 _NON_ARCHIVIST: list[tuple[Viewer, str]] = [

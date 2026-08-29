@@ -81,6 +81,9 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         # Non-manifest storage: live_server's StaticFilesHandler serves from the finders, so the e2e
         # run needs no collectstatic (ADR 0016).
         "STORAGES": settings_dev.STORAGES,
+        # ...and its anonymous gate, which is OFF: the journeys browse as the dev switcher does,
+        # anonymous = Public. Read from settings_dev rather than restated, like everything above it.
+        "ANONYMOUS_GATE_ENABLED": settings_dev.ANONYMOUS_GATE_ENABLED,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),

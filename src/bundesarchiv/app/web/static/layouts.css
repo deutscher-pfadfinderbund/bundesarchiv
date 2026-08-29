@@ -57,7 +57,9 @@
   .back {
     font: var(--type-meta);
   }
-  header > .back:last-child {
+  /* whichever of the two trailing items ENDS the row docks it right: the back link on the screens
+     that carry one, otherwise Abmelden (archivist chrome, ADR 0018) */
+  header > :is(.back, .abmelden):last-child {
     margin-left: auto;
   }
 
