@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "DPB Bundesarchiv — multimedia archive"
 requires-python = ">=3.14"
 dependencies = [
+    "authlib>=1.7.2",
     "django>=6.0",
     "httpx>=0.28.1",
     "pillow>=12.3.0",
