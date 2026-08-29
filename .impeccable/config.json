@@ -1,7 +1,9 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "docs/design/explorations/**"
+    ],
     "ignoreValues": [
       {
         "rule": "overused-font",
