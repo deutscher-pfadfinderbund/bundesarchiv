@@ -4,6 +4,79 @@ Production/operations detail that does not belong in the quick-start README.
 Settings are env vars read by `bundesarchiv/index/settings.py`. Part 6 (deploy)
 consolidates this further.
 
+## Authentication (Keycloak OIDC) — ADR 0018
+
+Login is OIDC against the DPB Keycloak realm, ending in one signed Viewer
+cookie. No sessions, no user table, nothing to migrate. Every setting is
+optional in code and falls closed: with any of them missing nobody can log in,
+and the anonymous gate turns every request into a redirect to a login that
+answers 404. A half-configured deploy authenticates nobody — it never falls open.
+
+**Serve over HTTPS.** Both cookies are `Secure`. Over plain http the login
+appears to succeed and the very next request is anonymous again.
+
+- `BUNDESARCHIV_VIEWER_SIGNING_KEY` — signs the Viewer cookie and the transient
+  login cookie. Generate one per deployment:
+  `python -c "import secrets; print(secrets.token_urlsafe(64))"`. Never
+  `SECRET_KEY`, never the dev key. **Rotation = replace it and restart**, which
+  stops every outstanding cookie from verifying: everybody is signed out. That
+  is also the emergency lever when an archivist must lose access before their
+  48h are up (the other one is bumping `_VIEWER_FORMAT_VERSION` in
+  `app/web/viewers.py`).
+- `BUNDESARCHIV_OIDC_ISSUER` — `https://auth.deutscher-pfadfinderbund.de/realms/<realm>`
+  (the realm name arrives at smoke time). It must equal the `iss` in the ID
+  token exactly; the app reads `<issuer>/.well-known/openid-configuration` once
+  per process and keeps it, so a re-pointed issuer needs a restart. A discovery
+  fetch that FAILS is never kept: a realm that was restarting during one login
+  is retried at the next, not remembered for the life of the process.
+- `BUNDESARCHIV_OIDC_CLIENT_ID` / `BUNDESARCHIV_OIDC_CLIENT_SECRET` — the
+  confidential client and its secret.
+
+The anonymous gate itself is a settings constant, on in production and off only
+in `settings_dev` — deliberately not env-tunable.
+
+### Keycloak client checklist
+
+Values in `<…>` arrive at smoke time.
+
+- Client `<client-id>`: **client authentication on** (confidential), standard
+  flow on, direct access grants off, service accounts off.
+- **Valid redirect URI: exactly `https://<host>/oidc/callback`** — no wildcard.
+  The app sends this URI in both the authorize and the token request; a
+  mismatch is a refused login.
+- Valid post-logout redirect URI: `https://<host>/`.
+- **Roles mapper: the `roles` client scope assigned, with its realm-roles mapper
+  set to "Add to ID token".** The app validates the ID token, not userinfo.
+  Without this every archivist logs in as a plain Member.
+- Realm role **`Bundesarchiv`** exists and is assigned to the archivists.
+  Renaming it in Keycloak revokes archivist access here (`ARCHIVIST_REALM_ROLE`
+  in `app/web/oidc.py`).
+- Requested scope is `openid profile`. Group visibility (later) needs its own
+  `groups` mapper **into the ID token**, claim name `groups` — Keycloak
+  configuration, no code change.
+
+### Smoke test: one real login per realm change
+
+Run after any change to the client, the mappers, the secret or the issuer. The
+suite cannot replace it: it runs against an in-memory realm, which can only
+encode our own assumptions (ADR 0018, "Testing").
+
+1. Open `https://<host>/` in a fresh private window → Keycloak's login screen.
+2. Log in as an **archivist** → the workbench, with "+ Neu …" in the header. A
+   missing create menu means the login worked and the roles mapper did not.
+3. Log in as a **non-archivist** → the workbench without "+ Neu …" but WITH
+   "Abmelden": the sign-out belongs to everyone who is signed in.
+4. **Abmelden** → Keycloak asks to CONFIRM the logout. That prompt is expected:
+   the app stores no tokens, so it sends no `id_token_hint` and Keycloak will
+   not end a session unasked. Confirm → back at the login screen; going back in
+   the browser must not restore the session. Walking away WITHOUT confirming
+   leaves the SSO session alive (the local cookie is already gone), so the next
+   person on that machine is signed straight back in as the last one — the one
+   gap in the shared-computer story, ADR 0018 "Logout".
+
+Cookie lifetimes are 48h for an archivist and 30d for a member, enforced when
+the cookie is read. There is no server-side revocation between those two levers.
+
 ## Search index (Postgres)
 
 The index is **derived and disposable** — canonical truth is the files store

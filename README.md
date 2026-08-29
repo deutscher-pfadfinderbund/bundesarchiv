@@ -62,7 +62,7 @@ pre-commit install           # run the checks on every commit
 
 - [CONTEXT.md](CONTEXT.md) — what the domain words mean
 - [docs/adr/](docs/adr/) — design decisions and why
-- [docs/runbook.md](docs/runbook.md) — production/operations: media serving,
-  thumbnails, the WebDAV mirror, worker and reconcile settings
+- [docs/runbook.md](docs/runbook.md) — production/operations: Keycloak login,
+  media serving, thumbnails, the WebDAV mirror, worker and reconcile settings
 - [docs/design/bundesarchiv-v1.md](docs/design/bundesarchiv-v1.md) — v1 design overview
 - [docs/conventions.md](docs/conventions.md) — code conventions
