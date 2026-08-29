@@ -275,3 +275,25 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   ruling). Candidate replacement: stable row anatomy, low-priority columns
   drop as the table narrows. Decide at the design gate on before/after
   renders — not settled here.
+
+## Addendum (owner, 2026-08-30) — Postgres is not wholly ephemeral
+
+Asked whether login state may live in the database, the owner ruled:
+
+- **Only the archive files must survive total loss** — media plus Markdown, on
+  the WebDAV store. That part of "the server holds only ephemeral data" (see
+  *Operations* above) stands.
+- **Postgres is not wholly ephemeral.** Admin data — sessions, an audit trail,
+  worker jobs — MAY live there. It is the *search index* that is derived and
+  rebuildable, not the database around it.
+- **Dropping the database is an emergency measure, not routine.** Rebuilding
+  the index from the files is routine (the hourly reconcile does it); recreating
+  the database throws away everything else in it as well.
+
+Consequences:
+- ADR 0018 kept the signed cookie, but on its own merits (no parallel identity
+  system, nothing to store or clean up) — the "Postgres is disposable" reason it
+  gave is struck.
+- Any future admin table (audit trail, capability tokens) is allowed to live in
+  Postgres and needs a backup story of its own; it does not have to be
+  reconstructible from the files.
