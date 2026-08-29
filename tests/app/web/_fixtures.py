@@ -120,9 +120,15 @@ def standard_corpus(root: Path) -> Corpus:
 
 def settings_for(corpus: Corpus) -> dict[str, object]:
     """The settings a web test runs under: the prod urlconf, the dev-viewer signing key
-    ``client_as`` signs with, and ``corpus`` as the canonical store."""
+    ``client_as`` signs with, and ``corpus`` as the canonical store.
+
+    The ADR 0018 anonymous gate is OFF here, as it is in ``settings_dev``: these tests assert what
+    each tier — anonymous included — is ANSWERED, which is the contract behind the gate and the one
+    dev and the browser suites browse under. The gate itself is pinned by
+    ``test_anonymous_gate.py`` and by the leak matrix's own gated walk, both of which turn it on."""
     return {
         "ROOT_URLCONF": "bundesarchiv.app.web.urls",
         "DEV_VIEWER_SIGNING_KEY": DEV_KEY,
+        "ANONYMOUS_GATE_ENABLED": False,
         "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
     }

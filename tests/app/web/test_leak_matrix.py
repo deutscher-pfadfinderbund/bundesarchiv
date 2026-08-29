@@ -29,6 +29,7 @@ worker-enqueue seams are the conftest autouse no-ops.
 import io
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 from django.test import override_settings
@@ -503,6 +504,35 @@ def test_route_tier_matrix(
         assert response.status_code == expected, (
             f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
         )
+
+
+# --- the anonymous gate: the same walk with production's gate turned on ---------------------------
+
+#: The routes the gate exempts (ADR 0018) — they answer an anonymous request themselves, and the
+#: matrix rows above already pin WHAT they answer.
+_GATE_EXEMPT = ("login", "oidc-callback", "logout")
+
+
+@pytest.mark.parametrize("name", [n for n in _CONTRACT if n not in _GATE_EXEMPT])
+def test_the_anonymous_gate_redirects_every_route(matrix_corpus: _MatrixCorpus, name: str) -> None:
+    """With the gate on (the production setting), an anonymous visitor is redirected to the login on
+    EVERY route — the 200s and the 404s alike, so nothing about a route or a record is answerable
+    before authentication. Derived from the same contract as the matrix, so a new route is walked
+    here the day it is registered."""
+    path = _CONTRACT[name].build_path(matrix_corpus)
+    with override_settings(ANONYMOUS_GATE_ENABLED=True):
+        response = client_as(None).get(path)
+    assert response.status_code == REDIRECT, f"{name}: expected a login redirect"
+    assert response["Location"] == f"/login?next={quote(path, safe='')}", name
+
+
+@pytest.mark.parametrize("name", _GATE_EXEMPT)
+def test_the_gate_never_bounces_the_login_flow(matrix_corpus: _MatrixCorpus, name: str) -> None:
+    """The exemption, from the same list: bouncing the login to the login is a loop, and the logout
+    must stay usable to a browser whose cookie can no longer be read."""
+    with override_settings(ANONYMOUS_GATE_ENABLED=True):
+        response = client_as(None).get(_CONTRACT[name].build_path(matrix_corpus))
+    assert response.status_code != REDIRECT, f"{name} must not be gated"
 
 
 # --- structural: the contract is exhaustive against the urlconf -----------------------------------

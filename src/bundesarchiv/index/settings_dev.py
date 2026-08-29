@@ -43,6 +43,7 @@ ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",  # inert here: the flag is off
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]
 

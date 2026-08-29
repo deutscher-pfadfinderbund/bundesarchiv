@@ -85,9 +85,13 @@ ROOT_URLCONF = "bundesarchiv.app.web.urls"
 # no auth/admin. This bends the "tiny settings, no middleware" stance (ADR 0004) for a real security
 # hole; subject to owner ratification, and the 4.10 hardening gate revisits the middleware surface.
 # WhiteNoise serves /static/* (ADR 0016) and short-circuits before CSRF — it must stay first.
+# ...and the ADR 0018 anonymous gate, LAST: WhiteNoise short-circuits /static/* above it, and CSRF
+# keeps its request-phase place ahead of it, so the gate only ever sees requests that are about to
+# reach a view. It is the ONE place the app decides an unauthenticated request is not answered.
 MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
 ]
 
 # Authentication (ADR 0018): OIDC against the DPB Keycloak realm, ending in ONE signed Viewer
