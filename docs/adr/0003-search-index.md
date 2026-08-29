@@ -11,4 +11,13 @@ Every query is scoped by the one **effective-audience function**, and is additio
 - Field-floor partitioning is a **leak-prevention requirement**, not an optimization — it must be tested per viewer tier.
 - **Index engine = PostgreSQL** — `to_tsvector('german')` + `unaccent` + a German Hunspell dictionary (compound splitting, e.g. *Fahrtenbericht* → *Fahrt*), and ICU numeric collation (`de-u-kn-true`) for `ref_code` sort. Because the index is derived and disposable, the engine stays swappable (e.g. add Meilisearch later if search UX needs typo-tolerance).
 
+**Update 2026-08-30 — "disposable" means the index, not the database.** Every
+citation of this ADR ("the index is disposable") is about the derived
+search-index tables, which `full_rebuild` recreates from the files at any time.
+The Postgres *instance* around them is not disposable: it also holds admin data
+— worker jobs today, an audit trail or capability tokens later — which nothing
+can rebuild from the files. Only the archive files (media + Markdown) must
+survive total loss (owner, 2026-08-30). Rebuilding the index is routine;
+dropping the database is an emergency measure and takes everything else with it.
+
 **Update 2026-07-04:** The Hunspell ispell dict splits **0 / 28** real compounds (Postgres implements only the legacy `compoundwords controlled` mechanism; the baked `hunspell-de-de` uses modern `COMPOUNDBEGIN/END` directives). v1 ships `unaccent + german_stem` only — no compound decomposition. See ADR 0011 for measurements and the final SQL config.

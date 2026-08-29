@@ -8,7 +8,10 @@ consolidates this further.
 
 The index is **derived and disposable** — canonical truth is the files store
 (`BUNDESARCHIV_CANONICAL_ROOT`); `full_rebuild` recreates the index from it at any
-time. Postgres 18 with the German Hunspell dictionary baked in
+time. The **database is not** the index: it also holds the worker's job tables,
+and later admin data nothing can rebuild from the files (ADR 0003, update
+2026-08-30). Rebuild the index; drop the database only in an emergency.
+Postgres 18 with the German Hunspell dictionary baked in
 (`docker/postgres/`). `docker-compose.yml` is the VPS deploy artifact; local dev
 uses Apple's `container` CLI (README).
 
