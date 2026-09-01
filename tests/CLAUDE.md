@@ -37,6 +37,13 @@ nothing-was-written assert on write routes. Every new prod route needs a
 `_CONTRACT` entry in `tests/app/web/test_leak_matrix.py` — the exhaustiveness
 gate fails otherwise.
 
+## The round-trip contract
+
+Every encode/decode or serialize/parse pair carries an adversarial round-trip
+test in the commit that introduces it — the delimiter itself, empty, unicode,
+percent, leading/trailing whitespace. Canonical bytes are the archive, so this
+sits inside the razor as loss-critical, not as codec-mechanics.
+
 ## What each suite owns
 
 - `domain/` — the visibility policy itself (access, audience resolution,

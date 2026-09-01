@@ -37,6 +37,15 @@ Read `REVIEW-LEDGER.md.local` first; never re-report anything listed there.
    source, test and ADR. A comment that promises a gate which does not exist
    is a CONFIRMED finding, not a style note.
 
+8. **Sibling divergence.** Two functions in one module doing the same derivation
+   two ways — one through a library, one hand-rolled — is a finding even when
+   both are currently correct. Name both sites and which one owns the fact.
+9. **An ADR is a record, not a proof.** The ADRs here are largely AI-transcribed
+   from owner conversations. Before treating a pattern as settled, trace the
+   claim to a ruling in `docs/requirements/` and to what the code actually does.
+   Report an ADR-vs-code disagreement as a finding; never silently trust either
+   side, and never propose changing code to match an unverified ADR.
+
 ## Conduct
 
 - Read-only: no edits, no commits, no test-suite mutations.

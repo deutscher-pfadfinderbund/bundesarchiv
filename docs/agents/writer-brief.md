@@ -46,6 +46,27 @@ waves: CSS/template/JS, position/overlay changes). Never run them as general
 diligence in a non-UI wave — an e2e failure outside your wave's scope is the
 coordinator's problem, not yours.
 
+## An unexpected red is a STOP, not a patch site
+
+A gate, a test or a rule that breaks unexpectedly stops the line. Investigate how
+it came to be and what would have prevented it; fix the cause; the report states
+both cause and prevention. Adding a test or gate is the last resort after the
+systemic cause is addressed, never the reflex.
+
+## Serialization is adversarial by default
+
+Every encode/decode or serialize/parse pair ships with an adversarial round-trip
+test in the commit that introduces it: the delimiter itself, empty, unicode,
+percent, leading/trailing whitespace. Joining externally-controlled values with
+an in-band delimiter and no escaping is a defect, not a style call.
+
+## Tests assert derived values, never re-derived ones
+
+A test asserting an encoding, a URL or a key layout gets the value from the
+production helper, or parses the parts back out — it never re-derives the value
+with its own copy of the rule. A drift test pinning two copies equal needs a
+stated reason why an owning interface is not the fix.
+
 ## No heavy mocking
 
 Exercise the real code path, not mocks of the unit under test. The web subtree
@@ -116,6 +137,13 @@ Three specifics that follow from the same rule:
   survives as apparent coverage.
 - **A comment may not deform the code it describes.** If a trailing comment forces
   a one-line call across three, move it above or drop it.
+
+## Map rows move with the code
+
+Creating, renaming or deleting a module, or changing its interface, updates that
+module's row in `src/bundesarchiv/<pkg>/CLAUDE.md` — and `MODULES.md` when a name
+appeared or vanished — in the SAME commit. An implementation-only change touches
+no map. Procedure: the `update-module-map` skill; gate: `tests/test_module_map.py`.
 
 ## Standing law changes update the briefs in the same wave
 
