@@ -17,15 +17,19 @@ from bundesarchiv.app.web import keycloak
 
 _ISSUER = "https://auth.example/realms/dpb"
 _LOGOUT = f"{_ISSUER}/protocol/openid-connect/logout"
+_JWKS_URI = f"{_ISSUER}/protocol/openid-connect/certs"
 _DOCUMENT: Mapping[str, object] = {
     "authorization_endpoint": f"{_ISSUER}/protocol/openid-connect/auth",
     "token_endpoint": f"{_ISSUER}/protocol/openid-connect/token",
 }
+_KEY_SET: Mapping[str, object] = {"keys": [{"kid": "signing-2026-08", "kty": "RSA"}]}
+_ROTATED: Mapping[str, object] = {"keys": [{"kid": "signing-2026-09", "kty": "RSA"}]}
 
 
 class _Realm:
-    """The discovery endpoint as an ``httpx.get`` stand-in — the ONE genuine external boundary here.
-    ``down`` raises the connection failure a restarting realm gives; ``body`` is what it serves."""
+    """The realm's HTTP endpoints as an ``httpx.get`` stand-in — the ONE genuine external boundary
+    here. ``down`` raises the connection failure a restarting realm gives; ``body`` is what it
+    serves."""
 
     def __init__(self) -> None:
         self.down = False
@@ -39,13 +43,15 @@ class _Realm:
 
 @pytest.fixture
 def realm(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Realm]:
-    """A realm behind the adapter, with the process-wide cache empty before and after."""
+    """A realm behind the adapter, with the process-wide caches empty before and after."""
     keycloak._DOCUMENTS.clear()
+    keycloak._KEY_SETS.clear()
     fake = _Realm()
     # On the httpx module itself: the adapter calls ``httpx.get``, so this is the same attribute.
     monkeypatch.setattr(httpx, "get", fake.get)
     yield fake
     keycloak._DOCUMENTS.clear()
+    keycloak._KEY_SETS.clear()
 
 
 def test_a_failed_discovery_is_retried_not_remembered(realm: _Realm) -> None:
@@ -69,6 +75,37 @@ def test_a_fetched_document_outlives_the_realm(realm: _Realm) -> None:
     assert keycloak._metadata(_ISSUER) == _DOCUMENT
     realm.down = True
     assert keycloak._metadata(_ISSUER) == _DOCUMENT
+
+
+def test_a_failed_key_set_fetch_is_retried_not_remembered(realm: _Realm) -> None:
+    """The signing keys follow the discovery document's rule: no failure is ever cached."""
+    realm.down = True
+    assert keycloak._jwks(_JWKS_URI) is None
+    realm.down, realm.body = False, dict(_KEY_SET)
+    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+
+
+def test_a_fetched_key_set_outlives_the_realm(realm: _Realm) -> None:
+    """Why the cache exists: a callback validates the ID token without a second round trip to the
+    realm, serially after the token exchange it already paid for."""
+    realm.body = dict(_KEY_SET)
+    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+    realm.down = True
+    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+
+
+def test_a_refresh_replaces_the_cached_key_set_only_when_it_succeeds(realm: _Realm) -> None:
+    """What makes a signing-key rotation survivable — and what keeps an outage during one from
+    throwing away the set that still verifies yesterday's keys."""
+    realm.body = dict(_KEY_SET)
+    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+
+    realm.body = dict(_ROTATED)
+    assert keycloak._jwks(_JWKS_URI, refresh=True) == _ROTATED
+    realm.down = True
+    assert keycloak._jwks(_JWKS_URI) == _ROTATED
+    assert keycloak._jwks(_JWKS_URI, refresh=True) is None
+    assert keycloak._jwks(_JWKS_URI) == _ROTATED
 
 
 @pytest.mark.parametrize(
