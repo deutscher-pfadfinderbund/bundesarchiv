@@ -1,0 +1,34 @@
+{% comment %}
+One ruled row of the record card: the label on the axis, the control, then the hint and the error in
+the value column. Params: feld — a catalog_views._CardRow, the field registry joined to this render's
+value/error/focus. The card's sections loop this partial, so the registry is the only place a field
+of the record card exists.
+
+It stays a bare <label>: forms.css reaches its parts through `.fach > .field > …`, a direct-child
+path (law C14), so a wrapper here would drop the row off its own axis.
+{% endcomment %}<label class="field">
+  <span>{{ feld.label }}</span>
+  {% if feld.control == "select" %}
+  <select name="{{ feld.name }}"{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+    {% for value, caption in feld.options %}
+    <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
+    {% endfor %}
+  </select>
+  {% elif feld.control == "groups" %}
+  <select id="{{ feld.element_id }}" name="{{ feld.name }}"{% if feld.autofocus %} autofocus{% endif %}>
+    <option value="">{{ feld.blank }}</option>
+    {% for group_label, group_options in feld.options %}
+    <optgroup label="{{ group_label }}">
+      {% for value, caption in group_options %}
+      <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+  {% else %}
+  <input type="text" name="{{ feld.name }}" value="{{ feld.value }}"{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  {% endif %}
+  {% if feld.hint %}<span class="hint">{{ feld.hint }}</span>{% endif %}
+  {% if feld.error %}<span class="error">{{ feld.error }}</span>{% endif %}
+  {% if feld.echo %}{% include "workbench/_datierung_echo.html" with edtf_echo=feld.echo_text only %}{% endif %}
+</label>

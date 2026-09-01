@@ -142,83 +142,22 @@ sheet is the pane.{% endcomment %}
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
+    {% comment %}The card's field sections are `{% templatetag openblock %} for {% templatetag closeblock %}` loops over the field registry
+    (catalog_views._FIELDS → _card_fields), so a field exists on this card exactly when the registry
+    declares it — label, control, hint, options, htmx wiring and autofocus all ride the row. The two
+    hand-written controls below are the ones that are not ruled rows: the Beschreibung textarea (its
+    section heading IS its label) and the custom bag's paired inputs.{% endcomment %}
+
     {# Gruppe 1 — Kerndaten (stays open: the identity facts) #}
     <section class="fach">
       <h2>Kerndaten</h2>
-      <label class="field">
-        <span>Titel</span>
-        <input type="text" name="title" value="{{ values.title }}"
-               {% if autofocus == "title" %}autofocus{% endif %}>
-        {% if errors.title %}<span class="error">{{ errors.title }}</span>{% endif %}
-      </label>
-      <label class="field">
-        <span>Bestand</span>
-        <select name="collection_id"
-                {% if autofocus == "collection_id" %}autofocus{% endif %}>
-          {% for value, caption in collection_options %}
-          <option value="{{ value }}"{% if value == values.collection_id %} selected{% endif %}>{{ caption }}</option>
-          {% endfor %}
-        </select>
-        {% if errors.collection_id %}<span class="error">{{ errors.collection_id }}</span>{% endif %}
-      </label>
-      <label class="field">
-        <span>Signatur</span>
-        <input type="text" name="ref_code" value="{{ values.ref_code }}"
-               {% if autofocus == "ref_code" %}autofocus{% endif %}>
-      </label>
+      {% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     </section>
 
     {# Gruppe 2 — Einordnung (stays open: the cataloging decisions) #}
     <section class="fach">
       <h2>Einordnung</h2>
-      <label class="field">
-        <span>Medienart</span>
-        {% comment %}On change, swap in the dependent Dokumenttyp options. No-JS baseline unchanged:
-        the full grouped optgroup list + server pairing re-validation still stand.{% endcomment %}
-        <select name="media_type"
-                hx-get="{% url 'artikel-dokumenttypen' values.ulid %}"
-                hx-trigger="change" hx-target="#dokumenttyp-select" hx-swap="innerHTML"
-                {% if autofocus == "media_type" %}autofocus{% endif %}>
-          {% for value, caption in media_type_options %}
-          <option value="{{ value }}"{% if value == values.media_type %} selected{% endif %}>{{ caption }}</option>
-          {% endfor %}
-        </select>
-        {% if errors.media_type %}<span class="error">{{ errors.media_type }}</span>{% endif %}
-      </label>
-      <label class="field">
-        <span>Dokumenttyp</span>
-        <select id="dokumenttyp-select" name="document_type"
-                {% if autofocus == "document_type" %}autofocus{% endif %}>
-          <option value="">— kein Dokumenttyp —</option>
-          {% for group_label, group_options in document_type_groups %}
-          <optgroup label="{{ group_label }}">
-            {% for value, caption in group_options %}
-            <option value="{{ value }}"{% if value == values.document_type %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endfor %}
-        </select>
-        {% if errors.document_type %}<span class="error">{{ errors.document_type }}</span>{% endif %}
-      </label>
-      <label class="field">
-        <span>Schlagworte</span>
-        <input type="text" name="tags" value="{{ values.tags }}"
-               {% if autofocus == "tags" %}autofocus{% endif %}>
-        <span class="hint">Mehrere durch Komma trennen</span>
-      </label>
-      <label class="field">
-        <span>Datierung (EDTF)</span>
-        {% comment %}Debounced keyup swaps the human-German echo below. No-JS baseline unchanged:
-        the echo also renders server-side after any submit.{% endcomment %}
-        <input type="text" name="date" value="{{ values.date }}"
-               hx-get="{% url 'artikel-datierung-echo' values.ulid %}"
-               hx-trigger="keyup changed delay:400ms" hx-target="#datierung-echo"
-               hx-swap="outerHTML"
-               {% if autofocus == "date" %}autofocus{% endif %}>
-        <span class="hint">z. B. 1962, 1984/1995, 1970~ (EDTF)</span>
-        {% if errors.date %}<span class="error">{{ errors.date }}</span>{% endif %}
-        {% include "workbench/_datierung_echo.html" with edtf_echo=edtf_echo %}
-      </label>
+      {% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     </section>
 
     {% comment %}Gruppe 3 — Herkunft: rarely touched, so it FOLDS, with its own values in the
@@ -235,22 +174,7 @@ sheet is the pane.{% endcomment %}
           {% include "workbench/_wertmarke.html" with label="Standort" value=values.physical_location only %}
         </span>
       </summary>
-      <label class="field">
-        <span>Autor</span>
-        <input type="text" name="creator" value="{{ values.creator }}"
-               {% if autofocus == "creator" %}autofocus{% endif %}>
-      </label>
-      <label class="field">
-        <span>Ort</span>
-        <input type="text" name="subject_place" value="{{ values.subject_place }}"
-               {% if autofocus == "subject_place" %}autofocus{% endif %}>
-      </label>
-      <label class="field">
-        <span>Standort</span>
-        <input type="text" name="physical_location" value="{{ values.physical_location }}"
-               {% if autofocus == "physical_location" %}autofocus{% endif %}>
-        <span class="hint">Nur intern sichtbar</span>
-      </label>
+      {% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     </details>
 
     {% comment %}Gruppe 4 — Beschreibung: the section heading IS the field's label
@@ -269,21 +193,7 @@ sheet is the pane.{% endcomment %}
           {% include "workbench/_wertmarke.html" with label="Gruppen" value=values.gruppen only %}
         </span>
       </summary>
-      <label class="field">
-        <span>Sichtbarkeit</span>
-        <select name="sichtbarkeit">
-          {% for value, caption in sichtbarkeit_options %}
-          <option value="{{ value }}"{% if value == values.sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>Gruppen</span>
-        <input type="text" name="gruppen" value="{{ values.gruppen }}"
-               {% if autofocus == "gruppen" %}autofocus{% endif %}>
-        <span class="hint">Mehrere durch Komma trennen</span>
-        {% if errors.gruppen %}<span class="error">{{ errors.gruppen }}</span>{% endif %}
-      </label>
+      {% for feld in card_fields.zugriff %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     </details>
 
     {% comment %}The EXPOSURE statement below the pane's 80rem switch — OUTSIDE the fold: a

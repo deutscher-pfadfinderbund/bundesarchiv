@@ -12,12 +12,13 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
-from pathlib import Path
+from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 import pytest
-from django.http import HttpRequest
+from django.http import HttpRequest, QueryDict
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import PUB, Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -28,6 +29,9 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
+
+if TYPE_CHECKING:
+    from bundesarchiv.app.web.catalog_views import _CardRow
 
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 
@@ -403,42 +407,24 @@ class _Fold:
 _VOID = frozenset({"input", "img", "br", "hr", "meta", "link", "source", "col", "area"})
 
 
-@dataclass(frozen=True)
-class _CardField:
-    """One rendered control of the record card: its ``name``, its element ``tag``, and whether it sits
-    inside the custom bag (whose two inputs are the escape hatch, not registry-focusable fields)."""
-
-    name: str
-    tag: str
-    in_bag: bool
-
-
 class _FoldScanner(HTMLParser):
     """Collect every ``<details>`` INSIDE THE RECORD CARD with its ``open`` state, summary label and
-    contained field names, EVERY field the card renders, and the name of the ONE field carrying
-    ``autofocus``. A real parser rather than a regex, because "contained" is a nesting question.
+    contained field names, plus the name of the ONE field carrying ``autofocus``. A real parser rather
+    than a regex, because "contained" is a nesting question.
 
     Scoped to ``.karte`` STRUCTURALLY. The record row's "Mehr …" overflow is a ``<details>`` too, and
     it used to be excluded by the accident of holding no input — which is the same accident that hid
     field-less CARD folds from the guard below. Hidden inputs are still skipped: they are plumbing
-    (CSRF, expected_version, the media hashes), not fields the archivist fills.
-
-    ``fields`` collects EVERY named non-hidden control the card renders, in or out of a fold — a card
-    field outside a ``<details>`` was invisible to the fold walk, so the registry could lose a whole
-    row without a guard noticing. The media register is excluded structurally: its caption inputs and
-    its file input are per-BLOB controls belonging to ``#medien-drawer``, not fields of the record."""
+    (CSRF, expected_version, the media hashes), not fields the archivist fills."""
 
     def __init__(self) -> None:
         super().__init__()
         self.folds: list[_Fold] = []
-        self.fields: list[_CardField] = []
         self.autofocused = ""
         self._stack: list[_Fold] = []
         self._in_summary = False
         self._depth = 0
         self._karte_depth: int | None = None
-        self._drawer_depth: int | None = None
-        self._bag_depth: int | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -446,12 +432,7 @@ class _FoldScanner(HTMLParser):
             self._depth += 1
             if self._karte_depth is None and "karte" in (values.get("class") or "").split():
                 self._karte_depth = self._depth
-            if self._drawer_depth is None and values.get("id") == "medien-drawer":
-                self._drawer_depth = self._depth
-            if self._bag_depth is None and values.get("id") == "custom-bag":
-                self._bag_depth = self._depth
-        in_karte = self._karte_depth is not None
-        if tag == "details" and in_karte:
+        if tag == "details" and self._karte_depth is not None:
             fold = _Fold(is_open="open" in values)
             self.folds.append(fold)
             self._stack.append(fold)
@@ -465,8 +446,6 @@ class _FoldScanner(HTMLParser):
                 self.autofocused = name
             for fold in self._stack:
                 fold.fields.add(name)
-            if in_karte and self._drawer_depth is None:
-                self.fields.append(_CardField(name, tag, self._bag_depth is not None))
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "details" and self._stack:
@@ -474,9 +453,8 @@ class _FoldScanner(HTMLParser):
         elif tag == "summary":
             self._in_summary = False
         if tag not in _VOID:
-            for attr in ("_karte_depth", "_drawer_depth", "_bag_depth"):
-                if getattr(self, attr) == self._depth:
-                    setattr(self, attr, None)
+            if self._karte_depth == self._depth:
+                self._karte_depth = None
             self._depth -= 1
 
     def handle_data(self, data: str) -> None:
@@ -534,61 +512,126 @@ def test_folded_sections_own_every_field_they_hold(corpus: _EditCorpus) -> None:
         assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from the registry"
 
 
-# --- the field registry's OTHER three columns ---------------------------------------
+# --- the field registry's OTHER columns ---------------------------------------------
 #
-# `section` had the walk above and the other three columns had nothing: dropping `scanned=True`,
-# dropping `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite
-# green, and a new card field OUTSIDE a fold was unguarded entirely (the fold walk only sees what a
-# <details> contains). The consequential column is `diff`: `_conflict_rows` derives the CAS
-# "Inzwischen geändert" table from it, so a dropped `diff=` means a racing archivist is silently not
-# told that field changed under them — loss-adjacent, on the surface tests/CLAUDE.md calls
-# load-bearing. Each guard below joins the registry to the REAL render or the real behaviour, never to
-# a second hand-written list.
-
-#: The two registry rows that render NO control, each because of what it is: ``custom`` is the
-#: ``errors`` key for the bag as a whole (it maps to no single input), and ``lifecycle`` is the
-#: record's STATE, present in the registry only because the CAS diff shows it as a row.
-_NOT_A_CONTROL = frozenset({"custom", "lifecycle"})
+# `section` had the walk above and the other columns had nothing: dropping `scanned=True`, dropping
+# `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite green.
+# The consequential column is `diff`: `_conflict_rows` derives the CAS "Inzwischen geändert" table
+# from it, so a dropped `diff=` means a racing archivist is silently not told that field changed under
+# them — loss-adjacent, on the surface tests/CLAUDE.md calls load-bearing. Each guard below joins the
+# registry to the REAL render or the real behaviour, never to a second hand-written list.
 
 
-def test_the_card_renders_exactly_the_registrys_fields(corpus: _EditCorpus) -> None:
-    # The registry is the ONE declaration of the card's fields, so the card may not render a field it
-    # does not know about, and may not lose one silently either. Both directions in one set equality,
-    # against the real render — a new field added to the template alone lands here.
+def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> list[_CardRow]:
+    """Every record-card row the registry renders, in DOM order, for a blank form."""
+    from bundesarchiv.app.web.catalog_views import _card_fields
+
+    sections = _card_fields({"ulid": _ULID}, (), errors=errors or {}, autofocus=autofocus)
+    return [row for group in sections.values() for row in group]
+
+
+def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus) -> None:
+    # The card's sections are `{% for %}` loops over `_card_fields`, so the template can no longer
+    # render a field the registry does not declare — that direction is closed by construction, and the
+    # HTML scanner that used to prove it went with the hand-written blocks. The open direction is a
+    # section whose loop was never wired: walk the real render for each declared control.
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    rendered = {f.name for f in _scan(body).fields}
-    assert len(rendered) >= 12, f"the scanner found {sorted(rendered)} — the guard proves nothing"
-    assert rendered == {f.name for f in _FIELDS} - _NOT_A_CONTROL, (
-        f"card fields {sorted(rendered)} vs the registry's"
-        f" {sorted({f.name for f in _FIELDS} - _NOT_A_CONTROL)}"
-    )
+    declared = [f.name for f in _FIELDS if f.control]
+    assert len(declared) >= 13, f"the registry declares {declared} — the guard proves nothing"
+    for name in declared:
+        assert f'name="{name}"' in body, f"the card renders no control for {name}"
 
 
-#: The edit template, read to derive which controls it WIRES for autofocus.
-_EDIT_TEMPLATE = (
-    Path(__file__).resolve().parents[3]
-    / "src/bundesarchiv/app/web/templates/workbench/artikel_bearbeiten.html"
-)
-
-
-def test_focusable_marks_exactly_the_controls_the_template_can_focus() -> None:
-    # `focusable` is what `_first_error_field` scans, so a field marked focusable whose control carries
-    # no `autofocus` wiring focuses NOTHING on a validation re-render — the failure mode is silent, and
-    # in source it looks exactly like a working one. The fact is the TEMPLATE's, so it is read from the
-    # template rather than re-listed: the set of names it tests `autofocus` against IS the set of
-    # controls that can receive it.
-    import re
-
+def test_only_a_focusable_field_can_carry_the_autofocus() -> None:
+    # `focusable` is what `_first_error_field` scans, so a field marked focusable whose control never
+    # receives `autofocus` focuses NOTHING on a validation re-render — silent, and in source it looks
+    # exactly like a working one. One partial wires the attribute now, off `row.autofocus`, so the
+    # relation is the registry's: every focusable field can take the caret, nothing else can.
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
-    wired = set(re.findall(r'autofocus == "([a-z_]+)"', _EDIT_TEMPLATE.read_text()))
-    assert len(wired) >= 8, f"only {sorted(wired)} wired — the guard proves nothing"
-    assert wired == {f.name for f in _FIELDS if f.focusable}, (
-        f"the template can focus {sorted(wired)}; the registry marks"
-        f" {sorted({f.name for f in _FIELDS if f.focusable})} focusable"
+    focusable = [f.name for f in _FIELDS if f.focusable]
+    assert len(focusable) >= 8, f"only {focusable} focusable — the guard proves nothing"
+    for name in focusable:
+        focused = [row.name for row in _card_rows(autofocus=name) if row.autofocus]
+        assert focused == [name], f"autofocus on {name} landed on {focused}"
+    unfocusable = [row.name for row in _card_rows(autofocus="sichtbarkeit") if row.autofocus]
+    assert not unfocusable, "„sichtbarkeit“ is not focusable but took the caret"
+
+
+def test_every_card_field_seeds_from_the_stored_article() -> None:
+    # The GET seed: one wrong `seed=` silently offers the archivist another field's value, and the
+    # next Speichern writes it. The whole table in one place, so a mis-wired row cannot hide behind
+    # the three fields the HTTP renders happen to assert.
+    from bundesarchiv.app.web.catalog_views import _article_to_form_values
+
+    article = make_article(
+        _ULID,
+        lifecycle=Lifecycle.DRAFT,
+        title="Wanderfahrt 1962",
+        ref_code="F12/3",
+        media_type="Fotografie",
+        document_type="Porträt",
+        tags=("sommer", "fahrt"),
+        date=EdtfDate("1962-07"),
+        creator="Kurt Meyer",
+        subject_place="Bonn",
+        physical_location="Regal 3",
+        body="Ein Text.",
+        audience=Audience(tier=AudienceTier.GROUPS, groups=("vorstand", "archiv")),
+        custom=(("Fotograf", "Meyer"),),
     )
+    assert _article_to_form_values(article) == {
+        "ulid": _ULID,
+        "title": "Wanderfahrt 1962",
+        "collection_id": PUB,
+        "ref_code": "F12/3",
+        "media_type": "Fotografie",
+        "document_type": "Porträt",
+        "tags": "sommer, fahrt",
+        "date": "1962-07",
+        "creator": "Kurt Meyer",
+        "subject_place": "Bonn",
+        "physical_location": "Regal 3",
+        "body": "Ein Text.",
+        "sichtbarkeit": "groups",
+        "gruppen": "vorstand, archiv",
+        "custom_rows": [("Fotograf", "Meyer"), ("", "")],
+        "is_draft": True,
+    }
+
+
+def test_every_card_field_echoes_the_post_verbatim() -> None:
+    # The re-render echo: a field the echo forgets comes back BLANK, and the archivist's next save
+    # writes that blank over the stored value. Data loss, so the whole table is walked, not sampled.
+    from bundesarchiv.app.web.catalog_views import _FIELDS, _post_to_form_values
+
+    typed = {f.name: f"getippt {f.name}" for f in _FIELDS if f.control}
+    values = _post_to_form_values(QueryDict(urlencode(typed)), _ULID, Lifecycle.DRAFT)
+    assert len(typed) >= 13, f"only {sorted(typed)} typed — the walk proves nothing"
+    for name, text in typed.items():
+        assert values[name] == text, f"{name} echoed {values.get(name)!r}, not {text!r}"
+
+
+def test_the_cas_diff_spells_the_rung_and_the_state_in_german() -> None:
+    # Two rows do not print their form value: Sichtbarkeit holds the rung's machine value in the
+    # select ("members"), and lifecycle is an enum member. Both must reach the archivist as the German
+    # word — the row list guards WHICH rows appear, this guards what they say.
+    from bundesarchiv.app.web.catalog_views import _conflict_rows
+
+    audience = _conflict_rows(
+        make_article(_ULID, audience=Audience(AudienceTier.PUBLIC)),
+        make_article(_ULID, audience=Audience(AudienceTier.MEMBERS)),
+    )
+    assert [(r.label, r.mine, r.theirs) for r in audience] == [
+        ("Sichtbarkeit", "Öffentlich", "Alle Mitglieder")
+    ]
+    state = _conflict_rows(
+        make_article(_ULID, lifecycle=Lifecycle.DRAFT),
+        make_article(_ULID, lifecycle=Lifecycle.PUBLISHED),
+    )
+    assert [(r.label, r.mine, r.theirs) for r in state] == [("Status", "Entwurf", "Veröffentlicht")]
 
 
 def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> None:

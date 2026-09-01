@@ -21,12 +21,12 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 ``urls.py`` so the literal path wins.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Literal
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
@@ -200,13 +200,12 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     collections = _collections(archive)
     if request.method == "POST":
         return _handle_edit_post(request, archive, ulid, stored.article, collections)
-    context = _edit_context_from_article(
-        stored.article, stored.version, collections, autofocus_first_empty=True
-    )
     # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
     # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
-    if request.GET.get("fokus") == "signatur":
-        context["autofocus"] = "ref_code"
+    fokus = "ref_code" if request.GET.get("fokus") == "signatur" else None
+    context = _edit_context_from_article(
+        stored.article, stored.version, collections, autofocus=fokus
+    )
     return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
@@ -327,7 +326,7 @@ def _rerender_with_custom_removed(
         raw_rows.pop(index)
     rows = [pair for pair in raw_rows if pair != ("", "")]
     rows.append(("", ""))  # keep the always-present empty add-row
-    values = _post_to_form_values(request, ulid, current.lifecycle)
+    values = _post_to_form_values(post, ulid, current.lifecycle)
     values["custom_rows"] = rows
     version = catalog.parse_version(request.POST.get("expected_version", ""))
     media = catalog._apply_captions(request.POST, current.media)
@@ -354,14 +353,17 @@ def _edit_context_from_article(
     version: int,
     collections: tuple[Collection, ...],
     *,
-    autofocus_first_empty: bool,
+    autofocus: str | None,
     entfernen_hash: str = "",
 ) -> dict[str, object]:
-    """The edit form context seeded from a stored Article (the GET path). Autofocus lands on the
-    first empty field (spec §5) when requested. The media register renders the stored media, cover-
-    first; ``entfernen_hash`` puts one row into the remove-confirm state."""
+    """The edit form context seeded from a stored Article (the GET path). ``autofocus`` is the field
+    to focus, ``""`` for none, or ``None`` to walk the cataloguing spine for its first empty field
+    (spec §5) — the caller decides BEFORE the rows are built, since each row carries its own focus.
+    The media register renders the stored media, cover-first; ``entfernen_hash`` puts one row into the
+    remove-confirm state."""
     values = _article_to_form_values(article)
-    autofocus = _first_empty_field(values) if autofocus_first_empty else ""
+    if autofocus is None:
+        autofocus = _first_empty_field(values)
     return _edit_context(
         values,
         version,
@@ -390,7 +392,7 @@ def _edit_context_from_post(
     and the neutral diff rows are attached (spec §6.1). ``stored`` is the Article as it stands on disk
     (the conflict WINNER in state G): it supplies the lifecycle and the reader's sheet, which shows
     the SAVED record, never the unsaved keystrokes."""
-    values = _post_to_form_values(request, ulid, stored.lifecycle)
+    values = _post_to_form_values(request.POST, ulid, stored.lifecycle)
     version = conflict.current_version if conflict is not None else result.expected_version
     context = _edit_context(
         values,
@@ -431,11 +433,9 @@ def _edit_context(
         "version": version,
         "errors": errors,
         "autofocus": autofocus,
-        "collection_options": _collection_options(collections),
-        "media_type_options": vocab.media_type_options(),
-        "document_type_groups": vocab.grouped_document_type_options(),
-        "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
-        "edtf_echo": _edtf_echo(str(values.get("date") or "")),
+        # The card's rows, section by section — the template loops these, so the registry is the ONE
+        # place a field of the record card exists.
+        "card_fields": _card_fields(values, collections, errors=errors, autofocus=autofocus),
         "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
         # The folded sections' summary values (owner ruling 4: folding may never hide data). Both
         # read what the FIELDS print — the caption off the very option list the select renders — so a
@@ -525,58 +525,34 @@ def _edtf_echo(date_value: str) -> str:
 
 
 def _article_to_form_values(article: Article) -> dict[str, object]:
-    """A stored Article → the flat form-value dict the template prints (GET seed). Every scalar
-    renders as its string or ``""``; the audience decomposes to the Sichtbarkeit select value + the
-    comma-joined Gruppen; custom pairs become the row list plus one trailing empty row."""
-    return {
-        "ulid": article.ulid,
-        "title": article.title,
-        "collection_id": article.collection_id,
-        "ref_code": article.ref_code or "",
-        "media_type": article.media_type or "",
-        "document_type": article.document_type or "",
-        "tags": ", ".join(article.tags),
-        "date": vocab.datierung_mono(article.date),
-        "creator": article.creator or "",
-        "subject_place": article.subject_place or "",
-        "physical_location": article.physical_location or "",
-        "body": article.body,
-        "sichtbarkeit": _sichtbarkeit_value(article),
-        "gruppen": ", ".join(article.audience.groups) if article.audience is not None else "",
-        "custom_rows": [*article.custom, ("", "")],  # always one trailing empty row (no-JS add)
-        "is_draft": article.lifecycle.name == "DRAFT",
-    }
+    """A stored Article → the flat form-value dict the template prints (GET seed). Every field's own
+    ``seed`` renders it; ``custom_rows`` and ``is_draft`` are the two shapes no single field owns."""
+    values: dict[str, object] = {"ulid": article.ulid}
+    for registered in _FIELDS:
+        if registered.control:
+            values[registered.name] = registered.value_of(article)
+    values["custom_rows"] = [*article.custom, ("", "")]  # one trailing empty row (the no-JS add)
+    values["is_draft"] = article.lifecycle is Lifecycle.DRAFT
+    return values
 
 
-def _post_to_form_values(
-    request: HttpRequest, ulid: Ulid, lifecycle: Lifecycle
-) -> dict[str, object]:
+def _post_to_form_values(post: QueryDict, ulid: Ulid, lifecycle: Lifecycle) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
     so the archivist never loses input; custom rows carry exactly one trailing blank pair.
     ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed."""
-    post = request.POST
-    keys = post.getlist("custom_key")
-    vals = post.getlist("custom_value")
-    rows = [pair for pair in zip(keys, vals, strict=False) if pair != ("", "")]
+    rows = [
+        pair
+        for pair in zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False)
+        if pair != ("", "")
+    ]
     rows.append(("", ""))
-    return {
-        "ulid": ulid,
-        "title": post.get("title", ""),
-        "collection_id": post.get("collection_id", ""),
-        "ref_code": post.get("ref_code", ""),
-        "media_type": post.get("media_type", ""),
-        "document_type": post.get("document_type", ""),
-        "tags": post.get("tags", ""),
-        "date": post.get("date", ""),
-        "creator": post.get("creator", ""),
-        "subject_place": post.get("subject_place", ""),
-        "physical_location": post.get("physical_location", ""),
-        "body": post.get("body", ""),
-        "sichtbarkeit": post.get("sichtbarkeit", ""),
-        "gruppen": post.get("gruppen", ""),
-        "custom_rows": rows,
-        "is_draft": lifecycle.name == "DRAFT",
-    }
+    values: dict[str, object] = {"ulid": ulid}
+    for registered in _FIELDS:
+        if registered.control:
+            values[registered.name] = post.get(registered.name, "")
+    values["custom_rows"] = rows
+    values["is_draft"] = lifecycle is Lifecycle.DRAFT
+    return values
 
 
 def _sichtbarkeit_value(article: Article) -> str:
@@ -593,21 +569,49 @@ def _sichtbarkeit_value(article: Article) -> str:
             return "groups"
 
 
+def _audience_label(article: Article) -> str:
+    """The stored audience as a human-German label for the CAS diff (inherit / rung / groups) — the
+    shared ``vocab`` formatter fed the article's own audience."""
+    return vocab.sichtbarkeit_label(article.audience)
+
+
 # --- THE FIELD REGISTRY ------------------------------------------------------------
 #
-# The record card's field structure, declared ONCE, in DOM/tab order; every derivation below is a
-# filter over it. It used to be declared four times over and the copies had already drifted.
-# Each of the four columns is guarded against the real render or the real behaviour —
-# tests/app/web/test_catalog_edit.py, the block after the fold walk.
+# The record card's fields, declared ONCE, in DOM/tab order: what each one is called, where it sits,
+# how it renders, how it is seeded from an Article and how the CAS diff spells it. Every derivation
+# below is a filter over it, and so is the card's own markup (`_card_fields` → `workbench/_feld.html`),
+# so the template holds no second enumeration. The columns are guarded against the real render or the
+# real behaviour — tests/app/web/test_catalog_edit.py, the block after the fold walk.
+
+
+def _seed_tags(article: Article) -> str:
+    return ", ".join(article.tags)
+
+
+def _seed_date(article: Article) -> str:
+    return vocab.datierung_mono(article.date)
+
+
+def _seed_gruppen(article: Article) -> str:
+    return ", ".join(article.audience.groups) if article.audience is not None else ""
+
+
+def _lifecycle_label(article: Article) -> str:
+    return "Entwurf" if article.lifecycle is Lifecycle.DRAFT else "Veröffentlicht"
 
 
 @dataclass(frozen=True, slots=True)
 class _Field:
     """One row of the record card's field registry.
 
-    ``section`` is the FOLDED card section that holds the field, or ``""`` for the always-open ones —
-    a single string, not membership in one of several sets, which is what makes "a field lives in at
-    most one fold" structural instead of something a test has to rule out.
+    ``section`` is the card section that holds the field, or ``""`` for the rows that are not on the
+    card at all — a single string, not membership in one of several sets, which is what makes "a field
+    lives in at most one section" structural instead of something a test has to rule out. The three
+    in ``_FOLDED`` render as ``<details>``.
+
+    ``control`` is what the card renders for it: ``text``, ``select`` (flat options), ``groups``
+    (optgrouped options), ``textarea``, or ``""`` for a row that is no control. A row with a control
+    carries a scalar form value — it is seeded, echoed and printed by that column alone.
 
     ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
     §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
@@ -621,39 +625,200 @@ class _Field:
 
     ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
     has no diff row.
+
+    ``seed``/``shown`` are the two renderings of the field's value, reached through ``value_of`` and
+    ``diff_of``; both default to the Article attribute of the same name, so only a field that does not
+    simply print one — the joined tuples, the audience's two spellings, the lifecycle word — declares
+    anything here.
     """
 
     name: str
+    label: str = ""
+    control: str = ""
     section: str = ""
+    hint: str = ""
+    options: str = ""
+    blank: str = ""
+    element_id: str = ""
+    hx: tuple[tuple[str, str], ...] = ()
+    hx_get: str = ""
+    echo: bool = False
     scanned: bool = False
     focusable: bool = False
     diff: str = ""
+    seed: Callable[[Article], str] | None = None
+    shown: Callable[[Article], str] | None = None
+
+    def value_of(self, article: Article) -> str:
+        """The field's form value for a stored Article: its own ``seed`` where it declares one, else
+        the Article attribute of the same name — ``""`` when unset (spec §8)."""
+        if self.seed is not None:
+            return self.seed(article)
+        return str(getattr(article, self.name) or "")
+
+    def diff_of(self, article: Article) -> str:
+        """The field's value as the CAS diff prints it — ``shown`` where the form's own spelling is
+        the wrong one to put in front of a human, else the form value."""
+        return self.shown(article) if self.shown is not None else self.value_of(article)
 
 
 #: Every field of the record card in DOM/tab order. ``custom`` is the ``errors`` key for the bag as a
 #: whole (it maps to no single input, so it is neither scanned nor focusable);
-#: ``custom_key``/``custom_value`` are its inputs. ``lifecycle`` is not a field at all — it is the
-#: record's state, and it rides here only because the CAS diff shows it as a row, last.
+#: ``custom_key``/``custom_value`` are its inputs, rendered by the bag's own row loop. ``lifecycle`` is
+#: not a field at all — it is the record's state, and it rides here only because the CAS diff shows it
+#: as a row, last.
 _FIELDS: tuple[_Field, ...] = (
-    _Field("title", scanned=True, focusable=True, diff="Titel"),
+    _Field(
+        "title",
+        label="Titel",
+        control="text",
+        section="kerndaten",
+        scanned=True,
+        focusable=True,
+        diff="Titel",
+    ),
     # Bestand has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
-    _Field("collection_id", scanned=True, focusable=True),
-    _Field("ref_code", scanned=True, focusable=True, diff="Signatur"),
-    _Field("media_type", scanned=True, focusable=True, diff="Medienart"),
-    _Field("document_type", scanned=True, focusable=True, diff="Dokumenttyp"),
-    _Field("tags", scanned=True, focusable=True, diff="Schlagworte"),
-    _Field("date", scanned=True, focusable=True, diff="Datierung"),
-    _Field("creator", section="herkunft", scanned=True, focusable=True, diff="Autor"),
-    _Field("subject_place", section="herkunft", scanned=True, focusable=True, diff="Ort"),
-    _Field("physical_location", section="herkunft", scanned=True, focusable=True, diff="Standort"),
-    _Field("body", diff="Beschreibung"),
-    _Field("sichtbarkeit", section="zugriff", diff="Sichtbarkeit"),
-    _Field("gruppen", section="zugriff", focusable=True),
+    _Field(
+        "collection_id",
+        label="Bestand",
+        control="select",
+        section="kerndaten",
+        options="collection_options",
+        scanned=True,
+        focusable=True,
+    ),
+    _Field(
+        "ref_code",
+        label="Signatur",
+        control="text",
+        section="kerndaten",
+        scanned=True,
+        focusable=True,
+        diff="Signatur",
+    ),
+    _Field(
+        "media_type",
+        label="Medienart",
+        control="select",
+        section="einordnung",
+        options="media_type_options",
+        # On change, swap in the dependent Dokumenttyp options. No-JS baseline unchanged: the full
+        # grouped optgroup list + server pairing re-validation still stand.
+        hx_get="artikel-dokumenttypen",
+        hx=(
+            ("hx-trigger", "change"),
+            ("hx-target", "#dokumenttyp-select"),
+            ("hx-swap", "innerHTML"),
+        ),
+        scanned=True,
+        focusable=True,
+        diff="Medienart",
+    ),
+    _Field(
+        "document_type",
+        label="Dokumenttyp",
+        control="groups",
+        section="einordnung",
+        options="document_type_groups",
+        blank="— kein Dokumenttyp —",
+        element_id="dokumenttyp-select",
+        scanned=True,
+        focusable=True,
+        diff="Dokumenttyp",
+    ),
+    _Field(
+        "tags",
+        label="Schlagworte",
+        control="text",
+        section="einordnung",
+        hint="Mehrere durch Komma trennen",
+        scanned=True,
+        focusable=True,
+        diff="Schlagworte",
+        seed=_seed_tags,
+    ),
+    _Field(
+        "date",
+        label="Datierung (EDTF)",
+        control="text",
+        section="einordnung",
+        hint="z. B. 1962, 1984/1995, 1970~ (EDTF)",
+        # Debounced keyup swaps the human-German echo below. No-JS baseline unchanged: the echo also
+        # renders server-side after any submit.
+        hx_get="artikel-datierung-echo",
+        hx=(
+            ("hx-trigger", "keyup changed delay:400ms"),
+            ("hx-target", "#datierung-echo"),
+            ("hx-swap", "outerHTML"),
+        ),
+        echo=True,
+        scanned=True,
+        focusable=True,
+        diff="Datierung",
+        seed=_seed_date,
+    ),
+    _Field(
+        "creator",
+        label="Autor",
+        control="text",
+        section="herkunft",
+        scanned=True,
+        focusable=True,
+        diff="Autor",
+    ),
+    _Field(
+        "subject_place",
+        label="Ort",
+        control="text",
+        section="herkunft",
+        scanned=True,
+        focusable=True,
+        diff="Ort",
+    ),
+    _Field(
+        "physical_location",
+        label="Standort",
+        control="text",
+        section="herkunft",
+        hint="Nur intern sichtbar",
+        scanned=True,
+        focusable=True,
+        diff="Standort",
+    ),
+    _Field(
+        "body",
+        label="Beschreibung",
+        control="textarea",
+        section="beschreibung",
+        diff="Beschreibung",
+    ),
+    _Field(
+        "sichtbarkeit",
+        label="Sichtbarkeit",
+        control="select",
+        section="zugriff",
+        options="sichtbarkeit_options",
+        diff="Sichtbarkeit",
+        seed=_sichtbarkeit_value,
+        shown=_audience_label,
+    ),
+    _Field(
+        "gruppen",
+        label="Gruppen",
+        control="text",
+        section="zugriff",
+        hint="Mehrere durch Komma trennen",
+        focusable=True,
+        seed=_seed_gruppen,
+    ),
     _Field("custom", section="weitere"),
     _Field("custom_key", section="weitere"),
     _Field("custom_value", section="weitere"),
-    _Field("lifecycle", diff="Status"),
+    _Field("lifecycle", diff="Status", shown=_lifecycle_label),
 )
+
+#: The card sections that render as a ``<details>``. Everything else on the card is always open.
+_FOLDED: frozenset[str] = frozenset({"herkunft", "zugriff", "weitere"})
 
 
 #: The folded card sections and the fields each HOLDS. Folding may hide neither DATA (owner ruling 4)
@@ -675,7 +840,7 @@ def _derive_section_fields() -> dict[str, frozenset[str]]:
     passes and proves nothing. Issue #46 pins a final 3.14."""
     sections: dict[str, set[str]] = {}
     for registered in _FIELDS:
-        if registered.section:
+        if registered.section in _FOLDED:
             sections.setdefault(registered.section, set()).add(registered.name)
     return {name: frozenset(names) for name, names in sections.items()}
 
@@ -708,46 +873,102 @@ def _first_error_field(errors: catalog.FormErrors) -> str:
     return ""
 
 
+#: What a card ``<select>`` renders: flat ``(value, caption)`` rows, or one ``(group, rows)`` pair per
+#: ``<optgroup>``. Which one a field takes is its ``control`` (``select`` / ``groups``).
+type _Options = tuple[tuple[str, str], ...] | tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _CardRow:
+    """One ruled row of the record card, ready to render: the registry's declaration joined to THIS
+    render's value, error and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
+    is on the card exactly when the registry says so."""
+
+    name: str
+    label: str
+    control: str
+    value: str
+    hint: str
+    error: str
+    autofocus: bool
+    options: _Options
+    blank: str
+    element_id: str
+    hx: tuple[tuple[str, str], ...]
+    echo: bool
+    echo_text: str
+
+
+def _card_fields(
+    values: Mapping[str, object],
+    collections: tuple[Collection, ...],
+    *,
+    errors: catalog.FormErrors,
+    autofocus: str,
+) -> dict[str, tuple[_CardRow, ...]]:
+    """The card's rows grouped by section, in DOM order — the ONE list the template loops over.
+
+    Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
+    focuses nothing rather than nothing-visible. ``echo`` is the Datierung field's human-German line;
+    it is empty for every other row and for a value that does not parse."""
+    option_lists: dict[str, _Options] = {
+        "collection_options": _collection_options(collections),
+        "media_type_options": vocab.media_type_options(),
+        "document_type_groups": vocab.grouped_document_type_options(),
+        "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
+    }
+    ulid = str(values.get("ulid") or "")
+    sections: dict[str, list[_CardRow]] = {}
+    for registered in _FIELDS:
+        if registered.control in ("", "textarea"):
+            continue  # no control, or the prose area the Beschreibung section renders itself
+        value = str(values.get(registered.name) or "")
+        hx = registered.hx
+        if registered.hx_get:
+            hx = (("hx-get", reverse(registered.hx_get, args=[ulid])), *hx)
+        sections.setdefault(registered.section, []).append(
+            _CardRow(
+                name=registered.name,
+                label=registered.label,
+                control=registered.control,
+                value=value,
+                hint=registered.hint,
+                error=errors.get(registered.name, ""),
+                autofocus=registered.focusable and registered.name == autofocus,
+                options=option_lists.get(registered.options, ()),
+                blank=registered.blank,
+                element_id=registered.element_id,
+                hx=hx,
+                echo=registered.echo,
+                echo_text=_edtf_echo(value) if registered.echo else "",
+            )
+        )
+    return {name: tuple(rows) for name, rows in sections.items()}
+
+
 # --- the CAS conflict diff (spec §6.1) ---------------------------------------------
 
 
 def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
     """The neutral CAS diff (spec §6.1): one row per CHANGED field, submitted against the winner's
-    stored Article. The rows are the registry's fields carrying a diff label, in the form's own order;
-    the Signatur row is flagged so the template renders both cells as ``.c-sig`` marks."""
+    stored Article. The rows are the registry's fields carrying a diff label, in the form's own order,
+    each spelled by the field's own renderer; the Signatur row is flagged so the template renders both
+    cells as ``.c-sig`` marks."""
     rows: list[_ConflictRow] = []
-    for name, label in ((f.name, f.diff) for f in _FIELDS if f.diff):
-        mine_str = _diff_value(mine, name)
-        theirs_str = _diff_value(theirs, name)
+    for registered in _FIELDS:
+        if not registered.diff:
+            continue
+        mine_str, theirs_str = registered.diff_of(mine), registered.diff_of(theirs)
         if mine_str != theirs_str:
             rows.append(
                 _ConflictRow(
-                    label=label, mine=mine_str, theirs=theirs_str, is_sig=name == "ref_code"
+                    label=registered.diff,
+                    mine=mine_str,
+                    theirs=theirs_str,
+                    is_sig=registered.name == "ref_code",
                 )
             )
     return rows
-
-
-def _diff_value(article: Article, name: str) -> str:
-    """One Article field as a comparable/displayable string for the CAS diff. Optional scalars show
-    ``""`` when absent; tags join on comma; date shows its EDTF value; sichtbarkeit shows the rung."""
-    match name:
-        case "tags":
-            return ", ".join(article.tags)
-        case "date":
-            return vocab.datierung_mono(article.date)
-        case "sichtbarkeit":
-            return _audience_label(article)
-        case "lifecycle":
-            return "Entwurf" if article.lifecycle is Lifecycle.DRAFT else "Veröffentlicht"
-        case _:
-            return str(getattr(article, name) or "")
-
-
-def _audience_label(article: Article) -> str:
-    """The stored audience as a human-German label for the CAS diff (inherit / rung / groups) — the
-    shared ``vocab`` formatter fed the article's own audience."""
-    return vocab.sichtbarkeit_label(article.audience)
 
 
 # --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
@@ -1156,7 +1377,7 @@ def _rerender_edit(
         stored.article,
         stored.version,
         collections,
-        autofocus_first_empty=False,
+        autofocus="",
         entfernen_hash=entfernen_hash,
     )
     if medien_fehler:
