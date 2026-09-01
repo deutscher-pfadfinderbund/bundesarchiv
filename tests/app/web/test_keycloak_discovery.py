@@ -1,4 +1,4 @@
-"""The discovery cache in the Keycloak adapter (ADR 0018): only a SUCCESS may be remembered.
+"""What the Keycloak adapter decides for itself (ADR 0018): its caches and the URLs it builds.
 
 The realm itself is deliberately not suite-tested (ADR 0018, "Testing") — a fake can only encode our
 own assumptions about Keycloak. The CACHE is ours, and its failure mode is not a refused login but a
@@ -7,13 +7,16 @@ anonymous gate on, every request then loops through a login that 404s.
 """
 
 from collections.abc import Iterator, Mapping
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+from pytest_django.fixtures import Settings
 
 from bundesarchiv.app.web import keycloak
 
 _ISSUER = "https://auth.example/realms/dpb"
+_LOGOUT = f"{_ISSUER}/protocol/openid-connect/logout"
 _DOCUMENT: Mapping[str, object] = {
     "authorization_endpoint": f"{_ISSUER}/protocol/openid-connect/auth",
     "token_endpoint": f"{_ISSUER}/protocol/openid-connect/token",
@@ -66,3 +69,28 @@ def test_a_fetched_document_outlives_the_realm(realm: _Realm) -> None:
     assert keycloak._metadata(_ISSUER) == _DOCUMENT
     realm.down = True
     assert keycloak._metadata(_ISSUER) == _DOCUMENT
+
+
+@pytest.mark.parametrize(
+    ("advertised", "realms_own"),
+    [(_LOGOUT, {}), (f"{_LOGOUT}?tenant=1", {"tenant": ["1"]})],
+    ids=["plain", "already-has-a-query"],
+)
+def test_the_logout_url_adds_to_whatever_the_realm_advertises(
+    realm: _Realm, settings: Settings, advertised: str, realms_own: dict[str, list[str]]
+) -> None:
+    """An ``end_session_endpoint`` may carry a query of its own; ours joins it. Overwriting it drops
+    ``post_logout_redirect_uri`` and Keycloak then leaves the SSO session up (ADR 0018)."""
+    realm.body = {**_DOCUMENT, "end_session_endpoint": advertised}
+    settings.OIDC_ISSUER, settings.OIDC_CLIENT_ID = _ISSUER, "bundesarchiv"
+
+    url = keycloak.end_session_url(post_logout_redirect_uri="https://archiv.example/")
+
+    assert url is not None
+    parts = urlsplit(url)
+    assert f"{parts.scheme}://{parts.netloc}{parts.path}" == _LOGOUT
+    assert parse_qs(parts.query) == {
+        **realms_own,
+        "client_id": ["bundesarchiv"],
+        "post_logout_redirect_uri": ["https://archiv.example/"],
+    }

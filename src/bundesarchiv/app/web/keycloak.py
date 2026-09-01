@@ -14,9 +14,9 @@ mode is not a refused login but a worker that can never log anybody in again.
 """
 
 from collections.abc import Mapping
-from urllib.parse import urlencode
 
 import httpx
+from authlib.common.urls import add_params_to_uri
 from authlib.integrations.httpx_client import OAuth2Client
 from django.conf import settings
 
@@ -136,10 +136,12 @@ def end_session_url(*, post_logout_redirect_uri: str) -> str | None:
     endpoint = _endpoint("end_session_endpoint")
     if endpoint is None or not settings.OIDC_CLIENT_ID:
         return None
-    query = urlencode(
-        {
-            "client_id": settings.OIDC_CLIENT_ID,
-            "post_logout_redirect_uri": post_logout_redirect_uri,
-        }
+    return str(
+        add_params_to_uri(
+            endpoint,
+            [
+                ("client_id", str(settings.OIDC_CLIENT_ID)),
+                ("post_logout_redirect_uri", post_logout_redirect_uri),
+            ],
+        )
     )
-    return f"{endpoint}?{query}"
