@@ -10,6 +10,7 @@ anonymous browsing; it redirects to a login that itself falls closed.
 """
 
 from collections.abc import Callable
+from functools import lru_cache
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
@@ -61,6 +62,11 @@ def _is_exempt(request: HttpRequest) -> bool:
     """The paths that answer an anonymous request themselves. ``/static/*`` is public by design
     (ADR 0016) and WhiteNoise answers it before this middleware even runs — naming it here keeps that
     contract a decision rather than a consequence of the middleware order."""
-    return request.path.startswith(settings.STATIC_URL) or request.path in {
-        reverse(name) for name in _EXEMPT_ROUTES
-    }
+    return request.path.startswith(settings.STATIC_URL) or request.path in _exempt_paths()
+
+
+@lru_cache(maxsize=1)
+def _exempt_paths() -> frozenset[str]:
+    """Resolved on the first gated request, not at import: the URLconf is not loaded when this
+    module is. The answer is a runtime constant, so one resolution serves the process."""
+    return frozenset(reverse(name) for name in _EXEMPT_ROUTES)
