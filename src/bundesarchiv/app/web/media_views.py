@@ -22,12 +22,10 @@ This is a bytes-or-404 endpoint: it NEVER calls the domain ``project()`` and nev
 fields. Nothing but blob bytes (or an empty 404) leaves.
 """
 
-from pathlib import Path
-
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import media
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import can_view
@@ -35,11 +33,7 @@ from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Collection, MediaRef, Ulid
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
 
 #: A content_hash is a sha256 hex digest: exactly 64 lowercase hex characters. Anything else is
 #: malformed → the same 404 (a route param that can't name a blob must not be distinguishable from
@@ -60,12 +54,6 @@ def thumbnail_url(ulid: str, content_hash: str) -> str:
     """The public wire URL of a blob's thumbnail: ``/media/<ulid>/<content_hash>/thumb`` (the
     ``media-thumb`` route). Same single-source rule as :func:`media_url`."""
     return f"{media_url(ulid, content_hash)}/thumb"
-
-
-def _canonical_store() -> ObjectStore:
-    """The canonical files-store the views read from (ADR 0005). Built per request from settings —
-    the same construction as the worker's ``canonical_store``. Monkeypatched in tests."""
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
 
 
 def _is_valid_hash(value: str) -> bool:
@@ -99,14 +87,14 @@ def _authorize(
     collapse to ``None`` with no filesystem probe of the blob."""
     if not is_valid_ulid(ulid) or not _is_valid_hash(content_hash):
         return None  # malformed route param → the same 404, before any lookup
-    store = _canonical_store()
+    archive = Archive.canonical()
     try:
-        article = ArticleRepository(store).load(ulid).article
+        article = archive.articles.load(ulid).article
     except ArchiveError:
         return None  # no such article (or an unreadable one) → 404 (existence-hiding)
     viewer = viewer_of(request)
     try:
-        chain = resolve_chain(article.collection_id, _collections(store))
+        chain = resolve_chain(article.collection_id, _collections(archive))
     except DomainError:
         return None  # broken/unresolvable chain → deny everyone (fail closed)
     if not can_view(viewer, article, chain):
@@ -146,10 +134,10 @@ def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpR
         return _not_found()  # thumbnail not (yet) generated → the same 404
 
 
-def _collections(store: ObjectStore) -> dict[Ulid, Collection]:
+def _collections(archive: Archive) -> dict[Ulid, Collection]:
     """Every saved Collection as a ULID→Collection mapping for ``resolve_chain`` (chain resolution
     is injected the lookup, never fetches — domain purity). Read-only; no versions needed."""
-    return {c.ulid: c for c in CollectionRepository(store).load_all()}
+    return {c.ulid: c for c in archive.collections.load_all()}
 
 
 def _media_ref_for(article: Article, content_hash: str) -> MediaRef | None:

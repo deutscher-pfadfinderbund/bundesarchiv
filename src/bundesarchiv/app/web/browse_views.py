@@ -23,12 +23,12 @@ from functools import cache
 from pathlib import Path
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 from django.urls import reverse
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.article_auth import (
     DetailResolution,
@@ -41,8 +41,6 @@ from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
 from bundesarchiv.index.query import FacetCount, SearchHit
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 
 #: The web package's static/ dir — prod serves it via WhiteNoise (ADR 0016); this path is dev-only.
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -676,8 +674,7 @@ def _sort_label(sort: str) -> str:
 def _collection_names() -> dict[Ulid, str]:
     """A ULID→name map of every saved Collection (read-only, per request) for resolving the
     collection facet's ULID values to human names."""
-    store = LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-    collections: tuple[Collection, ...] = CollectionRepository(store).load_all()
+    collections: tuple[Collection, ...] = Archive.canonical().collections.load_all()
     return {c.ulid: c.name for c in collections}
 
 

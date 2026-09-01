@@ -13,11 +13,10 @@ the pane and the detail page.
 """
 
 from dataclasses import dataclass
-from pathlib import Path
 
-from django.conf import settings
 from django.http import HttpRequest
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import visible
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
@@ -25,17 +24,7 @@ from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Collection, Ulid
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
-
-
-def _canonical_store() -> ObjectStore:
-    """The canonical files-store (ADR 0005), built per request from settings — the same construction
-    the media views use. Monkeypatchable in tests."""
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
 
 
 def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
@@ -73,14 +62,14 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     indistinguishable, so a rendered page can never be an existence oracle."""
     if not is_valid_ulid(ulid):
         return None
-    store = _canonical_store()
+    archive = Archive.canonical()
     try:
-        loaded = ArticleRepository(store).load(ulid)
+        loaded = archive.articles.load(ulid)
     except ArchiveError:
         return None
     viewer = viewer_of(request)
     try:
-        chain = resolve_chain(loaded.article.collection_id, _collections(store))
+        chain = resolve_chain(loaded.article.collection_id, _collections(archive))
     except DomainError:
         return None
     projected = visible(viewer, loaded.article, chain)
@@ -93,7 +82,7 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     )
 
 
-def _collections(store: ObjectStore) -> dict[Ulid, Collection]:
+def _collections(archive: Archive) -> dict[Ulid, Collection]:
     """Every saved Collection as a ULID→Collection map for ``resolve_chain`` (read-only, per request;
     chain resolution is injected the lookup, never fetches — domain purity)."""
-    return {c.ulid: c for c in CollectionRepository(store).load_all()}
+    return {c.ulid: c for c in archive.collections.load_all()}

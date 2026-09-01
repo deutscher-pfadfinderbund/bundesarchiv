@@ -23,7 +23,6 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from pathlib import Path
 from typing import Literal
 
 from django.conf import settings
@@ -32,6 +31,7 @@ from django.http.response import HttpResponseBase
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
@@ -50,11 +50,8 @@ from bundesarchiv.domain.models import (
     Ulid,
 )
 from bundesarchiv.domain.viewer import Public
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository, Stored
+from bundesarchiv.persistence.repository import Stored
 
 # The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
 # 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
@@ -83,30 +80,24 @@ def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
     return HttpResponseRedirect(location)
 
 
-def _canonical_store() -> ObjectStore:
-    """The canonical files-store (ADR 0005), built per request from settings — the same construction
-    the media/detail views use. Monkeypatchable in tests."""
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-
-
-def _load_gated(request: HttpRequest, ulid: str) -> tuple[ObjectStore, Stored] | None:
+def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored] | None:
     """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
-    in-view, and load the Article — returning ``(store, stored)`` ONLY if all pass, else ``None``
+    in-view, and load the Article — returning ``(archive, stored)`` ONLY if all pass, else ``None``
     (the caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an
     absent/unreadable article all collapse to the SAME ``None`` (existence-hiding, spec §8)."""
     if not _is_archivist(request) or not is_valid_ulid(ulid):
         return None
-    store = _canonical_store()
+    archive = Archive.canonical()
     try:
-        return store, ArticleRepository(store).load(ulid)
+        return archive, archive.articles.load(ulid)
     except ArchiveError:
         return None
 
 
-def _collections(store: ObjectStore) -> tuple[Collection, ...]:
+def _collections(archive: Archive) -> tuple[Collection, ...]:
     """Every saved Collection (read-only, per request). An Archivist files into any of them, so the
     whole set is the Bestand option source; the parse layer rejects a value outside it."""
-    return CollectionRepository(store).load_all()
+    return archive.collections.load_all()
 
 
 def _collection_options(collections: tuple[Collection, ...]) -> tuple[tuple[str, str], ...]:
@@ -128,14 +119,14 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
     if not _is_archivist(request):
         return _not_found()
-    store = _canonical_store()
-    collections = _collections(store)
+    archive = Archive.canonical()
+    collections = _collections(archive)
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, collections)
         if not errors:
-            ulid = catalog.new_draft(store, title=title, collection_id=collection_id)
+            ulid = catalog.new_draft(archive.store, title=title, collection_id=collection_id)
             return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
         return render_screen(
             request,
@@ -205,10 +196,10 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()
-    store, stored = gated
-    collections = _collections(store)
+    archive, stored = gated
+    collections = _collections(archive)
     if request.method == "POST":
-        return _handle_edit_post(request, store, ulid, stored.article, collections)
+        return _handle_edit_post(request, archive, ulid, stored.article, collections)
     context = _edit_context_from_article(
         stored.article, stored.version, collections, autofocus_first_empty=True
     )
@@ -221,7 +212,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 def _handle_edit_post(
     request: HttpRequest,
-    store: ObjectStore,
+    archive: Archive,
     ulid: Ulid,
     current: Article,
     collections: tuple[Collection, ...],
@@ -280,7 +271,7 @@ def _handle_edit_post(
             stored=current,
         )
         return render_screen(request, "workbench/artikel_bearbeiten.html", context)
-    outcome = catalog.save_catalog_form(store, result.article, result.expected_version)
+    outcome = catalog.save_catalog_form(archive.store, result.article, result.expected_version)
     match outcome:
         case catalog.SavedOutcome(result=save_result):
             # State H (ADR 0014): the canonical write stood but the sync index update failed and a
@@ -291,7 +282,7 @@ def _handle_edit_post(
                 # collections already in scope (:223) — _rerender_edit re-loads neither (P2).
                 return _rerender_edit(
                     request,
-                    store,
+                    archive,
                     ulid,
                     stored=Stored(article=result.article, version=save_result.version),
                     collections=collections,
@@ -771,8 +762,8 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, _ = gated
-    copy = article_services.copy_article(store, ulid)
+    archive, _ = gated
+    copy = article_services.copy_article(archive.store, ulid)
     # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
@@ -789,9 +780,9 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()
-    store, stored = gated
+    archive, stored = gated
     if request.method == "POST":
-        article_services.hard_delete_article(store, ulid)
+        article_services.hard_delete_article(archive.store, ulid)
         return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
     # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
     # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
@@ -1000,13 +991,13 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, stored = gated
+    archive, stored = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
     result = _structural_save(
-        store, ulid, stored, lambda media: _reordered(media, content_hash, richtung)
+        archive, ulid, stored, lambda media: _reordered(media, content_hash, richtung)
     )
-    return _structural_response(request, store, ulid, result)
+    return _structural_response(request, archive, ulid, result)
 
 
 def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1017,14 +1008,16 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, stored = gated
+    archive, stored = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
-        result = _structural_save(store, ulid, stored, lambda media: _without(media, content_hash))
-        return _structural_response(request, store, ulid, result)
+        result = _structural_save(
+            archive, ulid, stored, lambda media: _without(media, content_hash)
+        )
+        return _structural_response(request, archive, ulid, result)
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
-    return _rerender_edit(request, store, ulid, stored=stored, entfernen_hash=content_hash)
+    return _rerender_edit(request, archive, ulid, stored=stored, entfernen_hash=content_hash)
 
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1037,25 +1030,27 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    store, stored = gated
+    archive, stored = gated
     files = request.FILES.getlist("dateien")
     oversize = any(f.size is not None and f.size > _MAX_UPLOAD_BYTES for f in files)
     if oversize:
         return _rerender_edit(
-            request, store, ulid, medien_fehler="Datei zu groß. Bitte kleinere Dateien hochladen."
+            request, archive, ulid, medien_fehler="Datei zu groß. Bitte kleinere Dateien hochladen."
         )
-    repo = ArticleRepository(store)
+    repo = archive.articles
     new_refs = [
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
     if new_refs:
-        result = _structural_save(store, ulid, stored, lambda media: (*media, *new_refs))
-        return _structural_response(request, store, ulid, result)
-    return _rerender_edit(request, store, ulid, stored=stored)  # no files posted — plain re-render
+        result = _structural_save(archive, ulid, stored, lambda media: (*media, *new_refs))
+        return _structural_response(request, archive, ulid, result)
+    return _rerender_edit(
+        request, archive, ulid, stored=stored
+    )  # no files posted — plain re-render
 
 
 def _structural_save(
-    store: ObjectStore,
+    archive: Archive,
     ulid: Ulid,
     stored: Stored,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
@@ -1078,12 +1073,12 @@ def _structural_save(
     for attempt in range(_STRUCTURAL_SAVE_ATTEMPTS):
         if attempt > 0:
             try:
-                current = ArticleRepository(store).load(ulid)
+                current = archive.articles.load(ulid)
             except ArchiveError:
                 return None
         mutated = replace(current.article, media=transform(current.article.media))
         try:
-            result = article_services.save_article(store, mutated, current.version)
+            result = article_services.save_article(archive.store, mutated, current.version)
             return Stored(article=mutated, version=result.version)
         except Conflict:
             continue  # a concurrent write won; re-load and re-apply the idempotent transform
@@ -1092,7 +1087,7 @@ def _structural_save(
 
 def _structural_response(
     request: HttpRequest,
-    store: ObjectStore,
+    archive: Archive,
     ulid: Ulid,
     result: Stored | Literal["conflict"] | None,
 ) -> HttpResponseBase:
@@ -1103,8 +1098,8 @@ def _structural_response(
     if result is None:
         return _not_found()
     if isinstance(result, str):
-        return _rerender_edit(request, store, ulid, medien_fehler=_MEDIEN_KONFLIKT)
-    return _rerender_edit(request, store, ulid, stored=result)
+        return _rerender_edit(request, archive, ulid, medien_fehler=_MEDIEN_KONFLIKT)
+    return _rerender_edit(request, archive, ulid, stored=result)
 
 
 def _reordered(
@@ -1131,7 +1126,7 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
 
 def _rerender_edit(
     request: HttpRequest,
-    store: ObjectStore,
+    archive: Archive,
     ulid: Ulid,
     *,
     stored: Stored | None = None,
@@ -1152,11 +1147,11 @@ def _rerender_edit(
     does not), collapses to the byte-identical 404 rather than letting the load failure propagate."""
     if stored is None:
         try:
-            stored = ArticleRepository(store).load(ulid)
+            stored = archive.articles.load(ulid)
         except ArchiveError:
             return _not_found()
     if collections is None:
-        collections = _collections(store)
+        collections = _collections(archive)
     context = _edit_context_from_article(
         stored.article,
         stored.version,

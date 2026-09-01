@@ -15,26 +15,16 @@ page into the commit hop. Every deny/invalid shape yields the least-visible outp
 non-archivist gets the media 404; an unknown ``feld`` / empty selection / bad value mutates nothing.
 """
 
-from pathlib import Path
-
-from django.conf import settings
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Ulid
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
-
-
-def _canonical_store() -> ObjectStore:
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
 
 
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
@@ -42,18 +32,18 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     Archivist-only, POST-only → the byte-identical 404 otherwise (spec §6.1/§6.2)."""
     if not _is_archivist(request) or request.method != "POST":
         return _not_found()
-    store = _canonical_store()
+    archive = Archive.canonical()
     auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
     feld = request.POST.get("feld", "")
     wert = request.POST.get(bulk.value_input_of(feld), "") if bulk.is_allowed_field(feld) else ""
 
-    error = _validate(auswahl, feld, store, wert)
+    error = _validate(auswahl, feld, archive, wert)
     if error is not None:
-        return _reject(request, store, auswahl, feld, wert, error)
+        return _reject(request, archive, auswahl, feld, wert, error)
 
     if request.POST.get("bestaetigt") == "1":
-        return _commit(request, store, auswahl, feld, wert)
-    return _confirm(request, store, auswahl, feld, wert)
+        return _commit(request, archive, auswahl, feld, wert)
+    return _confirm(request, archive, auswahl, feld, wert)
 
 
 def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
@@ -83,7 +73,7 @@ def _distinct_valid_ulids(raw: list[str]) -> list[str]:
     return list(dict.fromkeys(u for u in raw if is_valid_ulid(u)))
 
 
-def _validate(auswahl: list[str], feld: str, store: ObjectStore, wert: str) -> str | None:
+def _validate(auswahl: list[str], feld: str, archive: Archive, wert: str) -> str | None:
     """Return the verbatim German error for an invalid apply, or ``None`` if it may proceed. Order:
     selection present → field chosen + allowed → value-level (collection in set; Dokumenttyp-alone
     fits every article's current Medienart). Fail-closed: an unknown field is refused (zero mutation).
@@ -94,10 +84,10 @@ def _validate(auswahl: list[str], feld: str, store: ObjectStore, wert: str) -> s
         return "Bitte ein Feld wählen."
     if feld == "media_type" and (wert.strip() not in vocab.media_types()):
         return "Medienart ist erforderlich."
-    if feld == "collection_id" and wert.strip() not in _collection_names(store):
+    if feld == "collection_id" and wert.strip() not in _collection_names(archive):
         return "Bitte einen Bestand wählen."
     if feld == "document_type" and wert.strip():
-        loaded = _load_all(store, auswahl)
+        loaded = _load_all(archive, auswahl)
         if not bulk.document_type_fits_all(wert.strip(), loaded):
             return (
                 f'„{wert.strip()}" gehört nicht zur Medienart aller ausgewählten Artikel. '
@@ -107,13 +97,13 @@ def _validate(auswahl: list[str], feld: str, store: ObjectStore, wert: str) -> s
 
 
 def _confirm(
-    request: HttpRequest, store: ObjectStore, auswahl: list[str], feld: str, wert: str
+    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str
 ) -> HttpResponseBase:
     """Render the full-page confirm (state D). Loads each selected article (read-only) for the c-sig +
     Titel list and to detect Medienart orphans. Absent articles are silently skipped from the list
     (they will bucket ``missing`` on commit) — no deleted-vs-never oracle."""
-    articles = _load_all(store, auswahl)
-    names = _collection_names(store)
+    articles = _load_all(archive, auswahl)
+    names = _collection_names(archive)
     orphans = _orphans(articles, feld, wert)
     return render_screen(
         request,
@@ -134,7 +124,7 @@ def _confirm(
 
 
 def _commit(
-    request: HttpRequest, store: ObjectStore, auswahl: list[str], feld: str, wert: str
+    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str
 ) -> HttpResponseBase:
     """Run the apply (state R). If the Medienart change orphans any Dokumenttyp, the commit REQUIRES
     ``dokumenttyp_leeren=1`` (server-enforced, geprueft-idiom) — a missing flag re-confirms without
@@ -143,11 +133,11 @@ def _commit(
     if (
         feld == "media_type"
         and request.POST.get("dokumenttyp_leeren") != "1"
-        and _orphans(_load_all(store, auswahl), feld, wert)
+        and _orphans(_load_all(archive, auswahl), feld, wert)
     ):
-        return _confirm(request, store, auswahl, feld, wert)  # re-confirm, no write
-    outcome = bulk.apply_bulk(store, auswahl, feld, wert)
-    names = _collection_names(store)
+        return _confirm(request, archive, auswahl, feld, wert)  # re-confirm, no write
+    outcome = bulk.apply_bulk(archive.store, auswahl, feld, wert)
+    names = _collection_names(archive)
     return render_screen(
         request,
         "workbench/sammelbearbeitung_ergebnis.html",
@@ -166,7 +156,7 @@ def _commit(
 
 
 def _reject(
-    request: HttpRequest, store: ObjectStore, auswahl: list[str], feld: str, wert: str, error: str
+    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str, error: str
 ) -> HttpResponseBase:
     """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the Feld chooser
     drawer (Feld select + value widgets, the chosen field pre-selected, the submitted wert re-echoed
@@ -196,7 +186,7 @@ def _reject(
             "document_type_groups": vocab.grouped_document_type_options(),
             "collection_options": (
                 ("", "— Bestand wählen —"),
-                *sorted(_collection_names(store).items(), key=lambda kv: kv[1]),
+                *sorted(_collection_names(archive).items(), key=lambda kv: kv[1]),
             ),
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
         },
@@ -229,10 +219,10 @@ def _orphan_row(article: Article) -> dict[str, str]:
     }
 
 
-def _load_all(store: ObjectStore, ulids: list[str]) -> list[Article]:
+def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
     """Load every present article for ``ulids`` (read-only, for the confirm list + orphan/pair
     checks). An absent/unreadable ulid is silently skipped — it will bucket ``missing`` on commit."""
-    repo = ArticleRepository(store)
+    repo = archive.articles
     out: list[Article] = []
     for ulid in ulids:
         try:
@@ -242,6 +232,6 @@ def _load_all(store: ObjectStore, ulids: list[str]) -> list[Article]:
     return out
 
 
-def _collection_names(store: ObjectStore) -> dict[Ulid, str]:
+def _collection_names(archive: Archive) -> dict[Ulid, str]:
     """ULID→name map of every collection (for the collection-value validation + display)."""
-    return {c.ulid: c.name for c in CollectionRepository(store).load_all()}
+    return {c.ulid: c.name for c in archive.collections.load_all()}

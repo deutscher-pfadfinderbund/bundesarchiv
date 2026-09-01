@@ -16,15 +16,14 @@ GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-im
 """
 
 from dataclasses import replace
-from pathlib import Path
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
 from bundesarchiv.app import create_collection, save_collection
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
@@ -32,21 +31,8 @@ from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Audience, Collection, Version
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
+from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
-from bundesarchiv.persistence.objectstore import ObjectStore
-
-
-def _canonical_store() -> ObjectStore:
-    """The canonical files-store, built per request from settings — same construction the cataloging
-    views use. Monkeypatchable in tests."""
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
-
-
-def _collections(store: ObjectStore) -> tuple[Collection, ...]:
-    return CollectionRepository(store).load_all()
-
 
 #: The Eltern-Bestand top-level marker — a Bestand with no parent. One constant so the select
 #: placeholder + the read-only parent-display row can never drift.
@@ -69,8 +55,8 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     validation failure re-renders with the verbatim error + preserved values."""
     if not _is_archivist(request):
         return _not_found()
-    store = _canonical_store()
-    collections = _collections(store)
+    archive = Archive.canonical()
+    collections = archive.collections.load_all()
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         parent_id = request.POST.get("parent_id", "").strip()
@@ -80,7 +66,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         errors = _create_errors(name, parent_id, collections, audience_error)
         if not errors:
             result = create_collection(
-                store, name=name, parent_id=parent_id or None, audience=audience
+                archive.store, name=name, parent_id=parent_id or None, audience=audience
             )
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
             # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
@@ -155,7 +141,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return _not_found()
-    store, stored = gated
+    archive, stored = gated
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         expected_version = parse_version(request.POST.get("expected_version", ""))
@@ -164,22 +150,22 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                 request,
                 "workbench/bestand_bearbeiten.html",
                 _edit_context(
-                    store, stored, name, {"name": "Name ist erforderlich."}, expected_version
+                    archive, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
         try:
-            save_collection(store, replace(stored.collection, name=name), expected_version)
+            save_collection(archive.store, replace(stored.collection, name=name), expected_version)
         except Conflict:
             # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
             # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
             # preserved (parity with the article form) — never a 500 (security LOW).
-            winner = CollectionRepository(store).load(ulid)
+            winner = archive.collections.load(ulid)
             return render_screen(
                 request,
                 "workbench/bestand_bearbeiten.html",
                 _edit_context(
-                    store,
+                    archive,
                     winner,
                     name,
                     {},
@@ -191,28 +177,28 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return render_screen(
         request,
         "workbench/bestand_bearbeiten.html",
-        _edit_context(store, stored, stored.collection.name, {}, stored.version),
+        _edit_context(archive, stored, stored.collection.name, {}, stored.version),
     )
 
 
 def _load_gated_collection(
     request: HttpRequest, ulid: str
-) -> tuple[ObjectStore, StoredCollection] | None:
+) -> tuple[Archive, StoredCollection] | None:
     """The shared gate for the rename route: archivist-only, validate the ulid in-view, load the
-    Collection — returning ``(store, stored)`` ONLY if all pass, else ``None`` (the caller maps
+    Collection — returning ``(archive, stored)`` ONLY if all pass, else ``None`` (the caller maps
     ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an absent/unreadable
     collection all collapse to the SAME ``None`` (existence-hiding)."""
     if not _is_archivist(request) or not is_valid_ulid(ulid):
         return None
-    store = _canonical_store()
+    archive = Archive.canonical()
     try:
-        return store, CollectionRepository(store).load(ulid)
+        return archive, archive.collections.load(ulid)
     except ArchiveError:
         return None
 
 
 def _edit_context(
-    store: ObjectStore,
+    archive: Archive,
     stored: StoredCollection,
     name: str,
     errors: FormErrors,
@@ -230,7 +216,7 @@ def _edit_context(
     return {
         "ulid": collection.ulid,
         "name": name,
-        "parent_display": _parent_name(store, collection.parent_id),
+        "parent_display": _parent_name(archive, collection.parent_id),
         "sichtbarkeit_display": _sichtbarkeit_label(collection.audience),
         "errors": errors,
         "version": version,
@@ -238,14 +224,14 @@ def _edit_context(
     }
 
 
-def _parent_name(store: ObjectStore, parent_id: str | None) -> str:
+def _parent_name(archive: Archive, parent_id: str | None) -> str:
     """The parent Collection's name for the read-only display row, or the top-level marker. A targeted
     load (1 read) rather than a full ``load_all`` scan; a dangling parent (shouldn't happen) shows the
     ulid rather than raising."""
     if parent_id is None:
         return _TOP_LEVEL_LABEL
     try:
-        return CollectionRepository(store).load(parent_id).collection.name
+        return archive.collections.load(parent_id).collection.name
     except ArchiveError:
         return parent_id
 
