@@ -21,13 +21,11 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
 from bundesarchiv.persistence.objectstore import ObjectStore
+from bundesarchiv.persistence.repository import ArticleRepository
 
 #: Longest-side target for the thumbnail (px). Pillow's ``thumbnail`` preserves aspect ratio and
 #: never upscales, so a small original is left at its own size.
 _LONGEST_SIDE = 480
-
-#: The store-relative media-key infix — a blob lives at ``articles/<ulid>/media/<content_hash>``.
-_MEDIA_INFIX = "/media/"
 
 
 def generate_thumbnail(store: ObjectStore, content_hash: str, thumbnail_root: Path) -> bool:
@@ -38,7 +36,7 @@ def generate_thumbnail(store: ObjectStore, content_hash: str, thumbnail_root: Pa
     Idempotent (overwrites with identical bytes); re-derives from canonical every time (reference
     semantics). Never raises for a non-image blob — a corrupt or non-image blob is a silent no-op so
     a mixed-media Article never fails the job."""
-    data = _find_blob(store, content_hash)
+    data = ArticleRepository(store).find_blob(content_hash)
     if data is None:
         return False  # the blob is gone from canonical (deleted/never stored) → nothing to derive
     webp = _thumbnail_webp(data)
@@ -48,15 +46,6 @@ def generate_thumbnail(store: ObjectStore, content_hash: str, thumbnail_root: Pa
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(webp)
     return True
-
-
-def _find_blob(store: ObjectStore, content_hash: str) -> bytes | None:
-    """The bytes of any canonical media blob whose key ends in ``/media/<content_hash>``, or None if
-    none is stored. Content-addressed + write-once means every match holds identical bytes, so the
-    first is representative — the thumbnail is Article-independent."""
-    suffix = f"{_MEDIA_INFIX}{content_hash}"
-    key = next((k for k in store.list("articles/") if k.endswith(suffix)), None)
-    return None if key is None else store.read(key)
 
 
 def _thumbnail_webp(data: bytes) -> bytes | None:

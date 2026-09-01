@@ -72,14 +72,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Sketch:** `app.articles.update_article(archive, ulid, mutate) -> SaveResult | Conflicted |
   Missing`; form saves keep calling `save_article(article, version)` (ADR 0013's split).
 
-### 5. One authority for the media key layout — in progress (W3)
-- **Indicator:** `articles/<ulid>/media/<hash>` declared 3× (2026-09-02)
-- **Evidence:** `repository._media_key` (owner), `media._MEDIA_KEY` (copy, pinned by
-  `test_media_key_matches_repository`), `thumbnails._MEDIA_INFIX` (copy + a full-archive
-  `store.list("articles/")` scan). `media.py:141` builds a filesystem path around the ObjectStore
-  port, contradicting ADR 0005 ("callers never touch keys directly").
-- **Sketch:** `ArticleRepository.media_key(ulid, hash)` + `find_blob(hash)`; the copies and the
-  drift test delete themselves.
+### 5. One authority for the media key layout — done
+- **Indicator:** `articles/<ulid>/media/<hash>` declared 3× → 1 (2026-09-02)
+- **Evidence:** `cddf3f8` (repository: `media_key`, `find_blob`, `open_media` over a new
+  `ObjectStore.open_stream`), `0e07a00` (the seam; `media._MEDIA_KEY`, the settings-derived dev path
+  and the drift test all deleted), plus this commit (thumbnails).
+- **Residue:** `find_blob` still scans `articles/` — there is no hash→key index, and one would be a
+  second source of truth about where blobs live.
 
 ### 6. FeldWahl — one bulk chooser — Strong
 - **Indicator:** `data-bulk-wert` derivations typed out in 2 templates, 8 occurrences (2026-09-02)

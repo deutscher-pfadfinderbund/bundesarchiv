@@ -12,7 +12,7 @@ expected version straight to `save_article` — never through a retrying wrapper
 - `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`
 - `mirror.py` — WebDAV mirror replay/reconcile; speaks only the ObjectStore port · interface: `push_key`, `reconcile`, `ReconcileSummary` · tests: `tests/app/test_mirror.py`
 - `tasks.py` — the background job seam (Procrastinate, ADR 0014); resolves its stores per job · interface: `reindex_article`, `reindex_subtree`, `full_rebuild`, `generate_thumbnail` · tests: `tests/app/test_tasks.py`
-- `thumbnails.py` — thumbnail generation, content-hash-keyed local cache · interface: `generate_thumbnail` · tests: `tests/app/web/test_media.py` (no suite of its own — debt #5)
+- `thumbnails.py` — thumbnail generation, content-hash-keyed local cache · interface: `generate_thumbnail` · tests: `tests/app/web/test_media.py` (no suite of its own)
 - `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`
 - `result.py` — the write services' result shapes · interface: `SaveResult`, `CreateResult` · tests: `tests/app/test_services.py`
 
