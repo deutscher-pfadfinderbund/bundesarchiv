@@ -55,6 +55,10 @@ _VIEWER_FORMAT_VERSION = "v1"
 _ARCHIVIST_MAX_AGE = 48 * 60 * 60
 _MEMBER_MAX_AGE = 30 * 24 * 60 * 60
 
+#: Where ``viewer_of`` parks the request's resolved Viewer. Namespaced: ``HttpRequest`` is Django's
+#: and any attribute on it is shared with middleware nobody here controls.
+_VIEWER_CACHE_ATTR = "_bundesarchiv_viewer"
+
 
 def _dev_signer() -> signing.TimestampSigner | None:
     """The dev-viewer signer, keyed by ``settings.DEV_VIEWER_SIGNING_KEY`` — or ``None`` when that
@@ -174,8 +178,18 @@ def _switched_viewer(request: HttpRequest) -> Viewer | None:
 def viewer_of(request: HttpRequest) -> Viewer:
     """Resolve the request's ``Viewer`` — the single web-layer trust boundary. A real login outranks
     the dev switcher, which only ever answers where a dev key is configured. Every failure mode of
-    either adapter falls closed to ``Public()``; a bad cookie never raises."""
-    return _minted_viewer(request) or _switched_viewer(request) or Public()
+    either adapter falls closed to ``Public()``; a bad cookie never raises.
+
+    Resolved once per request and cached on the request: the four call sites (gate, view, article
+    authorization, ``render_screen``) then cannot answer *who is asking* differently, and the
+    signature is verified once instead of once each. Sound because cookie state cannot change
+    mid-request — mint and clear happen on the response."""
+    cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
+    if cached is not None:
+        return cached
+    viewer = _minted_viewer(request) or _switched_viewer(request) or Public()
+    setattr(request, _VIEWER_CACHE_ATTR, viewer)
+    return viewer
 
 
 def render_screen(request: HttpRequest, template: str, context: dict[str, object]) -> HttpResponse:

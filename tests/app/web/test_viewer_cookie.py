@@ -236,6 +236,23 @@ def test_archivist_cookie_expires_on_its_own_shorter_window(
     assert viewer_of(_request_with(member)) == Member(groups=())
 
 
+@override_settings(VIEWER_SIGNING_KEY=PROD_KEY)
+def test_the_viewer_is_resolved_once_per_request() -> None:
+    # Four call sites ask viewer_of the same question per request. They must not be able to answer
+    # it differently: the first resolution fixes the request's identity, and a cookie swapped
+    # underneath it (which no real request can do — mint and clear happen on responses) is ignored.
+    request = _request_with(_mint(Archivist()))
+    resolved = viewer_of(request)
+    request.COOKIES[VIEWER_COOKIE] = _mint(Member(groups=("vorstand",)))
+    assert viewer_of(request) == resolved == Archivist()
+
+
+@override_settings(VIEWER_SIGNING_KEY=PROD_KEY)
+def test_each_request_resolves_its_own_viewer() -> None:
+    assert viewer_of(_request_with(_mint(Archivist()))) == Archivist()
+    assert viewer_of(_request_with(None)) == Public()
+
+
 def test_without_a_signing_key_nothing_is_minted() -> None:
     # Production settings define no key until the deploy supplies one: minting must report failure
     # and set no cookie at all, so a callback cannot hand out an unsigned identity.
