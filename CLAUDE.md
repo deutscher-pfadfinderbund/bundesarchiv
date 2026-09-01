@@ -5,6 +5,7 @@
   (responsibility, interface, tests).
 - Update procedure: the `update-module-map` skill. Gate: `tests/test_module_map.py`
   (exhaustiveness + prose budgets), part of `mise run check`.
+- Open architecture and process debt: `docs/tech-debt.md` (map rows cite it as `debt #n`).
 
 ## Dev environment
 
