@@ -29,13 +29,12 @@ worker-enqueue seams are the conftest autouse no-ops.
 import io
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from urllib.parse import quote
 
 import pytest
 from django.test import override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
-from tests.app.web._asserts import assert_denied
+from tests.app.web._asserts import assert_denied, assert_login_target
 from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.domain.identity import new_ulid
@@ -523,7 +522,7 @@ def test_the_anonymous_gate_redirects_every_route(matrix_corpus: _MatrixCorpus, 
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
         response = client_as(None).get(path)
     assert response.status_code == REDIRECT, f"{name}: expected a login redirect"
-    assert response["Location"] == f"/login?next={quote(path, safe='')}", name
+    assert_login_target(response["Location"], path, name)
 
 
 @pytest.mark.parametrize("name", _GATE_EXEMPT)

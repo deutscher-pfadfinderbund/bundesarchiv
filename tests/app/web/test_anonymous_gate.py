@@ -7,12 +7,12 @@ viewer, is the leak matrix's whole existing body plus the archivist row below.
 """
 
 from collections.abc import Iterator
-from urllib.parse import quote
 
 import pytest
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
+from tests.app.web._asserts import assert_login_target
 from tests.app.web._fixtures import PUBLISHED_ULID, Corpus, client_as
 
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -27,7 +27,7 @@ def gated(corpus: Corpus) -> Iterator[Corpus]:
 
 def _expect_login(response: HttpResponseBase, path: str) -> None:
     assert response.status_code == 302, f"{path}: expected a redirect"
-    assert response["Location"] == f"/login?next={quote(path, safe='')}"
+    assert_login_target(response["Location"], path)
 
 
 @pytest.mark.parametrize(
@@ -54,9 +54,10 @@ def test_a_signed_public_cookie_is_still_anonymous(gated: Corpus) -> None:
 
 def test_an_anonymous_post_is_sent_to_the_login_too(gated: Corpus) -> None:
     """The gate is method-blind: one check, no route- or verb-specific holes."""
-    response = client_as(None).post(f"/artikel/{PUBLISHED_ULID}/loeschen", {"bestaetigt": "1"})
+    path = f"/artikel/{PUBLISHED_ULID}/loeschen"
+    response = client_as(None).post(path, {"bestaetigt": "1"})
     assert response.status_code == 302
-    assert response.headers["Location"].startswith("/login?next=")
+    assert_login_target(response.headers["Location"], path)
 
 
 @pytest.mark.parametrize("viewer", [Member(groups=()), Archivist()])
@@ -73,7 +74,7 @@ def test_an_htmx_request_is_sent_to_the_login_by_header(gated: Corpus) -> None:
     look like a button that does nothing. ``HX-Redirect`` navigates the whole page instead."""
     response = client_as(None).get("/?q=sommer", headers={"hx-request": "true"})
     assert response.status_code == 204
-    assert response.headers["HX-Redirect"] == "/login?next=%2F%3Fq%3Dsommer"
+    assert_login_target(response.headers["HX-Redirect"], "/?q=sommer")
 
 
 def test_static_assets_stay_public(gated: Corpus) -> None:
