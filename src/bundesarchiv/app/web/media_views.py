@@ -46,7 +46,7 @@ def media_url(ulid: str, content_hash: str) -> str:
     """The public wire URL of a blob: ``/media/<ulid>/<content_hash>`` (the ``media`` route). The ONE
     builder for this shape — the detail view, the preview pane, and the edit-form media manager all
     call it, so the URL layout has a single home (it is earmarked to change with the Part 7 tiering
-    work). Distinct from ``media.blob_key`` — that builds the store-relative blob key, not the URL."""
+    work). Distinct from ``ArticleRepository.media_key`` — that names the blob in the store."""
     return f"/media/{ulid}/{content_hash}"
 
 
@@ -76,10 +76,11 @@ def _not_found() -> HttpResponse:
 
 def _authorize(
     request: HttpRequest, ulid: str, content_hash: str
-) -> tuple[Article, MediaRef] | None:
+) -> tuple[Archive, Article, MediaRef] | None:
     """The shared gate for both views: validate params, resolve the viewer, load + authorize the
-    article, and locate the referenced media — returning ``(article, media_ref)`` ONLY if every
-    check passes, else ``None`` (the caller returns ``_not_found()``).
+    article, and locate the referenced media — returning ``(archive, article, media_ref)`` ONLY if
+    every check passes, else ``None`` (the caller returns ``_not_found()``). The archive travels
+    with the decision so the seam reads the blob through the same handle the gate loaded from.
 
     Order is load-bearing: authorization runs to a decision BEFORE any blob-existence lookup (the
     blob is never touched here — only the in-memory Article and its media list are). A malformed
@@ -102,7 +103,7 @@ def _authorize(
     media_ref = _media_ref_for(article, content_hash)
     if media_ref is None:
         return None  # a valid hash that is not on THIS article → 404 (wrong-article guard)
-    return article, media_ref
+    return archive, article, media_ref
 
 
 def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
@@ -113,11 +114,11 @@ def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpRespo
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
         return _not_found()
-    article, media_ref = authorized
+    archive, article, media_ref = authorized
     try:
-        return media.media_response(article, media_ref, request)
-    except FileNotFoundError, OSError:
-        return _not_found()  # blob absent on disk (not-yet-mirrored/pruned) → the same 404
+        return media.media_response(archive, article, media_ref, request)
+    except ArchiveError:
+        return _not_found()  # blob absent in the store (not-yet-mirrored/pruned) → the same 404
 
 
 def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
@@ -127,7 +128,7 @@ def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpR
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
         return _not_found()
-    article, media_ref = authorized
+    _, article, media_ref = authorized
     try:
         return media.thumbnail_response(article, media_ref, request)
     except FileNotFoundError, OSError:

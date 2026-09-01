@@ -26,7 +26,6 @@ from PIL import Image
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web import media as media_seam
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -57,6 +56,7 @@ class _TierCorpus:
     def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
         self.thumbnail_root = thumbnail_root
         self.store = base.store
+        self.articles = base.articles
         self.hash_by_tier: dict[str, str] = {}
         self.ulid_by_tier: dict[str, str] = {}
         self._build(base)
@@ -102,6 +102,11 @@ class _TierCorpus:
     def url(self, tier: str, *, thumb: bool = False) -> str:
         base = f"/media/{self.ulid_by_tier[tier]}/{self.hash_by_tier[tier]}"
         return base + "/thumb" if thumb else base
+
+    def blob_key(self, tier: str) -> str:
+        """This tier's blob key, from the repository that owns the layout — a byte comparison
+        proves the right bytes, never the key scheme (which the X-Accel test pins verbatim)."""
+        return self.articles.media_key(self.ulid_by_tier[tier], self.hash_by_tier[tier])
 
 
 @pytest.fixture
@@ -167,9 +172,7 @@ def test_original_per_tier_grid(
     response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier))
     if allowed:
         assert response.status_code == 200, f"{tier}/{viewer_name} should be served"
-        assert _body(response) == corpus.store.read(
-            f"articles/{corpus.ulid_by_tier[tier]}/media/{corpus.hash_by_tier[tier]}"
-        )
+        assert _body(response) == corpus.store.read(corpus.blob_key(tier))
     else:
         assert_denied(response, f"{tier}/{viewer_name}")
 
@@ -259,6 +262,8 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _TierCor
         response = client_as(Public()).get(corpus.url("public"))
     assert response.status_code == 200
     assert response.content == b""
+    # Spelled out, not derived: this header is the contract with nginx's `internal;` location, so a
+    # silent layout change under it must fail HERE rather than agree with itself.
     ulid, chash = corpus.ulid_by_tier["public"], corpus.hash_by_tier["public"]
     assert response["X-Accel-Redirect"] == f"/_protected/articles/{ulid}/media/{chash}"
     assert response["Content-Type"] == "image/png"
@@ -275,6 +280,7 @@ def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _TierCorpus) -> 
 def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -> None:
     # A MediaRef filename is user-controlled (upload). The seam must encode it safely so a
     # quote/CRLF in the name cannot break out of Content-Disposition into an injected header.
+    from bundesarchiv.app.archive import Archive
     from bundesarchiv.app.web.media import media_response
     from bundesarchiv.domain.models import Article, MediaRef
 
@@ -284,7 +290,12 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -
     )
     factory_request = None  # media_response ignores request for header building
     with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
-        response = media_response(article, ref, factory_request)  # type: ignore[arg-type]
+        response = media_response(
+            Archive.of(corpus.store),
+            article,
+            ref,
+            factory_request,  # type: ignore[arg-type]
+        )
     disposition = response["Content-Disposition"]
     assert "\r" not in disposition and "\n" not in disposition
     assert "Set-Cookie" not in response  # no header was injected
@@ -299,11 +310,16 @@ def test_dev_streaming_returns_blob_bytes(corpus: _TierCorpus) -> None:
     # the fixture leaves BUNDESARCHIV_X_ACCEL_PREFIX at None → dev FileResponse
     response = client_as(Public()).get(corpus.url("public"))
     assert response.status_code == 200
-    blob = corpus.store.read(
-        f"articles/{corpus.ulid_by_tier['public']}/media/{corpus.hash_by_tier['public']}"
-    )
-    assert _body(response) == blob
+    assert _body(response) == corpus.store.read(corpus.blob_key("public"))
     assert response["Content-Type"] == "image/png"
+
+
+def test_permitted_but_absent_blob_is_the_same_404(corpus: _TierCorpus) -> None:
+    # Past the auth gate the bytes can still be gone (not yet mirrored, pruned, hand-deleted).
+    # Absence must surface as the SAME plain 404 as a denial — never a 500 that says "this
+    # article exists and you may see it, but the file is missing".
+    corpus.store.delete(corpus.blob_key("public"))
+    assert_denied(client_as(Public()).get(corpus.url("public")))
 
 
 # --- cache policy on gated bytes (ADR 0017) ---------------------------------------
@@ -392,14 +408,3 @@ def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
     thumbnails.generate_thumbnail(store, ref.content_hash, thumbs)
     second = (thumbs / f"{ref.content_hash}.webp").read_bytes()
     assert first == second
-
-
-# --- seam / repository key equivalence -------------------------------------------
-
-
-def test_media_key_matches_repository() -> None:
-    # The seam owns its own store-relative key scheme; pin it equal to the repository's so a layout
-    # change in one can't silently diverge the other (the bytes would 404).
-    from bundesarchiv.persistence.repository import _media_key
-
-    assert media_seam.blob_key("ULID", "abc123") == _media_key("ULID", "abc123")

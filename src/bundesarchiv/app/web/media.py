@@ -1,21 +1,21 @@
-"""The media-serving seam (Part 4.3) — ``media_response`` + the shared 404.
+"""The media-serving seam (Part 4.3) — ``media_response`` + ``thumbnail_response``.
 
-THE POINT OF THIS MODULE: it is the SINGLE place in the whole system that knows media
-bytes live on the local filesystem. Every media/thumbnail byte reaches a browser through
-``media_response`` and nowhere else, and ``media_response`` is called ONLY after the caller
-(the view) has already run ``can_view`` on the resolved Collection chain. Authorization is
-not this module's job; serving-once-authorized is (roadmap "Media authorization: critical").
+THE POINT OF THIS MODULE: every media/thumbnail byte reaches a browser through one of these two
+functions and nowhere else, and each is called ONLY after the caller (the view) has already run
+``can_view`` on the resolved Collection chain. Authorization is not this module's job;
+serving-once-authorized is (roadmap "Media authorization: critical").
 
-Tiering door (roadmap Part 7): X-Accel-from-local-path is an IMPLEMENTATION DETAIL confined
-to this one function. When media tiering lands (Nextcloud cold storage + a size-capped local
-read-through cache behind a ``TieredObjectStore``), the miss-path — blob not resident locally
-→ stream/Range-proxy from cold storage — grows HERE, behind this same signature. No caller
-changes; no second place learns where bytes live. That is why the seam exists (roadmap: "the
-port is the openness").
+Tiering door (ADR 0017): choosing between the X-Accel redirect and a direct stream is an
+IMPLEMENTATION DETAIL confined to ``media_response``. When media tiering lands (Nextcloud cold
+storage + a size-capped local read-through cache behind a ``TieredObjectStore``), the miss-path —
+blob not resident locally → stream/Range-proxy from cold storage — grows HERE, behind this same
+signature. No caller changes. Where the bytes physically live is the store's business, never this
+module's: a blob is named and opened through ``ArticleRepository`` (ADR 0005). The one local path
+built here is the THUMBNAIL cache, which is deliberately not the ObjectStore (derived, prunable).
 
-Denial is NEVER expressed here — the view owns 404s (see ``_not_found``). This function is
-only ever reached for an authorized (article, media_ref) pair; if the blob is unexpectedly
-absent on disk it raises, which the view turns into the same 404 (a not-yet-mirrored /
+Denial is NEVER expressed here — the view owns 404s (see ``media_views._not_found``). These
+functions are only ever reached for an authorized (article, media_ref) pair; if the blob is
+unexpectedly absent they raise, which the view turns into the same 404 (a not-yet-mirrored /
 pruned-thumbnail blob is indistinguishable from a forbidden one).
 """
 
@@ -26,12 +26,8 @@ from django.http import FileResponse, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.utils.http import content_disposition_header
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import Article, MediaRef
-
-#: Store-relative key scheme for an Article's media blob — mirrors ``repository._media_key``.
-#: Kept here (not imported) so the seam owns its own store-relative → wire mapping; the two are
-#: pinned equal by ``test_media_key_matches_repository`` so a repo layout change can't drift silently.
-_MEDIA_KEY = "articles/{ulid}/media/{content_hash}"
 
 #: Default MIME when a MediaRef carries no media_type — the safe generic (never text/html, which a
 #: browser would render, so a mislabelled blob can never become a stored-XSS vector).
@@ -41,44 +37,40 @@ _DEFAULT_CONTENT_TYPE = "application/octet-stream"
 _IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
 
-def blob_key(ulid: str, content_hash: str) -> str:
-    """The store-relative blob path for one media reference (``articles/<ulid>/media/<hash>``).
-
-    The ONE mapping from (ulid, hash) to a storage key used both by the X-Accel redirect target
-    and the dev filesystem read — so there is exactly one notion of *where the bytes are*."""
-    return _MEDIA_KEY.format(ulid=ulid, content_hash=content_hash)
-
-
-def media_response(article: Article, media_ref: MediaRef, request: HttpRequest) -> HttpResponseBase:
+def media_response(
+    archive: Archive, article: Article, media_ref: MediaRef, request: HttpRequest
+) -> HttpResponseBase:
     """Serve the bytes of ``media_ref`` (belonging to ``article``) — called ONLY after
     authorization has passed for the resolved chain (the view's job, never re-checked here).
 
     Two modes, chosen by ``settings.BUNDESARCHIV_X_ACCEL_PREFIX``:
 
     - **Prod / nginx** (prefix set): returns an EMPTY-body response carrying an ``X-Accel-Redirect``
-      header pointing at ``<prefix>/<store-relative blob path>``. nginx (with an ``internal;``
+      header pointing at ``<prefix>/<store-relative blob key>``. nginx (with an ``internal;``
       location over the media tree) serves the file and, crucially, handles HTTP Range requests
-      itself — so byte-range/streaming is delegated to nginx, not Django. Content-Type comes from
-      the MediaRef; Content-Disposition is ``inline`` with the original filename.
+      itself — so byte-range/streaming is delegated to nginx, not Django. The key is the wire format
+      here, and the repository is its one author. Content-Type comes from the MediaRef;
+      Content-Disposition is ``inline`` with the original filename.
 
-    - **Dev / no nginx** (prefix unset): streams the blob directly from the local canonical store
-      via ``FileResponse``. Range is NOT supported in this path — a dev ``FileResponse`` without an
-      explicit Range handler ignores the ``Range`` header and returns the whole body (200). That is
-      ACCEPTED for dev (roadmap: Range is a prod/nginx concern; the seam keeps the door open for the
-      Part 7 proxy miss-path). Do not rely on Range in dev.
+    - **Dev / no nginx** (prefix unset): streams the blob out of the store through the port. Range
+      is NOT supported in this path — a dev ``FileResponse`` without an explicit Range handler
+      ignores the ``Range`` header and returns the whole body (200). That is ACCEPTED for dev (ADR
+      0017); do not rely on Range in dev.
 
-    The blob location is derived HERE and NOWHERE ELSE (the tiering door). A missing blob raises
-    (``FileNotFoundError`` in dev; prod hands the path to nginx which 404s internally) — the view
-    treats absence as the same 404 as a denial, so existence never leaks.
+    An absent blob raises (the port's ``NotFound`` in dev; in prod the path goes to nginx, which
+    404s internally) — the view treats absence as the same 404 as a denial, so existence never
+    leaks.
     """
-    key = blob_key(article.ulid, media_ref.content_hash)
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
-    response: HttpResponseBase = (
-        _x_accel(prefix, key, content_type, media_ref.filename)
-        if prefix
-        else _dev_stream(key, content_type, media_ref.filename)
-    )
+    if prefix:
+        key = archive.articles.media_key(article.ulid, media_ref.content_hash)
+        response: HttpResponseBase = _x_accel(prefix, key, content_type, media_ref.filename)
+    else:
+        blob = archive.articles.open_media(article.ulid, media_ref.content_hash)
+        response = FileResponse(
+            blob, content_type=content_type, as_attachment=False, filename=media_ref.filename
+        )
     return _cacheable(response)
 
 
@@ -106,8 +98,8 @@ def thumbnail_response(
 
 
 def _cacheable(response: HttpResponseBase) -> HttpResponseBase:
-    """Stamped at both public exits, not inside ``_x_accel``/``_dev_stream``, so a future third
-    serving path cannot silently miss the policy."""
+    """Stamped at both public exits, not inside either serving branch, so a future third serving
+    path cannot silently miss the policy."""
     response["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
     return response
 
@@ -132,13 +124,3 @@ def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpRes
     if disposition is not None:
         response["Content-Disposition"] = disposition
     return response
-
-
-def _dev_stream(key: str, content_type: str, filename: str) -> FileResponse:
-    """Dev path: stream the blob straight off the local canonical store. Raises
-    ``FileNotFoundError`` if the blob is absent — the view maps that to the shared 404. ``filename``
-    is passed to ``FileResponse``, which safely encodes the inline Content-Disposition."""
-    path = Path(settings.BUNDESARCHIV_CANONICAL_ROOT).joinpath(*key.split("/"))
-    return FileResponse(
-        path.open("rb"), content_type=content_type, as_attachment=False, filename=filename
-    )
