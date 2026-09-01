@@ -52,6 +52,16 @@ class ObjectStore(Protocol):
         bytes or the new bytes, never a partial write."""
         ...
 
+    def open_stream(self, key: str) -> BinaryIO:
+        """Return a readable binary stream over the object at `key`, which the caller
+        closes. Raise `NotFound` if absent.
+
+        The read counterpart of `put_large`: a caller that hands the bytes straight to
+        something else (an HTTP response) never materializes the whole object. An adapter
+        whose backend cannot read lazily may return a buffered stream — the contract is the
+        bytes and the ownership, not laziness."""
+        ...
+
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         """Stream a large object into `key`, with the same all-or-nothing finalize
         as `write_atomic`. `size` is the expected byte length (a hint for backends

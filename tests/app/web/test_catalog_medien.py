@@ -187,9 +187,7 @@ def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) 
     assert response.status_code == 200
     assert _hashes(corpus) == [corpus.ref_a.content_hash]  # the ref is gone
     # the blob is write-once recoverable — it still exists in the store
-    from bundesarchiv.persistence.repository import _media_key
-
-    assert corpus.store.exists(_media_key(_ULID, corpus.ref_b.content_hash))
+    assert corpus.store.exists(corpus.articles.media_key(_ULID, corpus.ref_b.content_hash))
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)

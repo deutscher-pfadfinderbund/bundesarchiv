@@ -55,6 +55,10 @@ class LocalFsObjectStore:
         with self._backend(key):
             return self._path(key).read_bytes()
 
+    def open_stream(self, key: str) -> BinaryIO:
+        with self._backend(key):
+            return self._path(key).open("rb")
+
     def write_atomic(self, key: str, data: bytes) -> None:
         def write(f: BinaryIO) -> None:
             f.write(data)

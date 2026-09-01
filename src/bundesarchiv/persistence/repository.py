@@ -28,6 +28,7 @@ import hashlib
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
@@ -135,6 +136,31 @@ class ArticleRepository:
             self._store.write_atomic(key, data)
         return MediaRef(filename, content_hash, media_type, len(data), caption)
 
+    def media_key(self, ulid: Ulid, content_hash: str) -> str:
+        """The store-relative key of one media blob (`articles/<ulid>/media/<hash>`).
+
+        THE layout authority (ADR 0005): a caller that must name a blob on the wire — the
+        X-Accel redirect target nginx resolves (ADR 0017) — asks here instead of restating
+        the scheme."""
+        return _media_key(ulid, content_hash)
+
+    def open_media(self, ulid: Ulid, content_hash: str) -> BinaryIO:
+        """A readable stream over one Article's media blob, for a caller that hands the bytes
+        straight on without materializing them (the dev media response). Raises `NotFound` if
+        the blob is not stored; the caller closes the stream."""
+        return self._store.open_stream(_media_key(ulid, content_hash))
+
+    def find_blob(self, content_hash: str) -> bytes | None:
+        """The bytes of ANY stored media blob with `content_hash`, or None if none is stored.
+
+        Media is content-addressed and write-once, so identical bytes may hang off several
+        Articles and every match is equivalent — a job deriving an artifact from the bytes
+        (the thumbnailer) needs no Article. Walks the article tree: there is no hash→key index,
+        and building one would be a second source of truth about where blobs are."""
+        suffix = f"/{_MEDIA_SEGMENT}/{content_hash}"
+        key = next((k for k in self._store.list("articles/") if k.endswith(suffix)), None)
+        return None if key is None else self._store.read(key)
+
     def list_ulids(self) -> Iterable[Ulid]:
         return [ulid for key in self._store.list("articles/") if (ulid := _ulid_of_readme(key))]
 
@@ -173,13 +199,17 @@ class ArticleRepository:
 
 # --- key scheme ------------------------------------------------------------------
 
+#: The path segment that marks a key as a media blob — the half of the media layout
+#: `find_blob` matches on when it has a hash but no ulid.
+_MEDIA_SEGMENT = "media"
+
 
 def _readme_key(ulid: Ulid) -> str:
     return f"articles/{ulid}/README.md"
 
 
 def _media_key(ulid: Ulid, content_hash: str) -> str:
-    return f"articles/{ulid}/media/{content_hash}"
+    return f"articles/{ulid}/{_MEDIA_SEGMENT}/{content_hash}"
 
 
 def _changes_key(ulid: Ulid, version: Version) -> str:

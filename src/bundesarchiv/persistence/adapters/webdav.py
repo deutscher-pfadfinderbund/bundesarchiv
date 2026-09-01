@@ -13,6 +13,7 @@ failure mode) from crossing the port as anything but `ArchiveError`.
 
 import contextlib
 import enum
+import io
 import itertools
 import uuid
 from collections.abc import Iterable, Iterator
@@ -60,6 +61,9 @@ class WebDavObjectStore:
         if self._resourcetype(key) is _Resource.FILE:
             self._ensure(resp, httpx.codes.OK)  # a real blob but GET failed -> ArchiveError
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
+
+    def open_stream(self, key: str) -> BinaryIO:
+        return io.BytesIO(self.read(key))
 
     def write_atomic(self, key: str, data: bytes) -> None:
         validate_key(key)

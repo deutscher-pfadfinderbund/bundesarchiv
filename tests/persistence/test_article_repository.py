@@ -87,10 +87,8 @@ def test_add_media_is_content_addressed_and_write_once(repo: ArticleRepository) 
     again = repo.add_media("01J0", "renamed.jpg", b"the bytes")  # same bytes
     assert first.content_hash == again.content_hash  # content-addressed
     assert first.byte_size == len(b"the bytes")
-    # write-once: only one blob on the store, keyed by the hash
-    assert set(repo._store.list("articles/01J0/media/")) == {
-        f"articles/01J0/media/{first.content_hash}"
-    }
+    # write-once: one blob under the Article, keyed by the hash
+    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", first.content_hash)}
 
 
 def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None:
@@ -99,6 +97,42 @@ def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None
     assert with_caption.caption == "Seite A — Bericht"
     without = repo.add_media("01J0", "huelle.jpg", b"scan")
     assert without.caption is None
+
+
+def test_media_key_is_the_declared_blob_layout(repo: ArticleRepository) -> None:
+    # THE one home of `articles/<ulid>/media/<hash>`: this literal is written down here and
+    # nowhere else in src/ or tests/, so a layout change is a one-line change plus this red.
+    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    assert repo.media_key("01J0", ref.content_hash) == f"articles/01J0/media/{ref.content_hash}"
+    assert repo._store.exists(repo.media_key("01J0", ref.content_hash))
+
+
+def test_open_media_streams_the_blob_and_absence_is_not_found(repo: ArticleRepository) -> None:
+    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    with repo.open_media("01J0", ref.content_hash) as stream:
+        assert stream.read() == b"the bytes"
+    with pytest.raises(NotFound):
+        repo.open_media("01J0", "0" * 64)
+
+
+def test_find_blob_locates_the_bytes_under_any_article(repo: ArticleRepository) -> None:
+    # Content-addressed + write-once: the same bytes may hang off several Articles and every
+    # match is identical, so a hash alone names the bytes (the thumbnail job's whole need).
+    ref = repo.add_media("01J9", "photo.jpg", b"the bytes")
+    repo.add_media("01JA", "kopie.jpg", b"the bytes")
+    assert repo.find_blob(ref.content_hash) == b"the bytes"
+
+
+def test_find_blob_is_none_when_no_article_holds_the_hash(repo: ArticleRepository) -> None:
+    repo.add_media("01J0", "photo.jpg", b"the bytes")
+    assert repo.find_blob("0" * 64) is None
+
+
+def test_find_blob_ignores_a_non_media_key_ending_in_the_hash(repo: ArticleRepository) -> None:
+    # A changes record or README whose name happens to end in the hash is not a blob — the
+    # lookup matches the media segment, not a bare suffix.
+    repo._store.write_atomic("articles/01J0/changes/deadbeef", b"not a blob")
+    assert repo.find_blob("deadbeef") is None
 
 
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:

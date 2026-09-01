@@ -98,6 +98,24 @@ def test_put_large_round_trip(store: ObjectStore) -> None:
     assert store.read("media/big.bin") == data
 
 
+def test_open_stream_round_trip(store: ObjectStore) -> None:
+    data = b"x" * 10_000
+    store.put_large("media/big.bin", io.BytesIO(data), len(data))
+    with store.open_stream("media/big.bin") as stream:
+        assert stream.read() == data
+
+
+def test_open_stream_missing_raises_not_found(store: ObjectStore) -> None:
+    with pytest.raises(NotFound):
+        store.open_stream("does/not/exist")
+
+
+def test_open_stream_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
+    store.write_atomic("art/1/README.md", b"body")
+    with pytest.raises(NotFound):
+        store.open_stream("art/1")
+
+
 def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
     # "art/1" names no blob even though "art/1/README.md" does — it is absent,
     # not a leaked backend error. (Pins memory and FS adapters to the same behavior.)
@@ -129,6 +147,8 @@ def test_invalid_keys_are_rejected(store: ObjectStore, bad: str) -> None:
         store.write_atomic(bad, b"x")
     with pytest.raises(ArchiveError, match="invalid key"):
         store.put_large(bad, io.BytesIO(b"x"), 1)
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.open_stream(bad)
     with pytest.raises(ArchiveError, match="invalid key"):
         store.exists(bad)
     with pytest.raises(ArchiveError, match="invalid key"):

@@ -2,6 +2,7 @@
 the ArticleRepository is exercised against (no disk).
 """
 
+import io
 from collections.abc import Iterator
 from typing import BinaryIO
 
@@ -22,6 +23,9 @@ class InMemoryObjectStore:
             return self._blobs[key]
         except KeyError:
             raise NotFound(key) from None
+
+    def open_stream(self, key: str) -> BinaryIO:
+        return io.BytesIO(self.read(key))
 
     def write_atomic(self, key: str, data: bytes) -> None:
         validate_key(key)
