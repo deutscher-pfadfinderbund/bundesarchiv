@@ -194,16 +194,16 @@ def render_screen(request: HttpRequest, template: str, context: dict[str, object
     whoever holds a cookie, not to archivists (a Member's cookie is the longer-lived of the two, and
     the shared workstation is the normal case — ADR 0018).
 
-    Any value the caller already put in ``context`` wins, so a view that computed the same fact for
-    other purposes stays the one source on its own screen."""
+    This helper is the SINGLE authority for both keys: they are stamped over ``context``, so no
+    caller can assert chrome the viewer has not earned."""
     viewer = viewer_of(request)
     return render(
         request,
         template,
         {
+            **context,
             "is_archivist": isinstance(viewer, Archivist),
             "is_signed_in": not isinstance(viewer, Public),
-            **context,
         },
     )
 
