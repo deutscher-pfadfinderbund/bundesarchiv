@@ -27,6 +27,7 @@ from bundesarchiv.app.web.viewers import (
     _VIEWER_SALT,
     DEV_VIEWER_COOKIE,
     VIEWER_COOKIE,
+    _parse_viewer,
     encode_viewer,
     mint_viewer_cookie,
     viewer_of,
@@ -70,6 +71,42 @@ def _request_with(value: str | None, *, cookie: str = VIEWER_COOKIE) -> HttpRequ
 )
 def test_minted_cookie_reads_back_as_the_same_viewer(viewer: Viewer) -> None:
     assert viewer_of(_request_with(_mint(viewer))) == viewer
+
+
+@pytest.mark.parametrize(
+    "groups",
+    [
+        pytest.param(("Sales, EU",), id="comma-and-space"),
+        pytest.param(("a,b",), id="comma"),
+        pytest.param(("a:b",), id="colon"),
+        pytest.param(("50%",), id="percent"),
+        pytest.param(("Gruppe Nord",), id="space"),
+        pytest.param(("Überregional",), id="unicode"),
+        pytest.param(("Sales, EU", "a:b", "50%", "Überregional"), id="mixed"),
+    ],
+)
+def test_group_names_survive_the_payload_verbatim(groups: tuple[str, ...]) -> None:
+    # Keycloak group names may contain the payload's own delimiters, and a group name IS an
+    # authorization scope: a name that round-trips to something else silently moves the member
+    # between scopes. The encoding must be total over arbitrary names.
+    member = Member(groups=groups)
+    assert _parse_viewer(encode_viewer(member)) == member
+
+
+def test_a_delimiter_free_group_encodes_to_itself() -> None:
+    # The escaping must not change the payload for any group name that exists today, or every
+    # outstanding cookie would need a format-version bump to stay readable.
+    assert encode_viewer(Member(groups=("vorstand", "archiv-ag"))) == "member:vorstand,archiv-ag"
+
+
+def test_empty_group_segments_are_dropped() -> None:
+    assert _parse_viewer("member:a,,b") == Member(groups=("a", "b"))
+
+
+@override_settings(VIEWER_SIGNING_KEY=PROD_KEY)
+def test_a_group_name_with_a_delimiter_survives_the_real_cookie() -> None:
+    member = Member(groups=("Sales, EU",))
+    assert viewer_of(_request_with(_mint(member))) == member
 
 
 @override_settings(VIEWER_SIGNING_KEY=PROD_KEY)

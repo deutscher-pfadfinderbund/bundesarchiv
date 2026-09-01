@@ -17,6 +17,8 @@ format version, or a payload that does not parse to a known viewer shape ALL res
 ``Public()``. A bad cookie is never an error — only ever an anonymous viewer.
 """
 
+from urllib.parse import quote, unquote
+
 from django.conf import settings
 from django.core import signing
 from django.http import HttpRequest, HttpResponse
@@ -100,13 +102,16 @@ def mint_viewer_cookie(viewer: Viewer, response: HttpResponse) -> bool:
 
 def encode_viewer(viewer: Viewer) -> str:
     """Serialize a ``Viewer`` to the cookie's plaintext payload (the value the signer then wraps):
-    ``archivist`` | ``member:group1,group2`` | ``public``. Groups are comma-joined; a Member with
-    no groups encodes as a bare ``member`` (empty group list)."""
+    ``archivist`` | ``member:group1,group2`` | ``public``. Groups are percent-escaped and then
+    comma-joined; a Member with no groups encodes as a bare ``member`` (empty group list).
+
+    A group name carrying no delimiter escapes to itself, so the payload is byte-identical to the
+    unescaped form for every name in use — the format version needs no bump."""
     match viewer:
         case Archivist():
             return "archivist"
         case Member(groups=groups):
-            return "member:" + ",".join(groups) if groups else "member"
+            return "member:" + ",".join(quote(g, safe="") for g in groups) if groups else "member"
         case Public():
             return "public"
 
@@ -115,7 +120,8 @@ def _parse_viewer(payload: str) -> Viewer | None:
     """Parse a verified cookie payload back to a ``Viewer``, or ``None`` if it is not a known shape.
     STRICT: only the exact vocabulary ``archivist`` / ``public`` / ``member`` / ``member:<groups>``
     is accepted; anything else (a signed-but-garbage payload) yields ``None`` so the caller floors
-    to Public. Empty group entries are dropped so ``member:a,,b`` -> groups ``(a, b)``."""
+    to Public. Group names are percent-unescaped (the inverse of ``encode_viewer``, so a name may
+    carry the delimiters). Empty group entries are dropped so ``member:a,,b`` -> groups ``(a, b)``."""
     if payload == "archivist":
         return Archivist()
     if payload == "public":
@@ -123,7 +129,7 @@ def _parse_viewer(payload: str) -> Viewer | None:
     if payload == "member":
         return Member(groups=())
     if payload.startswith("member:"):
-        groups = tuple(g for g in payload.removeprefix("member:").split(",") if g)
+        groups = tuple(unquote(g) for g in payload.removeprefix("member:").split(",") if g)
         return Member(groups=groups)
     return None
 
