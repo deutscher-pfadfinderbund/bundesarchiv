@@ -126,7 +126,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, collections)
         if not errors:
-            ulid = catalog.new_draft(archive.store, title=title, collection_id=collection_id)
+            ulid = catalog.new_draft(archive, title=title, collection_id=collection_id)
             return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
         return render_screen(
             request,
@@ -271,7 +271,7 @@ def _handle_edit_post(
             stored=current,
         )
         return render_screen(request, "workbench/artikel_bearbeiten.html", context)
-    outcome = catalog.save_catalog_form(archive.store, result.article, result.expected_version)
+    outcome = catalog.save_catalog_form(archive, result.article, result.expected_version)
     match outcome:
         case catalog.SavedOutcome(result=save_result):
             # State H (ADR 0014): the canonical write stood but the sync index update failed and a
@@ -763,7 +763,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None or request.method != "POST":
         return _not_found()
     archive, _ = gated
-    copy = article_services.copy_article(archive.store, ulid)
+    copy = article_services.copy_article(archive, ulid)
     # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
@@ -782,7 +782,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return _not_found()
     archive, stored = gated
     if request.method == "POST":
-        article_services.hard_delete_article(archive.store, ulid)
+        article_services.hard_delete_article(archive, ulid)
         return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
     # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
     # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
@@ -1078,7 +1078,7 @@ def _structural_save(
                 return None
         mutated = replace(current.article, media=transform(current.article.media))
         try:
-            result = article_services.save_article(archive.store, mutated, current.version)
+            result = article_services.save_article(archive, mutated, current.version)
             return Stored(article=mutated, version=result.version)
         except Conflict:
             continue  # a concurrent write won; re-load and re-apply the idempotent transform

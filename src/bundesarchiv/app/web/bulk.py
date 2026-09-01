@@ -27,11 +27,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from bundesarchiv.app import articles
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Article, Ulid
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,7 +186,7 @@ class BulkOutcome:
     index_lagged: bool
 
 
-def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) -> BulkOutcome:
+def apply_bulk(archive: Archive, ulids: Sequence[Ulid], feld: str, wert: str) -> BulkOutcome:
     """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4). Per ulid: fresh load at the
     CURRENT version, apply the field, ``save_article`` at the loaded version. A ``document_type``
     apply re-checks the pair against the FRESHLY-LOADED media_type — a mismatch is a concurrent
@@ -196,7 +195,7 @@ def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) 
     load failure → the ``missing`` bucket. The loop never aborts early; every DISTINCT ulid lands in
     exactly one bucket. Caller has already validated the field + dependent pair against its OWN
     load; this re-validates against the current store state and executes."""
-    repo = ArticleRepository(store)
+    repo = archive.articles
     saved = 0
     conflicted: list[BulkRow] = []
     missing: list[Ulid] = []
@@ -221,7 +220,7 @@ def apply_bulk(store: ObjectStore, ulids: Sequence[Ulid], feld: str, wert: str) 
             and (mutated.document_type is None)
         )
         try:
-            result = articles.save_article(store, mutated, stored.version)
+            result = articles.save_article(archive, mutated, stored.version)
         except ArchiveError:
             conflicted.append(row)
             continue

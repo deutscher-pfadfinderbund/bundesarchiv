@@ -136,7 +136,7 @@ def _commit(
         and _orphans(_load_all(archive, auswahl), feld, wert)
     ):
         return _confirm(request, archive, auswahl, feld, wert)  # re-confirm, no write
-    outcome = bulk.apply_bulk(archive.store, auswahl, feld, wert)
+    outcome = bulk.apply_bulk(archive, auswahl, feld, wert)
     names = _collection_names(archive)
     return render_screen(
         request,

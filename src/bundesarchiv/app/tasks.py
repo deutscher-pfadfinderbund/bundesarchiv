@@ -26,8 +26,8 @@ from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
 
 from bundesarchiv.app import mirror, thumbnails
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.index import indexer
-from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -40,10 +40,9 @@ _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
 
 def canonical_store() -> ObjectStore:
-    """Build the canonical files-store a job re-reads truth from (ADR 0005/0014). Constructed here,
-    per job, from settings — jobs carry references, never a store handle. Monkeypatched in tests to
-    point at an in-memory store."""
-    return LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT))
+    """The canonical store a job re-reads truth from (ADR 0005/0014). Resolved per job — jobs carry
+    references, never a store handle. Monkeypatched in tests to point at an in-memory store."""
+    return Archive.canonical().store
 
 
 def _mirror_configured() -> bool:

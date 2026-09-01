@@ -8,7 +8,7 @@ Conflict-catch site (ADR 0013) is a thin shell:
   the verbatim German strings (spec §3). It owns the ``"" → None`` boundary for EVERY optional
   scalar (spec §8) and the GROUPS-iff-gruppen invariant. IO-free, request-free.
 - ``save_catalog_form`` — the thin controller that is the ONLY place ``Conflict`` is caught for a
-  form save (ADR 0013): it calls ``save_article(store, article, expected_version)`` directly (never
+  form save (ADR 0013): it calls ``save_article(archive, article, expected_version)`` directly (never
   ``update()``), and on ``Conflict`` re-loads the winner and returns a ``ConflictOutcome`` carrying
   the current version + winner article so the view re-renders the "Inzwischen geändert" panel with
   the archivist's just-submitted values preserved and a refreshed ``expected_version``. If that
@@ -24,6 +24,7 @@ from dataclasses import dataclass, replace
 from typing import Protocol, runtime_checkable
 
 from bundesarchiv.app import articles
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import SaveResult
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.edtf import EdtfDate
@@ -37,8 +38,6 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
 
 #: A field-name → verbatim German error map (spec §3). Empty means the form validated.
 type FormErrors = dict[str, str]
@@ -296,9 +295,7 @@ class DeletedOutcome:
 type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 
 
-def save_catalog_form(
-    store: ObjectStore, article: Article, expected_version: Version
-) -> SaveOutcome:
+def save_catalog_form(archive: Archive, article: Article, expected_version: Version) -> SaveOutcome:
     """The ONLY site that catches ``Conflict`` for a form save (ADR 0013). Calls ``save_article``
     directly (never the retrying ``update()``): on success returns a ``SavedOutcome``; on ``Conflict``
     re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
@@ -307,10 +304,10 @@ def save_catalog_form(
     re-load instead finds the article hard-deleted (the Conflict was a deletion, not a concurrent
     edit), returns ``DeletedOutcome`` so the view 404s instead of letting the load failure propagate."""
     try:
-        result = articles.save_article(store, article, expected_version)
+        result = articles.save_article(archive, article, expected_version)
     except Conflict:
         try:
-            stored = ArticleRepository(store).load(article.ulid)
+            stored = archive.articles.load(article.ulid)
         except ArchiveError:
             return DeletedOutcome()
         return ConflictOutcome(
@@ -319,8 +316,8 @@ def save_catalog_form(
     return SavedOutcome(result=result)
 
 
-def new_draft(store: ObjectStore, *, title: str, collection_id: Ulid) -> Ulid:
+def new_draft(archive: Archive, *, title: str, collection_id: Ulid) -> Ulid:
     """The minimal create step (spec §2): mint a DRAFT with just Titel + Bestand via the create path
     and return its ulid so the view can 302 to ``/bearbeiten``. Everything else is filled in on the
     edit form."""
-    return articles.create_article(store, title=title, collection_id=collection_id).ulid
+    return articles.create_article(archive, title=title, collection_id=collection_id).ulid

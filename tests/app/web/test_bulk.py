@@ -10,11 +10,11 @@ bucket (property); a Conflict is bucketed, never retried, never aborts the loop.
 
 import pytest
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
 from bundesarchiv.domain.models import Article
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import Conflict
-from bundesarchiv.persistence.repository import ArticleRepository
 
 # --- the field allowlist (spec §0.7, §6.3) -----------------------------------------
 
@@ -131,27 +131,26 @@ def test_document_type_alone_one_mismatch_rejects_all() -> None:
 # write + CAS path is REAL (in-memory ObjectStore).
 
 
-def _store_with(*articles_: Article) -> InMemoryObjectStore:
-    store = InMemoryObjectStore()
-    repo = ArticleRepository(store)
+def _archive_with(*articles_: Article) -> Archive:
+    archive = Archive.of(InMemoryObjectStore())
     for art in articles_:
-        repo.save(art, 0)
-    return store
+        archive.articles.save(art, 0)
+    return archive
 
 
 def test_apply_bulk_all_saved() -> None:
-    store = _store_with(_article(ulid="01A"), _article(ulid="01B"))
-    outcome = bulk.apply_bulk(store, ["01A", "01B"], "creator", "K. Meyer")
+    archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "K. Meyer")
     assert outcome.saved == 2
     assert outcome.conflicted == ()
     assert outcome.missing == ()
     # the write actually landed
-    assert ArticleRepository(store).load("01A").article.creator == "K. Meyer"
+    assert archive.articles.load("01A").article.creator == "K. Meyer"
 
 
 def test_apply_bulk_missing_ulid_buckets() -> None:
-    store = _store_with(_article(ulid="01A"))
-    outcome = bulk.apply_bulk(store, ["01A", "01GONE"], "creator", "X")
+    archive = _archive_with(_article(ulid="01A"))
+    outcome = bulk.apply_bulk(archive, ["01A", "01GONE"], "creator", "X")
     assert outcome.saved == 1
     assert outcome.missing == ("01GONE",)
 
@@ -161,35 +160,35 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
     # §8). save_article is patched to conflict for 01A, else delegate to the real service.
     from bundesarchiv.app import articles
 
-    store = _store_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
+    archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 
-    def _save_conflict_first(store_: object, article: Article, version: int) -> object:
+    def _save_conflict_first(archive_: object, article: Article, version: int) -> object:
         if article.ulid == "01A":
             raise Conflict("raced")
-        return real_save(store_, article, version)  # type: ignore[arg-type]
+        return real_save(archive_, article, version)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _save_conflict_first)
-    outcome = bulk.apply_bulk(store, ["01A", "01B"], "creator", "Y")
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"  # the .c-sig mark rides the row
-    assert ArticleRepository(store).load("01B").article.creator == "Y"  # 01B not aborted
+    assert archive.articles.load("01B").article.creator == "Y"  # 01B not aborted
 
 
 def test_apply_bulk_property_every_ulid_in_exactly_one_bucket() -> None:
     # saved + conflicted + missing == distinct auswahl (spec §4 property). Duplicates collapse.
-    store = _store_with(_article(ulid="01A"), _article(ulid="01B"))
-    outcome = bulk.apply_bulk(store, ["01A", "01B", "01A", "01GONE"], "subject_place", "Kassel")
+    archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
+    outcome = bulk.apply_bulk(archive, ["01A", "01B", "01A", "01GONE"], "subject_place", "Kassel")
     distinct = len({"01A", "01B", "01GONE"})
     assert outcome.saved + len(outcome.conflicted) + len(outcome.missing) == distinct
 
 
 def test_apply_bulk_media_type_reports_doctype_cleared() -> None:
-    store = _store_with(_article(ulid="01A", media_type="Schriftgut", document_type="Brief"))
-    outcome = bulk.apply_bulk(store, ["01A"], "media_type", "Fotografie")
+    archive = _archive_with(_article(ulid="01A", media_type="Schriftgut", document_type="Brief"))
+    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Fotografie")
     assert outcome.saved == 1
     assert [r.ulid for r in outcome.doctype_cleared] == ["01A"]
-    stored = ArticleRepository(store).load("01A").article
+    stored = archive.articles.load("01A").article
     assert stored.media_type == "Fotografie"
     assert stored.document_type is None

@@ -19,6 +19,7 @@ from bundesarchiv.app import (
     save_article,
     save_collection,
 )
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import SaveResult
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -31,20 +32,18 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.domain.viewer import Member, Public
 from bundesarchiv.index import search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
 
 PLAIN_MEMBER = Member(())
 PUBLIC = Public()
 
 
 @pytest.fixture
-def store() -> InMemoryObjectStore:
+def archive() -> Archive:
     """ROOT (Members) -> FOTOS (PUBLIC); one published article under FOTOS, saved through the
     repositories but NOT yet indexed (services own the indexing)."""
-    store = InMemoryObjectStore()
-    collections = CollectionRepository(store)
-    articles = ArticleRepository(store)
+    archive = Archive.of(InMemoryObjectStore())
+    collections = archive.collections
+    articles = archive.articles
     collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
     collections.save(
         Collection(
@@ -62,7 +61,7 @@ def store() -> InMemoryObjectStore:
         ),
         0,
     )
-    return store
+    return archive
 
 
 def _pub_titles(viewer: object) -> set[str]:
@@ -75,12 +74,12 @@ def _pub_titles(viewer: object) -> set[str]:
 
 
 @pytest.mark.django_db
-def test_save_article_writes_canonical_and_indexes(store: InMemoryObjectStore) -> None:
+def test_save_article_writes_canonical_and_indexes(archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(store, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version)
 
     assert isinstance(result, SaveResult)
     assert result.index_updated is True
@@ -90,15 +89,15 @@ def test_save_article_writes_canonical_and_indexes(store: InMemoryObjectStore) -
 
 
 @pytest.mark.django_db
-def test_save_article_conflict_propagates_without_indexing(store: InMemoryObjectStore) -> None:
+def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> None:
     """A stale expected_version raises Conflict from the repo (ADR 0013) — nothing is indexed."""
     from bundesarchiv.index.models import ArticleIndex
     from bundesarchiv.persistence.errors import Conflict
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
     with pytest.raises(Conflict):
-        save_article(store, stored.article, stored.version - 1)  # stale
+        save_article(archive, stored.article, stored.version - 1)  # stale
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()  # no index write on failure
 
 
@@ -108,11 +107,11 @@ def test_save_article_conflict_propagates_without_indexing(store: InMemoryObject
 
 
 @pytest.mark.django_db
-def test_create_article_mints_ulid_and_indexes(store: InMemoryObjectStore) -> None:
+def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
     result = create_article(
-        store,
+        archive,
         title="Neuer Artikel",
         collection_id="FOTOS",
         lifecycle=Lifecycle.PUBLISHED,
@@ -130,37 +129,37 @@ def test_create_article_mints_ulid_and_indexes(store: InMemoryObjectStore) -> No
 
 
 @pytest.mark.django_db
-def test_create_collection_mints_ulid_and_saves_top_level(store: InMemoryObjectStore) -> None:
-    result = create_collection(store, name="Neuer Bestand", parent_id=None)
+def test_create_collection_mints_ulid_and_saves_top_level(archive: Archive) -> None:
+    result = create_collection(archive, name="Neuer Bestand", parent_id=None)
     assert result.version == 1
-    stored = CollectionRepository(store).load(result.ulid)
+    stored = archive.collections.load(result.ulid)
     assert stored.collection.name == "Neuer Bestand"
     assert stored.collection.parent_id is None
     assert stored.collection.audience is None  # inherit by default
 
 
 @pytest.mark.django_db
-def test_create_collection_under_parent_with_audience(store: InMemoryObjectStore) -> None:
+def test_create_collection_under_parent_with_audience(archive: Archive) -> None:
     result = create_collection(
-        store,
+        archive,
         name="Unterbestand",
         parent_id="FOTOS",
         audience=Audience(AudienceTier.MEMBERS),
     )
-    stored = CollectionRepository(store).load(result.ulid)
+    stored = archive.collections.load(result.ulid)
     assert stored.collection.parent_id == "FOTOS"
     assert stored.collection.audience == Audience(AudienceTier.MEMBERS)
 
 
 @pytest.mark.django_db
-def test_create_collection_rejects_absent_parent(store: InMemoryObjectStore) -> None:
+def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
     # a parent that does not exist must be refused (no oracle, fail closed) — nothing created.
     from bundesarchiv.persistence.errors import NotFound
 
     with pytest.raises(NotFound):
-        create_collection(store, name="Waise", parent_id="NOSUCH")
+        create_collection(archive, name="Waise", parent_id="NOSUCH")
     # the collection set is unchanged (only the fixture's ROOT + FOTOS)
-    ulids = {c.ulid for c in CollectionRepository(store).load_all()}
+    ulids = {c.ulid for c in archive.collections.load_all()}
     assert ulids == {"ROOT", "FOTOS"}
 
 
@@ -171,11 +170,11 @@ def test_create_collection_rejects_absent_parent(store: InMemoryObjectStore) -> 
 
 @pytest.mark.django_db
 def test_copy_article_copies_metadata_clears_signatur_and_media(
-    store: InMemoryObjectStore,
+    archive: Archive,
 ) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     # store a real blob so the source can reference it (repository refuses an unstored ref)
     ref = articles.add_media("01SOURCE", "bild.jpg", b"pixels", "image/jpeg", "Am See")
     # a rich source: published, with a Signatur, media, tags, custom, date, an audience
@@ -195,7 +194,7 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
     )
     articles.save(source, 0)
 
-    result = copy_article(store, "01SOURCE")
+    result = copy_article(archive, "01SOURCE")
 
     copy = articles.load(result.ulid).article
     assert copy.ulid != "01SOURCE"  # a fresh identity
@@ -216,10 +215,10 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
 
 
 @pytest.mark.django_db
-def test_copy_article_source_untouched(store: InMemoryObjectStore) -> None:
-    articles = ArticleRepository(store)
+def test_copy_article_source_untouched(archive: Archive) -> None:
+    articles = archive.articles
     articles.save(Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F1"), 0)
-    copy_article(store, "01SRC")
+    copy_article(archive, "01SRC")
     original = articles.load("01SRC").article
     assert original.ref_code == "F1"  # source Signatur intact
     assert original.title == "Original"
@@ -231,14 +230,14 @@ def test_copy_article_source_untouched(store: InMemoryObjectStore) -> None:
 
 
 @pytest.mark.django_db
-def test_hard_delete_article_removes_index_row(store: InMemoryObjectStore) -> None:
+def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    articles = ArticleRepository(store)
-    save_article(store, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    articles = archive.articles
+    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
-    result = hard_delete_article(store, "01FOTO")
+    result = hard_delete_article(archive, "01FOTO")
     assert result.index_updated is True
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
@@ -250,7 +249,7 @@ def test_hard_delete_article_removes_index_row(store: InMemoryObjectStore) -> No
 
 @pytest.mark.django_db
 def test_save_article_index_failure_stands_canonical_and_enqueues(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Force the synchronous index update to fail at the SERVICE seam. The canonical write must
     stand, a reference reindex job must be enqueued, and the result must carry
@@ -265,20 +264,20 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     monkeypatch.setattr(articles_mod, "index_article", boom)
     monkeypatch.setattr(articles_mod, "enqueue_reindex_article", lambda ulid: enqueued.append(ulid))
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(store, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version)
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite the index failure
     assert enqueued == ["01FOTO"]  # a reference job was enqueued for retry
     # canonical truth is durable at the new version:
-    assert ArticleRepository(store).load("01FOTO").version == 2
+    assert archive.articles.load("01FOTO").version == 2
 
 
 @pytest.mark.django_db
 def test_save_article_swallows_enqueue_failure_after_index_failure(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Queue-down at enqueue time must not fail a request whose canonical write already stood: when
     BOTH the synchronous index update AND the retry enqueue raise, save_article still succeeds with
@@ -294,13 +293,13 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     monkeypatch.setattr(articles_mod, "index_article", boom)
     monkeypatch.setattr(articles_mod, "enqueue_reindex_article", enqueue_boom)
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(store, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version)
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite both failures
-    assert ArticleRepository(store).load("01FOTO").version == 2
+    assert archive.articles.load("01FOTO").version == 2
 
 
 # ---------------------------------------------------------------------------
@@ -310,13 +309,13 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 
 @pytest.mark.django_db
 def test_gate_unpublishing_article_via_service_hides_it_next_search(
-    store: InMemoryObjectStore,
+    archive: Archive,
 ) -> None:
     """Publish -> index via the service -> Public sees it. Unpublish (DRAFT) THROUGH the service.
     The member/public's very NEXT search must exclude it. rebuild() is FORBIDDEN here — only the
     production save_article entry point may touch the index."""
-    articles = ArticleRepository(store)
-    save_article(store, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    articles = archive.articles
+    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)
 
     stored = articles.load("01FOTO")
@@ -327,7 +326,7 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
         lifecycle=Lifecycle.DRAFT,  # unpublished -> archivist-only
         date=EdtfDate("1965"),
     )
-    save_article(store, unpublished, stored.version)
+    save_article(archive, unpublished, stored.version)
 
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)  # gone for Public
     assert "Öffentliches Foto" not in _pub_titles(PLAIN_MEMBER)  # gone for Members too
@@ -340,19 +339,19 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
 
 @pytest.mark.django_db
 def test_gate_narrowing_collection_audience_via_service_hides_descendants(
-    store: InMemoryObjectStore,
+    archive: Archive,
 ) -> None:
     """Index the descendant article (PUBLIC via FOTOS). Narrow FOTOS to MEMBERS THROUGH
     save_collection. The public member's next search must no longer return the descendant.
     rebuild() is FORBIDDEN — only save_collection may touch the index."""
-    articles = ArticleRepository(store)
-    save_article(store, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    articles = archive.articles
+    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)  # visible to Public via FOTOS=PUBLIC
 
-    collections = CollectionRepository(store)
+    collections = archive.collections
     stored = collections.load("FOTOS")
     result = save_collection(
-        store,
+        archive,
         Collection(
             ulid="FOTOS",
             name="Fotos",
@@ -374,7 +373,7 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
 
 @pytest.mark.django_db
 def test_save_article_enqueues_thumbnail_for_image_media(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An image MediaRef on a saved Article enqueues a content-hash thumbnail job; a non-image one
     does not (the job would no-op anyway, but the service avoids enqueuing obvious non-images)."""
@@ -383,12 +382,12 @@ def test_save_article_enqueues_thumbnail_for_image_media(
     enqueued: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", lambda h: enqueued.append(h))
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     image = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
     doc = articles.add_media("01FOTO", "notes.pdf", b"%PDF-1.7", media_type="application/pdf")
     stored = articles.load("01FOTO")
     save_article(
-        store,
+        archive,
         Article(
             ulid="01FOTO",
             title="Öffentliches Foto",
@@ -438,7 +437,7 @@ def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
 
 @pytest.mark.django_db
 def test_save_article_enqueues_mirror_push_for_touched_keys(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """After the canonical write, save_article enqueues a mirror_push for every canonical key of the
     Article (README + changes). The mirror replay is async and out-of-band (never blocks the save)."""
@@ -447,16 +446,16 @@ def test_save_article_enqueues_mirror_push_for_touched_keys(
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
-    save_article(store, stored.article, stored.version)
+    save_article(archive, stored.article, stored.version)
 
     assert "articles/01FOTO/README.md" in pushed  # the commit point is mirrored
 
 
 @pytest.mark.django_db
 def test_save_article_enqueues_mirror_push_for_media_blob(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The add_media path: a media blob attached to a saved Article is a canonical key too, so it is
     enqueued for mirror replay alongside the README."""
@@ -465,11 +464,11 @@ def test_save_article_enqueues_mirror_push_for_media_blob(
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     ref = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
     stored = articles.load("01FOTO")
     save_article(
-        store,
+        archive,
         Article(
             ulid="01FOTO",
             title="Öffentliches Foto",
@@ -485,21 +484,21 @@ def test_save_article_enqueues_mirror_push_for_media_blob(
 
 @pytest.mark.django_db
 def test_create_article_enqueues_mirror_push(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import bundesarchiv.app.articles as articles_mod
 
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    result = create_article(store, title="Neu", collection_id="FOTOS")
+    result = create_article(archive, title="Neu", collection_id="FOTOS")
 
     assert f"articles/{result.ulid}/README.md" in pushed
 
 
 @pytest.mark.django_db
 def test_hard_delete_article_enqueues_mirror_push_for_removed_keys(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Delete captures the keys BEFORE removing them, then enqueues a mirror_push per key. The push
     job re-reads canonical, finds the key gone, and DELETES it from the mirror (reference semantics —
@@ -509,30 +508,30 @@ def test_hard_delete_article_enqueues_mirror_push_for_removed_keys(
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    save_article(store, ArticleRepository(store).load("01FOTO").article, 1)
-    hard_delete_article(store, "01FOTO")
+    save_article(archive, archive.articles.load("01FOTO").article, 1)
+    hard_delete_article(archive, "01FOTO")
 
     assert "articles/01FOTO/README.md" in pushed  # the removed key is enqueued for mirror deletion
 
 
 @pytest.mark.django_db
 def test_save_collection_enqueues_mirror_push(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import bundesarchiv.app.collections as collections_mod
 
     pushed: list[str] = []
     monkeypatch.setattr(collections_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    stored = CollectionRepository(store).load("FOTOS")
-    save_collection(store, stored.collection, stored.version)
+    stored = archive.collections.load("FOTOS")
+    save_collection(archive, stored.collection, stored.version)
 
     assert "collections/FOTOS/README.md" in pushed
 
 
 @pytest.mark.django_db
 def test_save_article_mirror_enqueue_failure_does_not_break_save(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A mirror-enqueue failure must NOT fail the request (same discipline as the index-sync retry:
     mirror lag is invisible-by-design and the reconcile heals it). The canonical write stands."""
@@ -543,9 +542,9 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
 
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", boom)
 
-    articles = ArticleRepository(store)
+    articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(store, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version)
 
     assert result.version == 2  # save succeeded despite the mirror-enqueue failure
-    assert ArticleRepository(store).load("01FOTO").version == 2
+    assert archive.articles.load("01FOTO").version == 2

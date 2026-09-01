@@ -12,6 +12,7 @@ step is only reached after a successful canonical write.
 seam is monkeypatchable in tests (a genuine boundary): the index adapter and the worker queue.
 """
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.app.tasks import (
     enqueue_generate_thumbnail,
@@ -29,8 +30,6 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.index.indexer import index_article
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
 
 #: Filename extensions of the corpus image types we thumbnail (JPEG/PNG/TIFF), used when a MediaRef
 #: carries no ``media_type``. Best-effort: the ``generate_thumbnail`` job itself no-ops on any blob
@@ -38,19 +37,19 @@ from bundesarchiv.persistence.repository import ArticleRepository
 _IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"})
 
 
-def save_article(store: ObjectStore, article: Article, expected_version: Version) -> SaveResult:
+def save_article(archive: Archive, article: Article, expected_version: Version) -> SaveResult:
     """Save ``article`` (CAS at ``expected_version``) then synchronously reindex it. A stale
     version raises ``Conflict`` before anything is indexed. On index failure the canonical write
     stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
-    new_version = ArticleRepository(store).save(article, expected_version)
-    index_updated = _sync_index(store, article.ulid)
+    new_version = archive.articles.save(article, expected_version)
+    index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(store, article.ulid)
+    _enqueue_mirror(archive, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
 def create_article(
-    store: ObjectStore,
+    archive: Archive,
     *,
     title: str,
     collection_id: Ulid,
@@ -88,23 +87,23 @@ def create_article(
         subject_place=subject_place,
         custom=custom,
     )
-    new_version = ArticleRepository(store).save(article, 0)  # 0 = never saved -> first save is v1
-    index_updated = _sync_index(store, article.ulid)
+    new_version = archive.articles.save(article, 0)  # 0 = never saved -> first save is v1
+    index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(store, article.ulid)
+    _enqueue_mirror(archive, article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
-def copy_article(store: ObjectStore, ulid: Ulid) -> CreateResult:
+def copy_article(archive: Archive, ulid: Ulid) -> CreateResult:
     """Copy an existing Article's METADATA into a fresh DRAFT (spec §7 Kopieren). The copy goes
     through ``create_article`` (so it mints a new ULID and indexes like any new article), carrying
     every metadata field forward EXCEPT: the Signatur (``ref_code`` cleared — a Signatur is unique to
     one record), the media (NONE copied — series items differ; the archivist attaches fresh), and the
     lifecycle (always a new DRAFT, never inheriting the source's published state). Creates, never
     destroys — the source is untouched. Returns the new ulid so the view can 302 to its edit form."""
-    source = ArticleRepository(store).load(ulid).article
+    source = archive.articles.load(ulid).article
     return create_article(
-        store,
+        archive,
         title=source.title,
         collection_id=source.collection_id,
         body=source.body,
@@ -123,15 +122,15 @@ def copy_article(store: ObjectStore, ulid: Ulid) -> CreateResult:
     )
 
 
-def hard_delete_article(store: ObjectStore, ulid: Ulid) -> SaveResult:
+def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
     """Hard-delete the Article from canonical (recoverable trash, ADR 0005), then synchronously
     reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
     index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
     ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""
-    repo = ArticleRepository(store)
+    repo = archive.articles
     removed_keys = repo.keys_for(ulid)  # capture BEFORE deletion — the push job mirrors the removal
     repo.hard_delete(ulid)
-    index_updated = _sync_index(store, ulid)
+    index_updated = _sync_index(archive, ulid)
     _enqueue_mirror_keys(removed_keys)
     return SaveResult(version=0, index_updated=index_updated)
 
@@ -155,12 +154,12 @@ def _is_image(ref: MediaRef) -> bool:
     return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
-def _enqueue_mirror(store: ObjectStore, ulid: Ulid) -> None:
+def _enqueue_mirror(archive: Archive, ulid: Ulid) -> None:
     """Enqueue a mirror_push for every canonical key of the Article, AFTER the canonical write
     (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
     enqueue failure must never fail the request (mirror lag is invisible-by-design; the periodic
     reconcile heals it). A no-op when no mirror is configured (the enqueue wrapper checks)."""
-    _enqueue_mirror_keys(ArticleRepository(store).keys_for(ulid))
+    _enqueue_mirror_keys(archive.articles.keys_for(ulid))
 
 
 def _enqueue_mirror_keys(keys: list[str]) -> None:
@@ -173,12 +172,12 @@ def _enqueue_mirror_keys(keys: list[str]) -> None:
         return
 
 
-def _sync_index(store: ObjectStore, ulid: Ulid) -> bool:
+def _sync_index(archive: Archive, ulid: Ulid) -> bool:
     """Synchronously reindex ``ulid``; on ANY failure enqueue a reference retry job and report
     False (never re-raise — the canonical write already stood, ADR 0014). Returns True on success.
     """
     try:
-        index_article(store, ulid)
+        index_article(archive.store, ulid)
     except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
         _enqueue_reindex(ulid)
         return False

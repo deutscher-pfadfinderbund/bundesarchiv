@@ -66,7 +66,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         errors = _create_errors(name, parent_id, collections, audience_error)
         if not errors:
             result = create_collection(
-                archive.store, name=name, parent_id=parent_id or None, audience=audience
+                archive, name=name, parent_id=parent_id or None, audience=audience
             )
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
             # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
@@ -155,7 +155,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
         try:
-            save_collection(archive.store, replace(stored.collection, name=name), expected_version)
+            save_collection(archive, replace(stored.collection, name=name), expected_version)
         except Conflict:
             # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
             # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
