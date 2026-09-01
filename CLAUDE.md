@@ -1,3 +1,11 @@
+## Module map
+
+- `MODULES.md` — which modules exist, per package (the table of contents).
+- `src/bundesarchiv/<pkg>/CLAUDE.md` — that package's law + one row per module
+  (responsibility, interface, tests).
+- Update procedure: the `update-module-map` skill. Gate: `tests/test_module_map.py`
+  (exhaustiveness + prose budgets), part of `mise run check`.
+
 ## Dev environment
 
 - Search database (Postgres, host port 5434) runs via Apple's `container`
