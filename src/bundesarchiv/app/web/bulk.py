@@ -1,8 +1,8 @@
 """The bulk-edit (Sammelbearbeitung) core: field allowlist, per-article application, and the CAS
 loop's write-time guards (spec §0/§1/§3/§4).
 
-Two layers, split so the leak-sensitive rules are pure and unit-testable and the CAS loop is a thin
-shell over the real ``save_article`` service:
+Two layers, split so the leak-sensitive rules are pure and unit-testable and the apply loop is a thin
+shell over the real ``update_article`` service:
 
 - ``ALLOWED_FIELDS`` / ``is_allowed_field`` — the fixed 9-field allowlist (spec §1). ``audience``,
   ``lifecycle``, ``sichtbarkeit`` are deliberately ABSENT (visibility changes must pass the per-item
@@ -13,13 +13,14 @@ shell over the real ``save_article`` service:
   sort/dedupe/reserved-key guard is the single rule (no second copy).
 - ``document_type_fits_all`` — Dokumenttyp-alone is validated against EVERY article's CURRENT
   media_type before any write; one mismatch rejects the whole apply (all-or-nothing, fail-closed).
-- ``apply_bulk`` — per selected ulid independently: fresh load at CURRENT version (bulk never carries
-  stale versions — the archivist never opened these), apply the field, ``save_article`` at the loaded
-  version. A ``document_type`` apply re-checks ``vocab.is_valid_pair`` against the FRESHLY-LOADED
-  media_type (the confirm page validated a possibly-stale one; a mismatch here is a concurrent
-  modification, not a rules bug). That mismatch and any ``ArchiveError`` the save raises (``Conflict``
-  included) both bucket ``conflicted`` (NO retry — a field overwrite is not idempotent-safe, the
-  human re-applies). Load failure → bucket ``missing``. The loop NEVER aborts early; every attempted
+- ``apply_bulk`` — per selected ulid independently, through ``app.articles.update_article`` with NO
+  retries: bulk never carries a stale version (the archivist never opened these records), so the
+  service's fresh load IS the apply-time version, but a field overwrite is not idempotent-safe, so a
+  lost race must reach the human rather than be re-applied to the winner. A ``document_type`` apply
+  re-checks ``vocab.is_valid_pair`` against the FRESHLY-LOADED media_type (the confirm page validated
+  a possibly-stale one; a mismatch here is a concurrent modification, not a rules bug) and refuses.
+  That refusal, a lost race, and any other ``ArchiveError`` the save raises all bucket ``conflicted``;
+  an article the service cannot load buckets ``missing``. The loop NEVER aborts early; every attempted
   ulid lands in exactly one bucket (``saved + conflicted + missing == distinct auswahl``).
 """
 
@@ -28,6 +29,7 @@ from dataclasses import dataclass, replace
 
 from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Article, Ulid
 from bundesarchiv.persistence.errors import ArchiveError
@@ -186,49 +188,65 @@ class BulkOutcome:
     index_lagged: bool
 
 
+class _Unfit(Exception):
+    """The freshly-loaded media_type no longer admits the Dokumenttyp being applied (spec §3) — a
+    concurrent modification since the confirm page validated, so this article is refused unsaved."""
+
+
+@dataclass
+class _FieldApplication:
+    """The transform ``update_article`` calls, remembering the article it was handed. The buckets are
+    built from that pre-image: a ``conflicted`` row shows the record as it stood, and the cleared-
+    Dokumenttyp note is a before/after comparison (spec §4)."""
+
+    feld: str
+    wert: str
+    loaded: Article | None = None
+
+    def __call__(self, article: Article) -> Article:
+        self.loaded = article
+        mutated = apply_field(article, self.feld, self.wert)
+        if self.feld == "document_type" and not vocab.is_valid_pair(
+            article.media_type, mutated.document_type
+        ):
+            raise _Unfit
+        return mutated
+
+
 def apply_bulk(archive: Archive, ulids: Sequence[Ulid], feld: str, wert: str) -> BulkOutcome:
-    """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4). Per ulid: fresh load at the
-    CURRENT version, apply the field, ``save_article`` at the loaded version. A ``document_type``
-    apply re-checks the pair against the FRESHLY-LOADED media_type — a mismatch is a concurrent
-    modification since the caller's validation, and buckets ``conflicted`` without saving. Any
-    ``ArchiveError`` the save raises (``Conflict`` included) buckets ``conflicted`` too (NO retry). A
-    load failure → the ``missing`` bucket. The loop never aborts early; every DISTINCT ulid lands in
-    exactly one bucket. Caller has already validated the field + dependent pair against its OWN
-    load; this re-validates against the current store state and executes."""
-    repo = archive.articles
+    """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4), each through
+    ``update_article`` with NO retries — a lost race must reach the human, not be re-applied to the
+    winner. A refused pair (spec §3), a lost race and any other ``ArchiveError`` from the save all
+    bucket ``conflicted`` without writing; an article the service cannot load buckets ``missing``.
+    The loop never aborts early; every DISTINCT ulid lands in exactly one bucket. Caller has already
+    validated the field + dependent pair against its OWN load; this re-validates against the current
+    store state and executes."""
     saved = 0
     conflicted: list[BulkRow] = []
     missing: list[Ulid] = []
     doctype_cleared: list[BulkRow] = []
     index_lagged = False
     for ulid in dict.fromkeys(ulids):  # distinct, order-preserving
+        mutation = _FieldApplication(feld, wert)
         try:
-            stored = repo.load(ulid)
-        except ArchiveError:
+            outcome = articles.update_article(archive, ulid, mutation, retries=0)
+        except _Unfit, ArchiveError:
+            outcome = Conflicted()  # refused pair, or a save failure the service does not own
+        loaded = mutation.loaded
+        if isinstance(outcome, Missing) or loaded is None:  # loaded is None iff nothing was loaded
             missing.append(ulid)
             continue
-        row = BulkRow(ulid=ulid, ref_code=stored.article.ref_code or "", title=stored.article.title)
-        mutated = apply_field(stored.article, feld, wert)
-        if feld == "document_type" and not vocab.is_valid_pair(
-            stored.article.media_type, mutated.document_type
-        ):
-            conflicted.append(row)
-            continue
-        cleared = (
-            feld == "media_type"
-            and stored.article.document_type is not None
-            and (mutated.document_type is None)
-        )
-        try:
-            result = articles.save_article(archive, mutated, stored.version)
-        except ArchiveError:
-            conflicted.append(row)
-            continue
-        saved += 1
-        if cleared:
-            doctype_cleared.append(row)
-        if not result.index_updated:
-            index_lagged = True
+        row = BulkRow(ulid=ulid, ref_code=loaded.ref_code or "", title=loaded.title)
+        match outcome:
+            case Conflicted():
+                conflicted.append(row)
+            case Updated(article=written, index_updated=index_updated):
+                saved += 1
+                if feld == "media_type" and (
+                    loaded.document_type is not None and written.document_type is None
+                ):
+                    doctype_cleared.append(row)
+                index_lagged = index_lagged or not index_updated
     return BulkOutcome(
         saved=saved,
         conflicted=tuple(conflicted),
