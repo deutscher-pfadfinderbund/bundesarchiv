@@ -20,5 +20,6 @@ mutation goes through `app.articles.update_article` and matches on its outcome u
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — authorized media entry points (`can_view` before any blob probe — ordering is load-bearing) · interface: `serve_media`, `serve_thumbnail` · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + German label echo for the form · interface: `media_type_options`, `document_types_for`, `is_valid_pair` · tests: `tests/app/web/test_vocab.py`
+- `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`parent_options`/`accepts`/`error`/`name_of`/`names`/`by_ulid` · tests: `tests/app/web/test_bestand.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`
