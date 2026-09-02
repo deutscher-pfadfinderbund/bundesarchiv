@@ -54,6 +54,9 @@ Per package, names + hooks only:
 
 1. Identify the change class: new module / renamed / deleted / interface changed / implementation changed.
 2. **Implementation-only change → touch nothing here.** The map is interface-level by design.
+   A new method on a class the row already names is a row change only if it changes what the
+   row *says* — the row lists what a caller learns, not every def. When in doubt: does the hook
+   or the interface list become wrong? No → no edit.
 3. Otherwise edit the package row (and `MODULES.md` if a name appeared or vanished) **in the same commit** as the code change. This is writer law, not courtesy.
 4. New module: apply the deletion test before granting a row; internals go on the `Internal:` line.
 5. Keep the hook honest: if you can't write the responsibility in one line, the module may be the problem — note it as a debt entry (`docs/tech-debt.md`), don't write a two-line hook.
