@@ -9,11 +9,12 @@ Conflict-catch site (ADR 0013) is a thin shell:
   scalar (spec §8) and the GROUPS-iff-gruppen invariant. IO-free, request-free.
 - ``save_catalog_form`` — the thin controller that is the ONLY place ``Conflict`` is caught for a
   form save (ADR 0013): it calls ``save_article(archive, article, expected_version)`` directly (never
-  ``update()``), and on ``Conflict`` re-loads the winner and returns a ``ConflictOutcome`` carrying
-  the current version + winner article so the view re-renders the "Inzwischen geändert" panel with
-  the archivist's just-submitted values preserved and a refreshed ``expected_version``. If that
-  re-load instead finds the article gone (a stale save racing a hard delete, not a concurrent edit),
-  it returns ``DeletedOutcome`` so the view collapses to the byte-identical 404 instead of a 500.
+  the retrying ``update_article``), and on ``Conflict`` re-loads the winner and returns a
+  ``ConflictOutcome`` carrying the current version + winner article so the view re-renders the
+  "Inzwischen geändert" panel with the archivist's just-submitted values preserved and a refreshed
+  ``expected_version``. If that re-load instead finds the article gone (a stale save racing a hard
+  delete, not a concurrent edit), it returns ``DeletedOutcome`` so the view collapses to the
+  byte-identical 404 instead of a 500.
 
 The Django coupling is a single ``getlist`` helper so the parser can be driven by a plain dict in
 tests and a ``QueryDict`` in the view without knowing which it holds.
@@ -297,7 +298,7 @@ type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 
 def save_catalog_form(archive: Archive, article: Article, expected_version: Version) -> SaveOutcome:
     """The ONLY site that catches ``Conflict`` for a form save (ADR 0013). Calls ``save_article``
-    directly (never the retrying ``update()``): on success returns a ``SavedOutcome``; on ``Conflict``
+    directly (never the retrying ``update_article``): on success returns a ``SavedOutcome``; on ``Conflict``
     re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
     winner and the archivist's submitted article, so the view preserves the just-typed values and
     refreshes ``expected_version`` to the current version (the next Speichern then wins). If that

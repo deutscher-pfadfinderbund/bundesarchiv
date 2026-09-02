@@ -26,7 +26,7 @@ v1, ADR 0013).
 
 import hashlib
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
@@ -92,33 +92,6 @@ class ArticleRepository:
                 json.dumps({"ulid": article.ulid, "version": new_version}, sort_keys=True).encode(),
             )
         return new_version
-
-    def update(
-        self, ulid: Ulid, mutate: Callable[[Article], Article], *, retries: int = 3
-    ) -> Version:
-        """Load the Article, apply `mutate`, and save at its current version — the
-        optimistic-concurrency dance hidden from callers, retrying on `Conflict` (a
-        concurrent write) up to `retries` times. Returns the new version; raises
-        `NotFound` if absent. `mutate` must not add media (use add_media + save).
-
-        WARNING — internal idempotent mutations ONLY (worker jobs, migrations, ADR 0013).
-        Because it re-loads and retries on `Conflict`, this is last-writer-wins by
-        construction: a retry re-applies `mutate` to the WINNER's fresh Article, so the
-        concurrent edit is not lost — but only when `mutate` is a pure, idempotent
-        transform of whatever it is handed. It is FORBIDDEN for web form saves: a form
-        carries a value the archivist typed against a now-stale Article, so retrying
-        would silently overwrite the concurrent edit with that stale form (silent
-        last-writer-wins — the one unforgivable archive failure). Form saves call
-        `save(mutated, expected_version_from_form)` directly and let the FIRST `Conflict`
-        propagate to the re-load/re-apply UI."""
-        while True:
-            stored = self.load(ulid)
-            try:
-                return self.save(mutate(stored.article), stored.version)
-            except Conflict:
-                retries -= 1
-                if retries < 0:
-                    raise
 
     def add_media(
         self,

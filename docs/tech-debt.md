@@ -62,15 +62,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Sketch:** `EditSurface` built once from the gated `Stored`; `render(request, *, errors,
   autofocus, overlay)` over a closed `NoOverlay | Conflict | MediaError | IndexLag | RemoveConfirm`.
 
-### 4. Lift the CAS retry to the layer owning the write cycle — Strong
-- **Indicator:** `repository.update()` 0 production callers; 3 `except Conflict` sites in `app/web`;
-  1 hand-rolled 3-attempt loop (2026-09-02)
-- **Evidence:** `persistence/repository.py:95` encapsulates the ADR 0013 retry but skips index sync,
-  thumbnail and mirror, so it is unusable above persistence; `catalog_views._structural_save`
-  rebuilds the loop, `catalog.py` and `collection_views.py` each re-handle Conflict by hand.
-- **Deletion test:** passes — `repository.update()` deletes outright; the loop moves up one layer.
-- **Sketch:** `app.articles.update_article(archive, ulid, mutate) -> SaveResult | Conflicted |
-  Missing`; form saves keep calling `save_article(article, version)` (ADR 0013's split).
+### 4. Lift the CAS retry to the layer owning the write cycle — done
+- **Indicator:** hand-rolled load-mutate-save loops 2 → 0; `except Conflict` in `app/web` 3 → 2, both
+  form saves ADR 0013 keeps there (2026-09-02)
+- **Evidence:** `app.articles.update_article` (`Updated | Conflicted | Missing`) over the real write
+  shell; `catalog_views._structural_save` and `bulk.apply_bulk` call it; `repository.update()` gone.
+- **Residue:** a structural save no longer reuses the Article its gate loaded — one extra README read.
 
 ### 5. One authority for the media key layout — done
 - **Indicator:** `articles/<ulid>/media/<hash>` declared 3× → 1 (2026-09-02)
