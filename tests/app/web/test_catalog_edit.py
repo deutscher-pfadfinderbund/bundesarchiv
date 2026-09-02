@@ -20,6 +20,7 @@ from django.http import HttpRequest, QueryDict
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import PUB, Corpus, client_as, make_article, make_collection
 
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -526,7 +527,9 @@ def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> 
     """Every record-card row the registry renders, in DOM order, for a blank form."""
     from bundesarchiv.app.web.catalog_views import _card_fields
 
-    sections = _card_fields({"ulid": _ULID}, (), errors=errors or {}, autofocus=autofocus)
+    sections = _card_fields(
+        {"ulid": _ULID}, BestandChooser(lambda: ()), errors=errors or {}, autofocus=autofocus
+    )
     return [row for group in sections.values() for row in group]
 
 

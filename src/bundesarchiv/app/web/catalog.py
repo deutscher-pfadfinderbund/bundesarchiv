@@ -28,6 +28,7 @@ from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import SaveResult
 from bundesarchiv.app.web import vocab
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -104,14 +105,14 @@ def parse_edit_form(
     post: Mapping[str, object],
     *,
     ulid: Ulid,
-    collections: Sequence[Ulid],
+    bestand: BestandChooser,
     current_media: tuple[MediaRef, ...] = (),
     lifecycle: Lifecycle = Lifecycle.DRAFT,
 ) -> ParseResult:
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
-    error map. Total: malformed input never raises, it becomes a field error. ``collections`` is the
-    set of collection ULIDs the archivist may file into — a value outside it is rejected exactly like
-    an empty one (no existence oracle on collections either).
+    error map. Total: malformed input never raises, it becomes a field error. ``bestand`` is the
+    chooser the form offered; it decides which collection values are fileable and words the refusal
+    (``bestand.accepts`` / ``bestand.error``).
 
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
@@ -129,8 +130,8 @@ def parse_edit_form(
         errors["title"] = "Titel ist erforderlich."
 
     collection_id = _get(post, "collection_id").strip()
-    if collection_id not in collections:
-        errors["collection_id"] = "Bitte einen Bestand wählen."
+    if not bestand.accepts(collection_id):
+        errors["collection_id"] = bestand.error()
 
     media_type = _none_if_blank(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():

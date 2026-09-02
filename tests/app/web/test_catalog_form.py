@@ -13,7 +13,8 @@ stays a ``str``; inheriting Sichtbarkeit yields ``audience=None``.
 """
 
 from bundesarchiv.app.web import catalog
-from bundesarchiv.domain.models import AudienceTier
+from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.domain.models import AudienceTier, Collection
 
 
 def _post(**overrides: object) -> dict[str, list[str]]:
@@ -41,13 +42,14 @@ def _post(**overrides: object) -> dict[str, list[str]]:
     return base
 
 
-_COLLECTIONS = ("COLL1", "COLL2")
+#: The two Bestände the form offered; the parse layer accepts these and nothing else.
+_BESTAND = BestandChooser(
+    lambda: (Collection(ulid="COLL1", name="Eins"), Collection(ulid="COLL2", name="Zwei"))
+)
 
 
 def _parse(post: dict[str, list[str]]) -> catalog.ParseResult:
-    return catalog.parse_edit_form(
-        post, ulid="01ARTICLEULID0000000000000", collections=_COLLECTIONS
-    )
+    return catalog.parse_edit_form(post, ulid="01ARTICLEULID0000000000000", bestand=_BESTAND)
 
 
 # --- happy path + the "" -> None boundary ------------------------------------------

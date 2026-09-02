@@ -25,25 +25,15 @@ from django.urls import reverse
 from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
+from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Audience, Collection, Version
+from bundesarchiv.domain.models import Audience, Version
 from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
-
-#: The Eltern-Bestand top-level marker — a Bestand with no parent. One constant so the select
-#: placeholder + the read-only parent-display row can never drift.
-_TOP_LEVEL_LABEL = "— Oberste Ebene —"
-
-
-def _parent_options(collections: tuple[Collection, ...]) -> tuple[tuple[str, str], ...]:
-    """The Eltern-Bestand select options: the empty top-level option first (a top-level Bestand has
-    no parent), then each existing collection as ``(ulid, name)``."""
-    return (("", _TOP_LEVEL_LABEL), *((c.ulid, c.name) for c in collections))
-
 
 # --- /bestand/neu — create -----------------------------------------------------------
 
@@ -56,14 +46,14 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     if not _is_archivist(request):
         return _not_found()
     archive = Archive.canonical()
-    collections = archive.collections.load_all()
+    bestand = BestandChooser.of(archive)
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         parent_id = request.POST.get("parent_id", "").strip()
         sichtbarkeit = request.POST.get("sichtbarkeit", "")
         gruppen = request.POST.get("gruppen", "")
         audience, audience_error = _parse_audience(sichtbarkeit, gruppen)
-        errors = _create_errors(name, parent_id, collections, audience_error)
+        errors = _create_errors(name, parent_id, bestand, audience_error)
         if not errors:
             result = create_collection(
                 archive, name=name, parent_id=parent_id or None, audience=audience
@@ -76,28 +66,29 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         return render_screen(
             request,
             "workbench/bestand_neu.html",
-            _create_context(collections, name, parent_id, sichtbarkeit, gruppen, errors),
+            _create_context(bestand, name, parent_id, sichtbarkeit, gruppen, errors),
         )
     return render_screen(
         request,
         "workbench/bestand_neu.html",
-        _create_context(collections, "", "", "", "", {}),
+        _create_context(bestand, "", "", "", "", {}),
     )
 
 
 def _create_errors(
     name: str,
     parent_id: str,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     audience_error: str | None,
 ) -> FormErrors:
     """The create-Bestand validations (verbatim German). Name required; a non-empty parent must be a
-    real collection (validated against the actual set — no oracle); the GROUPS-iff audience error (if
-    any) rides the Sichtbarkeit field. An empty parent is the valid top-level choice."""
+    Bestand the chooser accepts; the GROUPS-iff audience error (if any) rides the Sichtbarkeit field.
+    An empty parent is the valid top-level choice, so it is the ONE value skipping the check — and it
+    earns its own wording, since "kein Eltern-Bestand" is not the article form's missing Bestand."""
     errors: FormErrors = {}
     if not name:
         errors["name"] = "Name ist erforderlich."
-    if parent_id and parent_id not in {c.ulid for c in collections}:
+    if parent_id and not bestand.accepts(parent_id):
         errors["parent_id"] = "Bitte einen gültigen Eltern-Bestand wählen."
     if audience_error is not None:
         errors["sichtbarkeit"] = audience_error
@@ -105,7 +96,7 @@ def _create_errors(
 
 
 def _create_context(
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     name: str,
     parent_id: str,
     sichtbarkeit: str,
@@ -119,7 +110,7 @@ def _create_context(
         "parent_id": parent_id,
         "sichtbarkeit": sichtbarkeit,
         "gruppen": gruppen,
-        "parent_options": _parent_options(collections),
+        "parent_options": bestand.parent_options(),
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
         "errors": errors,
         "autofocus": "parent_id" if name and "name" not in errors else "name",
@@ -229,7 +220,7 @@ def _parent_name(archive: Archive, parent_id: str | None) -> str:
     load (1 read) rather than a full ``load_all`` scan; a dangling parent (shouldn't happen) shows the
     ulid rather than raising."""
     if parent_id is None:
-        return _TOP_LEVEL_LABEL
+        return TOP_LEVEL_LABEL
     try:
         return archive.collections.load(parent_id).collection.name
     except ArchiveError:

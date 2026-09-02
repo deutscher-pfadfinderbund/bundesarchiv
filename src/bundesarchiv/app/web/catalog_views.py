@@ -33,6 +33,7 @@ from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import catalog, vocab
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import _is_archivist, render_screen
@@ -44,7 +45,6 @@ from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
     Article,
     AudienceTier,
-    Collection,
     Lifecycle,
     MediaRef,
     Ulid,
@@ -94,18 +94,6 @@ def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored] | Non
         return None
 
 
-def _collections(archive: Archive) -> tuple[Collection, ...]:
-    """Every saved Collection (read-only, per request). An Archivist files into any of them, so the
-    whole set is the Bestand option source; the parse layer rejects a value outside it."""
-    return archive.collections.load_all()
-
-
-def _collection_options(collections: tuple[Collection, ...]) -> tuple[tuple[str, str], ...]:
-    """The Bestand select options: the placeholder first (empty value, server-rejected), then each
-    collection as ``(ulid, name)`` in load order."""
-    return (("", "— Bestand wählen —"), *((c.ulid, c.name) for c in collections))
-
-
 # --- /artikel/neu — the create step (Slice A) --------------------------------------
 
 
@@ -120,29 +108,29 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     if not _is_archivist(request):
         return _not_found()
     archive = Archive.canonical()
-    collections = _collections(archive)
+    bestand = BestandChooser.of(archive)
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         collection_id = request.POST.get("collection_id", "").strip()
-        errors = _create_errors(title, collection_id, collections)
+        errors = _create_errors(title, collection_id, bestand)
         if not errors:
             ulid = catalog.new_draft(archive, title=title, collection_id=collection_id)
             return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
         return render_screen(
             request,
             "workbench/artikel_neu.html",
-            _create_context(collections, title=title, collection_id=collection_id, errors=errors),
+            _create_context(bestand, title=title, collection_id=collection_id, errors=errors),
         )
     # GET: pre-select the ?bestand only if it is a real collection (else ignore — no oracle); show a
     # "Bestand … angelegt." status line when ?angelegt carries the just-created Bestand's name.
-    preselect = request.GET.get("bestand", "")
-    if preselect not in {c.ulid for c in collections}:
+    preselect = request.GET.get("bestand", "").strip()
+    if not bestand.accepts(preselect):
         preselect = ""
     return render_screen(
         request,
         "workbench/artikel_neu.html",
         _create_context(
-            collections,
+            bestand,
             title="",
             collection_id=preselect,
             errors={},
@@ -151,21 +139,19 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     )
 
 
-def _create_errors(
-    title: str, collection_id: str, collections: tuple[Collection, ...]
-) -> catalog.FormErrors:
+def _create_errors(title: str, collection_id: str, bestand: BestandChooser) -> catalog.FormErrors:
     """The two create-step validations (spec §2), verbatim strings — the same two rules the full
     parse layer applies, kept minimal here because the create step has only these two fields."""
     errors: catalog.FormErrors = {}
     if not title:
         errors["title"] = "Titel ist erforderlich."
-    if collection_id not in {c.ulid for c in collections}:
-        errors["collection_id"] = "Bitte einen Bestand wählen."
+    if not bestand.accepts(collection_id):
+        errors["collection_id"] = bestand.error()
     return errors
 
 
 def _create_context(
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     *,
     title: str,
     collection_id: str,
@@ -178,7 +164,7 @@ def _create_context(
     return {
         "title": title,
         "collection_id": collection_id,
-        "collection_options": _collection_options(collections),
+        "collection_options": bestand.options(),
         "errors": errors,
         "autofocus": "collection_id" if title and "title" not in errors else "title",
         "angelegt": angelegt,
@@ -197,15 +183,13 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None:
         return _not_found()
     archive, stored = gated
-    collections = _collections(archive)
+    bestand = BestandChooser.of(archive)
     if request.method == "POST":
-        return _handle_edit_post(request, archive, ulid, stored.article, collections)
+        return _handle_edit_post(request, archive, ulid, stored.article, bestand)
     # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
     # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
     fokus = "ref_code" if request.GET.get("fokus") == "signatur" else None
-    context = _edit_context_from_article(
-        stored.article, stored.version, collections, autofocus=fokus
-    )
+    context = _edit_context_from_article(stored.article, stored.version, bestand, autofocus=fokus)
     return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
@@ -214,7 +198,7 @@ def _handle_edit_post(
     archive: Archive,
     ulid: Ulid,
     current: Article,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
     302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
@@ -227,7 +211,7 @@ def _handle_edit_post(
     saving, because it IS saving. An unknown verb is a 404 with no mutation; ``veroeffentlichen`` is
     REFUSED when the exposure cannot be computed (the branch below)."""
     if "custom_entfernen" in request.POST:
-        return _rerender_with_custom_removed(request, ulid, collections, current)
+        return _rerender_with_custom_removed(request, ulid, bestand, current)
     verb = request.POST.get("lebenszyklus", "")
     lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
     if lifecycle is None:
@@ -235,14 +219,14 @@ def _handle_edit_post(
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
-        collections=tuple(c.ulid for c in collections),
+        bestand=bestand,
         current_media=current.media,
         lifecycle=lifecycle,
     )
     if (
         result.article is not None
         and verb == "veroeffentlichen"
-        and _einblick_view_model(result.article, collections) is None
+        and _einblick_view_model(result.article, bestand) is None
     ):
         # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The record row hides
         # Veröffentlichen when the exposure view-model is None, but that is the client half only, and
@@ -264,7 +248,7 @@ def _handle_edit_post(
             request,
             ulid,
             result,
-            collections,
+            bestand,
             autofocus=_first_error_field(result.errors),
             media=catalog._apply_captions(request.POST, current.media),
             stored=current,
@@ -278,13 +262,13 @@ def _handle_edit_post(
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
                 # A genuinely post-save Stored (the just-saved article at its new version) + the
-                # collections already in scope (:223) — _rerender_edit re-loads neither (P2).
+                # chooser already in scope — _rerender_edit re-loads neither (P2).
                 return _rerender_edit(
                     request,
                     archive,
                     ulid,
                     stored=Stored(article=result.article, version=save_result.version),
-                    collections=collections,
+                    bestand=bestand,
                     index_lag=True,
                 )
             return _redirect(request, reverse("artikel-detail", args=[ulid]))
@@ -293,7 +277,7 @@ def _handle_edit_post(
                 request,
                 ulid,
                 result,
-                collections,
+                bestand,
                 autofocus="speichern",
                 media=catalog._apply_captions(request.POST, conflict.winner.media),
                 conflict=conflict,
@@ -308,7 +292,7 @@ def _handle_edit_post(
 def _rerender_with_custom_removed(
     request: HttpRequest,
     ulid: Ulid,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     current: Article,
 ) -> HttpResponseBase:
     """The no-JS custom-row removal: drop the row whose index rode the submit, re-render with every
@@ -331,7 +315,7 @@ def _rerender_with_custom_removed(
     version = catalog.parse_version(request.POST.get("expected_version", ""))
     media = catalog._apply_captions(request.POST, current.media)
     context = _edit_context(
-        values, version, collections, errors={}, autofocus="", media=media, stored=current
+        values, version, bestand, errors={}, autofocus="", media=media, stored=current
     )
     return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
@@ -351,7 +335,7 @@ class _ConflictRow:
 def _edit_context_from_article(
     article: Article,
     version: int,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     *,
     autofocus: str | None,
     entfernen_hash: str = "",
@@ -367,7 +351,7 @@ def _edit_context_from_article(
     return _edit_context(
         values,
         version,
-        collections,
+        bestand,
         errors={},
         autofocus=autofocus,
         media=article.media,
@@ -380,7 +364,7 @@ def _edit_context_from_post(
     request: HttpRequest,
     ulid: Ulid,
     result: catalog.ParseResult,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     *,
     autofocus: str,
     media: tuple[MediaRef, ...],
@@ -397,7 +381,7 @@ def _edit_context_from_post(
     context = _edit_context(
         values,
         version,
-        collections,
+        bestand,
         errors=result.errors,
         autofocus=autofocus,
         media=media,
@@ -412,7 +396,7 @@ def _edit_context_from_post(
 def _edit_context(
     values: dict[str, object],
     version: int,
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     *,
     errors: catalog.FormErrors,
     autofocus: str,
@@ -435,7 +419,7 @@ def _edit_context(
         "autofocus": autofocus,
         # The card's rows, section by section — the template loops these, so the registry is the ONE
         # place a field of the record card exists.
-        "card_fields": _card_fields(values, collections, errors=errors, autofocus=autofocus),
+        "card_fields": _card_fields(values, bestand, errors=errors, autofocus=autofocus),
         "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
         # The folded sections' summary values (owner ruling 4: folding may never hide data). Both
         # read what the FIELDS print — the caption off the very option list the select renders — so a
@@ -447,7 +431,7 @@ def _edit_context(
         "open_sections": _open_sections(errors, autofocus),
         # The reader's sheet (ruling 1) and, through it, the exposure statement (ruling 5) — ONE
         # view-model for both of that statement's placements.
-        "sheet": _sheet_view_model(stored, collections),
+        "sheet": _sheet_view_model(stored, bestand),
     }
 
 
@@ -901,7 +885,7 @@ class _CardRow:
 
 def _card_fields(
     values: Mapping[str, object],
-    collections: tuple[Collection, ...],
+    bestand: BestandChooser,
     *,
     errors: catalog.FormErrors,
     autofocus: str,
@@ -912,7 +896,7 @@ def _card_fields(
     focuses nothing rather than nothing-visible. ``echo`` is the Datierung field's human-German line;
     it is empty for every other row and for a value that does not parse."""
     option_lists: dict[str, _Options] = {
-        "collection_options": _collection_options(collections),
+        "collection_options": bestand.options(),
         "media_type_options": vocab.media_type_options(),
         "document_type_groups": vocab.grouped_document_type_options(),
         "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
@@ -1089,15 +1073,12 @@ class _SheetViewModel:
     einblick: _EinblickViewModel | None
 
 
-def _einblick_view_model(
-    article: Article, collections: tuple[Collection, ...]
-) -> _EinblickViewModel | None:
+def _einblick_view_model(article: Article, bestand: BestandChooser) -> _EinblickViewModel | None:
     """The exposure statement for ``article``, computed by the domain ``preview()`` over the resolved
     collection chain. ``None`` when the chain cannot resolve (fail-closed: no statement rather than a
-    misleading one — the same rule the retired preview panel followed). The collections are the ones
-    the view already loaded, so this costs no extra read."""
+    misleading one — the same rule the retired preview panel followed)."""
     try:
-        chain = resolve_chain(article.collection_id, {c.ulid: c for c in collections})
+        chain = resolve_chain(article.collection_id, bestand.by_ulid())
     except DomainError:
         return None
     result = preview(article, chain)
@@ -1109,7 +1090,7 @@ def _einblick_view_model(
     )
 
 
-def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> _SheetViewModel:
+def _sheet_view_model(article: Article, bestand: BestandChooser) -> _SheetViewModel:
     """The reader's-sheet view-model, built from the STORED article's READER PROJECTION — never from
     unsaved keystrokes: the sheet answers "what does a reader see of the record as it stands", which
     is why it can retire the publish-time preview.
@@ -1140,7 +1121,7 @@ def _sheet_view_model(article: Article, collections: tuple[Collection, ...]) -> 
         absatz=next(iter(_body_paragraphs(read.body)), ""),
         # the EXPOSURE statement is computed from the STORED article: it reports who gains sight of
         # the record, which is a question about the record, not about the projection of it.
-        einblick=_einblick_view_model(article, collections),
+        einblick=_einblick_view_model(article, bestand),
     )
 
 
@@ -1325,15 +1306,15 @@ def _rerender_edit(
     ulid: Ulid,
     *,
     stored: Stored | None = None,
-    collections: tuple[Collection, ...] | None = None,
+    bestand: BestandChooser | None = None,
     entfernen_hash: str = "",
     medien_fehler: str = "",
     index_lag: bool = False,
 ) -> HttpResponseBase:
     """Re-render the edit form after a structural media change (or the remove-confirm step, or a
-    saved-but-index-lagged metadata save). ``stored``/``collections`` let a caller that already has
+    saved-but-index-lagged metadata save). ``stored``/``bestand`` let a caller that already has
     the current state hand it over instead of paying for a re-load here (P2, issue #2 perf): pass the
-    post-save ``Stored`` a structural save just produced, or the ``collections`` already in scope on
+    post-save ``Stored`` a structural save just produced, or the ``bestand`` already in scope on
     the index-lag save path. Either omitted loads fresh, so ``entfernen_hash``'s show-confirm call
     (no save happened) and any future caller without the state in scope still work unchanged.
     ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler`` surfaces an upload
@@ -1345,12 +1326,12 @@ def _rerender_edit(
             stored = archive.articles.load(ulid)
         except ArchiveError:
             return _not_found()
-    if collections is None:
-        collections = _collections(archive)
+    if bestand is None:
+        bestand = BestandChooser.of(archive)
     context = _edit_context_from_article(
         stored.article,
         stored.version,
-        collections,
+        bestand,
         autofocus="",
         entfernen_hash=entfernen_hash,
     )
