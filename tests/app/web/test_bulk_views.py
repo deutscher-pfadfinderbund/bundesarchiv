@@ -13,6 +13,7 @@ import pytest
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
+from bundesarchiv.app.web import bulk
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -101,35 +102,48 @@ def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts:
     assert f'name="auswahl" value="{_B}"' in body
 
 
-def test_document_type_mismatch_re_render_preserves_submitted_value(two_drafts: Corpus) -> None:
-    # Values-preserved-verbatim (global constraint): a rejected wert must be echoed back into its
-    # widget, not just its feld. Porträt is a Fotografie-only Dokumenttyp; _A has no media_type, so
-    # the dependent-pair check rejects it (spec §3) — the drawer must re-select Porträt.
-    response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
-        {
-            "auswahl": [_A],
-            "feld": "document_type",
-            "wert_document_type": "Porträt",
-            "bestaetigt": "1",
-        },
-    )
-    body = response.content.decode()
-    assert "gehört nicht zur Medienart aller ausgewählten Artikel" in body  # verbatim error
-    assert '<option value="Porträt" selected>' in body  # the rejected value stays selected
+#: One submittable value per value-input widget. A <select> only echoes an option it actually
+#: renders, so these are real vocabulary values / a real Bestand ulid from ``two_drafts``. A new
+#: ``BulkField.value_input`` fails the echo test here until it names its value.
+_ECHOED_VALUE = {
+    "wert_text": "Quisenberry-Zephyroth",
+    "wert_media_type": "Fotografie",
+    "wert_document_type": "Porträt",
+    "wert_collection_id": "ARCH",
+}
 
 
-def test_empty_selection_re_render_preserves_submitted_text_value(two_drafts: Corpus) -> None:
-    # Values-preserved-verbatim (global constraint), TEXT-widget path: feld=creator is valid/allowed,
-    # so wert survives to _reject even though the empty auswahl is what rejects the apply. The text
-    # input must echo the submitted value via value="...", not just pre-select the field.
+@pytest.mark.parametrize("feld", [f.target for f in bulk.FIELDS])
+def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, feld: str) -> None:
+    # Values-preserved-verbatim (spec §2 C) for EVERY bulk field: the rejected submit comes back with
+    # the field pre-selected and the value in that field's own widget. The empty auswahl is what
+    # rejects, so the field/value pair itself is always well-formed and reaches the re-render.
+    widget = bulk.value_input_of(feld)
+    wert = _ECHOED_VALUE[widget]
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
-        {"feld": "creator", "wert_text": "Quisenberry-Zephyroth", "bestaetigt": "1"},
+        "/artikel/sammelbearbeitung", {"feld": feld, widget: wert, "bestaetigt": "1"}
     )
     body = response.content.decode()
     assert "Keine Artikel ausgewählt." in body  # verbatim error
-    assert 'name="wert_text" value="Quisenberry-Zephyroth"' in body  # the text widget echoes it
+    assert f'<option value="{feld}" selected>' in body  # the chosen Feld stays chosen
+    echoed = (
+        f'name="{widget}" value="{wert}"'
+        if widget == "wert_text"
+        else f'<option value="{wert}" selected>'
+    )
+    assert echoed in body
+
+
+def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus) -> None:
+    # The commonest slip — value typed, Feld left on "— Feld wählen —" — must be re-echoed like any
+    # other rejected submit (spec §2 C: values preserved verbatim), not silently blanked.
+    response = client_as(Archivist()).post(
+        "/artikel/sammelbearbeitung",
+        {"auswahl": [_A], "feld": "", "wert_text": "Quisenberry-Zephyroth", "bestaetigt": "1"},
+    )
+    body = response.content.decode()
+    assert "Bitte ein Feld wählen." in body
+    assert 'name="wert_text" value="Quisenberry-Zephyroth"' in body
 
 
 def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:

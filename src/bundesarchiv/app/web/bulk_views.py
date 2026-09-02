@@ -35,7 +35,10 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     archive = Archive.canonical()
     auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
     feld = request.POST.get("feld", "")
-    wert = request.POST.get(bulk.value_input_of(feld), "") if bulk.is_allowed_field(feld) else ""
+    # Read the value for ANY feld, allowed or not: a refused field never mutates (``_validate``
+    # gates that), and the reject page must echo what was typed — gating the read here blanked the
+    # value whenever the placeholder was submitted.
+    wert = request.POST.get(bulk.value_input_of(feld), "")
 
     error = _validate(auswahl, feld, archive, wert)
     if error is not None:
