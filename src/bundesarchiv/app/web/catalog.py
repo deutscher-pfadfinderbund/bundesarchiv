@@ -175,7 +175,7 @@ def parse_edit_form(
         document_type=document_type,
         tags=_parse_tags(_get(post, "tags")),
         physical_location=_none_if_blank(_get(post, "physical_location")),
-        media=_apply_captions(post, current_media),  # preserve media; update captions (spec §6.3)
+        media=apply_captions(post, current_media),  # preserve media; update captions (spec §6.3)
         date=date,
         creator=_none_if_blank(_get(post, "creator")),
         subject_place=_none_if_blank(_get(post, "subject_place")),
@@ -184,12 +184,15 @@ def parse_edit_form(
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
 
-def _apply_captions(
+def apply_captions(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
     """Return ``current_media`` with each entry's caption replaced by the form's ``caption[<hash>]``
     value (``"" → None``, spec §6.3/§8). Order is preserved (reorder is a separate structural POST);
-    an absent field leaves the caption unchanged (defensive — the form always renders one per row)."""
+    an absent field leaves the caption unchanged (defensive — the form always renders one per row).
+
+    Public because the edit surface re-renders the register from the SAME rule the save applies, so a
+    re-render cannot show a caption the next Speichern would not write."""
     updated: list[MediaRef] = []
     for ref in current_media:
         field = f"caption[{ref.content_hash}]"

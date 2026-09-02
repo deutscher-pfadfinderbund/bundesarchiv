@@ -4,7 +4,8 @@ Two production routes, both archivist-gated to the media route's byte-identical 
 (existence-hiding — the cataloging surface must not be discoverable). Thin by design: the
 leak-sensitive parsing + validation live in ``catalog`` (pure, unit-tested), the write services in
 ``app.articles``, and the ONE ADR-0013 ``Conflict`` catch site in ``catalog.save_catalog_form``.
-These views only resolve the viewer, gate, marshal the form context, and render.
+These views only resolve the viewer, gate, and hand an ``EditSurface`` — the record as SAVED plus
+whatever the form shows — the overlay its outcome calls for.
 
 - ``article_create`` — ``GET/POST /artikel/neu``: GET renders the minimal create form (Titel +
   Bestand); POST creates a DRAFT via ``create_article`` and 302s to the edit form. Validation
@@ -48,6 +49,7 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     MediaRef,
     Ulid,
+    Version,
 )
 from bundesarchiv.domain.viewer import Public
 from bundesarchiv.persistence.errors import ArchiveError
@@ -185,19 +187,19 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     archive, stored = gated
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
-        return _handle_edit_post(request, archive, ulid, stored.article, bestand)
+        return _handle_edit_post(request, archive, ulid, stored, bestand)
     # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
     # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
-    fokus = "ref_code" if request.GET.get("fokus") == "signatur" else None
-    context = _edit_context_from_article(stored.article, stored.version, bestand, autofocus=fokus)
-    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
+    fokus = "ref_code" if request.GET.get("fokus") == "signatur" else ""
+    surface = EditSurface.of(stored, bestand)
+    return surface.render(request, autofocus=fokus or surface.first_empty_field())
 
 
 def _handle_edit_post(
     request: HttpRequest,
     archive: Archive,
     ulid: Ulid,
-    current: Article,
+    stored: Stored,
     bestand: BestandChooser,
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
@@ -210,8 +212,15 @@ def _handle_edit_post(
     Everything downstream is unchanged by construction — publishing cannot behave differently from
     saving, because it IS saving. An unknown verb is a 404 with no mutation; ``veroeffentlichen`` is
     REFUSED when the exposure cannot be computed (the branch below)."""
+    current = stored.article
+    surface = EditSurface.of(stored, bestand)
     if "custom_entfernen" in request.POST:
-        return _rerender_with_custom_removed(request, ulid, bestand, current)
+        # spec §5: drop the named row, preserve everything else, save nothing.
+        return surface.submitted(
+            request.POST,
+            catalog.parse_version(request.POST.get("expected_version", "")),
+            drop_custom_row=_named_custom_row(request.POST),
+        ).render(request)
     verb = request.POST.get("lebenszyklus", "")
     lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
     if lifecycle is None:
@@ -244,16 +253,9 @@ def _handle_edit_post(
             errors={**result.errors, "collection_id": _EINBLICK_UNRESOLVABLE},
         )
     if result.article is None:
-        context = _edit_context_from_post(
-            request,
-            ulid,
-            result,
-            bestand,
-            autofocus=_first_error_field(result.errors),
-            media=catalog._apply_captions(request.POST, current.media),
-            stored=current,
+        return surface.submitted(request.POST, result.expected_version).render(
+            request, errors=result.errors, autofocus=_first_error_field(result.errors)
         )
-        return render_screen(request, "workbench/artikel_bearbeiten.html", context)
     outcome = catalog.save_catalog_form(archive, result.article, result.expected_version)
     match outcome:
         case catalog.SavedOutcome(result=save_result):
@@ -261,63 +263,30 @@ def _handle_edit_post(
             # retry job was enqueued — re-render (not 302) with the quiet index-lag hinweis so the
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
-                # A genuinely post-save Stored (the just-saved article at its new version) + the
-                # chooser already in scope — _rerender_edit re-loads neither (P2).
-                return _rerender_edit(
-                    request,
-                    archive,
-                    ulid,
-                    stored=Stored(article=result.article, version=save_result.version),
-                    bestand=bestand,
-                    index_lag=True,
-                )
+                saved = Stored(article=result.article, version=save_result.version)
+                return EditSurface.of(saved, bestand).render(request, overlay=IndexLag())
             return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
-            context = _edit_context_from_post(
-                request,
-                ulid,
-                result,
-                bestand,
-                autofocus="speichern",
-                media=catalog._apply_captions(request.POST, conflict.winner.media),
-                conflict=conflict,
-                stored=conflict.winner,
+            # The surface is the WINNER's: the sheet, the media and the refreshed expected_version all
+            # come from the record as it now stands, with the archivist's own values still in the card.
+            winner = Stored(article=conflict.winner, version=conflict.current_version)
+            return (
+                EditSurface.of(winner, bestand)
+                .submitted(request.POST, conflict.current_version)
+                .render(request, autofocus="speichern", overlay=Conflict(conflict.submitted))
             )
-            return render_screen(request, "workbench/artikel_bearbeiten.html", context)
         case catalog.DeletedOutcome():
             # hard-deleted underneath the save — collapse to the byte-identical 404
             return _not_found()
 
 
-def _rerender_with_custom_removed(
-    request: HttpRequest,
-    ulid: Ulid,
-    bestand: BestandChooser,
-    current: Article,
-) -> HttpResponseBase:
-    """The no-JS custom-row removal: drop the row whose index rode the submit, re-render with every
-    other value preserved, save nothing (spec §5). The index names a position in the RAW POST's
-    lists, so it is popped BEFORE ``_post_to_form_values`` filters blank rows — popping after would
-    shift positions and drop the wrong row whenever an earlier one was blanked in the browser. A bad
-    index is a no-op, never a raise."""
-    post = request.POST
-    raw_rows = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
+def _named_custom_row(post: QueryDict) -> int:
+    """The custom row the ``custom_entfernen`` submit names — a position in the RAW POST lists. A
+    non-numeric value yields ``-1``, which drops nothing."""
     try:
-        index = int(post.get("custom_entfernen", ""))
+        return int(post.get("custom_entfernen", ""))
     except ValueError:
-        index = -1
-    if 0 <= index < len(raw_rows):
-        raw_rows.pop(index)
-    rows = [pair for pair in raw_rows if pair != ("", "")]
-    rows.append(("", ""))  # keep the always-present empty add-row
-    values = _post_to_form_values(post, ulid, current.lifecycle)
-    values["custom_rows"] = rows
-    version = catalog.parse_version(request.POST.get("expected_version", ""))
-    media = catalog._apply_captions(request.POST, current.media)
-    context = _edit_context(
-        values, version, bestand, errors={}, autofocus="", media=media, stored=current
-    )
-    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
+        return -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -332,107 +301,157 @@ class _ConflictRow:
     is_sig: bool
 
 
-def _edit_context_from_article(
-    article: Article,
-    version: int,
-    bestand: BestandChooser,
-    *,
-    autofocus: str | None,
-    entfernen_hash: str = "",
-) -> dict[str, object]:
-    """The edit form context seeded from a stored Article (the GET path). ``autofocus`` is the field
-    to focus, ``""`` for none, or ``None`` to walk the cataloguing spine for its first empty field
-    (spec §5) — the caller decides BEFORE the rows are built, since each row carries its own focus.
-    The media register renders the stored media, cover-first; ``entfernen_hash`` puts one row into the
-    remove-confirm state."""
-    values = _article_to_form_values(article)
-    if autofocus is None:
-        autofocus = _first_empty_field(values)
-    return _edit_context(
-        values,
-        version,
-        bestand,
-        errors={},
-        autofocus=autofocus,
-        media=article.media,
-        entfernen_hash=entfernen_hash,
-        stored=article,
-    )
+# --- THE EDIT SURFACE --------------------------------------------------------------
+#
+# ONE value object per request and ONE render of workbench/artikel_bearbeiten.html: the template's
+# whole context is built in one expression below, and every panel that can sit over the form is a
+# member of the Overlay union (debt #3).
 
 
-def _edit_context_from_post(
-    request: HttpRequest,
-    ulid: Ulid,
-    result: catalog.ParseResult,
-    bestand: BestandChooser,
-    *,
-    autofocus: str,
-    media: tuple[MediaRef, ...],
-    stored: Article,
-    conflict: catalog.ConflictOutcome | None = None,
-) -> dict[str, object]:
-    """The edit form context re-seeded from the raw POST (state F/G): the just-typed values are
-    preserved verbatim. On a ``Conflict`` the hidden ``expected_version`` is refreshed to the winner's
-    and the neutral diff rows are attached (spec §6.1). ``stored`` is the Article as it stands on disk
-    (the conflict WINNER in state G): it supplies the lifecycle and the reader's sheet, which shows
-    the SAVED record, never the unsaved keystrokes."""
-    values = _post_to_form_values(request.POST, ulid, stored.lifecycle)
-    version = conflict.current_version if conflict is not None else result.expected_version
-    context = _edit_context(
-        values,
-        version,
-        bestand,
-        errors=result.errors,
-        autofocus=autofocus,
-        media=media,
-        stored=stored,
-    )
-    if conflict is not None:
-        context["conflict"] = True
-        context["conflict_rows"] = _conflict_rows(conflict.submitted, conflict.winner)
-    return context
+@dataclass(frozen=True, slots=True)
+class NoOverlay:
+    """The plain edit form: no panel over the surface."""
 
 
-def _edit_context(
-    values: dict[str, object],
-    version: int,
-    bestand: BestandChooser,
-    *,
-    errors: catalog.FormErrors,
-    autofocus: str,
-    stored: Article,
-    media: tuple[MediaRef, ...] = (),
-    entfernen_hash: str = "",
-) -> dict[str, object]:
-    """Assemble the full edit-form context: values, option lists, errors, the hidden version, the
-    autofocus target, and the reader's sheet built from ``stored`` — the Article as SAVED, so the
-    sheet never renders unsaved input. ``entfernen_hash`` puts one media row into its confirm
-    state."""
-    # the custom bag's KEYS for its folded summary. ``values`` is the flat template dict, so the rows
-    # arrive as ``object`` and the isinstance narrows them.
-    rows = values.get("custom_rows")
-    custom_keys = [key for key, _ in rows if key] if isinstance(rows, list) else []
-    return {
-        "values": values,
-        "version": version,
-        "errors": errors,
-        "autofocus": autofocus,
-        # The card's rows, section by section — the template loops these, so the registry is the ONE
-        # place a field of the record card exists.
-        "card_fields": _card_fields(values, bestand, errors=errors, autofocus=autofocus),
-        "media_rows": _media_rows(str(values.get("ulid") or ""), media, entfernen_hash),
-        # The folded sections' summary values (owner ruling 4: folding may never hide data). Both
-        # read what the FIELDS print — the caption off the very option list the select renders — so a
-        # summary cannot spell a fact differently from its field (law C7).
-        "sichtbarkeit_caption": _sichtbarkeit_caption(str(values.get("sichtbarkeit") or "")),
-        "custom_keys": custom_keys,
-        # Which folded sections render OPEN: the ones holding an error message or the autofocus
-        # target, so neither can end up inside a fold (see the field registry's `section`).
-        "open_sections": _open_sections(errors, autofocus),
-        # The reader's sheet (ruling 1) and, through it, the exposure statement (ruling 5) — ONE
-        # view-model for both of that statement's placements.
-        "sheet": _sheet_view_model(stored, bestand),
-    }
+@dataclass(frozen=True, slots=True)
+class Conflict:
+    """State G (spec §6.1): a concurrent save won while the archivist was typing. The WINNER is the
+    surface's own stored Article — a surface is always built from the saved record — so only the
+    submitted one rides here, and the neutral diff cannot compare against the wrong pair."""
+
+    submitted: Article
+
+
+@dataclass(frozen=True, slots=True)
+class MediaError:
+    """A structural media change the register refuses (oversize upload, a lost race): one German line
+    above the register. Not a field error — nothing the archivist typed is wrong."""
+
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class IndexLag:
+    """State H (ADR 0014): the canonical write stood, the synchronous index update did not."""
+
+
+@dataclass(frozen=True, slots=True)
+class RemoveConfirm:
+    """Step 1 of the two-step no-JS media removal (spec §6.3): this row asks before dropping."""
+
+    content_hash: str
+
+
+#: What may sit over the edit surface — CLOSED, so the template's panels are enumerable from here.
+type Overlay = NoOverlay | Conflict | MediaError | IndexLag | RemoveConfirm
+
+_NO_OVERLAY = NoOverlay()
+
+#: The state-H hinweis (ADR 0014), shown when a save's index update lagged.
+_INDEX_LAG_HINWEIS = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
+
+
+@dataclass(frozen=True, slots=True)
+class EditSurface:
+    """The archivist's edit surface for ONE article: the record as SAVED, plus whatever the form
+    currently shows.
+
+    ``stored`` is always the article as it stands on disk — the GET seed, the article the POST was
+    parsed against, the winner of a lost CAS race, or the one a save just wrote. That is what makes
+    the reader's sheet honest: a box labelled „Leseansicht“ carries the exposure statement (owner
+    ruling 5), so it may never show keystrokes describing a record that does not exist yet.
+
+    ``values``/``media`` are what the FORM shows, which is the stored record on a GET and the
+    archivist's own input on every re-render. ``version`` is what the hidden ``expected_version``
+    carries, and it is the SUBMISSION's on a re-render (a stale form must keep losing) — refreshed
+    only where a ``Conflict`` re-seeds the surface from the winner (spec §6.1)."""
+
+    stored: Article
+    version: Version
+    bestand: BestandChooser
+    values: dict[str, object]
+    media: tuple[MediaRef, ...]
+
+    @classmethod
+    def of(cls, stored: Stored, bestand: BestandChooser) -> EditSurface:
+        """The surface as saved: the form seeded from the stored Article, the register showing its
+        media, the hidden version the one to save against."""
+        return cls(
+            stored=stored.article,
+            version=stored.version,
+            bestand=bestand,
+            values=_article_to_form_values(stored.article),
+            media=stored.article.media,
+        )
+
+    def submitted(
+        self, post: QueryDict, version: Version, *, drop_custom_row: int | None = None
+    ) -> EditSurface:
+        """The same saved surface with the form re-seeded from ``post``: the just-typed values
+        verbatim (the archivist never loses input) and the register carrying the captions that ride
+        THIS submission, so a re-render shows no caption the next Speichern would not write.
+        ``drop_custom_row`` is the no-JS custom-row removal (spec §5)."""
+        return replace(
+            self,
+            version=version,
+            values=_post_to_form_values(
+                post, self.stored.ulid, self.stored.lifecycle, drop_custom_row=drop_custom_row
+            ),
+            media=catalog.apply_captions(post, self.stored.media),
+        )
+
+    def first_empty_field(self) -> str:
+        """The cataloguing spine's first empty field — the fresh-edit autofocus target (spec §5)."""
+        return _first_empty_field(self.values)
+
+    def render(
+        self,
+        request: HttpRequest,
+        *,
+        errors: catalog.FormErrors | None = None,
+        autofocus: str = "",
+        overlay: Overlay = _NO_OVERLAY,
+    ) -> HttpResponseBase:
+        """THE render of the edit form. ``autofocus`` is the field to focus, ``""`` for none; the
+        folded sections holding an error or the focus open themselves from the same two arguments,
+        so neither can end up inside a fold (G.33)."""
+        errors = errors or {}
+        rows = self.values.get("custom_rows")
+        conflict = overlay if isinstance(overlay, Conflict) else None
+        confirm = overlay.content_hash if isinstance(overlay, RemoveConfirm) else ""
+        return render_screen(
+            request,
+            "workbench/artikel_bearbeiten.html",
+            {
+                "values": self.values,
+                "version": self.version,
+                "errors": errors,
+                "autofocus": autofocus,
+                # The card's rows, section by section — the template loops these, so the registry is
+                # the ONE place a field of the record card exists.
+                "card_fields": _card_fields(
+                    self.values, self.bestand, errors=errors, autofocus=autofocus
+                ),
+                "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
+                # The folded sections' summary values (owner ruling 4: folding may never hide data).
+                # Both read what the FIELDS print — the caption off the very option list the select
+                # renders — so a summary cannot spell a fact differently from its field (law C7).
+                "sichtbarkeit_caption": _sichtbarkeit_caption(
+                    str(self.values.get("sichtbarkeit") or "")
+                ),
+                "custom_keys": [key for key, _ in rows if key] if isinstance(rows, list) else [],
+                "open_sections": _open_sections(errors, autofocus),
+                # The reader's sheet (ruling 1) and, through it, the exposure statement (ruling 5) —
+                # ONE view-model for both of that statement's placements.
+                "sheet": _sheet_view_model(self.stored, self.bestand),
+                "conflict": conflict is not None,
+                "conflict_rows": (
+                    _conflict_rows(conflict.submitted, self.stored) if conflict else ()
+                ),
+                "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
+                "index_lag": _INDEX_LAG_HINWEIS if isinstance(overlay, IndexLag) else "",
+            },
+        )
 
 
 def _sichtbarkeit_caption(value: str) -> str:
@@ -520,21 +539,24 @@ def _article_to_form_values(article: Article) -> dict[str, object]:
     return values
 
 
-def _post_to_form_values(post: QueryDict, ulid: Ulid, lifecycle: Lifecycle) -> dict[str, object]:
+def _post_to_form_values(
+    post: QueryDict, ulid: Ulid, lifecycle: Lifecycle, *, drop_custom_row: int | None = None
+) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
     so the archivist never loses input; custom rows carry exactly one trailing blank pair.
-    ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed."""
-    rows = [
-        pair
-        for pair in zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False)
-        if pair != ("", "")
-    ]
-    rows.append(("", ""))
+    ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed.
+
+    ``drop_custom_row`` names a position in the RAW lists, so it is popped BEFORE the blank rows are
+    filtered — popping after would shift positions and drop the wrong row whenever an earlier one was
+    blanked in the browser. An out-of-range index drops nothing, never raises."""
+    raw = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
+    if drop_custom_row is not None and 0 <= drop_custom_row < len(raw):
+        raw.pop(drop_custom_row)
     values: dict[str, object] = {"ulid": ulid}
     for registered in _FIELDS:
         if registered.control:
             values[registered.name] = post.get(registered.name, "")
-    values["custom_rows"] = rows
+    values["custom_rows"] = [*(pair for pair in raw if pair != ("", "")), ("", "")]
     values["is_draft"] = lifecycle is Lifecycle.DRAFT
     return values
 
@@ -1216,7 +1238,9 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
         )
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
-    return _rerender_edit(request, archive, ulid, stored=stored, entfernen_hash=content_hash)
+    return EditSurface.of(stored, BestandChooser.of(archive)).render(
+        request, overlay=RemoveConfirm(content_hash)
+    )
 
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1233,8 +1257,8 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     files = request.FILES.getlist("dateien")
     oversize = any(f.size is not None and f.size > _MAX_UPLOAD_BYTES for f in files)
     if oversize:
-        return _rerender_edit(
-            request, archive, ulid, medien_fehler="Datei zu groß. Bitte kleinere Dateien hochladen."
+        return EditSurface.of(stored, BestandChooser.of(archive)).render(
+            request, overlay=MediaError("Datei zu groß. Bitte kleinere Dateien hochladen.")
         )
     repo = archive.articles
     new_refs = [
@@ -1242,9 +1266,8 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
     if new_refs:
         return _structural_change(request, archive, ulid, lambda media: (*media, *new_refs))
-    return _rerender_edit(
-        request, archive, ulid, stored=stored
-    )  # no files posted — plain re-render
+    # no files posted — plain re-render of the gated Stored
+    return EditSurface.of(stored, BestandChooser.of(archive)).render(request)
 
 
 def _structural_change(
@@ -1259,23 +1282,29 @@ def _structural_change(
     loaded rather than the form's expected_version (spec §6.3), which is what makes retrying safe.
 
     Hard-deleted underneath → the plain 404 (not a hinweis-worthy conflict); every attempt lost the
-    race → the edit form with the konflikt hinweis; committed → the edit form fed the post-save
-    state (no re-load)."""
+    race → the edit form with the konflikt hinweis, over a FRESH load (the winners changed what the
+    register holds); committed → the edit form fed the post-save state, no re-load."""
     outcome = article_services.update_article(
         archive,
         ulid,
         lambda article: replace(article, media=transform(article.media)),
         retries=_STRUCTURAL_SAVE_RETRIES,
     )
+    bestand = BestandChooser.of(archive)
     match outcome:
         case Missing():
             return _not_found()
         case Conflicted():
-            return _rerender_edit(request, archive, ulid, medien_fehler=_MEDIEN_KONFLIKT)
-        case Updated(article=article, version=version):
-            return _rerender_edit(
-                request, archive, ulid, stored=Stored(article=article, version=version)
+            try:
+                stored = archive.articles.load(ulid)
+            except ArchiveError:
+                return _not_found()  # hard-deleted between the lost race and this re-load
+            return EditSurface.of(stored, bestand).render(
+                request, overlay=MediaError(_MEDIEN_KONFLIKT)
             )
+        case Updated(article=article, version=version):
+            saved = Stored(article=article, version=version)
+            return EditSurface.of(saved, bestand).render(request)
 
 
 def _reordered(
@@ -1298,48 +1327,6 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
     """The media tuple without the entry named by ``content_hash`` (the blob stays on disk, write-once
     recoverable). A missing hash is a no-op."""
     return tuple(r for r in media if r.content_hash != content_hash)
-
-
-def _rerender_edit(
-    request: HttpRequest,
-    archive: Archive,
-    ulid: Ulid,
-    *,
-    stored: Stored | None = None,
-    bestand: BestandChooser | None = None,
-    entfernen_hash: str = "",
-    medien_fehler: str = "",
-    index_lag: bool = False,
-) -> HttpResponseBase:
-    """Re-render the edit form after a structural media change (or the remove-confirm step, or a
-    saved-but-index-lagged metadata save). ``stored``/``bestand`` let a caller that already has
-    the current state hand it over instead of paying for a re-load here (P2, issue #2 perf): pass the
-    post-save ``Stored`` a structural save just produced, or the ``bestand`` already in scope on
-    the index-lag save path. Either omitted loads fresh, so ``entfernen_hash``'s show-confirm call
-    (no save happened) and any future caller without the state in scope still work unchanged.
-    ``entfernen_hash`` shows one row's inline remove-confirm; ``medien_fehler`` surfaces an upload
-    error above the register; ``index_lag`` shows the ADR-0014 state-H hinweis. If ``stored`` is
-    omitted and the article was hard-deleted underneath (the initial gate saw it, but this re-load
-    does not), collapses to the byte-identical 404 rather than letting the load failure propagate."""
-    if stored is None:
-        try:
-            stored = archive.articles.load(ulid)
-        except ArchiveError:
-            return _not_found()
-    if bestand is None:
-        bestand = BestandChooser.of(archive)
-    context = _edit_context_from_article(
-        stored.article,
-        stored.version,
-        bestand,
-        autofocus="",
-        entfernen_hash=entfernen_hash,
-    )
-    if medien_fehler:
-        context["medien_fehler"] = medien_fehler
-    if index_lag:
-        context["index_lag"] = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
-    return render_screen(request, "workbench/artikel_bearbeiten.html", context)
 
 
 # --- HTMX enhancement partials (Slice E, spec §5) ----------------------------------

@@ -53,14 +53,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Residue:** `catalog.parse_edit_form` keeps its own enumeration on purpose (ADR 0008: the pure
   leak-sensitive layer must not import the view module).
 
-### 3. EditSurface — one render, one overlay union — Strong
-- **Indicator:** 5 functions render `artikel_bearbeiten.html`; `catalog_views.py` 1425 lines (2026-09-02)
-- **Evidence:** the template's context is knowable only by reading all five; `stored` means four
-  different Articles depending on caller; overlay keys (`medien_fehler`, `index_lag`) patched in
-  post hoc. Accreted. ADR 0013 untouched — the one Conflict catch stays in `save_catalog_form`.
-- **Deletion test:** passes — one value object replaces five ad-hoc context builds.
-- **Sketch:** `EditSurface` built once from the gated `Stored`; `render(request, *, errors,
-  autofocus, overlay)` over a closed `NoOverlay | Conflict | MediaError | IndexLag | RemoveConfirm`.
+### 3. EditSurface — one render, one overlay union — done
+- **Indicator:** render entry points 5 → 1, post-hoc context keys 3 → 0, `catalog_views.py`
+  1425 → 1367 lines (2026-09-02)
+- **Evidence:** `EditSurface.of`/`.submitted`/`.render` over `NoOverlay | Conflict | MediaError |
+  IndexLag | RemoveConfirm`; the three `_edit_context*` builders, `_rerender_edit` and
+  `_rerender_with_custom_removed` are gone, and `stored` is always the SAVED article.
+- **Residue:** `catalog.apply_captions` went public — the register's reconstruction has one site now.
 
 ### 4. Lift the CAS retry to the layer owning the write cycle — done
 - **Indicator:** hand-rolled load-mutate-save loops 2 → 0; `except Conflict` in `app/web` 3 → 2, both
