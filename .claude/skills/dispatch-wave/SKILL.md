@@ -15,7 +15,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 ## Brief mechanics (each brief is a file on disk)
 
-- State **deltas, not absolutes**; the writer reads current reality first.
+- State **deltas, not absolutes**; the writer reads current reality first. Cite the task's `docs/tech-debt.md` entry by number — its evidence pointers replace a grep sweep (writers rank this the highest-value line a brief carries).
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.

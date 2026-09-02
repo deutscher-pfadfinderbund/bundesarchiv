@@ -164,7 +164,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Process law
 
-No open entries.
+- **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (bestand.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 1.
 
 ## Build & CI
 
