@@ -27,6 +27,7 @@
 | Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run gate` — the full gate, mypy and every suite included |
 | Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
 | Postgres-backed tests only | `mise run test:db` |
+| New test in `tests/app/` or `tests/index/` that uses `django_db` | also `mise run test:db` — `check` deselects it (auto-marked `requires_pg`), so `check` alone never runs it |
 | UI change | `mise run test:gallery` and `mise run test:e2e`, per the design-gate brief |
 
 Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.

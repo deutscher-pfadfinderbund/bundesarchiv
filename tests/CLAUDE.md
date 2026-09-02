@@ -50,7 +50,9 @@ sits inside the razor as loss-critical, not as codec-mechanics.
   fail-closed chains) and value-object invariants. Leak-critical.
 - `persistence/` — canonical files: codecs (corrupt-decode tables), CAS races,
   crash durability, the ObjectStore contract across all three adapters.
-  Loss-critical.
+  Loss-critical. Collected counts here move in multiples: the `repo` fixture
+  is adapter-parametrized, so one test function is two collected tests (the
+  conformance suite: three).
 - `index/` — viewer-scoped search: the leak suites (`test_leaks*.py`), the
   SQL-vs-domain equivalence proof (`test_equivalence.py`), indexer/incremental
   correctness. Leak-critical; the index itself is disposable.

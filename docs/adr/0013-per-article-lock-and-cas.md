@@ -25,11 +25,13 @@ the canonical store (README files through the ObjectStore port).
   version it loaded as a hidden field. On `Conflict` the UI re-loads, shows
   "Inzwischen geändert von …" with a field-level diff, and lets the archivist
   re-apply. Never silent last-writer-wins, never an automatic merge.
-- The existing `ArticleRepository.update(ulid, mutate, retries=…)` — which
-  re-loads and retries on `Conflict` — is **for internal idempotent mutations
-  only** (worker jobs, migrations). It is last-writer-wins by construction and
-  therefore FORBIDDEN for form saves; its docstring gets that warning in
-  Part 4.1.
+- The retrying variant — re-load and retry on `Conflict` — is **for internal
+  idempotent mutations only** (worker jobs, structural changes). It is
+  last-writer-wins by construction and therefore FORBIDDEN for form saves.
+  *(Amended 2026-09: it lives as `app.articles.update_article`, one level up,
+  so a retry carries the full write shell; the repository-level `update()`
+  this ADR originally named had no production caller and was deleted. The
+  split is now enforced by which service a caller uses, not by a docstring.)*
 - Atomicity sits at the port: `write_atomic`'s create-or-replace contract (the
   LocalFs adapter implements it temp→fsync→rename; other adapters honor the
   same contract). The check-and-write critical section is serialized by one
