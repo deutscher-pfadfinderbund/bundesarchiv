@@ -17,9 +17,8 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -35,9 +34,10 @@ from bundesarchiv.app.web.article_auth import (
     resolve_visible_article,
     resolve_visible_detail,
 )
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
 from bundesarchiv.app.web.viewers import viewer_of
-from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
+from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
 from bundesarchiv.index.query import FacetCount, SearchHit
@@ -48,11 +48,6 @@ _STATIC_DIR = Path(__file__).parent / "static"
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
 _PANE_PARAM = "artikel"
-
-#: The shared per-request collection-names loader (a memoized zero-arg callable): built once in
-#: ``_results_context`` and passed to both consumers, so the names load at most once per request —
-#: and not at all on a page that resolves none (issue #2 P1).
-type _NamesLoader = Callable[[], dict[Ulid, str]]
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -154,7 +149,7 @@ class _FilterChip:
 
 
 def _filter_chips(
-    params: dict[str, str], parsed: browse.ParsedQuery, names: _NamesLoader
+    params: dict[str, str], parsed: browse.ParsedQuery, bestand: BestandChooser
 ) -> tuple[_FilterChip, ...]:
     """Every active filter as a rail chip, derived from the PARSED URL state — not from the facet
     counts. The distinction matters exactly on the zero-hit page: a filter that matches nothing
@@ -171,7 +166,7 @@ def _filter_chips(
         )
 
     if f.collection is not None:
-        chip(browse.PARAM_COLLECTION, "Bestand", names().get(f.collection, f.collection))
+        chip(browse.PARAM_COLLECTION, "Bestand", bestand.name_of(f.collection) or f.collection)
     if f.media_type is not None:
         chip(browse.PARAM_MEDIA_TYPE, "Medienart", f.media_type)
     if f.document_type is not None:
@@ -440,10 +435,7 @@ def _results_context(
     }
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
-    # The ONE per-request collection-names load, memoized and shared by its two consumers (the
-    # Bestand facet labels + the bulk drawer's options) — and LAZY: a page that resolves no names
-    # (zero hits, no collection counts, non-archivist) never loads at all (issue #2 P1, pinned).
-    names = cache(_collection_names)
+    bestand = BestandChooser.of(Archive.canonical())
     # The ?zurueck= suffix every detail link carries: the current search (params already excludes
     # artikel + auswahl), so the detail page's "Zurück zur Suche" restores it. Empty when no search.
     zurueck = _zurueck_suffix(params)
@@ -453,10 +445,10 @@ def _results_context(
         # refining WITHIN the current filter scope instead of silently dropping it.
         "filter_params": _form_filters(params),
         "page": page,
-        "facet_groups": _facet_groups(params, parsed, page, names),
+        "facet_groups": _facet_groups(params, parsed, page, bestand),
         # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
         # its removal affordance even after it vanishes from the recomputed facet counts.
-        "filter_chips": _filter_chips(params, parsed, names),
+        "filter_chips": _filter_chips(params, parsed, bestand),
         # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
         # drops every filter param, keeps q + sort. The template renders it only alongside chips.
         "clear_filters_query": browse.clear_filters_query(params),
@@ -484,7 +476,7 @@ def _results_context(
         "leerer_bestand": _only_bestand_filter(parsed) if total == 0 else None,
     }
     if is_archivist:
-        context.update(_bulk_bar_context(params, page, auswahl, names))
+        context.update(_bulk_bar_context(params, page, auswahl, bestand))
     return context
 
 
@@ -509,7 +501,7 @@ def _bulk_bar_context(
     params: dict[str, str],
     page: object,
     auswahl: list[str],
-    names: _NamesLoader,
+    bestand: BestandChooser,
 ) -> dict[str, object]:
     """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
 
@@ -542,7 +534,7 @@ def _bulk_bar_context(
         "has_auswahl": bool(auswahl),
         "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
-        **bulk.feldwahl_context(names()),
+        **bulk.feldwahl_context(bestand),
     }
     if auswahl:
         context["auswahl_count"] = len(auswahl)
@@ -556,13 +548,13 @@ def _facet_groups(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
     page: object,
-    names: _NamesLoader,
+    bestand: BestandChooser,
 ) -> tuple[_FacetGroup, ...]:
     """Build every rail facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
-    collection group resolves ULID facet values to Collection names (via ``names``, the shared
+    collection group resolves ULID facet values to Collection names (via ``bestand``, the shared
     per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
     facets = page.facets  # type: ignore[attr-defined]
-    groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()), names)]
+    groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()), bestand)]
     groups += [
         _FacetGroup(heading, _facet_items(params, param, facets.get(key, ())))
         for key, param, heading in _FACET_GROUPS
@@ -576,7 +568,7 @@ def _facet_items(
     param: str,
     counts: tuple[FacetCount, ...],
     *,
-    labels: dict[str, str] | None = None,
+    labels: Mapping[str, str] | None = None,
 ) -> tuple[_FacetItem, ...]:
     """Turn a facet's ``FacetCount``s into clickable items. ``labels`` optionally maps the raw value
     to a display name (used for collection ULIDs). An item whose value is the current selection is
@@ -598,14 +590,14 @@ def _facet_items(
 def _collection_group(
     params: dict[str, str],
     counts: tuple[FacetCount, ...],
-    names: _NamesLoader,
+    bestand: BestandChooser,
 ) -> _FacetGroup:
     """The Bestand facet: ULIDs resolved to Collection names. Counts are SUBTREE counts (the query
     facets over ``collection_ancestors``), so the number matches what clicking the (subtree) filter
     yields — a bare right-aligned count like every other group (the old "direkt:" hedge is gone).
     Empty ``counts`` yields an empty group (dropped by ``_facet_groups``) — and resolves no names,
     keeping the shared load lazy."""
-    labels = names() if counts else {}
+    labels = bestand.names() if counts else {}
     return _FacetGroup(
         "Bestand",
         _facet_items(params, browse.PARAM_COLLECTION, counts, labels=labels),
@@ -652,13 +644,6 @@ def _sort_label(sort: str) -> str:
     return next(
         (label for label, order in browse._SORT_BY_LABEL.items() if order == sort), "relevanz"
     )
-
-
-def _collection_names() -> dict[Ulid, str]:
-    """A ULID→name map of every saved Collection (read-only, per request) for resolving the
-    collection facet's ULID values to human names."""
-    collections: tuple[Collection, ...] = Archive.canonical().collections.load_all()
-    return {c.ulid: c.name for c in collections}
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:

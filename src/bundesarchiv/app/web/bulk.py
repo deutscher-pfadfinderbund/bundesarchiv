@@ -27,13 +27,14 @@ shell over the real ``update_article`` service:
   ulid lands in exactly one bucket (``saved + conflicted + missing == distinct auswahl``).
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import vocab
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.domain.models import Article, Ulid
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -95,12 +96,12 @@ _WIDGET_TARGETS: dict[str, str] = {
 
 
 def feldwahl_context(
-    collection_names: Mapping[Ulid, str], *, feld: str = "", wert: str = ""
+    bestand: BestandChooser, *, feld: str = "", wert: str = ""
 ) -> dict[str, object]:
     """The whole Feld-chooser context behind ``workbench/_feldwahl.html`` (spec §2 C) — ONE builder
     for the workbench bulk bar and the confirm page's error mode, so the two renders cannot drift.
     ``feld``/``wert`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
-    ``collection_names`` is the ULID→name map the Sammlungsteil options are built from."""
+    ``bestand`` supplies the Sammlungsteil widget's options."""
     return {
         "feldwahl_feld": feld,
         "feldwahl_wert": wert,
@@ -108,10 +109,7 @@ def feldwahl_context(
         "feldwahl_targets": _WIDGET_TARGETS,
         "feldwahl_media_type_options": vocab.media_type_options(),
         "feldwahl_document_type_groups": vocab.grouped_document_type_options(),
-        "feldwahl_collection_options": (
-            ("", "— Bestand wählen —"),
-            *sorted(collection_names.items(), key=lambda kv: kv[1]),
-        ),
+        "feldwahl_collection_options": bestand.options(),
     }
 
 
@@ -188,14 +186,14 @@ def document_type_fits_all(document_type: str, articles_: Sequence[Article]) -> 
     return all(vocab.is_valid_pair(a.media_type, document_type) for a in articles_)
 
 
-def field_display(feld: str, wert: str, collection_names: Mapping[str, str]) -> str:
+def field_display(feld: str, wert: str, bestand: BestandChooser) -> str:
     """The confirm/result page's human display of the new value (spec §2 D): a collection shows its
     NAME (not the ulid); an emptied scalar shows ``(geleert)``; else the value verbatim. The Signatur
     field is not bulk-editable, so no ``.c-sig`` rendering is needed here."""
     if not wert.strip():
         return "(geleert)"
     if feld == "collection_id":
-        return collection_names.get(wert, wert)
+        return bestand.name_of(wert) or wert
     return wert
 
 

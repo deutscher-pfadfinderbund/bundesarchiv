@@ -20,10 +20,11 @@ from django.http.response import HttpResponseBase
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import _is_archivist, render_screen
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, Ulid
+from bundesarchiv.domain.models import Article
 from bundesarchiv.persistence.errors import ArchiveError
 
 
@@ -33,6 +34,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     if not _is_archivist(request) or request.method != "POST":
         return _not_found()
     archive = Archive.canonical()
+    bestand = BestandChooser.of(archive)
     auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
     feld = request.POST.get("feld", "")
     # Read the value for ANY feld, allowed or not: a refused field never mutates (``_validate``
@@ -40,13 +42,13 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     # value whenever the placeholder was submitted.
     wert = request.POST.get(bulk.value_input_of(feld), "")
 
-    error = _validate(auswahl, feld, archive, wert)
+    error = _validate(auswahl, feld, archive, bestand, wert)
     if error is not None:
-        return _reject(request, archive, auswahl, feld, wert, error)
+        return _reject(request, bestand, auswahl, feld, wert, error)
 
     if request.POST.get("bestaetigt") == "1":
-        return _commit(request, archive, auswahl, feld, wert)
-    return _confirm(request, archive, auswahl, feld, wert)
+        return _commit(request, archive, bestand, auswahl, feld, wert)
+    return _confirm(request, archive, bestand, auswahl, feld, wert)
 
 
 def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
@@ -76,7 +78,9 @@ def _distinct_valid_ulids(raw: list[str]) -> list[str]:
     return list(dict.fromkeys(u for u in raw if is_valid_ulid(u)))
 
 
-def _validate(auswahl: list[str], feld: str, archive: Archive, wert: str) -> str | None:
+def _validate(
+    auswahl: list[str], feld: str, archive: Archive, bestand: BestandChooser, wert: str
+) -> str | None:
     """Return the verbatim German error for an invalid apply, or ``None`` if it may proceed. Order:
     selection present → field chosen + allowed → value-level (collection in set; Dokumenttyp-alone
     fits every article's current Medienart). Fail-closed: an unknown field is refused (zero mutation).
@@ -87,8 +91,8 @@ def _validate(auswahl: list[str], feld: str, archive: Archive, wert: str) -> str
         return "Bitte ein Feld wählen."
     if feld == "media_type" and (wert.strip() not in vocab.media_types()):
         return "Medienart ist erforderlich."
-    if feld == "collection_id" and wert.strip() not in _collection_names(archive):
-        return "Bitte einen Bestand wählen."
+    if feld == "collection_id" and not bestand.accepts(wert):
+        return bestand.error()
     if feld == "document_type" and wert.strip():
         loaded = _load_all(archive, auswahl)
         if not bulk.document_type_fits_all(wert.strip(), loaded):
@@ -100,13 +104,17 @@ def _validate(auswahl: list[str], feld: str, archive: Archive, wert: str) -> str
 
 
 def _confirm(
-    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str
+    request: HttpRequest,
+    archive: Archive,
+    bestand: BestandChooser,
+    auswahl: list[str],
+    feld: str,
+    wert: str,
 ) -> HttpResponseBase:
     """Render the full-page confirm (state D). Loads each selected article (read-only) for the c-sig +
     Titel list and to detect Medienart orphans. Absent articles are silently skipped from the list
     (they will bucket ``missing`` on commit) — no deleted-vs-never oracle."""
     articles = _load_all(archive, auswahl)
-    names = _collection_names(archive)
     orphans = _orphans(articles, feld, wert)
     return render_screen(
         request,
@@ -117,7 +125,7 @@ def _confirm(
             "wert": wert,
             "wert_field": bulk.value_input_of(feld),
             "feld_label": bulk.label_of(feld),
-            "wert_display": bulk.field_display(feld, wert, names),
+            "wert_display": bulk.field_display(feld, wert, bestand),
             "anzahl": len(articles),
             "artikel_liste": [_confirm_row(a) for a in articles],
             "orphans": [_orphan_row(a) for a in orphans],
@@ -127,7 +135,12 @@ def _confirm(
 
 
 def _commit(
-    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str
+    request: HttpRequest,
+    archive: Archive,
+    bestand: BestandChooser,
+    auswahl: list[str],
+    feld: str,
+    wert: str,
 ) -> HttpResponseBase:
     """Run the apply (state R). If the Medienart change orphans any Dokumenttyp, the commit REQUIRES
     ``dokumenttyp_leeren=1`` (server-enforced, geprueft-idiom) — a missing flag re-confirms without
@@ -138,15 +151,14 @@ def _commit(
         and request.POST.get("dokumenttyp_leeren") != "1"
         and _orphans(_load_all(archive, auswahl), feld, wert)
     ):
-        return _confirm(request, archive, auswahl, feld, wert)  # re-confirm, no write
+        return _confirm(request, archive, bestand, auswahl, feld, wert)  # re-confirm, no write
     outcome = bulk.apply_bulk(archive, auswahl, feld, wert)
-    names = _collection_names(archive)
     return render_screen(
         request,
         "workbench/sammelbearbeitung_ergebnis.html",
         {
             "feld_label": bulk.label_of(feld),
-            "wert_display": bulk.field_display(feld, wert, names),
+            "wert_display": bulk.field_display(feld, wert, bestand),
             "saved": outcome.saved,
             "conflicted": outcome.conflicted,
             "missing": outcome.missing,
@@ -159,7 +171,12 @@ def _commit(
 
 
 def _reject(
-    request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str, error: str
+    request: HttpRequest,
+    bestand: BestandChooser,
+    auswahl: list[str],
+    feld: str,
+    wert: str,
+    error: str,
 ) -> HttpResponseBase:
     """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the shared Feld
     chooser (``bulk.feldwahl_context``: the chosen field pre-selected, the submitted wert re-echoed
@@ -182,7 +199,7 @@ def _reject(
             "artikel_liste": [],
             "orphans": [],
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
-            **bulk.feldwahl_context(_collection_names(archive), feld=feld, wert=wert),
+            **bulk.feldwahl_context(bestand, feld=feld, wert=wert),
         },
     )
 
@@ -224,8 +241,3 @@ def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
         except ArchiveError:
             continue
     return out
-
-
-def _collection_names(archive: Archive) -> dict[Ulid, str]:
-    """ULID→name map of every collection (for the collection-value validation + display)."""
-    return {c.ulid: c.name for c in archive.collections.load_all()}

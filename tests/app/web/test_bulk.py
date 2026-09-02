@@ -12,7 +12,8 @@ import pytest
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
-from bundesarchiv.domain.models import Article
+from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import Conflict
 
@@ -98,18 +99,22 @@ def test_apply_media_type_keeps_valid_document_type() -> None:
 # --- confirm-page display of the new value (spec §2 D) -----------------------------
 
 
+def _bestand(*collections: Collection) -> BestandChooser:
+    return BestandChooser(lambda: collections)
+
+
 def test_field_display_value_collection_uses_name() -> None:
     # the confirm page shows the collection NAME, not the ulid (spec §2 D)
-    label = bulk.field_display("collection_id", "C1", {"C1": "Fotos"})
+    label = bulk.field_display("collection_id", "C1", _bestand(Collection(ulid="C1", name="Fotos")))
     assert label == "Fotos"
 
 
 def test_field_display_value_emptied() -> None:
-    assert bulk.field_display("creator", "", {}) == "(geleert)"
+    assert bulk.field_display("creator", "", _bestand()) == "(geleert)"
 
 
 def test_field_display_scalar() -> None:
-    assert bulk.field_display("creator", "K. Meyer", {}) == "K. Meyer"
+    assert bulk.field_display("creator", "K. Meyer", _bestand()) == "K. Meyer"
 
 
 # --- dependent-pair validation for Dokumenttyp-alone (spec §3) ---------------------
