@@ -30,6 +30,8 @@
 | New test in `tests/app/` or `tests/index/` that uses `django_db` | also `mise run test:db` — `check` deselects it (auto-marked `requires_pg`), so `check` alone never runs it |
 | UI change | `mise run test:gallery` and `mise run test:e2e`, per the design-gate brief |
 
+Browser-suite runtimes (mise buffers pytest's progress line — a silent minute is normal, not a hang): gallery ~70s, e2e ~115s, plus a one-time chromium install.
+
 Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.
 
 pyrefly is a second opinion on mypy under a zero-error policy; both are part of
