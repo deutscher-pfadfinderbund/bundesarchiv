@@ -10,10 +10,25 @@ step is only reached after a successful canonical write.
 
 ``index_article`` and ``enqueue_reindex_article`` are imported as module-level names so the service
 seam is monkeypatchable in tests (a genuine boundary): the index adapter and the worker queue.
+
+Two entry points into that shell, and ADR 0013's split is which one you call. ``save_article`` takes
+an Article plus the version the caller is betting on and lets ``Conflict`` propagate — the form path,
+where losing means showing the archivist the winner. ``update_article`` takes a transform, owns the
+load-mutate-save cycle, and retries onto the winner — the internal-mutation path, safe only because
+the transform re-applies to whatever it is handed.
 """
 
+from collections.abc import Callable
+
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.result import CreateResult, SaveResult
+from bundesarchiv.app.result import (
+    Conflicted,
+    CreateResult,
+    Missing,
+    SaveResult,
+    Updated,
+    UpdateOutcome,
+)
 from bundesarchiv.app.tasks import (
     enqueue_generate_thumbnail,
     enqueue_mirror_push,
@@ -30,6 +45,7 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.index.indexer import index_article
+from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 #: Filename extensions of the corpus image types we thumbnail (JPEG/PNG/TIFF), used when a MediaRef
 #: carries no ``media_type``. Best-effort: the ``generate_thumbnail`` job itself no-ops on any blob
@@ -46,6 +62,39 @@ def save_article(archive: Archive, article: Article, expected_version: Version) 
     _enqueue_thumbnails(article)
     _enqueue_mirror(archive, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
+
+
+def update_article(
+    archive: Archive,
+    ulid: Ulid,
+    mutate: Callable[[Article], Article],
+    *,
+    retries: int = 3,
+) -> UpdateOutcome:
+    """Load the Article, apply ``mutate``, and ``save_article`` at the version just loaded, re-loading
+    and re-applying on ``Conflict`` up to ``retries`` times (``retries + 1`` attempts). Returns
+    ``Updated`` with the saved Article, ``Conflicted`` if every attempt lost, ``Missing`` if the
+    Article is absent — at the start, or hard-deleted underneath a retry.
+
+    FORBIDDEN for form saves (ADR 0013): a form carries values the archivist typed against a
+    now-stale Article, so a retry would silently overwrite the concurrent edit — the one unforgivable
+    archive failure. ``mutate`` must be a pure, idempotent transform of whatever it is handed,
+    because a retry re-applies it to the WINNER's Article; it must not add media (``add_media`` first,
+    then let the transform reference the ref). Exceptions ``mutate`` raises propagate untouched: it
+    may refuse a mutation the freshly-loaded state no longer admits.
+    """
+    for _ in range(retries + 1):
+        try:
+            stored = archive.articles.load(ulid)
+        except ArchiveError:
+            return Missing()
+        mutated = mutate(stored.article)
+        try:
+            result = save_article(archive, mutated, stored.version)
+        except Conflict:
+            continue
+        return Updated(article=mutated, version=result.version, index_updated=result.index_updated)
+    return Conflicted()
 
 
 def create_article(

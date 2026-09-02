@@ -9,6 +9,8 @@ PRODUCTION service entry point must be reflected in the very next ``search()`` �
 FORBIDDEN inside the gate tests.
 """
 
+from dataclasses import replace
+
 import pytest
 
 from bundesarchiv.app import (
@@ -20,7 +22,8 @@ from bundesarchiv.app import (
     save_collection,
 )
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.result import SaveResult
+from bundesarchiv.app.articles import update_article
+from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -99,6 +102,115 @@ def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> 
     with pytest.raises(Conflict):
         save_article(archive, stored.article, stored.version - 1)  # stale
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()  # no index write on failure
+
+
+# ---------------------------------------------------------------------------
+# update_article — the retrying load-mutate-save cycle (ADR 0013)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_update_article_applies_the_mutation_and_indexes(archive: Archive) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    outcome = update_article(archive, "01FOTO", lambda a: replace(a, title="Umbenannt"))
+
+    assert isinstance(outcome, Updated)
+    assert outcome.article.title == "Umbenannt"
+    assert outcome.version == 2  # the fixture stored it at v1
+    assert outcome.index_updated is True
+    assert archive.articles.load("01FOTO").article.title == "Umbenannt"
+    assert ArticleIndex.objects.get(ulid="01FOTO").title == "Umbenannt"
+
+
+@pytest.mark.django_db
+def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: Archive) -> None:
+    """A real race, no monkeypatching: the mutate closure commits a concurrent write on its first
+    call, so the first save loses. The retry must re-apply the mutation to the WINNER's article —
+    the concurrent creator survives alongside our title."""
+    calls = 0
+
+    def mutate(article: Article) -> Article:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            stored = archive.articles.load("01FOTO")
+            archive.articles.save(replace(stored.article, creator="Konkurrenz"), stored.version)
+        return replace(article, title="Umbenannt")
+
+    outcome = update_article(archive, "01FOTO", mutate)
+
+    assert isinstance(outcome, Updated)
+    assert calls == 2  # one loss, one retry
+    assert outcome.version == 3  # v1 -> the concurrent write -> ours
+    final = archive.articles.load("01FOTO").article
+    assert (final.title, final.creator) == ("Umbenannt", "Konkurrenz")
+
+
+@pytest.mark.django_db
+def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Archive) -> None:
+    """A mutate that loses every race gets ``Conflicted`` — never a silent no-op and never a 500.
+    Nothing of ours is committed; the concurrent writer's state stands."""
+    calls = 0
+
+    def mutate(article: Article) -> Article:
+        nonlocal calls
+        calls += 1
+        stored = archive.articles.load("01FOTO")
+        archive.articles.save(
+            replace(stored.article, creator=f"Konkurrenz {calls}"), stored.version
+        )
+        return replace(article, title="Nie gespeichert")
+
+    outcome = update_article(archive, "01FOTO", mutate, retries=1)
+
+    assert isinstance(outcome, Conflicted)
+    assert calls == 2  # the first attempt plus exactly one retry
+    final = archive.articles.load("01FOTO").article
+    assert final.title == "Öffentliches Foto"  # our mutation never landed
+    assert final.creator == "Konkurrenz 2"
+
+
+@pytest.mark.django_db
+def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Archive) -> None:
+    calls = 0
+
+    def mutate(article: Article) -> Article:
+        nonlocal calls
+        calls += 1
+        stored = archive.articles.load("01FOTO")
+        archive.articles.save(replace(stored.article, creator="Konkurrenz"), stored.version)
+        return replace(article, title="Nie gespeichert")
+
+    outcome = update_article(archive, "01FOTO", mutate, retries=0)
+
+    assert isinstance(outcome, Conflicted)
+    assert calls == 1
+    assert archive.articles.load("01FOTO").article.title == "Öffentliches Foto"
+
+
+@pytest.mark.django_db
+def test_update_article_reports_missing_for_an_absent_article(archive: Archive) -> None:
+    outcome = update_article(archive, "01NOSUCH", lambda a: replace(a, title="Egal"))
+
+    assert isinstance(outcome, Missing)
+    assert not [key for key in archive.store.list() if "01NOSUCH" in key]  # nothing minted
+
+
+@pytest.mark.django_db
+def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
+    archive: Archive,
+) -> None:
+    """The article was there at load time but hard-deleted before the retry re-loads it — the
+    caller must learn it is gone (a 404), not that it merely lost a race."""
+
+    def mutate(article: Article) -> Article:
+        archive.articles.hard_delete("01FOTO")  # after the load, before our save -> Conflict
+        return replace(article, title="Nie gespeichert")
+
+    outcome = update_article(archive, "01FOTO", mutate)
+
+    assert isinstance(outcome, Missing)
 
 
 # ---------------------------------------------------------------------------
