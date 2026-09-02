@@ -86,15 +86,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Residue:** `layouts.css` still enumerates the 9 targets in its `.chooser:has(…)` rules — CSS
   cannot derive them; the widget-token gate covers the HTML half only.
 
-### 7. BestandChooser — Strong
-- **Indicator:** chooser spelled 3×, 2 orderings, 2 placeholders; `"Bitte einen Bestand wählen."`
-  verbatim at 3 sites (2026-09-02, after #6 folded the two bulk copies into one)
-- **Evidence:** `catalog_views`, `collection_views`, `bulk.feldwahl_context`; the error string in
-  `catalog.py`, `catalog_views`, `bulk_views`. Verbatim German is user contract (`tests/CLAUDE.md`).
-- **Deletion test:** passes — load, ordering, placeholder wording and the no-existence-oracle rule
-  are re-argued in four docstrings today.
-- **Sketch:** per-request `BestandChooser`: `options()`, `parent_options()`, `accepts(ulid)`,
-  `error()`, `name_of(ulid)`. Builds on #1.
+### 7. BestandChooser — done
+- **Indicator:** chooser spelled 3× → 1, orderings 2 → 1 (name-sorted), the refusal string 3 → 1 (2026-09-02)
+- **Evidence:** `app/web/bestand.py`; the article form, the Bestand form's parent select, the bulk
+  drawer and the rail's name lookups now hold one chooser per request.
+- **Residue:** two placeholders survive by design — `options()` refuses its empty value,
+  `parent_options()` accepts it (a top-level Bestand has no parent).
 
 ### 8. Trefferliste — name the results view-model — Worth exploring
 - **Indicator:** ~20-key untyped dict; 6 `type: ignore` in `browse_views.py` (2026-09-02)
@@ -107,9 +104,9 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ### 9. CollectionTree — deepen the resolver's input — Worth exploring
 - **Indicator:** the load + `resolve_chain` + fail-closed ceremony copied at 6 sites, 4 different
   fail-closed policies (2026-09-01)
-- **Evidence:** `article_auth`, `media_views`, `catalog_views`, `index/indexer`. ADR 0001's
-  one-pure-function contract holds; it is the ceremony around it that is copied. `media_views`
-  re-reads every Collection README per byte-range.
+- **Evidence:** `article_auth`, `media_views`, `index/indexer` (the web forms now resolve through
+  `bestand.by_ulid`). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
+  is copied. `media_views` re-reads every Collection README per byte-range.
 - **Sketch:** `CollectionTree` value object — `chain_for(id) -> ResolvedChain`,
   `descendants_of(id) -> frozenset`; built once per operation by `CollectionRepository.tree()`.
 
@@ -133,7 +130,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ## Implementation patterns
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
-- **Indicator:** 1425 lines (2026-09-02), up from ~970 before the registry landed
+- **Indicator:** 1380 lines (2026-09-02, after #7 carved the chooser out), up from ~970 before the
+  registry landed
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
 - **Sketch:** no separate fix — #3 (EditSurface), #4 (CAS lift) and #7 (BestandChooser) each carve
@@ -149,9 +147,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Sketch:** an `@archivist_route(method=…, needs_article=True)` decorator seam.
 
 ### 16. Shallow wrappers that fail the deletion test — Speculative
-- **Indicator:** 3 one-line pass-throughs (2026-09-02)
-- **Evidence:** `catalog_views._audience_label:572`, `catalog_views._collection_options:103`,
-  `collection_views._sichtbarkeit_label:239`.
+- **Indicator:** 2 one-line pass-throughs (2026-09-02, `_collection_options` went with #7)
+- **Evidence:** `catalog_views._audience_label:556`, `collection_views._sichtbarkeit_label:230`.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ## Tests
