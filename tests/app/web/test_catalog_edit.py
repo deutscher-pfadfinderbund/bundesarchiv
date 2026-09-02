@@ -906,3 +906,51 @@ def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Wanderfahrt 1962"
     assert stored.version == corpus.version
+
+
+# --- the reader's sheet on a RE-RENDER ---------------------------------------------
+
+
+def _lesesicht(body: str) -> str:
+    """The reader's-sheet region of a rendered edit form: ``<aside id="lesesicht">`` to its close."""
+    start = body.index('id="lesesicht"')
+    return body[body.rindex("<aside", 0, start) : body.index("</aside>", start)]
+
+
+def test_every_re_render_shows_the_saved_record_in_the_readers_sheet(
+    corpus: _EditCorpus,
+) -> None:
+    """A box labelled „Leseansicht“ shows the record as SAVED on every state, never the keystrokes."""
+    # It carries the exposure statement (owner ruling 5), so keystrokes in it would answer "who sees
+    # this?" about a record that does not exist yet. The three states that re-seed the form from the
+    # POST are the ones where the two can diverge; each used to argue it separately at its own call
+    # site, and the GET-only sheet tests (test_catalog_actions) could not see any of them.
+    archivist = client_as(Archivist())
+    typed = "Nur getippt, nie gespeichert"
+
+    invalid = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title=typed, media_type="")
+    ).content.decode()
+    removed = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus, title=typed),
+            "custom_key": "Fotograf",
+            "custom_value": "Meyer",
+            "custom_entfernen": "0",
+        },
+    ).content.decode()
+    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    raced = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title=typed)
+    ).content.decode()
+
+    for state, body, saved in (
+        ("Validierungsfehler", invalid, "Wanderfahrt 1962"),
+        ("Zeile entfernt", removed, "Wanderfahrt 1962"),
+        ("Konflikt", raced, "Gewinner"),
+    ):
+        assert f'value="{typed}"' in body, f"{state}: the card lost the archivist's input"
+        sheet = _lesesicht(body)
+        assert typed not in sheet, f"{state}: the sheet shows unsaved keystrokes"
+        assert saved in sheet, f"{state}: the sheet does not show the saved record"
