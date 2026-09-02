@@ -7,6 +7,7 @@ dependent-pair server-enforced; orphan dokumenttyp_leeren server-enforced. The w
 only index + queue seams are stubbed (conftest.py).
 """
 
+import re
 from collections.abc import Callable
 
 import pytest
@@ -132,6 +133,21 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, feld: str) ->
         else f'<option value="{wert}" selected>'
     )
     assert echoed in body
+
+
+def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> None:
+    # data-bulk-wert is what layouts.css matches to reveal a widget; hand-typed, it went stale in
+    # silence — a new bulk field would offer no way to enter its value. Parsed back out of the
+    # rendered chooser: every target from bulk.FIELDS, on exactly one widget, and nothing else.
+    body = (
+        client_as(Archivist())
+        .post(
+            "/artikel/sammelbearbeitung", {"feld": "creator", "wert_text": "x", "bestaetigt": "1"}
+        )
+        .content.decode()
+    )
+    tokens = [t for attr in re.findall(r'data-bulk-wert="([^"]*)"', body) for t in attr.split()]
+    assert sorted(tokens) == sorted(f.target for f in bulk.FIELDS)
 
 
 def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus) -> None:

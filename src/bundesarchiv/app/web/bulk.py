@@ -11,6 +11,9 @@ shell over the real ``update_article`` service:
   custom-bag key upserts (or removes on empty); setting ``media_type`` clears a now-orphaned
   ``document_type`` (spec §3). Custom writes rebuild through the Article constructor so the domain's
   sort/dedupe/reserved-key guard is the single rule (no second copy).
+- ``feldwahl_context`` — the Feld chooser's render context, every part of it derived from ``FIELDS``
+  (options, the ``data-bulk-wert`` tokens). The workbench drawer and the confirm page's error mode
+  render ONE partial from it, so a new field reaches both surfaces at once.
 - ``document_type_fits_all`` — Dokumenttyp-alone is validated against EVERY article's CURRENT
   media_type before any write; one mismatch rejects the whole apply (all-or-nothing, fail-closed).
 - ``apply_bulk`` — per selected ulid independently, through ``app.articles.update_article`` with NO
@@ -74,6 +77,42 @@ ALLOWED_FIELDS: frozenset[str] = frozenset(_BY_TARGET)
 #: The custom-bag targets (written through the Article constructor so the reserved-key guard +
 #: sort/dedupe stay the domain's rule), derived from FIELDS.
 _CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_custom)
+
+
+#: The Feld ``<select>``'s options: the placeholder first (empty, server-rejected with "Bitte ein
+#: Feld wählen."), then every field in spec §1 order.
+_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("", "— Feld wählen —"),
+    *((f.target, f.label) for f in FIELDS),
+)
+
+#: value_input → the space-separated targets that widget serves, the chooser's ``data-bulk-wert``
+#: tokens (layouts.css matches them to show exactly one widget). Derived, never typed out.
+_WIDGET_TARGETS: dict[str, str] = {
+    value_input: " ".join(f.target for f in FIELDS if f.value_input == value_input)
+    for value_input in dict.fromkeys(f.value_input for f in FIELDS)
+}
+
+
+def feldwahl_context(
+    collection_names: Mapping[Ulid, str], *, feld: str = "", wert: str = ""
+) -> dict[str, object]:
+    """The whole Feld-chooser context behind ``workbench/_feldwahl.html`` (spec §2 C) — ONE builder
+    for the workbench bulk bar and the confirm page's error mode, so the two renders cannot drift.
+    ``feld``/``wert`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
+    ``collection_names`` is the ULID→name map the Sammlungsteil options are built from."""
+    return {
+        "feldwahl_feld": feld,
+        "feldwahl_wert": wert,
+        "feldwahl_feld_options": _FELD_OPTIONS,
+        "feldwahl_targets": _WIDGET_TARGETS,
+        "feldwahl_media_type_options": vocab.media_type_options(),
+        "feldwahl_document_type_groups": vocab.grouped_document_type_options(),
+        "feldwahl_collection_options": (
+            ("", "— Bestand wählen —"),
+            *sorted(collection_names.items(), key=lambda kv: kv[1]),
+        ),
+    }
 
 
 def label_of(feld: str) -> str:

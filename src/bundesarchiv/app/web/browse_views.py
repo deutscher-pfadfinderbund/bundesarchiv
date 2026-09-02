@@ -54,20 +54,6 @@ _PANE_PARAM = "artikel"
 #: and not at all on a page that resolves none (issue #2 P1).
 type _NamesLoader = Callable[[], dict[Ulid, str]]
 
-#: The bulk-edit Feld chooser options: (target, German label), DERIVED from bulk.FIELDS (the single
-#: source) so labels/allowlist can never drift. Placeholder first (empty, server-rejected with
-#: "Bitte ein Feld wählen."). audience/lifecycle/sichtbarkeit are absent by construction (spec §0.7).
-_BULK_FELD_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("", "— Feld wählen —"),
-    *((f.target, f.label) for f in bulk.FIELDS),
-)
-
-
-def _bulk_collection_options(names: _NamesLoader) -> tuple[tuple[str, str], ...]:
-    """The Sammlungsteil (collection) options for the bulk drawer: placeholder first, then every
-    collection as ``(ulid, name)``. A value outside this set is server-rejected like an empty one."""
-    return (("", "— Bestand wählen —"), *sorted(names().items(), key=lambda kv: kv[1]))
-
 
 def workbench(request: HttpRequest) -> HttpResponse:
     """``GET /`` — the workbench: search field, filter rail, results, "Neuer Artikel" button.
@@ -556,10 +542,7 @@ def _bulk_bar_context(
         "has_auswahl": bool(auswahl),
         "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
-        "bulk_feld_options": _BULK_FELD_OPTIONS,
-        "bulk_media_type_options": vocab.media_type_options(),
-        "bulk_document_type_groups": vocab.grouped_document_type_options(),
-        "bulk_collection_options": _bulk_collection_options(names),
+        **bulk.feldwahl_context(names()),
     }
     if auswahl:
         context["auswahl_count"] = len(auswahl)

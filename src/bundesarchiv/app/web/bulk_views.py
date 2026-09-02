@@ -161,8 +161,8 @@ def _commit(
 def _reject(
     request: HttpRequest, archive: Archive, auswahl: list[str], feld: str, wert: str, error: str
 ) -> HttpResponseBase:
-    """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the Feld chooser
-    drawer (Feld select + value widgets, the chosen field pre-selected, the submitted wert re-echoed
+    """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the shared Feld
+    chooser (``bulk.feldwahl_context``: the chosen field pre-selected, the submitted wert re-echoed
     into its widget verbatim — even when invalid) with the verbatim error as a c-field-fehler, and the
     selection carried as hidden ``auswahl`` inputs. The archivist fixes the field/value and
     re-submits from here — the selection is never lost, and the back-link to the ledger also carries
@@ -177,21 +177,12 @@ def _reject(
         "workbench/sammelbearbeitung_pruefen.html",
         {
             "auswahl": auswahl,
-            "feld": feld,
-            "wert": wert,
-            "feld_label": bulk.label_of(feld),
             "fehler": error,
             "anzahl": len(auswahl),
             "artikel_liste": [],
             "orphans": [],
-            "feld_options": tuple((f.target, f.label) for f in bulk.FIELDS),
-            "media_type_options": vocab.media_type_options(),
-            "document_type_groups": vocab.grouped_document_type_options(),
-            "collection_options": (
-                ("", "— Bestand wählen —"),
-                *sorted(_collection_names(archive).items(), key=lambda kv: kv[1]),
-            ),
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
+            **bulk.feldwahl_context(_collection_names(archive), feld=feld, wert=wert),
         },
     )
 

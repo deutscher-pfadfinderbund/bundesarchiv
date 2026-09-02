@@ -20,60 +20,15 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   <h1>Sammelbearbeitung prüfen</h1>
 
   {% if fehler %}
-  {% comment %}Validation error (spec §2 C): re-render the chooser drawer with the verbatim error,
-  the selection carried as hidden auswahl inputs, so the archivist fixes the field/value and
-  re-submits from here — the selection is never lost. The back-link also preserves ?auswahl=.
-  The chooser's one-visible-value-widget behavior is the same CSS :has rule as the workbench bar
-  (layouts.css).{% endcomment %}
+  {% comment %}Validation error (spec §2 C): re-render the shared chooser (_feldwahl.html) with the
+  verbatim error, the selection carried as hidden auswahl inputs, so the archivist fixes the
+  field/value and re-submits from here — the selection is never lost. The back-link also preserves
+  ?auswahl=.{% endcomment %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
     <p class="hint">{{ anzahl }} ausgewählt</p>
-    <div class="chooser">
-      <label class="field">
-        <span>Feld</span>
-        <select name="feld">
-          <option value="">— Feld wählen —</option>
-          {% for value, caption in feld_options %}
-          <option value="{{ value }}"{% if value == feld %} selected{% endif %}>{{ caption }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
-        <span>Neuer Wert</span>
-        <input type="text" name="wert_text" value="{{ wert }}">
-      </label>
-      <label class="field" data-bulk-wert="media_type">
-        <span>Neuer Wert</span>
-        <select name="wert_media_type"
-                hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
-                hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
-          {% for value, caption in media_type_options %}
-          <option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" data-bulk-wert="document_type">
-        <span>Neuer Wert</span>
-        <select name="wert_document_type" id="bulk-dokumenttyp-select">
-          <option value="">— kein Dokumenttyp —</option>
-          {% for group_label, group_options in document_type_groups %}
-          <optgroup label="{{ group_label }}">
-            {% for value, caption in group_options %}<option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>{% endfor %}
-          </optgroup>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" data-bulk-wert="collection_id">
-        <span>Neuer Wert</span>
-        <select name="wert_collection_id">
-          {% for value, caption in collection_options %}<option value="{{ value }}"{% if value == wert %} selected{% endif %}>{{ caption }}</option>{% endfor %}
-        </select>
-      </label>
-      <div class="actions">
-        <button class="primary" type="submit">Änderung prüfen</button>
-      </div>
-    </div>
+    {% include "workbench/_feldwahl.html" %}
     <p class="error">{{ fehler }}</p>
   </form>
   <p><a href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>

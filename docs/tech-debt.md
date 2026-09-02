@@ -77,20 +77,20 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Residue:** `find_blob` still scans `articles/` — there is no hash→key index, and one would be a
   second source of truth about where blobs live.
 
-### 6. FeldWahl — one bulk chooser — Strong
-- **Indicator:** `data-bulk-wert` derivations typed out in 2 templates, 8 occurrences (2026-09-02)
-- **Evidence:** `_sammelleiste.html` vs `sammelbearbeitung_pruefen.html` — same widget, renamed
-  context keys. LIVE BUG at `bulk_views.py:48`: the typed `wert` is blanked when submitted with the
-  placeholder (`is_allowed_field("") -> False`), contradicting its own docstring; the covering test
-  asserts only that the input exists.
-- **Sketch:** `feldwahl_context(archive, *, feld, wert, fehler)` + one `_feldwahl.html`, both driven
-  from `bulk.FIELDS` (already deep). Echo tests become one parametrization over `bulk.FIELDS`.
+### 6. FeldWahl — one bulk chooser — done
+- **Indicator:** chooser copies 2 → 1, context vocabularies 2 → 1, `data-bulk-wert` hand-typed 8 → 0;
+  the placeholder-blanks-the-value bug fixed (2026-09-02)
+- **Evidence:** `bulk.feldwahl_context` + `workbench/_feldwahl.html`; `browse_views._BULK_FELD_OPTIONS`
+  / `_bulk_collection_options` and `_reject`'s four option keys are gone, and the echo tests are one
+  parametrization over `bulk.FIELDS`.
+- **Residue:** `layouts.css` still enumerates the 9 targets in its `.chooser:has(…)` rules — CSS
+  cannot derive them; the widget-token gate covers the HTML half only.
 
 ### 7. BestandChooser — Strong
-- **Indicator:** chooser spelled 4×, 3 orderings, 2 placeholders; `"Bitte einen Bestand wählen."`
-  verbatim at 3 sites (2026-09-02)
-- **Evidence:** `catalog_views`, `browse_views`, `bulk_views`, `collection_views`, `catalog.py`.
-  Verbatim German strings are user contract (`tests/CLAUDE.md`), so 3 copies is 3 places to drift.
+- **Indicator:** chooser spelled 3×, 2 orderings, 2 placeholders; `"Bitte einen Bestand wählen."`
+  verbatim at 3 sites (2026-09-02, after #6 folded the two bulk copies into one)
+- **Evidence:** `catalog_views`, `collection_views`, `bulk.feldwahl_context`; the error string in
+  `catalog.py`, `catalog_views`, `bulk_views`. Verbatim German is user contract (`tests/CLAUDE.md`).
 - **Deletion test:** passes — load, ordering, placeholder wording and the no-existence-oracle rule
   are re-argued in four docstrings today.
 - **Sketch:** per-request `BestandChooser`: `options()`, `parent_options()`, `accepts(ulid)`,

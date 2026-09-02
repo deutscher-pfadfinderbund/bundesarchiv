@@ -17,11 +17,9 @@ data-bulk-offpage + this page's checked boxes. Counting only the boxes hid a liv
 selection and stranded the archivist on page 2.
 
 Expanded: "Alle auf dieser Seite" (GET link appending the page's ulids), "Auswahl aufheben"
-(selection-gated), then the Feld chooser + Änderung prüfen (submit → confirm POST; a zero-check
-submit hits the existing "Keine Artikel ausgewählt." reject). Exactly ONE value widget shows —
-the one matching the chosen Feld — via CSS :has over the select's own checked option
-(layouts.css .chooser; no JS, identical no-JS behavior; the server reads only the matching
-widget either way). No loud color; the primary is the one anchor.
+(selection-gated), then the shared Feld chooser (_feldwahl.html), whose submit is the confirm POST
+— a zero-check submit hits the existing "Keine Artikel ausgewählt." reject. No loud color; the
+primary is the one anchor.
 {% endcomment %}
 <details class="bulk" data-bulk-offpage="{{ auswahl_offpage_count|default:0 }}">
   {% comment %}The count is a plain status span, NOT an <output>: a form-associated element
@@ -37,56 +35,5 @@ widget either way). No loud color; the primary is the one anchor.
     {% if has_auswahl %}<a href="?{{ clear_auswahl_query }}">Auswahl aufheben</a>{% endif %}
   </div>
 
-  <div class="chooser">
-    <label class="field">
-      <span>Feld</span>
-      <select name="feld">
-        {% for value, caption in bulk_feld_options %}
-        <option value="{{ value }}">{{ caption }}</option>
-        {% endfor %}
-      </select>
-    </label>
-
-    {% comment %}All value widgets are in the DOM (the server reads the one matching the chosen
-    feld); CSS shows only that one. data-bulk-wert names which felder a widget belongs to.{% endcomment %}
-    <label class="field" data-bulk-wert="physical_location creator subject_place Quelle Querverweis Besitzer">
-      <span>Neuer Wert</span>
-      <input type="text" name="wert_text">
-    </label>
-    <label class="field" data-bulk-wert="media_type">
-      <span>Neuer Wert</span>
-      <select name="wert_media_type"
-              hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
-              hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
-        {% for value, caption in bulk_media_type_options %}
-        <option value="{{ value }}">{{ caption }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="field" data-bulk-wert="document_type">
-      <span>Neuer Wert</span>
-      <select name="wert_document_type" id="bulk-dokumenttyp-select">
-        <option value="">— kein Dokumenttyp —</option>
-        {% for group_label, group_options in bulk_document_type_groups %}
-        <optgroup label="{{ group_label }}">
-          {% for value, caption in group_options %}
-          <option value="{{ value }}">{{ caption }}</option>
-          {% endfor %}
-        </optgroup>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="field" data-bulk-wert="collection_id">
-      <span>Neuer Wert</span>
-      <select name="wert_collection_id">
-        {% for value, caption in bulk_collection_options %}
-        <option value="{{ value }}">{{ caption }}</option>
-        {% endfor %}
-      </select>
-    </label>
-
-    <div class="actions">
-      <button class="primary" type="submit">Änderung prüfen</button>
-    </div>
-  </div>
+  {% include "workbench/_feldwahl.html" %}
 </details>
