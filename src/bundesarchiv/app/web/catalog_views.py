@@ -23,7 +23,6 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
-from typing import Literal
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
@@ -32,6 +31,7 @@ from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
@@ -50,7 +50,7 @@ from bundesarchiv.domain.models import (
     Ulid,
 )
 from bundesarchiv.domain.viewer import Public
-from bundesarchiv.persistence.errors import ArchiveError, Conflict
+from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored
 
 # The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
@@ -1186,21 +1186,20 @@ def _preview_fields_label(result: VisibilityPreview) -> str:
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------
 #
 # Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save.
-# "Non-CAS" in that they do not ride the form's expected_version: each re-loads at the current
-# version, applies an idempotent transform of the media tuple and saves at THAT version, retrying on
-# a concurrent bump — safe precisely because the transform is idempotent. Order is meaning (first =
-# cover), so reorder is re-cover and upload appends at the END.
+# "Non-CAS" in that they do not ride the form's expected_version: they hand an idempotent transform
+# of the media tuple to ``update_article``, which loads, applies and retries onto a concurrent
+# winner. Order is meaning (first = cover), so reorder is re-cover and upload appends at the END.
 
 #: How many bytes a single upload request may carry / a single file may be (spec §8). Kept modest for
 #: a v1 archive of scans; the settings mirror lets the deploy raise them. Oversize → a clean German
 #: error, never a 500.
 _MAX_UPLOAD_BYTES = getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024)
 
-#: How many times a structural media save retries a concurrent version bump before giving up and
-#: telling the archivist to try again (rare: single-app-process, a handful of writers).
-_STRUCTURAL_SAVE_ATTEMPTS = 3
+#: How many times a structural media save re-loads after a concurrent version bump before giving up
+#: and telling the archivist to try again (rare: single-app-process, a handful of writers).
+_STRUCTURAL_SAVE_RETRIES = 2
 
-#: The German hinweis shown when a structural media change lost every race (see _structural_save).
+#: The German hinweis shown when a structural media change lost every race (see _structural_change).
 _MEDIEN_KONFLIKT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 
 
@@ -1212,13 +1211,12 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    archive, stored = gated
+    archive, _ = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
-    result = _structural_save(
-        archive, ulid, stored, lambda media: _reordered(media, content_hash, richtung)
+    return _structural_change(
+        request, archive, ulid, lambda media: _reordered(media, content_hash, richtung)
     )
-    return _structural_response(request, archive, ulid, result)
 
 
 def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1232,10 +1230,9 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     archive, stored = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
-        result = _structural_save(
-            archive, ulid, stored, lambda media: _without(media, content_hash)
+        return _structural_change(
+            request, archive, ulid, lambda media: _without(media, content_hash)
         )
-        return _structural_response(request, archive, ulid, result)
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
     return _rerender_edit(request, archive, ulid, stored=stored, entfernen_hash=content_hash)
@@ -1263,64 +1260,41 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
     if new_refs:
-        result = _structural_save(archive, ulid, stored, lambda media: (*media, *new_refs))
-        return _structural_response(request, archive, ulid, result)
+        return _structural_change(request, archive, ulid, lambda media: (*media, *new_refs))
     return _rerender_edit(
         request, archive, ulid, stored=stored
     )  # no files posted — plain re-render
 
 
-def _structural_save(
-    archive: Archive,
-    ulid: Ulid,
-    stored: Stored,
-    transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
-) -> Stored | Literal["conflict"] | None:
-    """Apply an idempotent structural transform to the article's media tuple and save via the service
-    (canonical write + index sync), retrying on a concurrent version bump (safe: the transform
-    re-applies to the winner's fresh media with the same intent). Non-CAS from the form's view — it
-    re-loads the current version rather than trusting the form's expected_version (spec §6.3).
-
-    The FIRST attempt reuses the caller's already-gated ``stored`` (no re-load — the auth gate just
-    loaded it); only a ``Conflict`` retry re-loads, preserving the retry design and attempt count.
-
-    Returns the post-save ``Stored`` on a committed save (so the caller can re-render without a
-    further load), ``"conflict"`` if every attempt lost the race (so the caller surfaces a German
-    hinweis rather than silently pretending the change stuck), or ``None`` if the article was
-    hard-deleted underneath (the initial gate saw it, but a retry's re-load — the same deleted-
-    underneath window ``save_catalog_form`` guards against — does not; the caller 404s instead of a
-    hinweis)."""
-    current = stored
-    for attempt in range(_STRUCTURAL_SAVE_ATTEMPTS):
-        if attempt > 0:
-            try:
-                current = archive.articles.load(ulid)
-            except ArchiveError:
-                return None
-        mutated = replace(current.article, media=transform(current.article.media))
-        try:
-            result = article_services.save_article(archive, mutated, current.version)
-            return Stored(article=mutated, version=result.version)
-        except Conflict:
-            continue  # a concurrent write won; re-load and re-apply the idempotent transform
-    return "conflict"
-
-
-def _structural_response(
+def _structural_change(
     request: HttpRequest,
     archive: Archive,
     ulid: Ulid,
-    result: Stored | Literal["conflict"] | None,
+    transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
 ) -> HttpResponseBase:
-    """Map a ``_structural_save`` outcome to its response, shared by all three structural routes:
-    hard-deleted underneath → the byte-identical 404 (not a hinweis-worthy conflict); every attempt
-    lost the race → the edit form with the konflikt hinweis; committed → the edit form fed the
-    post-save ``Stored`` (no re-load)."""
-    if result is None:
-        return _not_found()
-    if isinstance(result, str):
-        return _rerender_edit(request, archive, ulid, medien_fehler=_MEDIEN_KONFLIKT)
-    return _rerender_edit(request, archive, ulid, stored=result)
+    """Apply an idempotent structural transform to the article's media tuple through the retrying
+    write service and render the outcome — everything the three structural routes share once each
+    has parsed its own parameter. Non-CAS from the form's view: it saves at the version it just
+    loaded rather than the form's expected_version (spec §6.3), which is what makes retrying safe.
+
+    Hard-deleted underneath → the plain 404 (not a hinweis-worthy conflict); every attempt lost the
+    race → the edit form with the konflikt hinweis; committed → the edit form fed the post-save
+    state (no re-load)."""
+    outcome = article_services.update_article(
+        archive,
+        ulid,
+        lambda article: replace(article, media=transform(article.media)),
+        retries=_STRUCTURAL_SAVE_RETRIES,
+    )
+    match outcome:
+        case Missing():
+            return _not_found()
+        case Conflicted():
+            return _rerender_edit(request, archive, ulid, medien_fehler=_MEDIEN_KONFLIKT)
+        case Updated(article=article, version=version):
+            return _rerender_edit(
+                request, archive, ulid, stored=Stored(article=article, version=version)
+            )
 
 
 def _reordered(
