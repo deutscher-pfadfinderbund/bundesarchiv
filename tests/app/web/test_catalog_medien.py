@@ -126,7 +126,7 @@ def test_verschieben_against_deleted_article_is_404(
     corpus: _MediaCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # _load_gated passes (the article existed at gate time), but the article is hard-deleted before
-    # _structural_save's own re-load runs — that re-load must not surface an uncaught 500.
+    # update_article's own load runs — that load must not surface an uncaught 500.
     from bundesarchiv.app.web import catalog_views
 
     real_gated = catalog_views._load_gated
@@ -155,7 +155,7 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
     def _always_conflict(*_a: object, **_k: object) -> None:
         raise Conflict("forced")
 
-    # _structural_save calls save_article via the app.articles module — patch it at the source.
+    # update_article calls save_article via the app.articles module — patch it at the source.
     monkeypatch.setattr(articles, "save_article", _always_conflict)
     before = _hashes(corpus)
     response = client_as(Archivist()).post(
