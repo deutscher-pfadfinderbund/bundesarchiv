@@ -8,9 +8,19 @@ keyword/custom/Signatur rules that carry an archivist's typing verbatim.
 The rows here are SYNTHETIC — shaped like the real export, never copied from it.
 """
 
+import csv
+import io
+from pathlib import Path
+
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import override_settings
+from PIL import Image
 
 from bundesarchiv.app import legacy
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Lifecycle
 
 #: Stand-ins for the edit form's two lists: `unknown_vocabulary` only ever tests membership, and
@@ -450,3 +460,183 @@ def test_the_report_reads_as_lines_a_human_can_scan() -> None:
     lines = _plan().report.lines()
     assert any("3" in line for line in lines)
     assert all(isinstance(line, str) for line in lines)
+
+
+# --- the command: one smoke over a temp root (razor: thin on IO) ---------------------
+
+
+def _png_bytes() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 30), (50, 100, 150)).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _write_export(csv_dir: Path, media_root: Path, *extra: dict[str, str]) -> None:
+    """A synthetic export plus its blobs: one item with a PDF, one with an image (the thumbnail
+    path), one with no file at all — and whatever extra rows a test needs."""
+    csv_dir.mkdir(parents=True)
+    media_root.mkdir(parents=True)
+    (media_root / "eins.pdf").write_bytes(b"%PDF-1.4 eins")
+    (media_root / "zwei.png").write_bytes(_png_bytes())
+    with (csv_dir / "items.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=legacy.ITEM_COLUMNS)
+        writer.writeheader()
+        writer.writerow(
+            _row(id="1", collection="Bund", title="Mit Datei", date="1984", medartanalog="Buch")
+        )
+        writer.writerow(_row(id="2", collection="", title="Ohne Datei"))
+        writer.writerow(_row(id="3", collection="Bund", title="Mit Bild", medartanalog="Foto(s)"))
+        writer.writerows(extra)
+    with (csv_dir / "files.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=legacy.FILE_COLUMNS)
+        writer.writeheader()
+        writer.writerow(_file(item_id="1", path="eins.pdf", original_filename="Eins.pdf"))
+        writer.writerow(
+            _file(item_id="3", path="zwei.png", original_filename="Zwei.png", mime_type="image/png")
+        )
+
+
+def _roots(tmp_path: Path) -> override_settings:
+    """Both write destinations under this test's tmp dir: the canonical tree and the thumbnail
+    cache (which the import fills itself — no worker runs during a one-shot batch)."""
+    return override_settings(
+        BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path / "canonical"),
+        BUNDESARCHIV_THUMBNAIL_ROOT=str(tmp_path / "thumbnails"),
+    )
+
+
+def _run(csv_dir: Path, media_root: Path, *flags: str) -> str:
+    out = io.StringIO()
+    call_command(
+        "import_legacy",
+        "--csv-dir",
+        str(csv_dir),
+        "--media-root",
+        str(media_root),
+        *flags,
+        stdout=out,
+    )
+    return out.getvalue()
+
+
+@pytest.mark.django_db
+def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        archive = Archive.canonical()
+
+        dry = _run(csv_dir, media_root, "--dry-run")
+        assert "Artikel: 3" in dry
+        assert list(archive.articles.list_ulids()) == []  # a dry run writes NOTHING
+        assert archive.collections.load_all() == ()
+
+        _run(csv_dir, media_root)
+        ulids = list(archive.articles.list_ulids())
+        assert len(ulids) == 3
+        bestände = {c.name for c in archive.collections.load_all()}
+        assert bestände == {"Bund", legacy.UNSORTIERT}
+        with_file = next(
+            archive.articles.load(u).article
+            for u in ulids
+            if archive.articles.load(u).article.title == "Mit Datei"
+        )
+        assert [ref.filename for ref in with_file.media] == ["Eins.pdf"]
+        assert archive.articles.find_blob(with_file.media[0].content_hash) == b"%PDF-1.4 eins"
+        assert ArticleIndex.objects.count() == 3  # the index sees them without a second command
+
+        with pytest.raises(CommandError, match="bereits"):
+            _run(csv_dir, media_root)
+        assert len(list(archive.articles.list_ulids())) == 3  # the refusal changed nothing
+
+
+@pytest.mark.django_db
+def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
+    # It writes past the `app.articles` shell, which is what enqueues them, and no worker drains a
+    # queue during a one-shot batch — so without this every imported cover would 404 forever.
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        out = _run(csv_dir, media_root)
+        archive = Archive.canonical()
+        image = next(
+            article
+            for u in archive.articles.list_ulids()
+            if (article := archive.articles.load(u).article).title == "Mit Bild"
+        )
+    hash_ = image.media[0].content_hash
+    assert (tmp_path / "thumbnails" / f"{hash_}.webp").is_file()
+    assert "Vorschaubilder erzeugt: 1" in out  # the PDF is no image and stays a no-op
+
+
+@pytest.mark.django_db
+def test_an_absent_media_root_stops_the_import_before_it_writes(tmp_path: Path) -> None:
+    # An unmounted volume would otherwise produce a complete, media-less archive that the one-time
+    # refusal then gives no second chance to fix.
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        with pytest.raises(CommandError, match="Medienverzeichnis"):
+            _run(csv_dir, tmp_path / "nicht-eingehängt")
+        assert list(Archive.canonical().articles.list_ulids()) == []
+
+
+@pytest.mark.django_db
+def test_a_media_root_holding_none_of_the_exported_files_stops_the_import(tmp_path: Path) -> None:
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    empty = tmp_path / "leer"
+    empty.mkdir()
+    with _roots(tmp_path):
+        with pytest.raises(CommandError, match="falsche Medienpfad"):
+            _run(csv_dir, empty)
+        assert list(Archive.canonical().articles.list_ulids()) == []
+
+
+@pytest.mark.django_db
+def test_the_dry_run_names_what_the_edit_form_would_refuse(tmp_path: Path) -> None:
+    # Where `app.legacy` meets the form's vocabulary: the pure module only takes the two lists as
+    # arguments, so the command is the one place that can spot a value the form will not re-save.
+    stranger = "Papier"
+    assert stranger not in vocab.MEDIENARTEN
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root, _row(id="4", collection="Bund", medartanalog=stranger))
+    with _roots(tmp_path):
+        out = _run(csv_dir, media_root, "--dry-run")
+    assert f"  {stranger}" in out
+    assert "Buch" not in out and "Foto(s)" not in out  # the words the form knows stay silent
+
+
+@pytest.mark.django_db
+def test_a_missing_blob_is_reported_not_guessed(tmp_path: Path) -> None:
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    (media_root / "eins.pdf").unlink()
+    with _roots(tmp_path):
+        out = _run(csv_dir, media_root)
+        archive = Archive.canonical()
+        assert "Fehlende Dateien: 1" in out
+        titles = {
+            article.title: article.media
+            for u in archive.articles.list_ulids()
+            if (article := archive.articles.load(u).article)
+        }
+    assert titles["Mit Datei"] == ()  # the reference is lost, the record is not
+    assert titles["Mit Bild"] != ()  # and the blob that IS there keeps its own
+
+
+@pytest.mark.django_db
+def test_an_export_with_an_unknown_column_is_refused_before_anything_is_written(
+    tmp_path: Path,
+) -> None:
+    # A column added to the old database must stop the import, not be dropped on the floor.
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    items = csv_dir / "items.csv"
+    items.write_text(items.read_text().replace("id,signature", "id,neue_spalte,signature", 1))
+    with _roots(tmp_path):
+        with pytest.raises(CommandError, match="Spalten"):
+            _run(csv_dir, media_root)
+        assert list(Archive.canonical().articles.list_ulids()) == []
