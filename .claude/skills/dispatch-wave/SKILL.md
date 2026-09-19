@@ -36,6 +36,8 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - Consume learnings immediately: a brief-mechanics lesson goes into THIS skill, a law lesson into the law file, a pattern lesson into the ledger entry — in the same session. No retro archives (project ruling: implement learnings directly; archives are archaeological remains).
 - Map rows: writers update them same-commit (see update-module-map skill); check the report mentions it when a module or interface changed.
 - Cross-module composition tests (leak matrix, e2e, journeys) are the architect tier's to own — never assigned to a single-module writer.
+- A fixer applying review dispositions that involve a DESIGN choice stops and asks the owner, even when a silence rule was announced — dispositions are owner decisions, not writer judgment.
+- Before treating a grilled or ADR-backed decision as settled, verify the load-bearing code-behaviour claim against source (today: "Bestand required" was traced to 24 sites before ruling).
 
 ## On failure
 
