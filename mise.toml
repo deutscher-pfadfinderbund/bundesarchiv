@@ -94,7 +94,7 @@ depends = ["pg:wait"]
 run = """
 BUNDESARCHIV_CANONICAL_ROOT=${BUNDESARCHIV_CANONICAL_ROOT:-var/legacy/canonical} \
 uv run manage.py import_legacy --csv-dir var/legacy \
-  --media-root ${BUNDESARCHIV_LEGACY_MEDIA:-/Volumes/Archive/backup/dpb.de/2026-09-19/admin/dpb.de/media}
+  --media-root ${BUNDESARCHIV_LEGACY_MEDIA:-var/legacy/media}
 """
 
 [tasks."e2e:browsers"]
