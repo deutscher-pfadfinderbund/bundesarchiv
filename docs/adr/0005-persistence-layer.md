@@ -22,6 +22,7 @@ The app and Nextcloud **cannot share a host**, so:
 - **Canonical = local filesystem** (`LocalFsObjectStore`). The app is the sole writer; writes never block on Nextcloud and are not coupled to its uptime or ~yearly major-version upgrades.
 - **Nextcloud = an async, one-way WebDAV mirror** (off-host copy + human browse). After each `ArticleRepository.save()` commits locally, a Postgres-backed job replays that Article's files to the WebDAV `ObjectStore` (or an external one-way `rclone`/`nextcloudcmd` sync does the same). Eventually consistent; a lagging mirror is harmless and self-heals on the next push. Humans only **read** in Nextcloud (never write back → the sole-writer invariant holds). The WebDAV adapter is therefore a first-class, exercised component — the mirror target — even though it is not the canonical backend.
 - **Backup / DR = restic** (off-site, encrypted, rehearsed restore) — the real durability mechanism; Nextcloud is not a backup tool.
+  **Amended 2026-09-19** (`docs/requirements/owner-interview-2026-08.md`): backup is outside this project's scope — the Nextcloud is backed up already and the VPS has a rudimentary backup. restic was never an owner requirement; nothing is built for it.
 - Losing some Nextcloud file-versions is acceptable: metadata history lives in `changes/` + `.snapshots/`, and media is write-once.
 
 Adapters: `LocalFsObjectStore` (canonical, v1), `WebDavObjectStore` (Nextcloud mirror, first-class), `S3ObjectStore` (future), `InMemoryObjectStore` (test fake).

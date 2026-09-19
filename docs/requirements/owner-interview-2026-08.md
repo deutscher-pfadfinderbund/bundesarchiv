@@ -21,7 +21,7 @@ they need anything else" — feedback loop first, completeness second.
 
 ## Storage
 
-- **Target state:** Nextcloud (a Hetzner StorageBox, WebDAV) is the canonical
+- **Target state:** Nextcloud (a Hetzner StorageShare, WebDAV) is the canonical
   long-term store. The archive server hosts only ephemeral data (search
   index, thumbnails). Everything important lives in media files and Markdown.
 - **v1:** filesystem backend only. Graduation to WebDAV comes later; the
@@ -44,6 +44,7 @@ Consequences:
 - The interim filesystem-only stage is the one window where the VPS holds
   the canonical data — it needs an explicit (simple) backup story until the
   WebDAV graduation.
+  (Superseded 2026-09-19 — see the addendum: backup is out of scope.)
 
 ## Access model
 
@@ -115,18 +116,19 @@ Named example of overkill: the "color math" namespace
 
 - Runs on the Bund's VPS; the owner has full control, and others hold root
   access as a fallback.
-- The Nextcloud is a hosted Hetzner StorageBox.
+- The Nextcloud is a hosted Hetzner StorageShare.
 - Design intent confirmed: the archive server only hosts ephemeral data;
   **the files (media + Markdown) are the only thing that must never be
   lost** — the search index is disposable and rebuildable by design.
 
 ## Addendum (owner, 2026-08-05, post-audit)
 
-- **Backup ruling:** the WebDAV store on the StorageBox is the primary backup
+- **Backup ruling:** the WebDAV store on the StorageShare is the primary backup
   solution — the file tree is deliberately simple precisely so a full backup
   is nothing more than downloading it as a zip. This resolves the open
   "interim backup story" consequence above: run the WebDAV mirror against the
-  StorageBox from day one.
+  StorageShare from day one.
+  (Superseded 2026-09-19 — see the addendum: backup is out of scope.)
 - **No strict deadline** for the preview deployments.
 - **Auth is the large blocker** for deployment 1 — ADR 0018 is designed but
   not built (only the dev viewer-switcher exists).
@@ -297,3 +299,19 @@ Consequences:
 - Any future admin table (audit trail, capability tokens) is allowed to live in
   Postgres and needs a backup story of its own; it does not have to be
   reconstructible from the files.
+
+## Addendum (owner, 2026-09-19)
+
+- **Backup is outside this project's scope.** The Nextcloud is already backed
+  up and the VPS has a rudimentary backup. restic was never an owner
+  requirement — it was an earlier agent's idea. There is nothing to build here
+  for now. Supersedes the "interim backup story" consequence under Storage and
+  the 2026-08-05 backup ruling.
+- **The Nextcloud is a Hetzner StorageShare**, not a StorageBox. Every
+  occurrence in the repo is corrected to StorageShare.
+- **Preview content:** deployment 1 imports a real dump of the old system's
+  data once — locally and on the production server — rather than starting from
+  an empty or seeded corpus.
+- **No in-app feedback channel.** Archivists reach the owner by e-mail.
+- **Priority:** technical issues that block the first test deployment come
+  first, then iterative improvement.
