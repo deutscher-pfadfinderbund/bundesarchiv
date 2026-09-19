@@ -45,4 +45,15 @@ Any rule breach or unexpected red stops the wave line. Investigate the cause cha
 
 Integrating parked branches: when the wave added an **exhaustiveness gate over a directory** (module map, leak matrix), list every in-flight branch's new files in that directory before merging. A rebase or `merge-tree` dry run sees overlapping TEXT only, so a gate that asserts over a whole package is invisible until it runs — four unrowed `app/web` modules stopped one integration exactly here.
 
+A dry run (`merge-tree`, rebase preview) describes the tree it was run against. Re-run it
+immediately before the merge it sizes; commits landed in between — a docs addendum appended
+to a file the branch also appends to — turn a clean file into a conflict per commit. Order
+integration so doc-appending commits land after the branch merges when possible.
+
+`rerere` is on in this repo. A replayed resolution stages the result with no unmerged paths,
+so `git rebase --continue` refuses with "there are staged changes"; a loop polling
+`--diff-filter=U` reads that as "not finished" and stalls. Handle the resolved-but-uncommitted
+state, and verify what rerere auto-applied against the original commit — it replays a
+judgment onto different surrounding text.
+
 Wave hygiene: re-measure the indicator on any ledger entry the wave touched. Prose added to law/map files gets the same scrutiny as code — an addition without a deletion is suspect.
