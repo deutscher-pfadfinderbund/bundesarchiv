@@ -82,18 +82,18 @@ def test_apply_custom_preserves_other_keys() -> None:
 
 
 def test_apply_media_type_clears_orphaned_document_type() -> None:
-    # Fotografie has no "Brief"; setting Medienart to Fotografie when doc_type is a Schriftgut type
-    # clears the now-invalid document_type (spec §3).
-    art = _article(media_type="Schriftgut", document_type="Brief")
-    out = bulk.apply_field(art, "media_type", "Fotografie")
-    assert out.media_type == "Fotografie"
+    # "Brief" is not in the vocabulary the archivists own, so setting any Medienart clears the
+    # now-invalid document_type (spec §3).
+    art = _article(media_type="Schrifttum", document_type="Brief")
+    out = bulk.apply_field(art, "media_type", "Foto(s)")
+    assert out.media_type == "Foto(s)"
     assert out.document_type is None
 
 
 def test_apply_media_type_keeps_valid_document_type() -> None:
-    art = _article(media_type="Fotografie", document_type="Porträt")
-    out = bulk.apply_field(art, "media_type", "Fotografie")
-    assert out.document_type == "Porträt"  # still valid → kept
+    art = _article(media_type="Foto(s)", document_type="Zeitschrift")
+    out = bulk.apply_field(art, "media_type", "Foto(s)")
+    assert out.document_type == "Zeitschrift"  # still valid → kept
 
 
 # --- confirm-page display of the new value (spec §2 D) -----------------------------
@@ -121,14 +121,14 @@ def test_field_display_scalar() -> None:
 
 
 def test_document_type_alone_all_valid() -> None:
-    arts = [_article(media_type="Fotografie"), _article(media_type="Fotografie")]
-    assert bulk.document_type_fits_all("Porträt", arts) is True
+    arts = [_article(media_type="Foto(s)"), _article(media_type="Schrifttum")]
+    assert bulk.document_type_fits_all("Zeitschrift", arts) is True
 
 
 def test_document_type_alone_one_mismatch_rejects_all() -> None:
-    arts = [_article(media_type="Fotografie"), _article(media_type="Schriftgut")]
-    # Porträt fits Fotografie but not Schriftgut → whole apply must be rejected
-    assert bulk.document_type_fits_all("Porträt", arts) is False
+    arts = [_article(media_type="Foto(s)"), _article(media_type=None)]
+    # no Dokumenttyp belongs to a missing Medienart → the whole apply must be rejected
+    assert bulk.document_type_fits_all("Zeitschrift", arts) is False
 
 
 # --- apply_bulk: the CAS loop + buckets against a real in-memory store (spec §4) ----
@@ -190,10 +190,10 @@ def test_apply_bulk_property_every_ulid_in_exactly_one_bucket() -> None:
 
 
 def test_apply_bulk_media_type_reports_doctype_cleared() -> None:
-    archive = _archive_with(_article(ulid="01A", media_type="Schriftgut", document_type="Brief"))
-    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Fotografie")
+    archive = _archive_with(_article(ulid="01A", media_type="Schrifttum", document_type="Brief"))
+    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Foto(s)")
     assert outcome.saved == 1
     assert [r.ulid for r in outcome.doctype_cleared] == ["01A"]
     stored = archive.articles.load("01A").article
-    assert stored.media_type == "Fotografie"
+    assert stored.media_type == "Foto(s)"
     assert stored.document_type is None

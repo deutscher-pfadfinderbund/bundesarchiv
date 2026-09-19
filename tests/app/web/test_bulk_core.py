@@ -28,20 +28,20 @@ def _archive_with(*articles_: Article) -> Archive:
 
 
 def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> None:
-    # 01A's media_type changed to Fotografie (no "Brief") AFTER the confirm-page load validated
-    # "Brief" against the STALE Schriftgut. apply_bulk re-loads fresh at apply time and must
+    # 01A's Medienart was CLEARED after the confirm-page load validated the Dokumenttyp against
+    # the stale one, and no Dokumenttyp belongs to a missing Medienart. apply_bulk re-loads fresh and must
     # re-check the pair itself — a stale-view mismatch is a concurrent-modification loss, bucketed
     # conflicted, nothing written. 01B still has a fitting media_type and must still save.
     archive = _archive_with(
-        _article(ulid="01A", media_type="Fotografie"),
-        _article(ulid="01B", media_type="Schriftgut"),
+        _article(ulid="01A", media_type=None),
+        _article(ulid="01B", media_type="Schrifttum"),
     )
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "document_type", "Brief")
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "document_type", "Schriftwechsel")
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.saved == 1
     a = archive.articles.load("01A").article
     assert a.document_type is None  # nothing written — pair stayed valid
-    assert archive.articles.load("01B").article.document_type == "Brief"
+    assert archive.articles.load("01B").article.document_type == "Schriftwechsel"
 
 
 def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
@@ -73,9 +73,9 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     from bundesarchiv.app import articles as articles_mod
 
     archive = _archive_with(
-        _article(ulid="01A", media_type="Fotografie"),  # pair mismatch on document_type apply
-        _article(ulid="01B", media_type="Schriftgut"),  # saves fine
-        _article(ulid="01C", media_type="Schriftgut"),  # forced ArchiveError on save
+        _article(ulid="01A", media_type=None),  # pair mismatch on document_type apply
+        _article(ulid="01B", media_type="Schrifttum"),  # saves fine
+        _article(ulid="01C", media_type="Schrifttum"),  # forced ArchiveError on save
     )
     real_save = articles_mod.save_article
 
@@ -85,7 +85,9 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
         return real_save(archive_, article, version)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles_mod, "save_article", _save_error_for_c)
-    outcome = bulk.apply_bulk(archive, ["01A", "01B", "01C", "01GONE"], "document_type", "Brief")
+    outcome = bulk.apply_bulk(
+        archive, ["01A", "01B", "01C", "01GONE"], "document_type", "Schriftwechsel"
+    )
     distinct = len({"01A", "01B", "01C", "01GONE"})
     assert outcome.saved + len(outcome.conflicted) + len(outcome.missing) == distinct
     assert outcome.saved == 1

@@ -55,7 +55,7 @@ def _fill(corpus: Corpus) -> None:
             Lifecycle.PUBLISHED,
             "B2",
             "Foto",
-            "Fotografie",
+            "Lagerheft",
             ("fahrten",),
             EdtfDate("1965"),
         ),
@@ -112,7 +112,7 @@ def _fill(corpus: Corpus) -> None:
             Lifecycle.PUBLISHED,
             "F12/3-b",
             "Foto",
-            "Fotografie",
+            "Lagerheft",
             ("fahrten",),
             EdtfDate("1968"),
         ),
@@ -178,7 +178,7 @@ def _fill(corpus: Corpus) -> None:
             title="Vorschau Sommerfahrt",
             ref_code="P1",
             media_type="Foto",
-            document_type="Fotografie",
+            document_type="Lagerheft",
             tags=("vorschau",),
             date=EdtfDate("1962"),
             media=(pub_ref,),
@@ -458,7 +458,7 @@ def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: 
     # filter param as a hidden input, with its exact current value. seite is the one deliberate
     # exception (a new search resets to page 1); q stays the single live input, never also hidden.
     query = (
-        "q=Fahrt&bestand=FOTOS&medienart=Foto&dokumenttyp=Fotografie&schlagwort=fahrten"
+        "q=Fahrt&bestand=FOTOS&medienart=Foto&dokumenttyp=Lagerheft&schlagwort=fahrten"
         "&jahrzehnt=1960&ohne_datum=1&von=1960-01-01&bis=1969-12-31&sortierung=-signatur&seite=2"
     )
     form_html = _search_form_html(_get(Public(), query).content.decode())
@@ -466,7 +466,7 @@ def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: 
     for name, value in [
         ("bestand", "FOTOS"),
         ("medienart", "Foto"),
-        ("dokumenttyp", "Fotografie"),
+        ("dokumenttyp", "Lagerheft"),
         ("schlagwort", "fahrten"),
         ("jahrzehnt", "1960"),
         ("ohne_datum", "1"),

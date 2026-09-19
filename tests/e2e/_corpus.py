@@ -105,8 +105,8 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
                 "Der Bestand dokumentiert die Ferienlager der frühen 1960er Jahre."
             ),
             ref_code="F12",
-            media_type="Fotografie",
-            document_type="Porträt",
+            media_type="Foto(s)",
+            document_type="Zeitschrift",
             tags=("fahrt", "sommer"),
             date=EdtfDate("1962-07"),
             creator="K. Meyer",
@@ -125,7 +125,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
             ref_code="F13",
-            media_type="Fotografie",
+            media_type="Foto(s)",
             tags=("lager",),
             date=EdtfDate("1963"),
         ),
@@ -141,13 +141,13 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             collection_id="FOTOS",
             lifecycle=Lifecycle.DRAFT,
             ref_code="F9",
-            media_type="Fotografie",
+            media_type="Foto(s)",
         ),
         0,
     )
     # The Signatur ceiling (owner, 2026-08-07): ONE article at 8 characters, no spaces, so the
     # ledger's sig column and every gallery shot are judged on the widest REALISTIC code. Filed in
-    # AKTEN with its own Medienart, so it neither joins the "sommer" tag facet nor the Fotografie
+    # AKTEN with its own Medienart, so it neither joins the "sommer" tag facet nor the Foto(s)
     # count the filter journeys narrow on.
     articles.save(
         Article(
@@ -156,7 +156,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             collection_id="AKTEN",
             lifecycle=Lifecycle.PUBLISHED,
             ref_code=CEILING_REF_CODE,
-            media_type="Schriftgut",
+            media_type="Schrifttum",
             document_type="Protokoll",
             date=EdtfDate("1958-05"),
         ),

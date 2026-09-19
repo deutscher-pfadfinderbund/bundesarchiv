@@ -78,7 +78,7 @@ def _valid_post(corpus: _EditCorpus, **overrides: str) -> dict[str, str]:
         "title": "Wanderfahrt 1962",
         "collection_id": "PUB",
         "ref_code": "F12/3",
-        "media_type": "Fotografie",
+        "media_type": "Foto(s)",
         "document_type": "",
         "tags": "",
         "date": "",
@@ -194,11 +194,11 @@ def test_edit_post_missing_title_re_renders_state_f(corpus: _EditCorpus) -> None
 def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
-        _valid_post(corpus, media_type="Fotografie", document_type="Brief"),
+        _valid_post(corpus, media_type="Foto(s)", document_type="Brief"),
     )
     assert response.status_code == 200
     # the straight closing quote in the verbatim string is HTML-escaped to &quot; in the render
-    assert "Dieser Dokumenttyp gehört nicht zu „Fotografie&quot;." in response.content.decode()
+    assert "Dieser Dokumenttyp gehört nicht zu „Foto(s)&quot;." in response.content.decode()
 
 
 # --- POST: CAS conflict state G (two racing clients through the real form) ---------
@@ -574,8 +574,8 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         lifecycle=Lifecycle.DRAFT,
         title="Wanderfahrt 1962",
         ref_code="F12/3",
-        media_type="Fotografie",
-        document_type="Porträt",
+        media_type="Foto(s)",
+        document_type="Zeitschrift",
         tags=("sommer", "fahrt"),
         date=EdtfDate("1962-07"),
         creator="Kurt Meyer",
@@ -590,8 +590,8 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "title": "Wanderfahrt 1962",
         "collection_id": PUB,
         "ref_code": "F12/3",
-        "media_type": "Fotografie",
-        "document_type": "Porträt",
+        "media_type": "Foto(s)",
+        "document_type": "Zeitschrift",
         "tags": "sommer, fahrt",
         "date": "1962-07",
         "creator": "Kurt Meyer",
@@ -698,8 +698,8 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
         "title": "Anderer Titel",
         "collection_id": "MEM",
         "ref_code": "X99",
-        "media_type": "Karte",
-        "document_type": "Wanderkarte",
+        "media_type": "Buch",
+        "document_type": "Kalender",
         "tags": "herbst",
         "date": "1970",
         "creator": "Andere Hand",
@@ -798,7 +798,7 @@ def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _EditC
             lifecycle=Lifecycle.DRAFT,
             title="Vollständig",
             ref_code="F1",
-            media_type="Fotografie",
+            media_type="Foto(s)",
             document_type="Positiv",
             tags=("sommer",),
             date=EdtfDate("1962"),

@@ -24,11 +24,9 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
 def test_dokumenttypen_returns_options_for_media_type(corpus: Corpus) -> None:
-    response = client_as(Archivist()).get(
-        f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Fotografie"
-    )
+    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Foto(s)")
     assert response.status_code == 200
-    assert "Porträt" in response.content.decode()  # a Fotografie Dokumenttyp
+    assert "Zeitschrift" in response.content.decode()  # a Foto(s) Dokumenttyp
 
 
 def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpus) -> None:
@@ -41,7 +39,7 @@ def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpu
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_dokumenttypen_denied_is_404_never_content(corpus: Corpus, viewer: Viewer) -> None:
-    response = client_as(viewer).get(f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Fotografie")
+    response = client_as(viewer).get(f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Foto(s)")
     assert_denied(response)
     assert b"Portr" not in response.content  # no partial content leaked
 
@@ -49,7 +47,7 @@ def test_dokumenttypen_denied_is_404_never_content(corpus: Corpus, viewer: Viewe
 def test_dokumenttypen_post_is_404(corpus: Corpus) -> None:
     assert (
         client_as(Archivist())
-        .post(f"/artikel/{DRAFT_ULID}/dokumenttypen", {"medienart": "Fotografie"})
+        .post(f"/artikel/{DRAFT_ULID}/dokumenttypen", {"medienart": "Foto(s)"})
         .status_code
         == 404
     )
@@ -99,7 +97,7 @@ def test_datierung_echo_post_is_404(corpus: Corpus) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/artikel/not-a-ulid/dokumenttypen?medienart=Fotografie",
+        "/artikel/not-a-ulid/dokumenttypen?medienart=Foto(s)",
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/datierung-echo?date=1962",  # well-formed absent
     ],
 )
@@ -116,7 +114,7 @@ def _save_post(corpus: Corpus) -> dict[str, str]:
     return {
         "title": "Lagerchronik",
         "collection_id": PUB,
-        "media_type": "Fotografie",
+        "media_type": "Foto(s)",
         "expected_version": str(corpus.articles.load(DRAFT_ULID).version),
     }
 

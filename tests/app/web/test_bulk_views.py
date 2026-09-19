@@ -108,8 +108,8 @@ def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts:
 #: ``BulkField.value_input`` fails the echo test here until it names its value.
 _ECHOED_VALUE = {
     "wert_text": "Quisenberry-Zephyroth",
-    "wert_media_type": "Fotografie",
-    "wert_document_type": "Porträt",
+    "wert_media_type": "Foto(s)",
+    "wert_document_type": "Zeitschrift",
     "wert_collection_id": "ARCH",
 }
 
@@ -292,14 +292,14 @@ def test_commit_missing_ulid_bucketed(two_drafts: Corpus) -> None:
 
 
 def test_document_type_mismatch_rejects_whole_apply(two_drafts: Corpus) -> None:
-    # _A has no media_type; Porträt (a Fotografie type) fits no article with a non-Fotografie/empty
-    # media_type → whole apply rejected, zero writes (all-or-nothing, fail-closed).
+    # _A has no media_type, and no Dokumenttyp belongs to a missing Medienart → the whole apply
+    # is rejected, zero writes (all-or-nothing, fail-closed).
     response = client_as(Archivist()).post(
         "/artikel/sammelbearbeitung",
         {
             "auswahl": [_A],
             "feld": "document_type",
-            "wert_document_type": "Porträt",
+            "wert_document_type": "Zeitschrift",
             "bestaetigt": "1",
         },
     )
@@ -309,15 +309,15 @@ def test_document_type_mismatch_rejects_whole_apply(two_drafts: Corpus) -> None:
 
 
 def _give_a_schriftgut_brief_pair(corpus: Corpus) -> None:
-    """Re-save _A with a Schriftgut + Brief pair, so switching Medienart to Fotografie orphans the
-    Dokumenttyp."""
+    """Re-save _A with a Schrifttum + Brief pair — "Brief" is not in the vocabulary the archivists
+    own, so any Medienart switch orphans it."""
     corpus.articles.save(
         make_article(
             _A,
             collection_id="PUB",
             lifecycle=Lifecycle.DRAFT,
             title="Foto A",
-            media_type="Schriftgut",
+            media_type="Schrifttum",
             document_type="Brief",
         ),
         corpus.articles.load(_A).version,
@@ -332,14 +332,14 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
         {
             "auswahl": [_A],
             "feld": "media_type",
-            "wert_media_type": "Fotografie",
+            "wert_media_type": "Foto(s)",
             "bestaetigt": "1",
         },
     )
     body = response.content.decode()
     assert "Medienart ändern — Achtung" in body  # re-confirm shown
     assert "Dokumenttyp: Brief → (leer)" in body
-    assert _stored(two_drafts, _A).media_type == "Schriftgut"  # NOT written without the flag
+    assert _stored(two_drafts, _A).media_type == "Schrifttum"  # NOT written without the flag
 
 
 def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
@@ -349,14 +349,14 @@ def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
         {
             "auswahl": [_A],
             "feld": "media_type",
-            "wert_media_type": "Fotografie",
+            "wert_media_type": "Foto(s)",
             "bestaetigt": "1",
             "dokumenttyp_leeren": "1",
         },
     )
     assert "abgeschlossen" in response.content.decode()
     got = _stored(two_drafts, _A)
-    assert got.media_type == "Fotografie"
+    assert got.media_type == "Foto(s)"
     assert got.document_type is None  # orphan cleared
 
 
@@ -365,25 +365,23 @@ def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
 
 def test_bulk_dokumenttypen_archivist(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).get(
-        "/artikel/sammelbearbeitung/dokumenttypen?media_type=Fotografie"
+        "/artikel/sammelbearbeitung/dokumenttypen?media_type=Foto(s)"
     )
     assert response.status_code == 200
-    assert "Porträt" in response.content.decode()
+    assert "Zeitschrift" in response.content.decode()
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_bulk_dokumenttypen_denied_never_content(two_drafts: Corpus, viewer: Viewer) -> None:
-    response = client_as(viewer).get(
-        "/artikel/sammelbearbeitung/dokumenttypen?media_type=Fotografie"
-    )
+    response = client_as(viewer).get("/artikel/sammelbearbeitung/dokumenttypen?media_type=Foto(s)")
     assert_denied(response)
-    assert b"Portr" not in response.content
+    assert b"Zeitschrift" not in response.content
 
 
 def test_bulk_dokumenttypen_post_is_404(two_drafts: Corpus) -> None:
     assert (
         client_as(Archivist())
-        .post("/artikel/sammelbearbeitung/dokumenttypen", {"media_type": "Fotografie"})
+        .post("/artikel/sammelbearbeitung/dokumenttypen", {"media_type": "Foto(s)"})
         .status_code
         == 404
     )

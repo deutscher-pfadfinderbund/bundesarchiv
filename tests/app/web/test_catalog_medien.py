@@ -52,7 +52,7 @@ class _MediaCorpus:
                 collection_id="PUB",
                 lifecycle=Lifecycle.DRAFT,
                 title="Lagerchronik",
-                media_type="Fotografie",
+                media_type="Foto(s)",
                 media=(self.ref_a, self.ref_b),
             )
         )
@@ -300,7 +300,7 @@ def test_caption_saved_via_edit_form_round_trips(corpus: _MediaCorpus) -> None:
         {
             "title": "Lagerchronik",
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),
             f"caption[{corpus.ref_a.content_hash}]": "Neue Unterschrift",
             f"caption[{corpus.ref_b.content_hash}]": "",  # "" -> None
@@ -325,7 +325,7 @@ def test_edit_save_preserves_media_when_no_caption_change(corpus: _MediaCorpus) 
         {
             "title": "Neuer Titel",
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),
             f"caption[{corpus.ref_a.content_hash}]": "Titelbild",
             f"caption[{corpus.ref_b.content_hash}]": "",
@@ -356,7 +356,7 @@ def test_validation_error_re_render_keeps_typed_caption(corpus: _MediaCorpus) ->
         {
             "title": "",  # invalid -> state F re-render
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),
             f"caption[{corpus.ref_a.content_hash}]": "Meine neue Unterschrift",
         },
@@ -377,7 +377,7 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
         {
             "title": "Gewinner",
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),
         },
     )
@@ -387,7 +387,7 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
         {
             "title": "Verlierer",
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),  # stale -> Conflict -> state G
             f"caption[{corpus.ref_a.content_hash}]": "Gelöschte Unterschrift",
         },
@@ -405,7 +405,7 @@ def test_custom_entfernen_keeps_media_register_and_typed_caption(corpus: _MediaC
         {
             "title": "Lagerchronik",
             "collection_id": "PUB",
-            "media_type": "Fotografie",
+            "media_type": "Foto(s)",
             "expected_version": str(corpus.version),
             f"caption[{corpus.ref_a.content_hash}]": "Frisch getippt",
             "custom_key": ["Fotograf"],

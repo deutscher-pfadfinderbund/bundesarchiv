@@ -19,6 +19,8 @@ from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
 from tests.e2e._pages import SCREENS, screens_for
 
+from bundesarchiv.app.web import vocab
+
 pytestmark = pytest.mark.e2e
 
 
@@ -119,11 +121,14 @@ def test_the_edit_forms_two_small_swaps_land_their_own_partials(
     # exactly that: picking a Medienart EMPTIED the Dokumenttyp select, and typing a Datierung deleted
     # the echo's own target. Enhancement-only, so no server-side test saw it.
     page = archivist_page
-    _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Fotografie
+    _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
     dokumenttyp = page.locator("#dokumenttyp-select")
-    expect(dokumenttyp.locator("option")).to_have_count(5)  # the empty option + Fotografie's four
-    expect(dokumenttyp).to_contain_text("Lageraufnahme")
-    expect(dokumenttyp).not_to_contain_text("Wanderkarte")  # ...and only that Medienart's types
+    expect(dokumenttyp.locator("option")).to_have_count(len(vocab.DOKUMENTTYPEN) + 1)  # + "kein"
+    expect(dokumenttyp).to_contain_text("Zeitschrift")
+    # ...and it is the SWAPPED list, not the no-JS baseline: both offer the same 16 words while no
+    # Medienart narrows the vocabulary, so the only thing that tells them apart is the baseline's
+    # single <optgroup>, which the partial does not emit. Without this the half is vacuous.
+    expect(dokumenttyp.locator("optgroup")).to_have_count(0)
     page.locator('input[name="date"]').press_sequentially("1962-07")
     expect(page.locator("#datierung-echo")).to_have_text("Juli 1962")
 
@@ -713,7 +718,7 @@ def test_rail_links_keep_the_typed_q_after_a_live_swap(
     # with the count, so the rail can never describe a query the URL no longer has.
     page = archivist_page
     for remove in ("Filter entfernen: sommer", "Alle Filter entfernen"):
-        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Fotografie")
+        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Foto(s)")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
@@ -755,7 +760,7 @@ _LONG_TITLE = (
     "Werbeplakat zur Bundesfahrt in die Rhön mit Aufruf zur Teilnahme"
     " am Pfingstlager des Gaues Hochland"
 )
-_LONG_TYP = "Veranstaltungsplakat"
+_LONG_TYP = max(vocab.DOKUMENTTYPEN, key=len)  # derived: the vocabulary IS the ceiling here
 #: Long HERKUNFT values: an institutional author and a full place name — what the record card's
 #: FOLDED sections have to absorb, since a folded section prints its values in its summary line
 #: (owner ruling 4), the one place on this surface where unbounded text has no input box around it.
@@ -786,7 +791,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
             ref_code=_CEILING_REF_CODE,
-            media_type="Plakat",
+            media_type="Gegenstand",
             document_type=_LONG_TYP,
             date=EdtfDate("1948-01-01/1952-12-31"),
             tags=("pfingstlager",),
@@ -1050,7 +1055,7 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
     # Medienart is required to save/publish (spec §3) — set it so downstream steps aren't blocked.
-    page.select_option('select[name="media_type"]', "Fotografie")
+    page.select_option('select[name="media_type"]', "Foto(s)")
     return page.url
 
 
@@ -1187,7 +1192,7 @@ def test_cas_conflict_second_saver_sees_panel(
     page2.goto(edit_url)  # both now hold the same expected_version
     # both forms carry a valid Medienart so each save reaches the CAS path (not a validation error);
     # the draft on disk has none yet, so page2 sets its own too.
-    page2.select_option('select[name="media_type"]', "Fotografie")
+    page2.select_option('select[name="media_type"]', "Foto(s)")
 
     # archivist 1 saves first (wins)
     _open_herkunft(archivist_page)
@@ -1423,7 +1428,7 @@ def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
                 title=f"Seitenfüller {i:02d}",
                 collection_id="FOTOS",
                 lifecycle=Lifecycle.PUBLISHED,
-                media_type="Fotografie",
+                media_type="Foto(s)",
             ),
             0,
         )
@@ -1749,7 +1754,7 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     page.wait_for_url("**/bearbeiten**")
     expect(page.locator('input[name="title"]')).to_have_value("E2E Ohne JS")
     # save: a plain form POST that 302s to the read view (no JS in the loop at all)
-    page.select_option('select[name="media_type"]', "Fotografie")
+    page.select_option('select[name="media_type"]', "Foto(s)")
     _open_herkunft(page)  # a native <details> — the fold is part of the no-JS baseline
     page.fill('input[name="creator"]', "K. Meyer")
     page.click('button:has-text("Speichern")')

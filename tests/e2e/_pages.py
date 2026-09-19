@@ -130,7 +130,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-facets",
         "workbench, two filters applied — every rail facet group carries a dropdown",
         True,
-        _at("/?schlagwort=sommer&medienart=Fotografie"),
+        _at("/?schlagwort=sommer&medienart=Foto(s)"),
         "workbench",
         overlays=4,
         control_rows=("header", "nav.filterrail"),

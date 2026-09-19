@@ -3,12 +3,14 @@
 Two pure presentation helpers, IO-free and request-free so the form controller and its tests read
 one source with no database:
 
-- ``MEDIENART_DOKUMENTTYP`` — the fixed-in-code Medienart→Dokumenttyp mapping (owner Q1: v1 is
-  fixed-in-code; if it ever becomes archivist-editable the option source moves to a managed store
-  and only this module changes). It sits behind ``media_types`` / ``document_types_for`` /
-  ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set so the dependent-select
-  render (all types as ``<optgroup>``s, no-JS baseline), the server-side pair re-validation, and any
-  later HTMX ``/dokumenttypen`` endpoint never derive the vocabulary twice.
+- ``MEDIENART_DOKUMENTTYP`` — the Medienart→Dokumenttyp vocabulary. The words are the ARCHIVISTS'
+  data, not a design decision: ``MEDIENARTEN`` and ``DOKUMENTTYPEN`` are the legacy archive's own
+  lists, verbatim and in legacy order, so the imported records keep the terms their catalogers
+  wrote. Every Medienart offers the whole Dokumenttyp list until the archivists narrow it; the
+  mapping, not the accessors, is what changes then. It sits behind ``media_types`` /
+  ``document_types_for`` / ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set
+  so the dependent-select render (no-JS baseline), the server-side pair re-validation, and the HTMX
+  ``/dokumenttypen`` endpoint never derive the vocabulary twice.
 - ``edtf_to_german`` — the human-German echo rendered server-side after a submit (spec §5) AND the
   4.6 detail-page date presentation (the sentence under the title). It reads the already-validated
   ``EdtfDate`` value object; an absent date yields an empty echo. It stays a DISPLAY helper: it never
@@ -19,16 +21,54 @@ one source with no database:
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier
 
-#: The fixed-in-code Medienart→Dokumenttyp vocabulary (owner Q1, v1). Insertion order is the render
-#: order of both the Medienart select and the dependent-Dokumenttyp optgroups. German UI values.
-MEDIENART_DOKUMENTTYP: dict[str, tuple[str, ...]] = {
-    "Schriftgut": ("Brief", "Bericht", "Protokoll", "Rundschreiben", "Urkunde"),
-    "Fotografie": ("Porträt", "Gruppenbild", "Landschaft", "Lageraufnahme"),
-    "Karte": ("Wanderkarte", "Lageplan", "Geländeskizze"),
-    "Plakat": ("Veranstaltungsplakat", "Werbeplakat"),
-    "Tondokument": ("Lied", "Rede", "Interview"),
-    "Objekt": ("Abzeichen", "Fahne", "Gerät"),
-}
+#: The Medienarten, verbatim and in the legacy archive's order — the words its catalogers used.
+MEDIENARTEN: tuple[str, ...] = (
+    "Audiodatei",
+    "Buch",
+    "CD / DVD",
+    "Dia(s)",
+    "Fahne / Wimpel",
+    "Filmspule",
+    "Foto(s)",
+    "Gegenstand",
+    "Kassette",
+    "Schallplatte",
+    "Schrifttum",
+    "Sonstiges",
+    "Stempel",
+    "Tonband",
+    "VHS",
+    "Videodatei",
+    "Wappen und Zeichen",
+)
+
+#: The Dokumenttypen, verbatim and in the legacy lookup table's order.
+DOKUMENTTYPEN: tuple[str, ...] = (
+    "Adressverzeichnis",
+    "Chronik / Dokumentation",
+    "Fahrtenbericht",
+    "Kalender",
+    "Lagerheft",
+    "Lebensbericht",
+    "Liederbuch",
+    "Ordnung",
+    "Protokoll",
+    "Reden",
+    "Schöpferisches (Gedicht, Lieder, ...)",
+    "Schriftwechsel",
+    "Sonstiges",
+    "Zeitschrift",
+    "Zeitungsartikel",
+    "Urkunde",
+)
+
+#: Medienart → the Dokumenttypen it offers. Insertion order is the render order of the Medienart
+#: select. Uniform today: narrowing a Medienart is the archivists' call, and until they make it no
+#: legacy pair can be refused by a narrowing nobody asked for.
+MEDIENART_DOKUMENTTYP: dict[str, tuple[str, ...]] = dict.fromkeys(MEDIENARTEN, DOKUMENTTYPEN)
+
+#: The single optgroup's label while every Medienart shares one Dokumenttyp list.
+ALLE_MEDIENARTEN = "Alle Medienarten"
 
 
 def media_types() -> tuple[str, ...]:
@@ -60,9 +100,16 @@ def is_valid_pair(media_type: str | None, document_type: str | None) -> bool:
 
 
 def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], ...]], ...]:
-    """The dependent Dokumenttyp options as ``(medienart_label, ((value, caption), ...))`` tuples —
-    one ``<optgroup>`` per Medienart carrying ALL its types. The no-JS baseline renders every group
-    (spec §5), so an archivist without JS can still pick a valid pair; the server re-validates."""
+    """The dependent Dokumenttyp options as ``(label, ((value, caption), ...))`` tuples — the
+    ``<optgroup>``s of the no-JS baseline, which renders every choice so an archivist without JS can
+    still pick a valid pair (spec §5); the server re-validates either way.
+
+    While every Medienart offers the same list there is ONE group: 17 identical optgroups would be
+    noise, not guidance. Once the archivists narrow a Medienart the grouping is per Medienart again.
+    """
+    offered = set(MEDIENART_DOKUMENTTYP.values())
+    if len(offered) == 1:
+        return ((ALLE_MEDIENARTEN, tuple((t, t) for t in offered.pop())),)
     return tuple(
         (media_type, tuple((t, t) for t in types))
         for media_type, types in MEDIENART_DOKUMENTTYP.items()

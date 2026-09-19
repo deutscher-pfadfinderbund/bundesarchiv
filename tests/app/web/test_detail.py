@@ -75,8 +75,8 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
             title="Sommerfahrt 1962",
             body="Erste Zeile.\n\nZweite Zeile.",
             ref_code="F12",
-            media_type="Fotografie",
-            document_type="Porträt",
+            media_type="Foto(s)",
+            document_type="Zeitschrift",
             tags=("fahrt", "sommer"),
             date=EdtfDate("1962-07"),
             creator="K. Meyer",
@@ -121,7 +121,7 @@ def test_detail_renders_title_and_record_card(corpus: _DetailArchive) -> None:
     assert "F12" in body  # Signatur
     assert "K. Meyer" in body  # Autor
     assert "Harz" in body  # Ort
-    assert "Porträt" in body  # Typ (document_type preferred)
+    assert "Zeitschrift" in body  # Typ (document_type preferred)
     assert "Erste Zeile." in body  # Beschreibung prose
 
 

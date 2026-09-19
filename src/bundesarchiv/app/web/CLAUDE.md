@@ -25,7 +25,7 @@ parameterised by a closed overlay union — a new panel joins that union, never 
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — authorized media entry points (`can_view` before any blob probe — ordering is load-bearing) · interface: `serve_media`, `serve_thumbnail` · tests: `tests/app/web/test_media.py`
-- `vocab.py` — controlled vocabulary + German label echo for the form · interface: `media_type_options`, `document_types_for`, `is_valid_pair` · tests: `tests/app/web/test_vocab.py`
+- `vocab.py` — the archivists' Medienart/Dokumenttyp vocabulary + the German label echo · interface: `MEDIENARTEN`, `DOKUMENTTYPEN`, `document_types_for`, `is_valid_pair` · tests: `tests/app/web/test_vocab.py`
 - `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`parent_options`/`accepts`/`error`/`name_of`/`names`/`by_ulid` · tests: `tests/app/web/test_bestand.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

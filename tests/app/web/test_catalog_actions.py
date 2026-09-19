@@ -229,7 +229,7 @@ def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]
     return {
         "title": "Ohne Bestandskette",
         "collection_id": "WAISE",
-        "media_type": "Fotografie",
+        "media_type": "Foto(s)",
         "expected_version": str(version),
         "lebenszyklus": "veroeffentlichen",
         **overrides,

@@ -23,7 +23,7 @@ def _post(**overrides: object) -> dict[str, list[str]]:
         "title": ["Wanderfahrt 1962"],
         "collection_id": ["COLL1"],
         "ref_code": [""],
-        "media_type": ["Fotografie"],
+        "media_type": ["Foto(s)"],
         "document_type": [""],
         "tags": [""],
         "date": [""],
@@ -87,7 +87,7 @@ def test_present_optionals_round_trip() -> None:
     art = _parse(
         _post(
             ref_code="F12/3-b",
-            document_type="Porträt",
+            document_type="Zeitschrift",
             creator="Kurt Meyer",
             subject_place="Kassel",
             physical_location="Regal 4",
@@ -96,7 +96,7 @@ def test_present_optionals_round_trip() -> None:
     ).article
     assert art is not None
     assert art.ref_code == "F12/3-b"
-    assert art.document_type == "Porträt"
+    assert art.document_type == "Zeitschrift"
     assert art.creator == "Kurt Meyer"
     assert art.subject_place == "Kassel"
     assert art.physical_location == "Regal 4"
@@ -151,12 +151,12 @@ def test_media_type_not_in_vocabulary_is_a_field_error() -> None:
 
 
 def test_document_type_not_belonging_to_media_type_is_rejected() -> None:
-    result = _parse(_post(media_type="Fotografie", document_type="Brief"))
-    assert result.errors["document_type"] == 'Dieser Dokumenttyp gehört nicht zu „Fotografie".'
+    result = _parse(_post(media_type="Foto(s)", document_type="Brief"))
+    assert result.errors["document_type"] == 'Dieser Dokumenttyp gehört nicht zu „Foto(s)".'
 
 
 def test_document_type_belonging_to_media_type_is_accepted() -> None:
-    result = _parse(_post(media_type="Fotografie", document_type="Porträt"))
+    result = _parse(_post(media_type="Foto(s)", document_type="Zeitschrift"))
     assert result.errors == {}
 
 
