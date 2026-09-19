@@ -29,8 +29,15 @@ run = "container system start && container start bundesarchiv-pg"
 description = "Block until the dev Postgres accepts connections"
 depends = ["pg"]
 run = """
+# Both sides, because Postgres reports ready INSIDE the container a moment before
+# `container` publishes host port 5434 — and every suite connects from the host.
+if command -v pg_isready >/dev/null 2>&1; then
+  host_ready() { pg_isready -h localhost -p 5434 -U postgres >/dev/null 2>&1; }
+else
+  host_ready() { nc -z localhost 5434 >/dev/null 2>&1; }
+fi
 for i in $(seq 1 30); do
-  container exec bundesarchiv-pg pg_isready -U postgres >/dev/null 2>&1 && exit 0
+  container exec bundesarchiv-pg pg_isready -U postgres >/dev/null 2>&1 && host_ready && exit 0
   sleep 1
 done
 echo "Postgres did not become ready in time" >&2
