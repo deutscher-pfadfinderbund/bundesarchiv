@@ -1,0 +1,57 @@
+# The app image (Dockerfile) — built here and only here, pushed to GHCR as
+# ghcr.io/deutscher-pfadfinderbund/bundesarchiv. Watchtower on the VPS polls :latest hourly, so a
+# push here IS the deployment: nothing may be pushed that CI has not already passed. Hence
+# workflow_run rather than `push` — this waits for the CI run on main to conclude green. A pull
+# request builds the image and stops there, which keeps a broken Dockerfile off main.
+name: App image
+
+on:
+  pull_request:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/deutscher-pfadfinderbund/bundesarchiv
+  # workflow_run's own github.sha is the default branch tip, which is not necessarily the commit CI
+  # just tested — the image must carry the tested one.
+  SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  build:
+    # Nothing is built for a CI run that failed, and nothing for a CI run this repository did not
+    # start itself: workflow_run's `branches:` filter matches the TRIGGERING run's head branch, so a
+    # fork pull request from a branch named `main` passes it. Without the event/repository pair, that
+    # fork's code would be pushed to :latest and deployed within the hour.
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Build
+        run: docker build -t ${{ env.IMAGE }}:latest -t ${{ env.IMAGE }}:sha-${{ env.SHA }} .
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'workflow_run'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: github.event_name == 'workflow_run'
+        run: |
+          docker push ${{ env.IMAGE }}:latest
+          docker push ${{ env.IMAGE }}:sha-${{ env.SHA }}
