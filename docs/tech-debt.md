@@ -106,6 +106,10 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Evidence:** `article_auth`, `media_views`, `index/indexer` (the web forms now resolve through
   `bestand.by_ulid`). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
   is copied. `media_views` re-reads every Collection README per byte-range.
+- **Evidence** (Caution, 2026-08-22 attempt, branch `arch/pure-store`, abandoned):
+  removing a constructor `mkdir` opened a bootstrap gap (virgin deploy 500s).
+  A top-level `app/collections.py` import hit an `AppRegistryNotReady` cycle.
+  An import-graph test named for "layer order" left `app`/`app.web` unconstrained.
 - **Sketch:** `CollectionTree` value object — `chain_for(id) -> ResolvedChain`,
   `descendants_of(id) -> frozenset`; built once per operation by `CollectionRepository.tree()`.
 
@@ -125,6 +129,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   relation. A test pinning a derivation is the smell an owning interface would remove.
 - **Sketch:** drop the `scanned` column; derive the GET spine from `focusable` minus a named
   exception set. Follow-up from W2; low value until a second exception appears.
+
+### 17. Single-writer assumption fails silently — Speculative
+- **Indicator:** 0 boot-time checks (2026-09-19)
+- **Evidence:** ADR 0013 states the deploy rule only; source `ARCHITECTURE-REVIEW.md.local` R7
+  (2026-07-19, clean review).
+- **Sketch:** a boot-time assertion or store-level advisory lock so a second app process fails loud.
 
 ## Implementation patterns
 
