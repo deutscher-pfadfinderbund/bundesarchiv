@@ -640,3 +640,20 @@ def test_an_export_with_an_unknown_column_is_refused_before_anything_is_written(
         with pytest.raises(CommandError, match="Spalten"):
             _run(csv_dir, media_root)
         assert list(Archive.canonical().articles.list_ulids()) == []
+
+
+@pytest.mark.django_db
+def test_rebuild_index_hands_the_shared_index_back_to_another_root(tmp_path: Path) -> None:
+    # The index is one table for every canonical root, so the import's rebuild repoints it. This is
+    # the documented way back (README, "Legacy import") — and the import's own retry, which the
+    # one-time refusal otherwise denies.
+    from bundesarchiv.index.models import ArticleIndex
+
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        _run(csv_dir, media_root)
+        assert ArticleIndex.objects.count() == 3
+    with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path / "leerer-baum")):
+        call_command("rebuild_index", stdout=io.StringIO())
+    assert ArticleIndex.objects.count() == 0

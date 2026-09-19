@@ -46,6 +46,45 @@ retries failed index updates):
 DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py procrastinate worker
 ```
 
+## Legacy import (local)
+
+The old site's records are imported once, from a CSV export of its database plus
+its media folder. `var/legacy/export_legacy.sh` is the script that made the
+export; it is gitignored, like the export itself.
+
+```sh
+mise run legacy:import -- --dry-run   # reads everything, writes nothing, prints the report
+mise run legacy:import                # writes the archive, then rebuilds the index
+```
+
+Read the dry run's report before the real one — the import runs once and the
+source is deleted after it. It counts the Bestände, the records without a file,
+the dates too free-form to read, the rows whose `date` text disagrees with the
+`month`/`day` columns, the Medienarten and Dokumenttypen the edit form would
+refuse to re-save, and the files it cannot find. The import refuses to run
+twice, and it refuses a media path that is absent or holds not one of the
+exported files. Its canonical root is its own (`var/legacy/canonical`), so the
+dev archive's FILES are never touched. Point the app at the imported tree:
+
+```sh
+BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical \
+DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver
+```
+
+The search index is NOT isolated the same way: it is one Postgres table for
+every canonical root, and the import rebuilds it from the imported tree. So keep
+`BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical` set while you browse — with
+the default root you would search the legacy records and open dev ones. To hand
+the index back to the dev archive (or to retry the import's own rebuild, which
+the one-time refusal gives no second chance at):
+
+```sh
+uv run manage.py rebuild_index     # rebuilds from whatever BUNDESARCHIV_CANONICAL_ROOT points at
+```
+
+Both paths are overridable: `BUNDESARCHIV_LEGACY_MEDIA` for the media folder,
+`BUNDESARCHIV_CANONICAL_ROOT` for where the archive lands.
+
 ## Tests
 
 Tests run through [mise](https://mise.jdx.dev/) tasks; `mise.toml` is the single

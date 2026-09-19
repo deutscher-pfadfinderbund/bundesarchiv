@@ -84,6 +84,19 @@ description = "Service layer + HTTP surface incl. leak matrix (needs Postgres)"
 depends = ["pg:wait"]
 run = "uv run pytest tests/app"
 
+[tasks."legacy:import"]
+description = "One-time import of the legacy CSV export (pass -- --dry-run first)"
+depends = ["pg:wait"]
+# Its own canonical root: the import is one-time and refuses a root that already holds Articles, so
+# it must not aim at the dev archive by accident. Both paths stay overridable from the environment.
+# The search INDEX is not isolated with it — one Postgres table per database, rebuilt here from the
+# imported tree; `manage.py rebuild_index` hands it back to another root (README).
+run = """
+BUNDESARCHIV_CANONICAL_ROOT=${BUNDESARCHIV_CANONICAL_ROOT:-var/legacy/canonical} \
+uv run manage.py import_legacy --csv-dir var/legacy \
+  --media-root ${BUNDESARCHIV_LEGACY_MEDIA:-/Volumes/Archive/backup/dpb.de/2026-09-19/admin/dpb.de/media}
+"""
+
 [tasks."e2e:browsers"]
 description = "Install/refresh the Playwright chromium build (idempotent)"
 run = "uv run playwright install chromium"
