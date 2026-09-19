@@ -1,8 +1,144 @@
 # Operations runbook
 
 Production/operations detail that does not belong in the quick-start README.
-Settings are env vars read by `bundesarchiv/index/settings.py`. Part 6 (deploy)
-consolidates this further.
+Settings are env vars read by `bundesarchiv/index/settings.py`.
+
+## Deploy
+
+The whole system lives in one folder on the VPS, `/home/admin/bundesarchiv/`.
+It is a checkout of this repository plus the data the repository must never
+hold:
+
+```
+/home/admin/bundesarchiv/
+  compose.yml                 the stack (from the repo)
+  deploy/nginx/nginx.conf     the media sidecar (from the repo)
+  production.env              secrets and paths — never committed
+  canonical/                  THE ARCHIVE. Losing this loses everything.
+  thumbnails/                 derived WebP cache, prunable
+  pgdata/                     Postgres data: the search index and the job queue
+```
+
+Every `docker compose` command in this folder takes `--env-file production.env`.
+Compose reads `.env` for the values it substitutes into `compose.yml`, and the
+stack's file is not named that; without the flag compose stops and says so.
+
+Traefik in front terminates TLS and routes
+`archiv.deutscher-pfadfinderbund.de` to the `nginx` service over the existing
+external `web` network.
+
+### First bring-up
+
+```sh
+cd /home/admin/bundesarchiv
+git clone https://github.com/deutscher-pfadfinderbund/bundesarchiv.git .
+cp deploy/production.env.example production.env
+$EDITOR production.env                      # see below
+mkdir -p canonical thumbnails pgdata
+sudo chown -R 1000:1000 canonical thumbnails
+docker compose --env-file production.env up -d
+docker compose --env-file production.env logs -f app
+```
+
+The app runs as uid 1000 inside the image, which is why the two writable mounts
+must belong to that id. `pgdata` belongs to Postgres and needs no chown:
+Postgres creates and owns its own `18/docker` subfolder inside it.
+
+The app container migrates the database, checks the index and then serves; a
+failure to start is in the `logs app` output and names what it missed.
+Without `BUNDESARCHIV_SECRET_KEY` or `BUNDESARCHIV_ALLOWED_HOSTS` it refuses to
+serve at all, by design.
+
+### Filling production.env
+
+`deploy/production.env.example` lists every variable with what it is for. Three
+need thought:
+
+- `BUNDESARCHIV_SECRET_KEY` and `BUNDESARCHIV_VIEWER_SIGNING_KEY` are two
+  DIFFERENT secrets. Generate each with
+  `python -c "import secrets; print(secrets.token_urlsafe(64))"`.
+- `BUNDESARCHIV_PG_DSN` carries the same password as `POSTGRES_PASSWORD`. The
+  host is `postgres`, the compose service — Postgres publishes no port.
+- `BUNDESARCHIV_MIRROR_DAV_URL` must point at a folder the app owns alone. The
+  reconcile deletes everything under it that is not in canonical.
+
+### Updating and rolling back
+
+Watchtower already runs on the host and polls hourly. It pulls `:latest` for
+`app` and `worker` and restarts them. So a push to `main` that passes CI is the
+deployment — `.github/workflows/app-image.yml` publishes the image only after
+CI has gone green on that commit.
+
+To roll back, pin the last good image instead of `:latest` in `compose.yml`:
+
+```sh
+docker compose --env-file production.env pull      # normal, forced update
+docker compose --env-file production.env up -d
+# rollback: set both app and worker to ghcr.io/…/bundesarchiv:sha-<sha>, then up -d again
+```
+
+Watchtower only touches `:latest`, so a pinned tag stays pinned until someone
+un-pins it. Pin rather than retag: the tag then says which commit is running.
+
+### Backup
+
+The owner's rsync job copies `/home/admin/`. Exclude the two folders that are
+derived and large:
+
+```
+bundesarchiv/pgdata
+bundesarchiv/thumbnails
+```
+
+`canonical/` is the archive and must be in every backup. `pgdata` holds the
+search index (rebuildable) and the job queue; a restore that loses it costs a
+reindex, not data.
+
+### Importing a canonical tree
+
+Copy the tree into `./canonical` (keeping its own layout), fix ownership, then
+rebuild the index:
+
+```sh
+sudo rsync -a /path/to/import/ canonical/
+sudo chown -R 1000:1000 canonical
+docker compose --env-file production.env exec worker \
+  python manage.py procrastinate defer full_rebuild
+```
+
+The hourly reconcile would find it too; the defer just does not wait.
+`ensure_index_current` is NOT the command for this — it only reacts to a
+changed FTS config version, and an empty index is not stale.
+
+### Smoke after bring-up
+
+1. Postgres writes into the folder this stack backs up, once, on the first
+   bring-up:
+
+   ```sh
+   docker compose --env-file production.env exec postgres \
+     psql -U postgres -tAc "show data_directory"
+   ```
+
+   Expect `/var/lib/postgresql/18/docker`, and `ls pgdata/18/docker` on the host
+   showing the cluster. An empty `pgdata/` means the bind mount misses the data
+   directory and the cluster lives in an anonymous volume nobody backs up.
+2. The login walk, once per realm change: "Smoke test: one real login per realm
+   change" below.
+3. Range requests through nginx, on a large PDF. Copy the `__Host-viewer`
+   cookie out of a logged-in browser:
+
+   ```sh
+   curl -r 0-99 -I -H 'Cookie: __Host-viewer=<value>' \
+     https://archiv.deutscher-pfadfinderbund.de/media/<article-ulid>/<content-hash>
+   ```
+
+   Expect `206`, a `Content-Range: bytes 0-99/<size>`, and
+   `Cache-Control: private, …`. A `200` with the whole file means the
+   X-Accel-Redirect handoff is not happening — check
+   `BUNDESARCHIV_X_ACCEL_PREFIX` against the `location /_media/` in
+   `deploy/nginx/nginx.conf`. A public `Cache-Control` means that location grew
+   an `expires` or `add_header` it must not have (ADR 0017).
 
 ## Authentication (Keycloak OIDC) — ADR 0018
 

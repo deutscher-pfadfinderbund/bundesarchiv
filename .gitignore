@@ -23,3 +23,9 @@ tests/test_data/archive_items.txt
 
 # The deploy stack's real environment file (deploy/production.env.example is the template).
 production.env
+
+# The VPS deploy folder is a checkout of this repo; its data must never be committed,
+# and `git clean` in it must never reach the archive (docs/runbook.md, "Deploy").
+/canonical/
+/thumbnails/
+/pgdata/
