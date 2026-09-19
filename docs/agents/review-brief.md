@@ -1,7 +1,8 @@
 # Review & verification brief
 
 Standing rules for review and verification agents (fresh one-shot subagents).
-Read `REVIEW-LEDGER.md.local` first; never re-report anything listed there.
+Read `docs/tech-debt.md` (open entries) and the open GitHub issues
+(`gh issue list --state open`) first; never re-report anything listed there.
 
 ## Findings
 
