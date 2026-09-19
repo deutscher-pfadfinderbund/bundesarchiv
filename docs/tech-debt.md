@@ -136,6 +136,14 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   (2026-07-19, clean review).
 - **Sketch:** a boot-time assertion or store-level advisory lock so a second app process fails loud.
 
+### 18. The upload path buffers whole files in RAM — Strong
+- **Indicator:** `ObjectStore.put_large` production callers = 0; upload peak RSS = file size (2026-09-19)
+- **Evidence:** `catalog_views.article_medien_hochladen` calls `f.read()` and `add_media` hashes the
+  whole `bytes` — against a 4 GiB ceiling and one gunicorn process. The 1 MiB-chunk streaming seam
+  (`localfs`, `webdav`, `memory`) is reached only by the conformance tests.
+- **Sketch:** `add_media(..., chunks: Iterable[bytes])` hashing as it feeds `put_large`; the view
+  passes `UploadedFile.chunks()`.
+
 ## Implementation patterns
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
