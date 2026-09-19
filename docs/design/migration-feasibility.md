@@ -1,7 +1,18 @@
 # Migration Feasibility Memo — Old Dataset → New Article Model
 
-**Status:** spike complete  
-**Corpus:** `tests/test_data/archive_items.txt` — psql `\copy` dump, 2 485 main rows + 1 261 keywords-continuation rows  
+**Status:** executed, 2026-09-19 — `src/bundesarchiv/app/legacy.py` is the mapping that runs, and
+it is the contract; this memo is the spike that argued for it. Where the two differ, the module
+wins: the custom keys became `Quelle` / `Anmerkungen` / `Besitzer` / `Anzahl` / `Legacy-ID`, the
+lookup-table Dokumenttyp beats the free text instead of the other way round, and every shape §4
+files under "needs human review" is left unread rather than guessed (year only, original words kept
+verbatim). Run it with `mise run legacy:import` (see the README). One claim of the spike is
+FALSE of the export that replaced its dump and cost data before it was caught: §1 and §4 say `day`
+and `month` are empty throughout — in `var/legacy/items.csv` 300 rows carry a month and 62 a day,
+so the module reads them as the fallback when the `date` text is unreadable, and reports the rows
+where the two disagree.  
+**Corpus:** the dump this spike read is gone. The export it was replaced by is `var/legacy/`
+(`export_legacy.sh`): 2 506 item rows, 1 135 file rows, and the `document_type` lookup table §2
+asked for.  
 **New model reference:** `docs/design/bundesarchiv-v1.md` §5, `CONTEXT.md`
 
 ---
