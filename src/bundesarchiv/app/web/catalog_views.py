@@ -1193,11 +1193,6 @@ def _preview_fields_label(result: VisibilityPreview) -> str:
 # of the media tuple to ``update_article``, which loads, applies and retries onto a concurrent
 # winner. Order is meaning (first = cover), so reorder is re-cover and upload appends at the END.
 
-#: How many bytes a single upload request may carry / a single file may be (spec §8). Kept modest for
-#: a v1 archive of scans; the settings mirror lets the deploy raise them. Oversize → a clean German
-#: error, never a 500.
-_MAX_UPLOAD_BYTES = getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024)
-
 #: How many times a structural media save re-loads after a concurrent version bump before giving up
 #: and telling the archivist to try again (rare: single-app-process, a handful of writers).
 _STRUCTURAL_SAVE_RETRIES = 2
@@ -1255,7 +1250,8 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
         return _not_found()
     archive, stored = gated
     files = request.FILES.getlist("dateien")
-    oversize = any(f.size is not None and f.size > _MAX_UPLOAD_BYTES for f in files)
+    ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
+    oversize = any(f.size is not None and f.size > ceiling for f in files)
     if oversize:
         return EditSurface.of(stored, BestandChooser.of(archive)).render(
             request, overlay=MediaError("Datei zu groß. Bitte kleinere Dateien hochladen.")

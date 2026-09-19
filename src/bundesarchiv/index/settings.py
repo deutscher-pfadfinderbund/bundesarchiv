@@ -177,14 +177,16 @@ BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
     "BUNDESARCHIV_MIRROR_RECONCILE_CRON", "0 3 * * *"
 )
 
-# Upload limits for the Part 4.7 media manager (spec §8). A single request and a single in-memory
-# file are both capped at 50 MB by default; past FILE_UPLOAD_MAX_MEMORY_SIZE Django streams the file
-# to a temp file rather than holding it in RAM, and past DATA_UPLOAD_MAX_MEMORY_SIZE the request is
-# rejected (the view turns an oversize upload into a clean German error, never a 500). The deploy can
-# raise these via env for large-scan workflows. Kept modest for a v1 archive of document scans.
-_MAX_UPLOAD = int(os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
-DATA_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
-FILE_UPLOAD_MAX_MEMORY_SIZE = _MAX_UPLOAD
+# The upload ceiling for the Part 4.7 media manager (spec §8): ONE number, 4 GiB by owner ruling
+# (2026-09-19), enforced per file by the upload view, which turns an oversize file into a clean
+# German error rather than a 500. Django's two memory settings keep their defaults on purpose —
+# neither caps a file: DATA_UPLOAD_MAX_MEMORY_SIZE sizes the NON-file part of a request body, and
+# FILE_UPLOAD_MAX_MEMORY_SIZE only picks where an upload moves from RAM to a temp file. nginx's
+# client_max_body_size (deploy/nginx/nginx.conf) bounds the whole request instead, and is set higher
+# so a batch of legal files never trips nginx's English 413 in place of this German error.
+BUNDESARCHIV_MAX_UPLOAD_BYTES = int(
+    os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(4 * 1024**3))
+)
 # A generous ceiling on the number of form fields (the media manager renders one caption input per
 # file); the default 1000 is fine for a v1 item, set explicitly so a large item never trips it.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))

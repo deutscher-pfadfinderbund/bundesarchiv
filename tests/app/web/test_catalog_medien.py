@@ -256,18 +256,10 @@ def test_hochladen_identical_bytes_is_noop_dedupe(corpus: _MediaCorpus) -> None:
 
 def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
     big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
-    with override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=100):
-        # force the per-file ceiling low so 1 KB is "oversize"
-        from bundesarchiv.app.web import catalog_views
-
-        original = catalog_views._MAX_UPLOAD_BYTES
-        catalog_views._MAX_UPLOAD_BYTES = 100
-        try:
-            response = client_as(Archivist()).post(
-                f"/artikel/{_ULID}/medien/hochladen", {"dateien": big}
-            )
-        finally:
-            catalog_views._MAX_UPLOAD_BYTES = original
+    with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
+        response = client_as(Archivist()).post(
+            f"/artikel/{_ULID}/medien/hochladen", {"dateien": big}
+        )
     assert response.status_code == 200  # a clean re-render, not a 500
     assert "Datei zu groß" in response.content.decode()
     assert len(corpus.media()) == 2  # nothing attached
