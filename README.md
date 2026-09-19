@@ -26,7 +26,8 @@ container run -d --name bundesarchiv-pg -p 5434:5432 \
 uv run manage.py migrate
 ```
 
-(With Docker instead: `docker compose up -d`, then `uv run manage.py migrate`.)
+(With Docker instead: the same `build` and `run` commands with `docker` in place
+of `container`. There is no dev compose file — `compose.yml` is the VPS stack.)
 
 ## Start the app
 

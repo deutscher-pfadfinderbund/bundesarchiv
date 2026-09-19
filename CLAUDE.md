@@ -9,8 +9,9 @@
 
 ## Dev environment
 
-- Search database (Postgres, host port 5434) runs via Apple's `container`
-  CLI, `docker` only when `container` is not installed. (`docker-compose.yml` is a VPS deploy artifact):
+- Search database (Postgres, host port 5434) runs via Apple's `container` CLI —
+  or the same `build`/`run` commands under `docker` when `container` is not
+  installed. There is no dev compose file; `compose.yml` is the VPS deploy stack:
   `container system start && container start bundesarchiv-pg`
   (first-time setup: see README).
 - Dev server: `mise run dev`

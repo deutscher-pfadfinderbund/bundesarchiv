@@ -85,8 +85,8 @@ time. The **database is not** the index: it also holds the worker's job tables,
 and later admin data nothing can rebuild from the files (ADR 0003, update
 2026-08-30). Rebuild the index; drop the database only in an emergency.
 Postgres 18 with the German Hunspell dictionary baked in
-(`docker/postgres/`). `docker-compose.yml` is the VPS deploy artifact; local dev
-uses Apple's `container` CLI (README).
+(`docker/postgres/`). `compose.yml` is the VPS deploy stack ("Deploy" below);
+local dev uses Apple's `container` CLI (README).
 
 The VPS pulls `ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest`,
 published by `.github/workflows/postgres-image.yml` from `docker/postgres/`.
