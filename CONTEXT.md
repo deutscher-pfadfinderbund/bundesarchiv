@@ -28,6 +28,10 @@ A distinct physical object embodying an Article when one Article has several phy
 The identifier an Archivist assigns to an Article and writes on the physical object (e.g. `F12/3-b2`). Optional, free-text, sorts numeric-aware, soft-unique (duplicates warned, not blocked). It is human-facing metadata, **not** the Article's stable identity (which is an internal ULID). **Shape (owner, 2026-08-07):** a Signatur carries **no spaces**, and **8 characters is the practical ceiling** ("they could get longer, but I don't expect them to") — demo corpora and layout renders use codes at or under that ceiling; where a layout needs stressing, the unbounded field is the Titel.
 _Avoid_: signature (false friend — means autograph in English), ref_id (implies identity — the ULID is the identity), call number, ID, key.
 
+**Archive** (code term, no UI label):
+One archive as one value: the canonical files-store (the `ObjectStore` port) together with the repositories over it. Built per request or job and passed down — the seam the application layer reads and writes the archive through, so a service takes an Archive and never a bare store. `Archive.canonical()` is the one place the canonical store is built from settings.
+_Avoid_: context (template context), session (DB session), store (the persistence port it holds).
+
 ### People & audience
 
 **Archivist** (*Archivar:in*):

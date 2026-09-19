@@ -22,7 +22,7 @@ Django 6's async ORM is still partial — transactions raise `SynchronousOnlyOpe
 - **Pure core, imperative shell** — domain + persistence logic is pure and testable; IO / DB / framework live only at the edges.
 - **No framework in the core** — `domain/` and `persistence/` never import Django (ADR 0005).
 - **Ports & adapters** — `ObjectStore` is a port; swap backends at the seam.
-- **Dependency injection** — pass deps in (`ObjectStore` → `ArticleRepository` → domain / web); never construct them inside.
+- **Dependency injection** — pass deps in (`ObjectStore` → repositories → domain; `Archive` → services and web); never construct them inside. The canonical store is built from settings in `Archive.canonical()` and nowhere else.
 - **Deep modules** (`codebase-design`) — small interface, lots of behaviour; the interface is the test surface.
 - **Fail closed for security** — effective-audience / field-floor logic defaults to *less* visible.
 
