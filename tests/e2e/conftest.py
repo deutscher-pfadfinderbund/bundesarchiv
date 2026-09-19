@@ -84,6 +84,9 @@ def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, obje
         # ...and its anonymous gate, which is OFF: the journeys browse as the dev switcher does,
         # anonymous = Public. Read from settings_dev rather than restated, like everything above it.
         "ANONYMOUS_GATE_ENABLED": settings_dev.ANONYMOUS_GATE_ENABLED,
+        # ...and its plain-http CSRF cookie: live_server is http, and prod's Secure flag only
+        # survives here because Chromium exempts localhost. Same read-from-settings_dev rule.
+        "CSRF_COOKIE_SECURE": settings_dev.CSRF_COOKIE_SECURE,
         "DEV_VIEWER_SIGNING_KEY": _DEV_KEY,
         "BUNDESARCHIV_CANONICAL_ROOT": str(_e2e_root),
         "BUNDESARCHIV_THUMBNAIL_ROOT": str(_e2e_thumbs),

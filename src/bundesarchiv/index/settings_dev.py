@@ -41,8 +41,10 @@ ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 # write forms are protected in dev exactly as in prod (the dev switcher + every {% csrf_token %} form
 # carry the token); DevViewerMiddleware then attaches request.viewer for the views below.
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",  # inert here: the flag is off
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]
@@ -58,6 +60,11 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# Local runserver ergonomics — dev-only by construction (prod never imports this module).
+# Local runserver ergonomics — dev-only by construction (prod never imports this module). The
+# SECRET_KEY is fixed here for the same reason as DEV_VIEWER_SIGNING_KEY above: dev never ships, so
+# there is nothing to protect, and the deploy's own key is required env (settings.py). Dev serves
+# plain http, so a Secure CSRF cookie would simply never come back.
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+SECRET_KEY = "dev-secret-key-not-a-secret"
+CSRF_COOKIE_SECURE = False

@@ -48,6 +48,26 @@ def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
 
 DATABASES = _databases_from_dsn(os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_PG_DSN))
 
+# What an HTTP-serving deploy cannot boot without. Enforced in ``wsgi.py`` — the entry point a real
+# app server imports and neither ``runserver`` nor the test suite ever does — so serving fails loudly
+# on a forgotten variable while dev and the suite need no environment at all. Both values below stay
+# empty by default and are fail-closed in that state: Django raises on an empty SECRET_KEY the moment
+# anything signs, and an empty ALLOWED_HOSTS rejects every request outside DEBUG.
+REQUIRED_SERVING_ENV = ("BUNDESARCHIV_SECRET_KEY", "BUNDESARCHIV_ALLOWED_HOSTS")
+
+SECRET_KEY = os.environ.get("BUNDESARCHIV_SECRET_KEY", "")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("BUNDESARCHIV_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+
+# Two proxies terminate and forward: Traefik does TLS, nginx passes its ``X-Forwarded-Proto`` on
+# (deploy/nginx/nginx.conf). Without this Django reads every request as http and refuses each POST
+# on the CSRF origin check against an https ``Referer``.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_COOKIE_SECURE = True
+
 INSTALLED_APPS = [
     "django.contrib.postgres",
     "django.contrib.staticfiles",  # CSS/JS collected + served by WhiteNoise (ADR 0016)
@@ -76,21 +96,23 @@ BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 *
 # switcher); prod is unreachable-by-absence for anything dev-only.
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
 
-# The ONE piece of HTTP middleware prod runs: CSRF protection for the Part 4.7 write forms (create,
-# edit-save (which carries the lifecycle verb), kopieren, loeschen, the media POSTs and the bulk
-# apply are all POSTs). Without it, CsrfViewMiddleware is
-# inactive and those destructive POSTs accept cross-site requests despite their {% csrf_token %}.
-# Deliberately the ONLY entry — no SessionMiddleware (CsrfViewMiddleware uses the cookie token by
-# default, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a Django session),
-# no auth/admin. This bends the "tiny settings, no middleware" stance (ADR 0004) for a real security
-# hole; subject to owner ratification, and the 4.10 hardening gate revisits the middleware surface.
-# WhiteNoise serves /static/* (ADR 0016) and short-circuits before CSRF — it must stay first.
+# A deliberately short stack — this bends the "tiny settings, no middleware" stance (ADR 0004), and
+# every entry is here for a hole that has no other home. No SessionMiddleware (CsrfViewMiddleware
+# uses the cookie token, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a
+# Django session), no auth/admin.
+# CSRF protects the Part 4.7 write forms — create, edit-save, kopieren, loeschen, the media POSTs
+# and the bulk apply are all POSTs, and without it those destructive POSTs accept cross-site
+# requests despite their {% csrf_token %}.
+# SecurityMiddleware is first because its request phase (the SECURE_* family) must precede anything
+# that can answer, WhiteNoise second: it serves /static/* (ADR 0016) and short-circuits before CSRF.
 # ...and the ADR 0018 anonymous gate, LAST: WhiteNoise short-circuits /static/* above it, and CSRF
 # keeps its request-phase place ahead of it, so the gate only ever sees requests that are about to
 # reach a view. It is the ONE place the app decides an unauthenticated request is not answered.
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
 ]
 
