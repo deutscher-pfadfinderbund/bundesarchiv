@@ -10,4 +10,4 @@ add a visibility decision that bypasses it. German FTS config per ADR 0011.
 - `scope.py` — the scope seam: viewer visibility → index columns (write side) + SQL predicate (read side), both unions closed by `assert_never` · interface: `ScopeColumns` · tests: `tests/index/test_equivalence.py`
 - `models.py` — the derived, private Postgres row · interface: `ArticleIndex` · tests: `tests/index/test_schema.py`
 
-Internal: `settings.py`, `settings_dev.py`
+Internal: `settings.py`, `settings_dev.py`, `wsgi.py`
