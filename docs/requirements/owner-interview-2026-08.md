@@ -315,3 +315,41 @@ Consequences:
 - **No in-app feedback channel.** Archivists reach the owner by e-mail.
 - **Priority:** technical issues that block the first test deployment come
   first, then iterative improvement.
+
+### Evening rulings (owner, 2026-09-19)
+
+- **Deploy layout:** one folder `/home/admin/bundesarchiv/` holds
+  `compose.yml` and all data as bind mounts inside it (canonical,
+  thumbnails, pgdata). Postgres is not published on the host. Hostname is
+  `archiv.deutscher-pfadfinderbund.de` (already resolves). Watchtower
+  deploys `:latest` continuously (hourly). Secrets live in
+  `production.env`, never committed.
+- **WebDAV mirror to the Nextcloud StorageShare is switched on from day
+  one**; canonical stays on the VPS disk.
+- **Upload cap is 4 GiB by default** (`BUNDESARCHIV_MAX_UPLOAD_BYTES`); the
+  earlier 50 MB was an agent's choice, never a ruling — the archive holds
+  videos of several hundred MB.
+- **Vocabulary:** Medienart and Dokumenttyp lists are the archivists'
+  legacy lists (17 Medienart / 16 Dokumenttyp incl. Urkunde). Every
+  Medienart offers all Dokumenttypen until the archivists narrow it.
+  Archivists may extend the vocabulary in the future — a door, not
+  something built now.
+- **Signatur spelling is dictated by the archivists**: the legacy `BA <n>`
+  form, with one inner space, is kept verbatim. This supersedes the
+  2026-08-07 "no spaces" note above — that note is amended, its text kept
+  for the record.
+- **Import runs once, locally**, against the CSV export and the media
+  backup; the resulting canonical tree is then copied to the VPS.
+  Imported items are Published, with audience inherited as Members,
+  matching the login-only legacy system. The 196 items without a
+  Sammlungsteil go into a Bestand named `Unsortiert`. The legacy `Legacy-ID`
+  is kept in custom fields.
+- **Bestand stays required for now.** Whether items may not need a Bestand
+  is a question for the archivists, not settled here; refactor cost was
+  measured at 24 production sites.
+- **Preview exposure:** every Keycloak account holder may log in, same as
+  today's system.
+- **Observability is parked**; issue #15 stays open.
+- **Physical-only items are the common case** (1663 of 2506). Several
+  physical copies of one Article, each with its own Standort, is a future
+  domain wish (issue filed).
