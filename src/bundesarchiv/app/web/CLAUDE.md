@@ -10,7 +10,11 @@ mutation goes through `app.articles.update_article` and matches on its outcome u
 The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and
 parameterised by a closed overlay union — a new panel joins that union, never a second context build.
 
-- `viewers.py` — the request→Viewer trust boundary + screen-chrome facts · interface: `viewer_of`, `render_screen`, `encode_viewer` · tests: `tests/app/web/test_viewer_of.py`
+- `viewers.py` — the request→Viewer trust boundary + screen-chrome facts · interface: `viewer_of`, `render_screen`, `mint_viewer_cookie` · tests: `tests/app/web/test_viewer_of.py`, `test_viewer_cookie.py`
+- `auth_views.py` — the login surface: Keycloak in, one signed Viewer cookie out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
+- `keycloak.py` — the ONE place that talks to the realm; every failure is `None` (ADR 0018) · interface: `authorization_url`, `fetch_claims`, `end_session_url` · tests: `tests/app/web/test_keycloak_discovery.py`
+- `oidc.py` — validated OIDC claims → Viewer, least privilege on an unknown shape · interface: `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `tests/app/web/test_oidc_claims.py`
+- `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_article`, `resolve_visible_detail` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
 - `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — workbench + detail routes: search, browse, read · interface: `workbench`, `article_detail` · tests: `tests/app/web/test_workbench.py`
