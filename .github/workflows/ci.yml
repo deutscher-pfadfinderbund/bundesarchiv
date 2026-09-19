@@ -43,7 +43,7 @@ jobs:
 
       - name: Install uv
         # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
 
@@ -72,7 +72,7 @@ jobs:
 
       - name: Install uv
         # setup-uv keeps no floating major tags past v7 — pin the full version (dependabot bumps it).
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
 
