@@ -27,6 +27,11 @@ One row per module that passes the **deletion test** (deleting it would scatter 
 - `<module>.py` — <responsibility, one line> · interface: <up to ~4 names a caller learns> · tests: <test home>
 ```
 
+The interface segment is a **hook, not an inventory**: the ~4 names a first-time caller reaches for.
+Naming a new seam does not grow the list — it displaces a less-central name (the full surface lives
+in the module's `__all__`/docstring, one level down). This is what keeps rows inside the char budget
+as modules deepen; a row fighting the budget usually means the list turned into an inventory.
+
 The module name is its path inside the package, so a sub-package module is one entry: `` `adapters/localfs.py` ``.
 
 Modules that are deliberate internals (helpers, glue that fails the deletion test) go on the package's single `Internal:` line instead:

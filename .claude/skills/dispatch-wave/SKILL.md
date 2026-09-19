@@ -16,6 +16,8 @@ The architect thinks in modules and interfaces; writers implement one module eac
 ## Brief mechanics (each brief is a file on disk)
 
 - State **deltas, not absolutes**; the writer reads current reality first. Cite the task's `docs/tech-debt.md` entry by number — its evidence pointers replace a grep sweep (writers rank this the highest-value line a brief carries).
+- Sketch **interface invariants and the indicator, not field lists**. On a branch other writers are reshaping, every concrete signature in a sketch is a guess that reads as an instruction — two of two such guesses were wrong in one wave and following either would have shipped a behavior change. "One render, closed union, always seeded from the saved record" was sufficient; `Conflict(winner, submitted)` was a liability.
+- HTML-equivalence constraint? Give the writer the render-diff recipe from `writer-brief.md` (dump states → normalize CSRF/whitespace → diff; throwaway harness named `_zz_*.py` so `check` never collects it).
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
