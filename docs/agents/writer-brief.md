@@ -193,7 +193,7 @@ internal screenshot self-verification loop; the state gallery
 ## Report before you idle
 
 Deliver a final report (per-item status, deviations, gate results, test delta,
-server PID) via SendMessage to the team lead BEFORE going idle — a reviewer or
-writer that idles without reporting has failed the handoff. State outcomes
-honestly: if a test failed, say so with the output; if a step was skipped, say
-that.
+server PID) as your final message — the hand-back to whoever dispatched you —
+BEFORE going idle; a reviewer or writer that idles without reporting has failed
+the handoff. State outcomes honestly: if a test failed, say so with the output;
+if a step was skipped, say that.
