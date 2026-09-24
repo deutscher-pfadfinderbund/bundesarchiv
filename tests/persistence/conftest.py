@@ -11,10 +11,15 @@ The server is brought up to the backend semantics the adapter relies on
 that wsgidav is lenient: a `PUT` places a file in one rename, as measured on Nextcloud
 (stock wsgidav writes in place, and first puts an empty file at a new key), and requests
 that change the tree run one at a time, so a `PUT` with `If-None-Match: *` is atomic (stock
-wsgidav checks it and writes without a lock, so two creates could both win).
+wsgidav checks it and writes without a lock, so two creates could both win). Whether a real
+server gives the same is what the live run checks.
+
+`live_dav_store` points the same conformance suite at a real WebDAV server: the
+opt-in live run (`docs/nextcloud-webdav-notes.md`, "Probes").
 """
 
 import contextlib
+import os
 import threading
 import uuid
 from collections.abc import Iterable, Iterator
@@ -155,3 +160,33 @@ def webdav_store(webdav_root: str) -> Iterator[WebDavObjectStore]:
         yield WebDavObjectStore(client)
     finally:
         client.close()
+
+
+@pytest.fixture(scope="session")
+def live_dav_root() -> Iterator[str]:
+    """A throwaway folder directly under `LIVE_DAV_URL`, removed with everything in it at the
+    end of the session. Nothing else on the server is touched."""
+    root = os.environ["LIVE_DAV_URL"].rstrip("/")
+    assert "Bundesarchiv" not in root, "the live run never writes inside the system of record"
+    folder = f"{root}/bundesarchiv-conformance-{uuid.uuid4().hex}/"
+    with httpx.Client(auth=_live_auth(), timeout=60) as client:
+        client.request("MKCOL", folder).raise_for_status()
+        try:
+            yield folder
+        finally:
+            client.request("DELETE", folder).raise_for_status()
+
+
+@pytest.fixture
+def live_dav_store(live_dav_root: str) -> Iterator[WebDavObjectStore]:
+    base = f"{live_dav_root}{uuid.uuid4().hex}/"
+    client = httpx.Client(base_url=base, auth=_live_auth(), timeout=60)
+    try:
+        client.request("MKCOL", "").raise_for_status()
+        yield WebDavObjectStore(client)
+    finally:
+        client.close()
+
+
+def _live_auth() -> tuple[str, str]:
+    return os.environ["DAV_USER"], os.environ["DAV_PASSWORD"]

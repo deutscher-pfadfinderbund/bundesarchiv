@@ -1,17 +1,19 @@
 """Conformance suite: every ObjectStore adapter must pass these tests.
 
 The `store` fixture is parametrized over every adapter — in-memory, local-FS, and
-WebDAV (against a real in-process server) — so this one suite is the shared contract.
+WebDAV (against a real in-process server, and opt-in against a live one) — so this one
+suite is the shared contract.
 
 Scope note: ADR 0005's atomicity claims — a crash mid-write leaves
 prior-object-or-nothing at the final key, and `put_large`'s finalize is
 all-or-nothing — hold trivially for the in-memory fake (a single dict assignment),
 so they are not stressed here. They are exercised for real by the SIGKILL crash test
-in test_localfs.py, which kills a process mid-`put_large` (driving the same atomic
-commit path both writes share) and inspects what survived on disk.
+in test_localfs.py, which kills a process mid-write (driving the atomic commit path
+every local-FS write shares) and inspects what survived on disk.
 """
 
 import io
+import os
 import threading
 import time
 import tracemalloc
@@ -27,14 +29,18 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 
+# "live" joins only when LIVE_DAV_URL names a real server, so check and gate never reach one.
+_ADAPTERS = ["memory", "fs", "webdav", *(["live"] if os.environ.get("LIVE_DAV_URL") else [])]
+_WEBDAV_FIXTURES = {"webdav": "webdav_store", "live": "live_dav_store"}
 
-@pytest.fixture(params=["memory", "fs", "webdav"])
+
+@pytest.fixture(params=_ADAPTERS)
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectStore:
     if request.param == "fs":
         return LocalFsObjectStore(tmp_path)
-    if request.param == "webdav":
-        # a real in-process WebDAV server (see conftest.webdav_store)
-        webdav: ObjectStore = request.getfixturevalue("webdav_store")
+    if request.param in _WEBDAV_FIXTURES:
+        # a real WebDAV server: in-process, or the opt-in live one (see conftest)
+        webdav: ObjectStore = request.getfixturevalue(_WEBDAV_FIXTURES[request.param])
         return webdav
     return InMemoryObjectStore()
 

@@ -3,7 +3,10 @@
 What the archive's Nextcloud does over WebDAV. Measured on 2026-09-24 against the
 StorageShare at `cloud.deutscher-pfadfinderbund.de`, Nextcloud 33.0.9, as the app user,
 inside a throwaway folder that was deleted afterwards. Behaviour can change with a
-Nextcloud upgrade. Re-run the probes below after one.
+Nextcloud upgrade. After one, re-run the probe below. It re-checks the semantics the storage
+port relies on (the table "Mapping to the storage port"), not every row here. Among the rows it
+does not re-check: the stale `If-Match`, `Range`, `OC-Checksum` and `MOVE Overwrite: F`, and the
+File-names rows (case sensitivity, NFC, the 250-byte limit) that ADR 0019 builds on.
 
 Decisions built on these results: [ADR 0019](adr/0019-canonical-layout-v1.md) (layout,
 file names) and [ADR 0020](adr/0020-storage-topology-system-of-record.md) (topology,
@@ -133,9 +136,9 @@ them like this:
 | atomic replace | plain `PUT` (no temp file, no `MOVE`) |
 | `create` | `PUT` with `If-None-Match: *`. `412` → `AlreadyExists` |
 | conditional replace (stage B) | `PUT` with `If-Match: <version>`. `412` → `Conflict` |
-| `version` token (stage B) | `getetag`, also returned by every `PUT` |
+| `version` token | `getetag`, also returned by every `PUT` |
 | listing with metadata | `PROPFIND Depth: infinity` with `getetag`, `getcontentlength` (9.2 s for the archive-sized tree). `SEARCH` needs paging past 100 results. |
-| `Busy` | `423 Locked`. Also retry a transient `404` on a key the adapter just created. |
+| `Busy` | `423 Locked`, once the retries are spent. A transient `404` or `409` on a `PUT` or `MKCOL` right after creating a parent is retried too, but once the retries are spent it is an `ArchiveError`, not `Busy`. |
 | large write | streamed `PUT`. Chunked upload v2 stays available if a size limit shows up. |
 
 ## Not measured
@@ -144,22 +147,20 @@ them like this:
 
 ## Probes
 
-Each line is one check. `$DAV` is `https://<host>/remote.php/dav/files/<user>/<probe-folder>`,
-and credentials are an app password in `$DAV_USER` / `$DAV_PASSWORD`.
+The probe is the storage port's conformance suite, run against a real folder: the same
+tests the in-process server passes, race contracts included. It creates one throwaway
+folder directly under the given root, works only inside it, and deletes it at the end
+(Nextcloud's trash bin keeps it for its retention). Credentials are an app password in an
+env file; keep the file outside the repository.
 
 ```sh
-A=(-u "$DAV_USER:$DAV_PASSWORD" -s -o /dev/null -w '%{http_code}\n')
-
-curl "${A[@]}" -X MKCOL "$DAV"
-curl "${A[@]}" -T a.txt "$DAV/a.txt" -D -                                  # ETag in the headers
-curl "${A[@]}" -T a.txt "$DAV/a.txt" -H 'If-Match: "stale"'               # want 412
-curl "${A[@]}" -T a.txt "$DAV/a.txt" -H 'If-None-Match: *'                # want 412
-curl "${A[@]}" -X MOVE "$DAV/c.txt" -H "Destination: $DAV/a.txt" -H 'Overwrite: F'   # want 412
-curl "${A[@]}" -r 0-99 "$DAV/a.bin"                                       # want 206
-curl "${A[@]}" -X PROPFIND -H 'Depth: infinity' "$DAV"                    # want 207
-curl "${A[@]}" -T x.bin "$DAV/x.bin" -H "OC-Checksum: SHA1:$(printf 0%.0s {1..40})"  # 201 = not verified
-curl "${A[@]}" -X DELETE "$DAV"
+set -a; . /path/outside/the/repository/probe.env; set +a    # DAV_HOST, DAV_USER, DAV_PASSWORD
+LIVE_DAV_URL="https://$DAV_HOST/remote.php/dav/files/$DAV_USER/" \
+  uv run pytest tests/persistence/test_objectstore_conformance.py -k live
 ```
+
+`LIVE_DAV_URL` is the user's root, never a folder inside `Bundesarchiv/`. Without it the
+live cases are not collected, so `mise run check` and `mise run gate` never reach a server.
 
 `SEARCH` body, sent with `Content-Type: text/xml` to `https://<host>/remote.php/dav/`:
 
