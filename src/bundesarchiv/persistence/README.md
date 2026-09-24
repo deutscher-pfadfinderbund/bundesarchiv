@@ -3,7 +3,7 @@
 Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistence-layer.md)):
 
 - **`ObjectStore`** — a low-level blob port (`read` · `write_atomic` · `put_large` ·
-  `list` · `exists` · `delete`), defined to the WebDAV/S3 lowest common denominator.
+  `create` · `list` · `exists` · `delete`), defined to the WebDAV/S3 lowest common denominator.
   The backend varies behind it; the rest of the app never touches it directly.
 - **`ArticleRepository`** — the deep module everything uses. It owns the canonical-file
   protocol and sits on an injected `ObjectStore`.
@@ -13,7 +13,7 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | File | Role |
 |------|------|
 | `objectstore.py` | the `ObjectStore` Protocol + `validate_key` (key contract) + `is_reserved` (the dot-prefixed internal namespace excluded from `list()`) |
-| `errors.py` | the only exceptions that cross the port: `ArchiveError` → `NotFound`, `Conflict`, `Busy` |
+| `errors.py` | the only exceptions that cross the port: `ArchiveError` → `NotFound`, `AlreadyExists`, `Conflict`, `Busy` |
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; atomic temp→fsync→rename, all backend errors mapped to `ArchiveError` via the `_backend` seam |
 | `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud backend (plain `PUT`, bounded retries on `423`), a sync adapter; transport errors wrapped via `_request` |

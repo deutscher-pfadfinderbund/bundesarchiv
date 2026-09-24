@@ -25,7 +25,7 @@ def is_reserved(key: str) -> bool:
 
 def validate_key(key: str) -> None:
     """Raise `ArchiveError` if `key` is not a valid object key — part of the port
-    contract every adapter enforces (read/write_atomic/put_large/exists/delete).
+    contract every adapter enforces on every key-taking operation.
 
     A key is "/"-separated and non-empty; no segment may be empty, "." or ".."
     (fail closed against path traversal), and no character may be a NUL or other
@@ -53,6 +53,16 @@ class ObjectStore(Protocol):
     def write_atomic(self, key: str, data: bytes) -> None:
         """Create-or-replace `key` atomically — a concurrent reader sees the old
         bytes or the new bytes, never a partial write."""
+        ...
+
+    def create(self, key: str, data: bytes) -> None:
+        """Write `key` only if it does not exist yet, else raise `AlreadyExists` and write
+        nothing. Of concurrent creates of one key exactly one succeeds. As atomic for readers
+        as `write_atomic`."""
+        ...
+
+    def create_large(self, key: str, stream: BinaryIO, size: int) -> None:
+        """`create`, streamed like `put_large`."""
         ...
 
     def open_stream(self, key: str) -> BinaryIO:

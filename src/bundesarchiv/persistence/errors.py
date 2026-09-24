@@ -9,6 +9,10 @@ class NotFound(ArchiveError):
     """Raised when a key does not exist in the store."""
 
 
+class AlreadyExists(ArchiveError):
+    """Raised by a create-only write when the key already exists; nothing was written."""
+
+
 class Conflict(ArchiveError):
     """Raised on an optimistic-concurrency conflict — the stored version no longer
     matches the expected version (a concurrent write won)."""

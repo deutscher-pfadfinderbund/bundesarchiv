@@ -13,13 +13,15 @@ commit path both writes share) and inspects what survived on disk.
 
 import io
 import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -32,6 +34,17 @@ def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectStore:
         webdav: ObjectStore = request.getfixturevalue("webdav_store")
         return webdav
     return InMemoryObjectStore()
+
+
+type Create = Callable[[ObjectStore, str, bytes], None]
+
+
+@pytest.fixture(params=["bytes", "streamed"])
+def create(request: pytest.FixtureRequest) -> Create:
+    """Each create-only write of the port: from bytes, and streamed."""
+    if request.param == "streamed":
+        return lambda store, key, data: store.create_large(key, io.BytesIO(data), len(data))
+    return lambda store, key, data: store.create(key, data)
 
 
 def test_write_then_read_round_trip(store: ObjectStore) -> None:
@@ -61,6 +74,59 @@ def test_write_atomic_replaces_existing(store: ObjectStore) -> None:
     store.write_atomic("k", b"old")
     store.write_atomic("k", b"new")
     assert store.read("k") == b"new"
+
+
+def test_create_never_overwrites(store: ObjectStore, create: Create) -> None:
+    create(store, "history/1.md", b"first")
+    store.write_atomic("history/2.md", b"written")
+    with pytest.raises(AlreadyExists):
+        create(store, "history/1.md", b"second")
+    with pytest.raises(AlreadyExists):
+        create(store, "history/2.md", b"second")
+    assert store.read("history/1.md") == b"first"
+    assert store.read("history/2.md") == b"written"
+
+
+def test_of_concurrent_creates_of_one_key_exactly_one_wins(
+    store: ObjectStore, create: Create
+) -> None:
+    contenders = 8
+    start = threading.Barrier(contenders)
+
+    def contend(n: int) -> bytes | None:
+        data = f"writer {n}".encode()
+        start.wait()
+        try:
+            create(store, "history/1.md", data)
+        except AlreadyExists, Busy:
+            return None
+        return data
+
+    with ThreadPoolExecutor(contenders) as pool:
+        winners = [data for data in pool.map(contend, range(contenders)) if data is not None]
+    assert len(winners) == 1
+    assert store.read("history/1.md") == winners[0]
+
+
+class _SourceFailed(Exception):
+    pass
+
+
+class _BreaksMidway(io.BytesIO):
+    """Hands out its first 64 KiB, then fails, as a dying disk or client would."""
+
+    def read(self, size: int | None = -1) -> bytes:
+        if self.tell() or size is None or size < 0:
+            raise _SourceFailed
+        return super().read(min(size, 64 * 1024))
+
+
+def test_a_failed_create_leaves_nothing(store: ObjectStore) -> None:
+    with pytest.raises(_SourceFailed):
+        store.create_large("history/1.md", _BreaksMidway(bytes(1024 * 1024)), 1024 * 1024)
+    assert (store.exists("history/1.md"), list(store.list())) == (False, [])
+    store.create("history/1.md", b"retried")
+    assert store.read("history/1.md") == b"retried"
 
 
 def test_list_by_prefix(store: ObjectStore) -> None:
@@ -166,6 +232,10 @@ def test_invalid_keys_are_rejected(store: ObjectStore, bad: str) -> None:
         store.write_atomic(bad, b"x")
     with pytest.raises(ArchiveError, match="invalid key"):
         store.put_large(bad, io.BytesIO(b"x"), 1)
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.create(bad, b"x")
+    with pytest.raises(ArchiveError, match="invalid key"):
+        store.create_large(bad, io.BytesIO(b"x"), 1)
     with pytest.raises(ArchiveError, match="invalid key"):
         store.open_stream(bad)
     with pytest.raises(ArchiveError, match="invalid key"):

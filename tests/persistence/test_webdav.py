@@ -5,6 +5,8 @@ before `Busy` reaches the caller.
 """
 
 import io
+import socket
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -23,6 +25,7 @@ def test_transport_failure_surfaces_as_archive_error() -> None:
         lambda: store.read("k"),
         lambda: store.write_atomic("k", b"x"),
         lambda: store.put_large("k", io.BytesIO(b"data"), 4),
+        lambda: store.create("k", b"x"),
         lambda: store.exists("k"),
         lambda: store.delete("k"),
         lambda: store.list(),
@@ -56,6 +59,23 @@ def test_malformed_multistatus_body_surfaces_as_archive_error() -> None:
 
     with pytest.raises(ArchiveError):
         list(_parse_multistatus(b"<not-valid-xml"))
+
+
+def test_the_test_server_never_serves_an_unread_body_as_a_request(webdav_root: str) -> None:
+    # A refused create is answered before its body is read. A real server then reads the rest
+    # or closes; the in-process one parsing it as the next request made later writes flake.
+    root = urlsplit(webdav_root)
+    httpx.put(f"{webdav_root}taken", content=b"x").raise_for_status()
+    refused_create = (
+        f"PUT {root.path}taken HTTP/1.1\r\nHost: {root.netloc}\r\nIf-None-Match: *\r\n"
+        "Transfer-Encoding: chunked\r\n\r\n6\r\nsecond\r\n0\r\n\r\n"
+    )
+    with socket.create_connection((root.hostname, root.port), timeout=5) as sock:
+        sock.sendall(refused_create.encode())
+        reply = b"".join(iter(lambda: sock.recv(65536), b""))
+    status, _, rest = reply.partition(b"\r\n")
+    assert status == b"HTTP/1.1 412 Precondition Failed"
+    assert b"HTTP/1.1 " not in rest, reply
 
 
 @pytest.fixture

@@ -34,16 +34,19 @@ class _KillAfterFirstChunk:
 
 
 @pytest.mark.skipif(not hasattr(os, "fork"), reason="requires POSIX fork")
-def test_sigkill_mid_write_keeps_prior_value(tmp_path: Path) -> None:
+@pytest.mark.parametrize("prior", [b"old", None], ids=["replace", "create"])
+def test_sigkill_mid_write_keeps_prior_value(tmp_path: Path, prior: bytes | None) -> None:
+    # A create-only key is never written again, so a partial one would stay for good.
     store = LocalFsObjectStore(tmp_path)
-    store.write_atomic("k", b"old")
+    if prior is not None:
+        store.write_atomic("k", prior)
 
     pid = os.fork()
     if pid == 0:  # child: write through the real adapter, get SIGKILLed before rename
         try:
-            LocalFsObjectStore(tmp_path).put_large(
-                "k", cast(BinaryIO, _KillAfterFirstChunk()), size=0
-            )
+            child = LocalFsObjectStore(tmp_path)
+            write = child.put_large if prior is not None else child.create_large
+            write("k", cast(BinaryIO, _KillAfterFirstChunk()), 0)
         finally:
             os._exit(1)  # unreachable if the SIGKILL fired, as it must
     _, status = os.waitpid(pid, 0)
@@ -52,11 +55,13 @@ def test_sigkill_mid_write_keeps_prior_value(tmp_path: Path) -> None:
     assert os.WTERMSIG(status) == signal.SIGKILL
 
     fresh = LocalFsObjectStore(tmp_path)
-    assert fresh.read("k") == b"old"  # prior value intact — never the partial
-    # The real, adapter-emitted orphan temp (.tmp-…) is reserved, so it stays
-    # invisible while the live key still lists: a real-shaped orphan coexisting
-    # with real content.
-    assert set(fresh.list()) == {"k"}
+    # The real, adapter-emitted orphan temp (.tmp-…) is reserved, so it stays invisible.
+    if prior is None:
+        assert fresh.exists("k") is False
+        assert set(fresh.list()) == set()
+    else:
+        assert fresh.read("k") == prior  # prior value intact — never the partial
+        assert set(fresh.list()) == {"k"}
 
 
 def test_successful_write_leaves_no_temp(tmp_path: Path) -> None:
@@ -65,9 +70,10 @@ def test_successful_write_leaves_no_temp(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("art/1/x", b"v1")
     store.write_atomic("art/1/x", b"v2")
+    store.create("art/1/y", b"v1")
 
     on_disk = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
-    assert on_disk == ["art/1/x"]
+    assert on_disk == ["art/1/x", "art/1/y"]
 
 
 def test_commit_fsyncs_every_directory_it_creates(

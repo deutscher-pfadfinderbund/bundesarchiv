@@ -19,7 +19,7 @@ from xml.etree import ElementTree
 
 import httpx
 
-from bundesarchiv.persistence.errors import ArchiveError, Busy, NotFound
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import is_reserved, validate_key
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
@@ -66,23 +66,18 @@ class WebDavObjectStore:
         return io.BytesIO(self.read(key))
 
     def write_atomic(self, key: str, data: bytes) -> None:
-        validate_key(key)
-        self._put(key, lambda: data, _RETRY_DELAYS)
+        self._put(key, data, create=False)
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         # `size` is a hint for backends that need it (e.g. chunked upload); the body
         # is streamed straight through here, so it is unused.
-        validate_key(key)
-        if not stream.seekable():
-            self._put(key, lambda: _iter_chunks(stream), ())
-            return
-        start = stream.tell()
+        self._put(key, stream, create=False)
 
-        def rewound() -> Iterator[bytes]:
-            stream.seek(start)
-            return _iter_chunks(stream)
+    def create(self, key: str, data: bytes) -> None:
+        self._put(key, data, create=True)
 
-        self._put(key, rewound, _RETRY_DELAYS)
+    def create_large(self, key: str, stream: BinaryIO, size: int) -> None:
+        self._put(key, stream, create=True)
 
     def list(self, prefix: str = "") -> Iterable[str]:
         return _retrying(lambda: sorted(key for key in self._walk("") if key.startswith(prefix)))
@@ -103,12 +98,17 @@ class WebDavObjectStore:
         if resp.status_code != httpx.codes.NOT_FOUND:
             self._ensure(resp, httpx.codes.OK, httpx.codes.NO_CONTENT)
 
-    def _put(
-        self, key: str, body: Callable[[], bytes | Iterator[bytes]], delays: tuple[float, ...]
-    ) -> None:
+    def _put(self, key: str, source: bytes | BinaryIO, *, create: bool) -> None:
+        """One `PUT` of `source`, retried while busy; `create` makes it `If-None-Match: *`."""
+        validate_key(key)
+        headers = {"If-None-Match": "*"} if create else {}
+        body, delays = _replayable(source)
+
         def attempt() -> None:
             self._mkcol_parents(key)
-            resp = self._request("PUT", self._url(key), content=body())
+            resp = self._request("PUT", self._url(key), content=body(), headers=headers)
+            if create and resp.status_code == httpx.codes.PRECONDITION_FAILED:
+                raise AlreadyExists(key)
             _refuse_missing_parent(resp)
             self._ensure(resp, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
 
@@ -198,6 +198,24 @@ def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...] | None = No
         except Busy, _ParentNotVisible:
             time.sleep(delay * random.uniform(0.5, 1.5))  # jitter: contenders spread out
     return attempt()
+
+
+def _replayable(
+    source: bytes | BinaryIO,
+) -> tuple[Callable[[], bytes | Iterator[bytes]], tuple[float, ...]]:
+    """A body factory for each attempt, and the retry delays it allows, as
+    `ObjectStore.put_large` promises."""
+    if isinstance(source, bytes):
+        return (lambda: source), _RETRY_DELAYS
+    if not source.seekable():
+        return (lambda: _iter_chunks(source)), ()
+    start = source.tell()
+
+    def rewound() -> Iterator[bytes]:
+        source.seek(start)
+        return _iter_chunks(source)
+
+    return rewound, _RETRY_DELAYS
 
 
 def _refuse_missing_parent(resp: httpx.Response) -> None:
