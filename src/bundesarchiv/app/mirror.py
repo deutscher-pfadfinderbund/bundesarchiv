@@ -69,8 +69,7 @@ def reconcile(canonical: ObjectStore, mirror: ObjectStore) -> ReconcileSummary:
     that is missing from the mirror or whose mirror bytes differ; delete every key the mirror holds
     that canonical no longer has. A per-key ``ArchiveError`` (a flaky/slow mirror is expected, ADR
     0005) is counted in ``failed`` and skipped so one bad blob never abandons the sweep — the next
-    reconcile heals it. Byte comparison is used because the ObjectStore port exposes no cheaper
-    metadata (no size/etag); at this archive's scale (~10³ objects) a full compare is fine."""
+    reconcile heals it. Every key is compared byte for byte."""
     canonical_keys = set(canonical.list())
     mirror_keys = set(mirror.list())
     pushed = failed = 0

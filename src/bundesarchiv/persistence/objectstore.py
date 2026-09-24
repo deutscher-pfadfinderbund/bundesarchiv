@@ -6,6 +6,7 @@ this Protocol and the conformance suite. Keys are "/"-separated paths.
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import BinaryIO, Protocol, runtime_checkable
 
 from bundesarchiv.persistence.errors import ArchiveError
@@ -39,6 +40,16 @@ def validate_key(key: str) -> None:
         raise ArchiveError(f"invalid key (control character): {key!r}")
 
 
+@dataclass(frozen=True, slots=True)
+class ObjectEntry:
+    """One listed object. `version` is an opaque token that changes whenever the object's bytes
+    change and means nothing else; every write returns the token of what it wrote."""
+
+    key: str
+    size: int
+    version: str
+
+
 @runtime_checkable
 class ObjectStore(Protocol):
     """A blob store keyed by "/"-separated paths.
@@ -50,18 +61,18 @@ class ObjectStore(Protocol):
         """Return the bytes at `key`. Raise `NotFound` if absent."""
         ...
 
-    def write_atomic(self, key: str, data: bytes) -> None:
+    def write_atomic(self, key: str, data: bytes) -> str:
         """Create-or-replace `key` atomically — a concurrent reader sees the old
         bytes or the new bytes, never a partial write."""
         ...
 
-    def create(self, key: str, data: bytes) -> None:
+    def create(self, key: str, data: bytes) -> str:
         """Write `key` only if it does not exist yet, else raise `AlreadyExists` and write
         nothing. Of concurrent creates of one key exactly one succeeds. As atomic for readers
         as `write_atomic`."""
         ...
 
-    def create_large(self, key: str, stream: BinaryIO, size: int) -> None:
+    def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
         """`create`, streamed like `put_large`."""
         ...
 
@@ -75,7 +86,7 @@ class ObjectStore(Protocol):
         bytes and the ownership, not laziness."""
         ...
 
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
+    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
         """Stream a large object into `key`, with the same all-or-nothing finalize
         as `write_atomic`. `size` is the expected byte length (a hint for backends
         that need it, e.g. multipart upload). An adapter that retries rewinds `stream` to where
@@ -86,6 +97,10 @@ class ObjectStore(Protocol):
         """Keys beginning with `prefix`, in lexicographic order, excluding reserved
         internal keys (temp/lock/snapshots). `Iterable`, not `Iterator`: an adapter
         may return a materialized, sorted list (the natural local-FS/WebDAV shape)."""
+        ...
+
+    def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
+        """`list(prefix)`, each key with its size and version."""
         ...
 
     def exists(self, key: str) -> bool:

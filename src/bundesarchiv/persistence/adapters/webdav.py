@@ -7,12 +7,12 @@ transport failures (a down/slow mirror is the expected failure mode) from crossi
 as anything but `ArchiveError`.
 """
 
-import enum
 import io
 import itertools
 import random
 import time
 from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 from typing import Any, BinaryIO
 from urllib.parse import quote, unquote, urlsplit
 from xml.etree import ElementTree
@@ -20,20 +20,25 @@ from xml.etree import ElementTree
 import httpx
 
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
-from bundesarchiv.persistence.objectstore import is_reserved, validate_key
+from bundesarchiv.persistence.objectstore import ObjectEntry, is_reserved, validate_key
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 _RETRY_DELAYS = (0.25, 0.5, 1.0, 2.0)  # seconds before each retry; 5 attempts in all
 _DAV = "{DAV:}"  # ElementTree Clark notation for the DAV: namespace
-_PROPFIND_RESOURCETYPE = (
-    b'<?xml version="1.0"?><propfind xmlns="DAV:"><prop><resourcetype/></prop></propfind>'
+_PROPFIND = (
+    b'<?xml version="1.0"?><propfind xmlns="DAV:"><prop>'
+    b"<resourcetype/><getcontentlength/><getetag/></prop></propfind>"
 )
 
 
-class _Resource(enum.Enum):
-    ABSENT = enum.auto()
-    FILE = enum.auto()
-    COLLECTION = enum.auto()
+@dataclass(frozen=True, slots=True)
+class _Resource:
+    """One `<response>` of a multistatus body."""
+
+    href: str
+    collection: bool
+    size: str | None
+    etag: str | None
 
 
 class WebDavObjectStore:
@@ -58,33 +63,42 @@ class WebDavObjectStore:
         # Non-200: classify via the same resourcetype probe exists()/delete() use, so
         # absent-vs-collection-vs-error never hinges on a server-specific redirect or
         # on the injected client's follow_redirects policy.
-        if resp.status_code == httpx.codes.LOCKED or self._resourcetype(key) is _Resource.FILE:
+        if resp.status_code == httpx.codes.LOCKED or self._is_file(key):
             self._ensure(resp, httpx.codes.OK)  # a real blob but GET failed -> ArchiveError
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
     def open_stream(self, key: str) -> BinaryIO:
         return io.BytesIO(self.read(key))
 
-    def write_atomic(self, key: str, data: bytes) -> None:
-        self._put(key, data, create=False)
+    def write_atomic(self, key: str, data: bytes) -> str:
+        return self._put(key, data, create=False)
 
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
+    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
         # `size` is a hint for backends that need it (e.g. chunked upload); the body
         # is streamed straight through here, so it is unused.
-        self._put(key, stream, create=False)
+        return self._put(key, stream, create=False)
 
-    def create(self, key: str, data: bytes) -> None:
-        self._put(key, data, create=True)
+    def create(self, key: str, data: bytes) -> str:
+        return self._put(key, data, create=True)
 
-    def create_large(self, key: str, stream: BinaryIO, size: int) -> None:
-        self._put(key, stream, create=True)
+    def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
+        return self._put(key, stream, create=True)
 
     def list(self, prefix: str = "") -> Iterable[str]:
-        return _retrying(lambda: sorted(key for key in self._walk("") if key.startswith(prefix)))
+        return [entry.key for entry in self.list_entries(prefix)]
+
+    def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
+        folder = prefix.rpartition("/")[0]
+        if folder:
+            try:
+                validate_key(folder)
+            except ArchiveError:
+                return []  # no stored key has an invalid segment
+        return _retrying(lambda: self._entries(folder, prefix))
 
     def exists(self, key: str) -> bool:
         validate_key(key)
-        return _retrying(lambda: self._resourcetype(key) is _Resource.FILE)
+        return _retrying(lambda: self._is_file(key))
 
     def delete(self, key: str) -> None:
         validate_key(key)
@@ -92,27 +106,30 @@ class WebDavObjectStore:
 
     def _delete_once(self, key: str) -> None:
         # Never recursively delete a collection: a directory-prefix key has no blob.
-        if self._resourcetype(key) is not _Resource.FILE:
+        if not self._is_file(key):
             return  # absent or a collection — idempotent no-op
         resp = self._request("DELETE", self._url(key))
         if resp.status_code != httpx.codes.NOT_FOUND:
             self._ensure(resp, httpx.codes.OK, httpx.codes.NO_CONTENT)
 
-    def _put(self, key: str, source: bytes | BinaryIO, *, create: bool) -> None:
+    def _put(self, key: str, source: bytes | BinaryIO, *, create: bool) -> str:
         """One `PUT` of `source`, retried while busy; `create` makes it `If-None-Match: *`."""
         validate_key(key)
         headers = {"If-None-Match": "*"} if create else {}
         body, delays = _replayable(source)
 
-        def attempt() -> None:
+        def attempt() -> str:
             self._mkcol_parents(key)
             resp = self._request("PUT", self._url(key), content=body(), headers=headers)
             if create and resp.status_code == httpx.codes.PRECONDITION_FAILED:
                 raise AlreadyExists(key)
             _refuse_missing_parent(resp)
             self._ensure(resp, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
+            if (etag := resp.headers.get("ETag")) is None:
+                raise ArchiveError(f"WebDAV PUT {key!r} was answered without an ETag")
+            return _version(etag)
 
-        _retrying(attempt, delays)
+        return _retrying(attempt, delays)
 
     def _mkcol_parents(self, key: str) -> None:
         ancestors = key.split("/")[:-1]
@@ -122,41 +139,33 @@ class WebDavObjectStore:
             # 201 created; 405 already exists.
             self._ensure(resp, httpx.codes.CREATED, httpx.codes.METHOD_NOT_ALLOWED)
 
-    def _walk(self, collection: str) -> Iterator[str]:
-        for child, is_collection in self._children(collection):
-            if is_reserved(child):
-                continue  # reserved keys (temp/lock/snapshots) are never listed
-            if is_collection:
-                yield from self._walk(child)
-            else:
-                yield child
+    def _entries(self, folder: str, prefix: str) -> Iterable[ObjectEntry]:
+        files = (
+            (self._href_to_key(resource.href), resource)
+            for resource in self._propfind(folder, "infinity")
+            if not resource.collection
+        )
+        return sorted(
+            (
+                _entry(key, resource)
+                for key, resource in files
+                if key.startswith(prefix) and not is_reserved(key)
+            ),
+            key=lambda entry: entry.key,
+        )
 
-    def _children(self, collection: str) -> Iterator[tuple[str, bool]]:
+    def _is_file(self, key: str) -> bool:
+        resources = self._propfind(key, "0")
+        return bool(resources) and not resources[0].collection
+
+    def _propfind(self, path: str, depth: str) -> tuple[_Resource, ...]:
         resp = self._request(
-            "PROPFIND",
-            self._url(collection),
-            headers={"Depth": "1"},
-            content=_PROPFIND_RESOURCETYPE,
+            "PROPFIND", self._url(path), headers={"Depth": depth}, content=_PROPFIND
         )
         if resp.status_code == httpx.codes.NOT_FOUND:
-            return
+            return ()
         self._ensure(resp, httpx.codes.MULTI_STATUS)
-        for href, is_collection in _parse_multistatus(resp.content):
-            key = self._href_to_key(href)
-            if key != collection:  # skip the collection's own self-entry
-                yield key, is_collection
-
-    def _resourcetype(self, key: str) -> _Resource:
-        resp = self._request(
-            "PROPFIND", self._url(key), headers={"Depth": "0"}, content=_PROPFIND_RESOURCETYPE
-        )
-        if resp.status_code == httpx.codes.NOT_FOUND:
-            return _Resource.ABSENT
-        self._ensure(resp, httpx.codes.MULTI_STATUS)
-        entries = list(_parse_multistatus(resp.content))
-        if not entries:
-            return _Resource.ABSENT  # a Depth:0 207 with no self-entry is anomalous
-        return _Resource.COLLECTION if entries[0][1] else _Resource.FILE
+        return tuple(_parse_multistatus(resp.content))
 
     def _url(self, key: str) -> str:
         return "/".join(quote(segment, safe="") for segment in key.split("/"))
@@ -225,12 +234,22 @@ def _refuse_missing_parent(resp: httpx.Response) -> None:
         raise _ParentNotVisible(failure)
 
 
+def _version(etag: str) -> str:
+    return etag.strip('"')  # Nextcloud quotes both the header and getetag; wsgidav only one
+
+
+def _entry(key: str, resource: _Resource) -> ObjectEntry:
+    if resource.size is None or resource.etag is None:
+        raise ArchiveError(f"WebDAV listing of {key!r} lacks its size or ETag")
+    return ObjectEntry(key, int(resource.size), _version(resource.etag))
+
+
 def _iter_chunks(stream: BinaryIO) -> Iterator[bytes]:
     while chunk := stream.read(_CHUNK):
         yield chunk
 
 
-def _parse_multistatus(body: bytes) -> Iterator[tuple[str, bool]]:
+def _parse_multistatus(body: bytes) -> Iterator[_Resource]:
     try:
         root = ElementTree.fromstring(body)
     except ElementTree.ParseError as exc:
@@ -242,4 +261,15 @@ def _parse_multistatus(body: bytes) -> Iterator[tuple[str, bool]]:
         if href is None:
             continue
         collection = response.find(f"{_DAV}propstat/{_DAV}prop/{_DAV}resourcetype/{_DAV}collection")
-        yield href, collection is not None
+        yield _Resource(
+            href,
+            collection is not None,
+            _prop(response, "getcontentlength"),
+            _prop(response, "getetag"),
+        )
+
+
+def _prop(response: ElementTree.Element, name: str) -> str | None:
+    # A server may list a property it lacks as an empty element in a 404 propstat.
+    found = response.iterfind(f"{_DAV}propstat/{_DAV}prop/{_DAV}{name}")
+    return next((element.text for element in found if element.text), None)

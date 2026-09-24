@@ -15,6 +15,7 @@ import io
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -22,7 +23,7 @@ import pytest
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
-from bundesarchiv.persistence.objectstore import ObjectStore
+from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 
 
 @pytest.fixture(params=["memory", "fs", "webdav"])
@@ -36,7 +37,7 @@ def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectStore:
     return InMemoryObjectStore()
 
 
-type Create = Callable[[ObjectStore, str, bytes], None]
+type Create = Callable[[ObjectStore, str, bytes], str]
 
 
 @pytest.fixture(params=["bytes", "streamed"])
@@ -93,19 +94,18 @@ def test_of_concurrent_creates_of_one_key_exactly_one_wins(
     contenders = 8
     start = threading.Barrier(contenders)
 
-    def contend(n: int) -> bytes | None:
+    def contend(n: int) -> tuple[bytes, str] | None:
         data = f"writer {n}".encode()
         start.wait()
         try:
-            create(store, "history/1.md", data)
+            return data, create(store, "history/1.md", data)
         except AlreadyExists, Busy:
             return None
-        return data
 
     with ThreadPoolExecutor(contenders) as pool:
-        winners = [data for data in pool.map(contend, range(contenders)) if data is not None]
-    assert len(winners) == 1
-    assert store.read("history/1.md") == winners[0]
+        winners = [won for won in pool.map(contend, range(contenders)) if won is not None]
+    stored = store.read("history/1.md")
+    assert [data for data, _ in winners] == [stored], f"winners (bytes, version): {winners}"
 
 
 class _SourceFailed(Exception):
@@ -134,6 +134,28 @@ def test_list_by_prefix(store: ObjectStore) -> None:
     store.write_atomic("art/2/README.md", b"2")
     store.write_atomic("other/x", b"3")
     assert set(store.list("art/")) == {"art/1/README.md", "art/2/README.md"}
+
+
+def test_every_write_returns_the_version_the_listing_reports(store: ObjectStore) -> None:
+    written = [
+        ObjectEntry("art/1/a", 3, store.write_atomic("art/1/a", b"one")),
+        ObjectEntry("art/1/b", 4, store.put_large("art/1/b", io.BytesIO(b"four"), 4)),
+        ObjectEntry("art/10/c", 5, store.create("art/10/c", b"fives")),
+        ObjectEntry("art/1/d", 6, store.create_large("art/1/d", io.BytesIO(b"sixsix"), 6)),
+    ]
+    store.write_atomic("art/2/e", b"elsewhere")
+    store.write_atomic("art/1/.lock", b"reserved")
+    assert list(store.list_entries("art/1")) == sorted(written, key=lambda entry: entry.key)
+
+
+def test_the_version_changes_whenever_the_bytes_change(store: ObjectStore) -> None:
+    versions = [
+        store.write_atomic("k", b"one"),
+        store.write_atomic("k", b"two"),
+        store.put_large("k", io.BytesIO(b"one"), 3),
+        store.write_atomic("k", b"six"),
+    ]
+    assert [before != after for before, after in pairwise(versions)] == [True] * 3, versions
 
 
 def test_list_excludes_reserved_keys(store: ObjectStore) -> None:

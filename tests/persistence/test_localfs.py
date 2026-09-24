@@ -132,10 +132,17 @@ def test_list_under_unreadable_dir_raises_not_under_reports(tmp_path: Path) -> N
     # not silently drop that subtree's live content (no mocking — a real mode-000 dir).
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("a/k", b"x")
+    store.write_atomic("a/sub/k", b"x")
     store.write_atomic("b/k", b"y")
     (tmp_path / "a").chmod(0o000)
     try:
         with pytest.raises(ArchiveError):
             store.list()
+        with pytest.raises(ArchiveError):
+            store.list("a/sub/")  # the prefix's folder itself cannot be looked at
+        with pytest.raises(ArchiveError):
+            store.exists("a/sub/k")  # unknown, not absent
+        with pytest.raises(ArchiveError):
+            store.delete("a/sub/k")
     finally:
         (tmp_path / "a").chmod(0o755)  # restore for cleanup

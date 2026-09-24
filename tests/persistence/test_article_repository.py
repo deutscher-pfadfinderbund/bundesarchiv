@@ -183,9 +183,9 @@ class _RecordingStore(InMemoryObjectStore):
         super().__init__()
         self.writes: list[str] = []
 
-    def write_atomic(self, key: str, data: bytes) -> None:
+    def write_atomic(self, key: str, data: bytes) -> str:
         self.writes.append(key)
-        super().write_atomic(key, data)
+        return super().write_atomic(key, data)
 
 
 def test_save_writes_a_correct_append_only_change_record(repo: ArticleRepository) -> None:
