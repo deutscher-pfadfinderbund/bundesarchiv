@@ -40,6 +40,14 @@ def validate_key(key: str) -> None:
         raise ArchiveError(f"invalid key (control character): {key!r}")
 
 
+def validate_prefix(prefix: str) -> None:
+    """Raise `ArchiveError` unless `prefix` is a valid key of at least two segments, so no
+    prefix delete can take a top-level folder or the whole root (ADR 0019)."""
+    validate_key(prefix)
+    if "/" not in prefix:
+        raise ArchiveError(f"prefix too short to delete: {prefix!r}")
+
+
 @dataclass(frozen=True, slots=True)
 class ObjectEntry:
     """One listed object. `version` is an opaque token that changes whenever the object's bytes
@@ -109,4 +117,9 @@ class ObjectStore(Protocol):
 
     def delete(self, key: str) -> None:
         """Delete `key`. Idempotent — deleting a missing key is a no-op."""
+        ...
+
+    def delete_prefix(self, prefix: str) -> None:
+        """Delete every key below the folder `prefix` ("articles/<ulid>"), reserved keys
+        included. Idempotent. `validate_prefix` refuses a shorter or invalid prefix."""
         ...

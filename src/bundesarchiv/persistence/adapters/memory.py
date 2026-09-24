@@ -9,7 +9,12 @@ from collections.abc import Iterable
 from typing import BinaryIO
 
 from bundesarchiv.persistence.errors import AlreadyExists, NotFound
-from bundesarchiv.persistence.objectstore import ObjectEntry, is_reserved, validate_key
+from bundesarchiv.persistence.objectstore import (
+    ObjectEntry,
+    is_reserved,
+    validate_key,
+    validate_prefix,
+)
 
 
 class InMemoryObjectStore:
@@ -65,6 +70,11 @@ class InMemoryObjectStore:
     def delete(self, key: str) -> None:
         validate_key(key)
         self._blobs.pop(key, None)
+
+    def delete_prefix(self, prefix: str) -> None:
+        validate_prefix(prefix)
+        for key in [key for key in self._blobs if key.startswith(f"{prefix}/")]:
+            del self._blobs[key]
 
     def _store(self, key: str, data: bytes) -> str:
         version = str(next(self._writes))

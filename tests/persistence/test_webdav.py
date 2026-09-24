@@ -28,6 +28,7 @@ def test_transport_failure_surfaces_as_archive_error() -> None:
         lambda: store.create("k", b"x"),
         lambda: store.exists("k"),
         lambda: store.delete("k"),
+        lambda: store.delete_prefix("a/b"),
         lambda: store.list(),
     )
     try:

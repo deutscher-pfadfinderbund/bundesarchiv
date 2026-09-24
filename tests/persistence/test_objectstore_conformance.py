@@ -129,6 +129,31 @@ def test_a_failed_create_leaves_nothing(store: ObjectStore) -> None:
     assert store.read("history/1.md") == b"retried"
 
 
+def test_delete_prefix_removes_exactly_the_prefix(store: ObjectStore) -> None:
+    doomed = ["articles/A/README.md", "articles/A/media/scan.pdf", "articles/A/.lock"]
+    kept = ["articles/AB/README.md", "articles/B/README.md", "other/A/README.md"]
+    for key in doomed + kept:
+        store.write_atomic(key, b"x")
+    store.delete_prefix("articles/A")
+    assert list(store.list()) == kept
+    assert not any(store.exists(key) for key in doomed)
+    store.delete_prefix("articles/A")  # already gone: a no-op
+
+
+def test_delete_prefix_through_a_blob_is_a_no_op(store: ObjectStore) -> None:
+    store.write_atomic("articles/A/README.md", b"x")
+    store.delete_prefix("articles/A/README.md/sub")
+    assert store.read("articles/A/README.md") == b"x"
+
+
+@pytest.mark.parametrize("prefix", ["articles", "articles/", "", "articles/../x", "a//b"])
+def test_delete_prefix_refuses_a_short_or_invalid_prefix(store: ObjectStore, prefix: str) -> None:
+    store.write_atomic("articles/A/README.md", b"x")
+    with pytest.raises(ArchiveError):
+        store.delete_prefix(prefix)
+    assert list(store.list()) == ["articles/A/README.md"]
+
+
 def test_list_by_prefix(store: ObjectStore) -> None:
     store.write_atomic("art/1/README.md", b"1")
     store.write_atomic("art/2/README.md", b"2")

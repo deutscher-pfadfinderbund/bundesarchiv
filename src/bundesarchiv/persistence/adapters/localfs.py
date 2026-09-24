@@ -14,7 +14,9 @@ only if a later write gets back a freed inode within one timestamp tick at the s
 """
 
 import errno
+import hashlib
 import os
+import shutil
 import stat
 import uuid
 from collections.abc import Callable, Iterable, Iterator
@@ -23,7 +25,12 @@ from pathlib import Path
 from typing import BinaryIO
 
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
-from bundesarchiv.persistence.objectstore import ObjectEntry, is_reserved, validate_key
+from bundesarchiv.persistence.objectstore import (
+    ObjectEntry,
+    is_reserved,
+    validate_key,
+    validate_prefix,
+)
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 
@@ -113,6 +120,27 @@ class LocalFsObjectStore:
                 return  # a directory-prefix key holds no blob — nothing to delete (no-op)
             path.unlink(missing_ok=True)
 
+    def delete_prefix(self, prefix: str) -> None:
+        validate_prefix(prefix)
+        folder = self._path(prefix)
+        # One rename takes the whole prefix out of sight, so a crash during the removal never
+        # leaves part of a hard-deleted Article readable, only a reserved leftover. Its name is
+        # fixed per prefix: the next delete of that prefix removes it, and deletes of other
+        # prefixes never touch it (they run without WRITER_LOCK, _writer.py).
+        doomed = folder.with_name(_deletion_name(folder.name))
+        with self._backend(prefix):
+            if not _is_dir(folder.parent):
+                return  # the prefix runs through a blob or a missing folder: nothing below it
+            _remove_tree(doomed)
+            if not _is_dir(folder):
+                return  # absent, or a blob: nothing below it
+            try:
+                folder.rename(doomed)
+                self._fsync_dir(folder.parent)
+            except FileNotFoundError:
+                return  # a concurrent delete of the same prefix took it first
+            _remove_tree(doomed)
+
     def _walk(self, top: Path) -> Iterator[Path]:
         def _raise(exc: OSError) -> None:
             # Fail closed: an unreadable directory must error, not silently drop its
@@ -170,6 +198,24 @@ class LocalFsObjectStore:
             os.fsync(fd)
         finally:
             os.close(fd)
+
+
+def _deletion_name(segment: str) -> str:
+    """The reserved name `delete_prefix` renames a folder to: fixed per folder name and of fixed
+    length, so it stays within NAME_MAX for any name that fits."""
+    return f".deleted-{hashlib.sha256(os.fsencode(segment)).hexdigest()[:32]}"
+
+
+def _remove_tree(path: Path) -> None:
+    """Remove `path` and everything below it, if there, so a concurrent delete of the same prefix
+    that got there first is not an error. `rmtree` itself skips entries that vanish below `path`
+    (Python 3.13+); a missing `path` it would raise."""
+
+    def missing_is_fine(function: object, name: str, exc: BaseException) -> None:
+        if not isinstance(exc, FileNotFoundError):
+            raise exc
+
+    shutil.rmtree(path, onexc=missing_is_fine)
 
 
 def _version(result: os.stat_result) -> str:

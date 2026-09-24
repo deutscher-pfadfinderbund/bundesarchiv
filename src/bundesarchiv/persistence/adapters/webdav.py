@@ -20,7 +20,12 @@ from xml.etree import ElementTree
 import httpx
 
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
-from bundesarchiv.persistence.objectstore import ObjectEntry, is_reserved, validate_key
+from bundesarchiv.persistence.objectstore import (
+    ObjectEntry,
+    is_reserved,
+    validate_key,
+    validate_prefix,
+)
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 _RETRY_DELAYS = (0.25, 0.5, 1.0, 2.0)  # seconds before each retry; 5 attempts in all
@@ -102,13 +107,19 @@ class WebDavObjectStore:
 
     def delete(self, key: str) -> None:
         validate_key(key)
-        _retrying(lambda: self._delete_once(key))
-
-    def _delete_once(self, key: str) -> None:
         # Never recursively delete a collection: a directory-prefix key has no blob.
-        if not self._is_file(key):
-            return  # absent or a collection — idempotent no-op
-        resp = self._request("DELETE", self._url(key))
+        _retrying(lambda: self._delete_once(key, collection=False))
+
+    def delete_prefix(self, prefix: str) -> None:
+        validate_prefix(prefix)
+        _retrying(lambda: self._delete_once(prefix, collection=True))
+
+    def _delete_once(self, path: str, *, collection: bool) -> None:
+        """`DELETE` `path` if it is a resource of the given kind; else a no-op."""
+        resources = self._propfind(path, "0")
+        if not resources or resources[0].collection is not collection:
+            return
+        resp = self._request("DELETE", self._url(path))
         if resp.status_code != httpx.codes.NOT_FOUND:
             self._ensure(resp, httpx.codes.OK, httpx.codes.NO_CONTENT)
 
