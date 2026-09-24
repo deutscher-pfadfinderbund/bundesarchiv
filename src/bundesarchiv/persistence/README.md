@@ -13,10 +13,10 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | File | Role |
 |------|------|
 | `objectstore.py` | the `ObjectStore` Protocol + `validate_key` (key contract) + `is_reserved` (the dot-prefixed internal namespace excluded from `list()`) |
-| `errors.py` | the only exceptions that cross the port: `ArchiveError` → `NotFound`, `Conflict` |
+| `errors.py` | the only exceptions that cross the port: `ArchiveError` → `NotFound`, `Conflict`, `Busy` |
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; atomic temp→fsync→rename, all backend errors mapped to `ArchiveError` via the `_backend` seam |
-| `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud **mirror** (PUT-temp+MOVE), a sync adapter; transport errors wrapped via `_request` |
+| `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud backend (plain `PUT`, bounded retries on `423`), a sync adapter; transport errors wrapped via `_request` |
 | `repository.py` | `ArticleRepository` — versioning, pinned write order, media, trash |
 | `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
 

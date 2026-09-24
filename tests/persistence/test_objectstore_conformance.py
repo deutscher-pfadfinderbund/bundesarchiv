@@ -12,6 +12,7 @@ commit path both writes share) and inspects what survived on disk.
 """
 
 import io
+import threading
 from pathlib import Path
 
 import pytest
@@ -103,6 +104,24 @@ def test_open_stream_round_trip(store: ObjectStore) -> None:
     store.put_large("media/big.bin", io.BytesIO(data), len(data))
     with store.open_stream("media/big.bin") as stream:
         assert stream.read() == data
+
+
+def test_a_reader_never_sees_a_partial_write(store: ObjectStore) -> None:
+    size = 2 * 1024 * 1024
+    versions = [bytes([n]) * size for n in b"ab"]
+    store.write_atomic("media/big.bin", versions[0])
+    seen: list[bytes] = []
+
+    def replace_repeatedly() -> None:
+        for n in range(1, 9):
+            store.put_large("media/big.bin", io.BytesIO(versions[n % 2]), size)
+
+    writer = threading.Thread(target=replace_repeatedly)
+    writer.start()
+    while writer.is_alive():
+        seen.append(store.read("media/big.bin"))
+    writer.join()
+    assert all(read in versions for read in seen)
 
 
 def test_open_stream_missing_raises_not_found(store: ObjectStore) -> None:

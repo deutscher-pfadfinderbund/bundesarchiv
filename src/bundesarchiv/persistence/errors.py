@@ -12,3 +12,8 @@ class NotFound(ArchiveError):
 class Conflict(ArchiveError):
     """Raised on an optimistic-concurrency conflict — the stored version no longer
     matches the expected version (a concurrent write won)."""
+
+
+class Busy(ArchiveError):
+    """Raised when the backend refused under contention and the adapter's bounded retries are
+    spent. Retryable: the same call may succeed later."""

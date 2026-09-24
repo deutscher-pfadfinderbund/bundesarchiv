@@ -1,32 +1,29 @@
-"""WebDAV ObjectStore adapter — the Nextcloud mirror backend (ADR 0005).
+"""WebDAV ObjectStore adapter — the Nextcloud backend (ADR 0005, ADR 0019).
 
-Atomic create-or-replace is PUT-to-a-reserved-temp + MOVE onto the final key: the
-WebDAV analogue of the local-FS temp+rename, so a reader sees the old object or the
-new, never a partial. Parent collections are created with MKCOL on demand. The
-adapter sits on an injected `httpx.Client` whose `base_url` is the storage root.
-
-`list()` walks with PROPFIND Depth:1 rather than Depth:infinity — Nextcloud disables
-infinity — recursing only into non-reserved collections. Every request goes through
-`_request`, which keeps raw transport failures (a down/slow mirror is the expected
-failure mode) from crossing the port as anything but `ArchiveError`.
+How each port operation maps onto WebDAV is the table "Mapping to the storage port" in
+`docs/nextcloud-webdav-notes.md`. The adapter sits on an injected `httpx.Client` whose
+`base_url` is the storage root. Every request goes through `_request`, which keeps raw
+transport failures (a down/slow mirror is the expected failure mode) from crossing the port
+as anything but `ArchiveError`.
 """
 
-import contextlib
 import enum
 import io
 import itertools
-import uuid
-from collections.abc import Iterable, Iterator
+import random
+import time
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any, BinaryIO
 from urllib.parse import quote, unquote, urlsplit
 from xml.etree import ElementTree
 
 import httpx
 
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.persistence.errors import ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import is_reserved, validate_key
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
+_RETRY_DELAYS = (0.25, 0.5, 1.0, 2.0)  # seconds before each retry; 5 attempts in all
 _DAV = "{DAV:}"  # ElementTree Clark notation for the DAV: namespace
 _PROPFIND_RESOURCETYPE = (
     b'<?xml version="1.0"?><propfind xmlns="DAV:"><prop><resourcetype/></prop></propfind>'
@@ -52,13 +49,16 @@ class WebDavObjectStore:
 
     def read(self, key: str) -> bytes:
         validate_key(key)
+        return _retrying(lambda: self._read_once(key))
+
+    def _read_once(self, key: str) -> bytes:
         resp = self._request("GET", self._url(key), follow_redirects=False)
         if resp.status_code == httpx.codes.OK:
             return resp.content
         # Non-200: classify via the same resourcetype probe exists()/delete() use, so
         # absent-vs-collection-vs-error never hinges on a server-specific redirect or
         # on the injected client's follow_redirects policy.
-        if self._resourcetype(key) is _Resource.FILE:
+        if resp.status_code == httpx.codes.LOCKED or self._resourcetype(key) is _Resource.FILE:
             self._ensure(resp, httpx.codes.OK)  # a real blob but GET failed -> ArchiveError
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
@@ -67,23 +67,35 @@ class WebDavObjectStore:
 
     def write_atomic(self, key: str, data: bytes) -> None:
         validate_key(key)
-        self._put_then_move(key, data)
+        self._put(key, lambda: data, _RETRY_DELAYS)
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         # `size` is a hint for backends that need it (e.g. chunked upload); the body
         # is streamed straight through here, so it is unused.
         validate_key(key)
-        self._put_then_move(key, _iter_chunks(stream))
+        if not stream.seekable():
+            self._put(key, lambda: _iter_chunks(stream), ())
+            return
+        start = stream.tell()
+
+        def rewound() -> Iterator[bytes]:
+            stream.seek(start)
+            return _iter_chunks(stream)
+
+        self._put(key, rewound, _RETRY_DELAYS)
 
     def list(self, prefix: str = "") -> Iterable[str]:
-        return sorted(key for key in self._walk("") if key.startswith(prefix))
+        return _retrying(lambda: sorted(key for key in self._walk("") if key.startswith(prefix)))
 
     def exists(self, key: str) -> bool:
         validate_key(key)
-        return self._resourcetype(key) is _Resource.FILE
+        return _retrying(lambda: self._resourcetype(key) is _Resource.FILE)
 
     def delete(self, key: str) -> None:
         validate_key(key)
+        _retrying(lambda: self._delete_once(key))
+
+    def _delete_once(self, key: str) -> None:
         # Never recursively delete a collection: a directory-prefix key has no blob.
         if self._resourcetype(key) is not _Resource.FILE:
             return  # absent or a collection — idempotent no-op
@@ -91,37 +103,24 @@ class WebDavObjectStore:
         if resp.status_code != httpx.codes.NOT_FOUND:
             self._ensure(resp, httpx.codes.OK, httpx.codes.NO_CONTENT)
 
-    def _put_then_move(self, key: str, content: bytes | Iterator[bytes]) -> None:
-        self._mkcol_parents(key)
-        tmp = self._tmp_key(key)
-        try:
-            put = self._request("PUT", self._url(tmp), content=content)
-            self._ensure(put, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
-            destination = str(self._client.base_url.join(self._url(key)))
-            move = self._request(
-                "MOVE", self._url(tmp), headers={"Destination": destination, "Overwrite": "T"}
-            )
-            self._ensure(move, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
-        except ArchiveError:
-            self._cleanup_temp(tmp)  # don't leave an orphaned .tmp-… blob on the mirror
-            raise
+    def _put(
+        self, key: str, body: Callable[[], bytes | Iterator[bytes]], delays: tuple[float, ...]
+    ) -> None:
+        def attempt() -> None:
+            self._mkcol_parents(key)
+            resp = self._request("PUT", self._url(key), content=body())
+            _refuse_missing_parent(resp)
+            self._ensure(resp, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
 
-    def _cleanup_temp(self, tmp: str) -> None:
-        # Best-effort: a failed cleanup DELETE must not mask the original PUT/MOVE failure.
-        with contextlib.suppress(ArchiveError):
-            self._request("DELETE", self._url(tmp))
+        _retrying(attempt, delays)
 
     def _mkcol_parents(self, key: str) -> None:
         ancestors = key.split("/")[:-1]
         for prefix in itertools.accumulate(ancestors, lambda acc, segment: f"{acc}/{segment}"):
             resp = self._request("MKCOL", self._url(prefix))
+            _refuse_missing_parent(resp)
             # 201 created; 405 already exists.
             self._ensure(resp, httpx.codes.CREATED, httpx.codes.METHOD_NOT_ALLOWED)
-
-    def _tmp_key(self, key: str) -> str:
-        parent, _, name = key.rpartition("/")
-        tmp_name = f".tmp-{uuid.uuid4().hex}-{name}"
-        return f"{parent}/{tmp_name}" if parent else tmp_name
 
     def _walk(self, collection: str) -> Iterator[str]:
         for child, is_collection in self._children(collection):
@@ -177,10 +176,35 @@ class WebDavObjectStore:
             raise ArchiveError(f"WebDAV {method} {url}: {exc}") from exc
 
     def _ensure(self, resp: httpx.Response, *ok: int) -> None:
-        if resp.status_code not in ok:
-            raise ArchiveError(
-                f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
-            )
+        if resp.status_code in ok:
+            return
+        failure = f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
+        if resp.status_code == httpx.codes.LOCKED:
+            raise Busy(failure)
+        raise ArchiveError(failure)
+
+
+class _ParentNotVisible(ArchiveError):
+    """A `404`/`409` on `PUT`/`MKCOL`: retried, but once the retries are spent it is not
+    contention (a missing root, a file where a folder should be), so not `Busy`."""
+
+
+def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...] | None = None) -> T:
+    """Run `attempt`, again after each of `delays` (default `_RETRY_DELAYS`) while it raises
+    `Busy` or `_ParentNotVisible`; the last attempt's error reaches the caller."""
+    for delay in _RETRY_DELAYS if delays is None else delays:
+        try:
+            return attempt()
+        except Busy, _ParentNotVisible:
+            time.sleep(delay * random.uniform(0.5, 1.5))  # jitter: contenders spread out
+    return attempt()
+
+
+def _refuse_missing_parent(resp: httpx.Response) -> None:
+    # A parent the adapter created a moment ago can still be invisible to the next request.
+    if resp.status_code in (httpx.codes.NOT_FOUND, httpx.codes.CONFLICT):
+        failure = f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
+        raise _ParentNotVisible(failure)
 
 
 def _iter_chunks(stream: BinaryIO) -> Iterator[bytes]:

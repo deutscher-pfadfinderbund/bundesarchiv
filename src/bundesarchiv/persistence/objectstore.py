@@ -41,7 +41,10 @@ def validate_key(key: str) -> None:
 
 @runtime_checkable
 class ObjectStore(Protocol):
-    """A blob store keyed by "/"-separated paths."""
+    """A blob store keyed by "/"-separated paths.
+
+    Any operation may raise `Busy`: the backend refused under contention and the adapter's own
+    bounded retries are spent. The call may be repeated later."""
 
     def read(self, key: str) -> bytes:
         """Return the bytes at `key`. Raise `NotFound` if absent."""
@@ -65,7 +68,8 @@ class ObjectStore(Protocol):
     def put_large(self, key: str, stream: BinaryIO, size: int) -> None:
         """Stream a large object into `key`, with the same all-or-nothing finalize
         as `write_atomic`. `size` is the expected byte length (a hint for backends
-        that need it, e.g. multipart upload)."""
+        that need it, e.g. multipart upload). An adapter that retries rewinds `stream` to where
+        it stood at the call before each attempt; a non-seekable stream gets one attempt."""
         ...
 
     def list(self, prefix: str = "") -> Iterable[str]:
