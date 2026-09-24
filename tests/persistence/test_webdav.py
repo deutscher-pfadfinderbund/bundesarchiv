@@ -143,15 +143,21 @@ def test_spent_retries_raise_busy_only_for_contention(refusal: int, busy: bool) 
     assert (isinstance(refused.value, Busy), len(bodies)) == (busy, attempts)
 
 
-def test_read_of_collection_key_is_not_found_under_redirect_following(webdav_root: str) -> None:
-    # read() must not depend on the injected client's redirect policy. With
-    # follow_redirects=True a naive GET would chase the collection's 301 and return
-    # the server's HTML listing as blob bytes; the adapter must still raise NotFound.
-    client = httpx.Client(base_url=webdav_root, timeout=10, follow_redirects=True)
+def test_a_collection_answered_like_a_file_is_not_found() -> None:
+    # Nextcloud answers a GET of a folder with 200, an HTML placeholder and no ETag
+    # (measured 2026-09-25); only PROPFIND tells it from a blob.
+    collection = (
+        b'<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/art/1/</d:href>'
+        b"<d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop>"
+        b"<d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "PROPFIND":
+            return httpx.Response(207, content=collection)
+        return httpx.Response(200, content=b"This is the WebDAV interface.")
+
+    client = httpx.Client(base_url="http://dav.invalid/", transport=httpx.MockTransport(handler))
     store = WebDavObjectStore(client)
-    try:
-        store.write_atomic("art/1/README.md", b"body")
-        with pytest.raises(NotFound):
-            store.read("art/1")
-    finally:
-        client.close()
+    with pytest.raises(NotFound):
+        pytest.fail(f"read returned {store.read('art/1')!r}")

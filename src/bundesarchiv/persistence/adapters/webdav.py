@@ -11,7 +11,7 @@ import io
 import itertools
 import random
 import time
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Buffer, Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, BinaryIO
 from urllib.parse import quote, unquote, urlsplit
@@ -58,22 +58,27 @@ class WebDavObjectStore:
         self._client.close()
 
     def read(self, key: str) -> bytes:
-        validate_key(key)
-        return _retrying(lambda: self._read_once(key))
-
-    def _read_once(self, key: str) -> bytes:
-        resp = self._request("GET", self._url(key), follow_redirects=False)
-        if resp.status_code == httpx.codes.OK:
-            return resp.content
-        # Non-200: classify via the same resourcetype probe exists()/delete() use, so
-        # absent-vs-collection-vs-error never hinges on a server-specific redirect or
-        # on the injected client's follow_redirects policy.
-        if resp.status_code == httpx.codes.LOCKED or self._is_file(key):
-            self._ensure(resp, httpx.codes.OK)  # a real blob but GET failed -> ArchiveError
-        raise NotFound(key)  # absent, or the key names a collection -> no blob here
+        with self.open_stream(key) as stream:
+            return stream.read()
 
     def open_stream(self, key: str) -> BinaryIO:
-        return io.BytesIO(self.read(key))
+        validate_key(key)
+        return io.BufferedReader(_retrying(lambda: self._open_once(key)))
+
+    def _open_once(self, key: str) -> _Body:
+        resp = self._request("GET", self._url(key), stream=True)
+        # A blob's answer carries its ETag. Nextcloud answers a GET of a collection with 200,
+        # an HTML placeholder and no ETag, so a 200 alone does not mean a blob.
+        if resp.status_code == httpx.codes.OK and "ETag" in resp.headers:
+            return _Body(resp)
+        resp.close()
+        if resp.status_code == httpx.codes.NOT_FOUND:
+            raise NotFound(key)  # a file that appears right after is a later write, not this one
+        # Anything else: classify via the same resourcetype probe exists()/delete() use, so
+        # absent-vs-collection-vs-error never hinges on a server-specific answer.
+        if resp.status_code == httpx.codes.LOCKED or self._is_file(key):
+            self._ensure(resp)  # a real blob but no usable answer -> Busy or ArchiveError
+        raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
     def write_atomic(self, key: str, data: bytes) -> str:
         return self._put(key, data, create=False)
@@ -186,9 +191,14 @@ class WebDavObjectStore:
         rel = path.removeprefix(self._root_path)
         return "/".join(unquote(seg) for seg in rel.strip("/").split("/") if seg)
 
-    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+    def _request(
+        self, method: str, url: str, *, stream: bool = False, **kwargs: Any
+    ) -> httpx.Response:
+        # Redirects are never followed, whatever the injected client's policy: a GET of a
+        # collection must not chase its redirect and hand back an HTML listing as blob bytes.
         try:
-            return self._client.request(method, url, **kwargs)
+            request = self._client.build_request(method, url, **kwargs)
+            return self._client.send(request, stream=stream, follow_redirects=False)
         except (httpx.HTTPError, httpx.InvalidURL) as exc:
             # A down/slow/unreachable/misbehaving mirror is an expected failure mode (ADR 0005);
             # surface ANY httpx error (transport, decoding, redirects, status, bad URL) as
@@ -202,6 +212,36 @@ class WebDavObjectStore:
         if resp.status_code == httpx.codes.LOCKED:
             raise Busy(failure)
         raise ArchiveError(failure)
+
+
+class _Body(io.RawIOBase):
+    """The body of a streamed `GET`, handed out as it arrives; closing it closes the response."""
+
+    def __init__(self, resp: httpx.Response) -> None:
+        self._resp = resp
+        self._chunks = resp.iter_bytes()
+        self._pending = b""
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Buffer) -> int:
+        try:
+            while not self._pending:
+                if (chunk := next(self._chunks, None)) is None:
+                    return 0
+                self._pending = chunk
+        except httpx.HTTPError as exc:
+            raise ArchiveError(f"WebDAV GET {self._resp.request.url}: {exc}") from exc
+        view = memoryview(buffer).cast("B")
+        size = min(len(view), len(self._pending))
+        view[:size] = self._pending[:size]
+        self._pending = self._pending[size:]
+        return size
+
+    def close(self) -> None:
+        self._resp.close()
+        super().close()
 
 
 class _ParentNotVisible(ArchiveError):

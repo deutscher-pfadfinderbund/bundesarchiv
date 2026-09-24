@@ -88,10 +88,9 @@ class ObjectStore(Protocol):
         """Return a readable binary stream over the object at `key`, which the caller
         closes. Raise `NotFound` if absent.
 
-        The read counterpart of `put_large`: a caller that hands the bytes straight to
-        something else (an HTTP response) never materializes the whole object. An adapter
-        whose backend cannot read lazily may return a buffered stream — the contract is the
-        bytes and the ownership, not laziness."""
+        The read counterpart of `put_large`: the stream hands the bytes out as they are read
+        and never holds the whole object in memory, so a caller that passes them on (an HTTP
+        response, a copy to another store) stays small for any object size."""
         ...
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> str:

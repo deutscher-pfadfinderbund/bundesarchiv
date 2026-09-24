@@ -13,6 +13,8 @@ commit path both writes share) and inspects what survived on disk.
 
 import io
 import threading
+import time
+import tracemalloc
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from itertools import pairwise
@@ -108,6 +110,14 @@ def test_of_concurrent_creates_of_one_key_exactly_one_wins(
     assert [data for data, _ in winners] == [stored], f"winners (bytes, version): {winners}"
 
 
+class _Trickle(io.BytesIO):
+    """Hands its bytes out 64 KiB at a time with a pause, so a write stays open a while."""
+
+    def read(self, size: int | None = -1) -> bytes:
+        time.sleep(0.005)
+        return super().read(-1 if size is None or size < 0 else min(size, 64 * 1024))
+
+
 class _SourceFailed(Exception):
     pass
 
@@ -119,6 +129,23 @@ class _BreaksMidway(io.BytesIO):
         if self.tell() or size is None or size < 0:
             raise _SourceFailed
         return super().read(min(size, 64 * 1024))
+
+
+def test_a_reader_never_sees_a_create_in_progress(store: ObjectStore) -> None:
+    data = bytes(range(256)) * 8 * 1024
+    partial: list[int] = []
+    with ThreadPoolExecutor(1) as pool:
+        creating = pool.submit(store.create_large, "history/1.md", _Trickle(data), len(data))
+        while not creating.done():
+            try:
+                read = store.read("history/1.md")
+            except NotFound:
+                continue
+            if read != data:
+                partial.append(len(read))
+        creating.result()
+    assert partial == [], "sizes of the partial reads"
+    assert store.read("history/1.md") == data
 
 
 def test_a_failed_create_leaves_nothing(store: ObjectStore) -> None:
@@ -237,6 +264,20 @@ def test_a_reader_never_sees_a_partial_write(store: ObjectStore) -> None:
     assert all(read in versions for read in seen)
 
 
+def test_a_streamed_read_does_not_hold_the_object_in_memory(store: ObjectStore) -> None:
+    size = 16 * 1024 * 1024
+    store.put_large("media/big.bin", io.BytesIO(bytes(size)), size)
+    tracemalloc.start()
+    try:
+        with store.open_stream("media/big.bin") as stream:
+            read = sum(len(chunk) for chunk in iter(lambda: stream.read(256 * 1024), b""))
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert read == size
+    assert peak < size // 4
+
+
 def test_open_stream_missing_raises_not_found(store: ObjectStore) -> None:
     with pytest.raises(NotFound):
         store.open_stream("does/not/exist")
@@ -244,8 +285,8 @@ def test_open_stream_missing_raises_not_found(store: ObjectStore) -> None:
 
 def test_open_stream_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
     store.write_atomic("art/1/README.md", b"body")
-    with pytest.raises(NotFound):
-        store.open_stream("art/1")
+    with pytest.raises(NotFound), store.open_stream("art/1") as stream:
+        pytest.fail(f"open_stream gave a stream of {stream.read(80)!r}")
 
 
 def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
@@ -253,7 +294,7 @@ def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
     # not a leaked backend error. (Pins memory and FS adapters to the same behavior.)
     store.write_atomic("art/1/README.md", b"body")
     with pytest.raises(NotFound):
-        store.read("art/1")
+        pytest.fail(f"read returned {store.read('art/1')[:80]!r}")
 
 
 def test_delete_directory_prefix_key_is_a_no_op(store: ObjectStore) -> None:
