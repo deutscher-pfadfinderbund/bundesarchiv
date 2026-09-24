@@ -1,5 +1,9 @@
 # Item media semantics: articles stay leaves; cover, mixed media, captions
 
+> **Amended (proposed 2026-09-24):** media files are stored under their own name, not their
+> hash — [ADR 0019](0019-canonical-layout-v1.md). The reference shape gains an optional
+> stored name.
+
 Status: Accepted (owner, 2026-07-10)
 
 ## Context

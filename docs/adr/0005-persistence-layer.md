@@ -1,5 +1,10 @@
 # Persistence layer: ObjectStore + ArticleRepository; local-FS canonical with async Nextcloud mirror
 
+> **Amended (proposed 2026-09-24):** `changes/` and `.snapshots/` are replaced by
+> `history/` and the media layout by named files ([ADR 0019](0019-canonical-layout-v1.md)).
+> "Deployment topology" is replaced by [ADR 0020](0020-storage-topology-system-of-record.md).
+> Hard delete no longer keeps a `.trash/` copy (ADR 0020).
+
 ## Module shape (two seams)
 
 Two modules:

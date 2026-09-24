@@ -1,5 +1,9 @@
 # Storage: files-canonical per-Article tree behind a swappable port, with a derived index
 
+> **Amended (proposed 2026-09-24):** Nextcloud becomes the system of record, the VPS the
+> working copy — [ADR 0020](0020-storage-topology-system-of-record.md). Version history
+> comes from [ADR 0019](0019-canonical-layout-v1.md), not git.
+
 Canonical data is **plain files on disk** — one directory per Article (named by an immutable **ULID**), holding a **`README.md`** (YAML front-matter + Markdown body = the source of truth), write-once media, and a per-edit append-only change record. The metadata file is named `README.md` deliberately: file browsers, Git hosts (GitHub/GitLab), IDEs, and **Nextcloud's Rich Workspace** auto-render it, so each Article folder is **self-describing when browsed with no application at all** — reinforcing the readable-without-the-app goal. It carries a top-of-file marker (`<!-- Managed by bundesarchiv — do not edit by hand. -->`) since the app is its sole writer and any browse mount is read-only. The data must be **human-readable without the application** (the archive outlives the software). All storage access goes through a **narrow swappable port** — `read` / `writeAtomic` / `putLarge` / `list` / `exists` / `delete` (no append, move, or lock) — with adapters for **local filesystem (v1 primary)**, WebDAV/Nextcloud, and S3. The **app is the sole writer** (single-writer invariant; pinned write order with `README.md` written last as the commit). _(v1 enforces single-writer by deployment only; the durable per-Article lock object that would make `save`'s check-then-write atomic is deferred — see the persistence plan and the limitation note on `ArticleRepository.save`.)_ A **derived, fully rebuildable index** (engine TBD) serves search/audience/sort. Backup = **restic** of the tree with a rehearsed restore.
 
 ## Considered options

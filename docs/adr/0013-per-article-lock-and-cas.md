@@ -1,5 +1,8 @@
 # Per-Article optimistic concurrency: version CAS, no locks
 
+> **Note (proposed 2026-09-24):** stage B of [ADR 0020](0020-storage-topology-system-of-record.md)
+> would move the compare-and-swap to WebDAV `If-Match` and retire `WRITER_LOCK`.
+
 Status: Accepted (2026-07-04) — adopted by Part 4.1. v2 folded the 2026-07-04
 adversarial panel findings (reconciled against the built Part 1 code); Part 4.1
 added the shared writer mutex and Collection versioning, then adopted this ADR.
