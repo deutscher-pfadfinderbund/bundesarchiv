@@ -123,18 +123,6 @@ def test_keys_for_marks_a_readme_that_does_not_decode(
     ]
 
 
-def test_hard_delete_removes_the_collection(repo: CollectionRepository) -> None:
-    repo.save(_collection(), expected_version=0, changed_by="tester")
-    repo.hard_delete("01J0")
-    with pytest.raises(NotFound):
-        repo.load("01J0")
-    assert repo.load_all() == ()
-
-
-def test_hard_delete_is_a_no_op_for_absent_collection(repo: CollectionRepository) -> None:
-    repo.hard_delete("never-existed")  # must not raise
-
-
 def test_readme_carries_marker(repo: CollectionRepository) -> None:
     repo.save(_collection(), expected_version=0, changed_by="tester")
     # Peek at the raw store via the internal reference (memory only — localfs is opaque).

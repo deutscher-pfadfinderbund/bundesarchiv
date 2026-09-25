@@ -78,11 +78,6 @@ class CollectionRepository:
         """The ulid of every saved Collection, none of them read."""
         return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
 
-    def hard_delete(self, ulid: Ulid) -> None:
-        """Delete the Collection's tree, history included. A no-op if the Collection is absent."""
-        for key in list(self._store.list(f"{_folder(ulid)}/")):
-            self._store.delete(key)
-
     def keys_for(self, ulid: Ulid) -> list[StoredKey]:
         """The keys of the Collection's folder in the order a save writes them: history, the README
         last (ADR 0020 push order). A README that does not decode is not `readable`. An absent
