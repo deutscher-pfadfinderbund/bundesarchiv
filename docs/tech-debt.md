@@ -29,18 +29,19 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ## Module map & packages
 
 ### 11. Cross-module private imports mark undeclared seams — Worth exploring
-- **Indicator:** 19 imports of 15 private names across 10 modules: 11 in `app/web` (7 modules),
-  3 in `index` (2), 5 in `persistence` (1) (2026-09-25, an AST count of `from bundesarchiv… import
-  _name` over `src/`, internal modules such as `_writer` excluded)
-- **Evidence:** web: `_not_found` ×5, `viewers._dev_signer` + `viewers._DEV_VIEWER_MAX_AGE`
-  (`dev.py`), plus `catalog._parse_audience`, `catalog_views._SICHTBARKEIT_OPTIONS`,
-  `browse_views._body_paragraphs`, `browse_views._serve_static`. index:
-  `models._ARCHIVIST_TEXT_SOURCES` and `scope._scope_columns` (`indexer.py`),
-  `scope._viewer_scope` (`query.py`). persistence:
-  `fixity.py` takes `_folder` and `_ulid_of_readme` from both repositories and `repository._digest`
-  (the layout and the hash its check reads, ADR 0019). Accreted; each is a seam nobody named.
-- **Deletion test:** passes — the importers would have to state what they actually need.
-- **Sketch:** promote the deny helper to a public web-level name; the rest falls out of #2 and #7.
+- **Indicator:** 14 imports of 10 private names: 11 in `app/web` (7 modules), 3 in `index` (2)
+  (2026-09-25, AST count of `from bundesarchiv… import _name` over `src/`, `_`-modules excluded)
+- **Evidence:** `media_views._not_found` ×5; `viewers`, `catalog`, `catalog_views`, `browse_views`,
+  `index.models` and `index.scope` each hand one or two private names to siblings. Accreted.
+- **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
+  module or moves to its one importer.
+
+### 19. The fixity check reads the repositories' private layout — Worth exploring
+- **Indicator:** 5 private imports, all in `persistence/fixity.py` (2026-09-25, the count of #11)
+- **Evidence:** `_folder` and `_ulid_of_readme` from both repositories, and `repository._digest` —
+  the key layout and the hash the check re-reads (ADR 0019 "Fixity"). Accreted.
+- **Sketch:** a named internal layout module beside `_writer` (record folders, README keys, the
+  media digest) that both repositories and `fixity` import.
 
 ## Interfaces
 
