@@ -124,6 +124,11 @@ class ArticleRepository:
             self._store, _folder(ulid), named or {}, readable=named is not None
         )
 
+    def folder(self, ulid: Ulid) -> str:
+        """The folder that holds every file of the Article (`articles/<ulid>`), the prefix a hard
+        delete removes."""
+        return _folder(ulid)
+
     def hard_delete(self, ulid: Ulid) -> None:
         """Remove the Article's folder for good, keeping no copy (ADR 0020). A no-op if the
         Article is absent."""

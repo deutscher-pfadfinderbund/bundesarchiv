@@ -11,7 +11,7 @@ from typing import BinaryIO
 import pytest
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.mirror import PushRecord, push, reconcile
+from bundesarchiv.app.mirror import PushRecord, delete_article, push, reconcile
 from bundesarchiv.app.push_record import InMemoryPushRecord
 from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence._writer import history_key
@@ -232,6 +232,18 @@ def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:
     archive.articles.hard_delete(ULID)
     push(archive, remote, record, ULID)
     assert (remote.deleted, list(remote.store.list())) == ([], pushed)
+
+
+def test_a_hard_delete_takes_exactly_its_folder_off_the_system_of_record_and_the_record() -> None:
+    """``01FOTO2`` shares the folder's name as a string prefix and stays."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    archive.articles.save(Article("01FOTO2", "Nachbar", "FOTOS"), 0, changed_by="tester")
+    reconcile(archive, remote, record)
+    archive.articles.hard_delete(ULID)
+    delete_article(archive, remote, record, ULID)
+    assert _same_tree(archive, remote)
+    assert record.entries().keys() == set(archive.store.list())
 
 
 # --- the reconcile ---------------------------------------------------------------------

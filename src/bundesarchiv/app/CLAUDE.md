@@ -12,7 +12,7 @@ Every write service takes `changed_by`, who is acting; the version it writes rec
 - `archive.py` — the one construction site for the canonical store + its repositories · interface: `Archive` (`.canonical()`, `.of()`, `.articles`, `.collections`, `.store`) · tests: `tests/app/test_archive.py`
 - `articles.py` — Article write services: the canonical-then-index shell · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `hard_delete_article` · tests: `tests/app/test_services.py`
 - `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`
-- `mirror.py` — the add-only push to the system of record (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `ReconcileReport`, `PushRecord`, `Pushed` · tests: `tests/app/test_mirror.py`
+- `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
 - `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`
 - `tasks.py` — the background job seam (Procrastinate, ADR 0014); resolves its stores per job · interface: `reindex_article`, `reindex_subtree`, `full_rebuild`, `generate_thumbnail` · tests: `tests/app/test_tasks.py`
 - `thumbnails.py` — thumbnail generation, content-hash-keyed local cache · interface: `generate_thumbnail` · tests: `tests/app/web/test_media.py` (no suite of its own)

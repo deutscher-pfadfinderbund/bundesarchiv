@@ -378,6 +378,22 @@ def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
 
+@pytest.mark.django_db
+def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import bundesarchiv.app.articles as articles_mod
+
+    def boom(_ulid: str) -> None:
+        raise RuntimeError("queue down")
+
+    monkeypatch.setattr(articles_mod, "enqueue_mirror_delete_article", boom)
+
+    result = hard_delete_article(archive, "01FOTO")
+
+    assert (result.index_updated, list(archive.articles.list_ulids())) == (True, [])
+
+
 # ---------------------------------------------------------------------------
 # Sync-failure path — canonical write STANDS, job enqueued, index_updated=False
 # ---------------------------------------------------------------------------

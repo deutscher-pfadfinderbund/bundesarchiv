@@ -70,5 +70,6 @@ def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(articles, "index_article", lambda *a, **k: None)
     monkeypatch.setattr(articles, "enqueue_generate_thumbnail", lambda *a, **k: None)
     monkeypatch.setattr(articles, "enqueue_mirror_push", lambda *a, **k: None)
+    monkeypatch.setattr(articles, "enqueue_mirror_delete_article", lambda *a, **k: None)
     monkeypatch.setattr(articles, "enqueue_reindex_article", lambda *a, **k: None)
     yield

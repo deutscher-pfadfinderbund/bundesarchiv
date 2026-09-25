@@ -322,3 +322,29 @@ def test_mirror_push_worker_execution_smoke(
 
     assert list(remote.list()) == list(store.list("articles/"))
     assert processed >= 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The service enqueues the delete, the worker runs it: the Article's folder goes from the
+    system of record, and its rows from the push record. ``transaction=True`` as in the push
+    smoke."""
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app.articles import hard_delete_article
+    from bundesarchiv.app.push_record import PostgresPushRecord
+
+    remote = InMemoryObjectStore()
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
+    tasks_mod.mirror_reconcile.func()
+
+    def delete() -> None:
+        hard_delete_article(Archive.of(store), "01FOTO")
+
+    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
+        tasks_mod.run_worker_once_in_test(defer=delete)
+
+    assert list(remote.list()) == list(store.list())
+    assert PostgresPushRecord().entries().keys() == set(store.list())

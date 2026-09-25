@@ -52,7 +52,7 @@ def canonical_store() -> ObjectStore:
 
 def _mirror_configured() -> bool:
     """Whether a system of record is configured — the settings predicate shared by
-    ``mirror_store()`` and ``enqueue_mirror_push``, so the enqueue path can answer "is mirroring on"
+    ``mirror_store()`` and the enqueue wrappers, so the enqueue path can answer "is mirroring on"
     without building a client (and its eager SSL-context load) just to throw it away."""
     return bool(settings.BUNDESARCHIV_MIRROR_DAV_URL)
 
@@ -144,6 +144,20 @@ def mirror_push(ulid: str) -> None:
         _close_mirror(remote)  # release the per-job httpx.Client even when the push raises
 
 
+@app.task(name="mirror_delete_article", retry=_MIRROR_RETRY)
+def mirror_delete_article(ulid: str) -> None:
+    """Reference job (ADR 0020 "Hard delete"): take the hard-deleted Article ``ulid`` off the
+    system of record, then out of the push record. A no-op when no system of record is configured.
+    Idempotent; a failed delete raises, which triggers the bounded retry (``_MIRROR_RETRY``)."""
+    remote = mirror_store()
+    if remote is None:
+        return
+    try:
+        mirror.delete_article(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
+    finally:
+        _close_mirror(remote)
+
+
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
 @app.task(name="mirror_reconcile")
 def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
@@ -202,6 +216,15 @@ def enqueue_mirror_push(ulid: str) -> None:
     if not _mirror_configured():
         return  # mirror unset -> nothing to enqueue
     mirror_push.defer(ulid=ulid)
+
+
+def enqueue_mirror_delete_article(ulid: str) -> None:
+    """Enqueue a ``mirror_delete_article`` reference job for the hard-deleted Article ``ulid``,
+    AFTER the local delete. A no-op when no system of record is configured, as
+    ``enqueue_mirror_push``."""
+    if not _mirror_configured():
+        return
+    mirror_delete_article.defer(ulid=ulid)
 
 
 # --- in-test worker harness ------------------------------------------------------

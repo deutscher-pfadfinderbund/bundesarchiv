@@ -1,16 +1,17 @@
 """The push to the system of record (ADR 0020 stage A): the working copy's files onto the
-Nextcloud folder, add-only.
+Nextcloud folder, add-only but for a hard delete.
 
 ``push`` copies one saved Article or Collection after a save; ``reconcile`` sweeps the whole
-archive and reports what it will not repair. Both speak only the storage port and an injected
-``PushRecord``, and take the keys, and which of them are write-once, from the repositories'
-``keys_for``. They send a record's keys in the order ``keys_for`` lists them, the local save order
-with the README last, so the system of record never holds a README naming a file it lacks. A
-write-once key is sent once, with ``create``; a README whenever its SHA-256 differs from the one the
-record holds. Bytes move streamed, except a README: it is read whole, so the digest recorded is that
-of the bytes sent. Nothing here deletes on the system of record, and nothing replaces a copy there
-with a README that does not decode. A write-once key there in another size than the local file is
-neither recorded nor replaced. Both are logged as warnings.
+archive and reports what it will not repair; ``delete_article`` takes a hard-deleted Article's
+folder off. They speak only the storage port and an injected ``PushRecord``. ``push`` and
+``reconcile`` take the keys, and which of them are write-once, from the repositories' ``keys_for``,
+and send a record's keys in the order ``keys_for`` lists them, the local save order with the README
+last, so the system of record never holds a README naming a file it lacks. A write-once key is sent
+once, with ``create``; a README whenever its SHA-256 differs from the one the record holds. Bytes
+move streamed, except a README: it is read whole, so the digest recorded is that of the bytes sent.
+Only ``delete_article`` deletes on the system of record, and nothing replaces a copy there with a
+README that does not decode. A write-once key there in another size than the local file is neither
+recorded nor replaced. Both are logged as warnings.
 """
 
 import hashlib
@@ -99,6 +100,15 @@ def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) 
     run = _Push(archive.store, remote, record, sweep=None)
     for repository in (archive.collections, archive.articles):
         run.folder(repository, ulid)
+
+
+def delete_article(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> None:
+    """Take the hard-deleted Article `ulid` off `remote`, its whole folder, then forget that folder
+    in `record` (ADR 0020 "Hard delete"). Idempotent. Raises `ArchiveError` when the delete fails,
+    forgetting nothing."""
+    folder = archive.articles.folder(ulid)
+    remote.delete_prefix(folder)
+    record.forget_prefix(folder)
 
 
 def reconcile(archive: Archive, remote: ObjectStore, record: PushRecord) -> ReconcileReport:

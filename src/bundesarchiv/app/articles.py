@@ -31,6 +31,7 @@ from bundesarchiv.app.result import (
 )
 from bundesarchiv.app.tasks import (
     enqueue_generate_thumbnail,
+    enqueue_mirror_delete_article,
     enqueue_mirror_push,
     enqueue_reindex_article,
 )
@@ -62,7 +63,7 @@ def save_article(
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(article.ulid)
+    _enqueue_mirror(enqueue_mirror_push, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -143,7 +144,7 @@ def create_article(
     new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(article.ulid)
+    _enqueue_mirror(enqueue_mirror_push, article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -177,12 +178,14 @@ def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResu
 
 
 def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
-    """Delete the Article from canonical for good (ADR 0020), then synchronously
-    reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
-    index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
-    ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""
+    """Delete the Article from canonical for good (ADR 0020), then synchronously reindex —
+    ``index_article`` sees the ulid gone from canonical and DELETES its index row — and enqueue the
+    delete on the system of record. On index failure the delete stands, a retry job (which will
+    also drop the row) is enqueued, and ``index_updated=False`` is returned. Version is 0 (the
+    Article no longer exists)."""
     archive.articles.hard_delete(ulid)
     index_updated = _sync_index(archive, ulid)
+    _enqueue_mirror(enqueue_mirror_delete_article, ulid)
     return SaveResult(version=0, index_updated=index_updated)
 
 
@@ -208,13 +211,14 @@ def _is_image(ref: MediaRef) -> bool:
     return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
-def _enqueue_mirror(ulid: Ulid) -> None:
-    """Enqueue the push of the Article to the system of record (ADR 0020), AFTER the canonical
-    write. Any failure is swallowed: the write stood, and the daily reconcile pushes what a lost job
-    would have. A no-op when no system of record is configured (the enqueue wrapper checks)."""
+def _enqueue_mirror(enqueue: Callable[[Ulid], None], ulid: Ulid) -> None:
+    """Enqueue the push or the delete of the Article on the system of record (ADR 0020), AFTER the
+    canonical write. Any failure is swallowed: the write stood, and the daily reconcile pushes what
+    a lost push would have and reports what a lost delete left there. A no-op when no system of
+    record is configured (the enqueue wrapper checks)."""
     try:
-        enqueue_mirror_push(ulid)
-    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile pushes it
+        enqueue(ulid)
+    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile covers it
         return
 
 
