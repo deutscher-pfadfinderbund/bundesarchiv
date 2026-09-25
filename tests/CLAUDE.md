@@ -60,7 +60,8 @@ sits inside the razor as loss-critical, not as codec-mechanics.
   SQL-vs-domain equivalence proof (`test_equivalence.py`), indexer/incremental
   correctness. Leak-critical; the index itself is disposable.
 - `app/` — the service layer (staleness gates, canonical-write-survives-index-
-  failure), mirror reconcile (mass-delete warning), worker jobs.
+  failure), the push to the system of record (push order, never an unchanged file
+  twice, the add-only reconcile), worker jobs.
 - `app/web/` — HTTP gates (leak matrix, media serving, viewer_of) and the
   editing surface (CAS conflicts, bulk buckets, media order). Editing writes
   canonical files — deny-changes-nothing asserts are load-bearing.

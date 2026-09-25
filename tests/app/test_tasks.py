@@ -211,37 +211,38 @@ def test_mirror_push_task_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPa
     tasks_mod.mirror_push.func(ulid="01A")  # must not raise
 
 
-def test_mirror_reconcile_task_syncs_and_returns_summary(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The reconcile job pushes missing + deletes stale and returns the summary counts as its
-    result (pushed/deleted/failed) for the worker log."""
+@pytest.mark.django_db
+def test_the_reconcile_job_returns_how_many_keys_each_finding_holds(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import bundesarchiv.app.tasks as tasks_mod
 
-    canonical = InMemoryObjectStore()
-    mirror = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    mirror.write_atomic("articles/01OLD/README.md", b"orphan")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror)
+    remote = InMemoryObjectStore()
+    remote.write_atomic("Notizen/liste.txt", b"not the app's")
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
 
-    summary = tasks_mod.mirror_reconcile.func()
+    counts = tasks_mod.mirror_reconcile.func()
 
-    assert mirror.read("articles/01A/README.md") == b"a"
-    assert not mirror.exists("articles/01OLD/README.md")
-    assert summary == {"pushed": 1, "deleted": 1, "failed": 0}
+    assert counts == {
+        "sent": len(list(store.list())),
+        "recorded": 0,
+        "changed": 0,
+        "mismatched": 0,
+        "unreadable": 0,
+        "remote_only": 1,
+        "failed": 0,
+    }
 
 
 def test_mirror_reconcile_task_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No mirror configured -> the reconcile is a clean no-op returning a zero/skipped summary."""
+    """No mirror configured -> the reconcile is a clean no-op that says it skipped."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    canonical = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
+    monkeypatch.setattr(tasks_mod, "canonical_store", InMemoryObjectStore)
     monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
 
-    summary = tasks_mod.mirror_reconcile.func()
-
-    assert summary == {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
+    assert tasks_mod.mirror_reconcile.func() == {"skipped": True}
 
 
 def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:

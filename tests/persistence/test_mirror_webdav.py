@@ -27,15 +27,16 @@ def test_push_sends_an_article_with_its_media_to_a_live_webdav_store(
     assert {key: webdav_store.read(key) for key in webdav_store.list()} == local
 
 
-def test_reconcile_against_live_webdav_pushes_and_deletes(webdav_store: WebDavObjectStore) -> None:
-    """Full sweep against a real WebDAV mirror: a missing key is pushed, a mirror-only key is
-    deleted, and the summary counts are right."""
-    canonical = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"a")
+def test_reconcile_against_a_live_webdav_store_adds_and_deletes_nothing(
+    webdav_store: WebDavObjectStore,
+) -> None:
+    archive = Archive.of(InMemoryObjectStore())
+    archive.articles.save(Article("01A", "Brief", "FOTOS"), 0, changed_by="tester")
     webdav_store.write_atomic("articles/01OLD/README.md", b"orphan")
 
-    summary = reconcile(canonical, webdav_store)
+    report = reconcile(archive, webdav_store, InMemoryPushRecord())
 
-    assert webdav_store.read("articles/01A/README.md") == b"a"
-    assert not webdav_store.exists("articles/01OLD/README.md")
-    assert (summary.pushed, summary.deleted, summary.failed) == (1, 1, 0)
+    (readme,) = (key.key for key in archive.articles.keys_for("01A"))
+    assert webdav_store.read(readme) == archive.store.read(readme)
+    assert webdav_store.read("articles/01OLD/README.md") == b"orphan"
+    assert (report.sent, report.remote_only) == ((readme,), ("articles/01OLD/README.md",))

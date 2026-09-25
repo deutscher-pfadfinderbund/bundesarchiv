@@ -72,11 +72,11 @@ class CollectionRepository:
         indexer resolve chains and audience from Collection fields alone — they never
         write, so they need no versions. Callers that intend to `save` must `load` the
         one Collection to get its version."""
-        return tuple(
-            self.load(ulid).collection
-            for key in self._store.list(f"{_ROOT}/")
-            if (ulid := _ulid_of_readme(key)) is not None
-        )
+        return tuple(self.load(ulid).collection for ulid in self.list_ulids())
+
+    def list_ulids(self) -> list[Ulid]:
+        """The ulid of every saved Collection, none of them read."""
+        return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
 
     def hard_delete(self, ulid: Ulid) -> None:
         """Delete the Collection's tree, history included. A no-op if the Collection is absent."""

@@ -18,6 +18,7 @@ schedule (hourly default) — a periodic full rebuild bounds every missed increm
 """
 
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
 
 import httpx
@@ -146,20 +147,20 @@ def mirror_push(ulid: str) -> None:
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
 @app.task(name="mirror_reconcile")
 def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
-    """The scheduled mirror reconcile (Part 4.9): a periodic full sweep that makes the mirror match
-    canonical — pushes anything the async replay missed, deletes mirror-only stragglers — so the
-    mirror self-heals no matter what any push job dropped. Daily by default
-    (``BUNDESARCHIV_MIRROR_RECONCILE_CRON``). Returns the summary counts (pushed/deleted/failed) as
-    the task result, which the worker logs. A no-op returning ``skipped=True`` when no mirror is
-    configured. ``timestamp`` is the periodic tick (unused; the sweep recomputes from canonical)."""
-    mirror_target = mirror_store()
-    if mirror_target is None:
-        return {"pushed": 0, "deleted": 0, "failed": 0, "skipped": True}
+    """The scheduled reconcile (ADR 0020): pushes what any push job missed, rebuilds a lost push
+    record, and reports what it leaves alone, keys changed on the system of record and keys only
+    there, which it never deletes. Daily by default (``BUNDESARCHIV_MIRROR_RECONCILE_CRON``). The
+    findings go to the log as warnings; the task result, which the worker logs, is how many keys
+    each holds. A no-op returning ``skipped=True`` when no system of record is configured.
+    ``timestamp`` is the periodic tick (unused; the sweep recomputes from canonical)."""
+    remote = mirror_store()
+    if remote is None:
+        return {"skipped": True}
     try:
-        summary = mirror.reconcile(canonical_store(), mirror_target)
+        report = mirror.reconcile(Archive.of(canonical_store()), remote, PostgresPushRecord())
     finally:
-        _close_mirror(mirror_target)  # release the per-job httpx.Client even when the sweep raises
-    return {"pushed": summary.pushed, "deleted": summary.deleted, "failed": summary.failed}
+        _close_mirror(remote)  # release the per-job httpx.Client even when the sweep raises
+    return {finding: len(keys) for finding, keys in asdict(report).items()}
 
 
 def _close_mirror(store: ObjectStore) -> None:

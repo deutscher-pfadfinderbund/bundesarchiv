@@ -11,7 +11,7 @@ from typing import BinaryIO
 import pytest
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.mirror import ReconcileSummary, push, reconcile
+from bundesarchiv.app.mirror import PushRecord, push, reconcile
 from bundesarchiv.app.push_record import InMemoryPushRecord
 from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence._writer import history_key
@@ -25,7 +25,8 @@ ULID = "01FOTO"
 
 class _Remote:
     """The system of record: an in-memory store that logs each key it is asked to send (refused
-    or not), fetch or delete, and refuses every send from the ``fail_from``-th on."""
+    or not), fetch or delete. It refuses every send from the ``fail_from``-th on, and every send
+    of a key in ``refused``."""
 
     def __init__(self) -> None:
         self.store = InMemoryObjectStore()
@@ -33,11 +34,12 @@ class _Remote:
         self.fetched: list[str] = []
         self.deleted: list[str] = []
         self.fail_from: int | None = None
+        self.refused: set[str] = set()
 
     def _sending(self, key: str) -> None:
         self.sent.append(key)
-        if self.fail_from is not None and len(self.sent) >= self.fail_from:
-            raise ArchiveError(f"{key}: the system of record is unreachable")
+        if key in self.refused or (self.fail_from is not None and len(self.sent) >= self.fail_from):
+            raise ArchiveError(f"{key}: the system of record refused it")
 
     def read(self, key: str) -> bytes:
         self.fetched.append(key)
@@ -115,22 +117,38 @@ def _same_tree(archive: Archive, remote: _Remote) -> bool:
 # --- the per-save push -------------------------------------------------------------
 
 
+type _Sync = Callable[[Archive, _Remote, PushRecord], None]
+
+
+def _by_push(archive: Archive, remote: _Remote, record: PushRecord) -> None:
+    push(archive, remote, record, ULID)
+
+
+def _by_reconcile(archive: Archive, remote: _Remote, record: PushRecord) -> None:
+    if reconcile(archive, remote, record).failed:
+        raise ArchiveError("the reconcile broke off")
+
+
+_SYNCS = pytest.mark.parametrize("sync", [_by_push, _by_reconcile], ids=["push", "reconcile"])
+
+
+@_SYNCS
 @pytest.mark.parametrize("fail_from", range(1, 5))
 def test_an_interrupted_push_never_leaves_a_readme_naming_a_file_the_system_of_record_lacks(
-    fail_from: int,
+    sync: _Sync, fail_from: int
 ) -> None:
     """ADR 0020 push order, at every point a push of the second version can break off. The retry
     then completes it."""
     archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
     _save(archive, ("eins.jpg", b"eins"))
-    push(archive, remote, record, ULID)
+    sync(archive, remote, record)
     _save(archive, ("zwei.jpg", b"zwei"), ("drei.pdf", b"drei"), title="Neu")
     remote.fail_from = len(remote.sent) + fail_from
     with pytest.raises(ArchiveError):
-        push(archive, remote, record, ULID)
+        sync(archive, remote, record)
     assert _dangling(remote.store) == []
     remote.fail_from = None
-    push(archive, remote, record, ULID)
+    sync(archive, remote, record)
     assert _same_tree(archive, remote)
 
 
@@ -216,119 +234,136 @@ def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:
     assert (remote.deleted, list(remote.store.list())) == ([], pushed)
 
 
-def _stores() -> tuple[InMemoryObjectStore, InMemoryObjectStore]:
-    return InMemoryObjectStore(), InMemoryObjectStore()
+# --- the reconcile ---------------------------------------------------------------------
 
 
-# --- reconcile: full diff, push missing/changed, delete mirror-only --------------
+def _saved_collection(archive: Archive) -> None:
+    archive.collections.save(Collection("FOTOS", "Fotos"), 0, changed_by="tester")
 
 
-def test_reconcile_pushes_missing_keys() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    canonical.write_atomic("articles/01B/README.md", b"b")
-
-    summary = reconcile(canonical, mirror)
-
-    assert mirror.read("articles/01A/README.md") == b"a"
-    assert mirror.read("articles/01B/README.md") == b"b"
-    assert summary.pushed == 2
-    assert summary.deleted == 0
-    assert summary.failed == 0
-
-
-def test_reconcile_repushes_changed_keys() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"fresh")
-    mirror.write_atomic("articles/01A/README.md", b"stale")  # same key, different bytes
-
-    summary = reconcile(canonical, mirror)
-
-    assert mirror.read("articles/01A/README.md") == b"fresh"
-    assert summary.pushed == 1  # changed key counts as a push
+def test_a_lost_push_is_made_good_by_the_next_reconcile() -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _saved_collection(archive)
+    _save(archive, ("scan.pdf", b"a scan"))
+    reconcile(archive, remote, record)
+    assert _same_tree(archive, remote)
+    _save(archive, title="Neu")
+    report = reconcile(archive, remote, record)
+    _, history, readme = (key.key for key in archive.articles.keys_for(ULID))
+    assert (report.sent, report.failed) == ((history, readme), ())
+    assert _same_tree(archive, remote)
 
 
-def test_reconcile_skips_unchanged_keys() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"same")
-    mirror.write_atomic("articles/01A/README.md", b"same")
-
-    summary = reconcile(canonical, mirror)
-
-    assert summary.pushed == 0  # identical bytes: nothing re-pushed
-    assert summary.deleted == 0
-
-
-def test_reconcile_deletes_mirror_only_keys() -> None:
-    """The mirror MIRRORS — it does not accumulate. A key present on the mirror but absent from
-    canonical is stale and must be deleted."""
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"keep")
-    mirror.write_atomic("articles/01A/README.md", b"keep")
-    mirror.write_atomic("articles/01OLD/README.md", b"deleted-from-canonical")
-
-    summary = reconcile(canonical, mirror)
-
-    assert not mirror.exists("articles/01OLD/README.md")  # stale mirror-only key removed
-    assert mirror.exists("articles/01A/README.md")  # still-canonical key kept
-    assert summary.deleted == 1
-
-
-def test_reconcile_empty_canonical_clears_mirror() -> None:
-    canonical, mirror = _stores()
-    mirror.write_atomic("articles/01OLD/README.md", b"orphan")
-
-    summary = reconcile(canonical, mirror)
-
-    assert list(mirror.list()) == []
-    assert summary.deleted == 1
-    assert summary.pushed == 0
-
-
-def test_reconcile_summary_is_the_result_shape() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    mirror.write_atomic("articles/01OLD/README.md", b"orphan")
-
-    summary = reconcile(canonical, mirror)
-
-    assert isinstance(summary, ReconcileSummary)
-    assert (summary.pushed, summary.deleted, summary.failed) == (1, 1, 0)
-
-
-# --- mass-delete warning: a misconfigured mirror root must be an actionable signal
-
-
-def test_reconcile_mass_delete_logs_warning_with_sample_keys(
+def test_a_record_whose_push_breaks_off_is_reported_and_the_sweep_goes_on(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A sweep that deletes an anomalous number of mirror-only keys (the signature of
-    BUNDESARCHIV_MIRROR_DAV_URL pointed at a folder holding non-archive files) must log a WARNING
-    naming the count and a bounded sample of the deleted keys — an actionable signal, not a silent
-    count in the summary."""
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    for i in range(30):  # 30 > the absolute threshold of 25
-        mirror.write_atomic(f"human-files/photo-{i:02}.jpg", b"not-archive-content")
-
+    archive, remote = Archive.of(InMemoryObjectStore()), _Remote()
+    scan = archive.articles.add_media("01A", "scan.pdf", io.BytesIO(b"a scan"))
+    archive.articles.save(Article("01A", "Eins", "FOTOS", media=(scan,)), 0, changed_by="tester")
+    archive.articles.save(Article("01B", "Zwei", "FOTOS"), 0, changed_by="tester")
+    remote.refused.add(archive.articles.media_key("01A", scan))
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
-        summary = reconcile(canonical, mirror)
-
-    assert summary.deleted == 30
-    warning = "\n".join(r.message for r in caplog.records if r.levelname == "WARNING")
-    assert "30" in warning  # the count
-    assert "human-files/photo-00.jpg" in warning  # a sample of WHAT was deleted
-    assert warning.count("human-files/") <= 20  # the sample is bounded, not the full list
+        report = reconcile(archive, remote, InMemoryPushRecord())
+    assert report.failed == ("01A",)
+    assert list(remote.store.list()) == [key.key for key in archive.articles.keys_for("01B")]
+    assert "01A" in caplog.text
 
 
-def test_reconcile_small_delete_does_not_warn(caplog: pytest.LogCaptureFixture) -> None:
-    """Routine mirror deletes (e.g. a hard-deleted Article's few keys) stay below the threshold —
-    no warning noise for normal operation."""
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"a")
-    mirror.write_atomic("articles/01OLD/README.md", b"orphan")
+def test_a_file_the_system_of_record_lost_is_pushed_again_though_the_record_holds_it() -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    media, readme = (key.key for key in archive.articles.keys_for(ULID))
+    remote.store.delete(media)
+    remote.store.delete(readme)
+    assert reconcile(archive, remote, record).sent == (media, readme)
+    assert _same_tree(archive, remote)
 
+
+def test_the_reconcile_deletes_nothing_and_reports_what_only_the_system_of_record_holds(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A hard-deleted Article whose delete never reached the system of record stays there, and
+    shows in the report (ADR 0020, accepted risk); so does a file that is not the app's."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    deleted = [key.key for key in archive.articles.keys_for(ULID)]
+    archive.articles.hard_delete(ULID)
+    remote.store.write_atomic("Notizen/liste.txt", b"not the app's")
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
-        reconcile(canonical, mirror)
+        report = reconcile(archive, remote, record)
+    assert report.remote_only == tuple(sorted([*deleted, "Notizen/liste.txt"]))
+    assert remote.deleted == []
+    assert set(remote.store.list()) == {*deleted, "Notizen/liste.txt"}
+    assert "Notizen/liste.txt" in caplog.text
 
-    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+def test_a_hand_edit_on_the_system_of_record_is_reported_and_left_alone(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    _, readme = (key.key for key in archive.articles.keys_for(ULID))
+    remote.store.write_atomic(readme, b"edited by hand")
+    sent = len(remote.sent)
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        report = reconcile(archive, remote, record)
+    assert (report.changed, report.sent) == ((readme,), ())
+    assert (len(remote.sent), remote.store.read(readme)) == (sent, b"edited by hand")
+    assert readme in caplog.text
+
+
+def test_losing_the_push_record_costs_one_rebuild_and_no_upload() -> None:
+    """The rebuild takes write-once files by their existence and each README by one download
+    (ADR 0020); a second reconcile then moves no bytes at all."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _saved_collection(archive)
+    _save(archive, ("eins.jpg", b"eins"), ("zwei.pdf", b"zwei"))
+    _save(archive, title="Neu")
+    reconcile(archive, remote, record)
+    sent = len(remote.sent)
+    rebuilt = InMemoryPushRecord()
+    report = reconcile(archive, remote, rebuilt)
+    readmes = sorted(key for key in archive.store.list() if key.endswith("/README.md"))
+    assert (report.sent, report.changed, len(remote.sent)) == ((), (), sent)
+    assert sorted(remote.fetched) == readmes
+    assert rebuilt.entries() == record.entries()
+    report = reconcile(archive, remote, rebuilt)
+    assert (report.sent, report.recorded, len(remote.fetched)) == ((), (), len(readmes))
+
+
+def test_a_readme_that_no_longer_decodes_is_never_pushed(caplog: pytest.LogCaptureFixture) -> None:
+    """A README that rotted locally must not replace the intact copy on the system of record, by
+    the per-save push or by the reconcile; the repository says which README does not decode."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    _, readme = (key.key for key in archive.articles.keys_for(ULID))
+    intact, noted = remote.store.read(readme), record.entries()
+    archive.store.write_atomic(readme, intact.replace(b"Foto", b"F\xf6to"))
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        push(archive, remote, record, ULID)
+        report = reconcile(archive, remote, record)
+    assert report.unreadable == (readme,)
+    assert (remote.store.read(readme), record.entries()) == (intact, noted)
+    assert readme in caplog.text
+
+
+def test_a_write_once_file_there_in_another_size_is_reported_and_neither_recorded_nor_replaced(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """By the per-save push and by the reconcile: the system of record's file is not the local one,
+    so the record must not vouch for it, and write-once means it stays."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    media, _ = (key.key for key in archive.articles.keys_for(ULID))
+    remote.store.create(media, b"another file")
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        push(archive, remote, record, ULID)
+    assert (remote.store.read(media), media in record.entries()) == (b"another file", False)
+    assert media in caplog.text
+    report = reconcile(archive, remote, record)
+    assert report.mismatched == (media,)
+    assert (remote.store.read(media), media in record.entries()) == (b"another file", False)
