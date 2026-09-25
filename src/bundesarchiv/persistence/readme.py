@@ -18,28 +18,32 @@ from bundesarchiv.domain.models import (
     Article,
     Audience,
     AudienceTier,
+    Change,
     Lifecycle,
     MediaRef,
     Ulid,
     Version,
 )
+from bundesarchiv.persistence import _change
 from bundesarchiv.persistence.errors import ArchiveError
 
 _MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
 _FENCE = "---"
 
 
-def encode(article: Article, version: Version) -> str:
-    """Render an Article + version to README.md text (marker + front-matter + body).
+def encode(article: Article, version: Version, change: Change) -> str:
+    """Render an Article + version + change record to README.md text (marker + front-matter + body).
 
     Empty optional fields are OMITTED on write (ADR 0015): a missing optional key defaults on
     read, so `field: null` / `tags: []` / an all-null media entry are pure noise in the human-
-    readable README. Only the required identity fields (ulid/version/title/collection_id/lifecycle)
-    are always present; everything else is emitted only when it carries a value. The loader still
-    accepts the old explicit-null spelling, so existing READMEs parse identically."""
+    readable README. Only the required fields (ulid/version/changed_at/changed_by/title/
+    collection_id/lifecycle) are always present; everything else is emitted only when it carries a
+    value. The loader still accepts the old explicit-null spelling, so existing READMEs parse
+    identically."""
     front_matter = {
         "ulid": article.ulid,
         "version": version,
+        **_change.to_front_matter(change),
         "title": article.title,
         "collection_id": article.collection_id,
         "lifecycle": article.lifecycle.value,
@@ -93,11 +97,16 @@ def _media_entry(media: MediaRef) -> dict[str, Any]:
     return entry
 
 
-def decode(ulid: Ulid, text: str) -> tuple[Article, Version]:
-    """Parse README.md text back to its Article + stored version."""
+def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
+    """Parse README.md text back to its Article, stored version and change record (None for a
+    README written before ADR 0019)."""
     front_matter, body = _parse_front_matter(ulid, text)
     try:
-        return _article_from_front_matter(front_matter, body), _version_of(front_matter)
+        return (
+            _article_from_front_matter(front_matter, body),
+            _version_of(front_matter),
+            _change.from_front_matter(front_matter),
+        )
     except (KeyError, ValueError, TypeError) as exc:
         raise ArchiveError(f"{ulid}: README front-matter is malformed: {exc}") from exc
 

@@ -47,12 +47,13 @@ def archive() -> Archive:
     archive = Archive.of(InMemoryObjectStore())
     collections = archive.collections
     articles = archive.articles
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
+    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
     collections.save(
         Collection(
             ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(
@@ -63,6 +64,7 @@ def archive() -> Archive:
             date=EdtfDate("1965"),
         ),
         0,
+        changed_by="tester",
     )
     return archive
 
@@ -82,7 +84,7 @@ def test_save_article_writes_canonical_and_indexes(archive: Archive) -> None:
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert isinstance(result, SaveResult)
     assert result.index_updated is True
@@ -100,7 +102,7 @@ def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> 
     articles = archive.articles
     stored = articles.load("01FOTO")
     with pytest.raises(Conflict):
-        save_article(archive, stored.article, stored.version - 1)  # stale
+        save_article(archive, stored.article, stored.version - 1, changed_by="tester")  # stale
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()  # no index write on failure
 
 
@@ -113,7 +115,9 @@ def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> 
 def test_update_article_applies_the_mutation_and_indexes(archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
-    outcome = update_article(archive, "01FOTO", lambda a: replace(a, title="Umbenannt"))
+    outcome = update_article(
+        archive, "01FOTO", lambda a: replace(a, title="Umbenannt"), changed_by="tester"
+    )
 
     assert isinstance(outcome, Updated)
     assert outcome.article.title == "Umbenannt"
@@ -135,10 +139,12 @@ def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: A
         calls += 1
         if calls == 1:
             stored = archive.articles.load("01FOTO")
-            archive.articles.save(replace(stored.article, creator="Konkurrenz"), stored.version)
+            archive.articles.save(
+                replace(stored.article, creator="Konkurrenz"), stored.version, changed_by="tester"
+            )
         return replace(article, title="Umbenannt")
 
-    outcome = update_article(archive, "01FOTO", mutate)
+    outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
 
     assert isinstance(outcome, Updated)
     assert calls == 2  # one loss, one retry
@@ -158,11 +164,13 @@ def test_update_article_reports_conflicted_when_every_attempt_loses(archive: Arc
         calls += 1
         stored = archive.articles.load("01FOTO")
         archive.articles.save(
-            replace(stored.article, creator=f"Konkurrenz {calls}"), stored.version
+            replace(stored.article, creator=f"Konkurrenz {calls}"),
+            stored.version,
+            changed_by="tester",
         )
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate, retries=1)
+    outcome = update_article(archive, "01FOTO", mutate, retries=1, changed_by="tester")
 
     assert isinstance(outcome, Conflicted)
     assert calls == 2  # the first attempt plus exactly one retry
@@ -179,10 +187,12 @@ def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Arch
         nonlocal calls
         calls += 1
         stored = archive.articles.load("01FOTO")
-        archive.articles.save(replace(stored.article, creator="Konkurrenz"), stored.version)
+        archive.articles.save(
+            replace(stored.article, creator="Konkurrenz"), stored.version, changed_by="tester"
+        )
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate, retries=0)
+    outcome = update_article(archive, "01FOTO", mutate, retries=0, changed_by="tester")
 
     assert isinstance(outcome, Conflicted)
     assert calls == 1
@@ -191,7 +201,9 @@ def test_update_article_without_retries_gives_up_on_the_first_loss(archive: Arch
 
 @pytest.mark.django_db
 def test_update_article_reports_missing_for_an_absent_article(archive: Archive) -> None:
-    outcome = update_article(archive, "01NOSUCH", lambda a: replace(a, title="Egal"))
+    outcome = update_article(
+        archive, "01NOSUCH", lambda a: replace(a, title="Egal"), changed_by="tester"
+    )
 
     assert isinstance(outcome, Missing)
     assert not [key for key in archive.store.list() if "01NOSUCH" in key]  # nothing minted
@@ -208,7 +220,7 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
         archive.articles.hard_delete("01FOTO")  # after the load, before our save -> Conflict
         return replace(article, title="Nie gespeichert")
 
-    outcome = update_article(archive, "01FOTO", mutate)
+    outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
 
     assert isinstance(outcome, Missing)
 
@@ -227,6 +239,7 @@ def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
         title="Neuer Artikel",
         collection_id="FOTOS",
         lifecycle=Lifecycle.PUBLISHED,
+        changed_by="tester",
     )
     assert result.index_updated is True
     assert result.version == 1
@@ -242,7 +255,7 @@ def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
 
 @pytest.mark.django_db
 def test_create_collection_mints_ulid_and_saves_top_level(archive: Archive) -> None:
-    result = create_collection(archive, name="Neuer Bestand", parent_id=None)
+    result = create_collection(archive, name="Neuer Bestand", parent_id=None, changed_by="tester")
     assert result.version == 1
     stored = archive.collections.load(result.ulid)
     assert stored.collection.name == "Neuer Bestand"
@@ -257,6 +270,7 @@ def test_create_collection_under_parent_with_audience(archive: Archive) -> None:
         name="Unterbestand",
         parent_id="FOTOS",
         audience=Audience(AudienceTier.MEMBERS),
+        changed_by="tester",
     )
     stored = archive.collections.load(result.ulid)
     assert stored.collection.parent_id == "FOTOS"
@@ -269,7 +283,7 @@ def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
     from bundesarchiv.persistence.errors import NotFound
 
     with pytest.raises(NotFound):
-        create_collection(archive, name="Waise", parent_id="NOSUCH")
+        create_collection(archive, name="Waise", parent_id="NOSUCH", changed_by="tester")
     # the collection set is unchanged (only the fixture's ROOT + FOTOS)
     ulids = {c.ulid for c in archive.collections.load_all()}
     assert ulids == {"ROOT", "FOTOS"}
@@ -304,9 +318,9 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
         creator="K. Meier",
         custom=(("Fotograf", "Meyer"),),
     )
-    articles.save(source, 0)
+    articles.save(source, 0, changed_by="tester")
 
-    result = copy_article(archive, "01SOURCE")
+    result = copy_article(archive, "01SOURCE", changed_by="tester")
 
     copy = articles.load(result.ulid).article
     assert copy.ulid != "01SOURCE"  # a fresh identity
@@ -329,8 +343,12 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
 @pytest.mark.django_db
 def test_copy_article_source_untouched(archive: Archive) -> None:
     articles = archive.articles
-    articles.save(Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F1"), 0)
-    copy_article(archive, "01SRC")
+    articles.save(
+        Article(ulid="01SRC", title="Original", collection_id="FOTOS", ref_code="F1"),
+        0,
+        changed_by="tester",
+    )
+    copy_article(archive, "01SRC", changed_by="tester")
     original = articles.load("01SRC").article
     assert original.ref_code == "F1"  # source Signatur intact
     assert original.title == "Original"
@@ -346,7 +364,12 @@ def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
     from bundesarchiv.index.models import ArticleIndex
 
     articles = archive.articles
-    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    save_article(
+        archive,
+        articles.load("01FOTO").article,
+        articles.load("01FOTO").version,
+        changed_by="tester",
+    )
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
     result = hard_delete_article(archive, "01FOTO")
@@ -378,7 +401,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite the index failure
@@ -407,7 +430,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert result.index_updated is False
     assert result.version == 2  # canonical write STOOD despite both failures
@@ -427,7 +450,12 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
     The member/public's very NEXT search must exclude it. rebuild() is FORBIDDEN here — only the
     production save_article entry point may touch the index."""
     articles = archive.articles
-    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    save_article(
+        archive,
+        articles.load("01FOTO").article,
+        articles.load("01FOTO").version,
+        changed_by="tester",
+    )
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)
 
     stored = articles.load("01FOTO")
@@ -438,7 +466,7 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
         lifecycle=Lifecycle.DRAFT,  # unpublished -> archivist-only
         date=EdtfDate("1965"),
     )
-    save_article(archive, unpublished, stored.version)
+    save_article(archive, unpublished, stored.version, changed_by="tester")
 
     assert "Öffentliches Foto" not in _pub_titles(PUBLIC)  # gone for Public
     assert "Öffentliches Foto" not in _pub_titles(PLAIN_MEMBER)  # gone for Members too
@@ -457,7 +485,12 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     save_collection. The public member's next search must no longer return the descendant.
     rebuild() is FORBIDDEN — only save_collection may touch the index."""
     articles = archive.articles
-    save_article(archive, articles.load("01FOTO").article, articles.load("01FOTO").version)
+    save_article(
+        archive,
+        articles.load("01FOTO").article,
+        articles.load("01FOTO").version,
+        changed_by="tester",
+    )
     assert "Öffentliches Foto" in _pub_titles(PUBLIC)  # visible to Public via FOTOS=PUBLIC
 
     collections = archive.collections
@@ -471,6 +504,7 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
             audience=Audience(AudienceTier.MEMBERS),  # narrow PUBLIC -> MEMBERS
         ),
         stored.version,
+        changed_by="tester",
     )
 
     assert result.index_updated is True
@@ -508,6 +542,7 @@ def test_save_article_enqueues_thumbnail_for_image_media(
             media=(image, doc),
         ),
         stored.version,
+        changed_by="tester",
     )
 
     assert enqueued == [image.content_hash]  # image enqueued, PDF skipped
@@ -560,7 +595,7 @@ def test_save_article_enqueues_mirror_push_for_touched_keys(
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    save_article(archive, stored.article, stored.version)
+    save_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert "articles/01FOTO/README.md" in pushed  # the commit point is mirrored
 
@@ -589,6 +624,7 @@ def test_save_article_enqueues_mirror_push_for_media_blob(
             media=(ref,),
         ),
         stored.version,
+        changed_by="tester",
     )
 
     assert f"articles/01FOTO/media/{ref.content_hash}" in pushed  # the blob is mirrored
@@ -603,7 +639,7 @@ def test_create_article_enqueues_mirror_push(
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    result = create_article(archive, title="Neu", collection_id="FOTOS")
+    result = create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
 
     assert f"articles/{result.ulid}/README.md" in pushed
 
@@ -620,7 +656,7 @@ def test_hard_delete_article_enqueues_mirror_push_for_removed_keys(
     pushed: list[str] = []
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
-    save_article(archive, archive.articles.load("01FOTO").article, 1)
+    save_article(archive, archive.articles.load("01FOTO").article, 1, changed_by="tester")
     hard_delete_article(archive, "01FOTO")
 
     assert "articles/01FOTO/README.md" in pushed  # the removed key is enqueued for mirror deletion
@@ -636,7 +672,7 @@ def test_save_collection_enqueues_mirror_push(
     monkeypatch.setattr(collections_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
     stored = archive.collections.load("FOTOS")
-    save_collection(archive, stored.collection, stored.version)
+    save_collection(archive, stored.collection, stored.version, changed_by="tester")
 
     assert "collections/FOTOS/README.md" in pushed
 
@@ -656,7 +692,7 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
 
     articles = archive.articles
     stored = articles.load("01FOTO")
-    result = save_article(archive, stored.article, stored.version)
+    result = save_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert result.version == 2  # save succeeded despite the mirror-enqueue failure
     assert archive.articles.load("01FOTO").version == 2

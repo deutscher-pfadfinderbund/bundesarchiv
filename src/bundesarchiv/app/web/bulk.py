@@ -250,7 +250,9 @@ class _FieldApplication:
         return mutated
 
 
-def apply_bulk(archive: Archive, ulids: Sequence[Ulid], feld: str, wert: str) -> BulkOutcome:
+def apply_bulk(
+    archive: Archive, ulids: Sequence[Ulid], feld: str, wert: str, *, changed_by: str
+) -> BulkOutcome:
     """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4), each through
     ``update_article`` with NO retries — a lost race must reach the human, not be re-applied to the
     winner. A refused pair (spec §3), a lost race and any other ``ArchiveError`` from the save all
@@ -266,7 +268,9 @@ def apply_bulk(archive: Archive, ulids: Sequence[Ulid], feld: str, wert: str) ->
     for ulid in dict.fromkeys(ulids):  # distinct, order-preserving
         mutation = _FieldApplication(feld, wert)
         try:
-            outcome = articles.update_article(archive, ulid, mutation, retries=0)
+            outcome = articles.update_article(
+                archive, ulid, mutation, changed_by=changed_by, retries=0
+            )
         except _Unfit, ArchiveError:
             outcome = Conflicted()  # refused pair, or a save failure the service does not own
         loaded = mutation.loaded

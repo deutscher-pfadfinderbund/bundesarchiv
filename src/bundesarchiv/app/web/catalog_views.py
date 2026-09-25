@@ -37,7 +37,7 @@ from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import _body_paragraphs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
-from bundesarchiv.app.web.viewers import _is_archivist, render_screen
+from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.access import VisibilityPreview, preview, project
 from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.edtf import EdtfDate
@@ -51,7 +51,7 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.domain.viewer import Public
+from bundesarchiv.domain.viewer import Archivist, Public
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored
 
@@ -82,16 +82,18 @@ def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
     return HttpResponseRedirect(location)
 
 
-def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored] | None:
+def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archivist] | None:
     """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
-    in-view, and load the Article — returning ``(archive, stored)`` ONLY if all pass, else ``None``
-    (the caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an
-    absent/unreadable article all collapse to the SAME ``None`` (existence-hiding, spec §8)."""
-    if not _is_archivist(request) or not is_valid_ulid(ulid):
+    in-view, and load the Article — returning ``(archive, stored, archivist)`` ONLY if all pass,
+    else ``None`` (the caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed
+    ulid, and an absent/unreadable article all collapse to the SAME ``None`` (existence-hiding,
+    spec §8)."""
+    archivist = viewer_of(request)
+    if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
     archive = Archive.canonical()
     try:
-        return archive, archive.articles.load(ulid)
+        return archive, archive.articles.load(ulid), archivist
     except ArchiveError:
         return None
 
@@ -107,7 +109,8 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     On GET, a ``?bestand=<ulid>`` param pre-selects that Bestand (validated against the real set,
     ignored if bogus — no oracle) and a ``?angelegt=<name>`` param shows a success hinweis — the
     landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
-    if not _is_archivist(request):
+    archivist = viewer_of(request)
+    if not isinstance(archivist, Archivist):
         return _not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
@@ -116,7 +119,9 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, bestand)
         if not errors:
-            ulid = catalog.new_draft(archive, title=title, collection_id=collection_id)
+            ulid = catalog.new_draft(
+                archive, title=title, collection_id=collection_id, changed_by=archivist.username
+            )
             return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
         return render_screen(
             request,
@@ -184,14 +189,14 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()
-    archive, stored = gated
+    archive, stored, archivist = gated
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
-        return _handle_edit_post(request, archive, ulid, stored, bestand)
+        return _handle_edit_post(request, archive, ulid, stored, bestand, archivist.username)
     # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
     # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
     fokus = "ref_code" if request.GET.get("fokus") == "signatur" else ""
-    surface = EditSurface.of(stored, bestand)
+    surface = EditSurface.of(stored.article, stored.version, bestand)
     return surface.render(request, autofocus=fokus or surface.first_empty_field())
 
 
@@ -201,6 +206,7 @@ def _handle_edit_post(
     ulid: Ulid,
     stored: Stored,
     bestand: BestandChooser,
+    changed_by: str,
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
     302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
@@ -213,7 +219,7 @@ def _handle_edit_post(
     saving, because it IS saving. An unknown verb is a 404 with no mutation; ``veroeffentlichen`` is
     REFUSED when the exposure cannot be computed (the branch below)."""
     current = stored.article
-    surface = EditSurface.of(stored, bestand)
+    surface = EditSurface.of(current, stored.version, bestand)
     if "custom_entfernen" in request.POST:
         # spec §5: drop the named row, preserve everything else, save nothing.
         return surface.submitted(
@@ -256,22 +262,23 @@ def _handle_edit_post(
         return surface.submitted(request.POST, result.expected_version).render(
             request, errors=result.errors, autofocus=_first_error_field(result.errors)
         )
-    outcome = catalog.save_catalog_form(archive, result.article, result.expected_version)
+    outcome = catalog.save_catalog_form(
+        archive, result.article, result.expected_version, changed_by=changed_by
+    )
     match outcome:
         case catalog.SavedOutcome(result=save_result):
             # State H (ADR 0014): the canonical write stood but the sync index update failed and a
             # retry job was enqueued — re-render (not 302) with the quiet index-lag hinweis so the
             # archivist knows the visibility change is not yet effective in search. Otherwise 302.
             if not save_result.index_updated:
-                saved = Stored(article=result.article, version=save_result.version)
-                return EditSurface.of(saved, bestand).render(request, overlay=IndexLag())
+                saved = EditSurface.of(result.article, save_result.version, bestand)
+                return saved.render(request, overlay=IndexLag())
             return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
             # The surface is the WINNER's: the sheet, the media and the refreshed expected_version all
             # come from the record as it now stands, with the archivist's own values still in the card.
-            winner = Stored(article=conflict.winner, version=conflict.current_version)
             return (
-                EditSurface.of(winner, bestand)
+                EditSurface.of(conflict.winner, conflict.current_version, bestand)
                 .submitted(request.POST, conflict.current_version)
                 .render(request, autofocus="speichern", overlay=Conflict(conflict.submitted))
             )
@@ -373,15 +380,15 @@ class EditSurface:
     media: tuple[MediaRef, ...]
 
     @classmethod
-    def of(cls, stored: Stored, bestand: BestandChooser) -> EditSurface:
+    def of(cls, stored: Article, version: Version, bestand: BestandChooser) -> EditSurface:
         """The surface as saved: the form seeded from the stored Article, the register showing its
         media, the hidden version the one to save against."""
         return cls(
-            stored=stored.article,
-            version=stored.version,
+            stored=stored,
+            version=version,
             bestand=bestand,
-            values=_article_to_form_values(stored.article),
-            media=stored.article.media,
+            values=_article_to_form_values(stored),
+            media=stored.media,
         )
 
     def submitted(
@@ -989,8 +996,8 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    archive, _ = gated
-    copy = article_services.copy_article(archive, ulid)
+    archive, _, archivist = gated
+    copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
     # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
@@ -1007,7 +1014,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()
-    archive, stored = gated
+    archive, stored, _ = gated
     if request.method == "POST":
         article_services.hard_delete_article(archive, ulid)
         return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
@@ -1209,11 +1216,15 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    archive, _ = gated
+    archive, _, archivist = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
     return _structural_change(
-        request, archive, ulid, lambda media: _reordered(media, content_hash, richtung)
+        request,
+        archive,
+        ulid,
+        lambda media: _reordered(media, content_hash, richtung),
+        changed_by=archivist.username,
     )
 
 
@@ -1225,15 +1236,19 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    archive, stored = gated
+    archive, stored, archivist = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
         return _structural_change(
-            request, archive, ulid, lambda media: _without(media, content_hash)
+            request,
+            archive,
+            ulid,
+            lambda media: _without(media, content_hash),
+            changed_by=archivist.username,
         )
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
-    return EditSurface.of(stored, BestandChooser.of(archive)).render(
+    return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
         request, overlay=RemoveConfirm(content_hash)
     )
 
@@ -1248,12 +1263,12 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
-    archive, stored = gated
+    archive, stored, archivist = gated
     files = request.FILES.getlist("dateien")
     ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
     oversize = any(f.size is not None and f.size > ceiling for f in files)
     if oversize:
-        return EditSurface.of(stored, BestandChooser.of(archive)).render(
+        return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
             request, overlay=MediaError("Datei zu groß. Bitte kleinere Dateien hochladen.")
         )
     repo = archive.articles
@@ -1261,9 +1276,17 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
         repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
     ]  # add_media persists each blob (write-once) BEFORE any ref is committed
     if new_refs:
-        return _structural_change(request, archive, ulid, lambda media: (*media, *new_refs))
+        return _structural_change(
+            request,
+            archive,
+            ulid,
+            lambda media: (*media, *new_refs),
+            changed_by=archivist.username,
+        )
     # no files posted — plain re-render of the gated Stored
-    return EditSurface.of(stored, BestandChooser.of(archive)).render(request)
+    return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
+        request
+    )
 
 
 def _structural_change(
@@ -1271,6 +1294,8 @@ def _structural_change(
     archive: Archive,
     ulid: Ulid,
     transform: Callable[[tuple[MediaRef, ...]], tuple[MediaRef, ...]],
+    *,
+    changed_by: str,
 ) -> HttpResponseBase:
     """Apply an idempotent structural transform to the article's media tuple through the retrying
     write service and render the outcome — everything the three structural routes share once each
@@ -1284,6 +1309,7 @@ def _structural_change(
         archive,
         ulid,
         lambda article: replace(article, media=transform(article.media)),
+        changed_by=changed_by,
         retries=_STRUCTURAL_SAVE_RETRIES,
     )
     bestand = BestandChooser.of(archive)
@@ -1295,12 +1321,11 @@ def _structural_change(
                 stored = archive.articles.load(ulid)
             except ArchiveError:
                 return _not_found()  # hard-deleted between the lost race and this re-load
-            return EditSurface.of(stored, bestand).render(
+            return EditSurface.of(stored.article, stored.version, bestand).render(
                 request, overlay=MediaError(_MEDIEN_KONFLIKT)
             )
         case Updated(article=article, version=version):
-            saved = Stored(article=article, version=version)
-            return EditSurface.of(saved, bestand).render(request)
+            return EditSurface.of(article, version, bestand).render(request)
 
 
 def _reordered(

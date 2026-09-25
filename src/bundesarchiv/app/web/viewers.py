@@ -218,9 +218,3 @@ def render_screen(request: HttpRequest, template: str, context: dict[str, object
             "is_signed_in": not isinstance(viewer, Public),
         },
     )
-
-
-def _is_archivist(request: HttpRequest) -> bool:
-    """Whether the request's viewer is an Archivist — the presentation gate for archivist chrome and
-    the route gate for every cataloging route."""
-    return isinstance(viewer_of(request), Archivist)

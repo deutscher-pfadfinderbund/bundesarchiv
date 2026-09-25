@@ -245,12 +245,12 @@ def test_commit_cas_race_loser_value_not_on_disk(
 
     real_save = articles.save_article
 
-    def _conflict_a(store_: object, article: Article, version: int) -> object:
+    def _conflict_a(store_: object, article: Article, version: int, *, changed_by: str) -> object:
         from bundesarchiv.persistence.errors import Conflict
 
         if article.ulid == _A:
             raise Conflict("raced")
-        return real_save(store_, article, version)  # type: ignore[arg-type]
+        return real_save(store_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _conflict_a)
     response = client_as(Archivist()).post(
@@ -321,6 +321,7 @@ def _give_a_schriftgut_brief_pair(corpus: Corpus) -> None:
             document_type="Brief",
         ),
         corpus.articles.load(_A).version,
+        changed_by="tester",
     )
 
 

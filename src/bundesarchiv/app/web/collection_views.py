@@ -29,9 +29,10 @@ from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
 from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
 from bundesarchiv.app.web.media_views import _not_found
-from bundesarchiv.app.web.viewers import _is_archivist, render_screen
+from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Audience, Version
+from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
@@ -43,7 +44,8 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     404, both methods). POST validates (Name required; parent must be the top-level option or a real
     collection; GROUPS-iff), creates, and 302s to the workbench filtered to the new Bestand; a
     validation failure re-renders with the verbatim error + preserved values."""
-    if not _is_archivist(request):
+    archivist = viewer_of(request)
+    if not isinstance(archivist, Archivist):
         return _not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
@@ -56,7 +58,11 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         errors = _create_errors(name, parent_id, bestand, audience_error)
         if not errors:
             result = create_collection(
-                archive, name=name, parent_id=parent_id or None, audience=audience
+                archive,
+                changed_by=archivist.username,
+                name=name,
+                parent_id=parent_id or None,
+                audience=audience,
             )
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
             # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
@@ -132,7 +138,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return _not_found()
-    archive, stored = gated
+    archive, stored, archivist = gated
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         expected_version = parse_version(request.POST.get("expected_version", ""))
@@ -146,7 +152,12 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
         try:
-            save_collection(archive, replace(stored.collection, name=name), expected_version)
+            save_collection(
+                archive,
+                replace(stored.collection, name=name),
+                expected_version,
+                changed_by=archivist.username,
+            )
         except Conflict:
             # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
             # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
@@ -174,16 +185,17 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 def _load_gated_collection(
     request: HttpRequest, ulid: str
-) -> tuple[Archive, StoredCollection] | None:
+) -> tuple[Archive, StoredCollection, Archivist] | None:
     """The shared gate for the rename route: archivist-only, validate the ulid in-view, load the
-    Collection — returning ``(archive, stored)`` ONLY if all pass, else ``None`` (the caller maps
-    ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an absent/unreadable
-    collection all collapse to the SAME ``None`` (existence-hiding)."""
-    if not _is_archivist(request) or not is_valid_ulid(ulid):
+    Collection — returning ``(archive, stored, archivist)`` ONLY if all pass, else ``None`` (the
+    caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an
+    absent/unreadable collection all collapse to the SAME ``None`` (existence-hiding)."""
+    archivist = viewer_of(request)
+    if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
     archive = Archive.canonical()
     try:
-        return archive, archive.collections.load(ulid)
+        return archive, archive.collections.load(ulid), archivist
     except ArchiveError:
         return None
 

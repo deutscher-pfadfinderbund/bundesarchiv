@@ -9,6 +9,8 @@ sites here (`catalog.py`, `collection_views.py`), both re-displaying the winner;
 mutation goes through `app.articles.update_article` and matches on its outcome union instead.
 The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and
 parameterised by a closed overlay union — a new panel joins that union, never a second context build.
+An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that
+Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`.
 
 - `viewers.py` — the request→Viewer trust boundary + screen-chrome facts · interface: `viewer_of`, `render_screen`, `mint_viewer_cookie` · tests: `tests/app/web/test_viewer_of.py`, `test_viewer_cookie.py`
 - `auth_views.py` — the login surface: Keycloak in, one signed Viewer cookie out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`

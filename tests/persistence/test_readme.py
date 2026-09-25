@@ -1,11 +1,15 @@
 """README codec — Article ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from bundesarchiv.domain.edtf import EdtfDate
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence.errors import ArchiveError
+
+_CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
 
 
 def _article(**overrides: object) -> Article:
@@ -26,19 +30,19 @@ def _article(**overrides: object) -> Article:
 
 def test_encode_decode_round_trips_every_field() -> None:
     article = _article()
-    article2, version = readme.decode("01J0", readme.encode(article, 3))
+    article2, version, _ = readme.decode("01J0", readme.encode(article, 3, _CHANGE))
     assert article2 == article  # incl. German body with a --- rule, audience, media
     assert version == 3
 
 
 def test_custom_metadata_round_trips() -> None:
     article = _article(custom=(("herkunft", "Familie Müller"), ("zustand", "gut")))
-    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
     assert decoded.custom == (("herkunft", "Familie Müller"), ("zustand", "gut"))
 
 
 def test_empty_custom_is_omitted_from_the_wire() -> None:
-    text = readme.encode(_article(custom=()), 1)
+    text = readme.encode(_article(custom=()), 1, _CHANGE)
     assert "custom:" not in text
     assert readme.decode("01J0", text)[0].custom == ()
 
@@ -47,9 +51,9 @@ def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
     # `audience=None` means "inherit" (ADR 0001): nothing is written on the wire,
     # and an absent key decodes back to None, not to an explicit default.
     article = _article(audience=None)
-    text = readme.encode(article, 1)
+    text = readme.encode(article, 1, _CHANGE)
     assert "audience:" not in text
-    decoded, _ = readme.decode("01J0", text)
+    decoded, _, _ = readme.decode("01J0", text)
     assert decoded.audience is None
     assert decoded == article
 
@@ -57,7 +61,7 @@ def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
 def test_absent_audience_key_decodes_to_inherit() -> None:
     # A README that never had an audience key (e.g. older / hand-written) is inherit,
     # not an explicit Members rung — explicit Members must stay distinguishable.
-    decoded, _ = readme.decode(
+    decoded, _, _ = readme.decode(
         "x", "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
     )
     assert decoded.audience is None
@@ -66,7 +70,7 @@ def test_absent_audience_key_decodes_to_inherit() -> None:
 def test_empty_audience_mapping_decodes_to_inherit() -> None:
     # A content-less `audience: {}` names no rung, so it is inherit (None) — same as an
     # absent key — not a surprising explicit Members rung that would block a wider ancestor.
-    decoded, _ = readme.decode(
+    decoded, _, _ = readme.decode(
         "x",
         "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\naudience: {}\n---\nbody",
     )
@@ -77,23 +81,23 @@ def test_empty_audience_mapping_decodes_to_inherit() -> None:
     "body", ["", "\n", "\n\nopens blank", "no trailing newline", "ends with a fence\n---"]
 )
 def test_body_round_trips_exactly(body: str) -> None:
-    decoded, _ = readme.decode("x", readme.encode(_article(body=body), 1))
+    decoded, _, _ = readme.decode("x", readme.encode(_article(body=body), 1, _CHANGE))
     assert decoded.body == body
 
 
 def test_read_version_reads_without_rebuilding_the_article() -> None:
     # The cheap path: just the version, no Article reconstruction.
-    assert readme.read_version("01J0", readme.encode(_article(), 7)) == 7
+    assert readme.read_version("01J0", readme.encode(_article(), 7, _CHANGE)) == 7
 
 
 def test_encode_starts_with_marker_then_fence() -> None:
-    text = readme.encode(_article(), 1)
+    text = readme.encode(_article(), 1, _CHANGE)
     assert text.startswith("<!-- Managed by bundesarchiv")
     assert "\n---\n" in text
 
 
 def test_decode_without_marker_still_parses() -> None:
-    decoded, version = readme.decode(
+    decoded, version, _ = readme.decode(
         "x", "---\nulid: x\nversion: 2\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
     )
     assert decoded.title == "t"
@@ -152,6 +156,42 @@ def test_decode_without_marker_still_parses() -> None:
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\ncustom: notamap\n---\n",
             "non-mapping custom",
         ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00Z'\n---\n",
+            "a change record without its author",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_by: anna\n---\n",
+            "a change record without its time",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: gestern\nchanged_by: anna\n---\n",
+            "changed_at that is no ISO 8601 time",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00'\nchanged_by: anna\n---\n",
+            "changed_at without a zone",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T12:30:00+02:00'\nchanged_by: anna\n---\n",
+            "changed_at outside UTC",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: 2026-09-25T10:30:00Z\nchanged_by: anna\n---\n",
+            "changed_at as a YAML timestamp",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00Z'\nchanged_by: ''\n---\n",
+            "a blank changed_by",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00Z'\nchanged_by: 7\n---\n",
+            "a non-string changed_by",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00Z'\nchanged_by:\n  - anna\n---\n",
+            "a list for changed_by",
+        ),
     ],
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:
@@ -190,7 +230,7 @@ def test_date_creator_subject_place_round_trip() -> None:
         creator="Max Mustermann",
         subject_place="Köln",
     )
-    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
     assert decoded.date == EdtfDate("1955-07")
     assert decoded.creator == "Max Mustermann"
     assert decoded.subject_place == "Köln"
@@ -200,7 +240,7 @@ def test_date_creator_subject_place_round_trip() -> None:
 def test_absent_date_creator_subject_place_decode_to_none() -> None:
     # A README that omits the three keys must produce None (not a default, not a KeyError).
     text = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
-    decoded, _ = readme.decode("x", text)
+    decoded, _, _ = readme.decode("x", text)
     assert decoded.date is None
     assert decoded.creator is None
     assert decoded.subject_place is None
@@ -208,7 +248,7 @@ def test_absent_date_creator_subject_place_decode_to_none() -> None:
 
 def test_none_date_creator_subject_place_omitted_from_wire() -> None:
     article = _article(date=None, creator=None, subject_place=None)
-    text = readme.encode(article, 1)
+    text = readme.encode(article, 1, _CHANGE)
     assert "date:" not in text
     assert "creator:" not in text
     assert "subject_place:" not in text
@@ -234,7 +274,7 @@ def test_media_caption_round_trips() -> None:
             MediaRef("huelle.jpg", "c" * 64, "image/jpeg", 2011458),  # uncaptioned
         )
     )
-    decoded, _ = readme.decode("01J0", readme.encode(article, 1))
+    decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))
     assert decoded.media[0].caption == "Seite A — Bericht"
     assert decoded.media[1].caption is None
     assert decoded == article
@@ -246,13 +286,13 @@ def test_absent_media_caption_decodes_to_none() -> None:
         "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"
         "media:\n- filename: a.jpg\n  content_hash: abc\n---\nbody"
     )
-    decoded, _ = readme.decode("x", text)
+    decoded, _, _ = readme.decode("x", text)
     assert decoded.media[0].caption is None
 
 
 def test_uncaptioned_media_omits_caption_key_from_wire() -> None:
     # No caption line for an uncaptioned entry (ADR 0015: empty optional fields omitted on write).
-    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1)
+    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1, _CHANGE)
     assert "caption:" not in text
 
 
@@ -272,7 +312,7 @@ def test_empty_optional_fields_omitted_from_wire() -> None:
     # A minimal Article: no ref_code / media_type / document_type / physical_location, empty tags,
     # no media. NONE of these emit a `: null` line or an empty collection (ADR 0015).
     text = readme.encode(
-        Article(ulid="x", title="t", collection_id="c", lifecycle=Lifecycle.DRAFT), 1
+        Article(ulid="x", title="t", collection_id="c", lifecycle=Lifecycle.DRAFT), 1, _CHANGE
     )
     assert ": null" not in text
     assert "null" not in text  # no bare null value anywhere in the front matter
@@ -285,7 +325,9 @@ def test_empty_optional_fields_omitted_from_wire() -> None:
 def test_set_optional_fields_still_emitted() -> None:
     # The omit-empty rule drops only EMPTY fields; a set field still appears on the wire.
     text = readme.encode(
-        _article(ref_code="B2", media_type="Foto", document_type="Fotografie", tags=("a",)), 1
+        _article(ref_code="B2", media_type="Foto", document_type="Fotografie", tags=("a",)),
+        1,
+        _CHANGE,
     )
     assert "ref_code: B2" in text
     assert "media_type: Foto" in text
@@ -296,10 +338,10 @@ def test_set_optional_fields_still_emitted() -> None:
 def test_media_entry_omits_empty_media_type_and_byte_size() -> None:
     # A media entry with only filename + content_hash writes neither `media_type: null` nor
     # `byte_size: null` (ADR 0015), and still round-trips to None for both.
-    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1)
+    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1, _CHANGE)
     assert "media_type:" not in text
     assert "byte_size:" not in text
-    decoded, _ = readme.decode("01J0", text)
+    decoded, _, _ = readme.decode("01J0", text)
     assert decoded.media[0].media_type is None
     assert decoded.media[0].byte_size is None
 
@@ -340,8 +382,63 @@ def test_old_style_readme_with_explicit_nulls_loads_identically() -> None:
             media=(MediaRef("photo.jpg", "abc"),),
         ),
         1,
+        _CHANGE,
     )
-    old_article, old_version = readme.decode("01J0", old_style)
-    new_article, new_version = readme.decode("01J0", new_style)
+    old_article, old_version, _ = readme.decode("01J0", old_style)
+    new_article, new_version, _ = readme.decode("01J0", new_style)
     assert old_article == new_article  # explicit-null old style ≡ omit-empty new style
     assert old_version == new_version == 1
+
+
+# --- the change record (ADR 0019) -------------------------------------------------------------
+
+
+def test_the_front_matter_carries_changed_at_in_utc_and_changed_by() -> None:
+    text = readme.encode(_article(), 2, _CHANGE)
+    assert "\nchanged_at: '2026-09-25T10:30:00Z'\n" in text
+    assert "\nchanged_by: anna\n" in text
+
+
+@pytest.mark.parametrize(
+    "by",
+    [
+        "anna",
+        " anna ",
+        "Jürgen",
+        "李明",
+        "100%",
+        "%41",
+        "a: b",
+        "#kein-kommentar",
+        "---",
+        "- a",
+        "null",
+        "123",
+        "'",
+        '"',
+        "it's",
+        "a\u2028b",
+    ],
+)
+def test_the_change_record_round_trips_any_name(by: str) -> None:
+    change = Change(_CHANGE.at, by)
+    assert readme.decode("01J0", readme.encode(_article(), 2, change))[2] == change
+
+
+@pytest.mark.parametrize(
+    "at",
+    [
+        datetime(2026, 9, 25, 10, 30, 5, 123456, tzinfo=UTC),
+        datetime(1, 1, 1, tzinfo=UTC),
+        datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC),
+    ],
+)
+def test_the_change_record_round_trips_any_instant(at: datetime) -> None:
+    change = Change(at, "anna")
+    assert readme.decode("01J0", readme.encode(_article(), 2, change))[2] == change
+
+
+def test_a_readme_written_before_the_change_record_loads_without_one() -> None:
+    text = "---\nulid: x\nversion: 3\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
+    article, version, change = readme.decode("x", text)
+    assert (article.title, version, change) == ("t", 3, None)

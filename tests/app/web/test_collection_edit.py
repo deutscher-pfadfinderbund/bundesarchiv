@@ -33,7 +33,9 @@ def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
     name and a test pins it — under the shared default name that assert would pass on the page's
     wordmark alone."""
     corpus = make_corpus()
-    corpus.collections.save(make_collection(ROOT, "Bundesarchiv", parent_id=None), 1)
+    corpus.collections.save(
+        make_collection(ROOT, "Bundesarchiv", parent_id=None), 1, changed_by="tester"
+    )
     corpus.add_collection(
         make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.MEMBERS))
     )

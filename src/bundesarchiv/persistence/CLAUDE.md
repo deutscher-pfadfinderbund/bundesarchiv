@@ -16,4 +16,4 @@ test an adapter its own way; adapter-specific files cover only what the port can
 - `adapters/memory.py` — in-memory adapter, the test fake · interface: `InMemoryObjectStore` · tests: conformance
 - `adapters/webdav.py` — WebDAV adapter, the Nextcloud mirror backend (ADR 0005/0007) · interface: `WebDavObjectStore` · tests: conformance + `tests/persistence/test_webdav.py`, `test_mirror_webdav.py`
 
-Internal: `_writer.py`, `errors.py`
+Internal: `_writer.py`, `_change.py`, `errors.py`

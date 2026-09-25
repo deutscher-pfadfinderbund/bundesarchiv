@@ -19,7 +19,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from bundesarchiv.domain.models import Article, MediaRef, Ulid, Version
+from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence._writer import commit, readme_key
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
@@ -28,11 +28,12 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 
 @dataclass(frozen=True, slots=True)
 class Stored:
-    """An Article as loaded, paired with the version to pass to the next `save`.
-    (`load` returns this rather than a bare Article so optimistic concurrency works.)"""
+    """An Article as loaded, paired with the version to pass to the next `save` and that version's
+    change record (None for a README written before ADR 0019)."""
 
     article: Article
     version: Version
+    change: Change | None
 
 
 class ArticleRepository:
@@ -47,18 +48,20 @@ class ArticleRepository:
             text = self._read_readme(ulid)
         except NotFound:
             raise NotFound(ulid) from None
-        article, version = readme.decode(ulid, text)
-        return Stored(article, version)
+        article, version, change = readme.decode(ulid, text)
+        return Stored(article, version, change)
 
-    def save(self, article: Article, expected_version: Version) -> Version:
-        """Commit `article` as the version after `expected_version` and return it. Raises
-        `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet stored."""
+    def save(self, article: Article, expected_version: Version, *, changed_by: str) -> Version:
+        """Commit `article` as the version after `expected_version`, by `changed_by`, and return
+        it. Raises `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet
+        stored."""
         return commit(
             self._store,
             _folder(article.ulid),
             expected_version,
+            changed_by=changed_by,
             version_of=lambda text: readme.read_version(article.ulid, text),
-            render=lambda version: readme.encode(article, version),
+            render=lambda version, change: readme.encode(article, version, change),
             precondition=lambda: self._refuse_unstored_media(article),
         )
 

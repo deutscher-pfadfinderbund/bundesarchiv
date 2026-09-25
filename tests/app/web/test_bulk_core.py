@@ -23,7 +23,7 @@ def _article(**over: object) -> Article:
 def _archive_with(*articles_: Article) -> Archive:
     archive = Archive.of(InMemoryObjectStore())
     for art in articles_:
-        archive.articles.save(art, 0)
+        archive.articles.save(art, 0, changed_by="tester")
     return archive
 
 
@@ -36,7 +36,9 @@ def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> No
         _article(ulid="01A", media_type=None),
         _article(ulid="01B", media_type="Schrifttum"),
     )
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "document_type", "Schriftwechsel")
+    outcome = bulk.apply_bulk(
+        archive, ["01A", "01B"], "document_type", "Schriftwechsel", changed_by="tester"
+    )
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.saved == 1
     a = archive.articles.load("01A").article
@@ -53,13 +55,15 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
     archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 
-    def _save_error_first(archive_: object, article: Article, version: int) -> object:
+    def _save_error_first(
+        archive_: object, article: Article, version: int, *, changed_by: str
+    ) -> object:
         if article.ulid == "01A":
             raise ArchiveError("media not stored before save")
-        return real_save(archive_, article, version)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _save_error_first)
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y")
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y", changed_by="tester")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"
@@ -79,14 +83,20 @@ def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     )
     real_save = articles_mod.save_article
 
-    def _save_error_for_c(archive_: object, article: Article, version: int) -> object:
+    def _save_error_for_c(
+        archive_: object, article: Article, version: int, *, changed_by: str
+    ) -> object:
         if article.ulid == "01C":
             raise ArchiveError("media not stored before save")
-        return real_save(archive_, article, version)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles_mod, "save_article", _save_error_for_c)
     outcome = bulk.apply_bulk(
-        archive, ["01A", "01B", "01C", "01GONE"], "document_type", "Schriftwechsel"
+        archive,
+        ["01A", "01B", "01C", "01GONE"],
+        "document_type",
+        "Schriftwechsel",
+        changed_by="tester",
     )
     distinct = len({"01A", "01B", "01C", "01GONE"})
     assert outcome.saved + len(outcome.conflicted) + len(outcome.missing) == distinct

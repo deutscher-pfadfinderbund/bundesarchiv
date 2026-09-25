@@ -89,7 +89,9 @@ def build_store() -> InMemoryObjectStore:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection(ulid="ROOT", name="Bundesarchiv", parent_id=None), 0)
+    collections.save(
+        Collection(ulid="ROOT", name="Bundesarchiv", parent_id=None), 0, changed_by="tester"
+    )
     collections.save(
         Collection(
             ulid="FOTOS",
@@ -98,8 +100,11 @@ def build_store() -> InMemoryObjectStore:
             audience=Audience(AudienceTier.PUBLIC),
         ),
         0,
+        changed_by="tester",
     )
-    collections.save(Collection(ulid="LAGER", name="Lagerfotos", parent_id="FOTOS"), 0)
+    collections.save(
+        Collection(ulid="LAGER", name="Lagerfotos", parent_id="FOTOS"), 0, changed_by="tester"
+    )
     collections.save(
         Collection(
             ulid="AKTEN",
@@ -108,6 +113,7 @@ def build_store() -> InMemoryObjectStore:
             audience=Audience(AudienceTier.MEMBERS),
         ),
         0,
+        changed_by="tester",
     )
     collections.save(
         Collection(
@@ -117,10 +123,11 @@ def build_store() -> InMemoryObjectStore:
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
         ),
         0,
+        changed_by="tester",
     )
 
     for article in _articles():
-        articles.save(_with_captioned_media(articles, article), 0)
+        articles.save(_with_captioned_media(articles, article), 0, changed_by="tester")
 
     return store
 

@@ -115,7 +115,9 @@ def _build_grid_store() -> InMemoryObjectStore:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection(ulid=_ROOT_ULID, name="Grid-Wurzel", parent_id=None), 0)
+    collections.save(
+        Collection(ulid=_ROOT_ULID, name="Grid-Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     for parent_tag, parent_audience in _PARENT_AUDIENCES:
         collections.save(
             Collection(
@@ -125,6 +127,7 @@ def _build_grid_store() -> InMemoryObjectStore:
                 audience=parent_audience,
             ),
             0,
+            changed_by="tester",
         )
         # The leaf is always silent (inherit): the article-vs-parent interplay is the axis, so the
         # leaf adds no third audience of its own — an article inheriting falls straight to the parent.
@@ -135,10 +138,11 @@ def _build_grid_store() -> InMemoryObjectStore:
                 parent_id=_parent_ulid(parent_tag),
             ),
             0,
+            changed_by="tester",
         )
 
     for article in _grid_articles():
-        articles.save(article, 0)
+        articles.save(article, 0, changed_by="tester")
     return store
 
 

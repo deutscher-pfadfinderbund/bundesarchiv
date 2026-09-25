@@ -22,6 +22,7 @@ from bundesarchiv.persistence.errors import NotFound
 def create_collection(
     archive: Archive,
     *,
+    changed_by: str,
     name: str,
     parent_id: Ulid | None = None,
     audience: Audience | None = None,
@@ -37,7 +38,7 @@ def create_collection(
     collection = Collection(
         ulid=identity.new_ulid(), name=name, parent_id=parent_id, audience=audience
     )
-    new_version = archive.collections.save(collection, 0)  # 0 = first save -> v1
+    new_version = archive.collections.save(collection, 0, changed_by=changed_by)  # first: v1
     index_updated = _sync_index_subtree(archive, collection.ulid)
     _enqueue_mirror(archive, collection.ulid)
     return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
@@ -54,13 +55,13 @@ def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
 
 
 def save_collection(
-    archive: Archive, collection: Collection, expected_version: Version
+    archive: Archive, collection: Collection, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
     """Save ``collection`` (CAS at ``expected_version``) then synchronously reindex its whole
     subtree — an audience/parent edit moves every descendant Article's visibility. A stale version
     raises ``Conflict`` before any index work. On index failure the canonical write stands, a
     subtree-reindex retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
-    new_version = archive.collections.save(collection, expected_version)
+    new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
     index_updated = _sync_index_subtree(archive, collection.ulid)
     _enqueue_mirror(archive, collection.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)

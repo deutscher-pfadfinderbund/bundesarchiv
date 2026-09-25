@@ -42,6 +42,10 @@ from bundesarchiv.index import indexer
 #: How often the run says where it is. The import takes minutes; silence looks like a hang.
 _PROGRESS_EVERY = 250
 
+#: The ``changed_by`` of every imported version (ADR 0019). Keycloak stores usernames lowercase,
+#: so the capitals keep it apart from any archivist's name.
+CHANGED_BY = "Legacy-Import"
+
 
 class Command(BaseCommand):
     help = "Import the legacy CSV export into the canonical archive (one-time)."
@@ -96,7 +100,7 @@ class Command(BaseCommand):
             if name in existing:
                 continue
             collection = Collection(ulid=identity.new_ulid(), name=name, parent_id=None)
-            archive.collections.save(collection, 0)
+            archive.collections.save(collection, 0, changed_by=CHANGED_BY)
             existing[name] = collection.ulid
         return existing
 
@@ -130,7 +134,9 @@ class Command(BaseCommand):
                         media_file.media_type,
                     )
                 )
-            archive.articles.save(replace(item.article, media=tuple(refs)), 0)
+            archive.articles.save(
+                replace(item.article, media=tuple(refs)), 0, changed_by=CHANGED_BY
+            )
             thumbnail_count += sum(
                 thumbnails.generate_thumbnail(archive.store, ref.content_hash, thumbnail_root)
                 for ref in refs

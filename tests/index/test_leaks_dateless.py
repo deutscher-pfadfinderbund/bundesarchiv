@@ -50,7 +50,9 @@ def _build_dateless_store() -> InMemoryObjectStore:
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-    collections.save(Collection(ulid=_DL_ROOT, name="Datum-Wurzel", parent_id=None), 0)
+    collections.save(
+        Collection(ulid=_DL_ROOT, name="Datum-Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     articles.save(
         Article(
             ulid=_DL_PUBLIC_DATED,
@@ -61,6 +63,7 @@ def _build_dateless_store() -> InMemoryObjectStore:
             date=EdtfDate("1930"),
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(
@@ -72,6 +75,7 @@ def _build_dateless_store() -> InMemoryObjectStore:
             date=None,
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(
@@ -83,6 +87,7 @@ def _build_dateless_store() -> InMemoryObjectStore:
             date=None,
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(
@@ -94,6 +99,7 @@ def _build_dateless_store() -> InMemoryObjectStore:
             date=None,
         ),
         0,
+        changed_by="tester",
     )
     return store
 

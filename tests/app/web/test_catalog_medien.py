@@ -131,7 +131,7 @@ def test_verschieben_against_deleted_article_is_404(
 
     real_gated = catalog_views._load_gated
 
-    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object] | None:
+    def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object, object] | None:
         gated = real_gated(request, ulid)
         corpus.articles.hard_delete(_ULID)
         return gated

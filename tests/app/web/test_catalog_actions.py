@@ -263,7 +263,9 @@ def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: Corpus) -> None
     # refusing it would strand a published record with a broken chain published forever.
     ulid = _article_whose_bestand_chain_is_broken(corpus)
     articles = corpus.articles
-    articles.save(replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1)
+    articles.save(
+        replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1, changed_by="tester"
+    )
     response = client_as(Archivist()).post(
         f"/artikel/{ulid}/bearbeiten",
         _publish_post(corpus, ulid, lebenszyklus="zurueckziehen"),

@@ -45,7 +45,7 @@ def test_save_then_load_round_trips_the_collection(repo: CollectionRepository) -
         parent_id="PARENT01",
         audience=Audience(AudienceTier.GROUPS, ("bundesfuehrung",)),
     )
-    version = repo.save(collection, expected_version=0)
+    version = repo.save(collection, expected_version=0, changed_by="tester")
     assert version == 1
     loaded = repo.load("01J0")
     assert isinstance(loaded, StoredCollection)
@@ -59,17 +59,19 @@ def test_load_missing_raises_not_found(repo: CollectionRepository) -> None:
 
 
 def test_stale_expected_version_raises_conflict(repo: CollectionRepository) -> None:
-    repo.save(_collection(), expected_version=0)  # -> v1
+    repo.save(_collection(), expected_version=0, changed_by="tester")  # -> v1
     with pytest.raises(Conflict):
-        repo.save(_collection(name="rename"), expected_version=0)  # stale; store is at v1
+        repo.save(
+            _collection(name="rename"), expected_version=0, changed_by="tester"
+        )  # stale; store is at v1
     # the correct version wins and bumps to v2
-    assert repo.save(_collection(name="rename"), expected_version=1) == 2
+    assert repo.save(_collection(name="rename"), expected_version=1, changed_by="tester") == 2
 
 
 def test_version_increments_across_saves(repo: CollectionRepository) -> None:
-    assert repo.save(_collection(), expected_version=0) == 1
-    assert repo.save(_collection(name="a"), expected_version=1) == 2
-    assert repo.save(_collection(name="b"), expected_version=2) == 3
+    assert repo.save(_collection(), expected_version=0, changed_by="tester") == 1
+    assert repo.save(_collection(name="a"), expected_version=1, changed_by="tester") == 2
+    assert repo.save(_collection(name="b"), expected_version=2, changed_by="tester") == 3
     assert repo.load("01J0").version == 3
 
 
@@ -81,13 +83,13 @@ def test_unversioned_readme_loads_as_zero_then_saves_cleanly(repo: CollectionRep
     repo._store.write_atomic("collections/01J0/README.md", b"---\nulid: 01J0\nname: Old\n---\n")
     loaded = repo.load("01J0")
     assert loaded.version == 0
-    assert repo.save(_collection(name="Migrated"), expected_version=0) == 1
+    assert repo.save(_collection(name="Migrated"), expected_version=0, changed_by="tester") == 1
     assert repo.load("01J0").version == 1
 
 
 def test_load_all_returns_every_saved_collection(repo: CollectionRepository) -> None:
-    repo.save(_collection("01A", name="Alpha"), expected_version=0)
-    repo.save(_collection("01B", name="Beta"), expected_version=0)
+    repo.save(_collection("01A", name="Alpha"), expected_version=0, changed_by="tester")
+    repo.save(_collection("01B", name="Beta"), expected_version=0, changed_by="tester")
     loaded = repo.load_all()
     assert isinstance(loaded, tuple)
     # load_all returns plain Collections (no versions) — tree assembly needs no versions.
@@ -100,7 +102,7 @@ def test_load_all_returns_empty_tuple_when_no_collections(repo: CollectionReposi
 
 
 def test_hard_delete_removes_the_collection(repo: CollectionRepository) -> None:
-    repo.save(_collection(), expected_version=0)
+    repo.save(_collection(), expected_version=0, changed_by="tester")
     repo.hard_delete("01J0")
     with pytest.raises(NotFound):
         repo.load("01J0")
@@ -112,7 +114,7 @@ def test_hard_delete_is_a_no_op_for_absent_collection(repo: CollectionRepository
 
 
 def test_readme_carries_marker(repo: CollectionRepository) -> None:
-    repo.save(_collection(), expected_version=0)
+    repo.save(_collection(), expected_version=0, changed_by="tester")
     # Peek at the raw store via the internal reference (memory only — localfs is opaque).
     # This test is only valuable for the memory store; skip gracefully for others.
     if not hasattr(repo._store, "_blobs"):
@@ -124,7 +126,7 @@ def test_readme_carries_marker(repo: CollectionRepository) -> None:
 
 def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepository) -> None:
     collection = Collection(ulid="01J0", name="Root")
-    repo.save(collection, expected_version=0)
+    repo.save(collection, expected_version=0, changed_by="tester")
     loaded = repo.load("01J0")
     assert loaded.collection == collection
     assert loaded.collection.parent_id is None
@@ -151,7 +153,7 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     mutex makes the outcome deterministic once both are past the barrier, so there are no
     sleeps and no flakiness.
     """
-    repo.save(_collection(), expected_version=0)  # store is now at v1
+    repo.save(_collection(), expected_version=0, changed_by="tester")  # store is now at v1
     barrier = threading.Barrier(2)
     results: dict[str, object] = {}
     lock = threading.Lock()
@@ -159,7 +161,7 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     def attempt(name: str) -> None:
         barrier.wait()  # both threads arrive, then both race the save
         try:
-            new_version = repo.save(_collection(name=name), expected_version=1)
+            new_version = repo.save(_collection(name=name), expected_version=1, changed_by="tester")
             with lock:
                 results[name] = new_version
         except Conflict as exc:
@@ -181,5 +183,5 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     # And the README front matter really carries v2.
     if hasattr(repo._store, "_blobs"):
         raw = repo._store.read("collections/01J0/README.md").decode("utf-8")
-        _decoded, stored_version = collection_readme.decode_collection(raw, ulid="01J0")
+        _decoded, stored_version, _ = collection_readme.decode_collection(raw, ulid="01J0")
         assert stored_version == 2

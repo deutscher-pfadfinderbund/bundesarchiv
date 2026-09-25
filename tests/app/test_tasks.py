@@ -28,16 +28,18 @@ def store() -> InMemoryObjectStore:
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
+    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
     collections.save(
         Collection(
             ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(ulid="01FOTO", title="Foto", collection_id="FOTOS", lifecycle=Lifecycle.PUBLISHED),
         0,
+        changed_by="tester",
     )
     return store
 
@@ -66,6 +68,7 @@ def test_reindex_article_job_recomputes_from_current_canonical(
             audience=Audience(AudienceTier.MEMBERS),  # narrowed after 'enqueue'
         ),
         stored.version,
+        changed_by="tester",
     )
 
     # Run the task's underlying function directly (references recompute current truth).

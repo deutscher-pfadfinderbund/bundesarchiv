@@ -300,7 +300,9 @@ class DeletedOutcome:
 type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 
 
-def save_catalog_form(archive: Archive, article: Article, expected_version: Version) -> SaveOutcome:
+def save_catalog_form(
+    archive: Archive, article: Article, expected_version: Version, *, changed_by: str
+) -> SaveOutcome:
     """The ONLY site that catches ``Conflict`` for a form save (ADR 0013). Calls ``save_article``
     directly (never the retrying ``update_article``): on success returns a ``SavedOutcome``; on ``Conflict``
     re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
@@ -309,7 +311,7 @@ def save_catalog_form(archive: Archive, article: Article, expected_version: Vers
     re-load instead finds the article hard-deleted (the Conflict was a deletion, not a concurrent
     edit), returns ``DeletedOutcome`` so the view 404s instead of letting the load failure propagate."""
     try:
-        result = articles.save_article(archive, article, expected_version)
+        result = articles.save_article(archive, article, expected_version, changed_by=changed_by)
     except Conflict:
         try:
             stored = archive.articles.load(article.ulid)
@@ -321,8 +323,10 @@ def save_catalog_form(archive: Archive, article: Article, expected_version: Vers
     return SavedOutcome(result=result)
 
 
-def new_draft(archive: Archive, *, title: str, collection_id: Ulid) -> Ulid:
+def new_draft(archive: Archive, *, title: str, collection_id: Ulid, changed_by: str) -> Ulid:
     """The minimal create step (spec §2): mint a DRAFT with just Titel + Bestand via the create path
     and return its ulid so the view can 302 to ``/bearbeiten``. Everything else is filled in on the
     edit form."""
-    return articles.create_article(archive, title=title, collection_id=collection_id).ulid
+    return articles.create_article(
+        archive, changed_by=changed_by, title=title, collection_id=collection_id
+    ).ulid

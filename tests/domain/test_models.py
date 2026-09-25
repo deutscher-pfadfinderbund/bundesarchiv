@@ -1,8 +1,10 @@
 """Domain value-object construction invariants (illegal states unrepresentable)."""
 
+from datetime import UTC, datetime, timedelta, timezone
+
 import pytest
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change
 
 
 def test_groups_tier_requires_at_least_one_named_group() -> None:
@@ -79,3 +81,21 @@ def test_custom_key_colliding_with_new_member_visible_field_is_rejected() -> Non
     # name must still be rejected by the reserved-key collision check.
     with pytest.raises(ValueError):
         _article(creator="x")
+
+
+@pytest.mark.parametrize("by", ["", "   ", "\t", "a\nb", "a\x85b", "\x7f"])
+def test_a_change_is_never_by_a_blank_or_control_character_name(by: str) -> None:
+    with pytest.raises(ValueError):
+        Change(datetime(2026, 9, 25, tzinfo=UTC), by)
+
+
+@pytest.mark.parametrize(
+    "at",
+    [
+        datetime(2026, 9, 25),  # noqa: DTZ001 — the naive time is the case under test
+        datetime(2026, 9, 25, tzinfo=timezone(timedelta(hours=2))),
+    ],
+)
+def test_a_change_is_stamped_in_utc(at: datetime) -> None:
+    with pytest.raises(ValueError):
+        Change(at, "anna")

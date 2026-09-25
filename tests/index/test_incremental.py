@@ -47,18 +47,23 @@ def store() -> InMemoryObjectStore:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
+    collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester")
     collections.save(
         Collection(
             ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
         ),
         0,
+        changed_by="tester",
     )
-    collections.save(Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0)
+    collections.save(
+        Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0, changed_by="tester"
+    )
 
-    articles.save(_article("ROOT", "01ROOT", title="Wurzelartikel"), 0)
-    articles.save(_article("FOTOS", "01FOTO", title="Foto", date=EdtfDate("1965")), 0)
-    articles.save(_article("AKTEN", "01AKTE", title="Akte"), 0)
+    articles.save(_article("ROOT", "01ROOT", title="Wurzelartikel"), 0, changed_by="tester")
+    articles.save(
+        _article("FOTOS", "01FOTO", title="Foto", date=EdtfDate("1965")), 0, changed_by="tester"
+    )
+    articles.save(_article("AKTEN", "01AKTE", title="Akte"), 0, changed_by="tester")
     return store
 
 
@@ -97,6 +102,7 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
         ),
         stored.version,
+        changed_by="tester",
     )
     indexer.index_article(store, "01ROOT")
 
@@ -133,7 +139,9 @@ def test_index_article_broken_chain_writes_fail_closed_row(store: InMemoryObject
     """A dangling collection_id -> archivist-only fail-closed row, same as rebuild."""
     from bundesarchiv.index.models import ArticleIndex
 
-    ArticleRepository(store).save(_article("GHOST", "01BAD", title="Verwaist"), 0)
+    ArticleRepository(store).save(
+        _article("GHOST", "01BAD", title="Verwaist"), 0, changed_by="tester"
+    )
     indexer.index_article(store, "01BAD")
 
     row = ArticleIndex.objects.get(ulid="01BAD")
@@ -180,6 +188,7 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
             audience=Audience(AudienceTier.MEMBERS),  # narrowed PUBLIC -> MEMBERS
         ),
         stored.version,
+        changed_by="tester",
     )
 
     indexer.index_subtree(store, "FOTOS")

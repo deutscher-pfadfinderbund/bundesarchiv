@@ -299,18 +299,23 @@ def store() -> InMemoryObjectStore:
     articles = ArticleRepository(store)
 
     # Tree: ROOT (Members default) -> FOTOS (PUBLIC) -> AKTEN (inherits PUBLIC)
-    collections.save(_root("ROOT", name="Wurzel"), 0)
+    collections.save(_root("ROOT", name="Wurzel"), 0, changed_by="tester")
     collections.save(
         Collection(
             ulid="FOTOS", name="Fotos", parent_id="ROOT", audience=Audience(AudienceTier.PUBLIC)
         ),
         0,
+        changed_by="tester",
     )
-    collections.save(Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0)
+    collections.save(
+        Collection(ulid="AKTEN", name="Akten", parent_id="FOTOS"), 0, changed_by="tester"
+    )
 
     # 1. Published, inherits PUBLIC from FOTOS.
     articles.save(
-        _article("FOTOS", ulid="01PUB", title="Öffentliches Foto", date=EdtfDate("1965")), 0
+        _article("FOTOS", ulid="01PUB", title="Öffentliches Foto", date=EdtfDate("1965")),
+        0,
+        changed_by="tester",
     )
     # 2. Published, explicit GROUPS.
     articles.save(
@@ -322,13 +327,20 @@ def store() -> InMemoryObjectStore:
             physical_location="Tresor 1",
         ),
         0,
+        changed_by="tester",
     )
     # 3. Published at ROOT -> Members default.
-    articles.save(_article("ROOT", ulid="01MEM", title="Mitglieder-Notiz"), 0)
+    articles.save(_article("ROOT", ulid="01MEM", title="Mitglieder-Notiz"), 0, changed_by="tester")
     # 4. Draft -> archivist-only regardless of audience.
-    articles.save(_article("FOTOS", ulid="01DRF", title="Entwurf", lifecycle=Lifecycle.DRAFT), 0)
+    articles.save(
+        _article("FOTOS", ulid="01DRF", title="Entwurf", lifecycle=Lifecycle.DRAFT),
+        0,
+        changed_by="tester",
+    )
     # 5. Dangling collection_id -> resolve_chain fails -> fail-closed row.
-    articles.save(_article("GHOST", ulid="01BAD", title="Verwaistes Artikel"), 0)
+    articles.save(
+        _article("GHOST", ulid="01BAD", title="Verwaistes Artikel"), 0, changed_by="tester"
+    )
 
     return store
 

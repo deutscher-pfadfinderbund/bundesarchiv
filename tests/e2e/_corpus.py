@@ -75,12 +75,22 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
-    collections.save(Collection("ROOT", "Bundesarchiv", None), 0)
-    collections.save(Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)), 0)
-    collections.save(Collection("AKTEN", "Aktenbestand", "ROOT", Audience(AudienceTier.MEMBERS)), 0)
+    collections.save(Collection("ROOT", "Bundesarchiv", None), 0, changed_by="tester")
+    collections.save(
+        Collection("FOTOS", "Fotografien", "ROOT", Audience(AudienceTier.PUBLIC)),
+        0,
+        changed_by="tester",
+    )
+    collections.save(
+        Collection("AKTEN", "Aktenbestand", "ROOT", Audience(AudienceTier.MEMBERS)),
+        0,
+        changed_by="tester",
+    )
     # A ULID-keyed Bestand under FOTOS so the 4.8 rename route/gallery state has a valid-ULID target.
     collections.save(
-        Collection(RENAMABLE_ULID, "Karten", "FOTOS", Audience(AudienceTier.PUBLIC)), 0
+        Collection(RENAMABLE_ULID, "Karten", "FOTOS", Audience(AudienceTier.PUBLIC)),
+        0,
+        changed_by="tester",
     )
 
     # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
@@ -117,6 +127,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             ),
         ),
         0,
+        changed_by="tester",
     )
     articles.save(
         Article(
@@ -130,6 +141,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             date=EdtfDate("1963"),
         ),
         0,
+        changed_by="tester",
     )
     # Corpus realism (learning G.6): the draft's TITLE is plain archive content — its draft-ness
     # is lifecycle state (the ENTWURF mark), never words in the title. "Entwurf Lagerchronik"
@@ -144,6 +156,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             media_type="Foto(s)",
         ),
         0,
+        changed_by="tester",
     )
     # The Signatur ceiling (owner, 2026-08-07): ONE article at 8 characters, no spaces, so the
     # ledger's sig column and every gallery shot are judged on the widest REALISTIC code. Filed in
@@ -161,6 +174,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             date=EdtfDate("1958-05"),
         ),
         0,
+        changed_by="tester",
     )
 
     indexer.rebuild(store)

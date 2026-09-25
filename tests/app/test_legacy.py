@@ -20,6 +20,7 @@ from PIL import Image
 
 from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.management.commands.import_legacy import CHANGED_BY
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Lifecycle
 
@@ -550,6 +551,19 @@ def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -
         with pytest.raises(CommandError, match="bereits"):
             _run(csv_dir, media_root)
         assert len(list(archive.articles.list_ulids())) == 3  # the refusal changed nothing
+
+
+@pytest.mark.django_db
+def test_every_imported_version_names_the_import(tmp_path: Path) -> None:
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        _run(csv_dir, media_root)
+        archive = Archive.canonical()
+        changes = [archive.articles.load(u).change for u in archive.articles.list_ulids()]
+        changes += [archive.collections.load(c.ulid).change for c in archive.collections.load_all()]
+    assert len(changes) == 5  # three Articles, two Bestände
+    assert {change.by if change else None for change in changes} == {CHANGED_BY}
 
 
 @pytest.mark.django_db

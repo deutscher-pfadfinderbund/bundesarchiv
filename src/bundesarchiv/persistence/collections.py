@@ -13,7 +13,7 @@ Callers depend only on this module; they never touch `ObjectStore` keys directly
 
 from dataclasses import dataclass
 
-from bundesarchiv.domain.models import Collection, Ulid, Version
+from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import collection_readme
 from bundesarchiv.persistence._writer import commit, readme_key
 from bundesarchiv.persistence.errors import NotFound
@@ -22,12 +22,12 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 
 @dataclass(frozen=True, slots=True)
 class StoredCollection:
-    """A Collection as loaded, paired with the version to pass to the next `save`.
-    (`load` returns this rather than a bare Collection so optimistic concurrency works —
-    mirrors ArticleRepository's `Stored`.)"""
+    """A Collection as loaded, paired with the version to pass to the next `save` and that
+    version's change record — mirrors ArticleRepository's `Stored`."""
 
     collection: Collection
     version: Version
+    change: Change | None
 
 
 class CollectionRepository:
@@ -38,26 +38,31 @@ class CollectionRepository:
         self._store = store
 
     def load(self, ulid: Ulid) -> StoredCollection:
-        """Return the Collection for `ulid` paired with its stored version. Raises
+        """Return the Collection for `ulid` with its stored version and change record. Raises
         `NotFound` if absent."""
         try:
             text = self._store.read(_readme_key(ulid)).decode("utf-8")
         except NotFound:
             raise NotFound(ulid) from None
-        collection, version = collection_readme.decode_collection(text, ulid=ulid)
-        return StoredCollection(collection, version)
+        collection, version, change = collection_readme.decode_collection(text, ulid=ulid)
+        return StoredCollection(collection, version, change)
 
-    def save(self, collection: Collection, expected_version: Version) -> Version:
-        """Optimistically create-or-replace the Collection's README, returning the new version.
-        Raises `Conflict` (writing nothing) if the store's version no longer matches
+    def save(
+        self, collection: Collection, expected_version: Version, *, changed_by: str
+    ) -> Version:
+        """Optimistically create-or-replace the Collection's README, by `changed_by`, returning the
+        new version. Raises `Conflict` (writing nothing) if the store's version no longer matches
         `expected_version` — a concurrent write won."""
         ulid = collection.ulid
         return commit(
             self._store,
             _folder(ulid),
             expected_version,
+            changed_by=changed_by,
             version_of=lambda text: collection_readme.decode_collection(text, ulid=ulid)[1],
-            render=lambda version: collection_readme.encode_collection(collection, version),
+            render=lambda version, change: collection_readme.encode_collection(
+                collection, version, change
+            ),
         )
 
     def load_all(self) -> tuple[Collection, ...]:

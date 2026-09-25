@@ -139,13 +139,13 @@ def test_document_type_alone_one_mismatch_rejects_all() -> None:
 def _archive_with(*articles_: Article) -> Archive:
     archive = Archive.of(InMemoryObjectStore())
     for art in articles_:
-        archive.articles.save(art, 0)
+        archive.articles.save(art, 0, changed_by="tester")
     return archive
 
 
 def test_apply_bulk_all_saved() -> None:
     archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "K. Meyer")
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "K. Meyer", changed_by="tester")
     assert outcome.saved == 2
     assert outcome.conflicted == ()
     assert outcome.missing == ()
@@ -155,7 +155,7 @@ def test_apply_bulk_all_saved() -> None:
 
 def test_apply_bulk_missing_ulid_buckets() -> None:
     archive = _archive_with(_article(ulid="01A"))
-    outcome = bulk.apply_bulk(archive, ["01A", "01GONE"], "creator", "X")
+    outcome = bulk.apply_bulk(archive, ["01A", "01GONE"], "creator", "X", changed_by="tester")
     assert outcome.saved == 1
     assert outcome.missing == ("01GONE",)
 
@@ -168,13 +168,15 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
     archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 
-    def _save_conflict_first(archive_: object, article: Article, version: int) -> object:
+    def _save_conflict_first(
+        archive_: object, article: Article, version: int, *, changed_by: str
+    ) -> object:
         if article.ulid == "01A":
             raise Conflict("raced")
-        return real_save(archive_, article, version)  # type: ignore[arg-type]
+        return real_save(archive_, article, version, changed_by=changed_by)  # type: ignore[arg-type]
 
     monkeypatch.setattr(articles, "save_article", _save_conflict_first)
-    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y")
+    outcome = bulk.apply_bulk(archive, ["01A", "01B"], "creator", "Y", changed_by="tester")
     assert outcome.saved == 1  # 01B saved
     assert [r.ulid for r in outcome.conflicted] == ["01A"]
     assert outcome.conflicted[0].ref_code == "F1"  # the .c-sig mark rides the row
@@ -184,14 +186,16 @@ def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.Monk
 def test_apply_bulk_property_every_ulid_in_exactly_one_bucket() -> None:
     # saved + conflicted + missing == distinct auswahl (spec §4 property). Duplicates collapse.
     archive = _archive_with(_article(ulid="01A"), _article(ulid="01B"))
-    outcome = bulk.apply_bulk(archive, ["01A", "01B", "01A", "01GONE"], "subject_place", "Kassel")
+    outcome = bulk.apply_bulk(
+        archive, ["01A", "01B", "01A", "01GONE"], "subject_place", "Kassel", changed_by="tester"
+    )
     distinct = len({"01A", "01B", "01GONE"})
     assert outcome.saved + len(outcome.conflicted) + len(outcome.missing) == distinct
 
 
 def test_apply_bulk_media_type_reports_doctype_cleared() -> None:
     archive = _archive_with(_article(ulid="01A", media_type="Schrifttum", document_type="Brief"))
-    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Foto(s)")
+    outcome = bulk.apply_bulk(archive, ["01A"], "media_type", "Foto(s)", changed_by="tester")
     assert outcome.saved == 1
     assert [r.ulid for r in outcome.doctype_cleared] == ["01A"]
     stored = archive.articles.load("01A").article

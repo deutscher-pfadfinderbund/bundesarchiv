@@ -29,13 +29,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ## Module map & packages
 
 ### 11. Cross-module private imports mark undeclared seams — Worth exploring
-- **Indicator:** 11 private names imported across 5 web modules (2026-09-02)
-- **Evidence:** `_not_found` ×4, `_is_archivist` ×3, plus `catalog._parse_audience`,
-  `catalog_views._SICHTBARKEIT_OPTIONS`, `browse_views._body_paragraphs`,
-  `browse_views._serve_static`. Accreted; each is a seam nobody named.
+- **Indicator:** 11 imports of 7 private names across 7 web modules (2026-09-25)
+- **Evidence:** `_not_found` ×5, `viewers._dev_signer` + `viewers._DEV_VIEWER_MAX_AGE` (`dev.py`),
+  plus `catalog._parse_audience`, `catalog_views._SICHTBARKEIT_OPTIONS`,
+  `browse_views._body_paragraphs`, `browse_views._serve_static`. Accreted; each is a seam nobody
+  named.
 - **Deletion test:** passes — the importers would have to state what they actually need.
-- **Sketch:** promote the deny helper and the archivist gate to public web-level names; the rest
-  falls out of #2 and #7.
+- **Sketch:** promote the deny helper to a public web-level name; the rest falls out of #2 and #7.
 
 ## Interfaces
 

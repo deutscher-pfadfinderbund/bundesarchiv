@@ -22,16 +22,18 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found
-from bundesarchiv.app.web.viewers import _is_archivist, render_screen
+from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article
+from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 
 
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     """``POST /artikel/sammelbearbeitung`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
     Archivist-only, POST-only → the byte-identical 404 otherwise (spec §6.1/§6.2)."""
-    if not _is_archivist(request) or request.method != "POST":
+    archivist = viewer_of(request)
+    if not isinstance(archivist, Archivist) or request.method != "POST":
         return _not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
@@ -47,7 +49,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
         return _reject(request, bestand, auswahl, feld, wert, error)
 
     if request.POST.get("bestaetigt") == "1":
-        return _commit(request, archive, bestand, auswahl, feld, wert)
+        return _commit(request, archive, bestand, auswahl, feld, wert, archivist.username)
     return _confirm(request, archive, bestand, auswahl, feld, wert)
 
 
@@ -56,7 +58,7 @@ def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
     GET-only → the byte-identical 404 otherwise. The no-JS baseline renders all optgroups + the
     server re-validates per-article; this only removes a round-trip on Medienart change."""
-    if not _is_archivist(request) or request.method != "GET":
+    if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
         return _not_found()
     # htmx sends the drawer's <select name="wert_media_type"> value under that name; accept the plain
     # media_type / medienart names too so the endpoint is callable directly.
@@ -141,6 +143,7 @@ def _commit(
     auswahl: list[str],
     feld: str,
     wert: str,
+    changed_by: str,
 ) -> HttpResponseBase:
     """Run the apply (state R). If the Medienart change orphans any Dokumenttyp, the commit REQUIRES
     ``dokumenttyp_leeren=1`` (server-enforced, geprueft-idiom) — a missing flag re-confirms without
@@ -152,7 +155,7 @@ def _commit(
         and _orphans(_load_all(archive, auswahl), feld, wert)
     ):
         return _confirm(request, archive, bestand, auswahl, feld, wert)  # re-confirm, no write
-    outcome = bulk.apply_bulk(archive, auswahl, feld, wert)
+    outcome = bulk.apply_bulk(archive, auswahl, feld, wert, changed_by=changed_by)
     return render_screen(
         request,
         "workbench/sammelbearbeitung_ergebnis.html",

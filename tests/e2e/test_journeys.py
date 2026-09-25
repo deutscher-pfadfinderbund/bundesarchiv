@@ -794,6 +794,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
             subject_place=_LONG_PLACE,
         ),
         0,
+        changed_by="tester",
     )
     with blocker.unblock():
         indexer.rebuild(store)
@@ -1458,6 +1459,7 @@ def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
                 media_type="Foto(s)",
             ),
             0,
+            changed_by="tester",
         )
     with blocker.unblock():
         indexer.rebuild(store)

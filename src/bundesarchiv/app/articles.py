@@ -53,11 +53,13 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 _IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"})
 
 
-def save_article(archive: Archive, article: Article, expected_version: Version) -> SaveResult:
+def save_article(
+    archive: Archive, article: Article, expected_version: Version, *, changed_by: str
+) -> SaveResult:
     """Save ``article`` (CAS at ``expected_version``) then synchronously reindex it. A stale
     version raises ``Conflict`` before anything is indexed. On index failure the canonical write
     stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
-    new_version = archive.articles.save(article, expected_version)
+    new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
     _enqueue_mirror(archive, article.ulid)
@@ -69,6 +71,7 @@ def update_article(
     ulid: Ulid,
     mutate: Callable[[Article], Article],
     *,
+    changed_by: str,
     retries: int = 3,
 ) -> UpdateOutcome:
     """Load the Article, apply ``mutate``, and ``save_article`` at the version just loaded, re-loading
@@ -90,7 +93,7 @@ def update_article(
             return Missing()
         mutated = mutate(stored.article)
         try:
-            result = save_article(archive, mutated, stored.version)
+            result = save_article(archive, mutated, stored.version, changed_by=changed_by)
         except Conflict:
             continue
         return Updated(article=mutated, version=result.version, index_updated=result.index_updated)
@@ -100,6 +103,7 @@ def update_article(
 def create_article(
     archive: Archive,
     *,
+    changed_by: str,
     title: str,
     collection_id: Ulid,
     body: str = "",
@@ -136,14 +140,14 @@ def create_article(
         subject_place=subject_place,
         custom=custom,
     )
-    new_version = archive.articles.save(article, 0)  # 0 = never saved -> first save is v1
+    new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
     _enqueue_mirror(archive, article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
-def copy_article(archive: Archive, ulid: Ulid) -> CreateResult:
+def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResult:
     """Copy an existing Article's METADATA into a fresh DRAFT (spec §7 Kopieren). The copy goes
     through ``create_article`` (so it mints a new ULID and indexes like any new article), carrying
     every metadata field forward EXCEPT: the Signatur (``ref_code`` cleared — a Signatur is unique to
@@ -153,6 +157,7 @@ def copy_article(archive: Archive, ulid: Ulid) -> CreateResult:
     source = archive.articles.load(ulid).article
     return create_article(
         archive,
+        changed_by=changed_by,
         title=source.title,
         collection_id=source.collection_id,
         body=source.body,

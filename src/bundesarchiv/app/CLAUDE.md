@@ -7,6 +7,7 @@ shell's ordering is a contract (ADR 0013/0014): canonical CAS write, then index 
 must NOT re-raise), then thumbnail and mirror enqueue (both swallowing). ADR 0013's split is which
 entry point you call: form saves carry the form's expected version straight to `save_article`, never
 through the retrying `update_article` (which owns the load-mutate-save cycle for internal mutations).
+Every write service takes `changed_by`, who is acting; the version it writes records it (ADR 0019).
 
 - `archive.py` — the one construction site for the canonical store + its repositories · interface: `Archive` (`.canonical()`, `.of()`, `.articles`, `.collections`, `.store`) · tests: `tests/app/test_archive.py`
 - `articles.py` — Article write services: the canonical-then-index shell · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `hard_delete_article` · tests: `tests/app/test_services.py`

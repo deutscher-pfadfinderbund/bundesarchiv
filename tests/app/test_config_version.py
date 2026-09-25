@@ -24,10 +24,13 @@ from bundesarchiv.persistence.repository import ArticleRepository
 @pytest.fixture
 def store() -> InMemoryObjectStore:
     store = InMemoryObjectStore()
-    CollectionRepository(store).save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
+    CollectionRepository(store).save(
+        Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester"
+    )
     ArticleRepository(store).save(
         Article(ulid="01FOTO", title="Foto", collection_id="ROOT", lifecycle=Lifecycle.PUBLISHED),
         0,
+        changed_by="tester",
     )
     return store
 

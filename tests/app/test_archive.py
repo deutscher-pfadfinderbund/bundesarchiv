@@ -17,8 +17,12 @@ def test_of_wires_both_repositories_over_the_given_store() -> None:
     store = InMemoryObjectStore()
     archive = Archive.of(store)
 
-    archive.collections.save(Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0)
-    archive.articles.save(Article(ulid=ULID, title="Sommerfahrt", collection_id="ROOT"), 0)
+    archive.collections.save(
+        Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester"
+    )
+    archive.articles.save(
+        Article(ulid=ULID, title="Sommerfahrt", collection_id="ROOT"), 0, changed_by="tester"
+    )
 
     assert CollectionRepository(store).load("ROOT").collection.name == "Wurzel"
     assert ArticleRepository(store).load(ULID).article.title == "Sommerfahrt"
@@ -29,7 +33,7 @@ def test_canonical_resolves_the_configured_root_at_every_call(tmp_path: Path) ->
 
     with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(first)):
         Archive.canonical().articles.save(
-            Article(ulid=ULID, title="Sommerfahrt", collection_id="ROOT"), 0
+            Article(ulid=ULID, title="Sommerfahrt", collection_id="ROOT"), 0, changed_by="tester"
         )
 
     assert (first / "articles" / ULID / "README.md").is_file()

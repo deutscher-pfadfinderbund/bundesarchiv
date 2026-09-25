@@ -90,13 +90,13 @@ class Corpus:
         self.store = LocalFsObjectStore(root)
         self.collections = CollectionRepository(self.store)
         self.articles = ArticleRepository(self.store)
-        self.collections.save(Collection(ROOT, "Wurzel", None), 0)
+        self.collections.save(Collection(ROOT, "Wurzel", None), 0, changed_by="tester")
 
     def add_collection(self, collection: Collection) -> Version:
-        return self.collections.save(collection, 0)
+        return self.collections.save(collection, 0, changed_by="tester")
 
     def add_article(self, article: Article) -> Version:
-        return self.articles.save(article, 0)
+        return self.articles.save(article, 0, changed_by="tester")
 
 
 def standard_corpus(root: Path) -> Corpus:

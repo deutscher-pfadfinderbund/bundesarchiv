@@ -8,7 +8,9 @@ and field floors land with the `can_view` layer (Part 2, later steps). Terms fol
 """
 
 import enum
+import unicodedata
 from dataclasses import dataclass, fields
+from datetime import datetime, timedelta
 
 from bundesarchiv.domain.edtf import EdtfDate
 
@@ -59,6 +61,22 @@ class Audience:
                 f"audience: groups must be non-empty iff tier is GROUPS "
                 f"(got tier={self.tier.value}, groups={groups!r})"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class Change:
+    """Who wrote one version, and when (ADR 0019): version metadata, never Article or Collection
+    content. ``by`` is a Keycloak username or a fixed label: one line of text, never blank.
+    ``at`` is UTC."""
+
+    at: datetime
+    by: str
+
+    def __post_init__(self) -> None:
+        if not self.by.strip() or any(unicodedata.category(ch) == "Cc" for ch in self.by):
+            raise ValueError(f"change: by must be a non-blank name, got {self.by!r}")
+        if self.at.utcoffset() != timedelta(0):
+            raise ValueError(f"change: at must be UTC, got {self.at!r}")
 
 
 @dataclass(frozen=True, slots=True)
