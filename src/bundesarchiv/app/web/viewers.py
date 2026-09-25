@@ -47,7 +47,7 @@ _VIEWER_SALT = "viewer"
 
 #: Format version carried in the cookie payload. Bumping it invalidates every outstanding cookie
 #: at once — the emergency lever ADR 0018 relies on instead of a session table.
-_VIEWER_FORMAT_VERSION = "v1"
+_VIEWER_FORMAT_VERSION = "v2"
 
 #: Per-tier cookie lifetimes (ADR 0018): archivists work on shared machines and re-authenticate
 #: every other day; members stay signed in for a month. Enforced on read, not only offered to the
@@ -106,14 +106,11 @@ def mint_viewer_cookie(viewer: Viewer, response: HttpResponse) -> bool:
 
 def encode_viewer(viewer: Viewer) -> str:
     """Serialize a ``Viewer`` to the cookie's plaintext payload (the value the signer then wraps):
-    ``archivist`` | ``member:group1,group2`` | ``public``. Groups are percent-escaped and then
-    comma-joined; a Member with no groups encodes as a bare ``member`` (empty group list).
-
-    A group name carrying no delimiter escapes to itself, so the payload is byte-identical to the
-    unescaped form for every name in use — the format version needs no bump."""
+    ``archivist:<username>`` | ``member:group1,group2`` | ``public``. Every name is percent-escaped,
+    so it may carry the delimiters; a Member with no groups encodes as a bare ``member``."""
     match viewer:
-        case Archivist():
-            return "archivist"
+        case Archivist(username=username):
+            return "archivist:" + quote(username, safe="")
         case Member(groups=groups):
             return "member:" + ",".join(quote(g, safe="") for g in groups) if groups else "member"
         case Public():
@@ -122,12 +119,13 @@ def encode_viewer(viewer: Viewer) -> str:
 
 def _parse_viewer(payload: str) -> Viewer | None:
     """Parse a verified cookie payload back to a ``Viewer``, or ``None`` if it is not a known shape.
-    STRICT: only the exact vocabulary ``archivist`` / ``public`` / ``member`` / ``member:<groups>``
-    is accepted; anything else (a signed-but-garbage payload) yields ``None`` so the caller floors
-    to Public. Group names are percent-unescaped (the inverse of ``encode_viewer``, so a name may
-    carry the delimiters). Empty group entries are dropped so ``member:a,,b`` -> groups ``(a, b)``."""
-    if payload == "archivist":
-        return Archivist()
+    STRICT: only the exact vocabulary ``archivist:<username>`` / ``public`` / ``member`` /
+    ``member:<groups>`` is accepted; anything else (a signed-but-garbage payload, or a bare
+    ``archivist`` with no name) yields ``None`` so the caller floors to Public. Names are
+    percent-unescaped (the inverse of ``encode_viewer``). Empty group entries are dropped so
+    ``member:a,,b`` -> groups ``(a, b)``."""
+    if payload.startswith("archivist:"):
+        return Archivist(username=unquote(payload.removeprefix("archivist:")))
     if payload == "public":
         return Public()
     if payload == "member":

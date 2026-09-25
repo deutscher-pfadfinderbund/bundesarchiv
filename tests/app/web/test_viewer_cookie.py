@@ -65,12 +65,33 @@ def _request_with(value: str | None, *, cookie: str = VIEWER_COOKIE) -> HttpRequ
     "viewer",
     [
         pytest.param(Archivist(), id="archivist"),
+        pytest.param(Archivist(username="jürgen: 50% ,x"), id="archivist-with-a-hostile-name"),
         pytest.param(Member(groups=()), id="member-without-groups"),
         pytest.param(Member(groups=("vorstand", "archiv-ag")), id="member-with-groups"),
     ],
 )
 def test_minted_cookie_reads_back_as_the_same_viewer(viewer: Viewer) -> None:
     assert viewer_of(_request_with(_mint(viewer))) == viewer
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        pytest.param("anna", id="plain"),
+        pytest.param("", id="empty"),
+        pytest.param("a:b", id="colon"),
+        pytest.param("a,b", id="comma"),
+        pytest.param("%3A100%", id="percent"),
+        pytest.param(" anna ", id="leading-and-trailing-whitespace"),
+        pytest.param("jürgen.müller", id="unicode"),
+        pytest.param("member:vorstand", id="another-viewer-payload"),
+    ],
+)
+def test_a_username_survives_the_payload_verbatim(username: str) -> None:
+    # The username is who a save is attributed to (ADR 0019): one that round-trips to another
+    # string credits the change to somebody else.
+    archivist = Archivist(username=username)
+    assert _parse_viewer(encode_viewer(archivist)) == archivist
 
 
 @pytest.mark.parametrize(
@@ -196,11 +217,18 @@ def test_the_minted_cookie_wins_over_a_dev_cookie() -> None:
 
 
 @override_settings(VIEWER_SIGNING_KEY=PROD_KEY)
-def test_superseded_format_version_is_public() -> None:
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param("v1:archivist", id="v1-archivist"),
+        pytest.param("v1:member:vorstand", id="v1-member"),
+        pytest.param(f"{_VIEWER_FORMAT_VERSION}:archivist", id="unnamed-archivist-payload"),
+    ],
+)
+def test_a_cookie_of_the_previous_format_is_public(payload: str) -> None:
     # The ADR 0018 emergency lever: bumping the version must invalidate outstanding cookies, so a
     # correctly signed cookie carrying any other version is worthless.
-    cookie = _sign(f"v0:{encode_viewer(Archivist())}", key=PROD_KEY)
-    assert viewer_of(_request_with(cookie)) == Public()
+    assert viewer_of(_request_with(_sign(payload, key=PROD_KEY))) == Public()
 
 
 @override_settings(VIEWER_SIGNING_KEY=PROD_KEY)

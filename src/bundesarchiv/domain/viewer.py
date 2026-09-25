@@ -11,7 +11,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class Archivist:
-    """A member of the designated Keycloak Archivist group — sees everything."""
+    """A member of the designated Keycloak Archivist group — sees everything. ``username`` is the
+    Keycloak username, ``unbekannt`` when the login carried none (ADR 0019 "History and audit")."""
+
+    username: str = "unbekannt"
 
 
 @dataclass(frozen=True, slots=True)
