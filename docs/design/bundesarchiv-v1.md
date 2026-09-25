@@ -44,6 +44,7 @@ Two independent axes:
 ## 6. Storage & persistence  (→ ADR 0002)
 
 - **Canonical = plain files on disk.** One directory per Article (named by ULID): a **`README.md`** (YAML front-matter + Markdown body = source of truth; auto-rendered by file browsers / Git hosts / Nextcloud Rich Workspace, with a "managed by the app" marker), write-once `media/`, append-only `changes/<ulid>.json`, and `.snapshots/` for shallow undo.
+  *Note 2026-09-25: the layout is now [ADR 0019](../adr/0019-canonical-layout-v1.md)'s — `history/<n>.md` replaces `changes/` and `.snapshots/`, and media files keep their own names.*
 - **Swappable storage port** — 6 ops: `read`, `writeAtomic`, `putLarge`, `list(prefix)`, `exists`, `delete` (no append/move/lock). Adapters: **local-FS (v1 primary)**, WebDAV/Nextcloud, S3.
 - **App is the sole writer** — durable per-Article lock object + pinned write order (media first, README.md last = the commit). Atomic write per adapter (FS = temp→fsync→rename→fsync-dir).
 - **Backup = restic** (rehearsed restore). **Nextcloud** = optional strictly-read-only browse mount + backup hedge; never canonical, never writable.
@@ -64,7 +65,7 @@ Originals byte-exact, write-once. Image thumbnails (+ optional PDF first page) a
 
 Each is a unit with one clear responsibility and a defined seam — to be planned and built independently:
 
-1. **Persistence port + local-FS adapter** — the 6-op interface, atomic write, sole-writer lock, README.md + media + changes/snapshots layout. *Foundational; everything sits on it.*
+1. **Persistence port + local-FS adapter** — the 6-op interface, atomic write, sole-writer lock, README.md + media + changes/snapshots layout. *Foundational; everything sits on it.* *(Note 2026-09-25: layout per ADR 0019.)*
 2. **Domain core** — Article/Collection model, EDTF handling, and the **pure effective-audience function** (with field floors). Framework-light.
 3. **Index & search** — Postgres projector, `reindex`, German FTS, facets, field-floor-aware queries.
 4. **Web & UI** — Django views + HTMX templates: cataloging forms, browse/search, detail + media, visibility preview.
