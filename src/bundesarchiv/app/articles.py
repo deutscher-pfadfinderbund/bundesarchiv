@@ -62,7 +62,7 @@ def save_article(
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(archive, article.ulid)
+    _enqueue_mirror(article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -143,7 +143,7 @@ def create_article(
     new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_thumbnails(article)
-    _enqueue_mirror(archive, article.ulid)
+    _enqueue_mirror(article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -181,11 +181,8 @@ def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
     reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
     index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
     ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""
-    repo = archive.articles
-    removed_keys = [stored.key for stored in repo.keys_for(ulid)]  # before deletion: pushed as gone
-    repo.hard_delete(ulid)
+    archive.articles.hard_delete(ulid)
     index_updated = _sync_index(archive, ulid)
-    _enqueue_mirror_keys(removed_keys)
     return SaveResult(version=0, index_updated=index_updated)
 
 
@@ -211,21 +208,13 @@ def _is_image(ref: MediaRef) -> bool:
     return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
-def _enqueue_mirror(archive: Archive, ulid: Ulid) -> None:
-    """Enqueue a mirror_push for every canonical key of the Article, AFTER the canonical write
-    (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
-    enqueue failure must never fail the request (mirror lag is invisible-by-design; the periodic
-    reconcile heals it). A no-op when no mirror is configured (the enqueue wrapper checks)."""
-    _enqueue_mirror_keys([stored.key for stored in archive.articles.keys_for(ulid)])
-
-
-def _enqueue_mirror_keys(keys: list[str]) -> None:
-    """Enqueue a mirror_push per key, swallowing any enqueue failure (the mirror is a convenience —
-    a failed enqueue never fails the canonical write; the periodic reconcile re-pushes)."""
+def _enqueue_mirror(ulid: Ulid) -> None:
+    """Enqueue the push of the Article to the system of record (ADR 0020), AFTER the canonical
+    write. Any failure is swallowed: the write stood, and the daily reconcile pushes what a lost job
+    would have. A no-op when no system of record is configured (the enqueue wrapper checks)."""
     try:
-        for key in keys:
-            enqueue_mirror_push(key)
-    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+        enqueue_mirror_push(ulid)
+    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile pushes it
         return
 
 

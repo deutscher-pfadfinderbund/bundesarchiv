@@ -417,7 +417,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 ) -> None:
     """Queue-down at enqueue time must not fail a request whose canonical write already stood: when
     BOTH the synchronous index update AND the retry enqueue raise, save_article still succeeds with
-    index_updated=False and no exception escapes (mirrors _enqueue_mirror_keys' swallow policy)."""
+    index_updated=False and no exception escapes (mirrors _enqueue_mirror's swallow policy)."""
     import bundesarchiv.app.articles as articles_mod
 
     def boom(_store: object, _ulid: str) -> None:
@@ -633,105 +633,52 @@ def test_save_article_thumbnail_enqueue_failure_does_not_break_save(
 
 
 # ---------------------------------------------------------------------------
-# Mirror enqueue hooks (Part 4.9) — save/create/delete enqueue mirror_push per touched key
+# The push enqueue (ADR 0020) — one reference job per saved Article or Collection
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_save_article_enqueues_mirror_push_for_touched_keys(
+def test_save_article_enqueues_one_push_of_the_article(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """After the canonical write, save_article enqueues a mirror_push for every canonical key of the
-    Article (README + changes). The mirror replay is async and out-of-band (never blocks the save)."""
     import bundesarchiv.app.articles as articles_mod
 
     pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
+    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
 
-    articles = archive.articles
-    stored = articles.load("01FOTO")
+    stored = archive.articles.load("01FOTO")
     save_article(archive, stored.article, stored.version, changed_by="tester")
 
-    assert "articles/01FOTO/README.md" in pushed  # the commit point is mirrored
+    assert pushed == ["01FOTO"]
 
 
 @pytest.mark.django_db
-def test_save_article_enqueues_mirror_push_for_media_blob(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The add_media path: a media blob attached to a saved Article is a canonical key too, so it is
-    enqueued for mirror replay alongside the README."""
-    import bundesarchiv.app.articles as articles_mod
-
-    pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
-
-    articles = archive.articles
-    ref = articles.add_media(
-        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
-    )
-    stored = articles.load("01FOTO")
-    save_article(
-        archive,
-        Article(
-            ulid="01FOTO",
-            title="Öffentliches Foto",
-            collection_id="FOTOS",
-            lifecycle=Lifecycle.PUBLISHED,
-            media=(ref,),
-        ),
-        stored.version,
-        changed_by="tester",
-    )
-
-    assert archive.articles.media_key("01FOTO", ref) in pushed  # the file is mirrored
-
-
-@pytest.mark.django_db
-def test_create_article_enqueues_mirror_push(
+def test_create_article_enqueues_the_push_of_the_new_article(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import bundesarchiv.app.articles as articles_mod
 
     pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
+    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
 
     result = create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
 
-    assert f"articles/{result.ulid}/README.md" in pushed
+    assert pushed == [result.ulid]
 
 
 @pytest.mark.django_db
-def test_hard_delete_article_enqueues_mirror_push_for_removed_keys(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Delete captures the keys BEFORE removing them, then enqueues a mirror_push per key. The push
-    job re-reads canonical, finds the key gone, and DELETES it from the mirror (reference semantics —
-    the mirror mirrors the delete, it does not keep a dead blob)."""
-    import bundesarchiv.app.articles as articles_mod
-
-    pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
-
-    save_article(archive, archive.articles.load("01FOTO").article, 1, changed_by="tester")
-    hard_delete_article(archive, "01FOTO")
-
-    assert "articles/01FOTO/README.md" in pushed  # the removed key is enqueued for mirror deletion
-
-
-@pytest.mark.django_db
-def test_save_collection_enqueues_mirror_push(
+def test_save_collection_enqueues_one_push_of_the_collection(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import bundesarchiv.app.collections as collections_mod
 
     pushed: list[str] = []
-    monkeypatch.setattr(collections_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
+    monkeypatch.setattr(collections_mod, "enqueue_mirror_push", pushed.append)
 
     stored = archive.collections.load("FOTOS")
     save_collection(archive, stored.collection, stored.version, changed_by="tester")
 
-    assert "collections/FOTOS/README.md" in pushed
+    assert pushed == ["FOTOS"]
 
 
 @pytest.mark.django_db
@@ -742,7 +689,7 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
     mirror lag is invisible-by-design and the reconcile heals it). The canonical write stands."""
     import bundesarchiv.app.articles as articles_mod
 
-    def boom(_key: str) -> None:
+    def boom(_ulid: str) -> None:
         raise RuntimeError("queue down")
 
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", boom)

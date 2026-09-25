@@ -1,34 +1,36 @@
-"""WebDAV mirror replay + reconcile logic (Part 4.9) — the CONVENIENCE browse copy.
+"""The push to the system of record (ADR 0020 stage A): the working copy's files onto the
+Nextcloud folder, add-only.
 
-The mirror is a browse-only copy of the canonical store on a Nextcloud/WebDAV endpoint. It is
-NEVER a read path, NEVER counted as durability (restic is the backup, ADR 0005 + roadmap) — it
-only exists so a human can browse the archive tree in a familiar file UI. Tiering (Part 7) is the
-one thing that changes this rule; nothing here anticipates it (YAGNI — the ObjectStore port is the
-openness).
+``push`` copies one saved Article or Collection after a save. It speaks only the storage port and
+an injected ``PushRecord``, and takes the keys, and which of them are write-once, from the
+repositories' ``keys_for``. It sends a record's keys in the order ``keys_for`` lists them, the
+local save order with the README last, so the system of record never holds a README naming a file
+it lacks. A write-once key is sent once, with ``create``; a README whenever its SHA-256 differs from
+the one the record holds. Bytes move streamed, except a README: it is read whole, so the digest
+recorded is that of the bytes sent. Nothing here deletes on the system of record.
 
-A mirror IS just another ``ObjectStore``, so these functions take two stores (canonical + mirror)
-and speak only the port. Everything is REFERENCE-based (ADR 0014): a replay job carries only a key
-and re-reads canonical truth at execution, so a key GONE from canonical by execution time is
-DELETED from the mirror — current canonical truth always wins over a stale job. The mirror mirrors;
-it never accumulates.
-
-- ``push_key(canonical, mirror, key)`` — replay ONE key: copy the current canonical bytes onto the
-  mirror, or delete the mirror copy when the key is gone from canonical. Idempotent.
-- ``reconcile(canonical, mirror)`` — the periodic full sweep: list canonical, push every
-  missing/changed key, delete every mirror-only key, and return a ``ReconcileSummary`` (the counts
-  logged + returned as the task result). A per-key failure is counted, never fatal — one flaky
-  blob must not abandon the rest of the sweep (the next reconcile heals it).
+``reconcile(canonical, mirror)`` — the periodic full sweep: list canonical, push every
+missing/changed key, delete every mirror-only key, and return a ``ReconcileSummary`` (the counts
+logged + returned as the task result). A per-key failure is counted, never fatal — one flaky
+blob must not abandon the rest of the sweep (the next reconcile heals it).
 """
 
+import hashlib
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
-from bundesarchiv.persistence.objectstore import ObjectStore
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.domain.models import Ulid
+from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
+from bundesarchiv.persistence.repository import StoredKey
 
 logger = logging.getLogger(__name__)
+
+#: How much of a file one read of a hash pass takes.
+_CHUNK = 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,81 @@ class PushRecord(Protocol):
         ...
 
 
+class _Keys(Protocol):
+    """A repository, as far as the push needs one."""
+
+    def keys_for(self, ulid: Ulid) -> list[StoredKey]: ...
+
+
+def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> None:
+    """Push the saved Article or Collection `ulid` to `remote`: each key `record` does not hold with
+    the SHA-256 of its local bytes. A write-once key `remote` holds already is recorded, not sent.
+    Raises `ArchiveError` at the first call that fails, and sends nothing after it."""
+    run = _Push(archive.store, remote, record)
+    for repository in (archive.collections, archive.articles):
+        run.folder(repository, ulid)
+
+
+class _Push:
+    """Pushes saved records from `canonical` to `remote`, noting each key in `record`."""
+
+    def __init__(self, canonical: ObjectStore, remote: ObjectStore, record: PushRecord) -> None:
+        self._canonical = canonical
+        self._remote = remote
+        self._record = record
+
+    def folder(self, repository: _Keys, ulid: Ulid) -> None:
+        # Read before the listing the files are sent from: a save stores every file a README
+        # names before that README, so this listing holds them all.
+        current = {
+            key.key: self._canonical.read(key.key)
+            for key in repository.keys_for(ulid)
+            if not key.write_once
+        }
+        keys = repository.keys_for(ulid)
+        held = self._record.held([key.key for key in keys])
+        for key in keys:
+            if key.write_once:
+                self._write_once(key, held.get(key.key))
+            elif key.key in current:
+                self._replaceable(key.key, current[key.key], held.get(key.key))
+
+    def _write_once(self, key: StoredKey, held: Pushed | None) -> None:
+        if held is not None:
+            return
+        sha256 = key.sha256 or _digest(self._canonical, key.key)
+        if (there := self._there(key.key)) is not None:
+            version = there.version
+        else:
+            with self._canonical.open_stream(key.key) as stream:
+                version = self._remote.create_large(key.key, stream, key.size)
+        self._record.note(key.key, Pushed(sha256, version))
+
+    def _replaceable(self, key: str, data: bytes, held: Pushed | None) -> None:
+        sha256 = hashlib.sha256(data).hexdigest()
+        if held is not None and held.sha256 == sha256:
+            return
+        there = None if held is not None else self._there(key)
+        if there is not None and _digest(self._remote, key) == sha256:
+            version = there.version
+        else:
+            version = self._remote.write_atomic(key, data)
+        self._record.note(key, Pushed(sha256, version))
+
+    def _there(self, key: str) -> ObjectEntry | None:
+        """`key`'s entry on the system of record, or None if it lacks the key."""
+        return next((entry for entry in self._remote.list_entries(key) if entry.key == key), None)
+
+
+def _digest(store: ObjectStore, key: str) -> str:
+    """The SHA-256 of the bytes at `key`, read streamed."""
+    digest = hashlib.sha256()
+    with store.open_stream(key) as stream:
+        while chunk := stream.read(_CHUNK):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 #: Mass-delete warning threshold: warn when one sweep deletes more than ``max(25, 10% of canonical
 #: keys)``. The absolute floor of 25 keeps routine deletes silent (one hard-deleted Article is a
 #: handful of keys) even on a small archive; the 10%-of-canonical term scales the bound up so a
@@ -77,20 +154,6 @@ class ReconcileSummary:
     pushed: int
     deleted: int
     failed: int
-
-
-def push_key(canonical: ObjectStore, mirror: ObjectStore, key: str) -> None:
-    """Replay ONE ``key`` onto the mirror from CURRENT canonical truth (reference semantics, ADR
-    0014). If the key is present in canonical, create-or-replace it on the mirror; if it is gone
-    from canonical (a stale job whose object was deleted by execution time), delete it from the
-    mirror instead. Idempotent — re-running writes the same bytes or repeats the same no-op delete.
-    """
-    try:
-        data = canonical.read(key)
-    except NotFound:
-        mirror.delete(key)  # gone from canonical -> the mirror must not keep it (idempotent no-op)
-        return
-    mirror.write_atomic(key, data)
 
 
 def reconcile(canonical: ObjectStore, mirror: ObjectStore) -> ReconcileSummary:

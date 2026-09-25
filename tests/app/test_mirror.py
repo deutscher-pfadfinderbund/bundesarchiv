@@ -1,73 +1,223 @@
-"""Task 4.9 — the WebDAV mirror replay + reconcile LOGIC (``bundesarchiv.app.mirror``).
+"""The push to the system of record (ADR 0020), the mirror logic over two in-memory stores: the
+working copy an ``Archive`` holds, and ``_Remote`` standing in for the Nextcloud folder, which logs
+every call that sends, fetches or deletes bytes. The push record is the in-memory fake; its
+Postgres twin answers the same contract (``test_push_record.py``)."""
 
-The mirror is a CONVENIENCE browse copy: never a read path, never counted as durability (restic is
-the backup). These tests exercise the pure two-argument functions — ``push_key(canonical, mirror,
-key)`` and ``reconcile(canonical, mirror)`` — against two ``InMemoryObjectStore``s standing in for
-the canonical store and the mirror (the port IS the seam: a mirror is just another ObjectStore, so
-no live WebDAV is needed here). Reference semantics: a job carries only a key, and execution
-re-reads canonical truth, so a key GONE from canonical by execution time is DELETED from the mirror
-(the mirror mirrors; it does not accumulate).
-"""
+import io
+from collections.abc import Callable, Iterable
+from dataclasses import replace
+from typing import BinaryIO
 
 import pytest
 
-from bundesarchiv.app.mirror import ReconcileSummary, push_key, reconcile
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.mirror import ReconcileSummary, push, reconcile
+from bundesarchiv.app.push_record import InMemoryPushRecord
+from bundesarchiv.domain.models import Article, Collection
+from bundesarchiv.persistence._writer import history_key
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
+from bundesarchiv.persistence.repository import ArticleRepository
+
+ULID = "01FOTO"
+
+
+class _Remote:
+    """The system of record: an in-memory store that logs each key it is asked to send (refused
+    or not), fetch or delete, and refuses every send from the ``fail_from``-th on."""
+
+    def __init__(self) -> None:
+        self.store = InMemoryObjectStore()
+        self.sent: list[str] = []
+        self.fetched: list[str] = []
+        self.deleted: list[str] = []
+        self.fail_from: int | None = None
+
+    def _sending(self, key: str) -> None:
+        self.sent.append(key)
+        if self.fail_from is not None and len(self.sent) >= self.fail_from:
+            raise ArchiveError(f"{key}: the system of record is unreachable")
+
+    def read(self, key: str) -> bytes:
+        self.fetched.append(key)
+        return self.store.read(key)
+
+    def open_stream(self, key: str) -> BinaryIO:
+        self.fetched.append(key)
+        return self.store.open_stream(key)
+
+    def write_atomic(self, key: str, data: bytes) -> str:
+        self._sending(key)
+        return self.store.write_atomic(key, data)
+
+    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
+        self._sending(key)
+        return self.store.put_large(key, stream, size)
+
+    def create(self, key: str, data: bytes) -> str:
+        self._sending(key)
+        return self.store.create(key, data)
+
+    def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
+        self._sending(key)
+        return self.store.create_large(key, stream, size)
+
+    def list(self, prefix: str = "") -> Iterable[str]:
+        return self.store.list(prefix)
+
+    def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
+        return self.store.list_entries(prefix)
+
+    def exists(self, key: str) -> bool:
+        return self.store.exists(key)
+
+    def delete(self, key: str) -> None:
+        self.deleted.append(key)
+        self.store.delete(key)
+
+    def delete_prefix(self, prefix: str) -> None:
+        self.deleted.append(prefix)
+        self.store.delete_prefix(prefix)
+
+
+def _save(archive: Archive, *uploads: tuple[str, bytes], title: str = "Foto") -> None:
+    """Save the Article ``ULID`` as its next version, with ``uploads`` added to its media."""
+    articles = archive.articles
+    try:
+        stored = articles.load(ULID)
+        article, version = stored.article, stored.version
+    except NotFound:
+        article, version = Article(ULID, title, "FOTOS"), 0
+    added = tuple(articles.add_media(ULID, name, io.BytesIO(data)) for name, data in uploads)
+    article = replace(article, title=title, media=(*article.media, *added))
+    articles.save(article, version, changed_by="tester")
+
+
+def _dangling(store: ObjectStore) -> list[str]:
+    """The files the README in ``store`` stands on, its media and its older versions, that
+    ``store`` lacks."""
+    repo = ArticleRepository(store)
+    try:
+        stored = repo.load(ULID)
+    except NotFound:
+        return []
+    named = [repo.media_key(ULID, ref) for ref in stored.article.media]
+    named += [history_key(f"articles/{ULID}", version) for version in range(1, stored.version)]
+    return [key for key in named if not store.exists(key)]
+
+
+def _same_tree(archive: Archive, remote: _Remote) -> bool:
+    local = {key: archive.store.read(key) for key in archive.store.list()}
+    return local == {key: remote.store.read(key) for key in remote.store.list()}
+
+
+# --- the per-save push -------------------------------------------------------------
+
+
+@pytest.mark.parametrize("fail_from", range(1, 5))
+def test_an_interrupted_push_never_leaves_a_readme_naming_a_file_the_system_of_record_lacks(
+    fail_from: int,
+) -> None:
+    """ADR 0020 push order, at every point a push of the second version can break off. The retry
+    then completes it."""
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("eins.jpg", b"eins"))
+    push(archive, remote, record, ULID)
+    _save(archive, ("zwei.jpg", b"zwei"), ("drei.pdf", b"drei"), title="Neu")
+    remote.fail_from = len(remote.sent) + fail_from
+    with pytest.raises(ArchiveError):
+        push(archive, remote, record, ULID)
+    assert _dangling(remote.store) == []
+    remote.fail_from = None
+    push(archive, remote, record, ULID)
+    assert _same_tree(archive, remote)
+
+
+class _SavedAfterTheFirstListing(InMemoryObjectStore):
+    """A working copy on which a save lands right after the first listing that finds files."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.then: list[Callable[[], None]] = []
+
+    def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
+        listed = super().list_entries(prefix)
+        if listed and self.then:
+            self.then.pop()()
+        return listed
+
+
+def test_a_save_landing_while_the_push_lists_the_article_never_reaches_it_half() -> None:
+    """The README the push sends is read before the listing it sends the files from."""
+    working = _SavedAfterTheFirstListing()
+    archive, remote = Archive.of(working), _Remote()
+    _save(archive, ("eins.jpg", b"eins"))
+    working.then.append(lambda: _save(archive, ("zwei.jpg", b"zwei"), title="Neu"))
+    push(archive, remote, InMemoryPushRecord(), ULID)
+    assert _dangling(remote.store) == []
+    assert _same_tree(archive, remote)
+
+
+def test_an_unchanged_file_is_never_sent_twice() -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    _save(archive, title="Neue Bildunterschrift")
+    push(archive, remote, record, ULID)
+    push(archive, remote, record, ULID)
+    media, history, readme = (key.key for key in archive.articles.keys_for(ULID))
+    assert remote.sent == [media, readme, history, readme]
+
+
+def _collection_saved(archive: Archive, name: str) -> None:
+    try:
+        version = archive.collections.load(ULID).version
+    except NotFound:
+        version = 0
+    archive.collections.save(Collection(ULID, name), version, changed_by="tester")
+
+
+@pytest.mark.parametrize(
+    "save",
+    [lambda archive, name: _save(archive, title=name), _collection_saved],
+    ids=["article", "collection"],
+)
+def test_a_changed_readme_is_pushed(save: Callable[[Archive, str], None]) -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    save(archive, "eins")
+    push(archive, remote, record, ULID)
+    save(archive, "zwei")
+    push(archive, remote, record, ULID)
+    assert _same_tree(archive, remote)
+
+
+def test_a_write_once_file_already_there_is_recorded_not_sent_again() -> None:
+    """A lost push record costs no upload of a file the system of record already holds (a create
+    sends the whole body before it learns the key is taken)."""
+    archive, remote = Archive.of(InMemoryObjectStore()), _Remote()
+    _save(archive, ("video.mp4", b"a long film"))
+    push(archive, remote, InMemoryPushRecord(), ULID)
+    _save(archive, title="Neu")
+    before = len(remote.sent)
+    push(archive, remote, InMemoryPushRecord(), ULID)
+    _, history, readme = (key.key for key in archive.articles.keys_for(ULID))
+    assert remote.sent[before:] == [history, readme]
+    assert _same_tree(archive, remote)
+
+
+def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:
+    archive, remote, record = Archive.of(InMemoryObjectStore()), _Remote(), InMemoryPushRecord()
+    _save(archive, ("scan.pdf", b"a scan"))
+    push(archive, remote, record, ULID)
+    pushed = list(remote.store.list())
+    archive.articles.hard_delete(ULID)
+    push(archive, remote, record, ULID)
+    assert (remote.deleted, list(remote.store.list())) == ([], pushed)
 
 
 def _stores() -> tuple[InMemoryObjectStore, InMemoryObjectStore]:
     return InMemoryObjectStore(), InMemoryObjectStore()
-
-
-# --- push_key: reference replay of a single key ----------------------------------
-
-
-def test_push_key_copies_new_key_to_mirror() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-
-    push_key(canonical, mirror, "articles/01A/README.md")
-
-    assert mirror.read("articles/01A/README.md") == b"body"
-
-
-def test_push_key_overwrites_changed_key() -> None:
-    canonical, mirror = _stores()
-    mirror.write_atomic("articles/01A/README.md", b"stale")
-    canonical.write_atomic("articles/01A/README.md", b"fresh")
-
-    push_key(canonical, mirror, "articles/01A/README.md")
-
-    assert mirror.read("articles/01A/README.md") == b"fresh"
-
-
-def test_push_key_is_idempotent() -> None:
-    canonical, mirror = _stores()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-
-    push_key(canonical, mirror, "articles/01A/README.md")
-    push_key(canonical, mirror, "articles/01A/README.md")
-
-    assert mirror.read("articles/01A/README.md") == b"body"
-
-
-def test_push_key_deletes_from_mirror_when_key_gone_from_canonical() -> None:
-    """Reference semantics: a stale push job whose key was deleted from canonical by execution time
-    must DELETE it from the mirror, not resurrect it — current canonical truth wins."""
-    canonical, mirror = _stores()
-    mirror.write_atomic("articles/01A/README.md", b"leftover")  # canonical has NOTHING at this key
-
-    push_key(canonical, mirror, "articles/01A/README.md")
-
-    assert not mirror.exists("articles/01A/README.md")
-
-
-def test_push_key_delete_of_absent_mirror_key_is_a_noop() -> None:
-    canonical, mirror = _stores()  # gone from canonical AND never on the mirror
-
-    push_key(canonical, mirror, "articles/01A/README.md")  # must not raise
-
-    assert not mirror.exists("articles/01A/README.md")
 
 
 # --- reconcile: full diff, push missing/changed, delete mirror-only --------------

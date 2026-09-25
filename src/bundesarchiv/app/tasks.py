@@ -28,15 +28,15 @@ from procrastinate.contrib.django import app
 
 from bundesarchiv.app import mirror, thumbnails
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.push_record import PostgresPushRecord
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
 
-#: Bounded exponential backoff for the mirror jobs. A down/slow WebDAV mirror is the EXPECTED
-#: failure mode (ADR 0005): retry a handful of times with growing waits (~3s, 9s, 27s, 81s), then
-#: PARK the job (max_attempts reached -> Procrastinate marks it failed; the periodic reconcile is
-#: the backstop that re-pushes it later). The mirror is a convenience, so we never retry forever —
-#: mirror lag is invisible-by-design and self-heals at the next reconcile.
+#: Bounded exponential backoff for the push job. A down/slow WebDAV server is the EXPECTED failure
+#: mode (ADR 0005): retry a handful of times with growing waits (~3s, 9s, 27s, 81s), then PARK the
+#: job (max_attempts reached -> Procrastinate marks it failed); the daily reconcile pushes what a
+#: parked job would have (ADR 0020 "Loss window").
 _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
 #: The fixity check's schedule (ADR 0019 "Fixity"): monthly, 04:00 on the first.
@@ -50,18 +50,19 @@ def canonical_store() -> ObjectStore:
 
 
 def _mirror_configured() -> bool:
-    """Whether a WebDAV mirror is configured (Part 4.9) — the settings predicate shared by
+    """Whether a system of record is configured — the settings predicate shared by
     ``mirror_store()`` and ``enqueue_mirror_push``, so the enqueue path can answer "is mirroring on"
     without building a client (and its eager SSL-context load) just to throw it away."""
     return bool(settings.BUNDESARCHIV_MIRROR_DAV_URL)
 
 
 def mirror_store() -> ObjectStore | None:
-    """Build the WebDAV mirror store from settings, or None when no mirror is configured (Part 4.9).
+    """Build the system of record's WebDAV store from settings (ADR 0020), or None when none is
+    configured.
 
-    The mirror is OPTIONAL convenience: when ``BUNDESARCHIV_MIRROR_DAV_URL`` is unset (the common
-    dev case) this returns None and every mirror job / enqueue becomes a clean no-op. Constructed
-    per job from settings (jobs carry references, never a store handle); monkeypatched in tests."""
+    When ``BUNDESARCHIV_MIRROR_DAV_URL`` is unset (the common dev case) this returns None and every
+    mirror job / enqueue becomes a clean no-op. Constructed per job from settings (jobs carry
+    references, never a store handle); monkeypatched in tests."""
     url: str | None = settings.BUNDESARCHIV_MIRROR_DAV_URL
     if not url:
         return None
@@ -128,20 +129,18 @@ def verify(timestamp: int) -> None:
 
 
 @app.task(name="mirror_push", retry=_MIRROR_RETRY)
-def mirror_push(key: str) -> None:
-    """Reference job (Part 4.9): replay ONE ``key`` onto the WebDAV mirror from current canonical
-    truth — copy the current bytes, or delete the mirror copy when the key is gone from canonical
-    (a stale job). A no-op when no mirror is configured. A down/slow mirror raises ``ArchiveError``,
-    which triggers the bounded retry (``_MIRROR_RETRY``); after the last attempt the job parks and
-    the periodic ``mirror_reconcile`` re-pushes it. The mirror is a convenience, never a read path
-    or durability (roadmap)."""
-    mirror_target = mirror_store()
-    if mirror_target is None:
-        return  # mirror unset -> clean no-op
+def mirror_push(ulid: str) -> None:
+    """Reference job (ADR 0014, 0020): push the saved Article or Collection ``ulid`` to the system
+    of record as current canonical truth has it, only what the push record does not hold already.
+    A no-op when no system of record is configured, and for a ulid no longer saved. A failed write
+    raises, which triggers the bounded retry (``_MIRROR_RETRY``)."""
+    remote = mirror_store()
+    if remote is None:
+        return
     try:
-        mirror.push_key(canonical_store(), mirror_target, key)
+        mirror.push(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
     finally:
-        _close_mirror(mirror_target)  # release the per-job httpx.Client even when the push raises
+        _close_mirror(remote)  # release the per-job httpx.Client even when the push raises
 
 
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
@@ -190,18 +189,18 @@ def enqueue_generate_thumbnail(ulid: str, content_hash: str) -> None:
     generate_thumbnail.defer(ulid=ulid, content_hash=content_hash)
 
 
-def enqueue_mirror_push(key: str) -> None:
-    """Enqueue a ``mirror_push`` reference job for ONE canonical key (Part 4.9). The app services
-    call this AFTER a canonical write, for every key they touched — the mirror replay is async and
-    never blocks the request. A clean no-op when no mirror is configured (do not churn the queue for
-    a feature that is off). Reference-only: the job carries the key and re-reads canonical at run.
+def enqueue_mirror_push(ulid: str) -> None:
+    """Enqueue a ``mirror_push`` reference job for the saved Article or Collection ``ulid``. The app
+    services call this AFTER a canonical write; the push is async and never blocks the request. A
+    clean no-op when no system of record is configured (do not churn the queue for a feature that
+    is off).
 
     Checks ``_mirror_configured()`` rather than ``mirror_store()`` so this path never constructs a
     client (GH #20): building one only to discard it leaked a fresh ``httpx.Client`` — with its
     eager SSL-context load — on every canonical write when mirroring is configured."""
     if not _mirror_configured():
         return  # mirror unset -> nothing to enqueue
-    mirror_push.defer(key=key)
+    mirror_push.defer(ulid=ulid)
 
 
 # --- in-test worker harness ------------------------------------------------------

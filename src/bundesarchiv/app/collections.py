@@ -40,7 +40,7 @@ def create_collection(
     )
     new_version = archive.collections.save(collection, 0, changed_by=changed_by)  # first: v1
     index_updated = _sync_index_subtree(archive, collection.ulid)
-    _enqueue_mirror(archive, collection.ulid)
+    _enqueue_mirror(collection.ulid)
     return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -63,19 +63,17 @@ def save_collection(
     subtree-reindex retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
     index_updated = _sync_index_subtree(archive, collection.ulid)
-    _enqueue_mirror(archive, collection.ulid)
+    _enqueue_mirror(collection.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
-def _enqueue_mirror(archive: Archive, ulid: str) -> None:
-    """Enqueue a mirror_push for every canonical key of the Collection, AFTER the canonical write
-    (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
-    enqueue failure must never fail the request (the periodic reconcile heals mirror lag). A no-op
-    when no mirror is configured."""
+def _enqueue_mirror(ulid: str) -> None:
+    """Enqueue the push of the Collection to the system of record (ADR 0020), AFTER the canonical
+    write. Any failure is swallowed: the write stood, and the daily reconcile pushes what a lost job
+    would have. A no-op when no system of record is configured."""
     try:
-        for stored in archive.collections.keys_for(ulid):
-            enqueue_mirror_push(stored.key)
-    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> mirror lag heals at the next reconcile
+        enqueue_mirror_push(ulid)
+    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile pushes it
         return
 
 

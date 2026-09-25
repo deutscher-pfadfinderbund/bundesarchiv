@@ -183,48 +183,32 @@ def test_mirror_store_is_none_when_url_unset(monkeypatch: pytest.MonkeyPatch) ->
         assert tasks_mod.mirror_store() is None
 
 
-def test_mirror_push_task_replays_key_to_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mirror_push reference job re-reads the CURRENT canonical bytes and writes to the mirror."""
+@pytest.mark.django_db
+def test_the_push_job_pushes_the_saved_record_and_notes_it(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app.push_record import PostgresPushRecord
 
-    canonical = InMemoryObjectStore()
-    mirror = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror)
+    remote = InMemoryObjectStore()
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
 
-    tasks_mod.mirror_push.func(key="articles/01A/README.md")
+    tasks_mod.mirror_push.func(ulid="01FOTO")
 
-    assert mirror.read("articles/01A/README.md") == b"body"
+    (readme,) = (key.key for key in ArticleRepository(store).keys_for("01FOTO"))
+    assert remote.read(readme) == store.read(readme)
+    assert PostgresPushRecord().held([readme]).keys() == {readme}
 
 
 def test_mirror_push_task_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     """No mirror configured -> the job returns without touching anything (never raises)."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    canonical = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
+    monkeypatch.setattr(tasks_mod, "canonical_store", InMemoryObjectStore)
     monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
 
-    tasks_mod.mirror_push.func(key="articles/01A/README.md")  # must not raise
-
-
-def test_mirror_push_task_deletes_from_mirror_when_key_gone(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Reference semantics: a stale push whose key is gone from canonical deletes it from the mirror."""
-    import bundesarchiv.app.tasks as tasks_mod
-
-    canonical = InMemoryObjectStore()  # key absent from canonical
-    mirror = InMemoryObjectStore()
-    mirror.write_atomic("articles/01A/README.md", b"leftover")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror)
-
-    tasks_mod.mirror_push.func(key="articles/01A/README.md")
-
-    assert not mirror.exists("articles/01A/README.md")
+    tasks_mod.mirror_push.func(ulid="01A")  # must not raise
 
 
 def test_mirror_reconcile_task_syncs_and_returns_summary(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -267,10 +251,10 @@ def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.Monke
     import bundesarchiv.app.tasks as tasks_mod
 
     deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
+    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
-        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+        tasks_mod.enqueue_mirror_push("01A")
 
     assert deferred == []
 
@@ -282,12 +266,12 @@ def test_enqueue_mirror_push_defers_when_mirror_set(monkeypatch: pytest.MonkeyPa
     import bundesarchiv.app.tasks as tasks_mod
 
     deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
+    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
-        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+        tasks_mod.enqueue_mirror_push("01A")
 
-    assert deferred == ["articles/01A/README.md"]
+    assert deferred == ["01A"]
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,34 +289,35 @@ def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPat
     # Patch the shared ``httpx`` module object tasks.py imported (``import httpx``, not
     # ``from httpx import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
     monkeypatch.setattr(httpx, "Client", _boom)
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["key"]))
+    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
 
     with override_settings(
         BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/",
         BUNDESARCHIV_MIRROR_DAV_USER="u",
         BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
     ):
-        tasks_mod.enqueue_mirror_push("articles/01A/README.md")
+        tasks_mod.enqueue_mirror_push("01A")
 
-    assert deferred == ["articles/01A/README.md"]
+    assert deferred == ["01A"]
 
 
-@pytest.mark.django_db
-def test_mirror_push_worker_execution_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.django_db(transaction=True)
+def test_mirror_push_worker_execution_smoke(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Worker-loop smoke (like the reindex smoke): defer mirror_push onto the in-memory connector,
-    drain the worker once, and the job replays the key to the mirror end-to-end."""
+    drain the worker once, and the job pushes the Article end-to-end. ``transaction=True`` for the
+    same reason as the reindex smoke: the job writes the push record in its own transaction."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    canonical = InMemoryObjectStore()
-    mirror = InMemoryObjectStore()
-    canonical.write_atomic("articles/01A/README.md", b"body")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: canonical)
-    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: mirror)
+    remote = InMemoryObjectStore()
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
 
     def defer() -> None:
-        tasks_mod.mirror_push.defer(key="articles/01A/README.md")
+        tasks_mod.mirror_push.defer(ulid="01FOTO")
 
     processed = tasks_mod.run_worker_once_in_test(defer=defer)
 
-    assert mirror.read("articles/01A/README.md") == b"body"
+    assert list(remote.list()) == list(store.list("articles/"))
     assert processed >= 1
