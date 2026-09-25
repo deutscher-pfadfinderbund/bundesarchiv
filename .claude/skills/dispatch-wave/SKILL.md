@@ -22,6 +22,10 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
 - When naming a library call, ask for a **signature check**, not just an import check.
+- **Dependency upgrades:** list the new version's changed DEFAULTS (timeouts, which responses swap,
+  whether swapped scripts re-run), not only renamed APIs — the H4 brief missed two that bit. And
+  verify a guard is load-bearing before pinning a contract on it: the CSRF header it asked to
+  protect was redundant (every form carries the body token).
 - Explicit **scope fence** + stop conditions ("if this cascades past ~N files, stop and report"). Include: "needing anything outside your fence = STOP and report; that report is a success outcome." A fence names its files **plus their necessary call sites** — an interface change drags its callers, and a fence that pretends otherwise forces the writer to judge instead of read. A brief that DELETES a symbol also fences "everything that greps for it" (prose references included), or the deletion leaves dangling names by construction.
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
 - The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
