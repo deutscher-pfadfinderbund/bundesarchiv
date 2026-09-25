@@ -4,6 +4,7 @@ A saved record is a folder, ``articles/<ulid>`` or ``collections/<ulid>``, holdi
 (the current version, and the commit point) and ``history/<n>.md`` (each version a save replaced,
 byte for byte). ``commit`` owns the order: check the version, keep the replaced README, commit.
 It also stamps the change record every version carries, so no caller can write one of its own.
+``keys_in_save_order`` lists a folder in that order, for the repositories' ``keys_for``.
 
 The port has no compare-and-swap, so the check-then-write runs under ``WRITER_LOCK``. It is one
 lock for both repositories because they write one store. The cross-process race is out of scope
@@ -12,13 +13,14 @@ lock. Holding it across store calls assumes a local-latency canonical store.
 """
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
 from bundesarchiv.domain.models import Change, Version
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Conflict, NotFound
-from bundesarchiv.persistence.objectstore import ObjectStore
+from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 
 WRITER_LOCK = threading.Lock()
 
@@ -35,6 +37,43 @@ def is_history_key(folder: str, key: str) -> bool:
     """True if `key` is ``history_key(folder, version)`` for some version."""
     stem = PurePosixPath(key).stem
     return stem.isdecimal() and history_key(folder, int(stem)) == key
+
+
+@dataclass(frozen=True, slots=True)
+class StoredKey:
+    """One key of a saved record's folder, as `keys_for` lists it, with its size. A save replaces
+    only the README; every other key is `write_once` (ADR 0019). `sha256` is the digest of the
+    bytes when the README states it, else None. `readable` is False only for a README its
+    repository cannot decode, which is never to be pushed (ADR 0020)."""
+
+    key: str
+    size: int
+    write_once: bool
+    sha256: str | None = None
+    readable: bool = True
+
+
+def keys_in_save_order(
+    store: ObjectStore, folder: str, digests: Mapping[str, str], *, readable: bool
+) -> list[StoredKey]:
+    """`folder`'s keys in the order a save writes them: the files a README names, then history,
+    then the README. A key in `digests` carries its digest from there; the README carries
+    `readable`."""
+    readme = readme_key(folder)
+
+    def step(entry: ObjectEntry) -> int:
+        return 2 if entry.key == readme else 1 if is_history_key(folder, entry.key) else 0
+
+    return [
+        StoredKey(
+            entry.key,
+            entry.size,
+            entry.key != readme,
+            digests.get(entry.key),
+            readable or entry.key != readme,
+        )
+        for entry in sorted(store.list_entries(f"{folder}/"), key=step)
+    ]
 
 
 def commit(

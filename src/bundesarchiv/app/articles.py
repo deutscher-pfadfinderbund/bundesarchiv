@@ -182,7 +182,7 @@ def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
     index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
     ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""
     repo = archive.articles
-    removed_keys = repo.keys_for(ulid)  # capture BEFORE deletion — the push job mirrors the removal
+    removed_keys = [stored.key for stored in repo.keys_for(ulid)]  # before deletion: pushed as gone
     repo.hard_delete(ulid)
     index_updated = _sync_index(archive, ulid)
     _enqueue_mirror_keys(removed_keys)
@@ -216,7 +216,7 @@ def _enqueue_mirror(archive: Archive, ulid: Ulid) -> None:
     (Part 4.9). The mirror is a browse-only convenience — the replay is async and out-of-band, so an
     enqueue failure must never fail the request (mirror lag is invisible-by-design; the periodic
     reconcile heals it). A no-op when no mirror is configured (the enqueue wrapper checks)."""
-    _enqueue_mirror_keys(archive.articles.keys_for(ulid))
+    _enqueue_mirror_keys([stored.key for stored in archive.articles.keys_for(ulid)])
 
 
 def _enqueue_mirror_keys(keys: list[str]) -> None:

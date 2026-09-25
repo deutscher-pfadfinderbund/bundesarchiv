@@ -73,8 +73,8 @@ def _enqueue_mirror(archive: Archive, ulid: str) -> None:
     enqueue failure must never fail the request (the periodic reconcile heals mirror lag). A no-op
     when no mirror is configured."""
     try:
-        for key in archive.collections.keys_for(ulid):
-            enqueue_mirror_push(key)
+        for stored in archive.collections.keys_for(ulid):
+            enqueue_mirror_push(stored.key)
     except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> mirror lag heals at the next reconcile
         return
 

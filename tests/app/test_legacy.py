@@ -672,7 +672,7 @@ def test_a_name_that_cleans_to_nothing_is_reported_not_renamed(tmp_path: Path) -
     for report in (dry, out):
         assert "Dateinamen nur aus Punkten oder Leerzeichen: 1\n  eins.pdf\n" in report
     assert article.media == ()
-    assert [key for key in stored if "/media/" in key] == []
+    assert [key for key in stored if "/media/" in key.key] == []
 
 
 @pytest.mark.django_db

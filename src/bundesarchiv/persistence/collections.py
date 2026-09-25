@@ -15,8 +15,8 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import collection_readme
-from bundesarchiv.persistence._writer import commit, readme_key
-from bundesarchiv.persistence.errors import NotFound
+from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, readme_key
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -80,15 +80,23 @@ class CollectionRepository:
 
     def hard_delete(self, ulid: Ulid) -> None:
         """Delete the Collection's tree, history included. A no-op if the Collection is absent."""
-        for key in self.keys_for(ulid):
+        for key in list(self._store.list(f"{_folder(ulid)}/")):
             self._store.delete(key)
 
-    def keys_for(self, ulid: Ulid) -> list[str]:
-        """The live canonical keys under this Collection's tree (README, history), for callers
-        that must address them by key without hand-rolling the layout — e.g. the mirror replay, which
-        enqueues one push per key. Mirrors ``ArticleRepository.keys_for``; an absent Collection
-        yields ``[]``."""
-        return list(self._store.list(f"{_folder(ulid)}/"))
+    def keys_for(self, ulid: Ulid) -> list[StoredKey]:
+        """The keys of the Collection's folder in the order a save writes them: history, the README
+        last (ADR 0020 push order). A README that does not decode is not `readable`. An absent
+        Collection yields ``[]``."""
+        return keys_in_save_order(self._store, _folder(ulid), {}, readable=self._decodes(ulid))
+
+    def _decodes(self, ulid: Ulid) -> bool:
+        try:
+            self.load(ulid)
+        except NotFound:
+            return True
+        except ArchiveError, UnicodeDecodeError:
+            return False
+        return True
 
 
 # --- key scheme ------------------------------------------------------------------

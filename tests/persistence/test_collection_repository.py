@@ -10,6 +10,7 @@ import pytest
 
 from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.persistence import collection_readme
+from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
@@ -99,6 +100,27 @@ def test_load_all_returns_every_saved_collection(repo: CollectionRepository) -> 
 
 def test_load_all_returns_empty_tuple_when_no_collections(repo: CollectionRepository) -> None:
     assert repo.load_all() == ()
+
+
+def test_keys_for_lists_history_before_the_readme_it_replaced(repo: CollectionRepository) -> None:
+    repo.save(_collection(), expected_version=0, changed_by="tester")
+    repo.save(_collection(name="Neu"), expected_version=1, changed_by="tester")
+    assert [(key.key, key.write_once) for key in repo.keys_for("01J0")] == [
+        (history_key("collections/01J0", 1), True),
+        (readme_key("collections/01J0"), False),
+    ]
+
+
+@pytest.mark.parametrize("rotten", [b"no front matter", b"---\nname: F\xf6to\n---\n"])
+def test_keys_for_marks_a_readme_that_does_not_decode(
+    repo: CollectionRepository, rotten: bytes
+) -> None:
+    repo.save(_collection(), expected_version=0, changed_by="tester")
+    assert all(key.readable for key in repo.keys_for("01J0"))
+    repo._store.write_atomic(readme_key("collections/01J0"), rotten)
+    assert [(key.key, key.readable) for key in repo.keys_for("01J0")] == [
+        (readme_key("collections/01J0"), False)
+    ]
 
 
 def test_hard_delete_removes_the_collection(repo: CollectionRepository) -> None:

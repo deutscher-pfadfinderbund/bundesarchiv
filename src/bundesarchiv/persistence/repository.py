@@ -22,9 +22,11 @@ from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
-from bundesarchiv.persistence._writer import commit, readme_key
+from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, readme_key
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+__all__ = ["ArticleRepository", "Stored", "StoredKey", "cleaned_name"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,12 +115,15 @@ class ArticleRepository:
     def list_ulids(self) -> Iterable[Ulid]:
         return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
 
-    def keys_for(self, ulid: Ulid) -> list[str]:
-        """The live canonical keys under this Article's tree (README, history, media), for callers
-        that must address them by key without hand-rolling the layout — e.g. the mirror replay, which
-        enqueues one push per key. Reserved keys are excluded by `list`. An absent Article yields
-        ``[]``."""
-        return list(self._store.list(f"{_folder(ulid)}/"))
+    def keys_for(self, ulid: Ulid) -> list[StoredKey]:
+        """The keys of the Article's folder in the order a save writes them: media, history, the
+        README last (ADR 0020 push order). A media file the current README names carries its
+        `content_hash`; a README that does not decode is not `readable`. Reserved keys are excluded
+        by `list`. An absent Article yields ``[]``."""
+        named = self._named_media(ulid)
+        return keys_in_save_order(
+            self._store, _folder(ulid), named or {}, readable=named is not None
+        )
 
     def hard_delete(self, ulid: Ulid) -> None:
         """Move the Article's whole tree into recoverable trash (reserved, excluded
@@ -128,7 +133,7 @@ class ArticleRepository:
         with a partial trash copy; a crash mid-delete leaves a complete trash copy with the
         originals partly gone. The copy-all-then-delete-all order keeps the data recoverable
         across either window. Reads each blob fully into memory — fine at v1 media sizes."""
-        keys = self.keys_for(ulid)
+        keys = list(self._store.list(f"{_folder(ulid)}/"))
         for key in keys:
             self._store.write_atomic(f".trash/{key}", self._store.read(key))
         for key in keys:
@@ -162,6 +167,17 @@ class ArticleRepository:
                 if _digest(stored) == digest:
                     return _name_of(holder)
         raise ArchiveError(f"{folder}: every candidate name holds other bytes")
+
+    def _named_media(self, ulid: Ulid) -> dict[str, str] | None:
+        """The key and `content_hash` of each media file the current README names, or None when
+        that README does not decode."""
+        try:
+            media = self.load(ulid).article.media
+        except NotFound:
+            return {}
+        except ArchiveError, UnicodeDecodeError:
+            return None
+        return {_media_key(ulid, ref): ref.content_hash for ref in media}
 
     def _refuse_unstored_media(self, article: Article) -> None:
         for ref in article.media:

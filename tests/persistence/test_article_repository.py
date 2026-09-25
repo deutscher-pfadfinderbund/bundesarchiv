@@ -13,6 +13,7 @@ import pytest
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
+from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
@@ -97,7 +98,7 @@ def test_a_file_is_stored_under_the_name_it_was_uploaded_with(repo: ArticleRepos
         "01J0", "Brief 1956.pdf", io.BytesIO(b"the bytes"), media_type="application/pdf"
     )
     assert (ref.filename, ref.stored_name, ref.byte_size) == ("Brief 1956.pdf", None, 9)
-    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", ref)}
+    assert [key.key for key in repo.keys_for("01J0")] == [repo.media_key("01J0", ref)]
     assert repo._store.read(repo.media_key("01J0", ref)) == b"the bytes"
 
 
@@ -105,7 +106,7 @@ def test_the_same_name_with_the_same_bytes_reuses_the_file(repo: ArticleReposito
     first = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     again = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     assert again == first
-    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", first)}
+    assert [key.key for key in repo.keys_for("01J0")] == [repo.media_key("01J0", first)]
 
 
 def test_the_same_name_with_other_bytes_keeps_both_files(repo: ArticleRepository) -> None:
@@ -257,6 +258,44 @@ def test_a_name_that_cleans_to_nothing_is_refused_and_nothing_is_written(
 def test_media_key_is_the_declared_layout(repo: ArticleRepository) -> None:
     ref = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     assert repo.media_key("01J0", ref) == "articles/01J0/media/photo.jpg"
+
+
+def test_keys_for_lists_the_files_in_the_order_a_save_writes_them(
+    repo: ArticleRepository,
+) -> None:
+    """Only the README, written last, is replaced by a save (ADR 0020 push order). A media file
+    carries its hash when the current README names it."""
+    kept = repo.add_media("01J0", "scan.pdf", io.BytesIO(b"kept scan"))
+    dropped = repo.add_media("01J0", "alt.pdf", io.BytesIO(b"dropped scan"))
+    repo.save(_article(media=(kept, dropped)), expected_version=0, changed_by="tester")
+    repo.save(_article(media=(kept,)), expected_version=1, changed_by="tester")
+    listed = [(key.key, key.write_once, key.sha256) for key in repo.keys_for("01J0")]
+    assert listed == [
+        (repo.media_key("01J0", dropped), True, None),
+        (repo.media_key("01J0", kept), True, kept.content_hash),
+        (history_key("articles/01J0", 1), True, None),
+        (readme_key("articles/01J0"), False, None),
+    ]
+    assert [key.size for key in repo.keys_for("01J0")][:2] == [
+        len(b"dropped scan"),
+        len(b"kept scan"),
+    ]
+
+
+@pytest.mark.parametrize("rotten", [b"no front matter", b"---\ntitle: F\xf6to\n---\n"])
+def test_keys_for_marks_a_readme_that_does_not_decode(
+    repo: ArticleRepository, rotten: bytes
+) -> None:
+    """Such a README is never pushed over the intact copy on the system of record (ADR 0020)."""
+    ref = repo.add_media("01J0", "scan.pdf", io.BytesIO(b"the bytes"))
+    repo.save(_article(media=(ref,)), expected_version=0, changed_by="tester")
+    assert all(key.readable for key in repo.keys_for("01J0"))
+    repo._store.write_atomic(readme_key("articles/01J0"), rotten)
+    listed = [(key.key, key.sha256, key.readable) for key in repo.keys_for("01J0")]
+    assert listed == [
+        (repo.media_key("01J0", ref), None, True),
+        (readme_key("articles/01J0"), None, False),
+    ]
 
 
 def test_open_media_streams_the_file_and_absence_is_not_found(repo: ArticleRepository) -> None:
