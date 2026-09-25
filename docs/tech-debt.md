@@ -146,6 +146,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Implementation patterns
 
+### 19. Compositions style inside components — in progress (WAVE-C)
+- **Indicator:** 9 composition selectors reach into `.field` (`forms.css`), 2 of them keyed on input
+  `name`s (4 fields) (2026-09-25); the full count is WAVE-C slice 1's boundary-lint allow-list
+- **Evidence:** `forms.css` `.fach > .field > …`, `.column .field`; `_feld.html`'s bare-label constraint
+- **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
+- **Sketch:** one class on each component's outer element; custom-property knobs; lint guards it
+
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
 - **Indicator:** 1380 lines (2026-09-02, after #7 carved the chooser out), up from ~970 before the
   registry landed
