@@ -21,12 +21,41 @@ it never accumulates.
 """
 
 import logging
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class Pushed:
+    """What the app last pushed to one key of the system of record: the SHA-256 of the local
+    bytes and the version token the write returned."""
+
+    sha256: str
+    version: str
+
+
+class PushRecord(Protocol):
+    """What the app pushed to the system of record, per key (ADR 0020). Derived state: losing it
+    moves no data, the next reconcile rebuilds it."""
+
+    def held(self, keys: Iterable[str]) -> Mapping[str, Pushed]:
+        """The entries of those of `keys` the record holds."""
+        ...
+
+    def entries(self) -> Mapping[str, Pushed]:
+        """Every entry."""
+        ...
+
+    def note(self, key: str, pushed: Pushed) -> None:
+        """Record that `pushed` now stands at `key`, in place of what the record held for it."""
+        ...
+
 
 #: Mass-delete warning threshold: warn when one sweep deletes more than ``max(25, 10% of canonical
 #: keys)``. The absolute floor of 25 keeps routine deletes silent (one hard-deleted Article is a
