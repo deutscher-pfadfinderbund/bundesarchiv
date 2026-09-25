@@ -182,7 +182,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
         # cover + filmstrip images render instead of the /media/.../thumb route 404ing.
         for content_hash in (cover.content_hash, plate.content_hash):
-            thumbnails.generate_thumbnail(store, content_hash, thumbnail_root)
+            thumbnails.generate_thumbnail(store, PUBLISHED_ULID, content_hash, thumbnail_root)
     return CorpusHandles(
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,

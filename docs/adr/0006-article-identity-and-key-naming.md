@@ -1,5 +1,8 @@
 # Article identity is a ULID; the canonical key is ULID-only; the slug is display-only
 
+> **Amended (proposed 2026-09-24):** media keys are named files, `media/<cleaned filename>`,
+> not content hashes — [ADR 0019](0019-canonical-layout-v1.md). Folders stay ULID-only.
+
 ## Context
 
 The Part 1 plan named the key-naming policy as "NFC lowercase ASCII slug + ULID" without

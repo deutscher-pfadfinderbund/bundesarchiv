@@ -1,25 +1,27 @@
 """Thumbnail generation (Part 4.3) — a LOCAL derived cache, keyed by content-hash.
 
-A thumbnail is a downscaled WebP preview of an image blob. It is a DERIVED CACHE, not archive
-truth: keyed purely by the blob's content-hash (``THUMBNAIL_ROOT/<hash>.webp``), regenerable from
+A thumbnail is a downscaled WebP preview of an image file. It is a DERIVED CACHE, not archive
+truth: keyed purely by the file's content-hash (``THUMBNAIL_ROOT/<hash>.webp``), regenerable from
 canonical at any time, NOT stored in the ObjectStore, NOT canonical, NOT mirrored, NOT backed up,
-and freely prunable (README runbook). Because media is content-addressed and write-once, identical
-bytes always yield the identical thumbnail — so the cache key is the content-hash alone, and the
-job that produces it is a pure reference over that hash.
+and freely prunable (README runbook). Identical bytes always yield the identical thumbnail, so the
+cache key is the content-hash alone, whichever Article or file name the bytes sit under.
 
-Reference semantics (ADR 0014): the worker job carries only the content-hash and re-derives from
-the blob at execution — it locates ANY canonical blob with that hash (the same bytes may be attached
-to several Articles; they all thumbnail to the same WebP). Non-image blobs (PDF, text, …) are a
-no-op: only the corpus image types (JPEG/PNG/TIFF — evaluated against Pillow 12.x) thumbnail.
+Reference semantics (ADR 0014): the worker job carries the Article's ulid and the content-hash and
+re-derives at execution, reading the file through that Article's media entry (ADR 0019). Non-image
+files (PDF, text, …) are a no-op: only the corpus image types (JPEG/PNG/TIFF — evaluated against
+Pillow 12.x) thumbnail.
 
 Idempotent: re-running overwrites the same ``<hash>.webp`` with identical bytes.
 """
 
 import io
 from pathlib import Path
+from typing import BinaryIO
 
 from PIL import Image, UnidentifiedImageError
 
+from bundesarchiv.domain.models import Ulid
+from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
@@ -28,18 +30,27 @@ from bundesarchiv.persistence.repository import ArticleRepository
 _LONGEST_SIDE = 480
 
 
-def generate_thumbnail(store: ObjectStore, content_hash: str, thumbnail_root: Path) -> bool:
-    """Derive a longest-side ~480px WebP thumbnail for the blob with ``content_hash`` and write it to
-    ``thumbnail_root/<content_hash>.webp``. Returns True if a thumbnail was written, False if it was
-    a no-op (no such blob, or the blob is not a decodable image — PDF/text/etc.).
+def generate_thumbnail(
+    store: ObjectStore, ulid: Ulid, content_hash: str, thumbnail_root: Path
+) -> bool:
+    """Derive a longest-side ~480px WebP thumbnail for the media file with ``content_hash`` on
+    Article ``ulid`` and write it to ``thumbnail_root/<content_hash>.webp``. Returns True if a
+    thumbnail was written, False if it was a no-op (no such Article, no such file on it, or the file
+    is not a decodable image — PDF/text/etc.).
 
     Idempotent (overwrites with identical bytes); re-derives from canonical every time (reference
-    semantics). Never raises for a non-image blob — a corrupt or non-image blob is a silent no-op so
+    semantics). Never raises for a non-image file — a corrupt or non-image file is a silent no-op so
     a mixed-media Article never fails the job."""
-    data = ArticleRepository(store).find_blob(content_hash)
-    if data is None:
-        return False  # the blob is gone from canonical (deleted/never stored) → nothing to derive
-    webp = _thumbnail_webp(data)
+    articles = ArticleRepository(store)
+    try:
+        media = articles.load(ulid).article.media
+        ref = next((entry for entry in media if entry.content_hash == content_hash), None)
+        if ref is None:
+            return False  # the file left the Article before the job ran
+        with articles.open_media(ulid, ref) as stream:
+            webp = _thumbnail_webp(stream)
+    except NotFound:
+        return False  # the Article or its file is gone from canonical → nothing to derive
     if webp is None:
         return False  # not a decodable image (PDF, text, video, corrupt) → no-op, by design
     destination = thumbnail_root / f"{content_hash}.webp"
@@ -48,13 +59,13 @@ def generate_thumbnail(store: ObjectStore, content_hash: str, thumbnail_root: Pa
     return True
 
 
-def _thumbnail_webp(data: bytes) -> bytes | None:
-    """Downscale ``data`` to a longest-side ~480px WebP, or None if the bytes are not a decodable
-    image. Converts to RGB (WebP has no place for a paletted/gray mode's oddities and a stray alpha
-    profile is dropped) — the preview only needs to look right, not preserve archival fidelity (the
-    canonical blob is untouched)."""
+def _thumbnail_webp(source: BinaryIO) -> bytes | None:
+    """Downscale the image ``source`` holds to a longest-side ~480px WebP, or None if the bytes are
+    not a decodable image. Converts to RGB (WebP has no place for a paletted/gray mode's oddities and
+    a stray alpha profile is dropped) — the preview only needs to look right, not preserve archival
+    fidelity (the canonical file is untouched)."""
     try:
-        with Image.open(io.BytesIO(data)) as image:
+        with Image.open(source) as image:
             image.load()
             preview = image.convert("RGB")
     except UnidentifiedImageError, OSError, ValueError:

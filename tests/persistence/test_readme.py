@@ -296,6 +296,37 @@ def test_uncaptioned_media_omits_caption_key_from_wire() -> None:
     assert "caption:" not in text
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "scan.1a2b3c4d.pdf",
+        "",
+        " lead",
+        "trail ",
+        "Grüße 100%41.pdf",
+        "%41",
+        "a: b",
+        "#kein-kommentar",
+        "- a",
+        "---",
+        "null",
+        "123",
+        "'",
+        '"',
+        "a\u2028b",
+    ],
+)
+def test_the_stored_name_round_trips_any_name(name: str) -> None:
+    article = _article(media=(MediaRef("Scan.pdf", "a" * 64, stored_name=name),))
+    assert readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0] == article
+
+
+def test_a_media_entry_without_a_stored_name_omits_the_key() -> None:
+    text = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64),)), 1, _CHANGE)
+    assert "stored_name:" not in text
+    assert readme.decode("01J0", text)[0].media[0].stored_name is None
+
+
 def test_non_scalar_media_caption_rejected_as_archive_error() -> None:
     text = (
         "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"

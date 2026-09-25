@@ -4,8 +4,9 @@ Three structural POST routes plus the caption metadata save:
 
 - ``/medien/verschieben`` — reorder (= re-cover, order is meaning ADR 0015). Structural, non-CAS.
 - ``/medien/entfernen`` — two-step no-JS confirm (show → [Ja] removes the ref; the blob stays).
-- ``/medien/hochladen`` — multipart, multiple files, write-once dedupe, append at END; oversize →
-  a clean German error not a 500. The blob persists BEFORE the README references it.
+- ``/medien/hochladen`` — multipart, multiple files, named write-once files (ADR 0019), append at
+  END; oversize or a name that cleans to nothing → a clean German error not a 500, nothing stored.
+  The file persists BEFORE the README references it.
 - captions ride the main edit-form save (``save_article``), README round-trip, ``"" → None``.
 
 SECURITY (mutation-tested): every structural route archivist-gated, POST-only → 404 for
@@ -187,7 +188,7 @@ def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) 
     assert response.status_code == 200
     assert _hashes(corpus) == [corpus.ref_a.content_hash]  # the ref is gone
     # the blob is write-once recoverable — it still exists in the store
-    assert corpus.store.exists(corpus.articles.media_key(_ULID, corpus.ref_b.content_hash))
+    assert corpus.store.exists(corpus.articles.media_key(_ULID, corpus.ref_b))
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
@@ -243,15 +244,14 @@ def test_hochladen_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -
     assert len(after) == len(before) + 1  # appended at the END
 
 
-def test_hochladen_identical_bytes_is_noop_dedupe(corpus: _MediaCorpus) -> None:
-    # Re-uploading the cover's exact bytes is a write-once no-op attach (same content hash) — it does
-    # not create a duplicate ref beyond appending the (identical-hash) ref once.
-    same = SimpleUploadedFile("cover-again.jpg", b"cover-bytes", content_type="image/jpeg")
+def test_hochladen_the_same_file_again_stores_no_second_file(corpus: _MediaCorpus) -> None:
+    files_before = corpus.articles.keys_for(_ULID)
+    same = SimpleUploadedFile("cover.jpg", b"cover-bytes", content_type="image/jpeg")
     client_as(Archivist()).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": same})
-    hashes = _hashes(corpus)
-    # the content hash of b"cover-bytes" already existed; appending it yields at most a duplicate
-    # entry of the SAME hash — the blob is deduped (one stored blob), which is the write-once contract
-    assert corpus.ref_a.content_hash in hashes
+    again = corpus.media()[-1]
+    assert (again.filename, again.stored_name) == ("cover.jpg", None)
+    assert again.content_hash == corpus.ref_a.content_hash
+    assert len(corpus.articles.keys_for(_ULID)) == len(files_before) + 1  # + history/<n>.md only
 
 
 def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
@@ -263,6 +263,25 @@ def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None
     assert response.status_code == 200  # a clean re-render, not a 500
     assert "Datei zu groß" in response.content.decode()
     assert len(corpus.media()) == 2  # nothing attached
+
+
+@pytest.mark.parametrize("name", ["...", "  ", " . "])
+def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
+    corpus: _MediaCorpus, name: str
+) -> None:
+    files_before = corpus.articles.keys_for(_ULID)
+    batch = [
+        SimpleUploadedFile("gut.jpg", b"good-bytes", content_type="image/jpeg"),
+        SimpleUploadedFile(name, b"nameless-bytes", content_type="image/jpeg"),
+    ]
+    response = client_as(Archivist()).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": batch})
+    assert response.status_code == 200
+    assert (
+        "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
+        in response.content.decode()
+    )
+    assert len(corpus.media()) == 2  # nothing attached
+    assert corpus.articles.keys_for(_ULID) == files_before  # and no file of the batch stored
 
 
 def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:

@@ -1,7 +1,7 @@
 """ArticleRepository behaviour, exercised through its interface over both the
 in-memory ObjectStore fake and the LocalFs adapter (the Collection conformance
-pattern) — the canonical-file protocol, optimistic concurrency, content-addressed
-write-once media, and recoverable hard_delete.
+pattern) — the canonical-file protocol, optimistic concurrency, named write-once media
+(ADR 0019), and recoverable hard_delete.
 """
 
 import threading
@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.persistence.repository import ArticleRepository, cleaned_name
 
 
 @pytest.fixture(params=["memory", "localfs"])
@@ -86,13 +86,160 @@ def test_list_ulids_returns_articles_not_media_or_history(repo: ArticleRepositor
     assert set(repo.list_ulids()) == {"01A", "01B"}
 
 
-def test_add_media_is_content_addressed_and_write_once(repo: ArticleRepository) -> None:
-    first = repo.add_media("01J0", "photo.jpg", b"the bytes", media_type="image/jpeg")
-    again = repo.add_media("01J0", "renamed.jpg", b"the bytes")  # same bytes
-    assert first.content_hash == again.content_hash  # content-addressed
-    assert first.byte_size == len(b"the bytes")
-    # write-once: one blob under the Article, keyed by the hash
-    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", first.content_hash)}
+def _stored_name(repo: ArticleRepository, ulid: str, ref: MediaRef) -> str:
+    return repo.media_key(ulid, ref).rsplit("/", 1)[1]
+
+
+def test_a_file_is_stored_under_the_name_it_was_uploaded_with(repo: ArticleRepository) -> None:
+    ref = repo.add_media("01J0", "Brief 1956.pdf", b"the bytes", media_type="application/pdf")
+    assert (ref.filename, ref.stored_name, ref.byte_size) == ("Brief 1956.pdf", None, 9)
+    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", ref)}
+    assert repo._store.read(repo.media_key("01J0", ref)) == b"the bytes"
+
+
+def test_the_same_name_with_the_same_bytes_reuses_the_file(repo: ArticleRepository) -> None:
+    first = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    again = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    assert again == first
+    assert set(repo.keys_for("01J0")) == {repo.media_key("01J0", first)}
+
+
+def test_the_same_name_with_other_bytes_keeps_both_files(repo: ArticleRepository) -> None:
+    first = repo.add_media("01J0", "scan.pdf", b"first scan")
+    second = repo.add_media("01J0", "scan.pdf", b"later scan")  # same size: only the hash tells
+    assert repo._store.read(repo.media_key("01J0", first)) == b"first scan"
+    assert repo._store.read(repo.media_key("01J0", second)) == b"later scan"
+    assert second.filename == "scan.pdf"
+    assert second.stored_name is not None
+    stem, suffix, ext = second.stored_name.split(".")
+    assert (stem, suffix, ext) == ("scan", second.content_hash[:8], "pdf")
+
+
+def test_a_taken_hash_suffix_falls_back_to_the_full_hash(repo: ArticleRepository) -> None:
+    replaced = b"replaced scan"
+    short = repo.add_media("PROBE", "x", replaced).content_hash[:8]
+    repo.add_media("01J0", "scan.pdf", b"first scan")
+    repo.add_media("01J0", f"scan.{short}.pdf", b"a file that happens to carry that name")
+    ref = repo.add_media("01J0", "scan.pdf", replaced)
+    assert ref.stored_name == f"scan.{ref.content_hash}.pdf"
+    assert repo._store.read(repo.media_key("01J0", ref)) == replaced
+
+
+def test_re_uploading_a_replaced_scan_reuses_its_suffixed_file(repo: ArticleRepository) -> None:
+    repo.add_media("01J0", "scan.pdf", b"first scan")
+    second = repo.add_media("01J0", "scan.pdf", b"replaced scan")
+    assert repo.add_media("01J0", "scan.pdf", b"replaced scan") == second
+    assert len(repo.keys_for("01J0")) == 2
+
+
+@pytest.mark.parametrize(
+    ("taken", "upload"),
+    [("Scan.pdf", "scan.pdf"), ("scan.pdf", "SCAN.PDF"), ("Straße.pdf", "STRASSE.pdf")],
+)
+def test_names_that_differ_only_in_case_collide(
+    repo: ArticleRepository, taken: str, upload: str
+) -> None:
+    first = repo.add_media("01J0", taken, b"first")
+    reused = repo.add_media("01J0", upload, b"first")
+    other = repo.add_media("01J0", upload, b"other bytes")
+    assert _stored_name(repo, "01J0", reused) == taken
+    assert reused.stored_name == taken  # recorded, because it differs from the uploaded name
+    assert repo.media_key("01J0", other) != repo.media_key("01J0", first)
+    assert len(repo.keys_for("01J0")) == 2
+
+
+def test_names_that_differ_only_in_unicode_form_collide(repo: ArticleRepository) -> None:
+    nfd, nfc = "Mu\u0308ller.pdf", "M\u00fcller.pdf"
+    first = repo.add_media("01J0", nfd, b"first")
+    assert first.stored_name == nfc  # the stored name is NFC, so it differs from the upload
+    second = repo.add_media("01J0", nfc, b"other bytes")
+    assert second.stored_name is not None
+    assert len(repo.keys_for("01J0")) == 2
+
+
+def test_a_name_on_the_disk_in_another_unicode_form_is_taken(repo: ArticleRepository) -> None:
+    by_hand = repo.media_key("01J0", MediaRef("Mu\u0308ller.pdf", "0" * 64))
+    repo._store.create(by_hand, b"placed by hand")
+    ref = repo.add_media("01J0", "M\u00fcller.pdf", b"uploaded")
+    assert ref.stored_name is not None
+    assert repo._store.read(repo.media_key("01J0", ref)) == b"uploaded"
+
+
+@pytest.mark.parametrize(
+    ("filename", "cleaned"),
+    [
+        ("scan.pdf", "scan.pdf"),
+        ('a/b\\c:d*e?f"g<h>i|j.pdf', "a_b_c_d_e_f_g_h_i_j.pdf"),
+        ("tab\there\x7fnul\x00c1\x85.pdf", "tab_here_nul_c1_.pdf"),
+        ("  . .scan.pdf. . ", "scan.pdf"),
+        ("Bericht .pdf", "Bericht .pdf"),
+        ("Scan ..pdf", "Scan ..pdf"),
+        ("Mu\u0308ller.pdf", "M\u00fcller.pdf"),
+        ("100% M\u00fcller  #2.pdf", "100% M\u00fcller  #2.pdf"),
+        ("_", "_"),
+        ("...", None),
+        ("   ", None),
+        (" . . ", None),
+        ("", None),
+    ],
+)
+def test_the_cleaning_rule(filename: str, cleaned: str | None) -> None:
+    assert cleaned_name(filename) == cleaned
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "a" * 300 + ".pdf",
+        "\u00fc" * 200 + ".pdf",
+        "\u20ac" * 100 + ".tar.gz",
+        "a" * 245 + " " + "b" * 10 + ".pdf",
+        "\U0001f4f7" * 70 + ".jpeg",
+    ],
+)
+def test_a_long_name_is_cut_to_250_bytes_and_keeps_its_extension(
+    repo: ArticleRepository, filename: str
+) -> None:
+    ext = filename.rsplit(".", 1)[1]
+    refs = [repo.add_media("01J0", filename, data) for data in (b"one", b"two", b"three")]
+    names = [_stored_name(repo, "01J0", ref) for ref in refs]
+    for name in names:
+        assert len(name.encode()) <= 250
+        assert name.endswith(f".{ext}")
+        assert not name.removesuffix(f".{ext}").endswith((" ", "."))
+    assert len(set(names)) == 3
+    assert names[0] == cleaned_name(filename)
+
+
+def test_an_extension_that_leaves_no_room_counts_as_part_of_the_name(
+    repo: ArticleRepository,
+) -> None:
+    filename = "a." + "b" * 300
+    refs = [repo.add_media("01J0", filename, data) for data in (b"one", b"two")]
+    names = [_stored_name(repo, "01J0", ref) for ref in refs]
+    assert all(len(name.encode()) <= 250 and name.startswith("a.bbb") for name in names)
+    assert names[0] != names[1]
+
+
+def test_a_name_that_cleans_to_nothing_is_refused_and_nothing_is_written(
+    repo: ArticleRepository,
+) -> None:
+    with pytest.raises(ValueError, match="nothing"):
+        repo.add_media("01J0", " . . ", b"the bytes")
+    assert repo._store.list() == []
+
+
+def test_media_key_is_the_declared_layout(repo: ArticleRepository) -> None:
+    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    assert repo.media_key("01J0", ref) == "articles/01J0/media/photo.jpg"
+
+
+def test_open_media_streams_the_file_and_absence_is_not_found(repo: ArticleRepository) -> None:
+    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    with repo.open_media("01J0", ref) as stream:
+        assert stream.read() == b"the bytes"
+    with pytest.raises(NotFound):
+        repo.open_media("01J0", MediaRef("ghost.jpg", "0" * 64))
 
 
 def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None:
@@ -101,42 +248,6 @@ def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None
     assert with_caption.caption == "Seite A — Bericht"
     without = repo.add_media("01J0", "huelle.jpg", b"scan")
     assert without.caption is None
-
-
-def test_media_key_is_the_declared_blob_layout(repo: ArticleRepository) -> None:
-    # THE one home of `articles/<ulid>/media/<hash>`: this literal is written down here and
-    # nowhere else in src/ or tests/, so a layout change is a one-line change plus this red.
-    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
-    assert repo.media_key("01J0", ref.content_hash) == f"articles/01J0/media/{ref.content_hash}"
-    assert repo._store.exists(repo.media_key("01J0", ref.content_hash))
-
-
-def test_open_media_streams_the_blob_and_absence_is_not_found(repo: ArticleRepository) -> None:
-    ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
-    with repo.open_media("01J0", ref.content_hash) as stream:
-        assert stream.read() == b"the bytes"
-    with pytest.raises(NotFound):
-        repo.open_media("01J0", "0" * 64)
-
-
-def test_find_blob_locates_the_bytes_under_any_article(repo: ArticleRepository) -> None:
-    # Content-addressed + write-once: the same bytes may hang off several Articles and every
-    # match is identical, so a hash alone names the bytes (the thumbnail job's whole need).
-    ref = repo.add_media("01J9", "photo.jpg", b"the bytes")
-    repo.add_media("01JA", "kopie.jpg", b"the bytes")
-    assert repo.find_blob(ref.content_hash) == b"the bytes"
-
-
-def test_find_blob_is_none_when_no_article_holds_the_hash(repo: ArticleRepository) -> None:
-    repo.add_media("01J0", "photo.jpg", b"the bytes")
-    assert repo.find_blob("0" * 64) is None
-
-
-def test_find_blob_ignores_a_non_media_key_ending_in_the_hash(repo: ArticleRepository) -> None:
-    # A history file or README whose name happens to end in the hash is not a blob — the
-    # lookup matches the media segment, not a bare suffix.
-    repo._store.write_atomic("articles/01J0/history/deadbeef", b"not a blob")
-    assert repo.find_blob("deadbeef") is None
 
 
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:

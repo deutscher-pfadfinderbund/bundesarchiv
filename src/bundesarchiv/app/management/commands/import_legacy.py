@@ -38,6 +38,7 @@ from bundesarchiv.app.web import vocab
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.models import Collection, MediaRef, Ulid
 from bundesarchiv.index import indexer
+from bundesarchiv.persistence.repository import cleaned_name
 
 #: How often the run says where it is. The import takes minutes; silence looks like a hang.
 _PROGRESS_EVERY = 250
@@ -111,10 +112,11 @@ class Command(BaseCommand):
         were not on disk and how many thumbnails were derived.
 
         Blobs first, because the repository refuses a README that references media it does not
-        hold. A blob missing from the media root costs its reference, never the record: the Article
-        is saved without it and the path is reported for the archivist to chase. Thumbnails last and
-        inline: nothing else derives them, and a 404 cover on every imported image is what enqueuing
-        into a queue no worker is draining would look like.
+        hold. A blob missing from the media root, or one whose name cleans to nothing (ADR 0019),
+        costs its reference, never the record: the Article is saved without it and the path is
+        reported for the archivist to chase. Thumbnails last and inline: nothing else derives them,
+        and a 404 cover on every imported image is what enqueuing into a queue no worker is draining
+        would look like.
         """
         thumbnail_root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
         thumbnail_count = 0
@@ -126,6 +128,8 @@ class Command(BaseCommand):
                 if not blob.is_file():
                     missing.append(media_file.path)
                     continue
+                if cleaned_name(media_file.filename) is None:
+                    continue  # reported from the plan, like the dry run does
                 refs.append(
                     archive.articles.add_media(
                         item.article.ulid,
@@ -138,7 +142,9 @@ class Command(BaseCommand):
                 replace(item.article, media=tuple(refs)), 0, changed_by=CHANGED_BY
             )
             thumbnail_count += sum(
-                thumbnails.generate_thumbnail(archive.store, ref.content_hash, thumbnail_root)
+                thumbnails.generate_thumbnail(
+                    archive.store, item.article.ulid, ref.content_hash, thumbnail_root
+                )
                 for ref in refs
             )
             if done % _PROGRESS_EVERY == 0:

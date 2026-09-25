@@ -27,7 +27,7 @@ from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.domain.identity import new_ulid
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -59,6 +59,7 @@ class _TierCorpus:
         self.articles = base.articles
         self.hash_by_tier: dict[str, str] = {}
         self.ulid_by_tier: dict[str, str] = {}
+        self.ref_by_tier: dict[str, MediaRef] = {}
         self._build(base)
 
     def _build(self, base: Corpus) -> None:
@@ -98,15 +99,24 @@ class _TierCorpus:
             )
             self.hash_by_tier[tier] = ref.content_hash
             self.ulid_by_tier[tier] = ulid
+            self.ref_by_tier[tier] = ref
 
     def url(self, tier: str, *, thumb: bool = False) -> str:
         base = f"/media/{self.ulid_by_tier[tier]}/{self.hash_by_tier[tier]}"
         return base + "/thumb" if thumb else base
 
     def blob_key(self, tier: str) -> str:
-        """This tier's blob key, from the repository that owns the layout — a byte comparison
+        """This tier's file key, from the repository that owns the layout — a byte comparison
         proves the right bytes, never the key scheme (which the X-Accel test pins verbatim)."""
-        return self.articles.media_key(self.ulid_by_tier[tier], self.hash_by_tier[tier])
+        return self.articles.media_key(self.ulid_by_tier[tier], self.ref_by_tier[tier])
+
+    def generate_thumbnails(self) -> None:
+        from bundesarchiv.app import thumbnails
+
+        for tier, ulid in self.ulid_by_tier.items():
+            thumbnails.generate_thumbnail(
+                self.store, ulid, self.hash_by_tier[tier], self.thumbnail_root
+            )
 
 
 @pytest.fixture
@@ -182,10 +192,7 @@ def test_thumbnail_per_tier_grid(
     corpus: _TierCorpus, tier: str, viewer_name: str, allowed: bool
 ) -> None:
     # Generate every thumbnail first so a 404 for a denied viewer is authorization, not absence.
-    from bundesarchiv.app import thumbnails
-
-    for t in corpus.hash_by_tier:
-        thumbnails.generate_thumbnail(corpus.store, corpus.hash_by_tier[t], corpus.thumbnail_root)
+    corpus.generate_thumbnails()
     response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier, thumb=True))
     if allowed:
         assert response.status_code == 200, f"thumb {tier}/{viewer_name} should be served"
@@ -264,10 +271,26 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _TierCor
     assert response.content == b""
     # Spelled out, not derived: this header is the contract with nginx's `internal;` location, so a
     # silent layout change under it must fail HERE rather than agree with itself.
-    ulid, chash = corpus.ulid_by_tier["public"], corpus.hash_by_tier["public"]
-    assert response["X-Accel-Redirect"] == f"/_protected/articles/{ulid}/media/{chash}"
+    ulid = corpus.ulid_by_tier["public"]
+    assert response["X-Accel-Redirect"] == f"/_protected/articles/{ulid}/media/public.png"
     assert response["Content-Type"] == "image/png"
     assert "inline" in response["Content-Disposition"]
+
+
+def test_x_accel_redirect_percent_encodes_the_named_file(corpus: _TierCorpus) -> None:
+    # nginx decodes the header as a URI (ADR 0019), so a raw "%41" would name another file.
+    ulid = new_ulid()
+    ref = corpus.articles.add_media(ulid, "Grüße 100%41.png", _png_bytes(), "image/png")
+    corpus.articles.save(
+        Article(ulid, "Umlaute", "PUB", lifecycle=Lifecycle.PUBLISHED, media=(ref,)),
+        0,
+        changed_by="tester",
+    )
+    with override_settings(BUNDESARCHIV_X_ACCEL_PREFIX="/_protected"):
+        response = client_as(Public()).get(f"/media/{ulid}/{ref.content_hash}")
+    assert response["X-Accel-Redirect"] == (
+        f"/_protected/articles/{ulid}/media/Gr%C3%BC%C3%9Fe%20100%2541.png"
+    )
 
 
 def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _TierCorpus) -> None:
@@ -339,11 +362,7 @@ def test_permitted_media_is_privately_cacheable_forever(
 
 
 def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _TierCorpus) -> None:
-    from bundesarchiv.app import thumbnails
-
-    thumbnails.generate_thumbnail(
-        corpus.store, corpus.hash_by_tier["public"], corpus.thumbnail_root
-    )
+    corpus.generate_thumbnails()
     response = client_as(Public()).get(corpus.url("public", thumb=True))
     assert response.status_code == 200
     assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
@@ -361,6 +380,10 @@ def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
 # --- the thumbnail job ------------------------------------------------------------
 
 
+def _saved(articles: ArticleRepository, ulid: str, *refs: MediaRef) -> None:
+    articles.save(Article(ulid, "Bilder", "PUB", media=refs), 0, changed_by="tester")
+
+
 def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
     from bundesarchiv.app import thumbnails
 
@@ -368,9 +391,10 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
     png = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
-    jpg = articles.add_media("A2", "b.jpg", _jpeg_bytes(), media_type="image/jpeg")
+    jpg = articles.add_media("A1", "b.jpg", _jpeg_bytes(), media_type="image/jpeg")
+    _saved(articles, "A1", png, jpg)
     for ref in (png, jpg):
-        assert thumbnails.generate_thumbnail(store, ref.content_hash, thumbs) is True
+        assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is True
         out = thumbs / f"{ref.content_hash}.webp"
         assert out.is_file()
         with Image.open(out) as im:
@@ -378,23 +402,27 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
             assert max(im.size) <= 480
 
 
-def test_thumbnail_job_noops_for_text_blob(tmp_path: Path) -> None:
+def test_thumbnail_job_noops_for_text_file(tmp_path: Path) -> None:
     from bundesarchiv.app import thumbnails
 
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
-    ref = ArticleRepository(store).add_media(
-        "A1", "notes.txt", b"not an image at all", media_type="text/plain"
-    )
-    assert thumbnails.generate_thumbnail(store, ref.content_hash, thumbs) is False
+    articles = ArticleRepository(store)
+    ref = articles.add_media("A1", "notes.txt", b"not an image at all", media_type="text/plain")
+    _saved(articles, "A1", ref)
+    assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is False
     assert not (thumbs / f"{ref.content_hash}.webp").exists()
 
 
-def test_thumbnail_job_noops_for_missing_blob(tmp_path: Path) -> None:
+def test_thumbnail_job_noops_for_a_file_not_on_the_article(tmp_path: Path) -> None:
     from bundesarchiv.app import thumbnails
 
     store = LocalFsObjectStore(tmp_path / "c")
-    assert thumbnails.generate_thumbnail(store, "0" * 64, tmp_path / "t") is False
+    articles = ArticleRepository(store)
+    dropped = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
+    _saved(articles, "A1")
+    for ulid, content_hash in (("A1", dropped.content_hash), ("A2", dropped.content_hash)):
+        assert thumbnails.generate_thumbnail(store, ulid, content_hash, tmp_path / "t") is False
 
 
 def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
@@ -402,9 +430,11 @@ def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
 
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
-    ref = ArticleRepository(store).add_media("A1", "a.png", _png_bytes(), media_type="image/png")
-    thumbnails.generate_thumbnail(store, ref.content_hash, thumbs)
+    articles = ArticleRepository(store)
+    ref = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
+    _saved(articles, "A1", ref)
+    thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
     first = (thumbs / f"{ref.content_hash}.webp").read_bytes()
-    thumbnails.generate_thumbnail(store, ref.content_hash, thumbs)
+    thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
     second = (thumbs / f"{ref.content_hash}.webp").read_bytes()
     assert first == second

@@ -193,10 +193,10 @@ def _enqueue_thumbnails(article: Article) -> None:
     """Enqueue a thumbnail job for each image media reference on ``article`` (Part 4.3). Best-effort
     and out-of-band: the thumbnail is a prunable derived cache, so a failure to enqueue never affects
     the canonical write. Content-hash-keyed and idempotent, so re-saving an Article that keeps its
-    media just re-enqueues harmlessly (write-once blobs → identical thumbnails)."""
+    media just re-enqueues harmlessly (write-once files → identical thumbnails)."""
     for ref in article.media:
         if _is_image(ref):
-            enqueue_generate_thumbnail(ref.content_hash)
+            enqueue_generate_thumbnail(article.ulid, ref.content_hash)
 
 
 def _is_image(ref: MediaRef) -> bool:

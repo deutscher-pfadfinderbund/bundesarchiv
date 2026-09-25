@@ -74,8 +74,7 @@ process replaces the lock object. The reserved `.lock` key name stays reserved
 
 ## Consequences
 
-- Media blobs exempt: content-addressed write-once; concurrent identical
-  writes are idempotent, a differing blob is a new key.
+- Media files exempt: create-only writes, plus the hash suffix on a taken name (ADR 0019).
 - The process-wide mutex assumes a local-latency canonical store (the v1
   deploy): a WebDAV-canonical configuration would serialize network
   round-trips under the one lock — revisit the lock scope before any such

@@ -545,7 +545,8 @@ def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -
             if archive.articles.load(u).article.title == "Mit Datei"
         )
         assert [ref.filename for ref in with_file.media] == ["Eins.pdf"]
-        assert archive.articles.find_blob(with_file.media[0].content_hash) == b"%PDF-1.4 eins"
+        with archive.articles.open_media(with_file.ulid, with_file.media[0]) as stored:
+            assert stored.read() == b"%PDF-1.4 eins"
         assert ArticleIndex.objects.count() == 3  # the index sees them without a second command
 
         with pytest.raises(CommandError, match="bereits"):
@@ -639,6 +640,29 @@ def test_a_missing_blob_is_reported_not_guessed(tmp_path: Path) -> None:
         }
     assert titles["Mit Datei"] == ()  # the reference is lost, the record is not
     assert titles["Mit Bild"] != ()  # and the blob that IS there keeps its own
+
+
+@pytest.mark.django_db
+def test_a_name_that_cleans_to_nothing_is_reported_not_renamed(tmp_path: Path) -> None:
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    nameless = _file(item_id="4", path="eins.pdf", original_filename=" . . ")
+    _write_export(csv_dir, media_root, _row(id="4", collection="Bund", title="Namenlos"))
+    with (csv_dir / "files.csv").open("a", newline="", encoding="utf-8") as handle:
+        csv.DictWriter(handle, fieldnames=legacy.FILE_COLUMNS).writerow(nameless)
+    with _roots(tmp_path):
+        dry = _run(csv_dir, media_root, "--dry-run")
+        out = _run(csv_dir, media_root)
+        archive = Archive.canonical()
+        article = next(
+            article
+            for u in archive.articles.list_ulids()
+            if (article := archive.articles.load(u).article).title == "Namenlos"
+        )
+        stored = archive.articles.keys_for(article.ulid)
+    for report in (dry, out):
+        assert "Dateinamen nur aus Punkten oder Leerzeichen: 1\n  eins.pdf\n" in report
+    assert article.media == ()
+    assert [key for key in stored if "/media/" in key] == []
 
 
 @pytest.mark.django_db

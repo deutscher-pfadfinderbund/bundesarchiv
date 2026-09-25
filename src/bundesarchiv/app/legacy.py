@@ -21,6 +21,7 @@ from dataclasses import dataclass, replace
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Lifecycle, Ulid
+from bundesarchiv.persistence.repository import cleaned_name
 
 #: One of the edit form's two value lists, as this module sees it: a membership test, nothing
 #: more. It is passed in (``unknown_vocabulary``) so the mapping stays below ``app.web``.
@@ -156,6 +157,7 @@ class Report:
     doctype_disagreements: int
     date_conflicts: int
     date_conflict_samples: tuple[tuple[str, str], ...]
+    unnamed_files: tuple[str, ...]
     unknown_media_types: tuple[str, ...] = ()
     unknown_document_types: tuple[str, ...] = ()
     missing_blobs: tuple[str, ...] = ()
@@ -190,6 +192,8 @@ class Report:
             *(f"  {value}" for value in self.unknown_document_types),
             f"Fehlende Dateien: {len(self.missing_blobs)}",
             *(f"  {path}" for path in self.missing_blobs[:MAX_SAMPLES]),
+            f"Dateinamen nur aus Punkten oder Leerzeichen: {len(self.unnamed_files)}",
+            *(f"  {path}" for path in self.unnamed_files[:MAX_SAMPLES]),
         )
 
 
@@ -295,6 +299,12 @@ def plan(
             doctype_disagreements=sum(1 for row in rows if _doctype_disagrees(row)),
             date_conflicts=len(conflicts),
             date_conflict_samples=conflicts[:MAX_SAMPLES],
+            unnamed_files=tuple(
+                media_file.path
+                for item in items
+                for media_file in item.media
+                if cleaned_name(media_file.filename) is None
+            ),
         ),
     )
 

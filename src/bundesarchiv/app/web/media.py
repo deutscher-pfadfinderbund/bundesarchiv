@@ -20,6 +20,7 @@ pruned-thumbnail blob is indistinguishable from a forbidden one).
 """
 
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse
@@ -46,11 +47,12 @@ def media_response(
     Two modes, chosen by ``settings.BUNDESARCHIV_X_ACCEL_PREFIX``:
 
     - **Prod / nginx** (prefix set): returns an EMPTY-body response carrying an ``X-Accel-Redirect``
-      header pointing at ``<prefix>/<store-relative blob key>``. nginx (with an ``internal;``
-      location over the media tree) serves the file and, crucially, handles HTTP Range requests
-      itself — so byte-range/streaming is delegated to nginx, not Django. The key is the wire format
-      here, and the repository is its one author. Content-Type comes from the MediaRef;
-      Content-Disposition is ``inline`` with the original filename.
+      header pointing at ``<prefix>/<store-relative file key>``, each key segment percent-encoded
+      (nginx decodes the header as a URI, ADR 0019). nginx (with an ``internal;`` location over the
+      media tree) serves the file and, crucially, handles HTTP Range requests itself — so
+      byte-range/streaming is delegated to nginx, not Django. The key is the wire format here, and
+      the repository is its one author. Content-Type comes from the MediaRef; Content-Disposition is
+      ``inline`` with the original filename.
 
     - **Dev / no nginx** (prefix unset): streams the blob out of the store through the port. Range
       is NOT supported in this path — a dev ``FileResponse`` without an explicit Range handler
@@ -64,10 +66,10 @@ def media_response(
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
     if prefix:
-        key = archive.articles.media_key(article.ulid, media_ref.content_hash)
+        key = archive.articles.media_key(article.ulid, media_ref)
         response: HttpResponseBase = _x_accel(prefix, key, content_type, media_ref.filename)
     else:
-        blob = archive.articles.open_media(article.ulid, media_ref.content_hash)
+        blob = archive.articles.open_media(article.ulid, media_ref)
         response = FileResponse(
             blob, content_type=content_type, as_attachment=False, filename=media_ref.filename
         )
@@ -119,7 +121,7 @@ def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpRes
 
     ADR 0017: the sidecar's ``internal;`` location must not set its own ``expires``/``Cache-Control``."""
     response = HttpResponse(b"", content_type=content_type)
-    response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{key}"
+    response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{quote(key)}"
     disposition = content_disposition_header(as_attachment=False, filename=filename)
     if disposition is not None:
         response["Content-Disposition"] = disposition

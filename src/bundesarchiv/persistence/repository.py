@@ -4,25 +4,26 @@ It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
 
     articles/<ulid>/README.md             the commit point (front-matter + body + marker)
     articles/<ulid>/history/<version>.md  each replaced README
-    articles/<ulid>/media/<sha256>        content-addressed media blobs, write-once
+    articles/<ulid>/media/<name>          media files under their own name, write-once
     .trash/articles/<ulid>/...            recoverable destination for hard_delete (reserved)
 
 The README.md ⇄ Article translation is the `readme` codec. The README and history keys and the save
-order are `_writer.commit`'s; this module owns the rest of the key scheme, media write-once and
-recoverable delete.
+order are `_writer.commit`'s; this module owns the rest of the key scheme, the media names (ADR
+0019 "Media names") and recoverable delete.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
 """
 
 import hashlib
-from collections.abc import Iterable
+import unicodedata
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence._writer import commit, readme_key
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -73,38 +74,37 @@ class ArticleRepository:
         media_type: str | None = None,
         caption: str | None = None,
     ) -> MediaRef:
-        """Store `data` content-addressed (write-once) and return a reference to embed
-        in an Article before `save`. An optional `caption` (ADR 0015) is carried into the ref."""
+        """Store `data` as one of the Article's media files, under `filename` cleaned (ADR 0019
+        "Media names"), and return the reference to embed in the Article before `save`. An
+        optional `caption` (ADR 0015) is carried into the ref. Raises `ValueError`, writing
+        nothing, when `cleaned_name(filename)` is None."""
+        name = _clean(filename)
+        if not name:
+            raise ValueError(f"nothing is left of the media name {filename!r} once cleaned")
         content_hash = hashlib.sha256(data).hexdigest()
-        key = _media_key(ulid, content_hash)
-        if not self._store.exists(key):  # write-once: identical bytes are idempotent
-            self._store.write_atomic(key, data)
-        return MediaRef(filename, content_hash, media_type, len(data), caption)
+        stored = self._place(ulid, _candidates(name, content_hash), data, content_hash)
+        return MediaRef(
+            filename,
+            content_hash,
+            media_type,
+            len(data),
+            caption,
+            stored_name=None if stored == filename else stored,
+        )
 
-    def media_key(self, ulid: Ulid, content_hash: str) -> str:
-        """The store-relative key of one media blob (`articles/<ulid>/media/<hash>`).
+    def media_key(self, ulid: Ulid, ref: MediaRef) -> str:
+        """The store-relative key of `ref`'s file (`articles/<ulid>/media/<name>`).
 
-        THE layout authority (ADR 0005): a caller that must name a blob on the wire — the
+        THE layout authority (ADR 0005): a caller that must name a file on the wire — the
         X-Accel redirect target nginx resolves (ADR 0017) — asks here instead of restating
         the scheme."""
-        return _media_key(ulid, content_hash)
+        return _media_key(ulid, ref)
 
-    def open_media(self, ulid: Ulid, content_hash: str) -> BinaryIO:
-        """A readable stream over one Article's media blob, for a caller that hands the bytes
-        straight on without materializing them (the dev media response). Raises `NotFound` if
-        the blob is not stored; the caller closes the stream."""
-        return self._store.open_stream(_media_key(ulid, content_hash))
-
-    def find_blob(self, content_hash: str) -> bytes | None:
-        """The bytes of ANY stored media blob with `content_hash`, or None if none is stored.
-
-        Media is content-addressed and write-once, so identical bytes may hang off several
-        Articles and every match is equivalent — a job deriving an artifact from the bytes
-        (the thumbnailer) needs no Article. Walks the article tree: there is no hash→key index,
-        and building one would be a second source of truth about where blobs are."""
-        suffix = f"/{_MEDIA_SEGMENT}/{content_hash}"
-        key = next((k for k in self._store.list(f"{_ROOT}/") if k.endswith(suffix)), None)
-        return None if key is None else self._store.read(key)
+    def open_media(self, ulid: Ulid, ref: MediaRef) -> BinaryIO:
+        """A readable stream over `ref`'s file, for a caller that hands the bytes straight on
+        without materializing them. Raises `NotFound` if the file is not stored; the caller
+        closes the stream."""
+        return self._store.open_stream(_media_key(ulid, ref))
 
     def list_ulids(self) -> Iterable[Ulid]:
         return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
@@ -130,9 +130,33 @@ class ArticleRepository:
         for key in keys:
             self._store.delete(key)
 
+    def _place(self, ulid: Ulid, candidates: Iterable[str], data: bytes, content_hash: str) -> str:
+        """The name the bytes end up under in the Article's media folder: the first of
+        `candidates` that is free, created there, or that already holds these bytes, reused.
+        Takes no lock (ADR 0019): a lost race for a name is an `AlreadyExists`, and two uploads
+        racing for names that differ only in case may both win."""
+        folder = _media_folder(ulid)
+        taken = {_fold(_name_of(entry.key)): entry for entry in self._store.list_entries(folder)}
+        for candidate in candidates:
+            entry = taken.get(_fold(candidate))
+            if entry is None:
+                key = f"{folder}{candidate}"
+                try:
+                    self._store.create(key, data)
+                    return candidate
+                except AlreadyExists:
+                    holder = key
+            elif entry.size == len(data):
+                holder = entry.key
+            else:
+                continue
+            if hashlib.sha256(self._store.read(holder)).hexdigest() == content_hash:
+                return _name_of(holder)
+        raise ArchiveError(f"{folder}: every candidate name holds other bytes")
+
     def _refuse_unstored_media(self, article: Article) -> None:
         for ref in article.media:
-            if not self._store.exists(_media_key(article.ulid, ref.content_hash)):
+            if not self._store.exists(_media_key(article.ulid, ref)):
                 raise ArchiveError(
                     f"{article.ulid}: media {ref.content_hash} not stored before save"
                 )
@@ -143,10 +167,6 @@ class ArticleRepository:
 
 
 # --- key scheme ------------------------------------------------------------------
-
-#: The path segment that marks a key as a media blob — the half of the media layout
-#: `find_blob` matches on when it has a hash but no ulid.
-_MEDIA_SEGMENT = "media"
 
 _ROOT = "articles"
 
@@ -159,10 +179,73 @@ def _readme_key(ulid: Ulid) -> str:
     return readme_key(_folder(ulid))
 
 
-def _media_key(ulid: Ulid, content_hash: str) -> str:
-    return f"{_folder(ulid)}/{_MEDIA_SEGMENT}/{content_hash}"
+def _media_folder(ulid: Ulid) -> str:
+    return f"{_folder(ulid)}/media/"
+
+
+def _media_key(ulid: Ulid, ref: MediaRef) -> str:
+    return f"{_media_folder(ulid)}{ref.filename if ref.stored_name is None else ref.stored_name}"
+
+
+def _name_of(key: str) -> str:
+    return key.rpartition("/")[2]
 
 
 def _ulid_of_readme(key: str) -> Ulid | None:
     parts = key.split("/")
     return parts[1] if len(parts) == 3 and key == _readme_key(parts[1]) else None
+
+
+# --- media names (ADR 0019) ------------------------------------------------------
+
+#: The longest name the StorageShare accepts, in bytes of UTF-8.
+_NAME_MAX_BYTES = 250
+_UNSAFE = frozenset('/\\:*?"<>|')
+#: A longer extension would leave the stem no character (up to 4 bytes) beside the full-hash
+#: suffix, so it counts as part of the stem.
+_EXT_MAX_BYTES = _NAME_MAX_BYTES - len(".") - 64 - 4
+
+
+def cleaned_name(filename: str) -> str | None:
+    """The name a file uploaded as `filename` is stored under while that name is free (ADR 0019
+    "Media names"), or None when nothing is left of it — a name to refuse, never to rename."""
+    name = _clean(filename)
+    return _fit(*_split(name)) if name else None
+
+
+def _clean(filename: str) -> str:
+    replaced = (
+        "_" if ch in _UNSAFE or unicodedata.category(ch) in ("Cc", "Cs") else ch
+        for ch in unicodedata.normalize("NFC", filename)
+    )
+    return "".join(replaced).strip(" .")
+
+
+def _split(name: str) -> tuple[str, str]:
+    """`name` as stem and extension (with its dot, or empty)."""
+    stem, dot, ext = name.rpartition(".")
+    if not dot or len(f"{dot}{ext}".encode()) > _EXT_MAX_BYTES:
+        return name, ""
+    return stem, f"{dot}{ext}"
+
+
+def _fit(stem: str, ext: str, suffix: str = "") -> str:
+    """`stem` + `suffix` + `ext`, the stem cut at a character boundary so the name fits
+    `_NAME_MAX_BYTES`. The cut never ends the stem in a space or a dot."""
+    budget = _NAME_MAX_BYTES - len(f"{suffix}{ext}".encode())
+    if len(stem.encode()) > budget:
+        stem = stem.encode()[:budget].decode(errors="ignore").rstrip(" .")
+    return f"{stem}{suffix}{ext}"
+
+
+def _candidates(name: str, content_hash: str) -> Iterator[str]:
+    """The names to try for the cleaned `name`, in order: itself, `<stem>.<hash8>.<ext>`, and the
+    same with the full hash."""
+    stem, ext = _split(name)
+    for suffix in ("", f".{content_hash[:8]}", f".{content_hash}"):
+        yield _fit(stem, ext, suffix)
+
+
+def _fold(name: str) -> str:
+    """The form two names are compared in: Unicode canonical caseless matching."""
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())

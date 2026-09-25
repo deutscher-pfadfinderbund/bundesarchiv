@@ -102,7 +102,9 @@ class _MatrixCorpus:
     def generate_thumbnail(self) -> None:
         from bundesarchiv.app import thumbnails
 
-        thumbnails.generate_thumbnail(self.base.store, self.content_hash, self.thumbnail_root)
+        thumbnails.generate_thumbnail(
+            self.base.store, self.article_ulid, self.content_hash, self.thumbnail_root
+        )
 
 
 @pytest.fixture

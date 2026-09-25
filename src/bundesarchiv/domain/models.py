@@ -81,19 +81,21 @@ class Change:
 
 @dataclass(frozen=True, slots=True)
 class MediaRef:
-    """A content-addressed reference to one stored media blob. The bytes live at a
-    media key derived from `content_hash`; media is write-once.
+    """A reference to one stored media file, which is write-once. `filename` is the name it was
+    uploaded with; `stored_name` is the name it is stored under, recorded only when the two differ
+    (ADR 0019). `content_hash` links the entry to the bytes and is their fixity value.
 
     `caption` is a per-file human caption (ADR 0015): canonical article input carried in the
     README front matter, NOT a sidecar (sidecars key by content hash — the same bytes on two
-    articles would wrongly share one caption) and NOT embedded metadata (mutating blobs breaks
-    content addressing). Order in the `media` tuple is meaning — the first entry is the cover."""
+    articles would wrongly share one caption) and NOT embedded metadata (mutating a file would
+    break its fixity value). Order in the `media` tuple is meaning — the first entry is the cover."""
 
     filename: str
     content_hash: str  # sha256 hex of the bytes
     media_type: str | None = None  # MIME-ish, optional
     byte_size: int | None = None
     caption: str | None = None
+    stored_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

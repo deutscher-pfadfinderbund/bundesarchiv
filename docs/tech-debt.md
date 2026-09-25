@@ -73,8 +73,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Evidence:** `cddf3f8` (repository: `media_key`, `find_blob`, `open_media` over a new
   `ObjectStore.open_stream`), `0e07a00` (the seam; `media._MEDIA_KEY`, the settings-derived dev path
   and the drift test all deleted), plus this commit (thumbnails).
-- **Residue:** `find_blob` still scans `articles/` — there is no hash→key index, and one would be a
-  second source of truth about where blobs live.
+- **Residue:** none since ADR 0019 — `find_blob` is gone; the thumbnail job reads the file through
+  its Article, and `media_key` takes the ref, not a bare hash.
 
 ### 6. FeldWahl — one bulk chooser — done
 - **Indicator:** chooser copies 2 → 1, context vocabularies 2 → 1, `data-bulk-wert` hand-typed 8 → 0;

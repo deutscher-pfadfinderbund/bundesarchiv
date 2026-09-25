@@ -53,7 +53,7 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist, Public
 from bundesarchiv.persistence.errors import ArchiveError
-from bundesarchiv.persistence.repository import Stored
+from bundesarchiv.persistence.repository import Stored, cleaned_name
 
 # The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
 # 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
@@ -1207,6 +1207,9 @@ _STRUCTURAL_SAVE_RETRIES = 2
 #: The German hinweis shown when a structural media change lost every race (see _structural_change).
 _MEDIEN_KONFLIKT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 
+#: The refusal of an upload whose name cleans to nothing (ADR 0019 "Media names").
+_DATEINAME_LEER = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
+
 
 def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /artikel/<ulid>/medien/verschieben`` — reorder one media entry up/down (``richtung`` =
@@ -1255,11 +1258,11 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /artikel/<ulid>/medien/hochladen`` — attach one or more files (multipart ``dateien``).
-    Each blob is stored content-addressed (write-once: identical bytes = a no-op attach) and its ref
-    appended at the END (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404
-    otherwise. Oversize → a clean German error, not a 500. The blob MUST persist before the README
-    references it (repository.save raises otherwise) — ``add_media`` writes the blob, then the
-    structural save commits the refs."""
+    Each file is stored under its own name (write-once, ADR 0019) and its ref appended at the END
+    (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404 otherwise. An oversize
+    file or one whose name cleans to nothing → a clean German error, not a 500, and no file of the
+    batch is stored. The file MUST persist before the README references it (repository.save raises
+    otherwise) — ``add_media`` writes the file, then the structural save commits the refs."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return _not_found()
@@ -1267,14 +1270,18 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     files = request.FILES.getlist("dateien")
     ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
     oversize = any(f.size is not None and f.size > ceiling for f in files)
-    if oversize:
+    unnamed = any(cleaned_name(f.name or "") is None for f in files)
+    if oversize or unnamed:
+        message = (
+            "Datei zu groß. Bitte kleinere Dateien hochladen." if oversize else _DATEINAME_LEER
+        )
         return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
-            request, overlay=MediaError("Datei zu groß. Bitte kleinere Dateien hochladen.")
+            request, overlay=MediaError(message)
         )
     repo = archive.articles
     new_refs = [
-        repo.add_media(ulid, f.name or "datei", f.read(), f.content_type or None) for f in files
-    ]  # add_media persists each blob (write-once) BEFORE any ref is committed
+        repo.add_media(ulid, f.name or "", f.read(), f.content_type or None) for f in files
+    ]  # add_media persists each file (write-once) BEFORE any ref is committed
     if new_refs:
         return _structural_change(
             request,

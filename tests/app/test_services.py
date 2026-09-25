@@ -521,12 +521,14 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
 def test_save_article_enqueues_thumbnail_for_image_media(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An image MediaRef on a saved Article enqueues a content-hash thumbnail job; a non-image one
+    """An image MediaRef on a saved Article enqueues a thumbnail job for it; a non-image one
     does not (the job would no-op anyway, but the service avoids enqueuing obvious non-images)."""
     import bundesarchiv.app.articles as articles_mod
 
-    enqueued: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", lambda h: enqueued.append(h))
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        articles_mod, "enqueue_generate_thumbnail", lambda *job: enqueued.append(job)
+    )
 
     articles = archive.articles
     image = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
@@ -545,7 +547,7 @@ def test_save_article_enqueues_thumbnail_for_image_media(
         changed_by="tester",
     )
 
-    assert enqueued == [image.content_hash]  # image enqueued, PDF skipped
+    assert enqueued == [("01FOTO", image.content_hash)]  # image enqueued, PDF skipped
 
 
 def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
@@ -559,7 +561,9 @@ def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
     from bundesarchiv.domain.models import MediaRef
 
     enqueued: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", lambda h: enqueued.append(h))
+    monkeypatch.setattr(
+        articles_mod, "enqueue_generate_thumbnail", lambda _ulid, h: enqueued.append(h)
+    )
 
     article = Article(
         ulid="01FOTO",
@@ -627,7 +631,7 @@ def test_save_article_enqueues_mirror_push_for_media_blob(
         changed_by="tester",
     )
 
-    assert f"articles/01FOTO/media/{ref.content_hash}" in pushed  # the blob is mirrored
+    assert archive.articles.media_key("01FOTO", ref) in pushed  # the file is mirrored
 
 
 @pytest.mark.django_db

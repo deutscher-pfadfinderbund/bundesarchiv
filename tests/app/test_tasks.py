@@ -131,17 +131,19 @@ def enqueue_test_article() -> None:
 def test_generate_thumbnail_task_derives_from_canonical(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The Procrastinate thumbnail task is a reference over a content-hash: it re-reads the blob from
-    the store the factory builds and writes the WebP into the configured THUMBNAIL_ROOT (a no-op for
-    a hash with no blob). Runs the task's underlying function directly (no DB needed)."""
+    """The Procrastinate thumbnail task is a reference over an Article's ulid and a content-hash: it
+    re-reads the file from the store the factory builds and writes the WebP into the configured
+    THUMBNAIL_ROOT. Runs the task's underlying function directly (no DB needed)."""
     import bundesarchiv.app.tasks as tasks_mod
 
     store = InMemoryObjectStore()
-    ref = ArticleRepository(store).add_media("A1", "p.png", _png_bytes(), media_type="image/png")
+    articles = ArticleRepository(store)
+    ref = articles.add_media("A1", "p.png", _png_bytes(), media_type="image/png")
+    articles.save(Article("A1", "Bild", "FOTOS", media=(ref,)), 0, changed_by="tester")
     monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     thumbs = tmp_path / "thumbs"
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
-        tasks_mod.generate_thumbnail.func(content_hash=ref.content_hash)
+        tasks_mod.generate_thumbnail.func(ulid="A1", content_hash=ref.content_hash)
     out = thumbs / f"{ref.content_hash}.webp"
     assert out.is_file()
     with Image.open(out) as im:
