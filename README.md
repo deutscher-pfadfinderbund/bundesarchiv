@@ -92,6 +92,7 @@ Both paths are overridable: `BUNDESARCHIV_LEGACY_MEDIA` for the media folder,
 README version, current and history, re-hashes every media file a version
 names, and lists the files no version names and the names with no file. It
 reports and never repairs. It exits with status 1 when it found anything.
+The worker runs it monthly, and a finding fails that job.
 
 ```sh
 uv run manage.py verify                                          # the dev archive

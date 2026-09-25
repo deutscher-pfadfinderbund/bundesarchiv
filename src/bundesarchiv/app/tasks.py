@@ -5,7 +5,7 @@ rebuild), and its execution re-reads canonical truth from the configured store a
 (ADR 0014 §"Queue jobs are references"). So two racing edits enqueue two pointers and whichever
 runs last recomputes the same final truth — jobs are idempotent and commute. The queue exists for:
 retry after a failed synchronous index update (the app services enqueue here), heavier future work
-(thumbnails, OCR), mirror replay, and the scheduled full rebuild.
+(thumbnails, OCR), mirror replay, the scheduled full rebuild, and the monthly fixity check.
 
 The tasks are thin wrappers over ``indexer.index_article`` / ``index_subtree`` / ``rebuild``; the
 security logic lives there, not here. Procrastinate auto-discovers this module (it is named
@@ -22,6 +22,7 @@ from pathlib import Path
 
 import httpx
 from django.conf import settings
+from django.core.management import call_command
 from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
 
@@ -37,6 +38,9 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 #: the backstop that re-pushes it later). The mirror is a convenience, so we never retry forever —
 #: mirror lag is invisible-by-design and self-heals at the next reconcile.
 _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
+
+#: The fixity check's schedule (ADR 0019 "Fixity"): monthly, 04:00 on the first.
+_VERIFY_CRON = "0 4 1 * *"
 
 
 def canonical_store() -> ObjectStore:
@@ -109,6 +113,15 @@ def reconcile(timestamp: int) -> None:
     (``BUNDESARCHIV_RECONCILE_CRON``). ``timestamp`` is the tick Procrastinate passes to a periodic
     task; it is unused here (the job is a pure reference — it recomputes from current canonical)."""
     indexer.rebuild(canonical_store())
+
+
+@app.periodic(cron=_VERIFY_CRON)
+@app.task(name="verify")
+def verify(timestamp: int) -> None:
+    """The monthly fixity check (ADR 0019): ``manage.py verify`` over the canonical archive. Its
+    report goes to the worker's output; a finding raises ``CommandError`` and so fails the job.
+    ``timestamp`` is the periodic tick (unused)."""
+    call_command("verify")
 
 
 # --- mirror replay + reconcile (Part 4.9) ----------------------------------------

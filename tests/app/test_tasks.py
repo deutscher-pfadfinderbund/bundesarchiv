@@ -8,9 +8,11 @@ import io
 from pathlib import Path
 
 import pytest
+from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -154,6 +156,17 @@ def _png_bytes() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (300, 200), (50, 100, 150)).save(buf, format="PNG")
     return buf.getvalue()
+
+
+def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path) -> None:
+    """A finding must not pass as a finished job: the job fails, so it shows among the failed
+    ones."""
+    import bundesarchiv.app.tasks as tasks_mod
+
+    with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path)):
+        Archive.canonical().store.write_atomic("articles/01WAISE/media/Scan.pdf", b"Scan")
+        with pytest.raises(CommandError, match="Befunde"):
+            tasks_mod.verify.func(timestamp=0)
 
 
 # ---------------------------------------------------------------------------
