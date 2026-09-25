@@ -26,6 +26,7 @@ _KNOWN_ASSETS = frozenset(
         "detail.css",
         "forms.css",
         "htmx.min.js",
+        "hx-browser-indicator.min.js",
         "layouts.css",
         "tokens.css",
     }
