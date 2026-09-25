@@ -62,10 +62,11 @@ class DevViewerMiddleware:
 
 def _viewer_from_post(request: HttpRequest) -> Viewer:
     """Build the chosen ``Viewer`` from the switcher form POST. Unknown/absent kind -> ``Public()``
-    (fail-closed even in the dev switcher). Groups come from a comma/space-separated text field."""
+    (fail-closed even in the dev switcher)."""
     kind = request.POST.get("kind", "")
     if kind == "archivist":
-        return Archivist()
+        username = request.POST.get("username", "").strip()
+        return Archivist(username=username) if username else Archivist()
     if kind == "member":
         raw = request.POST.get("groups", "")
         groups = tuple(g for g in raw.replace(",", " ").split() if g)
@@ -94,8 +95,8 @@ def switch_viewer(request: HttpRequest) -> HttpResponse:
 def _describe(viewer: Viewer) -> str:
     """Human-readable German label for the currently active viewer (shown at the top of the form)."""
     match viewer:
-        case Archivist():
-            return "Archivar (sieht alles)"
+        case Archivist(username=username):
+            return f"Archivar {username} (sieht alles)"
         case Member(groups=groups):
             return "Mitglied — Gruppen: " + (", ".join(groups) if groups else "(keine)")
         case Public():
@@ -103,10 +104,10 @@ def _describe(viewer: Viewer) -> str:
 
 
 def _render_form(current: Viewer, *, csrf_token: str) -> str:
-    """Minimal no-JS German switcher form: three radio choices + a groups text input. Dev-only; it
-    borrows the design-system stylesheet stack (same-origin, self-contained) for a consistent minimal
-    look — no styling of its own beyond the shared ``stub`` shell. The hidden CSRF token is
-    required now that CsrfViewMiddleware runs in dev too (see settings_dev)."""
+    """Minimal no-JS German switcher form. Dev-only; it borrows the design-system stylesheet stack
+    (same-origin, self-contained) for a consistent minimal look — no styling of its own beyond the
+    shared ``stub`` shell. The hidden CSRF token is required now that CsrfViewMiddleware runs in dev
+    too (see settings_dev)."""
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
         '<link rel="stylesheet" href="/static/tokens.css">'
@@ -118,7 +119,8 @@ def _render_form(current: Viewer, *, csrf_token: str) -> str:
         f"<p>Aktuell: <strong>{escape(_describe(current))}</strong></p>"
         f'<form method=post action="{reverse("dev-switch-viewer")}">'
         f'<input type=hidden name=csrfmiddlewaretoken value="{escape(csrf_token)}">'
-        "<p><label><input type=radio name=kind value=archivist> Archivar</label></p>"
+        "<p><label><input type=radio name=kind value=archivist> Archivar</label>"
+        " Benutzername: <input type=text name=username></p>"
         "<p><label><input type=radio name=kind value=member checked> Mitglied</label>"
         ' Gruppen: <input type=text name=groups placeholder="gruppe1, gruppe2"></p>'
         "<p><label><input type=radio name=kind value=public> Öffentlich</label></p>"

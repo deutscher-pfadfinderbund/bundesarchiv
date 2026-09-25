@@ -56,9 +56,10 @@ def test_switcher_get_renders_form() -> None:
             Member(groups=("vorstand", "archiv-ag")),
         ),
         ({"kind": "archivist"}, Archivist()),
+        ({"kind": "archivist", "username": "anna.schmidt"}, Archivist(username="anna.schmidt")),
         ({"kind": "public"}, Public()),
     ],
-    ids=["member", "archivist", "public"],
+    ids=["member", "archivist", "named-archivist", "public"],
 )
 def test_switcher_post_roundtrips_to_viewer_of(post_data: dict[str, str], expected: object) -> None:
     client = Client()
@@ -84,12 +85,11 @@ def test_switcher_post_carries_csrf_token_so_it_works_under_enforcement() -> Non
 
 
 @override_settings(**_DEV)
-def test_middleware_attaches_viewer_to_request() -> None:
+def test_the_switcher_shows_the_active_archivists_name() -> None:
     client = Client()
-    client.post(reverse("dev-switch-viewer"), {"kind": "archivist"})
-    # A subsequent GET runs through DevViewerMiddleware, which sets request.viewer used by the form.
+    client.post(reverse("dev-switch-viewer"), {"kind": "archivist", "username": "anna.schmidt"})
     response = client.get(reverse("dev-switch-viewer"))
-    assert "Archivar" in response.content.decode()
+    assert "anna.schmidt" in response.content.decode()
 
 
 # --- prod-safety: the dev mechanism is unreachable under production settings -----------------
