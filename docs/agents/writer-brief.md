@@ -25,10 +25,13 @@ pyrefly is always invoked as `uv run pyrefly check src tests`; a bare
 `pyrefly check` resolves zero files in a worktree and passes vacuously.
 
 The commit-stage hook runs uv-lock, ruff and pyrefly; the push-stage hook runs
-the full gate. Do not `--no-verify` except on a docs-only
-commit where the hooks are irrelevant, and only when the full gates ran clean on
-the immediately prior code commit. The baseline is whatever the ledger records
-(e.g. 1068 unit + 13 e2e at the Part 4 exit) — never let it drop.
+the full gate. Do not `--no-verify` except on a docs-only commit where the hooks
+are irrelevant, and only when the full gates ran clean on the immediately prior
+code commit. The exemption never covers a fixup. Noisy hook output is trimmed
+with `| tail`, never silenced by skipping the hook — and a pipe returns `tail`'s
+status, which hides a refused hook: run it under `set -o pipefail`, or confirm
+the commit landed (`git log -1`) before going on. The baseline is whatever the
+ledger records — never let it drop.
 
 ## TDD
 
@@ -38,8 +41,10 @@ security/gate test is non-vacuous by MUTATION: neuter the guard, watch the test
 go red, restore. A gate that never bit is not a gate.
 
 Restore a mutation by re-editing the exact lines (or commit before mutating) —
-never `git checkout <file>`: it wipes every uncommitted change in that file,
-including work you haven't committed yet.
+never `git checkout <file>`: it wipes every uncommitted change in that file. Run
+mutation checks with `PYTHONDONTWRITEBYTECODE=1`: Python trusts a cached `.pyc`
+while the source's size and whole-second mtime match, so a same-size edit and its
+restore within one second can run stale bytecode.
 
 The e2e and gallery suites run only when the design-gate rules demand it (UI
 waves: CSS/template/JS, position/overlay changes). Never run them as general

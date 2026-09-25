@@ -36,11 +36,13 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 - Writer requirements: TDD with mutation proof, `mise run check` green per commit, full `mise run gate` for the wave's last writer, per-commit summary + gate output verbatim + deviations with reasons.
 - Read deviations first — a good writer deviates where law beats brief; verify the reason, then accept or redirect.
-- Missing-tool / fence reports feed `docs/tech-debt.md`.
-- Consume learnings immediately: a brief-mechanics lesson goes into THIS skill, a law lesson into the law file, a pattern lesson into the ledger entry — in the same session. No retro archives (project ruling: implement learnings directly; archives are archaeological remains).
+- Consume learnings immediately: a brief-mechanics lesson goes into THIS skill, a law lesson into the law file, a pattern lesson or a missing-tool / fence report into `docs/tech-debt.md` — in the same session. No retro archives (project ruling: implement learnings directly; archives are archaeological remains).
 - Map rows: writers update them same-commit (see update-module-map skill); check the report mentions it when a module or interface changed.
 - Cross-module composition tests (leak matrix, e2e, journeys) are the architect tier's to own — never assigned to a single-module writer.
 - A fixer applying review dispositions that involve a DESIGN choice stops and asks the owner, even when a silence rule was announced — dispositions are owner decisions, not writer judgment.
+- A fix ruling from the controller gets the same scoped re-review as any fix round. One such ruling, to sweep every prefix-delete leftover in a folder, raced concurrent deletes of other prefixes; only the re-review caught it.
+- A writer that stalls twice at the same step (a harness stream-watchdog stall, no process of its own still running): drop that step from its task instead of retrying, and the controller runs it itself (it may be a required one, such as the gate). After a third stall, hand the task to a fresh finisher agent that starts from the commits on disk and re-derives the mutation proofs.
+- A live-backend run gets a diagnostic budget and prints what it observed on failure. "Run once" plus a silent failing assert turned one finding into a guess.
 - Before treating a grilled or ADR-backed decision as settled, verify the load-bearing code-behaviour claim against source (today: "Bestand required" was traced to 24 sites before ruling).
 
 ## On failure
