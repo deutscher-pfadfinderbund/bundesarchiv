@@ -9,6 +9,7 @@ for archivists, the EDTF human-vs-mono double render, and no amber/red on a memb
 Pure request-handling against a local FS store (load + resolve + visible) — no Postgres.
 """
 
+import io
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -66,8 +67,12 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
     archive.add_collection(
         make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
     )
-    cover = archive.articles.add_media(PUB, "a.png", _png((200, 40, 60)), media_type="image/png")
-    second = archive.articles.add_media(PUB, "b.png", _png((40, 200, 60)), media_type="image/png")
+    cover = archive.articles.add_media(
+        PUB, "a.png", io.BytesIO(_png((200, 40, 60))), media_type="image/png"
+    )
+    second = archive.articles.add_media(
+        PUB, "b.png", io.BytesIO(_png((40, 200, 60))), media_type="image/png"
+    )
     archive.add_article(
         make_article(
             PUB,
@@ -94,7 +99,9 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
     )
     # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
     # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
-    evil = archive.articles.add_media(MARKUP, "e.png", _png((90, 90, 90)), media_type="image/png")
+    evil = archive.articles.add_media(
+        MARKUP, "e.png", io.BytesIO(_png((90, 90, 90))), media_type="image/png"
+    )
     archive.add_article(
         make_article(
             MARKUP,

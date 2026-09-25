@@ -14,7 +14,11 @@ Member/Public/anon; the deny tests assert the media tuple is UNCHANGED. The writ
 only index + queue seams are stubbed (conftest.py).
 """
 
+import io
+import tracemalloc
 from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -42,10 +46,10 @@ class _MediaCorpus:
         )
         # store two real blobs so the README may reference them (repo refuses an unstored ref)
         self.ref_a = self.articles.add_media(
-            _ULID, "cover.jpg", b"cover-bytes", "image/jpeg", "Titelbild"
+            _ULID, "cover.jpg", io.BytesIO(b"cover-bytes"), "image/jpeg", "Titelbild"
         )
         self.ref_b = self.articles.add_media(
-            _ULID, "zweite.jpg", b"second-bytes", "image/jpeg", None
+            _ULID, "zweite.jpg", io.BytesIO(b"second-bytes"), "image/jpeg", None
         )
         self.version = corpus.add_article(
             make_article(
@@ -282,6 +286,62 @@ def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
     )
     assert len(corpus.media()) == 2  # nothing attached
     assert corpus.articles.keys_for(_ULID) == files_before  # and no file of the batch stored
+
+
+_BOUNDARY = "grenze"
+
+
+def _upload_body(tmp_path: Path, filename: str, size: int) -> Path:
+    """A multipart request body on disk that uploads ``size`` zero bytes as ``filename``."""
+    body = tmp_path / f"body-{filename}"
+    with body.open("wb") as out:
+        out.write(
+            f"--{_BOUNDARY}\r\n"
+            f'Content-Disposition: form-data; name="dateien"; filename="{filename}"\r\n'
+            "Content-Type: audio/wav\r\n\r\n".encode()
+        )
+        for _ in range(size // 2**20):
+            out.write(bytes(2**20))
+        out.write(f"\r\n--{_BOUNDARY}--\r\n".encode())
+    return body
+
+
+def _post_upload(body: Path) -> None:
+    """Post ``body`` to the upload view straight from its file, so the test client holds none of
+    it."""
+    with body.open("rb") as wsgi_input:
+        environ: dict[str, Any] = {"wsgi.input": wsgi_input}
+        response = client_as(Archivist()).generic(
+            "POST",
+            f"/artikel/{_ULID}/medien/hochladen",
+            CONTENT_TYPE=f"multipart/form-data; boundary={_BOUNDARY}",
+            CONTENT_LENGTH=str(body.stat().st_size),
+            **environ,
+        )
+    assert response.status_code == 200
+
+
+def _traced_peak(body: Path) -> int:
+    tracemalloc.start()
+    try:
+        _post_upload(body)
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_hochladen_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_path: Path) -> None:
+    # tech-debt #18. Every file is past FILE_UPLOAD_MAX_MEMORY_SIZE, so Django spools each one. The
+    # untraced first upload keeps one-time allocations out of the peaks. The repeat of the large
+    # file takes the reuse path, which streams the stored file through the hash.
+    small, large = (_upload_body(tmp_path, f"band-{mib}.wav", mib * 2**20) for mib in (4, 32))
+    _post_upload(_upload_body(tmp_path, "vorlauf.wav", 4 * 2**20))
+    peak_small, peak_large, peak_again = (_traced_peak(body) for body in (small, large, large))
+    uploaded = corpus.media()[3:]
+    assert [ref.byte_size for ref in uploaded] == [4 * 2**20, 32 * 2**20, 32 * 2**20]
+    assert uploaded[2] == uploaded[1]  # the repeat reused the stored file
+    assert abs(peak_large - peak_small) < 2**20
+    assert abs(peak_again - peak_small) < 2**20
 
 
 def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:

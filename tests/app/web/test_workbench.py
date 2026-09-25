@@ -12,6 +12,7 @@ article, Signaturen at the domain ceiling, two valid-ULID pane articles — so i
 transaction: the rollback IS the index isolation.
 """
 
+import io
 import re
 from collections.abc import Callable
 from typing import cast
@@ -169,7 +170,11 @@ def _fill(corpus: Corpus) -> None:
     # file; PANE_MEM is members-only with the floored fields (pane denied for public -> the
     # workbench renders no pane at all; floored fields never in a member body).
     pub_ref = corpus.articles.add_media(
-        PANE_PUB_ULID, "titel.jpg", b"pane-cover-bytes", "image/jpeg", "Titelaufnahme der Fahrt"
+        PANE_PUB_ULID,
+        "titel.jpg",
+        io.BytesIO(b"pane-cover-bytes"),
+        "image/jpeg",
+        "Titelaufnahme der Fahrt",
     )
     corpus.add_article(
         make_article(

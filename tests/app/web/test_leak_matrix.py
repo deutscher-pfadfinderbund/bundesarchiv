@@ -82,7 +82,10 @@ class _MatrixCorpus:
         # non-matching Member and Public do not — so every ulid/hash route resolves for the Archivist.
         self.article_ulid = new_ulid()
         ref = self.base.articles.add_media(
-            self.article_ulid, "cover.png", _png_bytes((30, 60, 90)), media_type="image/png"
+            self.article_ulid,
+            "cover.png",
+            io.BytesIO(_png_bytes((30, 60, 90))),
+            media_type="image/png",
         )
         self.base.add_article(
             make_article(

@@ -1,6 +1,7 @@
 """Every write route records the signed-in archivist as the ``changed_by`` of the version it writes
 (ADR 0019: the history is the audit trail)."""
 
+import io
 from collections.abc import Callable
 from dataclasses import replace
 from urllib.parse import parse_qs, urlparse
@@ -36,8 +37,8 @@ def _ulid_in(location: str) -> str:
 
 def _with_two_media(corpus: Corpus) -> tuple[str, str]:
     stored = corpus.articles.load(DRAFT_ULID)
-    first = corpus.articles.add_media(DRAFT_ULID, "a.pdf", b"a")
-    second = corpus.articles.add_media(DRAFT_ULID, "b.pdf", b"b")
+    first = corpus.articles.add_media(DRAFT_ULID, "a.pdf", io.BytesIO(b"a"))
+    second = corpus.articles.add_media(DRAFT_ULID, "b.pdf", io.BytesIO(b"b"))
     corpus.articles.save(
         replace(stored.article, media=(first, second)), stored.version, changed_by="tester"
     )

@@ -138,7 +138,7 @@ def test_generate_thumbnail_task_derives_from_canonical(
 
     store = InMemoryObjectStore()
     articles = ArticleRepository(store)
-    ref = articles.add_media("A1", "p.png", _png_bytes(), media_type="image/png")
+    ref = articles.add_media("A1", "p.png", io.BytesIO(_png_bytes()), media_type="image/png")
     articles.save(Article("A1", "Bild", "FOTOS", media=(ref,)), 0, changed_by="tester")
     monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     thumbs = tmp_path / "thumbs"

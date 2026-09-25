@@ -130,14 +130,12 @@ class Command(BaseCommand):
                     continue
                 if cleaned_name(media_file.filename) is None:
                     continue  # reported from the plan, like the dry run does
-                refs.append(
-                    archive.articles.add_media(
-                        item.article.ulid,
-                        media_file.filename,
-                        blob.read_bytes(),
-                        media_file.media_type,
+                with blob.open("rb") as source:
+                    refs.append(
+                        archive.articles.add_media(
+                            item.article.ulid, media_file.filename, source, media_file.media_type
+                        )
                     )
-                )
             archive.articles.save(
                 replace(item.article, media=tuple(refs)), 0, changed_by=CHANGED_BY
             )

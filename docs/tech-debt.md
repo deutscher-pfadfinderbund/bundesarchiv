@@ -136,13 +136,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   (2026-07-19, clean review).
 - **Sketch:** a boot-time assertion or store-level advisory lock so a second app process fails loud.
 
-### 18. The upload path buffers whole files in RAM — Strong
-- **Indicator:** `ObjectStore.put_large` production callers = 0; upload peak RSS = file size (2026-09-19)
-- **Evidence:** `catalog_views.article_medien_hochladen` calls `f.read()` and `add_media` hashes the
-  whole `bytes` — against a 4 GiB ceiling and one gunicorn process. The 1 MiB-chunk streaming seam
-  (`localfs`, `webdav`, `memory`) is reached only by the conformance tests.
-- **Sketch:** `add_media(..., chunks: Iterable[bytes])` hashing as it feeds `put_large`; the view
-  passes `UploadedFile.chunks()`.
+### 18. The upload path buffers whole files in RAM — done
+- **Indicator:** upload peak memory = file size (2026-09-19) → flat: after a warm-up upload, the
+  `tracemalloc` peaks of a 4 MiB upload, a 32 MiB upload and a repeat of the 32 MiB file (the
+  reuse path) lie within 1 MiB of each other (2026-09-25); RSS not measured
+- **Evidence:** ADR 0019 "Streaming upload": `ArticleRepository.add_media` takes a seekable stream,
+  hashes it in 1 MiB chunks and stores it with `create_large`; the view hands it the upload file.
+  Pinned by `test_catalog_medien.test_hochladen_memory_does_not_grow_with_the_file`.
 
 ## Implementation patterns
 

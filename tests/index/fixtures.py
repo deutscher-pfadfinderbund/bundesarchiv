@@ -20,6 +20,7 @@ so Task 9 can assert the grid without re-deriving it. The three viewers used acr
 are the module-level singletons below.
 """
 
+import io
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 
@@ -152,7 +153,7 @@ def _with_captioned_media(articles: ArticleRepository, article: Article) -> Arti
     ref = articles.add_media(
         article.ulid,
         f"{article.ulid.lower()}-media.jpg",
-        f"bytes for {article.ulid}".encode(),
+        io.BytesIO(f"bytes for {article.ulid}".encode()),
         media_type="image/jpeg",
         caption=f"Aufnahme: {word}",
     )

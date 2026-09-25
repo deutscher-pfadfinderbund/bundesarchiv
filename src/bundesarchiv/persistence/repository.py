@@ -70,24 +70,28 @@ class ArticleRepository:
         self,
         ulid: Ulid,
         filename: str,
-        data: bytes,
+        source: BinaryIO,
         media_type: str | None = None,
         caption: str | None = None,
     ) -> MediaRef:
-        """Store `data` as one of the Article's media files, under `filename` cleaned (ADR 0019
-        "Media names"), and return the reference to embed in the Article before `save`. An
-        optional `caption` (ADR 0015) is carried into the ref. Raises `ValueError`, writing
-        nothing, when `cleaned_name(filename)` is None."""
+        """Store what `source` holds, from where it stands to its end, as one of the Article's
+        media files under `filename` cleaned (ADR 0019 "Media names"), and return the reference to
+        embed in the Article before `save`. An optional `caption` (ADR 0015) is carried into the
+        ref. Raises `ValueError`, writing nothing, when `cleaned_name(filename)` is None.
+
+        `source` is read in chunks, once to hash it and once to store it (ADR 0019 "Streaming
+        upload"), so it must be seekable; no step holds the whole file in memory."""
         name = _clean(filename)
         if not name:
             raise ValueError(f"nothing is left of the media name {filename!r} once cleaned")
-        content_hash = hashlib.sha256(data).hexdigest()
-        stored = self._place(ulid, _candidates(name, content_hash), data, content_hash)
+        start = source.tell()
+        content_hash, size = digest = _digest(source)
+        stored = self._place(ulid, name, source, start, digest)
         return MediaRef(
             filename,
             content_hash,
             media_type,
-            len(data),
+            size,
             caption,
             stored_name=None if stored == filename else stored,
         )
@@ -130,28 +134,33 @@ class ArticleRepository:
         for key in keys:
             self._store.delete(key)
 
-    def _place(self, ulid: Ulid, candidates: Iterable[str], data: bytes, content_hash: str) -> str:
-        """The name the bytes end up under in the Article's media folder: the first of
-        `candidates` that is free, created there, or that already holds these bytes, reused.
-        Takes no lock (ADR 0019): a lost race for a name is an `AlreadyExists`, and two uploads
-        racing for names that differ only in case may both win."""
+    def _place(
+        self, ulid: Ulid, name: str, source: BinaryIO, start: int, digest: tuple[str, int]
+    ) -> str:
+        """The name in the Article's media folder that ends up holding the bytes `source` holds
+        from `start` on (`digest` is their hash and size): the first of `name`'s candidates that is
+        free, created there, or that already holds these bytes, reused. Takes no lock (ADR 0019):
+        a create that loses a race is checked like a taken name."""
+        content_hash, size = digest
         folder = _media_folder(ulid)
         taken = {_fold(_name_of(entry.key)): entry for entry in self._store.list_entries(folder)}
-        for candidate in candidates:
+        for candidate in _candidates(name, content_hash):
             entry = taken.get(_fold(candidate))
             if entry is None:
                 key = f"{folder}{candidate}"
+                source.seek(start)
                 try:
-                    self._store.create(key, data)
+                    self._store.create_large(key, source, size)
                     return candidate
                 except AlreadyExists:
                     holder = key
-            elif entry.size == len(data):
+            elif entry.size == size:
                 holder = entry.key
             else:
                 continue
-            if hashlib.sha256(self._store.read(holder)).hexdigest() == content_hash:
-                return _name_of(holder)
+            with self._store.open_stream(holder) as stored:
+                if _digest(stored) == digest:
+                    return _name_of(holder)
         raise ArchiveError(f"{folder}: every candidate name holds other bytes")
 
     def _refuse_unstored_media(self, article: Article) -> None:
@@ -249,3 +258,17 @@ def _candidates(name: str, content_hash: str) -> Iterator[str]:
 def _fold(name: str) -> str:
     """The form two names are compared in: Unicode canonical caseless matching."""
     return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
+
+
+#: How much of a media file one read of a hash pass takes.
+_CHUNK = 1024 * 1024
+
+
+def _digest(stream: BinaryIO) -> tuple[str, int]:
+    """The sha256 hex digest and the byte count of what `stream` holds from where it stands."""
+    digest = hashlib.sha256()
+    size = 0
+    while chunk := stream.read(_CHUNK):
+        digest.update(chunk)
+        size += len(chunk)
+    return digest.hexdigest(), size

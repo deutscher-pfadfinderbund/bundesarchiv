@@ -96,10 +96,10 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
     # (add_media stores the blobs first; the repository refuses an Article referencing unstored ones).
     cover = articles.add_media(
-        PUBLISHED_ULID, "cover.png", _png((200, 60, 40)), media_type="image/png"
+        PUBLISHED_ULID, "cover.png", BytesIO(_png((200, 60, 40))), media_type="image/png"
     )
     plate = articles.add_media(
-        PUBLISHED_ULID, "plate.png", _png((40, 120, 200)), media_type="image/png"
+        PUBLISHED_ULID, "plate.png", BytesIO(_png((40, 120, 200))), media_type="image/png"
     )
     articles.save(
         Article(

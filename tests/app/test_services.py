@@ -9,6 +9,7 @@ PRODUCTION service entry point must be reflected in the very next ``search()`` â
 FORBIDDEN inside the gate tests.
 """
 
+import io
 from dataclasses import replace
 
 import pytest
@@ -302,7 +303,7 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
 
     articles = archive.articles
     # store a real blob so the source can reference it (repository refuses an unstored ref)
-    ref = articles.add_media("01SOURCE", "bild.jpg", b"pixels", "image/jpeg", "Am See")
+    ref = articles.add_media("01SOURCE", "bild.jpg", io.BytesIO(b"pixels"), "image/jpeg", "Am See")
     # a rich source: published, with a Signatur, media, tags, custom, date, an audience
     source = Article(
         ulid="01SOURCE",
@@ -531,8 +532,12 @@ def test_save_article_enqueues_thumbnail_for_image_media(
     )
 
     articles = archive.articles
-    image = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
-    doc = articles.add_media("01FOTO", "notes.pdf", b"%PDF-1.7", media_type="application/pdf")
+    image = articles.add_media(
+        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
+    )
+    doc = articles.add_media(
+        "01FOTO", "notes.pdf", io.BytesIO(b"%PDF-1.7"), media_type="application/pdf"
+    )
     stored = articles.load("01FOTO")
     save_article(
         archive,
@@ -616,7 +621,9 @@ def test_save_article_enqueues_mirror_push_for_media_blob(
     monkeypatch.setattr(articles_mod, "enqueue_mirror_push", lambda key: pushed.append(key))
 
     articles = archive.articles
-    ref = articles.add_media("01FOTO", "scan.jpg", b"\xff\xd8\xff-fake", media_type="image/jpeg")
+    ref = articles.add_media(
+        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
+    )
     stored = articles.load("01FOTO")
     save_article(
         archive,

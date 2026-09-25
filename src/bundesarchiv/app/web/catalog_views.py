@@ -24,6 +24,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
+from typing import BinaryIO, cast
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
@@ -1280,7 +1281,7 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
         )
     repo = archive.articles
     new_refs = [
-        repo.add_media(ulid, f.name or "", f.read(), f.content_type or None) for f in files
+        repo.add_media(ulid, f.name or "", cast(BinaryIO, f), f.content_type or None) for f in files
     ]  # add_media persists each file (write-once) BEFORE any ref is committed
     if new_refs:
         return _structural_change(

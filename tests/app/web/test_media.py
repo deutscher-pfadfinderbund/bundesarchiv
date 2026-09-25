@@ -86,7 +86,7 @@ class _TierCorpus:
         for tier, coll, lifecycle, color in specs:
             ulid = new_ulid()
             ref = base.articles.add_media(
-                ulid, f"{tier}.png", _png_bytes(color), media_type="image/png"
+                ulid, f"{tier}.png", io.BytesIO(_png_bytes(color)), media_type="image/png"
             )
             base.add_article(
                 make_article(
@@ -280,7 +280,7 @@ def test_x_accel_mode_permitted_carries_redirect_and_empty_body(corpus: _TierCor
 def test_x_accel_redirect_percent_encodes_the_named_file(corpus: _TierCorpus) -> None:
     # nginx decodes the header as a URI (ADR 0019), so a raw "%41" would name another file.
     ulid = new_ulid()
-    ref = corpus.articles.add_media(ulid, "Grüße 100%41.png", _png_bytes(), "image/png")
+    ref = corpus.articles.add_media(ulid, "Grüße 100%41.png", io.BytesIO(_png_bytes()), "image/png")
     corpus.articles.save(
         Article(ulid, "Umlaute", "PUB", lifecycle=Lifecycle.PUBLISHED, media=(ref,)),
         0,
@@ -390,8 +390,8 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
-    png = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
-    jpg = articles.add_media("A1", "b.jpg", _jpeg_bytes(), media_type="image/jpeg")
+    png = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
+    jpg = articles.add_media("A1", "b.jpg", io.BytesIO(_jpeg_bytes()), media_type="image/jpeg")
     _saved(articles, "A1", png, jpg)
     for ref in (png, jpg):
         assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is True
@@ -408,7 +408,9 @@ def test_thumbnail_job_noops_for_text_file(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
-    ref = articles.add_media("A1", "notes.txt", b"not an image at all", media_type="text/plain")
+    ref = articles.add_media(
+        "A1", "notes.txt", io.BytesIO(b"not an image at all"), media_type="text/plain"
+    )
     _saved(articles, "A1", ref)
     assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is False
     assert not (thumbs / f"{ref.content_hash}.webp").exists()
@@ -419,7 +421,7 @@ def test_thumbnail_job_noops_for_a_file_not_on_the_article(tmp_path: Path) -> No
 
     store = LocalFsObjectStore(tmp_path / "c")
     articles = ArticleRepository(store)
-    dropped = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
+    dropped = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
     _saved(articles, "A1")
     for ulid, content_hash in (("A1", dropped.content_hash), ("A2", dropped.content_hash)):
         assert thumbnails.generate_thumbnail(store, ulid, content_hash, tmp_path / "t") is False
@@ -431,7 +433,7 @@ def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
     store = LocalFsObjectStore(tmp_path / "c")
     thumbs = tmp_path / "t"
     articles = ArticleRepository(store)
-    ref = articles.add_media("A1", "a.png", _png_bytes(), media_type="image/png")
+    ref = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
     _saved(articles, "A1", ref)
     thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
     first = (thumbs / f"{ref.content_hash}.webp").read_bytes()

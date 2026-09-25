@@ -9,6 +9,7 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 (see ``conftest.py``).
 """
 
+import io
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
@@ -254,7 +255,7 @@ def test_stale_save_against_deleted_article_is_404(
     from bundesarchiv.app.web import catalog_views
 
     stored = corpus.articles.load(_ULID)
-    scan = corpus.articles.add_media(_ULID, "scan.pdf", b"scan")
+    scan = corpus.articles.add_media(_ULID, "scan.pdf", io.BytesIO(b"scan"))
     version = corpus.articles.save(
         replace(stored.article, media=(scan,)), stored.version, changed_by="tester"
     )
