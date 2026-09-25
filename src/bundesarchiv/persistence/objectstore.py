@@ -12,10 +12,11 @@ from typing import BinaryIO, Protocol, runtime_checkable
 from bundesarchiv.persistence.errors import ArchiveError
 
 # A key is "reserved" if any "/"-segment starts with a dot. Reserved keys are the
-# storage protocol's internal namespace: temp-write scratch (".tmp/…") and per-Article
-# lock objects ("…/.lock"). They are real, durable keys — `read`/`write_atomic`/`exists`
-# see them and address them by direct key — but they are EXCLUDED from `list()`, so a
-# walk sees only live content.
+# storage protocol's internal namespace: the local-FS adapter's temp siblings ("…/.tmp-<uuid>")
+# and prefix-delete leftovers ("…/.deleted-<hash>"), and the repository's recoverable trash
+# (".trash/…"); ".lock" is reserved by ADR 0013 and unused. They are real, durable keys —
+# `read`/`write_atomic`/`exists` see them and address them by direct key — but they are
+# EXCLUDED from `list()`, so a walk sees only live content.
 _RESERVED_SEGMENT_PREFIX = "."
 
 
@@ -32,7 +33,7 @@ def validate_key(key: str) -> None:
     (fail closed against path traversal), and no character may be a NUL or other
     ASCII control character (those provoke a raw ValueError from pathlib that would
     escape the port, and the in-memory fake would diverge by accepting them). A
-    leading-dot reserved segment (".tmp", ".lock") is valid.
+    leading-dot reserved segment (".trash", ".tmp-<uuid>") is valid.
     """
     if any(segment in ("", ".", "..") for segment in key.split("/")):
         raise ArchiveError(f"invalid key: {key!r}")  # an empty key splits to [""], caught here
@@ -102,7 +103,7 @@ class ObjectStore(Protocol):
 
     def list(self, prefix: str = "") -> Iterable[str]:
         """Keys beginning with `prefix`, in lexicographic order, excluding reserved
-        internal keys (temp/lock). `Iterable`, not `Iterator`: an adapter
+        internal keys (`is_reserved`). `Iterable`, not `Iterator`: an adapter
         may return a materialized, sorted list (the natural local-FS/WebDAV shape)."""
         ...
 
