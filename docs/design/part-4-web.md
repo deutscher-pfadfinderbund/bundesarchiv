@@ -144,7 +144,8 @@ Decided at kickoff (owner, 2026-07-05): **HTMX confirmed** (prototype evidence,
 top, Tektonik/Bestand entry points below). Results: card list default,
 auto-flip to thumbnail grid for photo-heavy result sets. Cataloging:
 single-article form first; the batch dropzone→annotate-queue pipeline is its
-own follow-up task once the form ships. Upload: progress bar in v1; resumable/
+own follow-up task once the form ships. Upload: progress bar in v1 (dropped with
+htmx 4, owner 2026-09-25: fetch reports no upload progress, ADR 0004); resumable/
 chunked deferred until it hurts. Defaults (owner-delegated): "Ohne Datum" is a
 first-class facet value (data honesty); visibility preview speaks human German
 ("Alle Mitglieder", named groups), not ladder rungs; curated entry points

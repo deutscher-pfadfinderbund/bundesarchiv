@@ -1,11 +1,9 @@
 // Cataloging-form progressive enhancement (Part 4.7 Slice E, spec §5).
 //
 // Every behaviour here is ENHANCEMENT-ONLY: the no-JS baseline works without it (the dirty register
-// is simply absent, custom rows are added by the always-present empty row + a save round-trip, the
-// upload shows no progress sliver). Self-contained, same-origin, no framework (dormancy rule) — one
-// script, three small features. HTMX (loaded separately) handles the AJAX swaps; this only covers
-// what HTMX can't express declaratively. No motion (spec law): the progress sliver grows in discrete
-// XHR-reported steps, no transitions.
+// is simply absent, custom rows are added by the always-present empty row + a save round-trip).
+// Self-contained, same-origin, no framework (dormancy rule) — one script, two small features. HTMX
+// (loaded separately) handles the AJAX swaps; this only covers what HTMX can't express declaratively.
 (function () {
   "use strict";
 
@@ -61,16 +59,5 @@
       row.querySelectorAll("input").forEach(function (i) {
         i.value = "";
       });
-  });
-
-  // 3. Upload progress — a discrete sliver reporting XHR upload progress (spec §6.3: no easing, no
-  // spinner). HTMX fires htmx:xhr:progress on the upload; we paint the fill width in whole percent.
-  // On the DOCUMENT, not document.body: a history restore replaces the body from htmx's snapshot, and
-  // a listener bound to the old body node dies with it — the same class as the bag above.
-  document.addEventListener("htmx:xhr:progress", function (event) {
-    var sliver = document.getElementById("medien-fortschritt-fill");
-    if (!sliver || !event.detail || !event.detail.lengthComputable) return;
-    var percent = Math.round((event.detail.loaded / event.detail.total) * 100);
-    sliver.style.width = percent + "%";
   });
 })();

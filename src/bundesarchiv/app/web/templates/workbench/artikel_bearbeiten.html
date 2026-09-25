@@ -14,7 +14,8 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">
-<script src="{% static "catalog_form.js" %}" defer></script>{% endblock %}
+<script src="{% static "catalog_form.js" %}" defer></script>
+<script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
 {% block body_class %}vorschau{% endblock %}
 {% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist %}{% endblock %}
 {% block body %}
@@ -267,10 +268,6 @@ sheet is the pane.{% endcomment %}
         <input type="file" name="dateien" form="medien-upload" multiple aria-label="Dateien auswählen">
         <button type="submit" form="medien-upload">Hinzufügen</button>
       </div>
-      {% comment %}Upload progress sliver — enhancement-only, absent in the no-JS baseline.{% endcomment %}
-      <div class="progress" aria-hidden="true">
-        <div id="medien-fortschritt-fill"></div>
-      </div>
 
       {% comment %}Per-row structural forms — siblings of the row markup, referenced via form=.
       Non-CAS, separate from the caption metadata save.{% endcomment %}
@@ -299,10 +296,11 @@ sheet is the pane.{% endcomment %}
       {% endfor %}
 
       {% comment %}Upload — a separate multipart form, a sibling so it survives the drawer swap.
-      Appends at the end, write-once dedupe.{% endcomment %}
+      Appends at the end, write-once dedupe. The browser's own tab spinner is the busy state (ADR 0004,
+      update 2026-09-25).{% endcomment %}
       <form id="medien-upload" method="post" enctype="multipart/form-data"
             action="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hidden>
+            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hx-browser-indicator hidden>
         {% csrf_token %}
       </form>
     </section>
