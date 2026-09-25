@@ -22,6 +22,7 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | `_writer.py` | the save protocol both share: CAS under `WRITER_LOCK`, history, commit |
 | `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
 | `collection_readme.py` | the Collection README codec |
+| `fixity.py` | the fixity check (ADR 0019): every README version read, every media file re-hashed against it, unreferenced and missing files named |
 | `_change.py` | the change record's `changed_at` / `changed_by` fields, shared by both codecs |
 
 Every adapter passes one shared contract: `tests/persistence/test_objectstore_conformance.py`

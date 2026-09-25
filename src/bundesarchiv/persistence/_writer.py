@@ -14,6 +14,7 @@ lock. Holding it across store calls assumes a local-latency canonical store.
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 
 from bundesarchiv.domain.models import Change, Version
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Conflict, NotFound
@@ -28,6 +29,12 @@ def readme_key(folder: str) -> str:
 
 def history_key(folder: str, version: Version) -> str:
     return f"{folder}/history/{version}.md"
+
+
+def is_history_key(folder: str, key: str) -> bool:
+    """True if `key` is ``history_key(folder, version)`` for some version."""
+    stem = PurePosixPath(key).stem
+    return stem.isdecimal() and history_key(folder, int(stem)) == key
 
 
 def commit(

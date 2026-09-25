@@ -19,8 +19,8 @@ from bundesarchiv.persistence.repository import ArticleRepository
 class Archive:
     """One archive: the ``ObjectStore`` port (ADR 0005) plus the two repositories built over it.
 
-    ``store`` is for the few callers that genuinely speak the port — the indexer, the mirror, the
-    thumbnail job. Everything else goes through ``articles`` / ``collections``.
+    ``store`` is for callers that need the stored objects themselves rather than the Articles and
+    Collections in them. Everything else goes through ``articles`` / ``collections``.
     """
 
     store: ObjectStore

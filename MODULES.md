@@ -10,7 +10,7 @@ the `update-module-map` skill.
 `models.py`, `access.py`, `audience.py`, `collections.py`, `viewer.py`, `identity.py`, `edtf.py` · rows + law: `src/bundesarchiv/domain/CLAUDE.md`
 
 ## persistence — files-canonical storage: README codecs, repositories, the ObjectStore port; no Django
-`repository.py`, `collections.py`, `readme.py`, `collection_readme.py`, `objectstore.py`, `adapters/localfs.py`, `adapters/memory.py`, `adapters/webdav.py` · rows + law: `src/bundesarchiv/persistence/CLAUDE.md`
+`repository.py`, `collections.py`, `readme.py`, `collection_readme.py`, `fixity.py`, `objectstore.py`, `adapters/localfs.py`, `adapters/memory.py`, `adapters/webdav.py` · rows + law: `src/bundesarchiv/persistence/CLAUDE.md`
 
 ## index — derived, disposable Postgres search index
 `indexer.py`, `query.py`, `scope.py`, `models.py` · rows + law: `src/bundesarchiv/index/CLAUDE.md`

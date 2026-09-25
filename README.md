@@ -85,6 +85,19 @@ uv run manage.py rebuild_index     # rebuilds from whatever BUNDESARCHIV_CANONIC
 Both paths are overridable: `BUNDESARCHIV_LEGACY_MEDIA` for the media folder,
 `BUNDESARCHIV_CANONICAL_ROOT` for where the archive lands.
 
+## Fixity check
+
+`verify` checks the archive's files against their READMEs
+([ADR 0019](docs/adr/0019-canonical-layout-v1.md), "Fixity"). It reads every
+README version, current and history, re-hashes every media file a version
+names, and lists the files no version names and the names with no file. It
+reports and never repairs. It exits with status 1 when it found anything.
+
+```sh
+uv run manage.py verify                                          # the dev archive
+BUNDESARCHIV_CANONICAL_ROOT=var/legacy/canonical uv run manage.py verify
+```
+
 ## Tests
 
 Tests run through [mise](https://mise.jdx.dev/) tasks; `mise.toml` is the single
