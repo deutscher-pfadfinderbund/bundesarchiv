@@ -14,6 +14,37 @@ the wordmark is always present and always links home.
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
   {% comment %}htmx 2 parity over htmx 4's defaults (swap all but 204/304, 60s timeout).{% endcomment %}
   <meta name="htmx-config" content='{"noSwap": [204, 304, "4xx", "5xx"], "defaultTimeout": 0}'>
+  {% comment %}Scripts live in the head: htmx strips it from a response, and re-runs every script of
+  swapped-in content — a history restore swaps the body.{% endcomment %}
+  <script src="{% static "htmx.min.js" %}" defer></script>
+  <script>
+    // htmx failures are otherwise silent — document-level listeners on the failure events reveal
+    // the banner; dismiss or a fresh success hides it by setting [hidden], which the modes-layer CSS
+    // makes absolute. A reveal lifts nothing: the edit surface's one action place is the sticky record
+    // row at the TOP (owner ruling 2), so a bottom-fixed banner cannot occlude it.
+    // On the document and looked up per event: htmx fires on the document when the source element
+    // is gone, and a history restore replaces the banner node.
+    (function () {
+      "use strict";
+      function setBannerHidden(hidden) {
+        var banner = document.querySelector(".error-banner");
+        if (banner) banner.hidden = hidden;
+      }
+      document.addEventListener("htmx:response:error", function () {
+        setBannerHidden(false);
+      });
+      document.addEventListener("htmx:error", function (event) {
+        // an abort (a newer history restore, leaving the page) is not a failure — htmx 2 parity
+        if (!event.detail.error || event.detail.error.name !== "AbortError") setBannerHidden(false);
+      });
+      document.addEventListener("htmx:after:request", function (event) {
+        if (event.detail.ctx.response.status < 400) setBannerHidden(true);
+      });
+      document.addEventListener("click", function (event) {
+        if (event.target.closest && event.target.closest(".error-banner button")) setBannerHidden(true);
+      });
+    })();
+  </script>
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{% static "layouts.css" %}">
@@ -33,34 +64,5 @@ take a second id; every other screen leaves the default.{% endcomment %}
   <p>Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
   <button type="button" aria-label="Meldung schließen">&times;</button>
 </div>
-<script src="{% static "htmx.min.js" %}" defer></script>
-<script>
-  // htmx failures are otherwise silent — document-level listeners on the failure events reveal
-  // the banner; dismiss or a fresh success hides it by setting [hidden], which the modes-layer CSS
-  // makes absolute. A reveal lifts nothing: the edit surface's one action place is the sticky record
-  // row at the TOP (owner ruling 2), so a bottom-fixed banner cannot occlude it.
-  // On the document and looked up per event: htmx fires on the document when the source element
-  // is gone, and a history restore replaces the banner node.
-  (function () {
-    "use strict";
-    function setBannerHidden(hidden) {
-      var banner = document.querySelector(".error-banner");
-      if (banner) banner.hidden = hidden;
-    }
-    document.addEventListener("htmx:response:error", function () {
-      setBannerHidden(false);
-    });
-    document.addEventListener("htmx:error", function (event) {
-      // an abort (a newer history restore, leaving the page) is not a failure — htmx 2 parity
-      if (!event.detail.error || event.detail.error.name !== "AbortError") setBannerHidden(false);
-    });
-    document.addEventListener("htmx:after:request", function (event) {
-      if (event.detail.ctx.response.status < 400) setBannerHidden(true);
-    });
-    document.addEventListener("click", function (event) {
-      if (event.target.closest && event.target.closest(".error-banner button")) setBannerHidden(true);
-    });
-  })();
-</script>
 </body>
 </html>

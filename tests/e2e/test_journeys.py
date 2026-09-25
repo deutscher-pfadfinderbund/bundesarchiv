@@ -1413,6 +1413,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     # a live search: hx-push-url snapshots the current page into htmx's history cache first
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     page.wait_for_url("**q=Sommerfahrt**")
+    page.evaluate("() => { window.__htmxAtLoad = htmx; }")
     page.go_back()
     page.wait_for_url(lambda url: "q=Sommerfahrt" not in url)
     # the restore is a server GET that swaps the body; judge nothing before the full ledger is back
@@ -1434,6 +1435,9 @@ def test_bulk_enhancement_survives_a_history_restore(
     )  # the count rides the rail, not here
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
+    # htmx 4 re-runs the <script>s of swapped content; a restore swaps the body, so a script there
+    # would start a second htmx (and every later Back would restore twice)
+    assert page.evaluate("() => htmx === window.__htmxAtLoad"), "the restore re-ran htmx.min.js"
 
 
 def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
