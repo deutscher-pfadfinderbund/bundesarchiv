@@ -5,11 +5,10 @@ It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
     articles/<ulid>/README.md             the commit point (front-matter + body + marker)
     articles/<ulid>/history/<version>.md  each replaced README
     articles/<ulid>/media/<name>          media files under their own name, write-once
-    .trash/articles/<ulid>/...            recoverable destination for hard_delete (reserved)
 
 The README.md ⇄ Article translation is the `readme` codec. The README and history keys and the save
 order are `_writer.commit`'s; this module owns the rest of the key scheme, the media names (ADR
-0019 "Media names") and recoverable delete.
+0019 "Media names") and the hard delete.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
 """
@@ -126,18 +125,9 @@ class ArticleRepository:
         )
 
     def hard_delete(self, ulid: Ulid) -> None:
-        """Move the Article's whole tree into recoverable trash (reserved, excluded
-        from listings), then remove the originals. A no-op if the Article is absent.
-
-        Not atomic (the port has no batch move): a crash mid-copy leaves the originals intact
-        with a partial trash copy; a crash mid-delete leaves a complete trash copy with the
-        originals partly gone. The copy-all-then-delete-all order keeps the data recoverable
-        across either window. Reads each blob fully into memory — fine at v1 media sizes."""
-        keys = list(self._store.list(f"{_folder(ulid)}/"))
-        for key in keys:
-            self._store.write_atomic(f".trash/{key}", self._store.read(key))
-        for key in keys:
-            self._store.delete(key)
+        """Remove the Article's folder for good, keeping no copy (ADR 0020). A no-op if the
+        Article is absent."""
+        self._store.delete_prefix(_folder(ulid))
 
     def _place(
         self, ulid: Ulid, name: str, source: BinaryIO, start: int, digest: tuple[str, int]

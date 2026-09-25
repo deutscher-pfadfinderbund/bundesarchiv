@@ -177,7 +177,7 @@ def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResu
 
 
 def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
-    """Hard-delete the Article from canonical (recoverable trash, ADR 0005), then synchronously
+    """Delete the Article from canonical for good (ADR 0020), then synchronously
     reindex — ``index_article`` sees the ulid gone from canonical and DELETES its index row. On
     index failure the delete stands, a retry job (which will also drop the row) is enqueued, and
     ``index_updated=False`` is returned. Version is 0 (the Article no longer exists)."""

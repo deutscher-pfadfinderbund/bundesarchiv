@@ -17,7 +17,7 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; temp→fsync, then `rename` (replace) or `link` (create-only), all backend errors mapped to `ArchiveError` via the `_backend` seam |
 | `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud backend (plain `PUT`, bounded retries on `423` and a transient `404`/`409`), a sync adapter; transport errors wrapped via `_request` |
-| `repository.py` | `ArticleRepository` — key scheme, media names, trash |
+| `repository.py` | `ArticleRepository` — key scheme, media names, hard delete |
 | `collections.py` | `CollectionRepository` — the same for Collections |
 | `_writer.py` | the save protocol both share: CAS under `WRITER_LOCK`, history, commit |
 | `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
@@ -36,7 +36,6 @@ articles/<ulid>/history/<version>.md  every replaced README, byte for byte, crea
 articles/<ulid>/media/<name>          media files under their own name, write-once (ADR 0019)
 collections/<ulid>/README.md          the Collection's commit point
 collections/<ulid>/history/<version>.md
-.trash/articles/<ulid>/…              recoverable hard_delete destination (reserved → excluded from list)
 ```
 
 Identity is the ULID; the key never embeds a slug ([ADR 0006](../../../docs/adr/0006-article-identity-and-key-naming.md)).

@@ -1,7 +1,7 @@
 """ArticleRepository behaviour, exercised through its interface over both the
 in-memory ObjectStore fake and the LocalFs adapter (the Collection conformance
 pattern) — the canonical-file protocol, optimistic concurrency, named write-once media
-(ADR 0019), and recoverable hard_delete.
+(ADR 0019), and the hard delete (ADR 0020).
 """
 
 import io
@@ -328,23 +328,23 @@ def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository)
     assert {key: repo._store.read(key) for key in repo._store.list()} == before
 
 
-def test_hard_delete_removes_article_but_keeps_recoverable_copy(repo: ArticleRepository) -> None:
+def test_a_hard_delete_leaves_nothing_of_the_article_on_disk(tmp_path: Path) -> None:
+    """ADR 0020: final for the app, so no copy is kept, reserved or not. ``01J0X`` shares the
+    folder's name as a string prefix and stays."""
+    repo = ArticleRepository(LocalFsObjectStore(tmp_path))
     ref = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     repo.save(_article(media=(ref,)), expected_version=0, changed_by="tester")
     repo.save(_article(media=(ref,), title="revised"), expected_version=1, changed_by="tester")
-    original = set(repo._store.list("articles/01J0/"))
-    assert len(original) == 3  # README + the media blob + the v1 history file
+    repo.save(_article("01J0X"), expected_version=0, changed_by="tester")
+    kept = {path: data for path, data in _files(tmp_path).items() if "01J0X" in path.parts}
 
     repo.hard_delete("01J0")
 
-    with pytest.raises(NotFound):
-        repo.load("01J0")
-    assert list(repo.list_ulids()) == []  # gone from listings
-    # recoverable: the ENTIRE subtree (README, media, history) lives under reserved .trash,
-    # excluded from list() — not just the README.
-    for key in original:
-        assert repo._store.exists(f".trash/{key}") is True
-    assert set(repo._store.list()) == set()
+    assert _files(tmp_path) == kept
+
+
+def _files(root: Path) -> dict[Path, bytes]:
+    return {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
 
 
 def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> None:
