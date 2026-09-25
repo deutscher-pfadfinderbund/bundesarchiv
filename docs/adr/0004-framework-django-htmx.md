@@ -41,3 +41,14 @@ tokenless cross-site POST now gets a 403 before the view runs — orthogonal to 
 archivist gate (a valid token still hits the byte-identical 404 for a
 non-archivist). **Deferred to Part 6 (TLS deploy):** set `CSRF_COOKIE_SECURE = True`
 and `CSRF_TRUSTED_ORIGINS` once the service is behind HTTPS.
+
+**Update 2026-09-25 — htmx 4 (owner):** the app moves from htmx 2.0.4 to htmx 4
+(4.0.0 released 2026-08-28), plain `htmx.min.js`, with the `browser-indicator`
+extension only. htmx 4 sends requests with `fetch()`, so the upload progress
+sliver goes: fetch reports no upload progress, and streaming request bodies are
+Chrome-only. The owner dropped the progress display rather than keep a
+hand-written XHR path. This weakens the 2026-07-05 argument against Datastar
+(upload progress); the owner chose htmx 4 with that trade-off known. Stack
+unchanged otherwise; web components and shadcn-style systems were weighed and
+rejected the same day (see `docs/requirements/owner-interview-2026-08.md`,
+component architecture rulings).

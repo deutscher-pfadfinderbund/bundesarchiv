@@ -661,3 +661,46 @@ Consequences:
 - **Physical-only items are the common case** (1663 of 2506). Several
   physical copies of one Article, each with its own Standort, is a future
   domain wish (issue filed).
+
+## Component architecture rulings (owner, 2026-09-25)
+
+Answers the open question from 2026-08-29 ("the css needs to be maintainable").
+Evidence: a throwaway prototype on branch `prototype/component-architecture` —
+one field row built three ways, tested in a record card, a narrow form, inside
+an extra wrapper, and after an htmx row swap.
+
+- **The stack stays:** Django templates, htmx, plain native CSS. No build step.
+- **Web components (shadow DOM) are rejected for styling.** They look the same
+  but cost more: two stylesheets per component (the page's control rules beat
+  `::slotted()`), a shadow template in every instance's HTML, and a rewrite of
+  the design lint and the computed-style walkers. The browser-enforced wall
+  covers layout only; control states stay page-wide. Light-DOM custom elements
+  for JS behaviour were raised, not ruled.
+- **shadcn-style systems are rejected** (React + Tailwind; ADR 0004 and the
+  construction law already exclude both).
+- **Component model — "owned components":**
+  - A component's outer element carries one class named for the component.
+    The component styles only its own inside.
+  - Pages and compositions set the component's knobs (custom properties) and
+    never select inside a component. Knobs inherit through any wrapper, so a
+    component works nested anywhere.
+  - A lint test enforces the boundary: no composition selector reaches past a
+    component's outer class.
+  - Facts about a field (width class, Signatur ink) come from the field
+    registry, never from CSS keyed on an input's `name`.
+  - This amends law C1 ("classes only where semantics cannot discriminate")
+    for component roots. The law text changes with the wave that builds it.
+- **One section per component, not one file.** Each component's CSS is one
+  section of the existing layer file, named like its template. No new
+  requests, no `@import`.
+- **Order:** a dedicated wave converts every component to the model first,
+  before the edit-form recompose build.
+- **htmx 4 first, in its own small wave** (before the component wave): plain
+  `htmx.min.js` 4.x, not the `htmax` bundle. One extension:
+  `browser-indicator` (the tab's own spinner during requests).
+- **The upload progress bar is dropped.** htmx 4 sends requests with `fetch()`,
+  which reports no upload progress; streaming request bodies work in Chrome
+  only. Uploads show a busy state.
+- **htmx 2's localStorage page snapshots: ignored.** htmx 2.0.4 keeps copies of
+  recent pages in localStorage, past logout. No separate fix; htmx 4 drops the
+  mechanism. Reviewers need not report it again.
