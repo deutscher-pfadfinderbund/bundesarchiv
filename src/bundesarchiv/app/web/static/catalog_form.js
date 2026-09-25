@@ -31,7 +31,7 @@
   // #form-region swap — which every validation error, CAS conflict and index-lag re-render performs —
   // the bag in the DOM was a NEW node and the client-side add/remove was simply dead until a full
   // reload. Nothing said so; the no-JS baseline still worked, one round-trip at a time. The wave's own
-  // fix for the sibling class (catalog_bulk.js re-initialising on htmx:historyRestore) covered only
+  // fix for the sibling class (catalog_bulk.js re-initialising after a history restore) covered only
   // the OTHER enhancement. Delegation needs no re-init at all: there is nothing to bind, so a swap
   // and a history restore are both non-events (learning G.25, H.8).
   document.addEventListener("input", function (event) {

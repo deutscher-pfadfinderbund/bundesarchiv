@@ -49,19 +49,16 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
-#: Counts htmx's "the swap target is not on this page" aborts AND every request htmx starts. A
-#: targetError is NOT a request failure — it fires before any request, so no error banner shows and the
-#: archivist sees a dead control. The REQUEST counter is what makes the assertion an assertion rather
-#: than a sleep: "not attached here" means htmx started nothing at all.
+#: Counts htmx's errors AND every request htmx starts. The REQUEST counter is what makes the
+#: assertion an assertion rather than a sleep: "not attached here" means htmx started nothing at all.
 _COUNT_HTMX_JS = """() => {
-    window.__targetErrors = [];
+    window.__htmxErrors = [];
     window.__requests = [];
-    document.body.addEventListener('htmx:targetError', (e) => {
-        window.__targetErrors.push(String(e.detail && e.detail.target));
+    document.addEventListener('htmx:error', (e) => {
+        window.__htmxErrors.push(String(e.detail && e.detail.error));
     });
-    document.body.addEventListener('htmx:beforeRequest', (e) => {
-        window.__requests.push(String(e.detail && e.detail.pathInfo
-            && e.detail.pathInfo.requestPath));
+    document.body.addEventListener('htmx:before:request', (e) => {
+        window.__requests.push(String(e.detail && e.detail.ctx && e.detail.ctx.request.action));
     });
 }"""
 
@@ -92,9 +89,7 @@ def test_search_works_from_a_screen_without_the_results_region(
         # is ASSERTED on the request counter rather than waited out: htmx must start nothing at all.
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_timeout(_PAST_SEARCH_DEBOUNCE_MS)
-        assert page.evaluate("() => window.__targetErrors") == [], (
-            f"{path}: htmx aborted a swap against an absent target"
-        )
+        assert page.evaluate("() => window.__htmxErrors") == [], f"{path}: htmx raised an error"
         assert page.evaluate("() => window.__requests") == [], (
             f"{path}: htmx fired a request from a screen the enhancement does not live on"
         )
@@ -1120,7 +1115,7 @@ def test_failed_save_banner_leaves_speichern_clickable(
             route.fallback()
 
     page.route("**/bearbeiten", fail_saves)
-    page.click('button:has-text("Speichern")')  # htmx sendError → the banner reveals
+    page.click('button:has-text("Speichern")')  # htmx:error → the banner reveals
     expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
     # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the record
     # row is still pinned at the top and its Speichern is still the topmost element at its own
@@ -1152,7 +1147,36 @@ def test_failed_save_banner_leaves_speichern_clickable(
     expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
 
 
-# --- dirty register (PE) -----------------------------------------------------------
+def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # A deny is an empty 404. Swapped through hx-select="#form-region" it would replace the whole
+    # edit region with nothing and take the unsaved edits with it; htmx 4 swaps non-2xx unless the
+    # htmx-config meta in base.html says otherwise.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Verweigert")
+    page.fill('input[name="title"]', "E2E Ungespeichert")
+
+    def deny_saves(route: Route) -> None:
+        if route.request.method == "POST":
+            route.fulfill(status=404, body="")
+        else:
+            route.fallback()
+
+    page.route("**/bearbeiten", deny_saves)
+    page.click('button:has-text("Speichern")')
+    banner = page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")
+    expect(banner).to_be_visible()
+    expect(page.locator('input[name="title"]')).to_have_value("E2E Ungespeichert")
+    # a later success hides it: a validation re-render is a 200 that stays on the page
+    page.unroute("**/bearbeiten")
+    page.fill('input[name="title"]', "")
+    page.click('button:has-text("Speichern")')
+    expect(page.locator(".karte .error").first).to_be_visible()
+    expect(banner).to_be_hidden()
+
+
+# --- dirty register (PE)-----------------------------------------------------------
 
 
 def test_dirty_register_covers_fields_outside_the_form_subtree(
@@ -1391,6 +1415,8 @@ def test_bulk_enhancement_survives_a_history_restore(
     page.wait_for_url("**q=Sommerfahrt**")
     page.go_back()
     page.wait_for_url(lambda url: "q=Sommerfahrt" not in url)
+    # the restore is a server GET that swaps the body; judge nothing before the full ledger is back
+    expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the restored page states the URL's selection (none), never the snapshot's stale count
     expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
     expect(page.locator("details.bulk")).to_be_hidden()
@@ -1642,7 +1668,7 @@ def test_the_custom_bag_enhancement_survives_a_form_region_swap(
     # validation error, CAS conflict and index-lag re-render performs one — the bag in the DOM was a new
     # node and the client-side row add/remove was dead until a full reload. Nothing said so: the no-JS
     # baseline still worked, one round-trip per row. The wave's fix for the sibling class covered the
-    # OTHER enhancement only (catalog_bulk.js on htmx:historyRestore).
+    # OTHER enhancement only (catalog_bulk.js re-initialising after a history restore).
     page = archivist_page
     edit_url = _create_draft(page, live_workbench, "E2E Fachwerk")
     page.goto(edit_url)
