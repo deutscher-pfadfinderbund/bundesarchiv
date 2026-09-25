@@ -49,7 +49,7 @@ deliberately NOT bound: Enter / "Suchen" is a plain navigation on every screen a
   {% if page.hits %}
   {% if is_archivist %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
-        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% csrf_token %}
     {% if bulk_bar %}
     {% include "workbench/_sammelleiste.html" %}

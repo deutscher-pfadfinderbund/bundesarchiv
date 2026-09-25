@@ -25,7 +25,7 @@ enhancement POSTs clear CsrfViewMiddleware like the no-JS forms' {% templatetag 
 full-page render (hx-select) — so a validation/conflict/state-H re-render moves the panels, the
 refreshed expected_version on EVERY form in the row, and the reader's sheet together. A row left
 outside the swap would keep a stale CAS version. A successful save gets HX-Redirect instead.{% endcomment %}
-<div id="form-region" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<div id="form-region" hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
 {% comment %}The record row — the view's ONE control row and ONE action place (owner ruling 2). In
 reading order: the back affordance · the save-state output and the ENTWURF badge · then ONE
@@ -127,18 +127,12 @@ sheet is the pane.{% endcomment %}
   register must hold real <form> children and forms cannot nest, so the DOM splits at the drawer while
   the CARD does not. Gruppe 6/7 are wired back via form="bearbeiten-form" on every field.{% endcomment %}
   <div class="karte">
-  {% comment %}hx-disinherit is load-bearing, not tidiness: htmx INHERITS hx-target/hx-select/hx-swap
-  down the tree, so the two small GET enhancements inside this form (the Dokumenttyp option list, the
-  Datierung echo) inherited hx-select="#form-region" — and their responses are an <option> list and
-  one <span>, which contain no #form-region at all. htmx selected NOTHING out of them and swapped
-  exactly that in: changing Medienart emptied the Dokumenttyp select outright, and typing a Datierung
-  deleted the echo's own swap target. Same class as the header's search (a swap selector that does not
-  resolve where the enhancement fires), so it dies the same way — at the boundary, once.{% endcomment %}
+  {% comment %}This form's swap triple must stay NOT :inherited — the two GET enhancements inside answer
+  with their own partials, which hold no #form-region (G.27).{% endcomment %}
   <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
-        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML"
-        hx-disinherit="hx-target hx-select hx-swap">
+        hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
@@ -213,20 +207,18 @@ sheet is the pane.{% endcomment %}
     controls likewise belong to form#medien-upload via form=, and the file input stays the NATIVE one
     (owner ruling 7: a German browser renders German strings).
 
-    The swap TRIPLE is declared ONCE, here, on the region it names — htmx inherits
-    hx-target/hx-select/hx-swap down the tree, and each of the five forms below used to carry its own
-    copy. A swap selector must resolve WHERE IT FIRES (G.32), and on this region it does by
-    construction; the two GET enhancements that must NOT inherit live inside #bearbeiten-form, which
-    stops inheritance with hx-disinherit. The hidden forms are SIBLINGS inside the section (forms
-    cannot nest), so a swap delivers fresh forms for the CURRENT row set.
+    The swap TRIPLE is declared ONCE, here, on the region it names, and :inherited by the five forms
+    below. A swap selector must resolve WHERE IT FIRES (G.32), and on this region it does by
+    construction. The hidden forms are SIBLINGS inside the section (forms cannot nest), so a swap
+    delivers fresh forms for the CURRENT row set.
 
     hx-select-oob carries the READER'S SHEET along, inherited by every form below: order is meaning,
     so promoting a plate re-covers the record (ADR 0015) and the sheet must not keep the old
     thumbnail until a full reload. One response either way — only the metadata save swaps
     #form-region.{% endcomment %}
     <section id="medien-drawer" class="fach"
-             hx-target="#medien-drawer" hx-select="#medien-drawer" hx-swap="outerHTML"
-             hx-select-oob="#lesesicht">
+             hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
+             hx-swap:inherited="outerHTML" hx-select-oob:inherited="#lesesicht">
       <h2>Medien</h2>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
