@@ -4,6 +4,9 @@
 > `history/` and the media layout by named files ([ADR 0019](0019-canonical-layout-v1.md)).
 > "Deployment topology" is replaced by [ADR 0020](0020-storage-topology-system-of-record.md).
 > Hard delete no longer keeps a `.trash/` copy (ADR 0020).
+> Since 2026-09-25 the WebDAV write is one plain `PUT` with bounded retries, no temp file
+> and no `MOVE` (ADR 0020, `docs/nextcloud-webdav-notes.md`), and the port gains `create`,
+> `create_large`, `list_entries` and `delete_prefix` (ADR 0019).
 
 ## Module shape (two seams)
 

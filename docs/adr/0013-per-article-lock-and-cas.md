@@ -19,6 +19,9 @@ the canonical store (README files through the ObjectStore port).
   read via `readme.read_version` / `ArticleRepository._current_version`). The
   `changes/<version>.json` records are gap-tolerant secondary history per
   ADR 0005 — never the counter, never load-bearing for CAS.
+  *(Amended 2026-09-25, [ADR 0019](0019-canonical-layout-v1.md): `_current_version` and
+  `changes/` are gone. `_writer.commit` reads the version, and writes `history/<n>.md`
+  create-only inside the CAS section; a history file holding other bytes refuses the save.)*
 - The CAS primitive **already exists**: `ArticleRepository.save(article,
   expected_version)` raises the existing typed **`Conflict`** error on version
   mismatch, nothing written. We reuse `Conflict` — no new `StaleVersion` type;
@@ -82,7 +85,8 @@ process replaces the lock object. The reserved `.lock` key name stays reserved
 - Part 4.1 conformance tests: two racing form saves → exactly one winner, the
   loser's `save(…, stale_version)` raises `Conflict`, the store's README ends
   at the winner's `version + 1`. Assert against the README version — never
-  against `changes/*.json` presence (gap-tolerant).
+  against `changes/*.json` presence (gap-tolerant). *(Amended 2026-09-25: `changes/` is
+  gone, see Decision.)*
 - The Part 4 UI task must map `Conflict` → the "Inzwischen geändert" screen at
   the form controller layer; no other layer catches it.
 - Deferred with triggers: multi-host write path (needs real distributed CAS —

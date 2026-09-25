@@ -1,5 +1,9 @@
 # The WebDAV mirror adapter is hand-rolled on httpx, not a client library
 
+> **Amended (2026-09-25):** a write is one plain `PUT`, retried while the server answers
+> `423 Locked` ([ADR 0020](0020-storage-topology-system-of-record.md)). This supersedes the
+> "PUT+MOVE shape" and the unbuilt "423-Locked retry" below.
+
 ## Context
 
 `WebDavObjectStore` (the Nextcloud mirror backend, ADR 0005) is ~160 lines of our own

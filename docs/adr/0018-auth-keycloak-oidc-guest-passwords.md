@@ -31,7 +31,8 @@ authentication event: callback → validated claims → cookie. The transient
 | Settings and the deploy checklist | `index/settings.py`, `docs/runbook.md` |
 
 Not built, deliberately: capability links, Keycloak group mapping beyond the
-forward-compatible `groups` parse, kiosk mode, the audit trail.
+forward-compatible `groups` parse, kiosk mode, the audit trail. *(Amended 2026-09-25: the
+audit trail is built, as ADR 0019's version history with `changed_by`.)*
 
 ## Claims contract
 
@@ -165,4 +166,5 @@ Capability links (an HMAC-signed short-expiry link that mints the cookie, per
 the 2026-08 access-model ruling); Keycloak group claims feeding `Member.groups`
 — the parse exists, the realm mapper is the missing half; kiosk mode; per-item
 links; an audit trail; a true internet-public tier for curated exhibitions (the
-dormant `PUBLIC` audience rung stays reserved for it).
+dormant `PUBLIC` audience rung stays reserved for it). *(Amended 2026-09-25: the audit
+trail is built, ADR 0019.)*

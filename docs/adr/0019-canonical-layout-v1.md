@@ -1,7 +1,8 @@
 # Canonical layout v1: version history, named media files, a fixity check
 
-Status: Proposed (2026-09-24). Amends ADR 0005 (history, `changes/`, `.snapshots/`) and
-ADR 0015 (media layout). ADR 0006 stands: folders stay ULID-only.
+Status: Proposed (2026-09-24). Amends ADR 0005 (history, `changes/`, `.snapshots/`),
+ADR 0006 (media keys; its ULID-only folders stand), ADR 0013 (media exemption, secondary
+history) and ADR 0015 (media layout). ADR 0018 carries `changed_by` in the viewer cookie.
 
 ## Context
 
