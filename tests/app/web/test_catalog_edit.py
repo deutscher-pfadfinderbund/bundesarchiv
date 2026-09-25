@@ -10,7 +10,7 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
@@ -249,13 +249,13 @@ def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _EditCorp
 def test_stale_save_against_deleted_article_is_404(
     corpus: _EditCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The archivist opened the form at version 1 (the gate passes and loads the article); an
-    # archivist hard-deletes it before THIS POST's save runs — the exact race window between the
-    # view's initial gate/load and `save_catalog_form`'s own re-load on Conflict. `_current_version`
-    # then reads 0 for the missing article, so `save_article` raises Conflict (0 != 1); the Conflict
-    # handler's re-load hits NotFound. That must collapse to the SAME 404 as an absent article, never
-    # an uncaught 500.
+    # Hard-deleted, media and all, between the gate's load and this POST's save: the save refuses
+    # as stale before it checks media, and the re-load's NotFound is the plain 404, never a 500.
     from bundesarchiv.app.web import catalog_views
+
+    stored = corpus.articles.load(_ULID)
+    scan = corpus.articles.add_media(_ULID, "scan.pdf", b"scan")
+    version = corpus.articles.save(replace(stored.article, media=(scan,)), stored.version)
 
     real_gated = catalog_views._load_gated
 
@@ -265,7 +265,9 @@ def test_stale_save_against_deleted_article_is_404(
         return gated
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
-    response = client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus))
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, expected_version=str(version))
+    )
     assert_denied(response)
 
 

@@ -1,33 +1,67 @@
-"""The one process-wide write mutex the repositories share (ADR 0013).
+"""The one save protocol both repositories share (ADR 0013, ADR 0019).
 
-Both `ArticleRepository` and `CollectionRepository` write the SAME canonical store
-through the SAME `ObjectStore` port, and the port offers no compare-and-swap. Their
-`save` is a load-check-write critical section: read the current version → compare to
-the caller's `expected_version` → `write_atomic` the commit. Two genuinely-interleaved
-saves could otherwise both pass the check and the second would silently clobber the
-first — the one unforgivable failure for an archive (ADR 0013 "Why not:
-last-writer-wins").
+A saved record is a folder, ``articles/<ulid>`` or ``collections/<ulid>``, holding ``README.md``
+(the current version, and the commit point) and ``history/<n>.md`` (each version a save replaced,
+byte for byte). ``commit`` owns the order: check the version, keep the replaced README, commit.
 
-`WRITER_LOCK` serializes that critical section across BOTH repositories. It is one
-module-level `threading.Lock` so the two repos share a single lock — they must, since
-they write one store; a per-repo lock would leave the check-then-write interleavable
-across repositories. It is held ONLY across the critical section (version read →
-compare → commit write), never across anything slow that is not the check-and-write.
-
-This closes the intra-process race. The cross-process race is out of scope by the
-single-app-process deploy rule (ADR 0013 runbook item): one app process writes the
-canonical store; a second writer host would need real distributed CAS (deferred with a
-trigger). Media blobs are exempt — content-addressed, write-once, idempotent — so
-`add_media` does not take the lock. `hard_delete` is exempt too: a delete-vs-save race
-on the same ulid stays out of scope under the v1 single-writer discipline (deletes are
-rare Archivist actions, not a Part 4 concurrent path). The "nothing slow under the
-lock" guarantee assumes a LOCAL-latency canonical store (the v1 deploy); a
-WebDAV-canonical configuration would serialize network round-trips under this one
-process-wide lock.
+The port has no compare-and-swap, so the check-then-write runs under ``WRITER_LOCK``. It is one
+lock for both repositories because they write one store. The cross-process race is out of scope
+by the single-app-process deploy rule (ADR 0013). Media writes and hard deletes run without the
+lock. Holding it across store calls assumes a local-latency canonical store.
 """
 
 import threading
+from collections.abc import Callable
 
-# The single writer mutex. Module-level so `import`ing it from either repository yields
-# the same object; both repositories acquire THIS lock around their critical section.
+from bundesarchiv.domain.models import Version
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Conflict, NotFound
+from bundesarchiv.persistence.objectstore import ObjectStore
+
 WRITER_LOCK = threading.Lock()
+
+
+def readme_key(folder: str) -> str:
+    return f"{folder}/README.md"
+
+
+def history_key(folder: str, version: Version) -> str:
+    return f"{folder}/history/{version}.md"
+
+
+def commit(
+    store: ObjectStore,
+    folder: str,
+    expected_version: Version,
+    *,
+    version_of: Callable[[str], Version],
+    render: Callable[[Version], str],
+    precondition: Callable[[], None] = lambda: None,
+) -> Version:
+    """Replace ``folder``'s README with ``render(new_version)`` and return the new version.
+
+    Raises ``Conflict`` and writes nothing when the stored version is not ``expected_version``
+    (absent README: version 0). ``precondition`` runs after the version check, under the lock, and
+    refuses by raising; nothing is written then either. A retry after a crash between the history
+    write and the commit finds its history file and goes on; a history file holding other bytes
+    raises ``ArchiveError`` and commits nothing."""
+    with WRITER_LOCK:
+        try:
+            current = store.read(readme_key(folder))
+        except NotFound:
+            current = None
+        version = 0 if current is None else version_of(current.decode("utf-8"))
+        if version != expected_version:
+            raise Conflict(f"{folder}: expected version {expected_version}, store has {version}")
+        precondition()
+        if current is not None:
+            _keep(store, history_key(folder, version), current)
+        store.write_atomic(readme_key(folder), render(version + 1).encode("utf-8"))
+    return version + 1
+
+
+def _keep(store: ObjectStore, key: str, data: bytes) -> None:
+    try:
+        store.create(key, data)
+    except AlreadyExists:
+        if store.read(key) != data:
+            raise ArchiveError(f"{key}: holds other bytes than the version it keeps") from None

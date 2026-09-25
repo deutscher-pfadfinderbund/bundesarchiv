@@ -2,38 +2,27 @@
 
 It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
 
-    articles/<ulid>/README.md          the commit point (front-matter + body + marker)
-    articles/<ulid>/media/<sha256>     content-addressed media blobs, write-once
-    articles/<ulid>/changes/<version>.json   append-only change records
-    .trash/articles/<ulid>/...         recoverable destination for hard_delete (reserved)
+    articles/<ulid>/README.md             the commit point (front-matter + body + marker)
+    articles/<ulid>/history/<version>.md  each replaced README
+    articles/<ulid>/media/<sha256>        content-addressed media blobs, write-once
+    .trash/articles/<ulid>/...            recoverable destination for hard_delete (reserved)
 
-The README.md ⇄ Article translation is the `readme` codec; this module owns versioning,
-the pinned write order, media write-once, and recoverable delete.
-
-`save` is optimistic: the README front-matter carries a `version`; a stale
-`expected_version` raises `Conflict`. The pinned write order is media → README
-(= commit) → changes: a half-written save leaves the prior README (or none), and a
-README is refused if it references media not yet stored. A failure *after* the README
-commits (e.g. writing the changes record) still propagates, but the Article is by then
-durably saved at the new version — the changes log is secondary metadata that ADR 0005
-tolerates gaps in, and a caller's retry with the old version will surface `Conflict`,
-signalling the save took effect.
+The README.md ⇄ Article translation is the `readme` codec. The README and history keys and the save
+order are `_writer.commit`'s; this module owns the rest of the key scheme, media write-once and
+recoverable delete.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
-Snapshots (.snapshots/) and the per-Article lock object are deferred (single-writer
-v1, ADR 0013).
 """
 
 import hashlib
-import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
-from bundesarchiv.persistence._writer import WRITER_LOCK
-from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
+from bundesarchiv.persistence._writer import commit, readme_key
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -62,36 +51,16 @@ class ArticleRepository:
         return Stored(article, version)
 
     def save(self, article: Article, expected_version: Version) -> Version:
-        # CONCURRENCY (ADR 0013): the version check-then-write is CAS, and the ObjectStore port
-        # has no native compare-and-swap, so the whole load-check-write critical section runs
-        # under the ONE process-wide WRITER_LOCK shared with CollectionRepository (both write the
-        # same store — see persistence/_writer.py). That serialization is what makes check-then-
-        # write atomic within the single app process: two genuinely-interleaved saves can no
-        # longer both pass the check; the second sees the bumped version and raises Conflict, the
-        # write-nothing failure mode a stale form save relies on. The cross-process race is out of
-        # scope by the single-app-process deploy rule (ADR 0013 runbook item); a second writer
-        # host would need real distributed CAS (deferred with a trigger).
-        with WRITER_LOCK:
-            current = self._current_version(article.ulid)
-            if current != expected_version:
-                raise Conflict(
-                    f"{article.ulid}: expected version {expected_version}, store has {current}"
-                )
-            # Pinned order: media must already be stored before the README commits to it.
-            for ref in article.media:
-                if not self._store.exists(_media_key(article.ulid, ref.content_hash)):
-                    raise ArchiveError(
-                        f"{article.ulid}: media {ref.content_hash} not stored before save"
-                    )
-            new_version = current + 1
-            self._store.write_atomic(
-                _readme_key(article.ulid), readme.encode(article, new_version).encode("utf-8")
-            )  # the commit
-            self._store.write_atomic(
-                _changes_key(article.ulid, new_version),
-                json.dumps({"ulid": article.ulid, "version": new_version}, sort_keys=True).encode(),
-            )
-        return new_version
+        """Commit `article` as the version after `expected_version` and return it. Raises
+        `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet stored."""
+        return commit(
+            self._store,
+            _folder(article.ulid),
+            expected_version,
+            version_of=lambda text: readme.read_version(article.ulid, text),
+            render=lambda version: readme.encode(article, version),
+            precondition=lambda: self._refuse_unstored_media(article),
+        )
 
     def add_media(
         self,
@@ -131,18 +100,18 @@ class ArticleRepository:
         (the thumbnailer) needs no Article. Walks the article tree: there is no hash→key index,
         and building one would be a second source of truth about where blobs are."""
         suffix = f"/{_MEDIA_SEGMENT}/{content_hash}"
-        key = next((k for k in self._store.list("articles/") if k.endswith(suffix)), None)
+        key = next((k for k in self._store.list(f"{_ROOT}/") if k.endswith(suffix)), None)
         return None if key is None else self._store.read(key)
 
     def list_ulids(self) -> Iterable[Ulid]:
-        return [ulid for key in self._store.list("articles/") if (ulid := _ulid_of_readme(key))]
+        return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
 
     def keys_for(self, ulid: Ulid) -> list[str]:
-        """The live canonical keys under this Article's tree (README + media + changes), for callers
+        """The live canonical keys under this Article's tree (README, history, media), for callers
         that must address them by key without hand-rolling the layout — e.g. the mirror replay, which
-        enqueues one push per key. Reserved keys (temp/lock/snapshots) are excluded by `list`. An
-        absent Article yields ``[]``."""
-        return list(self._store.list(f"articles/{ulid}/"))
+        enqueues one push per key. Reserved keys are excluded by `list`. An absent Article yields
+        ``[]``."""
+        return list(self._store.list(f"{_folder(ulid)}/"))
 
     def hard_delete(self, ulid: Ulid) -> None:
         """Move the Article's whole tree into recoverable trash (reserved, excluded
@@ -152,18 +121,18 @@ class ArticleRepository:
         with a partial trash copy; a crash mid-delete leaves a complete trash copy with the
         originals partly gone. The copy-all-then-delete-all order keeps the data recoverable
         across either window. Reads each blob fully into memory — fine at v1 media sizes."""
-        keys = list(self._store.list(f"articles/{ulid}/"))
+        keys = self.keys_for(ulid)
         for key in keys:
             self._store.write_atomic(f".trash/{key}", self._store.read(key))
         for key in keys:
             self._store.delete(key)
 
-    def _current_version(self, ulid: Ulid) -> Version:
-        try:
-            text = self._read_readme(ulid)
-        except NotFound:
-            return 0
-        return readme.read_version(ulid, text)
+    def _refuse_unstored_media(self, article: Article) -> None:
+        for ref in article.media:
+            if not self._store.exists(_media_key(article.ulid, ref.content_hash)):
+                raise ArchiveError(
+                    f"{article.ulid}: media {ref.content_hash} not stored before save"
+                )
 
     def _read_readme(self, ulid: Ulid) -> str:
         """Read + decode the Article's README text (raises NotFound if absent)."""
@@ -176,22 +145,21 @@ class ArticleRepository:
 #: `find_blob` matches on when it has a hash but no ulid.
 _MEDIA_SEGMENT = "media"
 
+_ROOT = "articles"
+
+
+def _folder(ulid: Ulid) -> str:
+    return f"{_ROOT}/{ulid}"
+
 
 def _readme_key(ulid: Ulid) -> str:
-    return f"articles/{ulid}/README.md"
+    return readme_key(_folder(ulid))
 
 
 def _media_key(ulid: Ulid, content_hash: str) -> str:
-    return f"articles/{ulid}/{_MEDIA_SEGMENT}/{content_hash}"
-
-
-def _changes_key(ulid: Ulid, version: Version) -> str:
-    return f"articles/{ulid}/changes/{version}.json"
+    return f"{_folder(ulid)}/{_MEDIA_SEGMENT}/{content_hash}"
 
 
 def _ulid_of_readme(key: str) -> Ulid | None:
-    # "articles/<ulid>/README.md" -> "<ulid>"; anything else (media, changes) -> None
     parts = key.split("/")
-    if len(parts) == 3 and parts[0] == "articles" and parts[2] == "README.md":
-        return parts[1]
-    return None
+    return parts[1] if len(parts) == 3 and key == _readme_key(parts[1]) else None

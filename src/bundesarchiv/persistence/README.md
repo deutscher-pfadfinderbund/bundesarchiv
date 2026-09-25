@@ -17,22 +17,26 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; temp→fsync, then `rename` (replace) or `link` (create-only), all backend errors mapped to `ArchiveError` via the `_backend` seam |
 | `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud backend (plain `PUT`, bounded retries on `423` and a transient `404`/`409`), a sync adapter; transport errors wrapped via `_request` |
-| `repository.py` | `ArticleRepository` — versioning, pinned write order, media, trash |
+| `repository.py` | `ArticleRepository` — key scheme, media, trash |
+| `collections.py` | `CollectionRepository` — the same for Collections |
+| `_writer.py` | the save protocol both share: CAS under `WRITER_LOCK`, history, commit |
 | `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
 
 Every adapter passes one shared contract: `tests/persistence/test_objectstore_conformance.py`
 (parametrized over all three — the WebDAV one against a real in-process server).
 
-## Canonical layout (owned by `ArticleRepository`)
+## Canonical layout (owned by the repositories)
 
 ```
-articles/<ulid>/README.md            front-matter + Markdown body + managed-by marker — the commit point
-articles/<ulid>/media/<sha256>       content-addressed media blobs, write-once
-articles/<ulid>/changes/<version>.json   append-only change records
-.trash/articles/<ulid>/…             recoverable hard_delete destination (reserved → excluded from list)
+articles/<ulid>/README.md             front-matter + Markdown body + managed-by marker — the commit point
+articles/<ulid>/history/<version>.md  every replaced README, byte for byte, create-only
+articles/<ulid>/media/<sha256>        content-addressed media blobs, write-once
+collections/<ulid>/README.md          the Collection's commit point
+collections/<ulid>/history/<version>.md
+.trash/articles/<ulid>/…              recoverable hard_delete destination (reserved → excluded from list)
 ```
 
 Identity is the ULID; the key never embeds a slug ([ADR 0006](../../../docs/adr/0006-article-identity-and-key-naming.md)).
-Write order is pinned: media → README (= commit) → changes. Concurrency is optimistic
-(`save(article, expected_version)` → `Conflict` if stale). Deferred: `.snapshots/` and
-the per-Article lock object (single-writer v1).
+Write order is pinned ([ADR 0019](../../../docs/adr/0019-canonical-layout-v1.md)): media →
+the current README copied to `history/<n>.md` → the new README (= commit). Concurrency is
+optimistic (`save(article, expected_version)` → `Conflict` if stale, nothing written).

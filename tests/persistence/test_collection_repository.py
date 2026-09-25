@@ -177,7 +177,6 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     assert len(winners) == 1, f"expected exactly one winner, got {results}"
     assert len(losers) == 1, f"expected exactly one Conflict, got {results}"
     assert winners[0] == 2  # winner wrote v1 -> v2
-    # Assert the README version (never changes/*.json — collections have none anyway).
     assert repo.load("01J0").version == 2
     # And the README front matter really carries v2.
     if hasattr(repo._store, "_blobs"):

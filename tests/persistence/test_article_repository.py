@@ -75,8 +75,9 @@ def test_readme_carries_marker_and_is_the_commit_point(repo: ArticleRepository) 
     assert "Zeltlager 1955" in raw
 
 
-def test_list_ulids_returns_articles_not_media_or_changes(repo: ArticleRepository) -> None:
+def test_list_ulids_returns_articles_not_media_or_history(repo: ArticleRepository) -> None:
     repo.save(_article("01A"), expected_version=0)
+    repo.save(_article("01A", title="revised"), expected_version=1)
     repo.save(_article("01B"), expected_version=0)
     assert set(repo.list_ulids()) == {"01A", "01B"}
 
@@ -128,35 +129,37 @@ def test_find_blob_is_none_when_no_article_holds_the_hash(repo: ArticleRepositor
 
 
 def test_find_blob_ignores_a_non_media_key_ending_in_the_hash(repo: ArticleRepository) -> None:
-    # A changes record or README whose name happens to end in the hash is not a blob — the
+    # A history file or README whose name happens to end in the hash is not a blob — the
     # lookup matches the media segment, not a bare suffix.
-    repo._store.write_atomic("articles/01J0/changes/deadbeef", b"not a blob")
+    repo._store.write_atomic("articles/01J0/history/deadbeef", b"not a blob")
     assert repo.find_blob("deadbeef") is None
 
 
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:
-    # The pinned order is media -> README. Referencing media that was never stored
-    # must fail rather than commit a README that points at nothing.
+    # The pinned order is media -> README. Referencing media that was never stored must fail,
+    # writing nothing (no history file either), rather than commit a README that points at nothing.
     ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
+    repo.save(_article(media=(ref,)), expected_version=0)
     orphan = type(ref)(filename="ghost.jpg", content_hash="0" * 64)
+    before = {key: repo._store.read(key) for key in repo._store.list()}
     with pytest.raises(ArchiveError):
-        repo.save(_article(media=(orphan,)), expected_version=0)
-    # the real one is fine
-    assert repo.save(_article(media=(ref,)), expected_version=0) == 1
+        repo.save(_article(media=(ref, orphan)), expected_version=1)
+    assert {key: repo._store.read(key) for key in repo._store.list()} == before
 
 
 def test_hard_delete_removes_article_but_keeps_recoverable_copy(repo: ArticleRepository) -> None:
     ref = repo.add_media("01J0", "photo.jpg", b"the bytes")
     repo.save(_article(media=(ref,)), expected_version=0)
+    repo.save(_article(media=(ref,), title="revised"), expected_version=1)
     original = set(repo._store.list("articles/01J0/"))
-    assert len(original) == 3  # README + the media blob + the v1 changes record
+    assert len(original) == 3  # README + the media blob + the v1 history file
 
     repo.hard_delete("01J0")
 
     with pytest.raises(NotFound):
         repo.load("01J0")
     assert list(repo.list_ulids()) == []  # gone from listings
-    # recoverable: the ENTIRE subtree (README, media, changes) lives under reserved .trash,
+    # recoverable: the ENTIRE subtree (README, media, history) lives under reserved .trash,
     # excluded from list() — not just the README.
     for key in original:
         assert repo._store.exists(f".trash/{key}") is True
@@ -175,47 +178,13 @@ def test_load_of_a_corrupt_readme_surfaces_archive_error(repo: ArticleRepository
         repo.load("bad")
 
 
-class _RecordingStore(InMemoryObjectStore):
-    """A real in-memory store that also records the order of write_atomic keys — a spy at the
-    genuine ObjectStore boundary (not a mock of the repository), to pin write ordering."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.writes: list[str] = []
-
-    def write_atomic(self, key: str, data: bytes) -> str:
-        self.writes.append(key)
-        return super().write_atomic(key, data)
-
-
-def test_save_writes_a_correct_append_only_change_record(repo: ArticleRepository) -> None:
-    import json
-
-    repo.save(_article(), expected_version=0)  # v1
-    repo.save(_article(title="revised"), expected_version=1)  # v2
-    record = json.loads(repo._store.read("articles/01J0/changes/1.json"))
-    assert record == {"ulid": "01J0", "version": 1}
-    assert repo._store.exists("articles/01J0/changes/2.json") is True
-
-
-def test_save_writes_the_readme_commit_before_the_changes_record() -> None:
-    # The pinned order is README (the commit) -> changes; a crash between them leaves a
-    # durably-saved Article with only its change-log record missing (tolerable per ADR 0005).
-    store = _RecordingStore()
-    repo = ArticleRepository(store)
-    repo.save(_article(), expected_version=0)
-    assert store.writes.index("articles/01J0/README.md") < store.writes.index(
-        "articles/01J0/changes/1.json"
-    )
-
-
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     repo: ArticleRepository,
 ) -> None:
     """Two threads save the same Article at the same expected_version. The shared writer
     mutex (ADR 0013) serializes the check-then-write critical section, so EXACTLY one wins
     and the other sees a stale version -> Conflict. Assert the README version ends at the
-    winner's version + 1 — NEVER against changes/*.json presence (gap-tolerant, ADR 0005).
+    winner's version + 1.
 
     A barrier releases both threads together to force the interleave through the mutex; the
     mutex makes the outcome deterministic once both are past the barrier, so there are no
@@ -247,7 +216,6 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     assert len(winners) == 1, f"expected exactly one winner, got {results}"
     assert len(losers) == 1, f"expected exactly one Conflict, got {results}"
     assert winners[0] == 2  # winner wrote v1 -> v2
-    # Assert the README version (the CAS source of truth), never changes/*.json presence.
     assert repo.load("01J0").version == 2
     raw = repo._store.read("articles/01J0/README.md").decode("utf-8")
     assert readme.read_version("01J0", raw) == 2
