@@ -187,6 +187,10 @@ Values in `<…>` arrive at smoke time.
 - Realm role **`Bundesarchiv`** exists and is assigned to the archivists.
   Renaming it in Keycloak revokes archivist access here (`ARCHIVIST_REALM_ROLE`
   in `app/web/oidc.py`).
+- **Username mapper: the `profile` client scope assigned, with its `username`
+  mapper set to "Add to ID token".** It puts `preferred_username` into the
+  token: the name each saved version records (ADR 0019). Without it every
+  archivist silently logs in as `unbekannt`.
 - Requested scope is `openid profile`. Group visibility (later) needs its own
   `groups` mapper **into the ID token**, claim name `groups` — Keycloak
   configuration, no code change.

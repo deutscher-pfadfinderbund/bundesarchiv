@@ -22,8 +22,15 @@ from bundesarchiv.app.web.viewers import VIEWER_COOKIE
 
 _KEY = "test-viewer-signing-key"
 
-_ARCHIVIST_CLAIMS: Mapping[str, object] = {"realm_access": {"roles": ["Bundesarchiv"]}}
-_MEMBER_CLAIMS: Mapping[str, object] = {"sub": "u1", "groups": ["vorstand"]}
+_ARCHIVIST_CLAIMS: Mapping[str, object] = {
+    "preferred_username": "anna.schmidt",
+    "realm_access": {"roles": ["Bundesarchiv"]},
+}
+_MEMBER_CLAIMS: Mapping[str, object] = {
+    "sub": "u1",
+    "preferred_username": "max.mitglied",
+    "groups": ["vorstand"],
+}
 
 _AUTHORIZE = "https://auth.example/realms/dpb/protocol/openid-connect/auth"
 _END_SESSION = "https://auth.example/realms/dpb/protocol/openid-connect/logout"

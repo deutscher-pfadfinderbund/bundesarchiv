@@ -21,10 +21,14 @@ ARCHIVIST_REALM_ROLE = "Bundesarchiv"
 
 def viewer_from_claims(claims: Mapping[str, object]) -> Viewer:
     """Map validated ID-token claims to the ``Viewer`` a login mints a cookie for: ``Archivist``
-    for the realm role ``Bundesarchiv`` in ``realm_access.roles``, otherwise ``Member`` carrying the
-    ``groups`` claim (empty when absent — group rollout is then Keycloak configuration, not code).
-    Claims of an unexpected type are read as absent, so no token shape can raise or escalate."""
+    for the realm role ``Bundesarchiv`` in ``realm_access.roles``, named by ``preferred_username``
+    (the default name when that is absent or blank), otherwise ``Member`` carrying the ``groups``
+    claim (empty when absent — group rollout is then Keycloak configuration, not code). Claims of
+    an unexpected type are read as absent, so no token shape can raise or escalate."""
     if ARCHIVIST_REALM_ROLE in _strings(_as_mapping(claims.get("realm_access")).get("roles")):
+        username = claims.get("preferred_username")
+        if isinstance(username, str) and username.strip():
+            return Archivist(username=username)
         return Archivist()
     return Member(groups=_strings(claims.get("groups")))
 

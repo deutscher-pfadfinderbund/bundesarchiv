@@ -22,7 +22,8 @@ from authlib.integrations.httpx_client import OAuth2Client
 from django.conf import settings
 
 #: What the authorize request asks for: ``openid`` for the ID token itself; the realm's roles
-#: client-scope maps ``realm_access.roles`` into it (runbook), which is what makes an Archivist.
+#: client-scope maps ``realm_access.roles`` into it (runbook), which is what makes an Archivist;
+#: ``profile`` maps ``preferred_username``, which names one.
 _SCOPE = "openid profile"
 
 #: Seconds any single Keycloak call may take. A login is interactive — a hanging realm must become a

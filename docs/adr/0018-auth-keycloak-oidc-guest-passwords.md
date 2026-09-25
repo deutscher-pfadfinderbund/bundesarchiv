@@ -37,7 +37,7 @@ forward-compatible `groups` parse, kiosk mode, the audit trail.
 
 | Login | Source | Viewer | Cookie lifetime |
 |---|---|---|---|
-| OIDC, realm role `Bundesarchiv` | `realm_access.roles` (roles client-scope mapped into the ID token) | `Archivist` | 48h |
+| OIDC, realm role `Bundesarchiv` | `realm_access.roles` (roles client-scope mapped into the ID token) + `preferred_username` (profile client scope, ID token) | `Archivist(username)`, `unbekannt` when absent (ADR 0019) | 48h |
 | OIDC, any other realm user | authentication itself, plus a `groups` claim when the realm maps one | `Member(groups=…)`, `()` when absent | 30d |
 | Capability link (deferred) | the link's token | `Member(groups=<token>)` | the token's own expiry |
 | none / invalid | — | `Public` | — |
@@ -46,10 +46,11 @@ Both lifetimes are enforced **on read**, not merely offered to the browser: an
 archivist cookie past 48h resolves to `Public` even though the member window has
 not run out.
 
-As built the cookie carries only the format version and the encoded viewer —
-nothing identifying. A username for request logging and audit would be an
-additive payload change (and a version bump); `Archivist` and `Member` stay
-inert value objects either way.
+The cookie carries the format version and the encoded viewer. Since format `v2`
+(2026-09-25) an archivist's viewer includes the Keycloak username, the
+`changed_by` of ADR 0019. The cookie is signed, not encrypted: whoever holds it
+can read that name. A Member's cookie carries no name. `Archivist` and `Member`
+stay inert value objects.
 
 Consequences accepted deliberately:
 
