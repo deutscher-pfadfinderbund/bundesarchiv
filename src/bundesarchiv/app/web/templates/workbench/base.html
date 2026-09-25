@@ -12,6 +12,8 @@ the wordmark is always present and always links home.
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bundesarchiv{% endblock %}</title>
+  {% comment %}htmx 2 parity over htmx 4's defaults (swap all but 204/304, 60s timeout).{% endcomment %}
+  <meta name="htmx-config" content='{"noSwap": [204, 304, "4xx", "5xx"], "defaultTimeout": 0}'>
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{% static "layouts.css" %}">
