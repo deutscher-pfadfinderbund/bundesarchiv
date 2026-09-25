@@ -48,3 +48,15 @@ def test_keys_and_tokens_come_back_exactly_as_noted(record: PushRecord) -> None:
         key: Pushed(f"{index:064}", f' "etag/{index}%" ') for index, key in enumerate(keys)
     }
     assert record.held(keys[3:4]) == {keys[3]: Pushed(f"{3:064}", ' "etag/3%" ')}
+
+
+def test_forget_prefix_drops_exactly_the_folder(record: PushRecord) -> None:
+    """What a hard delete took off the system of record. ``01A2`` shares the folder's name as a
+    string prefix and stays."""
+    pushed = Pushed("d" * 64, "3")
+    gone = ["articles/01A/README.md", "articles/01A/history/1.md", "articles/01A/media/Scan.pdf"]
+    kept = ["articles/01A2/README.md", "collections/01A/README.md"]
+    for key in [*gone, *kept]:
+        record.note(key, pushed)
+    record.forget_prefix("articles/01A")
+    assert record.entries() == dict.fromkeys(kept, pushed)

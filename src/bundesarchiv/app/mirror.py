@@ -58,6 +58,11 @@ class PushRecord(Protocol):
         """Record that `pushed` now stands at `key`, in place of what the record held for it."""
         ...
 
+    def forget_prefix(self, prefix: str) -> None:
+        """Drop the entry of every key below the folder `prefix`, the keys
+        `ObjectStore.delete_prefix(prefix)` deletes."""
+        ...
+
 
 class _Keys(Protocol):
     """A repository, as far as the push needs one."""

@@ -29,6 +29,9 @@ class PostgresPushRecord:
             update_fields=["sha256", "version"],
         )
 
+    def forget_prefix(self, prefix: str) -> None:
+        PushedKey.objects.filter(key__startswith=f"{prefix}/").delete()
+
 
 class InMemoryPushRecord:
     """The push record in a dict."""
@@ -44,6 +47,11 @@ class InMemoryPushRecord:
 
     def note(self, key: str, pushed: Pushed) -> None:
         self._entries[key] = pushed
+
+    def forget_prefix(self, prefix: str) -> None:
+        self._entries = {
+            key: pushed for key, pushed in self._entries.items() if not key.startswith(f"{prefix}/")
+        }
 
 
 def _pushed(rows: QuerySet[PushedKey]) -> dict[str, Pushed]:
