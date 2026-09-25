@@ -438,6 +438,28 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     assert archive.articles.load("01FOTO").version == 2
 
 
+@pytest.mark.django_db
+def test_save_collection_swallows_enqueue_failure_after_index_failure(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import bundesarchiv.app.collections as collections_mod
+
+    def boom(_store: object, _ulid: str) -> None:
+        raise RuntimeError("index down")
+
+    def enqueue_boom(_ulid: str) -> None:
+        raise RuntimeError("queue down")
+
+    monkeypatch.setattr(collections_mod, "index_subtree", boom)
+    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueue_boom)
+
+    stored = archive.collections.load("FOTOS")
+    result = save_collection(archive, stored.collection, stored.version, changed_by="tester")
+
+    assert (result.version, result.index_updated) == (2, False)
+    assert archive.collections.load("FOTOS").version == 2
+
+
 # ---------------------------------------------------------------------------
 # THE ADVERSARIAL STALENESS GATE — article unpublish (rebuild FORBIDDEN)
 # ---------------------------------------------------------------------------
@@ -584,6 +606,30 @@ def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
     articles_mod._enqueue_thumbnails(article)
 
     assert enqueued == ["hash-typed-image", "hash-untyped-image"]
+
+
+@pytest.mark.django_db
+def test_save_article_thumbnail_enqueue_failure_does_not_break_save(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import bundesarchiv.app.articles as articles_mod
+
+    def boom(_ulid: str, _content_hash: str) -> None:
+        raise RuntimeError("queue down")
+
+    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", boom)
+
+    articles = archive.articles
+    image = articles.add_media(
+        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
+    )
+    stored = articles.load("01FOTO")
+    result = save_article(
+        archive, replace(stored.article, media=(image,)), stored.version, changed_by="tester"
+    )
+
+    saved = articles.load("01FOTO")
+    assert (saved.version, saved.article.media) == (result.version, (image,))
 
 
 # ---------------------------------------------------------------------------

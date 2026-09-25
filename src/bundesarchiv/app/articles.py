@@ -194,9 +194,12 @@ def _enqueue_thumbnails(article: Article) -> None:
     and out-of-band: the thumbnail is a prunable derived cache, so a failure to enqueue never affects
     the canonical write. Content-hash-keyed and idempotent, so re-saving an Article that keeps its
     media just re-enqueues harmlessly (write-once files → identical thumbnails)."""
-    for ref in article.media:
-        if _is_image(ref):
-            enqueue_generate_thumbnail(article.ulid, ref.content_hash)
+    try:
+        for ref in article.media:
+            if _is_image(ref):
+                enqueue_generate_thumbnail(article.ulid, ref.content_hash)
+    except Exception:  # noqa: BLE001 — queue down -> no thumbnail until the next save enqueues it
+        return
 
 
 def _is_image(ref: MediaRef) -> bool:

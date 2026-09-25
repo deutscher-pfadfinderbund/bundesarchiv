@@ -85,6 +85,14 @@ def _sync_index_subtree(archive: Archive, collection_ulid: str) -> bool:
     try:
         index_subtree(archive.store, collection_ulid)
     except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
-        enqueue_reindex_subtree(collection_ulid)
+        _enqueue_reindex_subtree(collection_ulid)
         return False
     return True
+
+
+def _enqueue_reindex_subtree(collection_ulid: str) -> None:
+    """Enqueue a subtree reindex retry, swallowing failure — the periodic full rebuild heals it."""
+    try:
+        enqueue_reindex_subtree(collection_ulid)
+    except Exception:  # noqa: BLE001 — ADR 0014 fail-open seam
+        return
