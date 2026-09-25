@@ -43,7 +43,8 @@ def _to_login(request: HttpRequest) -> HttpResponse:
     nothing, so an expired cookie would turn every save and every search into a control that
     silently does nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
     target = login_redirect(request.get_full_path())
-    if request.headers.get("HX-Request"):
+    # htmx 4's history restore sends HX-History-Restore-Request without HX-Request
+    if request.headers.get("HX-Request") or request.headers.get("HX-History-Restore-Request"):
         response = HttpResponse(status=204)
         response.headers["HX-Redirect"] = target
         return response

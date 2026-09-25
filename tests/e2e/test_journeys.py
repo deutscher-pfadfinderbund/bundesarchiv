@@ -1399,18 +1399,17 @@ def test_bulk_url_seeded_selection_still_works(
 def test_bulk_enhancement_survives_a_history_restore(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
-    # Learning G.25, second half: htmx 2.0.4 restores a cached page WITHOUT firing afterSwap —
-    # only htmx:historyRestore — and the snapshot it restores was serialized WITH the enhancement's
-    # own leftovers: data-bulk-bound="1" on the form, the [hidden] state and the count text as they
-    # stood at snapshot time. Checkbox ticks are properties and do NOT survive the snapshot, so
-    # after search-then-Back the disclosure claimed "2 ausgewählt" over an empty selection and the
-    # bound-guard left the form dead. The restore must re-init from the ACTUAL restored state.
+    # Learning G.25, restated for htmx 4: Back after an htmx search is ONE server GET that swaps the
+    # whole workbench body. Only after it lands, the page states the URL's selection (none), the
+    # bulk enhancement is wired to the fresh nodes, type-to-search works again, and no script re-ran
+    # (the same htmx instance). (Under htmx 2 the restore came from a localStorage snapshot that
+    # carried the enhancement's stale leftovers — the defect this journey was born from.)
     page = archivist_page
     page.goto(live_workbench + "/")
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()
-    # a live search: hx-push-url snapshots the current page into htmx's history cache first
+    # a live search pushes a history entry
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     page.wait_for_url("**q=Sommerfahrt**")
     page.evaluate("() => { window.__htmxAtLoad = htmx; }")
@@ -1424,10 +1423,8 @@ def test_bulk_enhancement_survives_a_history_restore(
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
-    # the TYPE-TO-SEARCH enhancement has to survive the same restore. It lives on #results (the region
-    # it swaps) rather than on the shared header form, and a restore replaces the whole document from
-    # htmx's snapshot — so the restored #results must be re-processed or live search dies silently on
-    # every Back (H.8/G.25).
+    # the TYPE-TO-SEARCH enhancement has to survive the same restore: it lives on #results (the
+    # region it swaps), which the restore replaces, so the new #results must be processed (H.8/G.25).
     page.locator('input[name="q"]').press_sequentially("Herbstlager")
     page.wait_for_url("**q=Herbstlager**")
     expect(page.locator(".ledger #trefferzahl")).to_have_count(

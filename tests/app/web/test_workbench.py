@@ -281,10 +281,8 @@ def test_hx_request_renders_only_results_partial(indexed_corpus: Corpus) -> None
 
 
 def test_history_restore_request_renders_full_page(indexed_corpus: Corpus) -> None:
-    # htmx history restoration sends BOTH HX-Request AND HX-History-Restore-Request, and expects a
-    # FULL page (it replaces the whole document) — not the chrome-less _results.html fragment a
-    # plain HX-Request gets. Without the fix, this response body starts at <main id="results"> and
-    # never renders <html lang="de">, leaving a Back-button restore chrome-less.
+    # A history restore expects a FULL page (it swaps the whole body) — never the chrome-less
+    # _results.html fragment a plain HX-Request gets, even when both headers arrive together.
     response = _get(Public(), "q=Foto", hx=True, history_restore=True)
     body = response.content.decode()
     assert '<html lang="de">' in body  # full page, not the bare fragment

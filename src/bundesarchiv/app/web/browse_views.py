@@ -56,8 +56,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
     plain ``HX-Request`` only the results region renders (same data, same partial) — the no-JS full
-    page and the HTMX swap are one code path. A history-restore request (``HX-Request`` PLUS
-    ``HX-History-Restore-Request``) gets the full page — htmx swaps the whole document on a
+    page and the HTMX swap are one code path. A history-restore request (``HX-History-Restore-Request``;
+    htmx 4 sends it without ``HX-Request``) gets the full page — htmx swaps the whole document on a
     Back-button restore."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
@@ -101,9 +101,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # ONLY density input (charter item 5 settled 2026-08-07; the ?fold switch and the pane-open
     # fold died with the verdict), absorbed intrinsically per law C11 — no drop thresholds.
     context["vorschau"] = pane is not None
-    # History-restore requests carry BOTH HX-Request and HX-History-Restore-Request: htmx replaces
-    # the whole document on a Back-button restore (a cache miss), so this branch must win over the
-    # plain HX-Request check below — otherwise the restore renders the chrome-less results partial.
+    # A Back-button restore swaps the whole body, so it gets the full page. Checked first, so a
+    # restore that also carries HX-Request (htmx 2 did) can never get the chrome-less partial.
     if request.headers.get("HX-History-Restore-Request"):
         return render_screen(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):

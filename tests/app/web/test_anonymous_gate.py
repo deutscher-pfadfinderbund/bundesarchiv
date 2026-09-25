@@ -77,6 +77,14 @@ def test_an_htmx_request_is_sent_to_the_login_by_header(gated: Corpus) -> None:
     assert_login_target(response.headers["HX-Redirect"], "/?q=sommer")
 
 
+def test_an_htmx_history_restore_is_sent_to_the_login_by_header(gated: Corpus) -> None:
+    """htmx 4's Back-button restore is a fetch carrying ``HX-History-Restore-Request`` but NOT
+    ``HX-Request``; a plain 302 would end at Keycloak's cross-origin URL like any other XHR."""
+    response = client_as(None).get("/?q=sommer", headers={"hx-history-restore-request": "true"})
+    assert response.status_code == 204
+    assert_login_target(response.headers["HX-Redirect"], "/?q=sommer")
+
+
 def test_static_assets_stay_public(gated: Corpus) -> None:
     """ADR 0016: /static/* is public by design and never behind the gate."""
     assert client_as(None).get(staticfiles_storage.url("tokens.css")).status_code == 200
