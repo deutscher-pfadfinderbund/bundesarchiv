@@ -20,6 +20,9 @@ browses the result has no worker), and the mirror push is left to the periodic `
 
 The search index is one Postgres table for every canonical root, so the rebuild here hands it to the
 imported tree; ``manage.py rebuild_index`` hands it back (README, "Legacy import").
+
+It ends with ``manage.py verify`` over what it wrote (ADR 0019 "Fixity"), whose findings fail the
+run.
 """
 
 import csv
@@ -30,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 from bundesarchiv.app import legacy, thumbnails
@@ -84,6 +88,8 @@ class Command(BaseCommand):
         self.stdout.write("Index wird neu aufgebaut …")
         indexer.rebuild(archive.store)
         self._report(plan, items, media_root, missing=missing)
+        self.stdout.write("Archiv wird geprüft …")
+        call_command("verify", stdout=self.stdout)
 
     # --- the writes ---------------------------------------------------------------
 

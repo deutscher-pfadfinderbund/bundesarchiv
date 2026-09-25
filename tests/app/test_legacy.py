@@ -568,6 +568,16 @@ def test_every_imported_version_names_the_import(tmp_path: Path) -> None:
 
 
 @pytest.mark.django_db
+def test_the_import_ends_with_the_fixity_check_of_what_it_wrote(tmp_path: Path) -> None:
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        out = _run(csv_dir, media_root)
+    assert "Geprüft: 5 README-Versionen, 2 Mediendateien\n" in out  # three Articles, two Bestände
+    assert out.endswith("Keine Befunde.\n")
+
+
+@pytest.mark.django_db
 def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
     # It writes past the `app.articles` shell, which is what enqueues them, and no worker drains a
     # queue during a one-shot batch — so without this every imported cover would 404 forever.

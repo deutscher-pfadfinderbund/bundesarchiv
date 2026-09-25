@@ -54,7 +54,7 @@ export; it is gitignored, like the export itself.
 
 ```sh
 mise run legacy:import -- --dry-run   # reads everything, writes nothing, prints the report
-mise run legacy:import                # writes the archive, then rebuilds the index
+mise run legacy:import                # writes the archive, rebuilds the index, runs verify
 ```
 
 Read the dry run's report before the real one — the import runs once and the
@@ -92,7 +92,8 @@ Both paths are overridable: `BUNDESARCHIV_LEGACY_MEDIA` for the media folder,
 README version, current and history, re-hashes every media file a version
 names, and lists the files no version names and the names with no file. It
 reports and never repairs. It exits with status 1 when it found anything.
-The worker runs it monthly, and a finding fails that job.
+The worker runs it monthly, and a finding fails that job. The legacy import
+runs it once at its end, and a finding fails the import.
 
 ```sh
 uv run manage.py verify                                          # the dev archive
