@@ -96,7 +96,11 @@ then two-cut bevels are forbidden like any unregistered cue.
 
 1. **Elements first.** Semantic HTML is styled via element + context
    selectors. A class exists only where semantics cannot express the
-   distinction.
+   distinction — and on a component's root: its outer element carries one
+   class named for the component, and compositions select that root and
+   never past it (owner, 2026-09-25 — `owner-interview-2026-08.md`,
+   "Component architecture rulings"; the roots: `design-system.md`,
+   "Component inventory"). Inside a component, elements first still holds.
 2. **Context over variants.** A component adapts to where it sits (ancestor
    scope, `@container`), never via variant modifier classes. **State
    modifiers are exempt**: a class encoding runtime state (`--aktiv`) is
@@ -231,8 +235,8 @@ only it:
 
 ## E. Lintable subset
 
-The machine-checkable slice of B and C, to become a design-lint test in the
-rework wave:
+The machine-checkable slice of B and C, enforced by
+`tests/app/web/test_design_lint.py`:
 
 - no raw hex in component CSS (existing law, restated);
 - no `corner-shape` outside register row 1's selectors;
@@ -240,7 +244,9 @@ rework wave:
   licensed selectors;
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
-  C5).
+  C5);
+- no compositions-layer selector past a component root (C1) — today's
+  reach-ins sit in an allow-list that may only shrink.
 
 **Generic computed invariant (the G.1 pattern, generalized — mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,

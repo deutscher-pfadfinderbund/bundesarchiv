@@ -22,10 +22,19 @@ simplicity checkable instead of a matter of taste.
   the spec demands it.
 - **Composition model, three layers** (owner, 2026-08-06; replaces the
   earlier atoms→molecules→layouts→pages ladder):
-  1. **Components** — atoms/molecules (`templates/components/`), semantic
-     HTML first. Reuse-first: no ad-hoc one-off markup where a component
-     exists, no redundant near-duplicates; anything genuinely new is added
-     DELIBERATELY — named, filed, mapped here — or it doesn't ship.
+  1. **Components** — owned components (owner, 2026-09-25 —
+     `owner-interview-2026-08.md`, "Component architecture rulings"). The
+     outer element carries one class named for the component; its one CSS
+     section, in the existing layer file and named like its template, styles
+     only below that class. Its knobs — custom properties with a
+     component-scoped name and a fallback, listed at the top of its section —
+     are its API: compositions set knobs and place it, never select inside it.
+     Facts about one field (width, Signatur ink) come from the field registry
+     as markup, never from CSS keyed on an input's `name`. Semantic HTML
+     first. Reuse-first: no ad-hoc one-off markup where a component exists,
+     no redundant near-duplicates; anything genuinely new is added
+     DELIBERATELY — named, filed, entered in the component inventory
+     ("Component mapping") — or it doesn't ship.
   2. **Views** — self-contained work surfaces (facet panel, result ledger,
      article reader, edit form, confirm panel). Viewport-agnostic: a view
      adapts to its CONTAINER (`@container`), never to the screen. One
@@ -55,10 +64,11 @@ simplicity checkable instead of a matter of taste.
   modern native CSS (nesting, `@scope`, `@layer`, `:where()` for
   low-specificity defaults); consistency comes from the custom-property
   tokens (the three layers above), which stay the single source of visual
-  truth. Classes only where semantics cannot discriminate, named for
-  meaning. The legacy `c-*`/`l-*` prefix taxonomy is DEPRECATED — do not
-  extend it; it dissolves in one deliberate rework wave (no piecemeal
-  migration: two coexisting class systems is the worst state).
+  truth. Classes only where semantics cannot discriminate or on a component
+  root (law C1), named for meaning. The legacy `c-*`/`l-*` prefix taxonomy
+  is DEPRECATED — do not extend it; it dissolves in one deliberate rework
+  wave (no piecemeal migration: two coexisting class systems is the worst
+  state).
 - **UI waves end at the design gate, judged on pixels.** Deliverable is
   before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-
