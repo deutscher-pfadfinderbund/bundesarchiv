@@ -19,6 +19,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - Sketch **interface invariants and the indicator, not field lists**. On a branch other writers are reshaping, every concrete signature in a sketch is a guess that reads as an instruction — two of two such guesses were wrong in one wave and following either would have shipped a behavior change. "One render, closed union, always seeded from the saved record" was sufficient; `Conflict(winner, submitted)` was a liability.
 - HTML-equivalence constraint? Give the writer the render-diff recipe from `writer-brief.md` (dump states → normalize CSRF/whitespace → diff; throwaway harness named `_zz_*.py` so `check` never collects it — ruff still formats it; a fixture-free script lives outside the tree).
 - Pixel-neutral wave? The gallery covers only its listed states. Ask for a computed-style probe over the touched roots too (states the gallery lacks: error modes, open folds, hover/focus) — C2 found a latent bug that way.
+- A sanctioned pixel change inside a pixel-neutral wave moves the baseline: name the new baseline dir for every later slice.
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
