@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, BinaryIO
 from wsgiref.types import StartResponse, WSGIApplication, WSGIEnvironment
 
-import httpx
+import httpx2
 import pytest
 from cheroot.server import HTTPConnection, HTTPRequest
 from cheroot.wsgi import Server as CherootServer
@@ -148,14 +148,14 @@ def webdav_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
 def webdav_root(webdav_server: str) -> str:
     """A fresh, isolated collection on the shared server for one test; yields its URL."""
     base = f"{webdav_server}{uuid.uuid4().hex}/"
-    with httpx.Client(timeout=10) as setup:
+    with httpx2.Client(timeout=10) as setup:
         setup.request("MKCOL", base).raise_for_status()  # fail loudly if setup didn't create it
     return base
 
 
 @pytest.fixture
 def webdav_store(webdav_root: str) -> Iterator[WebDavObjectStore]:
-    client = httpx.Client(base_url=webdav_root, timeout=10)
+    client = httpx2.Client(base_url=webdav_root, timeout=10)
     try:
         yield WebDavObjectStore(client)
     finally:
@@ -169,7 +169,7 @@ def live_dav_root() -> Iterator[str]:
     root = os.environ["LIVE_DAV_URL"].rstrip("/")
     assert "Bundesarchiv" not in root, "the live run never writes inside the system of record"
     folder = f"{root}/bundesarchiv-conformance-{uuid.uuid4().hex}/"
-    with httpx.Client(auth=_live_auth(), timeout=60) as client:
+    with httpx2.Client(auth=_live_auth(), timeout=60) as client:
         client.request("MKCOL", folder).raise_for_status()
         try:
             yield folder
@@ -180,7 +180,7 @@ def live_dav_root() -> Iterator[str]:
 @pytest.fixture
 def live_dav_store(live_dav_root: str) -> Iterator[WebDavObjectStore]:
     base = f"{live_dav_root}{uuid.uuid4().hex}/"
-    client = httpx.Client(base_url=base, auth=_live_auth(), timeout=60)
+    client = httpx2.Client(base_url=base, auth=_live_auth(), timeout=60)
     try:
         client.request("MKCOL", "").raise_for_status()
         yield WebDavObjectStore(client)

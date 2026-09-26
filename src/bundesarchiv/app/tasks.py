@@ -21,7 +21,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 
-import httpx
+import httpx2
 from django.conf import settings
 from django.core.management import call_command
 from procrastinate import RetryStrategy
@@ -70,7 +70,7 @@ def mirror_store() -> ObjectStore | None:
     user: str | None = settings.BUNDESARCHIV_MIRROR_DAV_USER
     password: str | None = settings.BUNDESARCHIV_MIRROR_DAV_PASSWORD
     auth: tuple[str, str] | None = (user, password or "") if user is not None else None
-    return WebDavObjectStore(httpx.Client(base_url=url, auth=auth, timeout=30))
+    return WebDavObjectStore(httpx2.Client(base_url=url, auth=auth, timeout=30))
 
 
 # --- reference tasks -------------------------------------------------------------
@@ -141,7 +141,7 @@ def mirror_push(ulid: str) -> None:
     try:
         mirror.push(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
     finally:
-        _close_mirror(remote)  # release the per-job httpx.Client even when the push raises
+        _close_mirror(remote)  # release the per-job httpx2.Client even when the push raises
 
 
 @app.task(name="mirror_delete_article", retry=_MIRROR_RETRY)
@@ -173,7 +173,7 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
     try:
         report = mirror.reconcile(Archive.of(canonical_store()), remote, PostgresPushRecord())
     finally:
-        _close_mirror(remote)  # release the per-job httpx.Client even when the sweep raises
+        _close_mirror(remote)  # release the per-job httpx2.Client even when the sweep raises
     return {finding: len(keys) for finding, keys in asdict(report).items()}
 
 
@@ -211,7 +211,7 @@ def enqueue_mirror_push(ulid: str) -> None:
     is off).
 
     Checks ``_mirror_configured()`` rather than ``mirror_store()`` so this path never constructs a
-    client (GH #20): building one only to discard it leaked a fresh ``httpx.Client`` — with its
+    client (GH #20): building one only to discard it leaked a fresh ``httpx2.Client`` — with its
     eager SSL-context load — on every canonical write when mirroring is configured."""
     if not _mirror_configured():
         return  # mirror unset -> nothing to enqueue

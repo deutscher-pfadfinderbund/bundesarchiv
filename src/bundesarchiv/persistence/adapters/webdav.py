@@ -1,7 +1,7 @@
 """WebDAV ObjectStore adapter — the Nextcloud backend (ADR 0005, ADR 0019).
 
 How each port operation maps onto WebDAV is the table "Mapping to the storage port" in
-`docs/nextcloud-webdav-notes.md`. The adapter sits on an injected `httpx.Client` whose
+`docs/nextcloud-webdav-notes.md`. The adapter sits on an injected `httpx2.Client` whose
 `base_url` is the storage root. Every request goes through `_request`, which keeps raw
 transport failures (a down/slow mirror is the expected failure mode) from crossing the port
 as anything but `ArchiveError`.
@@ -17,7 +17,7 @@ from typing import Any, BinaryIO
 from urllib.parse import quote, unquote, urlsplit
 from xml.etree import ElementTree
 
-import httpx
+import httpx2
 
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import (
@@ -50,7 +50,7 @@ class WebDavObjectStore:
     """Stores each blob as a WebDAV resource under the client's `base_url`. Owns the client's
     lifetime: call `close()` when done with the store."""
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: httpx2.Client) -> None:
         self._client = client
         self._root_path = urlsplit(str(client.base_url)).path
 
@@ -69,14 +69,14 @@ class WebDavObjectStore:
         resp = self._request("GET", self._url(key), stream=True)
         # A blob's answer carries its ETag. Nextcloud answers a GET of a collection with 200,
         # an HTML placeholder and no ETag, so a 200 alone does not mean a blob.
-        if resp.status_code == httpx.codes.OK and "ETag" in resp.headers:
+        if resp.status_code == httpx2.codes.OK and "ETag" in resp.headers:
             return _Body(resp)
         resp.close()
-        if resp.status_code == httpx.codes.NOT_FOUND:
+        if resp.status_code == httpx2.codes.NOT_FOUND:
             raise NotFound(key)  # a file that appears right after is a later write, not this one
         # Anything else: classify via the same resourcetype probe exists()/delete() use, so
         # absent-vs-collection-vs-error never hinges on a server-specific answer.
-        if resp.status_code == httpx.codes.LOCKED or self._is_file(key):
+        if resp.status_code == httpx2.codes.LOCKED or self._is_file(key):
             self._ensure(resp)  # a real blob but no usable answer -> Busy or ArchiveError
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
@@ -125,8 +125,8 @@ class WebDavObjectStore:
         if not resources or resources[0].collection is not collection:
             return
         resp = self._request("DELETE", self._url(path))
-        if resp.status_code != httpx.codes.NOT_FOUND:
-            self._ensure(resp, httpx.codes.OK, httpx.codes.NO_CONTENT)
+        if resp.status_code != httpx2.codes.NOT_FOUND:
+            self._ensure(resp, httpx2.codes.OK, httpx2.codes.NO_CONTENT)
 
     def _put(self, key: str, source: bytes | BinaryIO, *, create: bool) -> str:
         """One `PUT` of `source`, retried while busy; `create` makes it `If-None-Match: *`."""
@@ -137,10 +137,10 @@ class WebDavObjectStore:
         def attempt() -> str:
             self._mkcol_parents(key)
             resp = self._request("PUT", self._url(key), content=body(), headers=headers)
-            if create and resp.status_code == httpx.codes.PRECONDITION_FAILED:
+            if create and resp.status_code == httpx2.codes.PRECONDITION_FAILED:
                 raise AlreadyExists(key)
             _refuse_missing_parent(resp)
-            self._ensure(resp, httpx.codes.CREATED, httpx.codes.NO_CONTENT, httpx.codes.OK)
+            self._ensure(resp, httpx2.codes.CREATED, httpx2.codes.NO_CONTENT, httpx2.codes.OK)
             if (etag := resp.headers.get("ETag")) is None:
                 raise ArchiveError(f"WebDAV PUT {key!r} was answered without an ETag")
             return _version(etag)
@@ -153,7 +153,7 @@ class WebDavObjectStore:
             resp = self._request("MKCOL", self._url(prefix))
             _refuse_missing_parent(resp)
             # 201 created; 405 already exists.
-            self._ensure(resp, httpx.codes.CREATED, httpx.codes.METHOD_NOT_ALLOWED)
+            self._ensure(resp, httpx2.codes.CREATED, httpx2.codes.METHOD_NOT_ALLOWED)
 
     def _entries(self, folder: str, prefix: str) -> Iterable[ObjectEntry]:
         files = (
@@ -178,9 +178,9 @@ class WebDavObjectStore:
         resp = self._request(
             "PROPFIND", self._url(path), headers={"Depth": depth}, content=_PROPFIND
         )
-        if resp.status_code == httpx.codes.NOT_FOUND:
+        if resp.status_code == httpx2.codes.NOT_FOUND:
             return ()
-        self._ensure(resp, httpx.codes.MULTI_STATUS)
+        self._ensure(resp, httpx2.codes.MULTI_STATUS)
         return tuple(_parse_multistatus(resp.content))
 
     def _url(self, key: str) -> str:
@@ -193,23 +193,23 @@ class WebDavObjectStore:
 
     def _request(
         self, method: str, url: str, *, stream: bool = False, **kwargs: Any
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         # Redirects are never followed, whatever the injected client's policy: a GET of a
         # collection must not chase its redirect and hand back an HTML listing as blob bytes.
         try:
             request = self._client.build_request(method, url, **kwargs)
             return self._client.send(request, stream=stream, follow_redirects=False)
-        except (httpx.HTTPError, httpx.InvalidURL) as exc:
+        except (httpx2.HTTPError, httpx2.InvalidURL) as exc:
             # A down/slow/unreachable/misbehaving mirror is an expected failure mode (ADR 0005);
-            # surface ANY httpx error (transport, decoding, redirects, status, bad URL) as
-            # ArchiveError, never a raw httpx exception past the port.
+            # surface ANY httpx2 error (transport, decoding, redirects, status, bad URL) as
+            # ArchiveError, never a raw httpx2 exception past the port.
             raise ArchiveError(f"WebDAV {method} {url}: {exc}") from exc
 
-    def _ensure(self, resp: httpx.Response, *ok: int) -> None:
+    def _ensure(self, resp: httpx2.Response, *ok: int) -> None:
         if resp.status_code in ok:
             return
         failure = f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
-        if resp.status_code == httpx.codes.LOCKED:
+        if resp.status_code == httpx2.codes.LOCKED:
             raise Busy(failure)
         raise ArchiveError(failure)
 
@@ -217,7 +217,7 @@ class WebDavObjectStore:
 class _Body(io.RawIOBase):
     """The body of a streamed `GET`, handed out as it arrives; closing it closes the response."""
 
-    def __init__(self, resp: httpx.Response) -> None:
+    def __init__(self, resp: httpx2.Response) -> None:
         self._resp = resp
         self._chunks = resp.iter_bytes()
         self._pending = b""
@@ -231,7 +231,7 @@ class _Body(io.RawIOBase):
                 if (chunk := next(self._chunks, None)) is None:
                     return 0
                 self._pending = chunk
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             raise ArchiveError(f"WebDAV GET {self._resp.request.url}: {exc}") from exc
         view = memoryview(buffer).cast("B")
         size = min(len(view), len(self._pending))
@@ -278,9 +278,9 @@ def _replayable(
     return rewound, _RETRY_DELAYS
 
 
-def _refuse_missing_parent(resp: httpx.Response) -> None:
+def _refuse_missing_parent(resp: httpx2.Response) -> None:
     # A parent the adapter created a moment ago can still be invisible to the next request.
-    if resp.status_code in (httpx.codes.NOT_FOUND, httpx.codes.CONFLICT):
+    if resp.status_code in (httpx2.codes.NOT_FOUND, httpx2.codes.CONFLICT):
         failure = f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
         raise _ParentNotVisible(failure)
 

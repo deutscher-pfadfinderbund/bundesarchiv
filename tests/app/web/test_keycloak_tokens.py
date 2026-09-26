@@ -1,6 +1,6 @@
 """The access-token check (ADR 0018): the one decision every request makes about a Keycloak token.
 
-Tokens are signed here with generated RSA keys. The realm's HTTP endpoints are an ``httpx.get``
+Tokens are signed here with generated RSA keys. The realm's HTTP endpoints are an ``httpx2.get``
 stand-in, as in ``test_keycloak_discovery``; the check itself runs for real.
 """
 
@@ -13,7 +13,7 @@ from collections.abc import Iterator, Mapping
 from functools import partial
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from authlib.integrations.httpx_client import OAuth2Client
 from authlib.jose import JsonWebKey, JsonWebToken
@@ -67,13 +67,13 @@ def _json_segment(value: Mapping[str, object]) -> str:
 
 
 class _Realm:
-    """Discovery document and key set behind ``httpx.get``; counts key-set fetches."""
+    """Discovery document and key set behind ``httpx2.get``; counts key-set fetches."""
 
     def __init__(self) -> None:
         self.keys: Mapping[str, object] = _public_set(_OLD)
         self.key_fetches = 0
 
-    def get(self, url: str, **_: object) -> httpx.Response:
+    def get(self, url: str, **_: object) -> httpx2.Response:
         if url == _JWKS_URI:
             self.key_fetches += 1
             body: object = self.keys
@@ -82,7 +82,7 @@ class _Realm:
                 "jwks_uri": _JWKS_URI,
                 "token_endpoint": f"{_ISSUER}/protocol/openid-connect/token",
             }
-        return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+        return httpx2.Response(200, json=body, request=httpx2.Request("GET", url))
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ def realm(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> Iterator[_Real
     keycloak._DOCUMENTS.clear()
     keycloak._KEY_SETS.clear()
     fake = _Realm()
-    monkeypatch.setattr(httpx, "get", fake.get)
+    monkeypatch.setattr(httpx2, "get", fake.get)
     yield fake
     keycloak._DOCUMENTS.clear()
     keycloak._KEY_SETS.clear()
@@ -194,6 +194,6 @@ def test_a_refresh_answer_that_is_not_an_object_is_a_failed_refresh(
     settings.OIDC_CLIENT_SECRET = "secret"
     # The realm behind the client's transport: no network, and no SSL context either (building one
     # starts a native thread on macOS, which the suite's fork-based tests then warn about).
-    transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=body))
+    transport = httpx2.MockTransport(lambda _request: httpx2.Response(200, json=body))
     monkeypatch.setattr(keycloak, "OAuth2Client", partial(OAuth2Client, transport=transport))
     assert keycloak.refresh("r1") is None

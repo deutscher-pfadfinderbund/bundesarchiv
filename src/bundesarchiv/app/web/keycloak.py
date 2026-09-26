@@ -20,7 +20,7 @@ from base64 import urlsafe_b64decode
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-import httpx
+import httpx2
 from authlib.common.errors import AuthlibBaseError
 from authlib.common.urls import add_params_to_uri
 from authlib.integrations.httpx_client import OAuth2Client
@@ -58,10 +58,10 @@ def _fetched(
     if cached is not None:
         return cached
     try:
-        response = httpx.get(url, timeout=_TIMEOUT)
+        response = httpx2.get(url, timeout=_TIMEOUT)
         response.raise_for_status()
         document = response.json()
-    except httpx.HTTPError, ValueError:
+    except httpx2.HTTPError, ValueError:
         return None
     if not isinstance(document, Mapping):
         return None
@@ -222,7 +222,7 @@ def _client(redirect_uri: str | None = None) -> OAuth2Client | None:
 
 #: What a token-endpoint call raises when the realm refuses, cannot be reached, or answers nonsense:
 #: a 200 whose body is not a JSON object makes authlib raise ``TypeError`` before any caller sees it.
-_REALM_ERRORS = (AuthlibBaseError, httpx.HTTPError, ValueError, TypeError)
+_REALM_ERRORS = (AuthlibBaseError, httpx2.HTTPError, ValueError, TypeError)
 
 
 def _call(

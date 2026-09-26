@@ -9,7 +9,7 @@ anonymous gate on, every request then loops through a login that 404s.
 from collections.abc import Iterator, Mapping
 from urllib.parse import parse_qs, urlsplit
 
-import httpx
+import httpx2
 import pytest
 from pytest_django.fixtures import Settings
 
@@ -27,7 +27,7 @@ _ROTATED: Mapping[str, object] = {"keys": [{"kid": "signing-2026-09", "kty": "RS
 
 
 class _Realm:
-    """The realm's HTTP endpoints as an ``httpx.get`` stand-in — the ONE genuine external boundary
+    """The realm's HTTP endpoints as an ``httpx2.get`` stand-in — the ONE genuine external boundary
     here. ``down`` raises the connection failure a restarting realm gives; ``body`` is what it
     serves."""
 
@@ -35,10 +35,10 @@ class _Realm:
         self.down = False
         self.body: object = dict(_DOCUMENT)
 
-    def get(self, url: str, **_: object) -> httpx.Response:
+    def get(self, url: str, **_: object) -> httpx2.Response:
         if self.down:
-            raise httpx.ConnectError("realm restarting")
-        return httpx.Response(200, json=self.body, request=httpx.Request("GET", url))
+            raise httpx2.ConnectError("realm restarting")
+        return httpx2.Response(200, json=self.body, request=httpx2.Request("GET", url))
 
 
 @pytest.fixture
@@ -47,8 +47,8 @@ def realm(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Realm]:
     keycloak._DOCUMENTS.clear()
     keycloak._KEY_SETS.clear()
     fake = _Realm()
-    # On the httpx module itself: the adapter calls ``httpx.get``, so this is the same attribute.
-    monkeypatch.setattr(httpx, "get", fake.get)
+    # On the httpx2 module itself: the adapter calls ``httpx2.get``, so this is the same attribute.
+    monkeypatch.setattr(httpx2, "get", fake.get)
     yield fake
     keycloak._DOCUMENTS.clear()
     keycloak._KEY_SETS.clear()

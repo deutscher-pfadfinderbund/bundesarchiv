@@ -277,9 +277,9 @@ def test_enqueue_mirror_push_defers_when_mirror_set(monkeypatch: pytest.MonkeyPa
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """GH #20: the enqueue path must answer "is mirroring on" from settings alone — it must never
-    construct a fresh ``httpx.Client`` (eager SSL-context load) just to throw it away. Only
+    construct a fresh ``httpx2.Client`` (eager SSL-context load) just to throw it away. Only
     ``mirror_push`` itself, once actually run, may build one."""
-    import httpx
+    import httpx2
 
     import bundesarchiv.app.tasks as tasks_mod
 
@@ -287,9 +287,9 @@ def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPat
         raise AssertionError("client built on enqueue path")
 
     deferred: list[str] = []
-    # Patch the shared ``httpx`` module object tasks.py imported (``import httpx``, not
-    # ``from httpx import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
-    monkeypatch.setattr(httpx, "Client", _boom)
+    # Patch the shared ``httpx2`` module object tasks.py imported (``import httpx2``, not
+    # ``from httpx2 import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
+    monkeypatch.setattr(httpx2, "Client", _boom)
     monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
 
     with override_settings(

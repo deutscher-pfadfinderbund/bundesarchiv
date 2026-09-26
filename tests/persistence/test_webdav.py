@@ -1,6 +1,6 @@
 """WebDavObjectStore-specific tests: behavior the shared conformance suite (run
 against a healthy server) cannot reach — a down/unreachable mirror surfaces as
-ArchiveError, not a raw httpx exception, and refusals under contention are retried
+ArchiveError, not a raw httpx2 exception, and refusals under contention are retried
 before `Busy` reaches the caller.
 """
 
@@ -8,7 +8,7 @@ import io
 import socket
 from urllib.parse import urlsplit
 
-import httpx
+import httpx2
 import pytest
 
 from bundesarchiv.persistence.adapters import webdav
@@ -19,7 +19,7 @@ from bundesarchiv.persistence.errors import ArchiveError, Busy, NotFound
 def test_transport_failure_surfaces_as_archive_error() -> None:
     # Port 9 (discard) is closed on a dev/CI host → real connection refused. A short
     # timeout keeps a filtered port from hanging (a timeout is also a TransportError).
-    client = httpx.Client(base_url="http://127.0.0.1:9/", timeout=1.0)
+    client = httpx2.Client(base_url="http://127.0.0.1:9/", timeout=1.0)
     store = WebDavObjectStore(client)
     operations = (
         lambda: store.read("k"),
@@ -40,12 +40,12 @@ def test_transport_failure_surfaces_as_archive_error() -> None:
 
 
 def test_non_transport_httpx_error_surfaces_as_archive_error() -> None:
-    # _request must contain ANY httpx error, not only TransportError. MockTransport is a real
-    # httpx boundary (not a mock of the adapter), letting us raise a non-transport httpx error.
-    def boom(request: httpx.Request) -> httpx.Response:
-        raise httpx.HTTPError("simulated non-transport failure")
+    # _request must contain ANY httpx2 error, not only TransportError. MockTransport is a real
+    # httpx2 boundary (not a mock of the adapter), letting us raise a non-transport httpx2 error.
+    def boom(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.HTTPError("simulated non-transport failure")
 
-    client = httpx.Client(base_url="http://example.invalid/", transport=httpx.MockTransport(boom))
+    client = httpx2.Client(base_url="http://example.invalid/", transport=httpx2.MockTransport(boom))
     store = WebDavObjectStore(client)
     try:
         with pytest.raises(ArchiveError):
@@ -66,7 +66,7 @@ def test_the_test_server_never_serves_an_unread_body_as_a_request(webdav_root: s
     # A refused create is answered before its body is read. A real server then reads the rest
     # or closes; the in-process one parsing it as the next request made later writes flake.
     root = urlsplit(webdav_root)
-    httpx.put(f"{webdav_root}taken", content=b"x").raise_for_status()
+    httpx2.put(f"{webdav_root}taken", content=b"x").raise_for_status()
     refused_create = (
         f"PUT {root.path}taken HTTP/1.1\r\nHost: {root.netloc}\r\nIf-None-Match: *\r\n"
         "Transfer-Encoding: chunked\r\n\r\n6\r\nsecond\r\n0\r\n\r\n"
@@ -86,17 +86,17 @@ def no_retry_wait(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _scripted_store(refusals: list[int]) -> tuple[WebDavObjectStore, list[bytes]]:
     """A store whose server refuses the first PUTs with `refusals`, then accepts; returns the
-    store and the body of every PUT it received. MockTransport is the real httpx boundary."""
+    store and the body of every PUT it received. MockTransport is the real httpx2 boundary."""
     bodies: list[bytes] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         if request.method != "PUT":
-            return httpx.Response(201)  # MKCOL
+            return httpx2.Response(201)  # MKCOL
         bodies.append(request.read())
         status = refusals.pop(0) if refusals else 201
-        return httpx.Response(status, headers={"ETag": '"v"'} if status == 201 else None)
+        return httpx2.Response(status, headers={"ETag": '"v"'} if status == 201 else None)
 
-    client = httpx.Client(base_url="http://dav.invalid/", transport=httpx.MockTransport(handler))
+    client = httpx2.Client(base_url="http://dav.invalid/", transport=httpx2.MockTransport(handler))
     return WebDavObjectStore(client), bodies
 
 
@@ -152,12 +152,12 @@ def test_a_collection_answered_like_a_file_is_not_found() -> None:
         b"<d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"
     )
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         if request.method == "PROPFIND":
-            return httpx.Response(207, content=collection)
-        return httpx.Response(200, content=b"This is the WebDAV interface.")
+            return httpx2.Response(207, content=collection)
+        return httpx2.Response(200, content=b"This is the WebDAV interface.")
 
-    client = httpx.Client(base_url="http://dav.invalid/", transport=httpx.MockTransport(handler))
+    client = httpx2.Client(base_url="http://dav.invalid/", transport=httpx2.MockTransport(handler))
     store = WebDavObjectStore(client)
     with pytest.raises(NotFound):
         pytest.fail(f"read returned {store.read('art/1')!r}")

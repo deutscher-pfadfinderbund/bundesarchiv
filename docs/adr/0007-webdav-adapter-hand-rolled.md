@@ -1,4 +1,8 @@
-# The WebDAV mirror adapter is hand-rolled on httpx, not a client library
+# The WebDAV mirror adapter is hand-rolled on httpx2, not a client library
+
+**Amended 2026-09-26:** httpx is replaced by `httpx2`, its fork maintained by Pydantic since
+httpx 0.28.1 — the package name is the only API change. The reasoning below, written for httpx,
+holds unchanged.
 
 > **Amended (2026-09-25):** a write is one plain `PUT`, retried while the server answers
 > `423 Locked` ([ADR 0020](0020-storage-topology-system-of-record.md)). This supersedes the
