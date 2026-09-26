@@ -10,26 +10,29 @@
 <header class="mast">
   <div class="mast-in">
     <a class="wordmark" href="start.html">Bundesarchiv</a>
-    <nav class="nav" aria-label="Hauptnavigation">
-      <a href="archiv.html" aria-current="page">Archiv</a>
-      <a href="start.html#bestaende">Bestände</a>
-      <a href="#">Erfassen</a>
-    </nav>
+    <div class="tools">
     <form class="mast-search" action="archiv.html" role="search">
-      <input type="search" name="q" placeholder="Im Archiv suchen …" aria-label="Suchbegriff">
-      <button type="submit">Suchen</button>
+      <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
     </form>
-    <div class="account"><span class="user">bjebb</span><a href="../x3-register/door.html">Abmelden</a></div>
+      <details class="neu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a class="logout" href="../x3-register/door.html">Abmelden</a>
+    </div>
   </div>
 </header>
 
 <main class="wrap">
-  <nav class="crumbs" aria-label="Pfad"><a href="archiv.html">Archiv</a> › <a href="archiv.html">Bund</a> › Artikel</nav>
+  <nav class="crumbs" aria-label="Ort im Archiv"><a href="archiv.html">Bund</a></nav>
 
   <article>
     <section class="band" aria-labelledby="h-art">
       <div class="art-head">
-        <h1 id="h-art"><span class="kicker">Foto(s) · Bund</span>Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
+        <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
         <div class="actions"><a class="btn btn-small" href="#">Bearbeiten</a></div>
       </div>
       <div class="tiles" aria-label="Medien">

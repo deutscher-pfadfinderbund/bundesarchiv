@@ -364,3 +364,50 @@ main { padding-bottom: var(--section); }
   .scope .minor, .scope .add { display: none; }
   .scope .more { display: inline; }
 }
+
+/* ---------- top bar (navigation architecture 2026-09-27): wordmark · tools ----------
+   No section items (targets are presets of the one list), no account name. */
+.mast .tools { margin-left: auto; display: flex; align-items: center; gap: 1.75rem; }
+.mast .logout { color: var(--band-ink-2); font-size: 0.9rem; }
+.mast .logout:hover { color: var(--band-ink); }
+.mast .neu { position: relative; font-size: 0.9rem; }
+.mast .neu summary { list-style: none; cursor: pointer; color: var(--band-ink); }
+.mast .neu summary::-webkit-details-marker { display: none; }
+.mast .neu ul {
+  position: absolute; right: 0; top: calc(100% + 0.9rem); z-index: 5; margin: 0; padding: 0.4rem 0;
+  list-style: none; min-width: 12rem; background: var(--ground); color: var(--ink);
+  border: 1px solid var(--rule);
+}
+.mast .neu a { display: block; padding: 0.55rem 1rem; text-decoration: none; }
+.mast .neu a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+/* compact search that grows on interaction (article pages; start and list carry their own) */
+.mast .mast-search input {
+  width: 9rem; border: 0; border-bottom: 1px solid var(--band-ink-2); background: transparent;
+  color: var(--band-ink); padding: 0.35rem 0; font: 400 0.9rem/1.2 var(--sans);
+  transition: width 160ms ease-out;
+}
+.mast .mast-search input:focus { width: 22rem; outline: none; border-bottom-color: var(--band-ink); }
+.mast .mast-search input::placeholder { color: var(--band-ink-2); }
+@media (prefers-reduced-motion: reduce) { .mast .mast-search input { transition: none; } }
+
+/* three browse compartments side by side on L; two on M */
+.pair.trio { grid-template-columns: repeat(3, 1fr); column-gap: 4rem; }
+@media (max-width: 1100px) { .pair.trio { grid-template-columns: 1fr 1fr; row-gap: var(--section); } }
+
+.crumbs { padding: 2rem 0 0; font-size: 0.95rem; }
+.crumbs a { color: var(--ink-2); text-decoration: none; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; }
+
+/* S (owner, 2026-09-26): the start page is search plus "Weiter bearbeiten" only; browsing
+   happens on the list's folded filter */
+@media (max-width: 720px) {
+  .mast .mast-search input:focus { width: 11rem; }
+  .start-page main > :not(.band:first-child):not(.resume) { display: none; }
+}
+@media (max-width: 720px) {
+  .mast .mast-search { order: 0; flex-basis: auto; }
+  .mast-in { flex-wrap: nowrap; }
+  .mast .tools { gap: 1.1rem; }
+}
+/* the crumb belongs to the title it locates: close, not a section apart */
+.crumbs + article > .band:first-child { margin-top: 0.75rem; }
