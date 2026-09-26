@@ -2,7 +2,7 @@
 
 **Status.** Built 2026-08-30: OIDC login that minted one signed Viewer cookie.
 Reworked 2026-09-26 (owner): an OIDC login keeps Keycloak's tokens in the
-browser and the server refreshes them. The rework is not built yet. The second
+browser and the server refreshes them; built 2026-09-26. The second
 login path is **capability links** (designed, deferred); they supersede the
 app-local guest passwords this ADR first specified (owner, 2026-08). The file
 name keeps the old title for link stability.
@@ -150,11 +150,17 @@ step fails, the cookies still go, because refusing to sign somebody out is not
 a safe failure. The sign-out is offered to every signed-in viewer, Member
 included.
 
-Not verified against the real realm on 2026-09-26: that steps 1–3 behave as
-described. A real login and logout against the realm confirms it before the
-rework merges. Verified the same day with Keycloak's token preview: the access
-token carries `aud` `bundesarchiv`, only the role-scope roles, `groups` and
-`preferred_username`.
+Verified against the real realm on 2026-09-26 (Keycloak 26.5.2, local run):
+
+- Keycloak's token preview: the access token carries `aud` `bundesarchiv`, only
+  the role-scope roles, `groups` and `preferred_username`.
+- Login sets the two token cookies and no Viewer cookie. Sizes: access token
+  1.3 kB, refresh token 0.7 kB.
+- After more than one minute idle, the next click carries a new access token.
+- Logout shows no confirmation page, removes both cookies, and leaves no
+  Keycloak session (offline included); the next login asks for the password.
+
+Not run: two tabs refreshing at once.
 
 There is no Abmelden landing page (owner, 2026-08-29): a logout lands on the
 workbench as an anonymous visitor, which the gate turns into the login screen.
