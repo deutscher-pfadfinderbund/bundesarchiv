@@ -153,8 +153,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ## Implementation patterns
 
 ### 19. Compositions style inside components — in progress (WAVE-C)
-- **Indicator:** 9 composition selectors reach into `.field` (`forms.css`), 2 of them keyed on input
-  `name`s (4 fields) (2026-09-25); the full count is WAVE-C slice 1's boundary-lint allow-list
+- **Indicator:** 44 entries in `test_design_lint.BOUNDARY_ALLOWED` — `.pane` 13, `.chooser` 12,
+  `.field` 7 (2 keyed on input `name`s), `.filterrail` 4, `.bulk` 4, other 4 (2026-09-26)
 - **Evidence:** `forms.css` `.fach > .field > …`, `.column .field`; `_feld.html`'s bare-label constraint
 - **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
 - **Sketch:** one class on each component's outer element; custom-property knobs; lint guards it

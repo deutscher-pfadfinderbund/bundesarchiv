@@ -17,15 +17,17 @@ and enforces:
    token fits;
 6. ``box-shadow`` appears only as consumption of the two licensed shadow tokens —
    ``var(--sheet-shadow)`` (register row 8: the resting-contact cue) and ``var(--overlay-shadow)``
-   (row 12: transient floating panels); Material elevation ramps are forbidden.
+   (row 12: transient floating panels); Material elevation ramps are forbidden;
+7. no compositions-layer selector continues past a component root (law C1/C14 — owned components).
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
-block opener, selectors possibly wrapped over lines, declarations one per line). It recurses into
+block opener, selectors and values possibly wrapped over lines). It recurses into
 ``@layer``/``@media``/``@container`` blocks and records each declaration with its full selector
 stack. Proven non-vacuous by mutation during the wave (a planted hex/corner-shape/margin turned
 it red).
 """
 
+import itertools
 import re
 from pathlib import Path
 
@@ -65,10 +67,11 @@ Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned lin
 #: because it was invisible to every check while it was only a selector-stack prefix, which is how a
 #: hard-coded `@media (min-width: 80rem)` slipped past the px/rem literal rule three times over.
 AtRule = tuple[str, str, int, bool]
+Rule = tuple[str, str, int]  # (enclosing stack, the rule's own selector list, lineno)
 
 
-def _parse(css: str) -> tuple[list[Decl], list[AtRule]]:
-    """Flatten a stylesheet into declarations and at-rule openers.
+def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
+    """Flatten a stylesheet into declarations, at-rule openers and style-rule openers.
 
     Declarations are (selector-stack, property, line, lineno, has-comment); at-rules join the stack
     like selectors do, so a rule inside @container still knows its owning selector, AND are returned
@@ -76,9 +79,11 @@ def _parse(css: str) -> tuple[list[Decl], list[AtRule]]:
     before parsing; whether the original line carried one is kept (the C5 comment exemption)."""
     decls: list[Decl] = []
     at_rules: list[AtRule] = []
+    rules: list[Rule] = []
     stack: list[str] = []
     pending: list[str] = []  # selector lines accumulated until their opening brace
     in_comment = False
+    in_value = False  # inside a declaration whose value wraps onto further lines
     for lineno, raw in enumerate(css.splitlines(), start=1):
         line = raw
         had_comment = "/*" in line or in_comment
@@ -94,24 +99,33 @@ def _parse(css: str) -> tuple[list[Decl], list[AtRule]]:
         line = line.strip()
         if not line:
             continue
+        if in_value:
+            in_value = not line.endswith(";")
+            continue
         if line.endswith("{"):
             pending.append(line[:-1].strip())
-            stack.append(" ".join(p for p in pending if p))
-            if pending and pending[-1].startswith("@"):
-                at_rules.append((" ".join(stack), pending[-1], lineno, had_comment))
+            opener = " ".join(p for p in pending if p)
+            if opener.startswith("@"):
+                at_rules.append((" ".join([*stack, opener]), opener, lineno, had_comment))
+            else:
+                rules.append((" ".join(stack), opener, lineno))
+            stack.append(opener)
             pending = []
             continue
         if line == "}":
             if stack:
                 stack.pop()
             continue
-        if line.endswith(",") or (not line.endswith(";") and ":" not in line):
-            pending.append(line)  # a wrapped selector line
-            continue
-        match = re.match(r"([-a-zA-Z_][-\w]*)\s*:", line)
+        # A declaration is `property:` then whitespace or the line end; `a:hover,` and a wrapped
+        # `.chooser:has(…)` are selector lines, as is anything else outside a value.
+        match = re.match(r"([-a-zA-Z_][-\w]*)\s*:(?:\s|$)", line)
         if match and stack:
             decls.append((" ".join(stack), match.group(1), line, lineno, had_comment))
-    return decls, at_rules
+            in_value = not line.endswith(";")
+            continue
+        if not line.endswith(";"):  # a `;` line here is a statement at-rule (`@layer a, b;`)
+            pending.append(line)
+    return decls, at_rules, rules
 
 
 def _declarations(css: str) -> list[Decl]:
@@ -446,4 +460,181 @@ def test_bare_dimension_literals_are_named_or_commented() -> None:
                 offenders.append(f"{name}:{lineno}: [at-rule] {condition}")
     assert not offenders, "bare px/rem literal (law C5 — token, name, or comment):\n" + "\n".join(
         offenders
+    )
+
+
+DESIGN_SYSTEM = Path(__file__).resolve().parents[3] / "docs" / "design" / "design-system.md"
+
+
+def _component_roots() -> tuple[str, ...]:
+    """The Root column of design-system.md's component inventory — the one list of components."""
+    section = DESIGN_SYSTEM.read_text().split("### Component inventory", 1)[1].split("\n#", 1)[0]
+    rows = [line for line in section.splitlines() if line.startswith("|")]
+    return tuple(row.split("|")[2].strip().strip("`") for row in rows[2:])
+
+
+def _split_top(selector: str, at: str) -> list[str]:
+    """Split at the characters in ``at`` outside any ()/[] — a selector list at ",", a complex
+    selector at its combinators."""
+    parts, depth, current = [], 0, ""
+    for char in selector:
+        depth += (char in "([") - (char in ")]")
+        if depth == 0 and char in at:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    return [part.strip() for part in [*parts, current] if part.strip()]
+
+
+def _compounds(complex_selector: str) -> list[str]:
+    return _split_top(complex_selector, " >+~")
+
+
+def _names_root(compound: str, roots: tuple[str, ...]) -> bool:
+    """The compound selects a root itself, or through an :is()/:where() argument whose subject does.
+    :has()/:not() arguments select other elements, so they never make the compound a root."""
+    depths = itertools.accumulate((c == "(") - (c == ")") for c in compound)
+    own = "".join(c for c, depth in zip(compound, depths, strict=True) if depth == 0)
+    if any(re.search(re.escape(root) + r"(?![-\w])", own) for root in roots):
+        return True
+    return any(
+        _names_root(_compounds(arg)[-1], roots)
+        for args in _pseudo_args(compound, ("is", "where"))
+        for arg in _split_top(args, ",")
+    )
+
+
+def _pseudo_args(compound: str, names: tuple[str, ...]) -> list[str]:
+    found = []
+    for match in re.finditer(r":([-\w]+)\(", compound):
+        depth, start = 1, match.end()
+        end = start
+        while depth:
+            depth += (compound[end] == "(") - (compound[end] == ")")
+            end += 1
+        if match.group(1) in names:
+            found.append(compound[start : end - 1])
+    return found
+
+
+def _reaches_past_root(complex_selector: str, roots: tuple[str, ...]) -> bool:
+    compounds = _compounds(complex_selector)
+    if any(_names_root(compound, roots) for compound in compounds[:-1]):
+        return True
+    return any(
+        _reaches_past_root(arg, roots)
+        for compound in compounds
+        for args in _pseudo_args(compound, ("is", "where", "has", "not"))
+        for arg in _split_top(args, ",")
+    )
+
+
+#: Today's compositions-layer selectors that reach inside a component (WAVE-C removes them). The
+#: list may only shrink: a stale entry fails the test as surely as a new reach-in. Its length is
+#: ledger #19's indicator. Only a selector that NAMES a root is seen: `.column :is(input, …)` reaches
+#: into `.field` without naming it.
+BOUNDARY_ALLOWED: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("detail.css", ".facts .fallback"),
+        ("forms.css", ".column .chooser .actions"),
+        ("forms.css", ".einblick > p"),
+        ("forms.css", ".fach > .field > *"),
+        ("forms.css", ".fach > .field > :is(input, select, textarea)"),
+        ("forms.css", ".fach > .field > :is(input, select, textarea):is(:hover, :focus-visible)"),
+        (
+            "forms.css",
+            '.fach > .field > :is(input[name="date"], input[name="creator"], input[name="subject_place"])',
+        ),
+        ("forms.css", ".fach > .field > :is(label, span):first-child"),
+        ("forms.css", '.fach > .field > input[name="ref_code"]'),
+        ("forms.css", ":where(.fach > .field > :is(input, select, textarea))"),
+        ("layouts.css", ".chooser .actions"),
+        ("layouts.css", ".chooser [data-bulk-wert]"),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="collection_id"]) [data-bulk-wert~="collection_id"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="creator"]) [data-bulk-wert~="creator"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="document_type"]) [data-bulk-wert~="document_type"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="physical_location"]) [data-bulk-wert~="physical_location"]',
+        ),
+        (
+            "layouts.css",
+            '.chooser:has([name="feld"] option:checked[value="subject_place"]) [data-bulk-wert~="subject_place"]',
+        ),
+        ("layouts.css", ".error-banner button"),
+        ("layouts.css", ".error-banner p"),
+        ("layouts.css", ".filterrail > .filterset"),
+        ("layouts.css", ".filterrail > .filterset > a"),
+        ("layouts.css", ".filterrail > p"),
+        ("layouts.css", ".pane .hollow"),
+        ("layouts.css", ".pane .meta"),
+        ("layouts.css", ".pane .meta span + span::before"),
+        ("layouts.css", ".pane :is(h2, p, ul)"),
+        ("layouts.css", ".pane :is(img, .hollow)"),
+        ("layouts.css", ".pane > div"),
+        ("layouts.css", ".pane h2"),
+        ("layouts.css", ".pane header"),
+        ("layouts.css", ".pane header > a"),
+        ("layouts.css", ".pane header h2"),
+        ("layouts.css", ".pane li"),
+        ("layouts.css", ".pane li p"),
+        ("layouts.css", ".pane ul"),
+        (
+            "layouts.css",
+            ":is(body > header, body > header > nav, .filterrail, .filterrail > .filterset, .recordrow) > :is(a, p)",
+        ),
+        ("layouts.css", "details.bulk > div:first-of-type"),
+        ("layouts.css", "details.bulk a"),
+        ("layouts.css", "details.bulk summary"),
+        ("layouts.css", "details.bulk summary [data-bulk-zahl]"),
+    }
+)
+
+
+def test_no_composition_selector_reaches_past_a_component_root() -> None:
+    roots = _component_roots()
+    found = {
+        (
+            name,
+            re.sub(r"\(\s+|\s+\)", lambda m: m.group().strip(), " ".join(complex_selector.split())),
+        )
+        for name in STYLESHEETS
+        for stack, selector_list, _lineno in _parse((STATIC / name).read_text())[2]
+        if "@layer compositions" in stack
+        for complex_selector in _split_top(selector_list, ",")
+        if _reaches_past_root(complex_selector, roots)
+    }
+    new = sorted(found - BOUNDARY_ALLOWED)
+    stale = sorted(BOUNDARY_ALLOWED - found)
+    assert not new and not stale, (
+        "a composition selects inside a component (set its knobs on the root instead):\n"
+        + "\n".join(f"{name}: {selector}" for name, selector in new)
+        + "\nallow-list entries no longer found (delete them):\n"
+        + "\n".join(f"{name}: {selector}" for name, selector in stale)
     )

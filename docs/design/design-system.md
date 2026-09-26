@@ -269,6 +269,45 @@ contexts.
 
 ## Component mapping (workbench)
 
+### Component inventory
+
+Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
+column: a compositions-layer selector may reach a root and never past it. A new component joins
+this table. Views (`_results`, `_header`, `_lesesicht`, the edit card `.karte`) and layout
+primitives (`.frame`, `.column`, `.split`, the record row) are compositions, not components.
+`_filterset` and `_trefferzahl` are parts of the filter rail, `_wertmarke` of the card's value
+line; they are split out only as swap units or single renderers (law C7).
+
+| Component | Root | Template | CSS section |
+|---|---|---|---|
+| Action row | `.actions` | inline | `components.css` action rows |
+| Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
+| Badge | `.badge` | `components/badge_lifecycle`, `badge_visibility` | `components.css` badges |
+| Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
+| Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
+| Menu | `.menu` | inline (`_header`, record row) | `components.css` header create menu |
+| Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
+| Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
+| Pagination | `.pager` | `components/pagination` | `components.css` pagination |
+| Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
+| Icon | `.icon` | `components/icon` | none |
+| Field | `.field` | `workbench/_feld` + standalone forms | `components.css` elements layer |
+| EDTF echo | `.echo` | `workbench/_datierung_echo` | `forms.css` EDTF echo |
+| Media register | `.media` | inline (edit card) | `forms.css` media register |
+| Panel | `.panel` | inline (confirm pages, CAS conflict) | `forms.css` panel |
+| Field diff | `.diff` | inline (CAS conflict) | `forms.css` panel |
+| Exposure statement | `.einblick` | `workbench/_einblick` | `forms.css` exposure statement |
+| Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
+| Sammelbearbeitung | `.bulk` | `workbench/_sammelleiste` | `layouts.css` Sammelbearbeitung |
+| Filter rail | `.filterrail` | `workbench/_filterrail` | `layouts.css` filter rail |
+| Pane | `.pane` | `workbench/_pane`, `_lesesicht` | `layouts.css` preview pane |
+| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
+| Cover Platte | `.platte` | inline (`detail`) | `detail.css` cover Platte |
+| Record card | `.facts` | inline (`detail`) | `detail.css` record card |
+| Plate register | `.filmstrip` | inline (`detail`) | `detail.css` plate register |
+
+### Roles
+
 | Element | Roles |
 |---|---|
 | Page background | `surface` |

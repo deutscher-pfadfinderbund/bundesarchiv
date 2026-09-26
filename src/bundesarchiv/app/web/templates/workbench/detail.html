@@ -46,7 +46,7 @@ No JS, no HTMX — the app's purest no-JS surface (§7).
   route (opens the native full-size view) — so a single-media article, which has no filmstrip,
   still has a path to the full image (design-gate LOW-MED). No-JS native.{% endcomment %}
   {% if cover %}
-  <figure>
+  <figure class="platte">
     <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
     {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
   </figure>
