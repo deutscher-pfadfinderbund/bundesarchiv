@@ -152,13 +152,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Implementation patterns
 
-### 19. Compositions style inside components — in progress (WAVE-C)
-- **Indicator:** 1 entry in `test_design_lint.BOUNDARY_ALLOWED` — `.einblick > p` (2026-09-26; 44
-  before the field row, 37 before the frame's components moved into their own sections)
-- **Evidence:** `_feld.html`'s bare-label constraint (the card sets its row knobs on `.fach > .field`);
-  reach-ins the lint cannot see (a component section styling another component's inside)
+### 19. Compositions style inside components — in progress (Wave R)
+- **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
+  over WAVE-C); 1 wrapper-sensitive knob site left: `.fach > .field`
+- **Evidence:** the card sets its row knobs ON the field, not on `.fach` (they would reach the caption
+  and custom-bag fields), so a wrapper drops them; the card's look is an owner question for Wave R
 - **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
-- **Sketch:** one class on each component's outer element; custom-property knobs; lint guards it
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
 - **Indicator:** 1380 lines (2026-09-02, after #7 carved the chooser out), up from ~970 before the

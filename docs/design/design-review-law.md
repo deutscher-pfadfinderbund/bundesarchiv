@@ -245,8 +245,7 @@ The machine-checkable slice of B and C, enforced by
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
   C5);
-- no compositions-layer selector past a component root (C1) — today's
-  reach-ins sit in an allow-list that may only shrink.
+- no compositions-layer selector past a component root (C1).
 
 **Generic computed invariant (the G.1 pattern, generalized — mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,

@@ -134,6 +134,18 @@
     field-sizing: content; /* law F, newly-available tier: grows with the content where supported,
        degrades to exactly the floor above where it is not */
   }
+  /* ---- the Medien section's upload row ---- */
+  .upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  /* in-flight cue for HTMX swaps: a static opacity dim, no spinner */
+  #medien-drawer.htmx-request,
+  #form-region form.htmx-request {
+    opacity: 0.6;
+  }
   /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
      sheet carries it where the sheet exists, the card where it does not. The card is the DEFAULT —
      always rendered — and layouts.css's ONE pane switch is the only thing that suppresses it, inside
@@ -144,9 +156,6 @@
     grid-column: 1 / -1;
     padding-top: var(--space-2);
     border-top: var(--hairline) solid var(--outline-variant);
-  }
-  .einblick > p {
-    margin: 0;
   }
 
   /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
@@ -287,16 +296,10 @@
     font: var(--type-meta);
     color: var(--on-surface-variant);
   }
-  .upload {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  /* in-flight cue for HTMX swaps: a static opacity dim, no spinner */
-  #medien-drawer.htmx-request,
-  #form-region form.htmx-request {
-    opacity: 0.6;
+
+  /* ---- exposure statement (workbench/_einblick.html) ---- */
+  .einblick > p {
+    margin: 0;
   }
 
   /* ---- panel: the shared TRUE-SHEET base (register row 8). `.konflikt` is the CAS case: red LEFT

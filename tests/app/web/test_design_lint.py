@@ -530,31 +530,19 @@ def _reaches_past_root(complex_selector: str, roots: tuple[str, ...]) -> bool:
     )
 
 
-#: Today's compositions-layer selectors that reach inside a component (WAVE-C removes them). The
-#: list may only shrink: a stale entry fails the test as surely as a new reach-in. Its length is
-#: ledger #19's indicator. Only a selector that NAMES a root is seen: `.column :is(input, …)` reaches
-#: into `.field` without naming it.
-BOUNDARY_ALLOWED: frozenset[tuple[str, str]] = frozenset({("forms.css", ".einblick > p")})
-
-
 def test_no_composition_selector_reaches_past_a_component_root() -> None:
+    # Only a selector that NAMES a root is seen: `.column :is(input, …)` would reach into `.field`
+    # without naming it.
     roots = _component_roots()
-    found = {
-        (
-            name,
-            re.sub(r"\(\s+|\s+\)", lambda m: m.group().strip(), " ".join(complex_selector.split())),
-        )
+    found = sorted(
+        f"{name}: {' '.join(complex_selector.split())}"
         for name in STYLESHEETS
         for stack, selector_list, _lineno in _parse((STATIC / name).read_text())[2]
         if "@layer compositions" in stack
         for complex_selector in _split_top(selector_list, ",")
         if _reaches_past_root(complex_selector, roots)
-    }
-    new = sorted(found - BOUNDARY_ALLOWED)
-    stale = sorted(BOUNDARY_ALLOWED - found)
-    assert not new and not stale, (
+    )
+    assert not found, (
         "a composition selects inside a component (set its knobs on the root instead):\n"
-        + "\n".join(f"{name}: {selector}" for name, selector in new)
-        + "\nallow-list entries no longer found (delete them):\n"
-        + "\n".join(f"{name}: {selector}" for name, selector in stale)
+        + "\n".join(found)
     )

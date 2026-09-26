@@ -225,7 +225,8 @@
   }
 
   /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,
-     extensible slot flavor (G.9); its icons come from the one vendored set (register row 9). ---- */
+     extensible slot flavor (G.9); its icons come from the one vendored set (register row 9).
+     Knobs: --toolbar-opacity (its controls' resting opacity). ---- */
   .actions,
   [role="toolbar"] {
     display: inline-flex;
@@ -237,6 +238,9 @@
      control row or sits inside one, and inside one the row owns the height (C8, learning G.45). */
   [role="toolbar"] {
     --hit-fallback: var(--touch-target);
+  }
+  [role="toolbar"] > * {
+    opacity: var(--toolbar-opacity, 1);
   }
   /* a mutating action is its own <form> (Enter never fires it) but sits inline in an .actions row.
      A form inside a PANEL is a list line instead — `.menu li > form` owns that. */
@@ -727,12 +731,11 @@
   }
   /* quiet until the row is hovered / focused — POINTER devices only (touch keeps them visible) */
   @media (hover: hover) {
-    .ledger [role="rowgroup"] .aktion a {
-      opacity: 0;
+    .ledger [role="rowgroup"] .aktion {
+      --toolbar-opacity: 0;
     }
-    .ledger [role="row"]:is(:hover, :focus-within) .aktion a,
-    .ledger .aktion a:focus-visible {
-      opacity: 1;
+    .ledger [role="row"]:is(:hover, :focus-within) .aktion {
+      --toolbar-opacity: 1;
     }
   }
 

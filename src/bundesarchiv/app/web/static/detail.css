@@ -72,7 +72,10 @@
     color: var(--on-surface);
   }
 
-  /* the composition owns the space above the plate register (C4) */
+  /* the composition owns the space around the Platte and above the plate register (C4) */
+  .column .platte {
+    margin: 0 0 var(--space-5);
+  }
   .column .filmstrip {
     margin-top: var(--space-6);
   }
@@ -101,20 +104,19 @@
 @layer components {
   /* ---- cover Platte — THE focal point: a paper-mounted photo with a hairline edge. No bevel:
      the cut is licensed solely on .c-sig (register row 1). ---- */
-  .column figure {
-    margin: 0 0 var(--space-5);
+  .platte {
     padding: var(--space-3);
     background: var(--surface-container-low);
     border: var(--hairline) solid var(--outline-variant);
     border-radius: var(--radius-m);
   }
-  .column figure img {
+  .platte img {
     display: block;
     width: 100%;
     height: auto;
     border-radius: var(--radius-s);
   }
-  .column figcaption {
+  .platte figcaption {
     margin-top: var(--space-2);
     color: var(--on-surface-variant);
     font: var(--type-meta);
