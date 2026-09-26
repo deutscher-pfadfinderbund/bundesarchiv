@@ -1,6 +1,7 @@
-/* Compositions — the page frame (header · filter rail · results · preview pane) and the chrome
-   every screen shares. Load order: tokens, components, then this file. Compositions own the
-   BETWEEN (law C4) and style only what they placed (C14). */
+/* The page frame (header · filter rail · results · preview pane) and the chrome every screen
+   shares: the compositions, plus the components only the frame places. Load order: tokens,
+   components, then this file. Compositions own the BETWEEN (law C4) and style only what they placed
+   (C14). */
 
 @layer elements {
   body {
@@ -11,78 +12,7 @@
   }
 }
 
-@layer compositions {
-  /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
-  body > header {
-    /* a CONTROL ROW (law C8) — the compact height, the same the rail sets */
-    --control-height: var(--touch-target-compact);
-    /* the containing block for the overlay panels its controls drop (law C12) */
-    position: relative;
-    /* ...and it must OUT-STACK the sticky record row below, because the "+ Neu …" panel drops into
-       that row's band. A sticky row is a stacking context, so the panel can only win through its
-       ANCESTOR's value (learning G.36). The scale, in order: --z-* in tokens.css. */
-    z-index: var(--z-header);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3) var(--space-4);
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface-container-high);
-    /* the fine double rule under the header (05 idea (b)) — ONLY here, quiet */
-    border-bottom: 3px double var(--outline); /* 3px: the minimum where `double` draws two hairlines — no token names a double-rule width */
-  }
-  /* the wordmark: the ONE place a display face has character (owner 2026-08-07) */
-  .wordmark {
-    font: var(--type-wordmark);
-    font-variant-caps: small-caps;
-    letter-spacing: var(--wordmark-tracking);
-    color: var(--on-surface);
-    white-space: nowrap;
-  }
-  .wordmark:hover {
-    text-decoration: none;
-  }
-  header [role="search"] {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    flex: 1 1 20rem; /* the search field is the header's one growing track */
-    min-width: 0;
-  }
-  header [role="search"] input {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  /* the return-to-work link; on screens whose header holds nothing else it docks right */
-  .back {
-    font: var(--type-meta);
-  }
-  /* whichever of the two trailing items ENDS the row docks it right: the back link on the screens
-     that carry one, otherwise Abmelden (archivist chrome, ADR 0018) */
-  header > :is(.back, .abmelden):last-child {
-    margin-left: auto;
-  }
-
-  /* ---- a control row's TEXT occupants consume the row knob too (law C8: EVERY interactive child).
-     A bare <a> or <p> is an inline box, and min-height does nothing to one — so the components-layer
-     consumption rule, which names only button/a.button/summary/input/select, could not reach them and
-     they stood at their own line box: a.back 19px and a breadcrumb crumb 18px beside 32px buttons,
-     both under the WCAG 2.2 AA 24px target floor (law D). Declared ONCE for every row rather than per
-     instance (G.22) — the rail used to carry its own copy for the clear-all link and the count.
-     DIRECT-CHILD paths through the structures the compositions placed (law C14), so it can never reach
-     into a dropped overlay panel, whose entries are sized by the panel's own re-declared knob. ---- */
-  :is(
-      body > header,
-      body > header > nav,
-      .filterrail,
-      .filterrail > .filterset,
-      .recordrow
-    )
-    > :is(a, p) {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--control-height);
-  }
+@layer components {
   /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar died
      with it). It lives OUTSIDE #results, so filter clicks are plain GET navigations and the rail
      re-renders with fresh counts. Narrow viewports simply wrap the row. ---- */
@@ -99,6 +29,12 @@
        directly on the desk; only its dropdown buttons keep a hairline */
     padding: var(--space-4) var(--space-4) var(--space-2);
   }
+  /* its text occupants take the row's line box (the compositions' row-occupant rule, law C8) */
+  :is(.filterrail, .filterrail > .filterset) > :is(a, p) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
   /* the filter set is grouped in the DOM because it is the unit an htmx q-swap refreshes
      out-of-band — never because it is a box, hence display: contents */
   .filterrail > .filterset {
@@ -106,7 +42,7 @@
   }
   /* the rail's two TEXT occupants keep their own type role — the clear-all link ("Alle Filter
      entfernen", owner 2026-08-07 rail round 2: a quiet text link ending the chip row, deliberately
-     not a chip) and the "N Treffer" count. Their line box is the shared row-occupant rule above. */
+     not a chip) and the "N Treffer" count. */
   .filterrail > .filterset > a,
   .filterrail > p {
     font: var(--type-meta);
@@ -118,77 +54,6 @@
     font: var(--type-mono-meta);
     font-variant-numeric: tabular-nums;
     color: var(--on-surface-variant);
-  }
-
-  /* ---- record row: the edit surface's ONE control row and its ONE action place (owner ruling 2,
-     2026-08-08). It takes the slot the workbench spends on the filter rail and STICKS there, so
-     Speichern is reachable at any scroll position without a second band.
-     Material role (register row 8, learning G.17): FURNITURE — flat, no tint, no depth cue, one
-     hairline. Its only fill is the desk, which is what makes it opaque while content scrolls
-     under it. ---- */
-  /* The region that HOLDS the row owns its dimensions, because TWO things consume them (C5): the row
-     is that tall, and the sticky sheet beside it must clear exactly that much. They are siblings, so
-     a shared ancestor is the only place one property reaches both.
-     Named by its id, not found structurally: `:has(> .recordrow)` was the only UNQUALIFIED :has() in
-     the codebase — nothing to bucket it, so the engine evaluates it against every element of every
-     page, including the 50-row ledger where no record row exists. */
-  #form-region {
-    --recordrow-control: var(--touch-target-compact);
-    /* the sheet's sticky offset, DERIVED from the row's own anatomy (C9's rule one level down — a
-       guessed constant is what put the sheet under the row): the row's control height + its block
-       padding on both sides + its bottom rule, plus the frame gap the sheet already rests in. */
-    --pane-top: calc(
-      var(--recordrow-control) + 2 * var(--space-2) + var(--hairline) + var(--space-4)
-    );
-  }
-  .recordrow {
-    /* a CONTROL ROW (law C8), from #form-region's knob above — the same value --pane-top derives
-       from, so the row's height and the sheet's clearance cannot disagree */
-    --control-height: var(--recordrow-control);
-    /* sticky ALSO makes this the containing block for the panel its overflow disclosure drops
-       (law C12), so containment holds by construction here too */
-    position: sticky;
-    top: 0;
-    z-index: var(--z-control-row); /* above the sticky pane sheet and its own dropped panel — the row is chrome (the scale + why: tokens.css) */
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--surface);
-    border-bottom: var(--hairline) solid var(--outline-variant);
-  }
-  .recordrow > [role="toolbar"] {
-    margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
-  }
-
-  /* ---- page frame: main · (pane), the pane column present only at/above the 80rem switch ---- */
-  .frame {
-    --pane-col: minmax(20rem, 26rem); /* named frame track (law C3/C5) */
-    display: grid;
-    grid-template-columns: [main] minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-4);
-    padding: var(--space-4);
-  }
-
-  /* the work column: a vertical stack, whatever the screen puts in it. The workbench's bulk form
-     repeats the stack of the column it sits in, so ONE rule serves both. DIRECT child only — the
-     edit surface's form sits deeper and is display:contents, so a descendant selector would
-     silently relayout the card (law C14). */
-  .frame main,
-  .frame main > form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-  .frame main {
-    grid-column: main;
-    min-width: 0;
-  }
-  /* HTMX in-flight: a static opacity dim, no motion */
-  #results.htmx-request {
-    opacity: 0.6;
   }
 
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
@@ -223,19 +88,20 @@
 
   /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-wert tokens
      contain the chosen Feld, derived from the select's own :checked option — no JS, so the no-JS
-     baseline behaves identically. A new bulk field needs its token here. */
+     baseline behaves identically. A new bulk field needs its token here (ledger #6).
+     Knobs: --chooser-control-height (its action row's height). */
   .chooser {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: var(--space-3);
-    margin-top: var(--space-3);
   }
   .chooser .actions {
+    --control-height: var(--chooser-control-height, auto);
     margin-left: auto;
   }
   .chooser [data-bulk-wert] {
-    display: none;
+    --field-display: none;
   }
   .chooser:has([name="feld"] option:checked[value="physical_location"])
     [data-bulk-wert~="physical_location"],
@@ -250,22 +116,11 @@
     [data-bulk-wert~="document_type"],
   .chooser:has([name="feld"] option:checked[value="collection_id"])
     [data-bulk-wert~="collection_id"] {
-    display: inline-flex;
+    --field-display: inherit; /* whatever display the context gives every other field */
   }
 
-  /* ---- preview pane: THE pulled sheet (register row 8) — tint, hairline, contact shadow ---- */
-  .pane {
-    /* HIDDEN BY DEFAULT: the ONE width query at the bottom of this file switches the column on, and
-       nothing switches it off — that is what leaves exactly one 80rem literal in the app. A negated
-       second query is a complement kept true by hand, and the card's own copy of it was NOT the
-       complement it claimed (learning G.44). */
-    display: none;
-    grid-column: pane;
-    /* stretch across the frame's ROW, against the frame's align-items: start. Without it a grid item
-       is only as tall as its content, so the sheet's `position: sticky` below had no slack and never
-       stuck at all — dead styling that reads exactly like live styling (learning G.39). */
-    align-self: stretch;
-  }
+  /* ---- preview pane: THE pulled sheet (register row 8) — tint, hairline, contact shadow.
+     Knobs: --pane-top (the sheet's sticky offset). ---- */
   .pane > div {
     position: sticky;
     /* clears whatever sticky chrome stands above: on the edit surface the record row, whose height
@@ -344,6 +199,194 @@
     color: var(--on-surface-variant);
   }
 
+  /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by base.html's failure
+     listener. Hiding is the modes-layer [hidden] rule, which outranks this display, so the banner
+     can never intercept clicks while hidden — the recorded regression class. A reveal lifts nothing:
+     the edit surface's one action place is the sticky record row at the TOP, which
+     test_failed_save_banner_leaves_speichern_clickable pins with a real hit-test. ---- */
+  .error-banner {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: var(--z-banner); /* above every row and everything in flow (the scale: tokens.css) */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--error);
+    color: var(--on-error);
+  }
+  .error-banner p {
+    margin: 0;
+    font: var(--type-body);
+  }
+  .error-banner button {
+    background: none;
+    border: none;
+    color: var(--on-error);
+    font: var(--type-title);
+    line-height: 1;
+    padding: 0 var(--space-1);
+  }
+}
+
+@layer compositions {
+  /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
+  body > header {
+    /* a CONTROL ROW (law C8) — the compact height, the same the rail sets */
+    --control-height: var(--touch-target-compact);
+    /* the containing block for the overlay panels its controls drop (law C12) */
+    position: relative;
+    /* ...and it must OUT-STACK the sticky record row below, because the "+ Neu …" panel drops into
+       that row's band. A sticky row is a stacking context, so the panel can only win through its
+       ANCESTOR's value (learning G.36). The scale, in order: --z-* in tokens.css. */
+    z-index: var(--z-header);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-container-high);
+    /* the fine double rule under the header (05 idea (b)) — ONLY here, quiet */
+    border-bottom: 3px double var(--outline); /* 3px: the minimum where `double` draws two hairlines — no token names a double-rule width */
+  }
+  /* the wordmark: the ONE place a display face has character (owner 2026-08-07) */
+  .wordmark {
+    font: var(--type-wordmark);
+    font-variant-caps: small-caps;
+    letter-spacing: var(--wordmark-tracking);
+    color: var(--on-surface);
+    white-space: nowrap;
+  }
+  .wordmark:hover {
+    text-decoration: none;
+  }
+  header [role="search"] {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex: 1 1 20rem; /* the search field is the header's one growing track */
+    min-width: 0;
+  }
+  header [role="search"] input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* the return-to-work link; on screens whose header holds nothing else it docks right */
+  .back {
+    font: var(--type-meta);
+  }
+  /* whichever of the two trailing items ENDS the row docks it right: the back link on the screens
+     that carry one, otherwise Abmelden (archivist chrome, ADR 0018) */
+  header > :is(.back, .abmelden):last-child {
+    margin-left: auto;
+  }
+
+  /* ---- a control row's TEXT occupants consume the row knob too (law C8: EVERY interactive child).
+     A bare <a> or <p> is an inline box, and min-height does nothing to one — so the components-layer
+     consumption rule, which names only button/a.button/summary/input/select, could not reach them and
+     they stood at their own line box: a.back 19px and a breadcrumb crumb 18px beside 32px buttons,
+     both under the WCAG 2.2 AA 24px target floor (law D). The filter rail owns the same rule for its
+     own occupants. DIRECT-CHILD paths through the structures the compositions placed (law C14), so it
+     can never reach into a dropped overlay panel, whose entries are sized by the panel's own
+     re-declared knob. ---- */
+  :is(body > header, body > header > nav, .recordrow) > :is(a, p) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
+
+  /* ---- record row: the edit surface's ONE control row and its ONE action place (owner ruling 2,
+     2026-08-08). It takes the slot the workbench spends on the filter rail and STICKS there, so
+     Speichern is reachable at any scroll position without a second band.
+     Material role (register row 8, learning G.17): FURNITURE — flat, no tint, no depth cue, one
+     hairline. Its only fill is the desk, which is what makes it opaque while content scrolls
+     under it. ---- */
+  /* The region that HOLDS the row owns its dimensions, because TWO things consume them (C5): the row
+     is that tall, and the sticky sheet beside it must clear exactly that much. They are siblings, so
+     a shared ancestor is the only place one property reaches both.
+     Named by its id, not found structurally: `:has(> .recordrow)` was the only UNQUALIFIED :has() in
+     the codebase — nothing to bucket it, so the engine evaluates it against every element of every
+     page, including the 50-row ledger where no record row exists. */
+  #form-region {
+    --recordrow-control: var(--touch-target-compact);
+    /* the sheet's sticky offset, DERIVED from the row's own anatomy (C9's rule one level down — a
+       guessed constant is what put the sheet under the row): the row's control height + its block
+       padding on both sides + its bottom rule, plus the frame gap the sheet already rests in. */
+    --pane-top: calc(
+      var(--recordrow-control) + 2 * var(--space-2) + var(--hairline) + var(--space-4)
+    );
+  }
+  .recordrow {
+    /* a CONTROL ROW (law C8), from #form-region's knob above — the same value --pane-top derives
+       from, so the row's height and the sheet's clearance cannot disagree */
+    --control-height: var(--recordrow-control);
+    /* sticky ALSO makes this the containing block for the panel its overflow disclosure drops
+       (law C12), so containment holds by construction here too */
+    position: sticky;
+    top: 0;
+    z-index: var(--z-control-row); /* above the sticky pane sheet and its own dropped panel — the row is chrome (the scale + why: tokens.css) */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface);
+    border-bottom: var(--hairline) solid var(--outline-variant);
+  }
+  .recordrow > [role="toolbar"] {
+    margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
+  }
+
+  /* ---- page frame: main · (pane), the pane column present only at/above the 80rem switch ---- */
+  .frame {
+    --pane-col: minmax(20rem, 26rem); /* named frame track (law C3/C5) */
+    display: grid;
+    grid-template-columns: [main] minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  /* the work column: a vertical stack, whatever the screen puts in it. The workbench's bulk form
+     repeats the stack of the column it sits in, so ONE rule serves both. DIRECT child only — the
+     edit surface's form sits deeper and is display:contents, so a descendant selector would
+     silently relayout the card (law C14). */
+  .frame main,
+  .frame main > form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .frame main {
+    grid-column: main;
+    min-width: 0;
+  }
+  /* HTMX in-flight: a static opacity dim, no motion */
+  #results.htmx-request {
+    opacity: 0.6;
+  }
+
+  /* ---- Feld chooser: its place under what precedes it ---- */
+  .chooser {
+    margin-top: var(--space-3);
+  }
+
+  /* ---- preview pane: the frame's second column ---- */
+  .pane {
+    /* HIDDEN BY DEFAULT: the ONE width query at the bottom of this file switches the column on, and
+       nothing switches it off — that is what leaves exactly one 80rem literal in the app. A negated
+       second query is a complement kept true by hand, and the card's own copy of it was NOT the
+       complement it claimed (learning G.44). */
+    display: none;
+    grid-column: pane;
+    /* stretch across the frame's ROW, against the frame's align-items: start. Without it a grid item
+       is only as tall as its content, so the sheet's `position: sticky` below had no slack and never
+       stuck at all — dead styling that reads exactly like live styling (learning G.39). */
+    align-self: stretch;
+  }
+
   /* ---- the work/reading column: ONE centered composition for every non-workbench screen. Width is
      the column's own knob (law C3): 52rem default, .narrow, .wide. ---- */
   .column {
@@ -409,37 +452,6 @@
   }
   .stub p {
     color: var(--on-surface-variant);
-  }
-
-  /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by base.html's failure
-     listener. Hiding is the modes-layer [hidden] rule, which outranks this display, so the banner
-     can never intercept clicks while hidden — the recorded regression class. A reveal lifts nothing:
-     the edit surface's one action place is the sticky record row at the TOP, which
-     test_failed_save_banner_leaves_speichern_clickable pins with a real hit-test. ---- */
-  .error-banner {
-    position: fixed;
-    inset-block-end: 0;
-    inset-inline: 0;
-    z-index: var(--z-banner); /* above every row and everything in flow (the scale: tokens.css) */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--error);
-    color: var(--on-error);
-  }
-  .error-banner p {
-    margin: 0;
-    font: var(--type-body);
-  }
-  .error-banner button {
-    background: none;
-    border: none;
-    color: var(--on-error);
-    font: var(--type-title);
-    line-height: 1;
-    padding: 0 var(--space-1);
   }
 
   /* ============================================================

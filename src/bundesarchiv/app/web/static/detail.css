@@ -92,8 +92,8 @@
     body > header nav {
       display: none;
     }
-    .facts .fallback {
-      display: flex;
+    .facts {
+      --facts-fallback: flex;
     }
   }
 }
@@ -121,7 +121,8 @@
   }
 
   /* ---- record card (Katalogeintrag): a quiet register of facts as a <dl>, sticky on wide.
-     Pinned to the 20rem right track so a body-less article keeps it at rail width. ---- */
+     Pinned to the 20rem right track so a body-less article keeps it at rail width.
+     Knobs: --facts-fallback (the Bestand row's display). ---- */
   .facts {
     grid-column: 2;
     position: sticky;
@@ -172,7 +173,7 @@
   }
   /* the card's Bestand row is a mobile fallback — hidden while the breadcrumb shows */
   .facts .fallback {
-    display: none;
+    display: var(--facts-fallback, none);
   }
 
   /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the

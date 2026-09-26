@@ -534,77 +534,7 @@ def _reaches_past_root(complex_selector: str, roots: tuple[str, ...]) -> bool:
 #: list may only shrink: a stale entry fails the test as surely as a new reach-in. Its length is
 #: ledger #19's indicator. Only a selector that NAMES a root is seen: `.column :is(input, …)` reaches
 #: into `.field` without naming it.
-BOUNDARY_ALLOWED: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("detail.css", ".facts .fallback"),
-        ("forms.css", ".column .chooser .actions"),
-        ("forms.css", ".einblick > p"),
-        ("layouts.css", ".chooser .actions"),
-        ("layouts.css", ".chooser [data-bulk-wert]"),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="collection_id"]) [data-bulk-wert~="collection_id"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="creator"]) [data-bulk-wert~="creator"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="document_type"]) [data-bulk-wert~="document_type"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="physical_location"]) [data-bulk-wert~="physical_location"]',
-        ),
-        (
-            "layouts.css",
-            '.chooser:has([name="feld"] option:checked[value="subject_place"]) [data-bulk-wert~="subject_place"]',
-        ),
-        ("layouts.css", ".error-banner button"),
-        ("layouts.css", ".error-banner p"),
-        ("layouts.css", ".filterrail > .filterset"),
-        ("layouts.css", ".filterrail > .filterset > a"),
-        ("layouts.css", ".filterrail > p"),
-        ("layouts.css", ".pane .hollow"),
-        ("layouts.css", ".pane .meta"),
-        ("layouts.css", ".pane .meta span + span::before"),
-        ("layouts.css", ".pane :is(h2, p, ul)"),
-        ("layouts.css", ".pane :is(img, .hollow)"),
-        ("layouts.css", ".pane > div"),
-        ("layouts.css", ".pane h2"),
-        ("layouts.css", ".pane header"),
-        ("layouts.css", ".pane header > a"),
-        ("layouts.css", ".pane header h2"),
-        ("layouts.css", ".pane li"),
-        ("layouts.css", ".pane li p"),
-        ("layouts.css", ".pane ul"),
-        (
-            "layouts.css",
-            ":is(body > header, body > header > nav, .filterrail, .filterrail > .filterset, .recordrow) > :is(a, p)",
-        ),
-        ("layouts.css", "details.bulk > div:first-of-type"),
-        ("layouts.css", "details.bulk a"),
-        ("layouts.css", "details.bulk summary"),
-        ("layouts.css", "details.bulk summary [data-bulk-zahl]"),
-    }
-)
+BOUNDARY_ALLOWED: frozenset[tuple[str, str]] = frozenset({("forms.css", ".einblick > p")})
 
 
 def test_no_composition_selector_reaches_past_a_component_root() -> None:

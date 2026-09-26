@@ -186,11 +186,13 @@
   /* ---- footer action bar (spec §3): the create/confirm pages' one action row. The edit surface has
      no footer band — its one action place is the sticky record row (owner ruling 2). ---- */
   .column footer,
-  .column.narrow > .actions,
-  .column .chooser .actions {
+  .column.narrow > .actions {
     /* the row is the ONE height source for its controls (law C8); without it a button falls back to
        its content height, ~29px, under the AA target floor (ruling D) */
     --control-height: var(--touch-target);
+  }
+  .column .chooser {
+    --chooser-control-height: var(--touch-target);
   }
   .column footer {
     display: flex;
