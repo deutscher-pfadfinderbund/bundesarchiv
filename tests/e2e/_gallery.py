@@ -103,6 +103,20 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_selector(".karte .error")
 
 
+def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
+    # message, which must show exactly one "Neuer Wert" widget
+    page.goto(
+        f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        wait_until="networkidle",
+    )
+    page.click("details.bulk > summary")
+    page.select_option('select[name="feld"]', "media_type")
+    page.select_option('select[name="wert_media_type"]', "")
+    page.click('button:has-text("Änderung prüfen")')
+    page.wait_for_selector(".column .error")
+
+
 #: The states that are not SCREENS but STATES OF one — a fold opened, a save rejected. A screen that
 #: merely needs driving to reach (the two bulk surfaces) belongs in the inventory with its own reach,
 #: so the guards cover it too; only a second state of a screen already in the inventory lives here.
@@ -128,6 +142,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "workbench-bulk", "workbench, selection + expanded Sammelbearbeitung", True, _reach_bulk
+    ),
+    GalleryState(
+        "bulk-confirm-error",
+        "bulk edit, confirm surface rejected: the chooser re-rendered under the message",
+        True,
+        _reach_bulk_confirm_error,
     ),
     GalleryState(
         "edit-folded-open",

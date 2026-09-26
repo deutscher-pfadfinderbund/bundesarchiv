@@ -10,9 +10,13 @@
     gap: var(--space-4);
   }
 
-  /* fields fill the column; the record card sizes its fields from their CONTENT instead */
+  /* fields fill the column; the record card sizes its fields from their CONTENT instead. The display
+     is a knob on the column, not a declaration on the field, so the Feld chooser can still hide its
+     unchosen widgets here. */
+  .column {
+    --field-display: flex;
+  }
   .column .field {
-    display: flex;
     width: 100%;
   }
 

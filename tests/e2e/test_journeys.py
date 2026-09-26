@@ -1386,6 +1386,28 @@ def test_bulk_select_confirm_apply(
     expect(page.get_by_text("abgeschlossen")).to_be_visible()
 
 
+def test_bulk_chooser_shows_exactly_one_value_widget(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    # The chooser's contract, on both surfaces that render it: the chosen Feld's widget and no other.
+    # The confirm page's error mode sits in a .column, whose field rule once outranked the hide.
+    page.goto(
+        live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
+    )
+    page.click("details.bulk > summary")
+    widgets = page.locator("[data-bulk-wert]:visible")
+    page.select_option('select[name="feld"]', "media_type")
+    expect(widgets).to_have_count(1)
+    page.select_option('select[name="wert_media_type"]', "")
+    page.click('button:has-text("Änderung prüfen")')
+    expect(page.locator(".column .error")).to_be_visible()
+    expect(widgets).to_have_count(1)
+    page.select_option('select[name="feld"]', "creator")
+    expect(widgets).to_have_count(1)
+    expect(page.locator('input[name="wert_text"]')).to_be_visible()
+
+
 def test_bulk_url_seeded_selection_still_works(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
