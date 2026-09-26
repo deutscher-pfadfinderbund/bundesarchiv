@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock System Gallery</title>
+<link rel="stylesheet" href="system.css">
+<style>
+  /* gallery harness only — not part of the system */
+  .g { padding: var(--space-9) var(--gutter); }
+  .g-comp { margin-block-start: var(--space-10); }
+  .g-name { font: var(--type-heading); }
+  .g-state { font: var(--type-meta); color: var(--ink-2); margin: var(--space-8) 0 var(--space-3); }
+  .g-frame { container-type: inline-size; inline-size: min(100%, var(--g-w)); margin-block-end: var(--space-6); outline: 1px dashed var(--rule); outline-offset: 8px; }
+  .g-tall { padding-block-end: 8rem; }
+  .g-size { font: var(--type-label); color: var(--ink-2); margin-block-end: var(--space-2); }
+  .g-index a { margin-inline-end: var(--space-4); }
+</style>
+</head>
+<body>
+<main class="g">
+<h1>Mock system — gallery</h1>
+<p style="color:var(--ink-2);max-inline-size:60ch;margin-block-start:var(--space-4)">Every component of <code>system.css</code> in its states, each in an S, M and L container (dashed). Components query their container; type size follows the viewport. Data from <code>data.json</code>.</p>
+<p class="g-index"><a href="#topbar">topbar</a> <a href="#search-field">search-field</a> <a href="#search-sentence">search-sentence</a> <a href="#section-head">section-head</a> <a href="#register">register</a> <a href="#ledger">ledger</a> <a href="#pager">pager</a> <a href="#facts">facts</a> <a href="#media">media</a> <a href="#crumbs">crumbs</a> <a href="#resume">resume</a> <a href="#button">button</a> <a href="#mark">mark</a> <a href="#layouts">layouts</a></p>
+<section class="g-comp" id="topbar"><h2 class="g-name">topbar</h2>
+<h3 class="g-state">start / list: wordmark · „+ Neu …“ · Abmelden</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<h3 class="g-state">article: with the compact search (grows while typing)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <form class="search-field" action="../r4-system/archiv.html" role="search">
+        <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
+      </form>
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <form class="search-field" action="../r4-system/archiv.html" role="search">
+        <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
+      </form>
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <form class="search-field" action="../r4-system/archiv.html" role="search">
+        <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
+      </form>
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<h3 class="g-state">menu open</h3>
+<div class="g-frame g-tall" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu" open>
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame g-tall" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu" open>
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+<div class="g-frame g-tall" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu" open>
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+</div>
+</section>
+<section class="g-comp" id="search-field"><h2 class="g-name">search-field</h2>
+<h3 class="g-state">large (start); the compact size is the topbar state above</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<form class="search-field" role="search"><input type="search" placeholder="Titel, Urheber, Ort …" aria-label="Suchbegriff"><button class="button button-primary" type="submit">Suchen</button></form>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<form class="search-field" role="search"><input type="search" placeholder="Titel, Urheber, Ort …" aria-label="Suchbegriff"><button class="button button-primary" type="submit">Suchen</button></form>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<form class="search-field" role="search"><input type="search" placeholder="Titel, Urheber, Ort …" aria-label="Suchbegriff"><button class="button button-primary" type="submit">Suchen</button></form>
+</div>
+</section>
+<section class="g-comp" id="search-sentence"><h2 class="g-name">search-sentence</h2>
+<h3 class="g-state">archive head; S folds two filters behind „Filter“</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <h1 class="search-sentence">
+      <span class="search-sentence-label">Suche</span>
+      <input class="search-sentence-field" type="search" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+      <span>in</span>
+      <span class="search-sentence-slots">
+        <button class="is-set" type="button">Gruppen des DPB</button>
+        <button class="is-minor" type="button">alle Jahrzehnte</button>
+        <button class="is-minor" type="button">jeder Typ</button>
+        <button class="is-more" type="button">Filter</button>
+      </span>
+      <button class="search-sentence-add" type="button">+ Filter</button>
+    </h1>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <h1 class="search-sentence">
+      <span class="search-sentence-label">Suche</span>
+      <input class="search-sentence-field" type="search" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+      <span>in</span>
+      <span class="search-sentence-slots">
+        <button class="is-set" type="button">Gruppen des DPB</button>
+        <button class="is-minor" type="button">alle Jahrzehnte</button>
+        <button class="is-minor" type="button">jeder Typ</button>
+        <button class="is-more" type="button">Filter</button>
+      </span>
+      <button class="search-sentence-add" type="button">+ Filter</button>
+    </h1>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <h1 class="search-sentence">
+      <span class="search-sentence-label">Suche</span>
+      <input class="search-sentence-field" type="search" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+      <span>in</span>
+      <span class="search-sentence-slots">
+        <button class="is-set" type="button">Gruppen des DPB</button>
+        <button class="is-minor" type="button">alle Jahrzehnte</button>
+        <button class="is-minor" type="button">jeder Typ</button>
+        <button class="is-more" type="button">Filter</button>
+      </span>
+      <button class="search-sentence-add" type="button">+ Filter</button>
+    </h1>
+</div>
+</section>
+<section class="g-comp" id="section-head"><h2 class="g-name">section-head</h2>
+<h3 class="g-state">heading + aside link</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<header class="section-head"><h2>Zuletzt hinzugefügt</h2><a class="section-head-aside" href="#">Alle ansehen ›</a></header>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<header class="section-head"><h2>Zuletzt hinzugefügt</h2><a class="section-head-aside" href="#">Alle ansehen ›</a></header>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<header class="section-head"><h2>Zuletzt hinzugefügt</h2><a class="section-head-aside" href="#">Alle ansehen ›</a></header>
+</div>
+<h3 class="g-state">heading + aside note</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<header class="section-head"><h2>Zeitleiste</h2><span class="section-head-aside">nach Jahrzehnt</span></header>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<header class="section-head"><h2>Zeitleiste</h2><span class="section-head-aside">nach Jahrzehnt</span></header>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<header class="section-head"><h2>Zeitleiste</h2><span class="section-head-aside">nach Jahrzehnt</span></header>
+</div>
+<h3 class="g-state">quiet (--section-head-ink) with mark and lede</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)"><header class="section-head"><h2>Highlights<span class="mark">später</span></h2><p class="section-head-lede">Vom Archiv ausgewählt, wechselt von Zeit zu Zeit.</p></header></div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)"><header class="section-head"><h2>Highlights<span class="mark">später</span></h2><p class="section-head-lede">Vom Archiv ausgewählt, wechselt von Zeit zu Zeit.</p></header></div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)"><header class="section-head"><h2>Highlights<span class="mark">später</span></h2><p class="section-head-lede">Vom Archiv ausgewählt, wechselt von Zeit zu Zeit.</p></header></div>
+</div>
+</section>
+<section class="g-comp" id="register"><h2 class="g-name">register</h2>
+<h3 class="g-state">label + figure (Bestände, data.json)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul>
+</div>
+<h3 class="g-state">with leading date + trailing Bestand (newest sample articles)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2019-03">2019-03</time></span><span class="register-label">Die Lederhose, Nr. 44</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2017-10">2017-10</time></span><span class="register-label">Wartburg-Bote, Nr. 114</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2015-12">2015-12</time></span><span class="register-label">Die Lederhose, Nr. 41</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2014-03">2014-03</time></span><span class="register-label">Fränkischer Rechen: Zeit</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2013">2013</time></span><span class="register-label">Gastgeschenk Bundesmarathon 2013: Trinkbecher aus Metall</span><span class="register-figure">Bund</span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2019-03">2019-03</time></span><span class="register-label">Die Lederhose, Nr. 44</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2017-10">2017-10</time></span><span class="register-label">Wartburg-Bote, Nr. 114</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2015-12">2015-12</time></span><span class="register-label">Die Lederhose, Nr. 41</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2014-03">2014-03</time></span><span class="register-label">Fränkischer Rechen: Zeit</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2013">2013</time></span><span class="register-label">Gastgeschenk Bundesmarathon 2013: Trinkbecher aus Metall</span><span class="register-figure">Bund</span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2019-03">2019-03</time></span><span class="register-label">Die Lederhose, Nr. 44</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2017-10">2017-10</time></span><span class="register-label">Wartburg-Bote, Nr. 114</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2015-12">2015-12</time></span><span class="register-label">Die Lederhose, Nr. 41</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2014-03">2014-03</time></span><span class="register-label">Fränkischer Rechen: Zeit</span><span class="register-figure">Gruppen des DPB</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2013">2013</time></span><span class="register-label">Gastgeschenk Bundesmarathon 2013: Trinkbecher aus Metall</span><span class="register-figure">Bund</span></a></li>
+      </ul>
+</div>
+<h3 class="g-state">with leading date, no figure (Mehr aus: Orden St. Georg)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1971">1971</time></span><span class="register-label">Blätter St. Georg, Heft 2</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1992-11">1992-11</time></span><span class="register-label">Blätter St. Georg, Heft 28</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2003-10">2003-10</time></span><span class="register-label">Blätter St. Georg, Heft 39</span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1971">1971</time></span><span class="register-label">Blätter St. Georg, Heft 2</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1992-11">1992-11</time></span><span class="register-label">Blätter St. Georg, Heft 28</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2003-10">2003-10</time></span><span class="register-label">Blätter St. Georg, Heft 39</span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1971">1971</time></span><span class="register-label">Blätter St. Georg, Heft 2</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="1992-11">1992-11</time></span><span class="register-label">Blätter St. Georg, Heft 28</span></a></li>
+        <li><a class="register-row" href="artikel.html"><span class="register-lead"><time datetime="2003-10">2003-10</time></span><span class="register-label">Blätter St. Georg, Heft 39</span></a></li>
+      </ul>
+</div>
+<h3 class="g-state">with data bar; Unbekannt set apart (decades)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html" aria-label="1860er: 1 Artikel"><span class="register-label">1860er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1890er: 1 Artikel"><span class="register-label">1890er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1910er: 2 Artikel"><span class="register-label">1910er</span><span class="register-bar" style="--register-value: 0.004"></span><span class="register-figure"><data value="2">2</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1920er: 14 Artikel"><span class="register-label">1920er</span><span class="register-bar" style="--register-value: 0.025"></span><span class="register-figure"><data value="14">14</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1930er: 30 Artikel"><span class="register-label">1930er</span><span class="register-bar" style="--register-value: 0.055"></span><span class="register-figure"><data value="30">30</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1940er: 16 Artikel"><span class="register-label">1940er</span><span class="register-bar" style="--register-value: 0.029"></span><span class="register-figure"><data value="16">16</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1950er: 112 Artikel"><span class="register-label">1950er</span><span class="register-bar" style="--register-value: 0.204"></span><span class="register-figure"><data value="112">112</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1960er: 351 Artikel"><span class="register-label">1960er</span><span class="register-bar" style="--register-value: 0.638"></span><span class="register-figure"><data value="351">351</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1970er: 226 Artikel"><span class="register-label">1970er</span><span class="register-bar" style="--register-value: 0.411"></span><span class="register-figure"><data value="226">226</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1980er: 550 Artikel"><span class="register-label">1980er</span><span class="register-bar" style="--register-value: 1.000"></span><span class="register-figure"><data value="550">550</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1990er: 307 Artikel"><span class="register-label">1990er</span><span class="register-bar" style="--register-value: 0.558"></span><span class="register-figure"><data value="307">307</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2000er: 216 Artikel"><span class="register-label">2000er</span><span class="register-bar" style="--register-value: 0.393"></span><span class="register-figure"><data value="216">216</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2010er: 252 Artikel"><span class="register-label">2010er</span><span class="register-bar" style="--register-value: 0.458"></span><span class="register-figure"><data value="252">252</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2020er: 81 Artikel"><span class="register-label">2020er</span><span class="register-bar" style="--register-value: 0.147"></span><span class="register-figure"><data value="81">81</data></span></a></li>
+        <li class="register-apart"><a class="register-row" href="archiv.html" aria-label="Unbekannt: 347 Artikel"><span class="register-label">Unbekannt</span><span class="register-bar" style="--register-value: 0.631"></span><span class="register-figure"><data value="347">347</data></span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html" aria-label="1860er: 1 Artikel"><span class="register-label">1860er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1890er: 1 Artikel"><span class="register-label">1890er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1910er: 2 Artikel"><span class="register-label">1910er</span><span class="register-bar" style="--register-value: 0.004"></span><span class="register-figure"><data value="2">2</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1920er: 14 Artikel"><span class="register-label">1920er</span><span class="register-bar" style="--register-value: 0.025"></span><span class="register-figure"><data value="14">14</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1930er: 30 Artikel"><span class="register-label">1930er</span><span class="register-bar" style="--register-value: 0.055"></span><span class="register-figure"><data value="30">30</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1940er: 16 Artikel"><span class="register-label">1940er</span><span class="register-bar" style="--register-value: 0.029"></span><span class="register-figure"><data value="16">16</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1950er: 112 Artikel"><span class="register-label">1950er</span><span class="register-bar" style="--register-value: 0.204"></span><span class="register-figure"><data value="112">112</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1960er: 351 Artikel"><span class="register-label">1960er</span><span class="register-bar" style="--register-value: 0.638"></span><span class="register-figure"><data value="351">351</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1970er: 226 Artikel"><span class="register-label">1970er</span><span class="register-bar" style="--register-value: 0.411"></span><span class="register-figure"><data value="226">226</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1980er: 550 Artikel"><span class="register-label">1980er</span><span class="register-bar" style="--register-value: 1.000"></span><span class="register-figure"><data value="550">550</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1990er: 307 Artikel"><span class="register-label">1990er</span><span class="register-bar" style="--register-value: 0.558"></span><span class="register-figure"><data value="307">307</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2000er: 216 Artikel"><span class="register-label">2000er</span><span class="register-bar" style="--register-value: 0.393"></span><span class="register-figure"><data value="216">216</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2010er: 252 Artikel"><span class="register-label">2010er</span><span class="register-bar" style="--register-value: 0.458"></span><span class="register-figure"><data value="252">252</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2020er: 81 Artikel"><span class="register-label">2020er</span><span class="register-bar" style="--register-value: 0.147"></span><span class="register-figure"><data value="81">81</data></span></a></li>
+        <li class="register-apart"><a class="register-row" href="archiv.html" aria-label="Unbekannt: 347 Artikel"><span class="register-label">Unbekannt</span><span class="register-bar" style="--register-value: 0.631"></span><span class="register-figure"><data value="347">347</data></span></a></li>
+      </ul>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+      <ul class="register">
+        <li><a class="register-row" href="archiv.html" aria-label="1860er: 1 Artikel"><span class="register-label">1860er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1890er: 1 Artikel"><span class="register-label">1890er</span><span class="register-bar" style="--register-value: 0.002"></span><span class="register-figure"><data value="1">1</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1910er: 2 Artikel"><span class="register-label">1910er</span><span class="register-bar" style="--register-value: 0.004"></span><span class="register-figure"><data value="2">2</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1920er: 14 Artikel"><span class="register-label">1920er</span><span class="register-bar" style="--register-value: 0.025"></span><span class="register-figure"><data value="14">14</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1930er: 30 Artikel"><span class="register-label">1930er</span><span class="register-bar" style="--register-value: 0.055"></span><span class="register-figure"><data value="30">30</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1940er: 16 Artikel"><span class="register-label">1940er</span><span class="register-bar" style="--register-value: 0.029"></span><span class="register-figure"><data value="16">16</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1950er: 112 Artikel"><span class="register-label">1950er</span><span class="register-bar" style="--register-value: 0.204"></span><span class="register-figure"><data value="112">112</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1960er: 351 Artikel"><span class="register-label">1960er</span><span class="register-bar" style="--register-value: 0.638"></span><span class="register-figure"><data value="351">351</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1970er: 226 Artikel"><span class="register-label">1970er</span><span class="register-bar" style="--register-value: 0.411"></span><span class="register-figure"><data value="226">226</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1980er: 550 Artikel"><span class="register-label">1980er</span><span class="register-bar" style="--register-value: 1.000"></span><span class="register-figure"><data value="550">550</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="1990er: 307 Artikel"><span class="register-label">1990er</span><span class="register-bar" style="--register-value: 0.558"></span><span class="register-figure"><data value="307">307</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2000er: 216 Artikel"><span class="register-label">2000er</span><span class="register-bar" style="--register-value: 0.393"></span><span class="register-figure"><data value="216">216</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2010er: 252 Artikel"><span class="register-label">2010er</span><span class="register-bar" style="--register-value: 0.458"></span><span class="register-figure"><data value="252">252</data></span></a></li>
+        <li><a class="register-row" href="archiv.html" aria-label="2020er: 81 Artikel"><span class="register-label">2020er</span><span class="register-bar" style="--register-value: 0.147"></span><span class="register-figure"><data value="81">81</data></span></a></li>
+        <li class="register-apart"><a class="register-row" href="archiv.html" aria-label="Unbekannt: 347 Artikel"><span class="register-label">Unbekannt</span><span class="register-bar" style="--register-value: 0.631"></span><span class="register-figure"><data value="347">347</data></span></a></li>
+      </ul>
+</div>
+<h3 class="g-state">quiet, not linked (--register-ink)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)">      <ul class="register">
+        <li><span class="register-row"><span class="register-label">Berliner Tagblatt - Käsepapier zum BundesLager, No.1</span><span class="register-figure"><time datetime="1866">1866</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Allzeit bereit - Ausbildungshefte - Heft 32 - Weltpfadfindertum</span><span class="register-figure"><time datetime="1933">1933</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Der Kilometerstein - eine lustige Sammlung</span><span class="register-figure"><time datetime="1951">1951</time></span></span></li>
+      </ul></div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)">      <ul class="register">
+        <li><span class="register-row"><span class="register-label">Berliner Tagblatt - Käsepapier zum BundesLager, No.1</span><span class="register-figure"><time datetime="1866">1866</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Allzeit bereit - Ausbildungshefte - Heft 32 - Weltpfadfindertum</span><span class="register-figure"><time datetime="1933">1933</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Der Kilometerstein - eine lustige Sammlung</span><span class="register-figure"><time datetime="1951">1951</time></span></span></li>
+      </ul></div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<div style="--section-head-ink: var(--ink-2); --register-ink: var(--ink-2)">      <ul class="register">
+        <li><span class="register-row"><span class="register-label">Berliner Tagblatt - Käsepapier zum BundesLager, No.1</span><span class="register-figure"><time datetime="1866">1866</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Allzeit bereit - Ausbildungshefte - Heft 32 - Weltpfadfindertum</span><span class="register-figure"><time datetime="1933">1933</time></span></span></li>
+        <li><span class="register-row"><span class="register-label">Der Kilometerstein - eine lustige Sammlung</span><span class="register-figure"><time datetime="1951">1951</time></span></span></li>
+      </ul></div>
+</div>
+</section>
+<section class="g-comp" id="ledger"><h2 class="g-name">ledger</h2>
+<h3 class="g-state">sorted by Datierung ↑, one Entwurf row (BA 1036 marked for the gallery)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="ascending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Wartburg-Bote, Nr. 36</a></td><td class="ledger-date"><time datetime="1983-12">1983-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1611">BA 1611</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der weite Weg - Die deutsche Jugenbewegung seit Ende des 19. Jahrhunderts</a></td><td class="ledger-date"><time datetime="1984">1984</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B95">BA B95</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85</a></td><td class="ledger-date"><time datetime="1984-11-26">1984-11-26</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 2117">BA 2117</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Tips &amp; Tricks 2 - Bund der Pfadfinderinnen und Pfadfinder - 55 Ideen, was man</a></td><td class="ledger-date"><time datetime="1985-01">1985-01</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B123">BA B123</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 60</a></td><td class="ledger-date"><time datetime="1985-12">1985-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1209">BA 1209</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Die Kiste, Nr. 27</a></td><td class="ledger-date"><time datetime="1986-02">1986-02</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 762">BA 762</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rotte Boymont Kalender 1988</a></td><td class="ledger-date"><time datetime="1987">1987</time></td><td class="ledger-type">Kalender</td><td class="ledger-sig"><data value="BA 1824">BA 1824</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 67</a></td><td class="ledger-date"><time datetime="1987-09">1987-09</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1216">BA 1216</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Symbole: Lilie, Bundestracht, Gruppennamen, Liedgut, Feuer, Kreis</a></td><td class="ledger-date"><time datetime="1988">1988</time></td><td class="ledger-type">Lagerheft</td><td class="ledger-sig"><data value="BA 1886">BA 1886</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="ascending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Wartburg-Bote, Nr. 36</a></td><td class="ledger-date"><time datetime="1983-12">1983-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1611">BA 1611</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der weite Weg - Die deutsche Jugenbewegung seit Ende des 19. Jahrhunderts</a></td><td class="ledger-date"><time datetime="1984">1984</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B95">BA B95</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85</a></td><td class="ledger-date"><time datetime="1984-11-26">1984-11-26</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 2117">BA 2117</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Tips &amp; Tricks 2 - Bund der Pfadfinderinnen und Pfadfinder - 55 Ideen, was man</a></td><td class="ledger-date"><time datetime="1985-01">1985-01</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B123">BA B123</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 60</a></td><td class="ledger-date"><time datetime="1985-12">1985-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1209">BA 1209</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Die Kiste, Nr. 27</a></td><td class="ledger-date"><time datetime="1986-02">1986-02</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 762">BA 762</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rotte Boymont Kalender 1988</a></td><td class="ledger-date"><time datetime="1987">1987</time></td><td class="ledger-type">Kalender</td><td class="ledger-sig"><data value="BA 1824">BA 1824</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 67</a></td><td class="ledger-date"><time datetime="1987-09">1987-09</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1216">BA 1216</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Symbole: Lilie, Bundestracht, Gruppennamen, Liedgut, Feuer, Kreis</a></td><td class="ledger-date"><time datetime="1988">1988</time></td><td class="ledger-type">Lagerheft</td><td class="ledger-sig"><data value="BA 1886">BA 1886</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="ascending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Wartburg-Bote, Nr. 36</a></td><td class="ledger-date"><time datetime="1983-12">1983-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1611">BA 1611</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der weite Weg - Die deutsche Jugenbewegung seit Ende des 19. Jahrhunderts</a></td><td class="ledger-date"><time datetime="1984">1984</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B95">BA B95</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85</a></td><td class="ledger-date"><time datetime="1984-11-26">1984-11-26</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 2117">BA 2117</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Tips &amp; Tricks 2 - Bund der Pfadfinderinnen und Pfadfinder - 55 Ideen, was man</a></td><td class="ledger-date"><time datetime="1985-01">1985-01</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B123">BA B123</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 60</a></td><td class="ledger-date"><time datetime="1985-12">1985-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1209">BA 1209</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Die Kiste, Nr. 27</a></td><td class="ledger-date"><time datetime="1986-02">1986-02</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 762">BA 762</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rotte Boymont Kalender 1988</a></td><td class="ledger-date"><time datetime="1987">1987</time></td><td class="ledger-type">Kalender</td><td class="ledger-sig"><data value="BA 1824">BA 1824</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Rakete 67</a></td><td class="ledger-date"><time datetime="1987-09">1987-09</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1216">BA 1216</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Symbole: Lilie, Bundestracht, Gruppennamen, Liedgut, Feuer, Kreis</a></td><td class="ledger-date"><time datetime="1988">1988</time></td><td class="ledger-type">Lagerheft</td><td class="ledger-sig"><data value="BA 1886">BA 1886</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+<h3 class="g-state">sorted ↓</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="descending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="descending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-title"><a class="ledger-sort" href="archiv.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="descending"><a class="ledger-sort" href="archiv.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="archiv.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="archiv.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-title"><a href="artikel.html">Jugend unterm Hakenkreuz</a></td><td class="ledger-date"><time datetime="1982">1982</time></td><td class="ledger-type">Buch</td><td class="ledger-sig"><data value="BA B25">BA B25</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td></tr>
+        <tr><td class="ledger-title"><a href="artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+</section>
+<section class="g-comp" id="pager"><h2 class="g-name">pager</h2>
+<h3 class="g-state">first page: Zurück disabled, visible</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="1">1–25</data> von <data value="1187">1.187</data></span>
+      <span class="pager-step" aria-disabled="true">‹ Zurück</span>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="1">1–25</data> von <data value="1187">1.187</data></span>
+      <span class="pager-step" aria-disabled="true">‹ Zurück</span>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="1">1–25</data> von <data value="1187">1.187</data></span>
+      <span class="pager-step" aria-disabled="true">‹ Zurück</span>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+<h3 class="g-state">a middle page</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="26">26–50</data> von <data value="1187">1.187</data></span>
+      <a class="pager-step" href="archiv.html">‹ Zurück</a>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="26">26–50</data> von <data value="1187">1.187</data></span>
+      <a class="pager-step" href="archiv.html">‹ Zurück</a>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="26">26–50</data> von <data value="1187">1.187</data></span>
+      <a class="pager-step" href="archiv.html">‹ Zurück</a>
+      <a class="pager-step" href="archiv.html">Weiter ›</a>
+    </nav>
+</div>
+</section>
+<section class="g-comp" id="facts"><h2 class="g-name">facts</h2>
+<h3 class="g-state">BA 1886 (data.json)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1988">1988</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Eßlingen</dd></div>
+      <div><dt>Urheber</dt><dd>Mädchenbund Gildinnentreffen</dd></div>
+      <div><dt>Typ</dt><dd>Schrifttum</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Mädchenbund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Mädchenbund › Lagerhefte</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1886">BA 1886</data></dd></div>
+    </dl>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1988">1988</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Eßlingen</dd></div>
+      <div><dt>Urheber</dt><dd>Mädchenbund Gildinnentreffen</dd></div>
+      <div><dt>Typ</dt><dd>Schrifttum</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Mädchenbund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Mädchenbund › Lagerhefte</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1886">BA 1886</data></dd></div>
+    </dl>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1988">1988</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Eßlingen</dd></div>
+      <div><dt>Urheber</dt><dd>Mädchenbund Gildinnentreffen</dd></div>
+      <div><dt>Typ</dt><dd>Schrifttum</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Mädchenbund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Mädchenbund › Lagerhefte</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1886">BA 1886</data></dd></div>
+    </dl>
+</div>
+</section>
+<section class="g-comp" id="media"><h2 class="g-name">media</h2>
+<h3 class="g-state">five placeholder pages, first leads</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>
+</div>
+</section>
+<section class="g-comp" id="crumbs"><h2 class="g-name">crumbs</h2>
+<h3 class="g-state">one step / two steps</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a></nav><br><nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a><a href="#">Bundeslagerhefte</a></nav>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a></nav><br><nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a><a href="#">Bundeslagerhefte</a></nav>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a></nav><br><nav class="crumbs" aria-label="Ort im Archiv"><a href="#">Bund</a><a href="#">Bundeslagerhefte</a></nav>
+</div>
+</section>
+<section class="g-comp" id="resume"><h2 class="g-name">resume</h2>
+<h3 class="g-state">Weiter bearbeiten</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<section class="resume"><h2>Weiter bearbeiten:</h2><ul><li><a href="#">Führerbrief des Gaues Wartburg 53</a></li><li><a href="#">Rotte Boymont Kalender 1988</a></li></ul></section>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<section class="resume"><h2>Weiter bearbeiten:</h2><ul><li><a href="#">Führerbrief des Gaues Wartburg 53</a></li><li><a href="#">Rotte Boymont Kalender 1988</a></li></ul></section>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<section class="resume"><h2>Weiter bearbeiten:</h2><ul><li><a href="#">Führerbrief des Gaues Wartburg 53</a></li><li><a href="#">Rotte Boymont Kalender 1988</a></li></ul></section>
+</div>
+</section>
+<section class="g-comp" id="button"><h2 class="g-name">button</h2>
+<h3 class="g-state">secondary · primary · SSO</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<p style="display:flex;flex-wrap:wrap;gap:var(--space-4)"><a class="button" href="#">Bearbeiten</a><button class="button button-primary" type="button">Suchen</button><a class="button button-sso" href="#">Anmelden mit DPB Login</a></p>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<p style="display:flex;flex-wrap:wrap;gap:var(--space-4)"><a class="button" href="#">Bearbeiten</a><button class="button button-primary" type="button">Suchen</button><a class="button button-sso" href="#">Anmelden mit DPB Login</a></p>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<p style="display:flex;flex-wrap:wrap;gap:var(--space-4)"><a class="button" href="#">Bearbeiten</a><button class="button button-primary" type="button">Suchen</button><a class="button button-sso" href="#">Anmelden mit DPB Login</a></p>
+</div>
+</section>
+<section class="g-comp" id="mark"><h2 class="g-name">mark</h2>
+<h3 class="g-state">in a ledger title and in a heading</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<p><a href="#">Führerbrief des Gaues Wartburg 53</a> <span class="mark">Entwurf</span></p><h2>Empfohlen<span class="mark">später</span></h2>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<p><a href="#">Führerbrief des Gaues Wartburg 53</a> <span class="mark">Entwurf</span></p><h2>Empfohlen<span class="mark">später</span></h2>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<p><a href="#">Führerbrief des Gaues Wartburg 53</a> <span class="mark">Entwurf</span></p><h2>Empfohlen<span class="mark">später</span></h2>
+</div>
+</section>
+<section class="g-comp" id="layouts"><h2 class="g-name">layouts</h2>
+<h3 class="g-state">columns: trio (auto-fit, --column-min)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<div class="columns"><section><header class="section-head"><h2>Eins</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Zwei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Drei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section></div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<div class="columns"><section><header class="section-head"><h2>Eins</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Zwei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Drei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section></div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<div class="columns"><section><header class="section-head"><h2>Eins</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Zwei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section><section><header class="section-head"><h2>Drei</h2></header>      <ul class="register">
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Gruppen des DPB</span><span class="register-figure"><data value="1187">1.187</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Bund</span><span class="register-figure"><data value="463">463</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Überbündisches</span><span class="register-figure"><data value="211">211</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Unsortiert</span><span class="register-figure"><data value="196">196</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Mädchenbund</span><span class="register-figure"><data value="138">138</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Georg</span><span class="register-figure"><data value="126">126</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Jungenbund</span><span class="register-figure"><data value="116">116</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">DPB vor 1945</span><span class="register-figure"><data value="40">40</data></span></a></li>
+        <li><a class="register-row" href="archiv.html"><span class="register-label">Orden St. Christophorus</span><span class="register-figure"><data value="29">29</data></span></a></li>
+      </ul></section></div>
+</div>
+<h3 class="g-state">split: media | facts</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<div class="split">    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1967">1967</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Hoher Meißner, Cuenca, Madrid</dd></div>
+      <div><dt>Urheber</dt><dd>mo</dd></div>
+      <div><dt>Typ</dt><dd>Foto(s)</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Bund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Bund › Alben</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div>
+    </dl></div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<div class="split">    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1967">1967</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Hoher Meißner, Cuenca, Madrid</dd></div>
+      <div><dt>Urheber</dt><dd>mo</dd></div>
+      <div><dt>Typ</dt><dd>Foto(s)</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Bund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Bund › Alben</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div>
+    </dl></div>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<div class="split">    <div class="media" aria-label="Medien">
+      <div class="media-item"><span class="media-caption"><b>Seite 1</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 2</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 3</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 4</b>Platzhalter</span></div>
+      <div class="media-item"><span class="media-caption"><b>Seite 5</b>Platzhalter</span></div>
+    </div>    <dl class="facts">
+      <div><dt>Datierung</dt><dd><time datetime="1967">1967</time></dd></div>
+      <div class="facts-wide"><dt>Ort</dt><dd>Hoher Meißner, Cuenca, Madrid</dd></div>
+      <div><dt>Urheber</dt><dd>mo</dd></div>
+      <div><dt>Typ</dt><dd>Foto(s)</dd></div>
+      <div><dt>Bestand</dt><dd><a href="archiv.html">Bund</a></dd></div>
+      <div class="facts-quiet"><dt>Standort</dt><dd>Bund › Alben</dd></div>
+      <div class="facts-quiet"><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div>
+    </dl></div>
+</div>
+</section>
+</main>
+</body>
+</html>

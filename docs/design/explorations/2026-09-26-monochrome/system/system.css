@@ -1,0 +1,424 @@
+/* Bundesarchiv mock design system — r3 "Linien" decomposed (SYSTEM-BRIEF.md, 2026-09-27).
+   Mirrors production static/: one @layer order, role tokens, owned components.
+   - tokens: the ONLY place a raw value lives (color, size, font shorthand).
+   - elements: plain HTML.
+   - components: one root class each; a component styles only its own inside and is tuned from
+     outside only through the knobs listed at the top of its section.
+   - layouts: arrangement only; never select inside a component.
+   Pages set knobs with inline style="--knob: var(--token)" — var references only (in production
+   the same line is a compositions rule). S/M/L = container width < 40rem / 40–80rem / ≥ 80rem
+   (RULES-DRAFT §2); container-query conditions are the one place a literal rem must stand,
+   because a query cannot read a custom property. */
+@layer tokens, elements, components, layouts;
+
+/* ================================================================ tokens */
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    /* Color — light-dark(light, dark). Dark is tuned, not inverted (r3): no pure black or white,
+       and the line is quieter than in light, because bright lines smear on black. */
+    --page-ground: light-dark(#fff, #0b0b0b);
+    --page-ink: light-dark(#000, #f0f0f0);
+    --page-ink-2: light-dark(#595959, #a0a0a0); /* secondary text only; 7:1 on white */
+    --page-rule: light-dark(#dcdcdc, #262626); /* the one line: ~1.4:1 light, ~1.35:1 dark */
+    --band-ground: light-dark(#000, #0b0b0b); /* top bar: inverse band on light, page in dark */
+    --band-ink: light-dark(#fff, #f0f0f0);
+    --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
+    --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
+    --sso: light-dark(#333, #474747); /* the one sanctioned gray fill (door button, owner) */
+    --on-sso: #fff;
+    --error: light-dark(#c4000b, #ff6b61);
+    --hover-lift: brightness(1.15);
+
+    /* Surface roles — what components consume. A surface (the top bar) re-points them for its
+       subtree; a floating panel points them back to the page. */
+    --ground: var(--page-ground);
+    --ink: var(--page-ink);
+    --ink-2: var(--page-ink-2);
+    --rule: var(--page-rule);
+
+    /* Type — every text node uses exactly one role. Families: serif (wordmark, headings, list
+       entries), sans (everything else), mono (data in columns). */
+    --serif: ui-serif, "Iowan Old Style", "New York", Charter, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --type-wordmark: small-caps 600 1.5rem/1 var(--serif);
+    --type-title: 700 3rem/1.08 var(--serif); /* page h1: article title, start heading */
+    --type-heading: 700 2rem/1.1 var(--serif); /* section h2 */
+    --type-entry: 400 1.1rem/1.35 var(--sans); /* the lead of a list row — sans (owner: serif only for headings + titles) */
+    --type-query: 400 1.25rem/1.4 var(--sans); /* search sentence, large search field */
+    --type-body: 400 1rem/1.5 var(--sans);
+    --type-control: 600 0.95rem/1 var(--sans); /* buttons, pager steps */
+    --type-meta: 400 0.9rem/1.4 var(--sans); /* asides, column heads, crumbs, top-bar tools */
+    --type-label: 400 0.9rem/1.3 var(--sans); /* fact labels, marks — sans, mixed case (owner: no mono capitals as a label voice) */
+    --type-data: 400 0.9rem/1.4 var(--mono); /* counts, dates, Signatur (tabular) */
+    --tracking-wordmark: 0.12em;
+    --tracking-display: -0.01em;
+    --tracking-label: 0;
+    --label-case: none;
+    --underline-offset: 0.2em;
+
+    /* Space — a 4px scale (production idiom), extended for section rhythm. */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-7: 1.75rem;
+    --space-8: 2rem;
+    --space-9: 3rem;
+    --space-10: 5.5rem;
+    /* space roles: section gap must beat every inner gap by far; the head sits close to its
+       content so it belongs to it */
+    --gap-section: var(--space-10);
+    --gap-block: var(--space-8); /* between blocks inside one section */
+    --gap-head: var(--space-4);
+    --gap-page: var(--space-9); /* top bar to the first block */
+    --pad-row: var(--space-3);
+    --pad-row-dense: var(--space-1); /* bar rows (Zeitleiste) */
+    --gutter: var(--space-9);
+
+    /* Lines and sizes */
+    --line-width: 1px;
+    --line: var(--line-width) solid var(--rule);
+    --focus-width: 3px;
+    --bar-weight: 3px;
+    --mark-lift: 0.15em;
+    --measure: 80rem;
+    --measure-title: 30ch;
+    --measure-search: 56rem;
+    --measure-query: 26rem;
+    --measure-query-min: 18rem;
+    --measure-search-rest: 9rem; /* compact search at rest … */
+    --measure-search-grow: 22rem; /* … and while typing */
+    --measure-menu: 12rem;
+    --measure-date: 12ch; /* "1984-11-26" plus air */
+    --measure-sig: 12ch; /* Signatur ≤ 8 characters (law G.31) */
+    --measure-decade: 10ch; /* "Unbekannt" */
+    --measure-count: 5ch; /* "1.187" */
+    --measure-type: 9rem;
+    --column-min: 18rem;
+    --topbar-height: 4.25rem;
+    --motion-grow: 160ms ease-out;
+    --z-topbar: 5;
+  }
+
+  /* S: smaller display type, gutter and rhythm. Type follows the viewport, not a container —
+     a heading in a narrow desktop column keeps its rank. */
+  @media (width < 40rem) {
+    :root {
+      --type-wordmark: small-caps 600 1.3rem/1 var(--serif);
+      --type-title: 700 2rem/1.08 var(--serif);
+      --type-heading: 700 1.6rem/1.1 var(--serif);
+      --type-query: 400 1.1rem/1.4 var(--sans);
+      --gap-section: var(--space-9);
+      --gap-page: var(--space-7);
+      --gutter: var(--space-4);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root { --motion-grow: 0s; }
+  }
+}
+
+/* ================================================================ elements */
+@layer elements {
+  *, ::before, ::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: var(--type-body); }
+  main { display: block; padding-block: var(--gap-page) var(--gap-section); }
+  :where(h1, h2, h3, p, ul, ol, dl, dd) { margin: 0; }
+  h1 { font: var(--type-title); letter-spacing: var(--tracking-display); max-inline-size: var(--measure-title); }
+  h2 { font: var(--type-heading); letter-spacing: var(--tracking-display); }
+  a { color: inherit; text-underline-offset: var(--underline-offset); }
+  :focus-visible { outline: var(--focus-width) solid var(--ink); outline-offset: var(--focus-width); }
+  /* data voice: mono, tabular — mark a value as data, and it reads as data wherever it stands */
+  :is(time, data) { font: var(--type-data); font-variant-numeric: tabular-nums; }
+  table { inline-size: 100%; border-collapse: collapse; }
+  th { font: var(--type-meta); color: var(--ink-2); text-align: start; }
+  /* an input is an underline; a frame is added only where the field is the page's content */
+  input {
+    min-inline-size: 0; font: inherit; color: var(--ink); background: transparent;
+    border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0;
+    padding: var(--space-1) 0;
+  }
+  input::placeholder { color: var(--ink-2); }
+  /* a bare button or summary is text; the .button component gives it a body */
+  :is(button, summary) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+}
+
+/* ================================================================ components */
+@layer components {
+
+  /* ---------- topbar — wordmark · tools (compact search, "+ Neu …", Abmelden) ----------
+     Knobs: none. Sets for its subtree: the band surface (--ground, --ink, --ink-2) and the
+     compact rendering of a nested search-field (--search-field-*).
+     S: the search takes its own line under wordmark and tools. */
+  .topbar {
+    --ground: var(--band-ground);
+    --ink: var(--band-ink);
+    --ink-2: var(--band-ink-2);
+    --search-field-type: var(--type-meta);
+    --search-field-frame: transparent;
+    --search-field-edge: var(--ink-2);
+    --search-field-pad: var(--space-1) 0;
+    --search-field-size: var(--measure-search-rest);
+    --search-field-grow: var(--measure-search-grow);
+    --search-field-ring: 0;
+    /* a size container is a stacking context: lift the bar so its menu floats over the page */
+    container-type: inline-size;
+    position: relative;
+    z-index: var(--z-topbar);
+    background: var(--ground);
+    color: var(--ink);
+    border-block-end: var(--line-width) solid var(--band-edge);
+  }
+  .topbar-row { display: flex; align-items: center; gap: var(--space-8); min-block-size: var(--topbar-height); }
+  .topbar-mark { font: var(--type-wordmark); letter-spacing: var(--tracking-wordmark); text-decoration: none; white-space: nowrap; }
+  .topbar-tools { margin-inline-start: auto; display: flex; align-items: center; gap: var(--space-7); font: var(--type-meta); }
+  .topbar-tools > a { color: var(--ink-2); }
+  .topbar-tools > a:hover { color: var(--ink); }
+  @container (width < 40rem) {
+    .topbar-row { flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding-block: var(--space-3); }
+    .topbar-tools { display: contents; }
+    .topbar-mark { margin-inline-end: auto; }
+    .topbar-tools > .search-field { order: 1; flex-basis: 100%; --search-field-size: 100%; --search-field-grow: 100%; }
+  }
+
+  /* ---------- search-field — large on start, compact-growing in the top bar ----------
+     Knobs: --search-field-type (default --type-query), --search-field-frame (top/side edge,
+     default --ink; transparent = underline only), --search-field-edge (underline at rest,
+     default --ink), --search-field-pad, --search-field-size / --search-field-grow (input width
+     at rest / while focused, default: fill), --search-field-ring (focus outline width,
+     default --focus-width; 0 where the growing underline is the focus signal).
+     Large by default; the top bar sets the compact values. */
+  .search-field { display: flex; max-inline-size: var(--measure-search); --button-pad-inline: var(--space-8); }
+  .search-field > input {
+    flex: 1 1 auto;
+    inline-size: var(--search-field-size, auto);
+    font: var(--search-field-type, var(--type-query));
+    padding: var(--search-field-pad, var(--space-4) var(--space-5));
+    background: var(--ground);
+    border: var(--line-width) solid var(--search-field-frame, var(--ink));
+    border-inline-end: 0;
+    border-block-end-color: var(--search-field-edge, var(--ink));
+    outline-width: var(--search-field-ring, var(--focus-width));
+    transition: inline-size var(--motion-grow);
+  }
+  .search-field > input:focus { inline-size: var(--search-field-grow, auto); border-block-end-color: var(--ink); }
+  @container (width < 40rem) {
+    .search-field { --button-pad-inline: var(--space-4); }
+  }
+
+  /* ---------- search-sentence — the archive head: "Suche [field] in … · … · …  + Filter" ----------
+     Knobs: none. One face, one size; set slots ink, open ones quieter; centre dots between.
+     S: the field takes its own line, one primary filter stays, the rest fold behind "Filter". */
+  .search-sentence {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2);
+    max-inline-size: none; font: var(--type-query); letter-spacing: normal; color: var(--ink-2);
+  }
+  .search-sentence-field { flex: 1 1 var(--measure-query-min); max-inline-size: var(--measure-query); }
+  .search-sentence-slots { display: inline-flex; flex-wrap: wrap; align-items: baseline; }
+  .search-sentence-slots > * + *::before { content: "·"; display: inline-block; margin-inline: var(--space-3) var(--space-2); color: var(--ink-2); }
+  .search-sentence button:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+  .search-sentence .is-set { color: var(--ink); }
+  .search-sentence .is-more { display: none; }
+  .search-sentence-add { margin-inline-start: var(--space-3); }
+  @container (width < 40rem) {
+    .search-sentence-label, .search-sentence .is-minor, .search-sentence-add { display: none; }
+    .search-sentence-field { flex-basis: 100%; max-inline-size: none; }
+    .search-sentence .is-more { display: inline; }
+  }
+
+  /* ---------- section-head — rank + at most one aside ----------
+     Knobs: --section-head-ink (heading ink, default --ink). Parts: the heading (h1/h2 — its
+     type comes from the element), .section-head-aside (link or note), .section-head-lede. */
+  .section-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: var(--space-2) var(--space-6); margin-block-end: var(--gap-head);
+  }
+  .section-head > :is(h1, h2) { flex: 1 1 0; color: var(--section-head-ink, var(--ink)); }
+  .section-head-aside { font: var(--type-meta); color: var(--ink-2); white-space: nowrap; }
+  a.section-head-aside:hover { color: var(--ink); }
+  .section-head-lede { flex-basis: 100%; font: var(--type-meta); color: var(--ink-2); }
+
+  /* ---------- register — ruled rows: label left, figure right ----------
+     Replaces r3's .register, .lines, .later ol and .zeit.
+     Knobs: --register-ink (row ink, default --ink), --register-label-type (default
+     --type-entry; --type-data in a bar register), --register-lead (lead column width, default
+     --measure-date).
+     Content decides the columns: a .register-lead (a <time>) adds the leading column; a
+     .register-bar (--register-value 0…1) adds the data bar — dense rows and no lines, the bar
+     itself ties the ends; li.register-apart is set apart by space instead of a line.
+     S: a lead row puts lead + figure on the first line, the label under it. */
+  .register { list-style: none; padding: 0; color: var(--register-ink, var(--ink)); }
+  .register > li + li { border-block-start: var(--line); }
+  .register:has(.register-bar) > li, .register > .register-apart { border-block-start: 0; }
+  .register > .register-apart { margin-block-start: var(--space-4); }
+  .register-row { display: flex; align-items: baseline; gap: var(--space-4); padding-block: var(--pad-row); color: inherit; text-decoration: none; }
+  .register-lead { flex: 0 0 var(--register-lead, var(--measure-date)); font: var(--type-data); } /* ch counts in the data face */
+  .register-label { flex: 1 1 auto; font: var(--register-label-type, var(--type-entry)); }
+  a.register-row:hover .register-label { text-decoration: underline; }
+  .register-figure { margin-inline-start: auto; min-inline-size: var(--measure-count); text-align: end; font: var(--type-meta); color: var(--ink-2); }
+  .register-apart .register-label { color: var(--ink-2); }
+  .register:has(.register-bar) .register-row { align-items: center; padding-block: var(--pad-row-dense); }
+  .register:has(.register-bar) .register-label { flex: 0 0 var(--measure-decade); font: var(--register-label-type, var(--type-data)); }
+  .register-bar {
+    flex: 1 1 auto; block-size: var(--bar-weight);
+    background: linear-gradient(var(--ink-2), var(--ink-2)) 0 0 / max(var(--bar-weight), calc(var(--register-value, 0) * 100%)) 100% no-repeat;
+  }
+  @container (width < 40rem) {
+    .register-row:has(.register-lead) { flex-wrap: wrap; row-gap: var(--space-1); }
+    .register-row:has(.register-lead) .register-label { order: 1; flex-basis: 100%; }
+  }
+
+  /* ---------- ledger — the result table ----------
+     Knobs: none. Cells: .ledger-title (the one lead), .ledger-date, .ledger-type,
+     .ledger-sig (quiet, last). Sort lives on the column head: th[aria-sort] shows the
+     direction, other heads show ↕ on hover/focus; the sorted column is not stepped up.
+     S: each row becomes title line · date + type line · Signatur line. */
+  .ledger th { padding: 0 var(--space-5) var(--space-3) 0; }
+  .ledger td { padding: var(--pad-row) var(--space-5) var(--pad-row) 0; vertical-align: baseline; }
+  .ledger :is(th, td):last-child { padding-inline-end: 0; }
+  .ledger tbody tr + tr td { border-block-start: var(--line); }
+  .ledger-title a { text-decoration: none; }
+  .ledger-title a:hover { text-decoration: underline; }
+  .ledger-date { inline-size: var(--measure-date); white-space: nowrap; color: var(--ink-2); }
+  .ledger td:is(.ledger-date, .ledger-sig) { font: var(--type-data); } /* ch counts in the data face */
+  .ledger-type { inline-size: var(--measure-type); font: var(--type-meta); color: var(--ink-2); }
+  .ledger-sig { inline-size: var(--measure-sig); white-space: nowrap; color: var(--ink-2); }
+  .ledger-sort { display: inline-flex; align-items: baseline; gap: var(--space-1); color: inherit; text-decoration: none; }
+  .ledger-sort::after { content: "↕"; opacity: 0; }
+  .ledger-sort:is(:hover, :focus-visible)::after { opacity: 1; }
+  .ledger [aria-sort="ascending"] > .ledger-sort::after { content: "↑"; opacity: 1; }
+  .ledger [aria-sort="descending"] > .ledger-sort::after { content: "↓"; opacity: 1; }
+  @container (width < 40rem) {
+    .ledger thead { display: none; }
+    .ledger tr { display: grid; grid-template-columns: 1fr auto; padding-block: var(--pad-row); }
+    .ledger tbody tr + tr { border-block-start: var(--line); }
+    .ledger tbody tr td, .ledger tbody tr + tr td { padding: 0; border: 0; inline-size: auto; } /* the row, not each cell, carries the line */
+    .ledger-title { grid-column: 1 / -1; padding-block-end: var(--space-1); }
+    .ledger-date { grid-row: 2; grid-column: 1; }
+    .ledger-type { grid-row: 2; grid-column: 2; text-align: end; }
+    .ledger-sig { grid-row: 3; grid-column: 1 / -1; }
+  }
+
+  /* ---------- pager — the result range owns its steps ----------
+     Knobs: none. "Zurück" on the first page stays visible, disabled (aria-disabled). */
+  .pager { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-8); font: var(--type-meta); }
+  .pager-range { margin-inline-end: auto; color: var(--ink-2); }
+  .pager-range data { color: var(--ink); }
+  .pager-step { font: var(--type-control); text-decoration: none; }
+  a.pager-step:hover { text-decoration: underline; }
+  .pager-step[aria-disabled] { font: var(--type-meta); color: var(--ink-2); }
+
+  /* ---------- facts — the article's definition list ----------
+     Knobs: none. Label over value, so no lines. .facts-wide spans two columns; .facts-quiet
+     is one tier quieter (Standort, Signatur). S: two columns. */
+  .facts { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--space-8); }
+  .facts > div { padding-block: var(--space-3) var(--space-4); }
+  .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); margin-block-end: var(--space-2); }
+  .facts-wide { grid-column: span 2; }
+  .facts-quiet dd { color: var(--ink-2); }
+  @container (width < 40rem) {
+    .facts { grid-template-columns: repeat(2, 1fr); }
+    .facts-wide { grid-column: 1 / -1; }
+  }
+
+  /* ---------- media — the article's previews; the first one leads ----------
+     Knobs: none. A .media-item without an image draws the placeholder cross.
+     S: two columns, the lead full width. */
+  .media { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+  .media-item {
+    aspect-ratio: 4 / 3; display: flex; align-items: flex-end; padding: var(--space-3); border: var(--line);
+    background:
+      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2)),
+      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2));
+  }
+  .media-item:first-child { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
+  .media-caption { padding: var(--space-1); background: var(--ground); font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); }
+  .media-caption b { display: block; color: var(--ink); }
+  @container (width < 40rem) {
+    .media { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+    .media-item:first-child { grid-column: 1 / -1; grid-row: auto; aspect-ratio: 4 / 3; }
+  }
+
+  /* ---------- crumbs — the place, not the path ----------
+     Knobs: none. Each step opens the scoped list; none on start or list. */
+  .crumbs { font: var(--type-meta); color: var(--ink-2); }
+  .crumbs a { color: inherit; text-decoration: none; }
+  .crumbs a + a::before { content: "›"; margin-inline: var(--space-2); }
+  .crumbs a:hover { color: var(--ink); text-decoration: underline; }
+
+  /* ---------- resume — "Weiter bearbeiten: <Titel> · <Titel>" ----------
+     Knobs: none. One quiet sentence under the search; no create action, no marks. */
+  .resume { color: var(--ink-2); }
+  .resume > h2 { display: inline; font: inherit; letter-spacing: normal; margin-inline-end: var(--space-2); }
+  .resume > ul { display: inline; list-style: none; padding: 0; }
+  .resume li { display: inline; }
+  .resume li + li::before { content: " · "; }
+  .resume a { font: var(--type-entry); color: var(--ink); text-decoration-color: var(--rule); }
+  .resume a:hover { text-decoration-color: currentColor; }
+
+  /* ---------- menu — a <details> whose panel floats under its summary ----------
+     Knobs: none. The panel is always page surface, even inside the band. */
+  .menu { position: relative; }
+  .menu > summary { color: var(--ink); }
+  .menu > ul {
+    --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
+    position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-4)); z-index: 1;
+    min-inline-size: var(--measure-menu); padding-block: var(--space-2); list-style: none; padding-inline: 0;
+    background: var(--ground); color: var(--ink); border: var(--line);
+  }
+  .menu a { display: block; padding: var(--space-2) var(--space-4); text-decoration: none; }
+  .menu a:hover { text-decoration: underline; }
+
+  /* ---------- button ----------
+     Knobs: --button-pad-inline (default --space-5). Default = secondary (outline); variants on
+     the root: .button-primary (solid ink), .button-sso (the dark-gray door button). */
+  .button {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+    padding: var(--space-3) var(--button-pad-inline, var(--space-5));
+    font: var(--type-control); text-decoration: none; white-space: nowrap;
+    color: var(--ink); background: transparent; border: var(--line-width) solid var(--ink); border-radius: 0;
+  }
+  .button:hover, .button-primary { color: var(--ground); background: var(--ink); }
+  .button-primary:hover { color: var(--ink); background: transparent; }
+  .button-sso, .button-sso:hover { color: var(--on-sso); background: var(--sso); border-color: var(--sso); }
+  .button-sso:hover { filter: var(--hover-lift); }
+
+  /* ---------- mark — a state is words, not a box (Entwurf, später) ----------
+     Knobs: none. */
+  .mark {
+    margin-inline-start: var(--space-2); vertical-align: var(--mark-lift); white-space: nowrap;
+    font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2);
+  }
+}
+
+/* ================================================================ layouts */
+@layer layouts {
+  /* page — the measure and the gutter; the size container (S/M/L) the components inside query */
+  .page { max-inline-size: var(--measure); margin-inline: auto; padding-inline: var(--gutter); container-type: inline-size; }
+
+  /* stack — blocks one above the other. Knob: --stack-gap (default --gap-section). */
+  .stack { display: flex; flex-direction: column; gap: var(--stack-gap, var(--gap-section)); }
+
+  /* columns — pair or trio as one auto-fitting grid; a column is never narrower than
+     --column-min, and the gap between columns is a section gap, so they read as blocks */
+  .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-min)), 1fr)); gap: var(--gap-section); }
+
+  /* split — media | facts side by side while both fit --column-min, else stacked, media first */
+  .split { display: flex; flex-wrap: wrap; gap: var(--gap-block) var(--gap-section); }
+  .split > * { min-inline-size: 0; container-type: inline-size; } /* each side is a size region */
+  .split > :first-child { flex: 3 1 var(--column-min); }
+  .split > :last-child { flex: 2 1 var(--column-min); }
+
+  /* absent at S — a compartment the space budget drops from small containers (RULES §2) */
+  @container (width < 40rem) {
+    [data-absent="s"] { display: none; }
+  }
+}
