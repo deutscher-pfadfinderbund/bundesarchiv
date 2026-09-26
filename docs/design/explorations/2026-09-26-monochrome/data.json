@@ -1,0 +1,881 @@
+{
+ "note": "Real legacy data (2026-09-26 snapshot of var/legacy/canonical). Counts are true.",
+ "total": 2506,
+ "bestaende": [
+  {
+   "name": "Gruppen des DPB",
+   "parent": null,
+   "count": 1187
+  },
+  {
+   "name": "Bund",
+   "parent": null,
+   "count": 463
+  },
+  {
+   "name": "Überbündisches",
+   "parent": null,
+   "count": 211
+  },
+  {
+   "name": "Unsortiert",
+   "parent": null,
+   "count": 196
+  },
+  {
+   "name": "Mädchenbund",
+   "parent": null,
+   "count": 138
+  },
+  {
+   "name": "Orden St. Georg",
+   "parent": null,
+   "count": 126
+  },
+  {
+   "name": "Jungenbund",
+   "parent": null,
+   "count": 116
+  },
+  {
+   "name": "DPB vor 1945",
+   "parent": null,
+   "count": 40
+  },
+  {
+   "name": "Orden St. Christophorus",
+   "parent": null,
+   "count": 29
+  }
+ ],
+ "decades": [
+  [
+   "1860er",
+   1
+  ],
+  [
+   "1890er",
+   1
+  ],
+  [
+   "1910er",
+   2
+  ],
+  [
+   "1920er",
+   14
+  ],
+  [
+   "1930er",
+   30
+  ],
+  [
+   "1940er",
+   16
+  ],
+  [
+   "1950er",
+   112
+  ],
+  [
+   "1960er",
+   351
+  ],
+  [
+   "1970er",
+   226
+  ],
+  [
+   "1980er",
+   550
+  ],
+  [
+   "1990er",
+   307
+  ],
+  [
+   "2000er",
+   216
+  ],
+  [
+   "2010er",
+   252
+  ],
+  [
+   "2020er",
+   81
+  ],
+  [
+   "Unbekannt",
+   347
+  ]
+ ],
+ "media_types": [
+  [
+   "Schrifttum",
+   1873
+  ],
+  [
+   "Buch",
+   263
+  ],
+  [
+   "Wappen und Zeichen",
+   86
+  ],
+  [
+   "Fahne / Wimpel",
+   75
+  ],
+  [
+   "Gegenstand",
+   71
+  ],
+  [
+   "Foto(s)",
+   56
+  ],
+  [
+   "Kassette",
+   34
+  ],
+  [
+   "Stempel",
+   23
+  ],
+  [
+   "CD / DVD",
+   23
+  ],
+  [
+   "VHS",
+   1
+  ],
+  [
+   "Sonstiges",
+   1
+  ]
+ ],
+ "sample_articles": [
+  {
+   "ref_code": "BA 1842",
+   "title": "Berliner Tagblatt - Käsepapier zum BundesLager, No.1",
+   "date": "1866-11-20",
+   "media_type": "Schrifttum",
+   "document_type": "Lagerheft",
+   "creator": null,
+   "subject_place": "Berlin",
+   "physical_location": "Bund -- Bundeslagerhefte -- 2",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA 1678",
+   "title": "Allzeit bereit - Ausbildungshefte - Heft 32 - Weltpfadfindertum",
+   "date": "1933",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": "Eberhard Menzel",
+   "subject_place": "Plauen im Vogtland",
+   "physical_location": "DPB vor 1945 -- Bund der Reichspfadfinder -- 1",
+   "lifecycle": "published",
+   "bestand": "DPB vor 1945"
+  },
+  {
+   "ref_code": "BA B179",
+   "title": "Der Kilometerstein - eine lustige Sammlung",
+   "date": "1951",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Schulten, Gustav",
+   "subject_place": "Bad Godesheim",
+   "physical_location": "Überbündisches - Liederbuch",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 104",
+   "title": "Die Kompassnadel, Nr. 2",
+   "date": "1955",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Deutscher Pfadfinderbund",
+   "subject_place": null,
+   "physical_location": "Bund -- Zeitschrift -- Die Kompassnadel",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA B28",
+   "title": "Gegen den Strom. Bericht über den Jugendwiderstand im Dritten Reich",
+   "date": "1958",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Klönne, Arno",
+   "subject_place": "Hannover",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 587",
+   "title": "Nachrichtenblatt des Gau Ordensland, Nr. 2",
+   "date": "1959-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Ordensland",
+   "subject_place": "Salzgitter-Bad",
+   "physical_location": "Gruppen des DPB -- Zeitschriften 3 -- Gau Ordensland -- Nachrichtenblätter",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 860",
+   "title": "Die Kompassnadel, Nr. 20",
+   "date": "1960~",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Deutscher Pfadfinderbund",
+   "subject_place": "Bonn",
+   "physical_location": "Bund -- Zeitschrift -- Die Kompassnadel",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA B236",
+   "title": "Der Turm: Zehnter Teil",
+   "date": "1962",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": null,
+   "subject_place": "Bad Godesberg",
+   "physical_location": "Bücher",
+   "lifecycle": "published",
+   "bestand": "Überbündisches"
+  },
+  {
+   "ref_code": "BA 934",
+   "title": "Meissner-Tag 1963: Bekanntmachung",
+   "date": "1963",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": null,
+   "subject_place": null,
+   "physical_location": "Überbündisches -- Meißner",
+   "lifecycle": "published",
+   "bestand": "Überbündisches"
+  },
+  {
+   "ref_code": "BA 1588",
+   "title": "Die Feuerrunde Heft 2",
+   "date": "1963~",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg / Js Artus",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Zeitschriften -- Gau Wartburg -- Yesterday und",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 2033",
+   "title": "Das Gesetz",
+   "date": "1964-11",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": "Stamm Samojeden",
+   "subject_place": null,
+   "physical_location": "Bund -- Hefte -- 2 -- Das Gesetz",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA B6",
+   "title": "Bündische Jugend heute. Quellen und Beiträge zur Geschichte der Jugendbewegung",
+   "date": "1966",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Welter, Günther",
+   "subject_place": "Frankfurt am Main",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 1784",
+   "title": "Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971",
+   "date": "1967",
+   "media_type": "Foto(s)",
+   "document_type": null,
+   "creator": "mo",
+   "subject_place": "Hoher Meißner, Cuenca, Madrid",
+   "physical_location": "Bund -- Alben",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA 459",
+   "title": "Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24",
+   "date": "1968-01",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Stamm Nibelungen",
+   "subject_place": "Bergheim",
+   "physical_location": "Gruppen des DPB -- St/Js Nibelungen -- Zeitschrift -- Nibelungen-Schwert",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 655",
+   "title": "Kiek ut 1/69",
+   "date": "1969",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Hegelingen",
+   "subject_place": "Hamburg",
+   "physical_location": "Gruppen des DPB -- Gau Hegelingen -- Zeitschrift -- Kiekut",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 373",
+   "title": "RJB Mitteilungen Sonderheft",
+   "date": "1969-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Ring Junger Bünde",
+   "subject_place": "Paderborn",
+   "physical_location": "Überbündisches -- Zeitschrift -- RJB Mitteilungen",
+   "lifecycle": "published",
+   "bestand": "Überbündisches"
+  },
+  {
+   "ref_code": "BA 625",
+   "title": "Blätter St. Georg, Heft 2",
+   "date": "1971",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Orden St. Georg",
+   "subject_place": "Berlin",
+   "physical_location": "Orden St. Georg -- Zeitschrift -- Blätter St. Georg",
+   "lifecycle": "published",
+   "bestand": "Orden St. Georg"
+  },
+  {
+   "ref_code": "BA 1723",
+   "title": "Stamm Lützow 74",
+   "date": "1974",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": "Stamm Lützow",
+   "subject_place": null,
+   "physical_location": "Gruppen des DPB 4 -- Stamm Lützow",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1721",
+   "title": "Lagerzeitung des DPB Speerjungenlager vom 27.12.75 bis zum 6.1.1976",
+   "date": "1976",
+   "media_type": "Schrifttum",
+   "document_type": "Lagerheft",
+   "creator": "Jungenbund",
+   "subject_place": "Jugendherberge Lauterbach",
+   "physical_location": "Jungenbund -- Zeitschrift -- Speerjungenlager 1",
+   "lifecycle": "published",
+   "bestand": "Jungenbund"
+  },
+  {
+   "ref_code": "BA 1245",
+   "title": "Bundeslager 1977 Hemer / Westfalen",
+   "date": "1977",
+   "media_type": "Schrifttum",
+   "document_type": "Lagerheft",
+   "creator": "Bund",
+   "subject_place": null,
+   "physical_location": "Bund -- Bundeslagerhefte -- 1",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA B133",
+   "title": "Das Feldlager - Jugend zwischen Langemarck und Stalingrad - Tatsachenbericht",
+   "date": "1978",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Paul, Wolfgang",
+   "subject_place": "Essslingen",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 523",
+   "title": "Die Feuerrunde, Heft 1/79",
+   "date": "1979",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Zeitschriften 1 -- Gau Wartburg -- Die Feuerrunde",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1704",
+   "title": "Bund X - 1978-1980",
+   "date": "1980",
+   "media_type": "Schrifttum",
+   "document_type": "Schriftwechsel",
+   "creator": null,
+   "subject_place": null,
+   "physical_location": "Bund -- Aus Sammlung defense -- Bund X",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA B164",
+   "title": "Arbeiterlieder aus dem Ruhrgebiet - Texte und Noten mit Begleitakkorden",
+   "date": "1981",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Baier, Frank; Puls, Detlev",
+   "subject_place": "Frankfurt am Main",
+   "physical_location": "Überbündisches -- Liederbuch",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA B25",
+   "title": "Jugend unterm Hakenkreuz",
+   "date": "1982",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Huber, Karl-Heinz",
+   "subject_place": "Frankfurt am Main",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 814",
+   "title": "Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter",
+   "date": "1982-11",
+   "media_type": "Schrifttum",
+   "document_type": "Fahrtenbericht",
+   "creator": "Schwarzer Ritter",
+   "subject_place": "Salzgitter",
+   "physical_location": "Gruppen des DPB 3 -- Schwarzer Ritter",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 487",
+   "title": "DPB Gau Rheinland: Führerbrief",
+   "date": "1983-01",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Rheinland",
+   "subject_place": "Düsseldorf",
+   "physical_location": "Gruppen des DPB -- Zeitschriften 5 -- Gau Rheinland -- Führerbrief",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1611",
+   "title": "Wartburg-Bote, Nr. 36",
+   "date": "1983-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Wartburg-Bote",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA B95",
+   "title": "Der weite Weg - Die deutsche Jugenbewegung seit Ende des 19. Jahrhunderts",
+   "date": "1984",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Fröher, Lothar",
+   "subject_place": "Heidenheim",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 2117",
+   "title": "Schill'sche Jungenschaft - Rundbrief Dezember/Januar 1984/85",
+   "date": "1984-11-26",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": "Js von Schill",
+   "subject_place": "Wiesbaden",
+   "physical_location": "Gruppen des DPB 7 -- JS von Schill",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA B123",
+   "title": "Tips & Tricks 2 - Bund der Pfadfinderinnen und Pfadfinder - 55 Ideen, was man",
+   "date": "1985-01",
+   "media_type": "Buch",
+   "document_type": null,
+   "creator": "Kuhnke, Wolf; Christiansen, Angelika",
+   "subject_place": "Gießen",
+   "physical_location": "Überbündisches -- Bücher",
+   "lifecycle": "published",
+   "bestand": "Unsortiert"
+  },
+  {
+   "ref_code": "BA 1209",
+   "title": "Rakete 60",
+   "date": "1985-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Orion",
+   "subject_place": "Kassel",
+   "physical_location": "Gruppen des DPB  -- Zeitschriften 6 -- Orion -- Rakete",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 762",
+   "title": "Die Kiste, Nr. 27",
+   "date": "1986-02",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Nibelungen-Ritter",
+   "subject_place": "Salzgitter",
+   "physical_location": "Gruppen des DPB -- Nibelungen-Ritter -- Zeitschrift -- Die  Kiste",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1824",
+   "title": "Rotte Boymont Kalender 1988",
+   "date": "1987",
+   "media_type": "Schrifttum",
+   "document_type": "Kalender",
+   "creator": "Rotte Boymont",
+   "subject_place": "Thierhaupten",
+   "physical_location": "Gruppen des DPB -- Große Kalender",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA 1216",
+   "title": "Rakete 67",
+   "date": "1987-09",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Orion",
+   "subject_place": "Kassel",
+   "physical_location": "Gruppen des DPB  -- Zeitschriften 6 -- Orion -- Rakete",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1886",
+   "title": "Symbole: Lilie, Bundestracht, Gruppennamen, Liedgut, Feuer, Kreis",
+   "date": "1988",
+   "media_type": "Schrifttum",
+   "document_type": "Lagerheft",
+   "creator": "Mädchenbund Gildinnentreffen",
+   "subject_place": "Eßlingen",
+   "physical_location": "Mädchenbund -- Mädchenbund 1 -- Hefte",
+   "lifecycle": "published",
+   "bestand": "Mädchenbund"
+  },
+  {
+   "ref_code": "BA 1077",
+   "title": "Fränkischer Rechen",
+   "date": "1988~",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Franken",
+   "subject_place": "Koblenz",
+   "physical_location": "Gruppen des DPB -- Gau Franken -- Zeitschrift -- Fränkischer Rechen",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 820",
+   "title": "Ungarn '89",
+   "date": "1989-06-08",
+   "media_type": "Schrifttum",
+   "document_type": "Fahrtenbericht",
+   "creator": "Sigambern",
+   "subject_place": "Braunschweig",
+   "physical_location": "Gruppen des DPB 3 -- Schwarzer Ritter",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1036",
+   "title": "Führerbrief des Gaues Wartburg 53",
+   "date": "1990-07-20",
+   "media_type": "Schrifttum",
+   "document_type": "Sonstiges",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB 2 -- Gau Wartburg -- Führerbriefe",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 52",
+   "title": "Wartburg-Bote, Nr. 56",
+   "date": "1991-05",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Wartburg-Bote",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 249",
+   "title": "Blätter St. Georg, Heft 28",
+   "date": "1992-11",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Orden St. Georg",
+   "subject_place": "Ginsheim",
+   "physical_location": "Orden St. Georg -- Zeitschrift -- Blätter St. Georg",
+   "lifecycle": "published",
+   "bestand": "Orden St. Georg"
+  },
+  {
+   "ref_code": "BA 955",
+   "title": "Quwit Nr. 11",
+   "date": "1993-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Js Theotmalli",
+   "subject_place": "Detmold",
+   "physical_location": "Gruppen des DPB -- Theotmalli / Weiße Taube -- Zeitschrift -- Quwit",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1743",
+   "title": "Fotoabzüge: Fahrt Bekanntenkreis Gau Sueben 1995",
+   "date": "1995",
+   "media_type": "Foto(s)",
+   "document_type": null,
+   "creator": "Gildinnenkreis Gau Sueben",
+   "subject_place": "Aspach",
+   "physical_location": "Fotos -- Fotoabzüge 1",
+   "lifecycle": "published",
+   "bestand": "Mädchenbund"
+  },
+  {
+   "ref_code": "BA 300",
+   "title": "Anschriften 1996",
+   "date": "1996",
+   "media_type": "Schrifttum",
+   "document_type": "Adressverzeichnis",
+   "creator": "Bund",
+   "subject_place": "Seevetal",
+   "physical_location": "Bund -- Anschriftenverzeichnisse -- 1",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA 202",
+   "title": "RJB Mitteilungen, Nr. 96",
+   "date": "1997-06",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Ring Junger Bünde",
+   "subject_place": null,
+   "physical_location": "Überbündisches -- Zeitschrift -- RJB Mitteilungen",
+   "lifecycle": "published",
+   "bestand": "Überbündisches"
+  },
+  {
+   "ref_code": "BA 73",
+   "title": "Wartburg-Bote, Nr. 77",
+   "date": "1998-06",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Wartburg-Bote",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 293",
+   "title": "Kalender 2001",
+   "date": "2000",
+   "media_type": "Schrifttum",
+   "document_type": "Kalender",
+   "creator": "JS Hohenstaufen",
+   "subject_place": "Remscheid",
+   "physical_location": "Gruppen des DPB -- JS Hohenstaufen / Konvent Walter von Plettenberg",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1551",
+   "title": "WIR, Dezember 2001",
+   "date": "2001-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Ring Florian Geyer",
+   "subject_place": "Iserlohn",
+   "physical_location": "Gruppen des DPB -- Ring Florian Geyer -- Zeitschrift -- WIR",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 255",
+   "title": "Blätter St. Georg, Heft 39",
+   "date": "2003-10",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Orden St. Georg",
+   "subject_place": "Ginsheim",
+   "physical_location": "Orden St. Georg -- Zeitschrift -- Blätter St. Georg",
+   "lifecycle": "published",
+   "bestand": "Orden St. Georg"
+  },
+  {
+   "ref_code": "BA 433",
+   "title": "Fränkischer Rechen: Der 30 Jährige Krieg",
+   "date": "2005-02",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Franken",
+   "subject_place": null,
+   "physical_location": "Gruppen des DPB -- Gau Franken -- Zeitschrift -- Fränkischer Rechen",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1035",
+   "title": "Bundeslager 2007: Eine Fotodokumentation",
+   "date": "2007",
+   "media_type": "CD / DVD",
+   "document_type": null,
+   "creator": "Ring Florian Geyer",
+   "subject_place": "Iserlohn",
+   "physical_location": "Gruppen des DPB -- Audio/Video 1",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 20",
+   "title": "Der Späher: Heft 9",
+   "date": "2008-05",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Jungenschaft und Hag Schwarzer Adler",
+   "subject_place": "Köln",
+   "physical_location": "Gruppen des DPB -- Jungenschaft und Hag Schwarzer Adler -- Zeitschrift",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 440",
+   "title": "Fränkischer Rechen: Der hohe Norden",
+   "date": "2009-10",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Franken",
+   "subject_place": null,
+   "physical_location": "Gruppen des DPB -- Gau Franken -- Zeitschrift -- Fränkischer Rechen",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1994",
+   "title": "Wimpel, Horte Attinghausen (Speerjungenlager 2011/2012)",
+   "date": "2011",
+   "media_type": "Fahne / Wimpel",
+   "document_type": null,
+   "creator": null,
+   "subject_place": null,
+   "physical_location": "Heraldik -- Fahnen, Wimpel -- Box B-18",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 654",
+   "title": "Quwit Nr. 16",
+   "date": "2011-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Js Theotmalli / Ms Weiße Taube",
+   "subject_place": "Detmold",
+   "physical_location": "Gruppen des DPB -- Theotmalli / Weiße Taube -- Zeitschrift -- Quwit",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1649",
+   "title": "Gastgeschenk Bundesmarathon 2013: Trinkbecher aus Metall",
+   "date": "2013",
+   "media_type": "Gegenstand",
+   "document_type": null,
+   "creator": null,
+   "subject_place": "Iserlohn",
+   "physical_location": "Große Gegenstände I",
+   "lifecycle": "published",
+   "bestand": "Bund"
+  },
+  {
+   "ref_code": "BA 1341",
+   "title": "Fränkischer Rechen: Zeit",
+   "date": "2014-03",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Franken",
+   "subject_place": null,
+   "physical_location": "Gruppen des DPB -- Gau Franken -- Zeitschrift -- Fränkischer Rechen",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1320",
+   "title": "Die Lederhose, Nr. 41",
+   "date": "2015-12",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Hohenlohe / Tilmann Riemenschneider",
+   "subject_place": "Würzburg",
+   "physical_location": "Gruppen des DPB  --  Hohenlohe/Tilmann Riemenschneider -- Zeitschrift",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1132",
+   "title": "Wartburg-Bote, Nr. 114",
+   "date": "2017-10",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Gau Wartburg",
+   "subject_place": "Berlin",
+   "physical_location": "Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Wartburg-Bote",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  },
+  {
+   "ref_code": "BA 1322",
+   "title": "Die Lederhose, Nr. 44",
+   "date": "2019-03",
+   "media_type": "Schrifttum",
+   "document_type": "Zeitschrift",
+   "creator": "Hohenlohe / Tilmann Riemenschneider",
+   "subject_place": "Würzburg",
+   "physical_location": "Gruppen des DPB  --  Hohenlohe/Tilmann Riemenschneider -- Zeitschrift",
+   "lifecycle": "published",
+   "bestand": "Gruppen des DPB"
+  }
+ ]
+}

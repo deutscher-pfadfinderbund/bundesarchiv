@@ -704,3 +704,41 @@ an extra wrapper, and after an htmx row swap.
 - **htmx 2's localStorage page snapshots: ignored.** htmx 2.0.4 keeps copies of
   recent pages in localStorage, past logout. No separate fix; htmx 4 drops the
   mechanism. Reviewers need not report it again.
+
+## Look, navigation and design-rule rulings (owner, 2026-09-26)
+
+Mocks: `docs/design/explorations/2026-09-26-monochrome/` (round 1 `x1–x3`, round 2 `r2-*`),
+screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
+
+- **Keep:** the small-caps serif wordmark and the lightweight hairline table. **No scout
+  costume** — the audience is adults interested in the Bund's history; a functional tool first.
+- **Monochrome.** Gray fills read as "an old, dated Office application"; the violet accent is out
+  of place. Black and white, one secondary text ink, hairlines, error red. **No dark-only
+  design**: light first, dark is the same tokens inverted.
+- **Counts are not important.** No count at display size anywhere.
+- **Method:** every screen starts with its job (who, what they try to achieve); every element is
+  priced — psychological cost against gain — and high-cost, low-gain elements are cut.
+- **Navigation:** a top-level navigation (Archiv · Bestände · Erfassen for archivists) and an
+  account area with Abmelden. Supersedes the 2026-08-22 rulings "header carries no identity" and
+  "Abmelden lives in the footer".
+- **Door page: X3.** Wordmark, one sentence, one solid dark-gray button "Anmelden mit DPB Login".
+  No contact line for now.
+- **Start page: direction A (Druckschwarz)** — structured, "easy on the eyes and mind"; details
+  still to refine. A guiding start page of compartments (search, Bestände, Zeitleiste, Zuletzt
+  hinzugefügt); later: archivist Highlights and static Empfehlungen (not built now).
+- **Zeitleiste:** nice to have; undated bucket "Unbekannt".
+- **Archive list:** must fit the start page's language.
+- **Article page: direction C (Schaufenster)** when a large square media preview exists. PDFs and
+  scans get their first page rendered as that preview; with no renderable medium the page falls
+  back to one column.
+- **Serif:** wordmark, section headings and article titles. Everything else sans.
+- **Screen sizes:** archivists work mostly on large screens, members and link-holders mostly on
+  small ones — balance each size for its users. Three container sizes; each component declares
+  per size full / compact / folded / absent. **Phone start page: search plus "Meine Entwürfe"
+  only**; browsing (Bestände, Zeitleiste) moves to the Archiv page's folded filter. The round-2
+  phone layouts were all rejected: they ignored the smaller space budget.
+- **Divide and conquer:** strict design rules first, then tokens, composable components and
+  layouts, then pages.
+- **Edit-form recompose:** section order E1 (Kerndaten → Beschreibung → Einordnung → Herkunft →
+  Medien → Zugriff → Weitere Angaben, all open); the large Titel field is the page heading.
+  Runs after Wave C.
