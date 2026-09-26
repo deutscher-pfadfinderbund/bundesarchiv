@@ -15,6 +15,41 @@ rules, owned components from Wave C). These rules replace its *contents*.
 3. Price again per screen size (rule 2). An element worth its space on a desktop can be too
    expensive on a phone.
 
+4. Price the fix too. A fix is a new element or a new signal, with its own cost. If the fix
+   costs more than the problem, keep the problem.
+5. Every rule states intention · gain · cost · boundary. A rule without its reason gets applied
+   where it hurts.
+
+### Principles (owner, taught 2026-09-26/27)
+
+| Rule | Intention | Gain | Cost | Boundary |
+| --- | --- | --- | --- | --- |
+| **Alignment gives structure** | With good spacing and alignment, content forms natural lines; the eye follows them without effort | simple on the eye, few objects | needs one strict grid and spacing scale | where no natural line appears, draw one (next rows) |
+| **A line connects or anchors** | Ties two ends of a row so the eye does not slip across a long gap | eye stays on the row | each line is an object; many add up to noise | not above the first / below the last row, not under headers or filter bars — there the edge is spacing |
+| **Frames highlight or create cohesion** | Where elements have no natural line between them (card: title top left, actions bottom right), a frame gives them something that connects them | the group reads as one | a frame is the loudest line; frames where alignment already groups are noise | not for grouping things that already stand together |
+| **Heavy rules shape blocks** | They make sections read as blocks | strong structure | loud, bloom in dark, duplicate heading + space | removed (experiment `r3-linien/`): then spacing must carry the blocks and be much stricter |
+| **One lead per row; facts one tier quieter** | Rows are scanned for the title; facts are read once a title catches | calm, fast scanning | none that matters: good-enough contrast is enough to scan a quieter column when focusing on it | no step-up for the sorted column — see next row |
+| **Don't signal what the user already knows** | A change in appearance says "something important happened"; the user who sorted already knows | no noise from the user's own action | — | the sort arrow on the active column is enough feedback |
+| **Mono only for data in columns** | Fixed-width digits align, rows of values scan | a typeface with one meaning | fewer tools for labels | values in running text or labels: sans |
+| **Hide a control only if it can never become active here** | A dead-looking live control costs attention | less noise | hiding a control that becomes active makes things appear and jump | paired controls whose state changes (Zurück/Weiter) stay visible, disabled. Progressive disclosure is powerful when what it hides is opened on purpose |
+| **Controls own their state** | State far from its control forces the user to link them in their head | one fact, one place; seeing = changing | controls vary in width with their value | result count and range belong to the pager; sort direction to the column head |
+| **Nothing loud outranks the page's main content** | Weight claims importance; the eye lands on the loudest thing first | first glance lands on the job | chrome less discoverable for first visitors | where the control is the content (start-page search) |
+| **At most three primary filters in the heading sentence** | The sentence stays one readable line; common dimensions get the fast path | short heading, one click for the common case | a second, traditional mechanism for the rest; "primary" needs a real basis | swap a dimension in when usage says so; three stay three |
+
+### Live-review rulings (owner, 2026-09-26)
+
+- **No role labels.** Nothing says "nur Archivare"; the role shows in what the page offers.
+- **No redundant marks.** A list titled "Meine Entwürfe" does not mark each item "Entwurf".
+- **No off-topic actions.** A resume list carries no create action ("Neu erfassen").
+- **Drafts on start = one quiet line** under the search: "Weiter bearbeiten: <Titel> · <Titel>".
+- **The archive heading is the search sentence** (live pick, 2026-09-27): "Suche [field] in
+  Gruppen des DPB · alle Jahrzehnte · jeder Typ  + Filter". One face, one size; the field is the
+  one real input (the page's primary action). Set filters ink, open ones quieter; centre dots
+  separate them; no chevrons, no trailing × (removal = "alle …" in the slot's menu). Heading and
+  filter are one fact, so one element. No kicker, no chip row, no header search on this page.
+  S: the field takes its own line, one primary filter stays, the rest fold behind "Filter".
+- **Column heads** in sans, title case — no mono capitals anywhere as a label voice.
+
 ## 2. Space budget — three sizes
 
 Sizes are container widths, not device names: **S** < 40rem (phone), **M** 40–80rem,

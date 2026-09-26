@@ -1,23 +1,23 @@
-/* R2 "Druckschwarz, consolidated" — white paper, black ink, nothing in between as a fill.
-   Structure comes from a solid black masthead, heavy rules opening every division and serif
-   headings. Counts never lead: they sit beside their label, small, ink-2, tabular.
-   Light first. Dark is the inversion; the masthead stays black and is closed by a white
-   heavy rule (a white slab at the top of a dark page would glare). */
+/* R3 "Linien" — R2 Druckschwarz under the line rule (owner, 2026-09-26):
+   a line CONNECTS the two ends of a row so the eye does not slip; it never separates.
+   Sections are shaped by heading rank and space alone. One line token (--rule), 1px, low
+   contrast, tuned per theme (bright lines on black smear, so dark gets less contrast). */
 
 :root {
   --ground: #fff;
   --ink: #000;
   --ink-2: #595959;        /* secondary text only, 7:1 on white */
-  --hair: #c4c4c4;         /* hairlines only */
+  --rule: #dcdcdc;         /* the one line: connects row ends, ~1.4:1 on white */
   --fill-inverse: #000;    /* primary buttons, bars, current page */
   --on-inverse: #fff;
   --error: #c4000b;
   --band: #000;            /* masthead */
   --band-ink: #fff;
   --band-ink-2: #b3b3b3;
-  --band-rule: #000;       /* merges into the band in light */
+  --mast-edge: transparent; /* the black band needs no edge on white */
 
-  --heavy: 6px;
+  --section: 5.5rem;       /* space between sections: must beat every inner gap by far */
+  --head-gap: 1.1rem;      /* heading to its content: close, so the heading belongs to it */
   --gutter: 48px;
   --measure: 1280px;
 
@@ -29,14 +29,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #000;
-    --ink: #fff;
-    --ink-2: #a6a6a6;
-    --hair: #4a4a4a;
-    --fill-inverse: #fff;
-    --on-inverse: #000;
+    --ground: #0b0b0b;       /* not pure black, ink not pure white: less halation */
+    --ink: #f0f0f0;
+    --ink-2: #a0a0a0;
+    --rule: #262626;         /* ~1.35:1 — lower than light on purpose */
+    --fill-inverse: #f0f0f0;
+    --on-inverse: #0b0b0b;
     --error: #ff6b61;
-    --band-rule: #fff;
+    --band: #0b0b0b;         /* dark: the band sits on the page, one 1px edge */
+    --band-ink: #f0f0f0;
+    --band-ink-2: #a0a0a0;
+    --mast-edge: var(--rule);
   }
 }
 
@@ -55,7 +58,7 @@ a { color: inherit; }
 /* ---------- masthead ---------- */
 .mast {
   background: var(--band); color: var(--band-ink);
-  border-bottom: var(--heavy) solid var(--band-rule);
+  border-bottom: 1px solid var(--mast-edge);
 }
 .mast-in {
   max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter);
@@ -87,15 +90,16 @@ a { color: inherit; }
 .account .user { font-family: var(--mono); }
 .account a { color: var(--band-ink-2); }
 .account a:hover { color: var(--band-ink); }
-.nav + .account { margin-left: auto; }
+.nav + .account, .account.push { margin-left: auto; }
 
-/* ---------- bands: a printed register's divisions ---------- */
-.band { border-top: var(--heavy) solid var(--ink); padding: 1.1rem 0 3.5rem; }
-main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
-.band-last { border-bottom: var(--heavy) solid var(--ink); margin-bottom: 4rem; }
+/* ---------- sections: shaped by heading rank + space, no rules ---------- */
+.band, .resume { margin-top: var(--section); }
+main > .band:first-child { margin-top: 3rem; }
+main > .band:first-child + .resume { margin-top: 1.5rem; }
+main { padding-bottom: var(--section); }
 .band-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--head-gap);
 }
 .band-head h1 { margin: 0; font: 700 2.5rem/1.05 var(--serif); letter-spacing: -0.01em; }
 .band-head h2 { margin: 0; font: 700 2rem/1.1 var(--serif); letter-spacing: -0.01em; }
@@ -107,8 +111,9 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
   text-transform: uppercase; color: var(--ink-2); margin-bottom: 0.6rem;
 }
 
-/* two compartments side by side, each opened by its own heavy rule */
-.pair { display: grid; grid-template-columns: 1fr 1fr; column-gap: 4rem; }
+/* two sections side by side: the column gap is a section gap, so they read as two blocks */
+.pair { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--section); margin-top: var(--section); }
+.pair > .band { margin-top: 0; }
 
 /* quiet secondary figure: small, ink-2, tabular */
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -118,7 +123,7 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   font: 600 0.95rem/1 var(--sans); text-decoration: none; cursor: pointer;
-  padding: 0.8rem 1.3rem; border: 2px solid var(--ink); border-radius: 0;
+  padding: 0.8rem 1.3rem; border: 1px solid var(--ink); border-radius: 0;
   background: transparent; color: var(--ink);
 }
 .btn:hover { background: var(--fill-inverse); color: var(--on-inverse); }
@@ -127,29 +132,27 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 .btn-small { font-size: 0.85rem; padding: 0.5rem 0.9rem; border-width: 1px; }
 
 /* ---------- marks ---------- */
+/* a state mark is words, not a box */
 .mark {
-  display: inline-block; font: 600 0.68rem/1 var(--mono); letter-spacing: 0.14em;
-  text-transform: uppercase; padding: 0.25rem 0.4rem; vertical-align: 0.2em;
-  border: 1px dashed var(--ink); white-space: nowrap;
+  font: 500 0.72rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-2); white-space: nowrap; vertical-align: 0.15em;
 }
-.mark-later { border-style: solid; color: var(--ink-2); border-color: var(--ink-2); }
-/* mock annotation: this element exists only for archivists */
-.mark-role { border-style: solid; font-weight: 500; }
+.later-note { font: 400 1rem/1 var(--sans); color: var(--ink-2); margin-left: 0.5rem; letter-spacing: 0; }
 
 /* ---------- start: search ---------- */
 .search-big { display: flex; max-width: 56rem; }
 .search-big input {
   flex: 1; min-width: 0; font: 400 1.5rem/1 var(--sans); color: var(--ink);
-  background: var(--ground); border: 3px solid var(--ink); border-right: 0;
+  background: var(--ground); border: 1px solid var(--ink); border-right: 0;
   padding: 1rem 1.1rem; border-radius: 0;
 }
 .search-big input::placeholder { color: var(--ink-2); }
-.search-big .btn { font-size: 1.1rem; padding: 0 2rem; border-width: 3px; }
+.search-big .btn { font-size: 1.1rem; padding: 0 2rem; }
 
 /* ---------- start: Bestände (one column register) ---------- */
 .register { list-style: none; margin: 0; padding: 0; }
-.register li { border-top: 1px solid var(--hair); }
-.register li:last-child { border-bottom: 1px solid var(--hair); }
+/* lines only BETWEEN rows: they tie name to count; list edges are ended by space */
+.register li + li { border-top: 1px solid var(--rule); }
 .register a {
   display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
   padding: 0.72rem 0; text-decoration: none;
@@ -163,28 +166,25 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
   display: grid; grid-template-columns: 5.5rem 1fr 2.75rem; align-items: center; gap: 0.9rem;
   padding: 0.34rem 0; text-decoration: none; font: 500 0.85rem/1 var(--mono);
 }
-.zeit .bar { height: 1px; width: max(2px, calc(var(--v) * 100%)); background: var(--fill-inverse); }
+.zeit .bar { height: 3px; width: max(3px, calc(var(--v) * 100%)); background: var(--ink-2); }
 .zeit .count { text-align: right; }
 .zeit a:hover .label { text-decoration: underline; text-underline-offset: 0.2em; }
-/* Unbekannt: set apart by space and a hairline, its mark dashed — not a decade */
-.zeit .unk { border-top: 1px solid var(--hair); margin-top: 0.7rem; padding-top: 0.45rem; }
+/* Unbekannt: not a decade — set apart by space only */
+.zeit .unk { margin-top: 1rem; }
 .zeit .unk .label { color: var(--ink-2); }
-.zeit .unk .bar { background: transparent; border-top: 1px dashed var(--ink); height: 0; }
 .zeit-note { color: var(--ink-2); font-size: 0.85rem; margin: 0.6rem 0 0; }
 
 /* ---------- compact ruled lines (Entwürfe, Zuletzt, onward links) ---------- */
-.band-tight { padding-bottom: 2.5rem; }
 /* resume line: the archivist's drafts as one quiet sentence under the search, no band */
-.resume { padding: 0 0 2.5rem; font: 400 1rem/1.6 var(--sans); color: var(--ink-2); }
+.resume { font: 400 1rem/1.6 var(--sans); color: var(--ink-2); }
 .resume h2 { display: inline; font: inherit; margin: 0 0.6rem 0 0; }
 .resume ul { display: inline; list-style: none; margin: 0; padding: 0; }
 .resume li { display: inline; }
 .resume li + li::before { content: " · "; color: var(--ink-2); }
-.resume a { color: var(--ink); font-family: var(--serif); font-size: 1.1rem; text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 0.2em; }
+.resume a { color: var(--ink); font-family: var(--serif); font-size: 1.1rem; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.2em; }
 .resume a:hover { text-decoration-color: currentColor; }
 .lines { list-style: none; margin: 0; padding: 0; }
-.lines li { border-top: 1px solid var(--hair); }
-.lines li:last-child { border-bottom: 1px solid var(--hair); }
+.lines li + li { border-top: 1px solid var(--rule); }
 .lines a {
   display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 1rem; align-items: baseline;
   padding: 0.6rem 0; text-decoration: none;
@@ -196,22 +196,21 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 .band-head h2 .mark { margin-left: 0.6rem; }
 
 /* ---------- start: future compartments ---------- */
-.later { border-top-style: dashed; padding-bottom: 2.5rem; }
 .later .band-head { margin-bottom: 0.4rem; }
 .later h2 { color: var(--ink-2); }
 .later .what { margin: 0 0 1rem; color: var(--ink-2); font-size: 0.9rem; }
 .later ol { list-style: none; margin: 0; padding: 0; }
 .later li {
   display: flex; justify-content: space-between; gap: 1rem; align-items: baseline;
-  border-top: 1px dashed var(--hair); padding: 0.7rem 0; color: var(--ink-2);
+  padding: 0.7rem 0; color: var(--ink-2);
   font: 400 1.05rem/1.35 var(--serif);
 }
-.pair-last { border-bottom: var(--heavy) solid var(--ink); margin-bottom: 4rem; }
+.later li + li { border-top: 1px solid var(--rule); }
 
 /* ---------- archiv: filters + table ---------- */
 .filters {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem;
-  padding-bottom: 1.1rem; border-bottom: 1px solid var(--hair); margin-bottom: 1.4rem;
+  margin-bottom: 2rem;
 }
 .filters .label { font: 500 0.75rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
 .chip {
@@ -232,34 +231,35 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 
 .results { width: 100%; border-collapse: collapse; }
 .results th {
-  font: 500 0.72rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ink-2); text-align: left; padding: 0 1.25rem 0.6rem 0;
-  border-bottom: 1px solid var(--ink);
+  font: 400 0.9rem/1.2 var(--sans); color: var(--ink-2); text-align: left;
+  padding: 0 1.25rem 0.8rem 0;
 }
-.results td {
-  padding: 0.7rem 1.25rem 0.7rem 0; border-bottom: 1px solid var(--hair); vertical-align: baseline;
-}
+/* rows tied across their columns; the header row and the table edges get none */
+.results td { padding: 0.7rem 1.25rem 0.7rem 0; vertical-align: baseline; }
+.results tbody tr + tr td { border-top: 1px solid var(--rule); }
 .results td.sig { font: 400 0.9rem/1.4 var(--mono); color: var(--ink-2); white-space: nowrap; width: 6.5rem; padding-right: 0; }
 .results .titel a { text-decoration: none; }
 .results .titel a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
 .results .titel .mark { margin-left: 0.6rem; }
-.results .dat { font: 400 0.9rem/1.4 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; width: 8rem; }
+.results .dat { font: 400 0.9rem/1.4 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; width: 8rem; color: var(--ink-2); }
 .results .typ { color: var(--ink-2); font-size: 0.9rem; width: 9rem; }
 
 .pager {
-  display: flex; align-items: center; gap: 0.35rem; margin-top: 2rem; flex-wrap: wrap;
-  font: 500 0.95rem/1 var(--mono);
+  display: flex; align-items: baseline; gap: 2rem; margin-top: 2rem; flex-wrap: wrap;
+  font: 400 0.95rem/1 var(--sans);
 }
-.pager a, .pager span {
-  min-width: 2.5rem; height: 2.5rem; display: inline-flex; align-items: center;
-  justify-content: center; text-decoration: none; padding: 0 0.6rem;
-}
-.pager a { border: 1px solid var(--hair); }
-.pager a:hover { border-color: var(--ink); }
-.pager [aria-current] { background: var(--fill-inverse); color: var(--on-inverse); }
-.pager .step { font-family: var(--sans); font-weight: 600; border: 1px solid var(--ink); }
-.pager .step[aria-disabled] { color: var(--ink-2); border-color: var(--hair); }
-.pager .next { margin-left: auto; }
+.pager .range { margin-right: auto; color: var(--ink-2); }
+.pager .range .num { color: var(--ink); font-family: var(--mono); }
+.pager .step { font-weight: 600; text-decoration: none; }
+.pager a.step:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.pager .step[aria-disabled] { color: var(--ink-2); font-weight: 400; }
+
+/* sorting lives on the column heads: the active one carries the direction, others show it on hover */
+.results .sort { color: inherit; text-decoration: none; display: inline-flex; gap: 0.35rem; align-items: baseline; }
+.results .sort::after { content: "↕"; opacity: 0; font-family: var(--sans); letter-spacing: 0; }
+.results .sort:hover::after, .results .sort:focus-visible::after { opacity: 1; }
+.results th[aria-sort="ascending"] .sort::after { content: "↑"; opacity: 1; }
+.results th[aria-sort="descending"] .sort::after { content: "↓"; opacity: 1; }
 
 /* ---------- artikel ---------- */
 .crumbs { font-size: 0.9rem; color: var(--ink-2); padding: 1.4rem 0 1.1rem; }
@@ -267,7 +267,8 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 .art-head { margin-bottom: 1.75rem; }
 .art-head h1 { margin: 0 0 1.1rem; font: 700 3rem/1.08 var(--serif); letter-spacing: -0.015em; max-width: 30ch; }
 .facts { margin: 2rem 0 0; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 2rem; }
-.facts div { border-top: 1px solid var(--hair); padding: 0.8rem 0 1.1rem; }
+/* facts stack label over value — nothing to tie across, so no lines */
+.facts div { padding: 0.8rem 0 1.1rem; }
 .facts dt { font: 500 0.72rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 0.45rem; }
 .facts dd { margin: 0; font-size: 1.05rem; }
 .facts .wide { grid-column: span 2; }
@@ -275,11 +276,11 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 .facts dd.num { font-size: 0.95rem; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
 .tile {
-  aspect-ratio: 4 / 3; border: 1px solid var(--ink); display: flex; align-items: flex-end;
+  aspect-ratio: 4 / 3; border: 1px solid var(--rule); display: flex; align-items: flex-end;
   padding: 0.7rem; font: 500 0.75rem/1.3 var(--mono); letter-spacing: 0.06em; color: var(--ink-2);
   background:
-    linear-gradient(to top right, transparent calc(50% - 0.5px), var(--hair) 50%, transparent calc(50% + 0.5px)),
-    linear-gradient(to top left, transparent calc(50% - 0.5px), var(--hair) 50%, transparent calc(50% + 0.5px));
+    linear-gradient(to top right, transparent calc(50% - 0.5px), var(--rule) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(to top left, transparent calc(50% - 0.5px), var(--rule) 50%, transparent calc(50% + 0.5px));
 }
 .tile.lead { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
 .tile b { color: var(--ink); font-weight: 600; display: block; }
@@ -294,7 +295,7 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
 
 /* ---------- phone ---------- */
 @media (max-width: 720px) {
-  :root { --gutter: 16px; --heavy: 5px; }
+  :root { --gutter: 16px; --section: 3.5rem; }
   .mast-in { flex-wrap: wrap; gap: 0.5rem 1.25rem; padding-top: 0.9rem; padding-bottom: 0.9rem; }
   .wordmark { font-size: 1.3rem; }
   .account { order: 2; margin-left: auto; font-size: 0.85rem; }
@@ -302,34 +303,64 @@ main > .band:first-child { border-top: 0; padding-top: 2.5rem; }
   .mast-search { order: 4; flex-basis: 100%; margin-left: 0; }
   .mast-search input { flex: 1; width: auto; min-width: 0; }
 
-  .band { padding-bottom: 2.5rem; }
-  main > .band:first-child { padding-top: 1.75rem; }
-  .band-head { margin-bottom: 1.1rem; }
+  main > .band:first-child { margin-top: 1.75rem; }
   .band-head h1 { font-size: 1.9rem; }
   .band-head h2 { font-size: 1.6rem; }
 
-  .search-big input { font-size: 1.1rem; padding: 0.85rem; border-width: 2px; }
-  .search-big .btn { padding: 0 1rem; border-width: 2px; }
+  .search-big input { font-size: 1.1rem; padding: 0.85rem; }
+  .search-big .btn { padding: 0 1rem; }
 
-  .pair { grid-template-columns: 1fr; }
+  .pair { grid-template-columns: 1fr; row-gap: var(--section); }
   .lines a { grid-template-columns: 1fr auto; gap: 0.2rem 1rem; }
   .lines .title { grid-column: 1 / -1; grid-row: 2; }
-  .band-tight { padding-bottom: 2rem; }
-  .later { padding-bottom: 2rem; }
 
   .filters .facets { margin-left: 0; }
   .results thead { display: none; }
-  .results tr { display: grid; grid-template-columns: 1fr auto; border-bottom: 1px solid var(--hair); padding: 0.75rem 0; }
+  .results tr { display: grid; grid-template-columns: 1fr auto; padding: 0.75rem 0; }
+  .results tbody tr + tr { border-top: 1px solid var(--rule); }
+  .results tbody tr + tr td { border-top: 0; }
   .results td { border: 0; padding: 0; width: auto !important; }
   .results .titel { grid-column: 1 / -1; grid-row: 1; margin-bottom: 0.3rem; font-size: 1rem; }
   .results .dat { grid-row: 2; grid-column: 1; font-size: 0.85rem; }
   .results .typ { grid-row: 2; grid-column: 2; font-size: 0.85rem; text-align: right; }
   .results .sig { grid-row: 3; grid-column: 1 / -1; font-size: 0.8rem; }
-  .pager .num-far { display: none; }
+
 
   .art-head { grid-template-columns: 1fr; }
   .art-head h1 { font-size: 2rem; }
   .tile.lead { grid-column: 1 / -1; grid-row: auto; aspect-ratio: 4 / 3; }
   .facts .wide { grid-column: 1 / -1; }
   .tiles { gap: 0.75rem; }
+}
+
+/* ---------- archiv: the heading IS the search sentence ----------
+   "Suche [field] in Gruppen des DPB · alle Jahrzehnte · jeder Typ  + Filter" — one face, one
+   size. The field is the one real input (primary action). A set filter is ink, an open one
+   quieter; removal lives in the slot's menu ("alle …"), so no trailing ×. Centre dots separate
+   filters; no chevrons. */
+.scope {
+  margin: 3rem 0 2.25rem; display: flex; flex-wrap: wrap; align-items: baseline;
+  column-gap: 0.6rem; row-gap: 0.5rem; font: 400 1.25rem/1.4 var(--sans); color: var(--ink-2);
+}
+.scope .field {
+  flex: 1 1 18rem; max-inline-size: 26rem; font: inherit; color: var(--ink); background: transparent;
+  border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; padding: 0.2rem 0;
+}
+.scope .field::placeholder { color: var(--ink-2); }
+.scope .filters { display: inline-flex; flex-wrap: wrap; align-items: baseline; }
+.scope .slot { font: inherit; color: var(--ink-2); background: none; border: 0; padding: 0; cursor: pointer; }
+.scope .slot.set { color: var(--ink); }
+.scope .slot:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.scope .filters .slot + .slot::before { content: "·"; display: inline-block; margin-inline: 0.15rem 0.55rem; color: var(--ink-2); }
+.scope .add { margin-inline-start: 0.9rem; }
+.scope .more { display: none; }
+
+/* S: the field takes its own line; one primary filter stays in the sentence, the others fold
+   behind "Filter" (phone space budget: filters are folded, never open by default) */
+@media (max-width: 720px) {
+  .scope { margin-top: 1.75rem; font-size: 1.1rem; column-gap: 0.45rem; }
+  .scope .label { display: none; }
+  .scope .field { flex: 1 1 100%; max-inline-size: none; }
+  .scope .minor, .scope .add { display: none; }
+  .scope .more { display: inline; }
 }
