@@ -742,3 +742,10 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 - **Edit-form recompose:** section order E1 (Kerndaten → Beschreibung → Einordnung → Herkunft →
   Medien → Zugriff → Weitere Angaben, all open); the large Titel field is the page heading.
   Runs after Wave C.
+- **Navigation architecture (2026-09-27).** Destinations: start, one list, article, the forms,
+  door. Everything people pick (Bestand, decade, type, search, Zuletzt, Meine Entwürfe) is a
+  preset of the one list; the start page is a composition of presets. Top bar: wordmark,
+  "+ Neu …" for archivists, Abmelden — no account name, no "Archiv"/"Bestände" items, no new
+  Werkstatt screen. Breadcrumbs on article and form pages show where the article lives; the way
+  back to a search is browser Back. New start-page compartment: by type. Highlights later, as
+  curated pinned articles — not important now.

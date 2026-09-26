@@ -50,6 +50,23 @@ rules, owned components from Wave C). These rules replace its *contents*.
   S: the field takes its own line, one primary filter stays, the rest fold behind "Filter".
 - **Column heads** in sans, title case — no mono capitals anywhere as a label voice.
 
+## 1b. Navigation architecture (owner, 2026-09-27)
+
+Destinations are few: **start · one list · article · forms (edit, new, bulk) · door.**
+
+| Rule | Intention | Gain | Cost | Boundary |
+| --- | --- | --- | --- | --- |
+| **Targets are presets of the one list** (Bestand, decade, type, search, Zuletzt, Meine Entwürfe, Unsortiert, later Papierkorb / Eingangskiste) | what people pick is a scope, not a place; one list page serves every scope | one pattern to learn; every preset is a URL; new "targets" cost no new screen | every preset must be expressible in the search sentence (Meine Entwürfe needs secondary filters; sort-only presets like Zuletzt need a visible sort) | curated content with its own text is not a preset |
+| **The start page is a composition of presets** | it only decides which preset families deserve a compartment | simple page; cost/gain per compartment | the start page carries all "browse" discovery | — |
+| **Top bar: wordmark · "+ Neu …" (archivists) · Abmelden** | wordmark = home; one create entry findable from anywhere; logout on shared machines | nothing to decode for members | no visible "browse" item — the start page must guide | no account name (users know who they are); no "Archiv"/"Bestände" items (not destinations); no Werkstatt (a new screen for jobs that have a place in context) |
+| **Breadcrumbs show the place, not the path** | where the article lives in the archive; each step opens the scoped list | orientation + a way onward | — | none on start (root) or list (the sentence is the location). The way back to a search is browser Back (URL keeps the state), no second back link |
+
+Start-page compartments: search · Bestände · Zeitleiste (L) · **by type** (new) · Zuletzt hinzugefügt
+(hidden while all dates are the import date) · "Weiter bearbeiten" (archivists) · later Highlights =
+curated pinned articles (not now).
+
+Open: compact header search on article pages.
+
 ## 2. Space budget — three sizes
 
 Sizes are container widths, not device names: **S** < 40rem (phone), **M** 40–80rem,
