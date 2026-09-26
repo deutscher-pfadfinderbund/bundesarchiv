@@ -44,7 +44,8 @@ ROW1_BEVEL = ("c-sig",)
 #: legitimately embed primary at the token layer. Selector substrings that license var(--primary).
 PRIMARY_LICENSED = (
     ".c-sig-code",  # the Signatur code (row 2, named)
-    "a",  # inline links (row 2, named) — element default + link-styled buttons
+    ".signatur",  # the Signatur input (row 2: the Signatur code; _FIELDS.fit)
+    "a",  # inline links (row 2, named)
     ".datierung",  # ledger mono date cells (row 2: mono dates)
     "dd.mono",  # detail record-card mono machine values (row 2: mono dates)
     ".filmstrip h2 span",  # the mono Blatt count (row 2: mono counts)
@@ -382,7 +383,14 @@ def test_corner_shape_only_on_register_row_1_selectors() -> None:
 
 
 def _licensed(selector: str, allowlist: tuple[str, ...]) -> bool:
-    return any(lic in selector for lic in allowlist)
+    """An entry is a selector substring; one that starts with an element name (`a`, `dd.mono`)
+    matches only as that element, never inside a class name (`.facts`)."""
+    return any(
+        re.search(rf"(?<![-\w.#]){re.escape(lic)}(?![-\w])", selector)
+        if lic[0].isalpha()
+        else lic in selector
+        for lic in allowlist
+    )
 
 
 def test_loud_roles_only_in_licensed_selectors() -> None:
