@@ -56,7 +56,9 @@ states before and after (GET, error, conflict, each overlay), normalize CSRF
 tokens and whitespace, diff — expect 0 lines and report the count. Write the
 throwaway harness as `tests/…/_zz_snapshot.py`: the `_zz_` name keeps it out of
 `python_files` so `mise run check` never collects it, while
-`uv run pytest <path>` still runs it explicitly. Verify the dump is
+`uv run pytest <path>` still runs it explicitly. `ruff format --check` still
+sees it, so run `ruff format` on it. A harness that needs no pytest fixture
+(a Pillow gallery diff) lives outside the tree instead. Verify the dump is
 deterministic (two identical pre-runs), then delete the harness.
 
 ## An unexpected red is a STOP, not a patch site
