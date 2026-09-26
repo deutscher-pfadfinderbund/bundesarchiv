@@ -73,9 +73,9 @@ _VIEWER_SALT = "viewer"
 #: Keycloak (ADR 0018). ``v3``: the OIDC callback stopped minting this cookie.
 _VIEWER_FORMAT_VERSION = "v3"
 
-#: Per-tier cookie lifetimes (ADR 0018): archivists work on shared machines and re-authenticate
-#: every other day; members stay signed in for a month. Enforced on read, not only offered to the
-#: browser. The member window is also the OUTER bound — no viewer cookie verifies beyond it.
+#: Per-tier lifetimes of a MINTED Viewer cookie (the capability-link seam); OIDC logins follow the
+#: realm's offline session instead (ADR 0018). Enforced on read, not only offered to the browser.
+#: The member window is also the OUTER bound — no viewer cookie verifies beyond it.
 _ARCHIVIST_MAX_AGE = 48 * 60 * 60
 _MEMBER_MAX_AGE = 30 * 24 * 60 * 60
 

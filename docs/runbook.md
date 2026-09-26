@@ -142,38 +142,38 @@ changed FTS config version, and an empty index is not stale.
 
 ## Authentication (Keycloak OIDC) — ADR 0018
 
-Login is OIDC against the DPB Keycloak realm, ending in one signed Viewer
-cookie. No sessions, no user table, nothing to migrate. Every setting is
-optional in code and falls closed: with any of them missing nobody can log in,
-and the anonymous gate turns every request into a redirect to a login that
-answers 404. A half-configured deploy authenticates nobody — it never falls open.
+Login is OIDC against the DPB Keycloak realm. The browser keeps Keycloak's
+access token and offline refresh token in two cookies; the server stores no
+token, no session, no user table. Every setting is optional in code and falls
+closed: with any of them missing nobody can log in, and the anonymous gate turns
+every request into a redirect to a login that answers 404. A half-configured
+deploy authenticates nobody — it never falls open.
 
-**Serve over HTTPS.** Both cookies are `Secure`. Over plain http the login
+**Serve over HTTPS.** The cookies are `Secure`. Over plain http the login
 appears to succeed and the very next request is anonymous again.
 
-- `BUNDESARCHIV_VIEWER_SIGNING_KEY` — signs the Viewer cookie and the transient
-  login cookie. Generate one per deployment:
+- `BUNDESARCHIV_VIEWER_SIGNING_KEY` — signs the transient login cookie (and,
+  later, the capability-link Viewer cookie). Generate one per deployment:
   `python -c "import secrets; print(secrets.token_urlsafe(64))"`. Never
-  `SECRET_KEY`, never the dev key. **Rotation = replace it and restart**, which
-  stops every outstanding cookie from verifying: everybody is signed out. That
-  is also the emergency lever when an archivist must lose access before their
-  48h are up (the other one is bumping `_VIEWER_FORMAT_VERSION` in
-  `app/web/viewers.py`).
-- `BUNDESARCHIV_OIDC_ISSUER` — `https://auth.deutscher-pfadfinderbund.de/realms/<realm>`
-  (the realm name arrives at smoke time). It must equal the `iss` in the ID
-  token exactly; the app reads `<issuer>/.well-known/openid-configuration` once
-  per process and keeps it, so a re-pointed issuer needs a restart. A discovery
-  fetch that FAILS is never kept: a realm that was restarting during one login
-  is retried at the next, not remembered for the life of the process.
+  `SECRET_KEY`, never the dev key. **Rotation = replace it and restart.** It
+  does not sign anybody out of an OIDC login.
+- `BUNDESARCHIV_OIDC_ISSUER` — `https://auth.deutscher-pfadfinderbund.de/realms/master`.
+  It must equal the `iss` in the tokens exactly; the app reads
+  `<issuer>/.well-known/openid-configuration` once per process and keeps it, so
+  a re-pointed issuer needs a restart. A discovery fetch that FAILS is never
+  kept: a realm that was restarting during one login is retried at the next,
+  not remembered for the life of the process.
 - `BUNDESARCHIV_OIDC_CLIENT_ID` / `BUNDESARCHIV_OIDC_CLIENT_SECRET` — the
-  confidential client and its secret.
+  confidential client `bundesarchiv` and its secret.
 
 The anonymous gate itself is a settings constant, on in production and off only
 in `settings_dev` — deliberately not env-tunable.
 
-### Keycloak client checklist
+**Emergency revocation of a person:** in Keycloak, disable the user or revoke
+their offline session for `bundesarchiv`. The next refresh fails, at the latest
+after the realm's access token lifespan (1 minute).
 
-Values in `<…>` arrive at smoke time.
+### Keycloak client checklist
 
 - Client `bundesarchiv`: **client authentication on** (confidential), standard
   flow on, direct access grants off, service accounts off.
@@ -181,19 +181,28 @@ Values in `<…>` arrive at smoke time.
   The app sends this URI in both the authorize and the token request; a
   mismatch is a refused login.
 - Valid post-logout redirect URI: `https://<host>/`.
-- **Roles mapper: the `roles` client scope assigned, with its realm-roles mapper
-  set to "Add to ID token".** The app validates the ID token, not userinfo.
-  Without this every archivist logs in as a plain Member.
+- **Role scope:** Client scopes → `bundesarchiv-dedicated` → Scope: only the
+  realm roles `Bundesarchiv` and `offline_access`, "Full scope allowed" off. The
+  access token sits in a cookie and carries no role the app does not read.
 - Realm role **`Bundesarchiv`** exists and is assigned to the archivists.
   Renaming it in Keycloak revokes archivist access here (`ARCHIVIST_REALM_ROLE`
   in `app/web/oidc.py`).
-- **Username mapper: the `profile` client scope assigned, with its `username`
-  mapper set to "Add to ID token".** It puts `preferred_username` into the
-  token: the name each saved version records (ADR 0019). Without it every
-  archivist silently logs in as `unbekannt`.
-- Requested scope is `openid profile`. Group visibility (later) needs its own
-  `groups` mapper **into the ID token**, claim name `groups` — Keycloak
-  configuration, no code change.
+- **Mappers in `bundesarchiv-dedicated`, each "Add to access token" on:**
+  - realm roles → `realm_access.roles`. Without it every archivist logs in as a
+    plain Member.
+  - **Audience** (Add mapper → By configuration → Audience), Included Client
+    Audience `bundesarchiv`. Without it every token check fails and nobody can
+    log in.
+  - **Group Membership**, claim `groups`.
+- Client scopes: `profile` default (it carries `preferred_username`, the name
+  each saved version records, ADR 0019; without it every archivist logs in as
+  `unbekannt`), `email` optional, `offline_access` optional.
+- Realm: "Revoke Refresh Token" off (two parallel refreshes must both succeed);
+  offline session idle 30 days.
+- Requested scope is `openid profile offline_access`.
+- Check: Client scopes → Evaluate → a user → Generated access token. `aud`
+  contains `bundesarchiv`, `realm_access.roles` holds at most the two roles,
+  `groups` and `preferred_username` are present.
 
 ### Smoke test: one real login per realm change
 
@@ -206,16 +215,14 @@ encode our own assumptions (ADR 0018, "Testing").
    missing create menu means the login worked and the roles mapper did not.
 3. Log in as a **non-archivist** → the workbench without "+ Neu …" but WITH
    "Abmelden": the sign-out belongs to everyone who is signed in.
-4. **Abmelden** → Keycloak asks to CONFIRM the logout. That prompt is expected:
-   the app stores no tokens, so it sends no `id_token_hint` and Keycloak will
-   not end a session unasked. Confirm → back at the login screen; going back in
-   the browser must not restore the session. Walking away WITHOUT confirming
-   leaves the SSO session alive (the local cookie is already gone), so the next
-   person on that machine is signed straight back in as the last one — the one
-   gap in the shared-computer story, ADR 0018 "Logout".
+4. Stay idle longer than 1 minute, then click anything → still signed in (the
+   server refreshed the access token).
+5. **Abmelden** → no Keycloak confirmation page, back at the login screen; going
+   back in the browser must not restore the session, and the next login asks
+   for the password.
 
-Cookie lifetimes are 48h for an archivist and 30d for a member, enforced when
-the cookie is read. There is no server-side revocation between those two levers.
+A login lasts 30 days without use — the realm's offline session idle — for
+Members and Archivists alike.
 
 ## Search index (Postgres)
 
