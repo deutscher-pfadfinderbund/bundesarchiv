@@ -1,67 +1,110 @@
-# Authentication: Keycloak OIDC, one signed Viewer cookie
+# Authentication: Keycloak OIDC, tokens held by the browser
 
-**Status (2026-08-30): the OIDC path is built** — deployment 1 has real login.
-The second login path is **capability links** (designed, deferred); they
-supersede the app-local guest passwords this ADR originally specified (owner,
-2026-08). The file name keeps the old title for link stability.
+**Status.** Built 2026-08-30: OIDC login that minted one signed Viewer cookie.
+Reworked 2026-09-26 (owner): an OIDC login keeps Keycloak's tokens in the
+browser and the server refreshes them. The rework is not built yet. The second
+login path is **capability links** (designed, deferred); they supersede the
+app-local guest passwords this ADR first specified (owner, 2026-08). The file
+name keeps the old title for link stability.
 
-Personal DPB accounts authenticate via **OpenID Connect against the existing DPB
-Keycloak realm** (authorization-code flow, implemented with **authlib**'s httpx
-client). Visitors without a personal account will authenticate via a
-**capability link** whose token mints the same cookie (revocation = revoke the
-token). Both paths end the same way: the app mints the **signed Viewer cookie**
-that `viewer_of` resolves fail-closed — tampered, expired, or absent collapses
-to `Public`, exactly as before.
+## Context
 
-There are **no Django sessions, no `django.contrib.auth`, and no stored
-tokens**. The domain authorizes via `Viewer`, so a `User` model would be a
-second identity system ending in the same mapping. OIDC is used purely as an
-authentication event: callback → validated claims → cookie. The transient
-`state`/`nonce` ride a short-lived signed cookie across the redirect.
+The first design turned a login into one signed Viewer cookie: 30 days for a
+Member, 48 hours for an Archivist. Two gaps followed from it:
 
-## What is built
+- **Changes in Keycloak arrived late.** A person removed from a group, demoted,
+  or disabled kept the cookie's rights until it expired: up to 30 days.
+- **Logout needed a confirmation.** The app kept no ID token, so the
+  end-session redirect carried no `id_token_hint`, and Keycloak asked the user
+  to confirm. An unconfirmed logout left the Keycloak session alive, and on a
+  shared computer the next person was signed back in as the last one.
 
-| Piece | Module |
-|---|---|
-| Claims → `Viewer`, a pure function | `app/web/oidc.py` |
-| Mint and verify the cookie | `app/web/viewers.py` (`mint_viewer_cookie`, `viewer_of`) |
-| `GET /login`, `GET /oidc/callback`, `POST /logout` | `app/web/auth_views.py` |
-| The realm adapter — the only authlib/httpx lines | `app/web/keycloak.py` |
-| The anonymous gate, one middleware | `app/web/anonymous_gate.py` |
-| Settings and the deploy checklist | `index/settings.py`, `docs/runbook.md` |
+"No stored tokens" meant: the server stores none (owner, 2026-09-26). Tokens
+held by the browser are within that rule.
 
-Not built, deliberately: capability links, Keycloak group mapping beyond the
-forward-compatible `groups` parse, kiosk mode, the audit trail. *(Amended 2026-09-25: the
-audit trail is built, as ADR 0019's version history with `changed_by`.)*
+## Decision
+
+Personal DPB accounts log in via **OpenID Connect against the DPB Keycloak
+realm** (authorization-code flow, confidential client `bundesarchiv`,
+**authlib**'s httpx client).
+
+- **The browser holds the tokens.** After the callback, Keycloak's access
+  token and its **offline** refresh token (scope `openid profile
+  offline_access`) go into two cookies: `HttpOnly`, `Secure`, `SameSite=Lax`.
+  The server stores no token, no session, no user row.
+- **Every request checks the access token.** The signature against the realm's
+  keys, the algorithm pinned to `RS256`, `iss` equal to the configured issuer,
+  `aud` containing `bundesarchiv`, and `exp`. The realm is shared with other DPB
+  apps and signs their tokens with the same keys, so a check without `aud` would
+  accept another app's token. The claims then pass through the existing pure
+  claims→Viewer mapping.
+- **The server refreshes.** A request whose access token has expired uses the
+  refresh cookie at Keycloak's token endpoint, sets both cookies anew on the
+  response, and resolves the Viewer from the new token. A failed refresh, and
+  any token that fails a check, resolves to `Public`.
+- **Keycloak's changes take effect at the next refresh**, bounded by the realm's
+  access token lifespan (1 min on 2026-09-26). This covers a lost group, a lost
+  `Bundesarchiv` role, and a disabled account.
+- **A login lasts 30 days without use**, for Members and Archivists alike
+  (owner, 2026-09-26). The limit is the realm's offline session idle (30 days,
+  no maximum, on 2026-09-26), not a cookie lifetime of ours.
+- Capability links (deferred) keep the signed Viewer cookie, keyed by
+  `BUNDESARCHIV_VIEWER_SIGNING_KEY`. So does the transient `state`/`nonce`
+  cookie across the login redirect.
+
+Why the server refreshes and not the browser:
+
+- To refresh, a script must read the refresh token, so it could not be
+  `HttpOnly`, and one XSS would steal a 30-day offline token.
+- Links, form posts, images and media requests carry no `Authorization` header,
+  so the server needs the token in a cookie anyway.
+- The first request after a pause always arrives with an expired access token;
+  the server must handle that case in any design.
+
+## Realm contract
+
+External configuration the app depends on. A change to any of it is a change
+to this ADR.
+
+- **Role scope of `bundesarchiv`:** only the realm roles `Bundesarchiv` and
+  `offline_access`. The access token sits in a cookie, so it must carry no role
+  the app does not read.
+- **Mappers in `bundesarchiv-dedicated`:** an audience mapper for
+  `bundesarchiv`; `realm_access.roles`; a Group Membership mapper, claim
+  `groups`; all into the access token.
+- **`offline_access`** is an optional client scope of `bundesarchiv` and a
+  default realm role.
+- **Refresh token rotation ("Revoke Refresh Token") stays off.** Two requests
+  that refresh at once (two tabs, parallel htmx requests) then both succeed.
+  With rotation on, the second would fail and sign the user out.
+- **Group names are an external contract.** An article audience naming a group
+  nobody carries matches nobody (fail-closed). No sync or validation against
+  Keycloak.
 
 ## Claims contract
 
-| Login | Source | Viewer | Cookie lifetime |
-|---|---|---|---|
-| OIDC, realm role `Bundesarchiv` | `realm_access.roles` (roles client-scope mapped into the ID token) + `preferred_username` (profile client scope, ID token) | `Archivist(username)`, `unbekannt` when absent (ADR 0019) | 48h |
-| OIDC, any other realm user | authentication itself, plus a `groups` claim when the realm maps one | `Member(groups=…)`, `()` when absent | 30d |
-| Capability link (deferred) | the link's token | `Member(groups=<token>)` | the token's own expiry |
-| none / invalid | — | `Public` | — |
+| Login | Source (access token) | Viewer |
+|---|---|---|
+| OIDC, realm role `Bundesarchiv` | `realm_access.roles`, `preferred_username` | `Archivist(username)`, `unbekannt` when absent (ADR 0019) |
+| OIDC, any other realm user | `groups` | `Member(groups=…)`, `()` when absent |
+| Capability link (deferred) | the link's token | `Member(groups=<token>)` |
+| none / invalid / refresh failed | — | `Public` |
 
-Both lifetimes are enforced **on read**, not merely offered to the browser: an
-archivist cookie past 48h resolves to `Public` even though the member window has
-not run out.
-
-The cookie carries the format version and the encoded viewer. Since format `v2`
-(2026-09-25) an archivist's viewer includes the Keycloak username, the
-`changed_by` of ADR 0019. The cookie is signed, not encrypted: whoever holds it
-can read that name. A Member's cookie carries no name. `Archivist` and `Member`
-stay inert value objects.
+`Archivist` and `Member` stay inert value objects.
 
 Consequences accepted deliberately:
 
-- **No server-side revocation.** A minted cookie is valid until expiry; a
-  demoted archivist keeps power for at most 48h. Emergency invalidation = bump
-  the cookie format version (`_VIEWER_FORMAT_VERSION`), which invalidates every
-  outstanding cookie at once. Capability-link revocation = revoke the token.
-- **Group names are an external contract.** An article audience naming a group
-  nobody carries simply matches nobody (fail-closed, unchanged domain
-  semantics). No sync or validation against Keycloak.
+- **The access-token cookie is readable by whoever holds it.** It carries the
+  username and the name from the `profile` scope (the `email` scope is optional
+  and not requested). `HttpOnly` keeps it from scripts.
+- **A forgotten logout on a shared computer** leaves a 30-day login, an
+  Archivist's included (owner, 2026-09-26).
+- **Each active user causes one refresh call per access token lifespan.**
+  Keycloak runs on the same server; its outage takes the app down with it and
+  is not a failure mode of its own (owner, 2026-09-26).
+- **Emergency revocation happens in Keycloak:** disable the user or revoke
+  their offline session, and the next refresh fails. Rotating
+  `BUNDESARCHIV_VIEWER_SIGNING_KEY` no longer signs anybody out of an OIDC login.
 
 ## Unauthenticated requests: the anonymous gate
 
@@ -93,32 +136,28 @@ viewer-switcher.
 
 ## Logout
 
-Both layers from day one, because shared computers (group rooms, archive
-workstations) are the normal case:
+Shared computers (group rooms, archive workstations) are the normal case, so a
+logout ends the Keycloak session as well as ours:
 
-- Local: delete the Viewer cookie.
-- OIDC users additionally redirect through Keycloak's `end_session_endpoint` —
-  otherwise the still-alive SSO session silently re-logs the previous person in
-  on the next click.
+1. Refresh once, for a current ID token.
+2. Revoke the offline token at the realm's `revocation_endpoint`.
+3. Redirect to the `end_session_endpoint` with that `id_token_hint`, so Keycloak
+   ends its browser session without asking.
+4. Delete both token cookies.
 
-The sign-out is offered to every signed-in viewer, Member included — it is not
-archivist chrome. A Member's cookie is the longer-lived of the two tiers, so the
-tier with the most to leave behind on a shared machine must be the one that can
-end it.
+Logout is the one route here that does **not** fail closed: when a Keycloak
+step fails, the cookies still go, because refusing to sign somebody out is not
+a safe failure. The sign-out is offered to every signed-in viewer, Member
+included.
 
-**Open point.** Because the app stores no tokens, the end-session redirect
-carries no `id_token_hint`, and Keycloak then asks the user to *confirm* the
-logout instead of ending the session. An unconfirmed logout leaves the SSO
-session alive while the local cookie is already gone — the next person is signed
-back in as the last one. Closing it means keeping the ID token somewhere, i.e.
-reopening "no stored tokens"; that is an owner decision, not one taken here.
-Until then it is a documented smoke step (runbook, step 4).
+Not verified against the real realm on 2026-09-26: that steps 1–3 behave as
+described. A real login and logout against the realm confirms it before the
+rework merges. Verified the same day with Keycloak's token preview: the access
+token carries `aud` `bundesarchiv`, only the role-scope roles, `groups` and
+`preferred_username`.
 
 There is no Abmelden landing page (owner, 2026-08-29): a logout lands on the
 workbench as an anonymous visitor, which the gate turns into the login screen.
-Logout is also the one route here that does **not** fail closed — with no realm
-to return through, the local cookie still goes, because refusing to sign
-somebody out is not a safe failure.
 
 The same two pieces compose into a later **kiosk mode**: an archivist-only
 action that ends their SSO session and mints a long-lived cookie for a
@@ -127,44 +166,43 @@ archive room). Designed-for, not built now.
 
 ## Testing
 
-Ours to test is small and server-free: the claims→Viewer mapping is a pure
-function over a dict; the views are tested through a thin injected port
-(`fetch_claims` and its two siblings) with an in-memory fake — the same
-port-injection pattern the mirror tests use instead of live WebDAV. The ~10
-declarative authlib lines behind the seam are not suite-tested: the realistic
-failure is Keycloak *client misconfiguration* (missing roles mapper, wrong
-redirect URI), which no stub or fake can catch because it would encode our own
+Ours to test is small and server-free:
+
+- The claims→Viewer mapping is a pure function over a dict.
+- The token check: an expired, tampered, wrong-algorithm, wrong-issuer or
+  wrong-audience token resolves to `Public`. Tokens signed with a test key.
+- The views, the refresh and the logout run through a thin injected port with
+  an in-memory fake, the pattern the mirror tests use instead of live WebDAV.
+
+The declarative authlib lines behind the port are not suite-tested: the
+realistic failure is Keycloak *client misconfiguration* (a missing mapper, a
+wrong redirect URI), which no fake can catch because it would encode our own
 assumptions. That is a deploy-runbook smoke step: one real login per realm
 change.
 
 ## Considered options
 
-- **Hand-rolled OIDC on httpx** (ADR 0007 precedent): the flow is small, but
-  auth is where an unmaintained bug is most expensive; authlib provides
-  state/nonce/PKCE/JWKS/issuer validation as its whole job. The dependency
-  diet yields here.
-- **mozilla-django-oidc / django-allauth**: require `contrib.auth` +
-  SessionMiddleware — a parallel identity system this app deliberately does
-  not have.
-- **oauth2-proxy in front of the app**: moves the flow out of Python, but
-  authorizes on trusted-header contracts (a misconfiguration foot-gun) and
-  mixes poorly with the second, link-minted cookie path, which would need
-  auth-bypass rules through the proxy.
-- **Guest accounts inside Keycloak**: shared accounts fight the tool —
-  brute-force lockout locks out a whole group, and a cross-site auto-login
-  link still cannot carry a password safely.
-- **Sessions in Postgres**: a session table is a second identity system
-  alongside `Viewer` — the same objection as `contrib.auth`, and the reason
-  that stands. *Not* an ephemerality argument: the owner ruled on 2026-08-30
-  that Postgres may hold admin data (only the archive files must survive total
-  loss). The cookie won on simplicity — no table, no migration, no cleanup job,
-  no per-request query — not because the database would forget.
+- **The browser refreshes its own token** (a public client, script-driven
+  refresh): see "Why the server refreshes" above.
+- **The signed Viewer cookie, re-minted at a shorter lifetime:** closes the
+  group gap only by forcing re-logins, and leaves logout without an
+  `id_token_hint`.
+- **Hand-rolled OIDC or JWT checks on httpx** (ADR 0007 precedent): auth is
+  where an unmaintained bug is most expensive; authlib provides state, nonce,
+  PKCE, JWKS, issuer and algorithm checks as its whole job.
+- **mozilla-django-oidc / django-allauth**: require `contrib.auth` and
+  SessionMiddleware, a parallel identity system this app does not have.
+- **oauth2-proxy in front of the app**: authorizes on trusted-header contracts
+  (a misconfiguration foot-gun) and mixes poorly with the link-minted cookie
+  path.
+- **Guest accounts inside Keycloak**: brute-force lockout locks out a whole
+  group, and a cross-site auto-login link cannot carry a password safely.
+- **Sessions in Postgres**: a second identity system alongside `Viewer`. Not an
+  ephemerality argument: Postgres may hold admin data (owner, 2026-08-30).
 
 ## Deferred (deliberately, with the door open)
 
-Capability links (an HMAC-signed short-expiry link that mints the cookie, per
-the 2026-08 access-model ruling); Keycloak group claims feeding `Member.groups`
-— the parse exists, the realm mapper is the missing half; kiosk mode; per-item
-links; an audit trail; a true internet-public tier for curated exhibitions (the
-dormant `PUBLIC` audience rung stays reserved for it). *(Amended 2026-09-25: the audit
-trail is built, ADR 0019.)*
+Capability links (an HMAC-signed short-expiry link that mints the Viewer
+cookie, per the 2026-08 access-model ruling); kiosk mode; per-item links; a
+true internet-public tier for curated exhibitions (the dormant `PUBLIC`
+audience rung stays reserved for it).
