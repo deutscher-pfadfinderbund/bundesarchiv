@@ -153,9 +153,10 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ## Implementation patterns
 
 ### 19. Compositions style inside components — in progress (WAVE-C)
-- **Indicator:** 44 entries in `test_design_lint.BOUNDARY_ALLOWED` — `.pane` 13, `.chooser` 12,
-  `.field` 7 (2 keyed on input `name`s), `.filterrail` 4, `.bulk` 4, other 4 (2026-09-26)
-- **Evidence:** `forms.css` `.fach > .field > …`, `.column .field`; `_feld.html`'s bare-label constraint
+- **Indicator:** 37 entries in `test_design_lint.BOUNDARY_ALLOWED` — `.pane` 13, `.chooser` 12,
+  `.filterrail` 4, `.bulk` 4, other 4 (2026-09-26; 44 before the field row)
+- **Evidence:** `forms.css` `.column .field` sets the root's `display`; `_feld.html`'s bare-label
+  constraint (the card sets its row knobs on `.fach > .field`)
 - **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
 - **Sketch:** one class on each component's outer element; custom-property knobs; lint guards it
 

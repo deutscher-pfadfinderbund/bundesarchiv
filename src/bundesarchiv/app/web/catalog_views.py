@@ -637,6 +637,10 @@ class _Field:
     ``body`` is excluded (a textarea is not an "empty field" in the field sense) and so are the custom
     bag's inputs (the escape hatch).
 
+    ``fit`` is a text control's width class from its content's ceiling (learning G.31): ``kurz`` for
+    a short domain value, ``signatur`` for the Signatur (which also takes its violet ink), or ``""``
+    to fill the value cell.
+
     ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
     has no diff row.
 
@@ -657,6 +661,7 @@ class _Field:
     hx: tuple[tuple[str, str], ...] = ()
     hx_get: str = ""
     echo: bool = False
+    fit: str = ""
     scanned: bool = False
     focusable: bool = False
     diff: str = ""
@@ -706,6 +711,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Signatur",
         control="text",
         section="kerndaten",
+        fit="signatur",
         scanned=True,
         focusable=True,
         diff="Signatur",
@@ -766,6 +772,7 @@ _FIELDS: tuple[_Field, ...] = (
             ("hx-swap", "outerHTML"),
         ),
         echo=True,
+        fit="kurz",
         scanned=True,
         focusable=True,
         diff="Datierung",
@@ -776,6 +783,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Autor",
         control="text",
         section="herkunft",
+        fit="kurz",
         scanned=True,
         focusable=True,
         diff="Autor",
@@ -785,6 +793,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Ort",
         control="text",
         section="herkunft",
+        fit="kurz",
         scanned=True,
         focusable=True,
         diff="Ort",
@@ -911,6 +920,7 @@ class _CardRow:
     hx: tuple[tuple[str, str], ...]
     echo: bool
     echo_text: str
+    fit: str
 
 
 def _card_fields(
@@ -955,6 +965,7 @@ def _card_fields(
                 hx=hx,
                 echo=registered.echo,
                 echo_text=_edtf_echo(value) if registered.echo else "",
+                fit=registered.fit,
             )
         )
     return {name: tuple(rows) for name, rows in sections.items()}

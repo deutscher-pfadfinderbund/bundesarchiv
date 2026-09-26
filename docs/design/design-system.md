@@ -301,7 +301,7 @@ line; they are split out only as swap units or single renderers (law C7).
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
-| Field | `.field` | `workbench/_feld` + standalone forms | `components.css` elements layer |
+| Field | `.field` | `workbench/_feld` + standalone forms | `components.css` field |
 | EDTF echo | `.echo` | `workbench/_datierung_echo` | `forms.css` EDTF echo |
 | Media register | `.media` | inline (edit card) | `forms.css` media register |
 | Panel | `.panel` | inline (confirm pages, CAS conflict) | `forms.css` panel |

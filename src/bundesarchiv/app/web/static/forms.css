@@ -15,9 +15,6 @@
     display: flex;
     width: 100%;
   }
-  .column :is(input, select, textarea):not([type="checkbox"], [type="file"]) {
-    width: 100%;
-  }
 
   /* ============================================================
      THE RECORD CARD (owner ruling 1, 2026-08-08 — composition E, with A's two columns inside it):
@@ -30,7 +27,7 @@
      forms cannot nest), so the sections are two element names at two depths.
      ============================================================ */
   .karte {
-    /* the card's API (law C3/C5), all four knobs named here and consumed below:
+    /* the card's API (law C3/C5), both knobs named here and consumed below:
        --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
                        "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold, mixed
                        case, 0.02em tracking) measure 102px, so 7rem (112px) holds it on one line.
@@ -38,14 +35,9 @@
                        test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
                        a second line, which is a defect the eye skims past (at 6rem the test reports
                        "Datierung (EDTF): wants 102px in a 96px column").
-       --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full.
-       --feld-signatur 12ch: a Signatur carries no spaces and tops out at 8 characters (owner
-                       2026-08-07), so the ceiling code plus the caret fits (learning G.31).
-       --feld-kurz     18ch — an EDTF interval and a personal name. Everything else fills its cell. */
+       --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full. */
     --label-spalte: 7rem;
     --wert-min: 14rem;
-    --feld-signatur: 12ch;
-    --feld-kurz: 18ch;
     /* the two-column behaviour, INTRINSIC (law C11 — "no breakpoint guessing, use a grid", owner
        ruling 1): auto-fit lays as many section columns as the card's own width allows and shares the
        slack between them, so there is NO width query in this card at all. The floor is DERIVED, not
@@ -109,58 +101,19 @@
   /* ---- one ruled field row: label column + value, a hairline between, no box. Each row carries the
      axis itself out of the SHARED knob rather than subgridding onto its section — the section is
      plain flow, so a folded <details> lays its rows out identically to an open <section>, which a
-     subgrid would have to reach through ::details-content to do. ---- */
+     subgrid would have to reach through ::details-content to do. At rest the value sits ON the
+     row's line; the field's own state rules bring the box back (law C13). ---- */
   .fach > .field {
-    display: grid;
-    grid-template-columns: var(--label-spalte) minmax(0, 1fr);
-    column-gap: var(--space-3);
-    align-items: baseline;
-    row-gap: var(--space-1);
-    padding-block: var(--space-2);
-    border-top: var(--hairline) solid var(--outline-variant);
-  }
-  /* the label sits in the axis column; everything else stacks in the value column */
-  .fach > .field > * {
-    grid-column: 2;
-  }
-  .fach > .field > :is(label, span):first-child {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  /* THE RESTING LOOK — the value sits ON the row's line, no box. Declared in :where() per law C13,
-     and stated through the field's own KNOBS (components.css) rather than by restating its chrome:
-     this rule sits in a LATER layer than the elements-layer state rules, so a restated border would
-     beat them whatever its specificity (C13's second mechanism, G.29/G.47). */
-  :where(.fach > .field > :is(input, select, textarea)) {
+    --field-display: grid;
+    --field-label-axis: var(--label-spalte);
+    --field-align: baseline;
+    --field-padding-block: var(--space-2);
+    --field-rule: var(--hairline) solid var(--outline-variant);
     --field-fill: none;
     --field-border: transparent;
-    border-radius: 0;
-    padding-inline: 0;
-    font: var(--type-body);
-    color: var(--on-surface);
-  }
-  /* worked-on: the box appears under the pointer and around the focused control (Q6). Only the FILL
-     is local — the focus and error borders are the elements layer's own rules, which out-rank the
-     base border there (test_error_fields_compute_the_error_border proves the error half). */
-  .fach > .field > :is(input, select, textarea):is(:hover, :focus-visible) {
-    --field-fill: var(--surface-container-lowest);
-  }
-  /* the DEFAULT width claim: fill the value cell. The exceptions below are the fields whose content
-     has a known CEILING (learning G.31). */
-  .fach > .field > :is(input, select, textarea) {
-    width: 100%;
-    max-width: 100%;
-  }
-  /* the Signatur value is the archive's mark: violet-ink mono (register row 2) */
-  .fach > .field > input[name="ref_code"] {
-    width: var(--feld-signatur);
-    font: var(--type-mono);
-    font-weight: 600;
-    color: var(--primary);
-  }
-  /* content-derived widths (learning G.31): the short domain fields take --feld-kurz */
-  .fach > .field > :is(input[name="date"], input[name="creator"], input[name="subject_place"]) {
-    width: var(--feld-kurz);
+    --field-font: var(--type-body);
+    --field-radius: 0;
+    --field-inset: 0;
   }
   /* ---- prose + register sections span every column ---- */
   .fach.prosa,

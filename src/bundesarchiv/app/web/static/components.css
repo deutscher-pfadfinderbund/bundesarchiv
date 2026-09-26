@@ -93,18 +93,18 @@
   input:is([type="checkbox"], [type="radio"]) {
     accent-color: var(--on-surface);
   }
-  /* --field-fill / --field-border are the field's chrome API (law C3): a composition sets them and
-     inherits every STATE rule below unchanged. It may NOT restate the chrome instead — a later layer
-     wins over the state rules whatever their specificity (C13's second mechanism, G.47). */
+  /* Knobs: --field-fill, --field-border, --field-font, --field-radius, --field-inset — the control
+     chrome API (law C3), set on a .field root and inherited, so every STATE rule below still holds.
+     Restating the chrome from a later layer would beat them whatever its specificity (C13, G.47). */
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
-    font: var(--type-meta);
+    font: var(--field-font, var(--type-meta));
     color: var(--on-surface);
     background: var(--field-fill, var(--surface-container-lowest));
     border: var(--hairline) solid var(--field-border, var(--outline));
-    border-radius: var(--radius-s);
-    padding: var(--space-1) var(--space-2);
+    border-radius: var(--field-radius, var(--radius-s));
+    padding: var(--space-1) var(--field-inset, var(--space-2));
   }
   input[type="file"] {
     font: var(--type-meta);
@@ -118,29 +118,10 @@
     border-color: var(--on-surface);
   }
 
-  /* <label class="field"><span>Titel</span><input …></label> — the class is law C1's licence:
-     semantics cannot discriminate a stacked labeled field from an inline checkbox label.
-     A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
-     field carrying one is a <div> with an explicit <label for> — or, on the record card's bare
-     label rows (workbench/_feld.html), the control names itself via aria-labelledby. */
-  .field {
-    display: inline-flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    color: var(--on-surface);
-  }
-  .field > :is(label, span):first-child {
-    font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
-  }
-  /* one source for the message and the border: the .error node's presence */
+  /* one source for the message and a field's error border: the .error node's presence */
   .error {
     font: var(--type-meta);
     color: var(--error);
-  }
-  .field:has(.error) :is(input, select, textarea) {
-    border-color: var(--error);
   }
   .hint {
     font: var(--type-meta);
@@ -191,6 +172,56 @@
     inset-block-start: var(--space-2);
     inset-inline-start: var(--space-2);
     z-index: var(--z-banner);
+  }
+
+  /* ---- field (workbench/_feld.html; inline in the standalone forms, the Feld chooser, the media
+     register and the custom bag). Knobs: --field-display, --field-label-axis, --field-align,
+     --field-padding-block, --field-rule, plus the control chrome knobs (elements layer).
+     Stacked by default; `--field-display: grid` puts the label beside the value on the axis.
+     A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
+     field carrying one is a <div> with an explicit <label for>, or its control names itself via
+     aria-labelledby (_feld.html). ---- */
+  .field {
+    display: var(--field-display, inline-flex);
+    flex-direction: column;
+    grid-template-columns: var(--field-label-axis, auto) minmax(0, 1fr);
+    align-items: var(--field-align, normal);
+    gap: var(--space-1) var(--space-3);
+    padding-block: var(--field-padding-block, 0);
+    border-top: var(--field-rule, none);
+    color: var(--on-surface);
+  }
+  .field > * {
+    grid-column: 2;
+  }
+  .field > :is(label, span):first-child {
+    grid-column: 1;
+    grid-row: 1;
+    font: var(--type-label);
+    letter-spacing: var(--label-tracking);
+    color: var(--on-surface-variant);
+  }
+  /* worked-on: a control whose resting fill is knobbed away shows its box again (Q6) */
+  .field > :is(input, select, textarea):is(:hover, :focus-visible) {
+    --field-fill: var(--surface-container-lowest);
+  }
+  .field:has(.error) :is(input, select, textarea) {
+    border-color: var(--error);
+  }
+  /* the registry's width facts (_FIELDS.fit), from the content's ceiling (learning G.31) */
+  .field > :is(.kurz, .signatur) {
+    max-width: 100%;
+  }
+  .field > .kurz {
+    width: 18ch; /* an EDTF interval, a personal name */
+  }
+  /* the Signatur: no spaces, at most 8 characters (owner 2026-08-07) plus the caret; violet-ink
+     mono (register row 2) */
+  .field > .signatur {
+    width: 12ch;
+    font: var(--type-mono);
+    font-weight: 600;
+    color: var(--primary);
   }
 
   /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,

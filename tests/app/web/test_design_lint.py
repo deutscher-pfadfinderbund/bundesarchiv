@@ -539,16 +539,6 @@ BOUNDARY_ALLOWED: frozenset[tuple[str, str]] = frozenset(
         ("detail.css", ".facts .fallback"),
         ("forms.css", ".column .chooser .actions"),
         ("forms.css", ".einblick > p"),
-        ("forms.css", ".fach > .field > *"),
-        ("forms.css", ".fach > .field > :is(input, select, textarea)"),
-        ("forms.css", ".fach > .field > :is(input, select, textarea):is(:hover, :focus-visible)"),
-        (
-            "forms.css",
-            '.fach > .field > :is(input[name="date"], input[name="creator"], input[name="subject_place"])',
-        ),
-        ("forms.css", ".fach > .field > :is(label, span):first-child"),
-        ("forms.css", '.fach > .field > input[name="ref_code"]'),
-        ("forms.css", ":where(.fach > .field > :is(input, select, textarea))"),
         ("layouts.css", ".chooser .actions"),
         ("layouts.css", ".chooser [data-bulk-wert]"),
         (
