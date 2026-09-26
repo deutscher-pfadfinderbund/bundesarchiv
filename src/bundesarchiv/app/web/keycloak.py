@@ -13,6 +13,8 @@ run against an in-memory fake of these three names), the URLs built here, and th
 whose failure mode is not a refused login but a worker that can never log anybody in again.
 """
 
+import json
+from base64 import urlsafe_b64decode
 from collections.abc import Mapping
 
 import httpx
@@ -29,6 +31,10 @@ _SCOPE = "openid profile"
 #: Seconds any single Keycloak call may take. A login is interactive — a hanging realm must become a
 #: deny quickly rather than tie up a worker.
 _TIMEOUT = 10.0
+
+#: The one signing algorithm a token may use (ADR 0018). The realm also advertises HMAC algorithms;
+#: accepting one would let a token be forged with the realm's PUBLIC key as the HMAC secret.
+_ALGORITHMS = ["RS256"]
 
 
 #: What the realm has already told us, keyed by the URL it came from so a settings change (tests, a
@@ -96,33 +102,99 @@ def authorization_url(*, state: str, nonce: str, redirect_uri: str) -> str | Non
     return str(url)
 
 
-def _validated(
-    id_token: str, jwks: Mapping[str, object], *, issuer: str, client_id: str, nonce: str
+def _decoded(
+    token: str,
+    jwks: Mapping[str, object],
+    *,
+    options: Mapping[str, object],
+    claims_cls: type | None = None,
+    params: Mapping[str, object] | None = None,
 ) -> Mapping[str, object] | None:
-    """The ID token's claims checked against ``jwks`` — signature, issuer, audience, expiry and the
-    ``nonce`` this browser's authorize request carried — or ``None`` for a key set that cannot
-    verify the token and for any claim that does not hold."""
+    """``token``'s claims, verified against ``jwks`` with ``_ALGORITHMS`` only and validated against
+    ``options``; ``None`` for anything that does not hold."""
     # Imported here, not at module scope: authlib's `jose` package emits a deprecation warning on
-    # import (it is supported until authlib 2.0), and a real login is the only code path that needs
-    # it — startup and the whole test suite stay clear of both the warning and the import cost.
-    from authlib.jose import JsonWebKey, jwt
-    from authlib.oidc.core import CodeIDToken
+    # import (it is supported until authlib 2.0); startup and most of the suite stay clear of it.
+    from authlib.jose import JsonWebKey, JsonWebToken
 
     try:
-        claims = jwt.decode(
-            id_token,
+        claims = JsonWebToken(_ALGORITHMS).decode(
+            token,
             JsonWebKey.import_key_set(dict(jwks)),
-            claims_cls=CodeIDToken,
-            claims_options={
-                "iss": {"essential": True, "value": issuer},
-                "aud": {"essential": True, "value": client_id},
-            },
-            claims_params={"nonce": nonce},
+            claims_cls=claims_cls,
+            claims_options=dict(options),
+            claims_params=dict(params) if params else None,
         )
         claims.validate()
     except AuthlibBaseError, KeyError, ValueError:
         return None
     return dict(claims)
+
+
+def _validated(
+    id_token: str, jwks: Mapping[str, object], *, issuer: str, client_id: str, nonce: str
+) -> Mapping[str, object] | None:
+    """The ID token's claims checked against ``jwks`` — signature, issuer, audience, expiry and the
+    ``nonce`` this browser's authorize request carried — or ``None``."""
+    from authlib.oidc.core import CodeIDToken
+
+    return _decoded(
+        id_token,
+        jwks,
+        options={
+            "iss": {"essential": True, "value": issuer},
+            "aud": {"essential": True, "value": client_id},
+        },
+        claims_cls=CodeIDToken,
+        params={"nonce": nonce},
+    )
+
+
+def _kid(token: str) -> str | None:
+    """The ``kid`` of a JWT's UNVERIFIED header — read only to decide whether the cached key set can
+    know the signing key at all."""
+    segment = token.split(".", 1)[0]
+    try:
+        header = json.loads(urlsafe_b64decode(segment + "=" * (-len(segment) % 4)))
+    except ValueError:
+        return None
+    kid = header.get("kid") if isinstance(header, dict) else None
+    return kid if isinstance(kid, str) else None
+
+
+def _kids(jwks: Mapping[str, object]) -> set[object]:
+    keys = jwks.get("keys")
+    return (
+        {k.get("kid") for k in keys if isinstance(k, Mapping)} if isinstance(keys, list) else set()
+    )
+
+
+def verify_access(access_token: str) -> Mapping[str, object] | None:
+    """The claims of a Keycloak access token issued to THIS client, or ``None`` when any check fails:
+    signature against the realm's keys (``RS256`` only), ``iss``, ``aud`` naming this client, ``typ``
+    ``Bearer``, and ``exp`` (ADR 0018). The realm signs other apps' tokens with the same keys; the
+    audience is what makes a token ours."""
+    issuer, client_id = settings.OIDC_ISSUER, settings.OIDC_CLIENT_ID
+    jwks_uri = _endpoint("jwks_uri")
+    if not (issuer and client_id and jwks_uri):
+        return None
+    jwks = _jwks(jwks_uri)
+    kid = _kid(access_token)
+    if jwks is not None and kid is not None and kid not in _kids(jwks):
+        # A rotated realm key. ponytail: a forged token naming an unknown kid also costs one key-set
+        # fetch per request; add a refetch cooldown if that ever shows up in the realm's load.
+        jwks = _jwks(jwks_uri, refresh=True)
+    if jwks is None:
+        return None
+    return _decoded(
+        access_token,
+        jwks,
+        options={
+            "iss": {"essential": True, "value": issuer},
+            "aud": {"essential": True, "value": client_id},
+            "exp": {"essential": True},
+            "typ": {"essential": True, "value": "Bearer"},
+        },
+    )
 
 
 def fetch_claims(*, code: str, nonce: str, redirect_uri: str) -> Mapping[str, object] | None:
