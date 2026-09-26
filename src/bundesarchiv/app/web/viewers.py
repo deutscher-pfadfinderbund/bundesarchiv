@@ -1,10 +1,11 @@
 """``viewer_of(request) -> Viewer`` — THE request→Viewer trust boundary (Part 4.4).
 
 ONE function the whole web layer calls to answer *who is asking* (domain ``Viewer``: Archivist |
-Member(groups) | Public). TWO adapters answer it, each reading its own signed cookie under its own
-dedicated key; the UI code above never knows which one spoke:
+Member(groups) | Public). THREE adapters answer it; the UI code above never knows which one spoke:
 
-- the production cookie an OIDC login mints here (``mint_viewer_cookie``, ADR 0018), keyed by
+- an OIDC login's token cookies (ADR 0018): Keycloak's access token, checked on every request and
+  refreshed server-side through ``TokenCookieMiddleware`` when it has expired;
+- a minted Viewer cookie (``mint_viewer_cookie``, the capability-link seam), keyed by
   ``VIEWER_SIGNING_KEY``;
 - the cookie the dev-only switcher sets (``dev`` module), keyed by ``DEV_VIEWER_SIGNING_KEY``,
   which only ``settings_dev`` defines.
@@ -17,6 +18,8 @@ format version, or a payload that does not parse to a known viewer shape ALL res
 ``Public()``. A bad cookie is never an error — only ever an anonymous viewer.
 """
 
+import logging
+from collections.abc import Callable
 from urllib.parse import quote, unquote
 
 from django.conf import settings
@@ -24,6 +27,8 @@ from django.core import signing
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
+from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: Name of the signed cookie the dev switcher sets and this seam reads.
@@ -42,12 +47,31 @@ _DEV_VIEWER_MAX_AGE = 12 * 60 * 60
 #: prefix on purpose: ``__Host-`` requires Secure, which dev's plain http cannot satisfy.
 VIEWER_COOKIE = "__Host-viewer"
 
+#: The two cookies an OIDC login leaves the browser holding (ADR 0018): Keycloak's access token and
+#: its offline refresh token. ``__Host-`` for the reason ``VIEWER_COOKIE`` gives.
+ACCESS_COOKIE = "__Host-access"
+REFRESH_COOKIE = "__Host-refresh"
+
+#: How long the browser keeps them. The realm's offline session idle (30 days) is the real limit;
+#: each refresh sets them again.
+_TOKEN_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
+
+#: Above this a browser may drop a cookie silently; the viewer would then refresh on every request.
+_COOKIE_WARN_LENGTH = 4000
+
+#: Where ``viewer_of`` parks a refresh outcome — new ``Tokens``, or ``None`` to drop both cookies —
+#: for ``TokenCookieMiddleware``. Namespaced like ``_VIEWER_CACHE_ATTR``.
+_REFRESHED_ATTR = "_bundesarchiv_refreshed"
+
+_log = logging.getLogger(__name__)
+
 #: Signer salt for the production cookie — its own namespace, never the dev cookie's.
 _VIEWER_SALT = "viewer"
 
-#: Format version carried in the cookie payload. Bumping it invalidates every outstanding cookie
-#: at once — the emergency lever ADR 0018 relies on instead of a session table.
-_VIEWER_FORMAT_VERSION = "v2"
+#: Format version carried in the cookie payload. Bumping it invalidates every outstanding minted
+#: Viewer cookie at once — the capability-link seam's emergency lever; OIDC logins are revoked in
+#: Keycloak (ADR 0018). ``v3``: the OIDC callback stopped minting this cookie.
+_VIEWER_FORMAT_VERSION = "v3"
 
 #: Per-tier cookie lifetimes (ADR 0018): archivists work on shared machines and re-authenticate
 #: every other day; members stay signed in for a month. Enforced on read, not only offered to the
@@ -173,19 +197,79 @@ def _switched_viewer(request: HttpRequest) -> Viewer | None:
     return _parse_viewer(payload) if payload is not None else None
 
 
+def set_token_cookies(tokens: Tokens, response: HttpResponse) -> None:
+    """Set both token cookies on ``response`` (ADR 0018)."""
+    if len(tokens.access) > _COOKIE_WARN_LENGTH:
+        _log.warning("access token cookie is %d characters long", len(tokens.access))
+    for name, value in ((ACCESS_COOKIE, tokens.access), (REFRESH_COOKIE, tokens.refresh)):
+        response.set_cookie(
+            name,
+            value,
+            max_age=_TOKEN_COOKIE_MAX_AGE,
+            httponly=True,
+            secure=True,
+            samesite="Lax",
+        )
+
+
+def delete_token_cookies(response: HttpResponse) -> None:
+    """Delete both token cookies on ``response``."""
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+        response.delete_cookie(name, samesite="Lax")
+
+
+def _token_viewer(request: HttpRequest) -> Viewer | None:
+    """The viewer of an OIDC login's token cookies, or ``None`` when they do not resolve to one. A
+    rejected or missing access token is refreshed with the refresh cookie; the outcome waits on the
+    request for ``TokenCookieMiddleware``."""
+    access = request.COOKIES.get(ACCESS_COOKIE)
+    claims = verify_access(access) if access else None
+    if claims is not None:
+        return viewer_from_claims(claims)
+    refresh_token = request.COOKIES.get(REFRESH_COOKIE)
+    if not refresh_token:
+        return None
+    tokens = refresh(refresh_token)
+    setattr(request, _REFRESHED_ATTR, tokens)
+    return viewer_from_claims(tokens.claims) if tokens is not None else None
+
+
+class TokenCookieMiddleware:
+    """Write a refresh outcome onto the response: the new token cookies, or their deletion when the
+    refresh failed. ``viewer_of`` runs before any response exists, so it cannot. A view that set or
+    deleted the token cookies itself (the callback, logout) decides alone."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        if not hasattr(request, _REFRESHED_ATTR) or ACCESS_COOKIE in response.cookies:
+            return response
+        tokens: Tokens | None = getattr(request, _REFRESHED_ATTR)
+        if tokens is None:
+            delete_token_cookies(response)
+        else:
+            set_token_cookies(tokens, response)
+        return response
+
+
 def viewer_of(request: HttpRequest) -> Viewer:
-    """Resolve the request's ``Viewer`` — the single web-layer trust boundary. A real login outranks
-    the dev switcher, which only ever answers where a dev key is configured. Every failure mode of
-    either adapter falls closed to ``Public()``; a bad cookie never raises.
+    """Resolve the request's ``Viewer`` — the single web-layer trust boundary. An OIDC login's token
+    cookies answer first, then a minted Viewer cookie, then the dev switcher, which only ever
+    answers where a dev key is configured. Every failure mode of every adapter falls closed to
+    ``Public()``; a bad cookie never raises.
 
     Resolved once per request and cached on the request: the four call sites (gate, view, article
     authorization, ``render_screen``) then cannot answer *who is asking* differently, and the
-    signature is verified once instead of once each. Sound because cookie state cannot change
-    mid-request — mint and clear happen on the response."""
+    token is checked — and at most refreshed — once instead of once each. Sound because cookie state
+    cannot change mid-request — mint and clear happen on the response."""
     cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
     if cached is not None:
         return cached
-    viewer = _minted_viewer(request) or _switched_viewer(request) or Public()
+    viewer = (
+        _token_viewer(request) or _minted_viewer(request) or _switched_viewer(request) or Public()
+    )
     setattr(request, _VIEWER_CACHE_ATTR, viewer)
     return viewer
 

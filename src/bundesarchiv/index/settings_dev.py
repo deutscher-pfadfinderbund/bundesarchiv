@@ -45,6 +45,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "bundesarchiv.app.web.viewers.TokenCookieMiddleware",  # outside everything that calls viewer_of
     "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",  # inert here: the flag is off
     "bundesarchiv.app.web.dev.DevViewerMiddleware",
 ]

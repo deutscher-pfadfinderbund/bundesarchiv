@@ -1,21 +1,24 @@
 """The Keycloak provider adapter — the ONE place that talks to the realm (ADR 0018).
 
-Three functions, one failure answer: ``None`` for an unconfigured setting, an unreachable realm, a
-refused code or an ID token that does not validate. The views turn that into the plain 404 every
-other deny on this surface is, so a half-configured deploy authenticates nobody instead of trusting
-something it cannot verify.
+``authorization_url``, ``fetch_tokens``, ``verify_access``, ``refresh`` and ``logout_url``, one
+failure answer: ``None`` for an unconfigured setting, an unreachable realm, a refused code or
+refresh token, or a token that does not validate. The callers turn that into the plain 404 or
+``Public``, so a half-configured deploy authenticates nobody instead of trusting something it cannot
+verify.
 
-These lines are NOT suite-tested, deliberately (ADR 0018 "Testing"): the realistic failure here is
-Keycloak CLIENT misconfiguration — a missing roles mapper, a redirect URI that does not match — and
+The authlib calls are NOT suite-tested, deliberately (ADR 0018 "Testing"): the realistic failure
+here is Keycloak CLIENT misconfiguration — a missing mapper, a redirect URI that does not match — and
 a fake of this seam can only encode our own assumptions about the realm. One real login per realm
 change is the deploy runbook's smoke step. What IS tested is everything above the seam (the views
-run against an in-memory fake of these three names), the URLs built here, and the caches below,
-whose failure mode is not a refused login but a worker that can never log anybody in again.
+run against an in-memory fake of these names), the token check, the logout step order, the URLs
+built here, and the caches below, whose failure mode is not a refused login but a worker that can
+never log anybody in again.
 """
 
 import json
 from base64 import urlsafe_b64decode
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 
 import httpx
 from authlib.common.errors import AuthlibBaseError
@@ -23,10 +26,11 @@ from authlib.common.urls import add_params_to_uri
 from authlib.integrations.httpx_client import OAuth2Client
 from django.conf import settings
 
-#: What the authorize request asks for: ``openid`` for the ID token itself; the realm's roles
-#: client-scope maps ``realm_access.roles`` into it (runbook), which is what makes an Archivist;
-#: ``profile`` maps ``preferred_username``, which names one.
-_SCOPE = "openid profile"
+#: What the authorize request asks for: ``openid`` for the ID token; ``profile`` for
+#: ``preferred_username``, which names an Archivist; ``offline_access`` for the 30-day offline
+#: refresh token (ADR 0018). Roles and groups reach the access token through the client's mappers
+#: (runbook).
+_SCOPE = "openid profile offline_access"
 
 #: Seconds any single Keycloak call may take. A login is interactive — a hanging realm must become a
 #: deny quickly rather than tie up a worker.
@@ -71,9 +75,9 @@ def _metadata(issuer: str) -> Mapping[str, object] | None:
 
 
 def _jwks(jwks_uri: str, *, refresh: bool = False) -> Mapping[str, object] | None:
-    """The realm's signing keys. Cached because every callback needs them, serially after the token
-    exchange it has already paid for; a key ROTATION is the one thing that invalidates them, which
-    ``fetch_claims`` recognises from the token it cannot verify and answers with ``refresh``."""
+    """The realm's signing keys. Cached because every request's token check needs them; a key
+    ROTATION is the one thing that invalidates them, which the token checks recognise from a token
+    they cannot verify and answer with ``refresh``."""
     return _fetched(jwks_uri, _KEY_SETS, refresh=refresh)
 
 
@@ -197,63 +201,146 @@ def verify_access(access_token: str) -> Mapping[str, object] | None:
     )
 
 
-def fetch_claims(*, code: str, nonce: str, redirect_uri: str) -> Mapping[str, object] | None:
-    """Exchange an authorization code for the ID token and return its VALIDATED claims — signature
-    against the realm's JWKS, issuer, audience, expiry, and the ``nonce`` this browser's authorize
-    request carried. ``None`` for any failure; the caller denies."""
-    issuer, client_id, client_secret = (
-        settings.OIDC_ISSUER,
-        settings.OIDC_CLIENT_ID,
-        settings.OIDC_CLIENT_SECRET,
-    )
-    token_endpoint, jwks_uri = _endpoint("token_endpoint"), _endpoint("jwks_uri")
-    if not (issuer and client_id and client_secret and token_endpoint and jwks_uri):
+@dataclass(frozen=True, slots=True)
+class Tokens:
+    """A token response the browser keeps (ADR 0018): the access and offline refresh tokens, the
+    CHECKED claims of the access token, and the ID token, kept only as the logout hint."""
+
+    access: str
+    refresh: str
+    claims: Mapping[str, object]
+    id_token: str | None
+
+
+def _client(redirect_uri: str | None = None) -> OAuth2Client | None:
+    """The confidential client, or ``None`` while its id or secret is unconfigured."""
+    client_id, client_secret = settings.OIDC_CLIENT_ID, settings.OIDC_CLIENT_SECRET
+    if not (client_id and client_secret):
         return None
-    client = OAuth2Client(
-        client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri
-    )
+    return OAuth2Client(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri)
+
+
+#: What a token-endpoint call raises when the realm refuses, cannot be reached, or answers nonsense:
+#: a 200 whose body is not a JSON object makes authlib raise ``TypeError`` before any caller sees it.
+_REALM_ERRORS = (AuthlibBaseError, httpx.HTTPError, ValueError, TypeError)
+
+
+def _call(
+    client: OAuth2Client, request: Callable[[OAuth2Client], object]
+) -> Mapping[str, object] | None:
+    """Run one call against the realm and close the client: the JSON object it answered, or
+    ``None`` for any failure."""
     try:
-        token = client.fetch_token(
-            token_endpoint, code=code, grant_type="authorization_code", timeout=_TIMEOUT
-        )
-    except AuthlibBaseError, httpx.HTTPError, ValueError:
+        response = request(client)
+    except _REALM_ERRORS:
         return None
     finally:
         client.close()
-    id_token = token.get("id_token")
-    if not isinstance(id_token, str):
-        return None
-    jwks = _jwks(jwks_uri)
-    if jwks is None:
-        return None
-    claims = _validated(id_token, jwks, issuer=issuer, client_id=client_id, nonce=nonce)
-    if claims is not None:
-        return claims
-    # A rotated realm key is simply absent from the cached set, and that failure is indistinguishable
-    # from a token that does not verify at all. One refetch tells the two apart.
-    rotated = _jwks(jwks_uri, refresh=True)
-    if rotated is None:
-        return None
-    return _validated(id_token, rotated, issuer=issuer, client_id=client_id, nonce=nonce)
+    return response if isinstance(response, Mapping) else None
 
 
-def end_session_url(*, post_logout_redirect_uri: str) -> str | None:
-    """Where a logout sends the browser so the SSO session dies with the local cookie, or ``None``
-    when the realm is unconfigured/unreachable (the caller then still clears its own cookie).
+def _tokens_of(response: Mapping[str, object]) -> Tokens | None:
+    """The ``Tokens`` in a token-endpoint response, or ``None`` unless it carries both tokens and the
+    access token passes ``verify_access``."""
+    access, refresh_token = response.get("access_token"), response.get("refresh_token")
+    if not isinstance(access, str) or not isinstance(refresh_token, str):
+        return None
+    claims = verify_access(access)
+    if claims is None:
+        return None
+    id_token = response.get("id_token")
+    return Tokens(
+        access=access,
+        refresh=refresh_token,
+        claims=claims,
+        id_token=id_token if isinstance(id_token, str) else None,
+    )
 
-    Carries no ``id_token_hint`` — the app stores no tokens (ADR 0018) — so Keycloak asks the user
-    to CONFIRM the logout rather than ending the session outright. The local cookie is already gone
-    at that point; the SSO session survives an unconfirmed logout. That residual is the runbook's
-    smoke step 4 and ADR 0018's open point, not an oversight here."""
+
+def fetch_tokens(*, code: str, nonce: str, redirect_uri: str) -> Tokens | None:
+    """Exchange an authorization code for ``Tokens``. The ID token must match this browser's
+    ``nonce``; the access token must pass ``verify_access``. ``None`` for any failure."""
+    issuer, client_id = settings.OIDC_ISSUER, settings.OIDC_CLIENT_ID
+    token_endpoint, jwks_uri = _endpoint("token_endpoint"), _endpoint("jwks_uri")
+    if not (issuer and client_id and token_endpoint and jwks_uri):
+        return None
+    client = _client(redirect_uri)
+    if client is None:
+        return None
+    response = _call(
+        client,
+        lambda c: c.fetch_token(
+            token_endpoint, code=code, grant_type="authorization_code", timeout=_TIMEOUT
+        ),
+    )
+    if response is None:
+        return None
+    id_token = response.get("id_token")
+    jwks = _jwks(jwks_uri) if isinstance(id_token, str) else None
+    if not isinstance(id_token, str) or jwks is None:
+        return None
+    if _validated(id_token, jwks, issuer=issuer, client_id=client_id, nonce=nonce) is None:
+        # A rotated realm key is simply absent from the cached set; one refetch tells it apart.
+        rotated = _jwks(jwks_uri, refresh=True)
+        if (
+            rotated is None
+            or _validated(id_token, rotated, issuer=issuer, client_id=client_id, nonce=nonce)
+            is None
+        ):
+            return None
+    return _tokens_of(response)
+
+
+def refresh(refresh_token: str) -> Tokens | None:
+    """New ``Tokens`` for a refresh token, or ``None`` when the realm refuses it or cannot be
+    reached — the caller then treats the viewer as signed out (ADR 0018)."""
+    token_endpoint = _endpoint("token_endpoint")
+    client = _client() if token_endpoint else None
+    if client is None:
+        return None
+    response = _call(
+        client,
+        lambda c: c.refresh_token(token_endpoint, refresh_token=refresh_token, timeout=_TIMEOUT),
+    )
+    return _tokens_of(response) if response is not None else None
+
+
+def _revoke(refresh_token: str) -> None:
+    """Revoke an offline refresh token at the realm. Best effort: a logout goes on without it."""
+    endpoint = _endpoint("revocation_endpoint")
+    client = _client() if endpoint else None
+    if client is not None:
+        _call(
+            client,
+            lambda c: c.revoke_token(
+                endpoint, token=refresh_token, token_type_hint="refresh_token", timeout=_TIMEOUT
+            ),
+        )
+
+
+def _end_session_url(post_logout_redirect_uri: str, *, id_token_hint: str | None) -> str | None:
+    """Keycloak's end-session URL, joined onto whatever query the realm advertises, or ``None`` when
+    the realm is unconfigured or unreachable."""
     endpoint = _endpoint("end_session_endpoint")
     if endpoint is None or not settings.OIDC_CLIENT_ID:
         return None
-    return str(
-        add_params_to_uri(
-            endpoint,
-            [
-                ("client_id", settings.OIDC_CLIENT_ID),
-                ("post_logout_redirect_uri", post_logout_redirect_uri),
-            ],
-        )
-    )
+    params = [
+        ("client_id", settings.OIDC_CLIENT_ID),
+        ("post_logout_redirect_uri", post_logout_redirect_uri),
+    ]
+    if id_token_hint:
+        params.append(("id_token_hint", id_token_hint))
+    return str(add_params_to_uri(endpoint, params))
+
+
+def logout_url(*, refresh_token: str | None, post_logout_redirect_uri: str) -> str | None:
+    """Where a logout sends the browser, after ending what the server can end (ADR 0018 "Logout"):
+    refresh once for a current ID token, revoke the offline token, then the end-session URL with
+    that ``id_token_hint``, so Keycloak ends its own session without asking. The step order lives
+    here and nowhere else. ``None`` when the realm is unconfigured or unreachable; the caller clears
+    its cookies either way."""
+    tokens = refresh(refresh_token) if refresh_token else None
+    if tokens is not None:
+        _revoke(tokens.refresh)
+    hint = tokens.id_token if tokens is not None else None
+    return _end_session_url(post_logout_redirect_uri, id_token_hint=hint)

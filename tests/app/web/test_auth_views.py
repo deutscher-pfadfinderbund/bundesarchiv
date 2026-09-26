@@ -1,10 +1,11 @@
 """The OIDC login surface: ``/login``, ``/oidc/callback``, ``POST /logout`` (ADR 0018).
 
-Keycloak is the ONE thing faked here — through the three seams ``auth_views`` reaches it by
-(``authorization_url`` / ``fetch_claims`` / ``end_session_url``), monkeypatched as module names the
-way the web suite stubs its other genuine external boundaries. Everything else is real: the signed
-transient cookie, the minted Viewer cookie, ``viewer_of``, and the archivist route gate the round
-trip ends on — the last one is what proves the login actually authenticated somebody.
+Keycloak is the ONE thing faked here — through the seams ``auth_views`` and ``viewers`` reach it by
+(``authorization_url`` / ``fetch_tokens`` / ``logout_url``, ``verify_access`` / ``refresh``),
+monkeypatched as module names the way the web suite stubs its other genuine external boundaries.
+Everything else is real: the signed transient cookie, the token cookies, ``viewer_of``, and the
+archivist route gate the round trip ends on — the last one is what proves the login actually
+authenticated somebody.
 """
 
 from collections.abc import Iterator, Mapping
@@ -16,9 +17,10 @@ from django.test import Client, override_settings
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus
 
-from bundesarchiv.app.web import auth_views
+from bundesarchiv.app.web import auth_views, viewers
 from bundesarchiv.app.web.auth_views import STATE_COOKIE, safe_next
-from bundesarchiv.app.web.viewers import VIEWER_COOKIE
+from bundesarchiv.app.web.keycloak import Tokens
+from bundesarchiv.app.web.viewers import ACCESS_COOKIE, REFRESH_COOKIE, VIEWER_COOKIE
 
 _KEY = "test-viewer-signing-key"
 
@@ -32,51 +34,66 @@ _MEMBER_CLAIMS: Mapping[str, object] = {
     "groups": ["vorstand"],
 }
 
+_ARCHIVIST_TOKENS = Tokens(
+    access="access-archivist",
+    refresh="refresh-archivist",
+    claims=_ARCHIVIST_CLAIMS,
+    id_token="id-a",
+)
+_MEMBER_TOKENS = Tokens(
+    access="access-member", refresh="refresh-member", claims=_MEMBER_CLAIMS, id_token="id-m"
+)
+
 _AUTHORIZE = "https://auth.example/realms/dpb/protocol/openid-connect/auth"
 _END_SESSION = "https://auth.example/realms/dpb/protocol/openid-connect/logout"
 
 
 class _FakeKeycloak:
     """An in-memory stand-in for the realm: it records what the views hand it and answers what the
-    test told it to. ``authorize``/``end_session``/``claims`` set to ``None`` model an unconfigured
-    or unreachable realm — the seams' documented failure answer."""
+    test told it to. ``authorize``/``logout``/``tokens`` set to ``None`` model an unconfigured or
+    unreachable realm — the seams' documented failure answer. ``verify_access`` accepts exactly the
+    access token it handed out, so the round trip authenticates through the real ``viewer_of``."""
 
-    def __init__(
-        self,
-        *,
-        claims: Mapping[str, object] | None,
-        authorize: str | None,
-        end_session: str | None,
-    ) -> None:
-        self.claims = claims
+    def __init__(self, *, tokens: Tokens | None, authorize: str | None, logout: str | None) -> None:
+        self.tokens = tokens
         self.authorize = authorize
-        self.end_session = end_session
+        self.logout = logout
         self.seen: dict[str, str] = {}
+        self.logout_refresh: str | None = None
+        self.refreshed_to: Tokens | None = None
 
     def authorization_url(self, *, state: str, nonce: str, redirect_uri: str) -> str | None:
         self.seen |= {"state": state, "nonce": nonce, "redirect_uri": redirect_uri}
         return None if self.authorize is None else f"{self.authorize}?state={state}"
 
-    def fetch_claims(
-        self, *, code: str, nonce: str, redirect_uri: str
-    ) -> Mapping[str, object] | None:
+    def fetch_tokens(self, *, code: str, nonce: str, redirect_uri: str) -> Tokens | None:
         self.seen |= {"code": code, "callback_nonce": nonce, "callback_redirect": redirect_uri}
-        return self.claims
+        return self.tokens
 
-    def end_session_url(self, *, post_logout_redirect_uri: str) -> str | None:
+    def verify_access(self, token: str) -> Mapping[str, object] | None:
+        return self.tokens.claims if self.tokens and token == self.tokens.access else None
+
+    def refresh(self, _token: str) -> Tokens | None:
+        return self.refreshed_to
+
+    def logout_url(self, *, refresh_token: str | None, post_logout_redirect_uri: str) -> str | None:
+        self.logout_refresh = refresh_token
         self.seen |= {"post_logout": post_logout_redirect_uri}
-        if self.end_session is None:
+        if self.logout is None:
             return None
-        return f"{self.end_session}?redirect_uri={post_logout_redirect_uri}"
+        return f"{self.logout}?redirect_uri={post_logout_redirect_uri}"
 
 
 @pytest.fixture
 def keycloak(monkeypatch: pytest.MonkeyPatch) -> Iterator[_FakeKeycloak]:
-    """The faked realm, wired into the three seams, with a signing key configured."""
-    fake = _FakeKeycloak(claims=_ARCHIVIST_CLAIMS, authorize=_AUTHORIZE, end_session=_END_SESSION)
+    """The faked realm, wired into the seams ``auth_views`` and ``viewers`` reach it by, with a
+    signing key configured."""
+    fake = _FakeKeycloak(tokens=_ARCHIVIST_TOKENS, authorize=_AUTHORIZE, logout=_END_SESSION)
     monkeypatch.setattr(auth_views, "authorization_url", fake.authorization_url)
-    monkeypatch.setattr(auth_views, "fetch_claims", fake.fetch_claims)
-    monkeypatch.setattr(auth_views, "end_session_url", fake.end_session_url)
+    monkeypatch.setattr(auth_views, "fetch_tokens", fake.fetch_tokens)
+    monkeypatch.setattr(auth_views, "logout_url", fake.logout_url)
+    monkeypatch.setattr(viewers, "verify_access", fake.verify_access)
+    monkeypatch.setattr(viewers, "refresh", fake.refresh)
     with override_settings(VIEWER_SIGNING_KEY=_KEY):
         yield fake
 
@@ -123,15 +140,17 @@ def test_the_callback_replays_the_nonce_the_authorize_request_carried(
     assert keycloak.seen["redirect_uri"] == "http://testserver/oidc/callback"
 
 
-def test_the_minted_cookie_carries_the_tier_the_claims_map_to(keycloak: _FakeKeycloak) -> None:
-    keycloak.claims = _MEMBER_CLAIMS
+def test_the_callback_leaves_both_token_cookies_and_no_viewer_cookie(
+    keycloak: _FakeKeycloak,
+) -> None:
+    keycloak.tokens = _MEMBER_TOKENS
     client = Client()
     _login(client)
     _callback(client, code="c", state=keycloak.seen["state"])
-    assert VIEWER_COOKIE in client.cookies
-    assert "member:vorstand" in signing.TimestampSigner(key=_KEY, salt="viewer").unsign(
-        client.cookies[VIEWER_COOKIE].value
-    )
+    assert client.cookies[ACCESS_COOKIE].value == "access-member"
+    assert client.cookies[REFRESH_COOKIE].value == "refresh-member"
+    assert VIEWER_COOKIE not in client.cookies
+    assert client.get("/artikel/neu").status_code == 404  # a Member, not an Archivist
 
 
 def test_the_transient_state_cookie_is_dropped_at_the_callback(keycloak: _FakeKeycloak) -> None:
@@ -202,7 +221,7 @@ def test_callback_denies_a_bad_request(
         params = params | {"state": keycloak.seen["state"]}
     response = _callback(client, **params)
     assert_denied(response, label)
-    assert VIEWER_COOKIE not in response.cookies
+    assert ACCESS_COOKIE not in response.cookies
 
 
 @pytest.mark.parametrize("state", ["not-the-one", "ü"])
@@ -220,14 +239,14 @@ def test_a_state_that_does_not_match_restarts_the_login(
     response = _callback(client, code="c", state=state)
     assert response.status_code == 302
     assert response["Location"] == "/login?next=%2Fartikel%2Fneu"
-    assert VIEWER_COOKIE not in response.cookies
+    assert ACCESS_COOKIE not in response.cookies
 
 
 def test_callback_denies_without_the_state_cookie(keycloak: _FakeKeycloak) -> None:
     """A callback nobody's ``/login`` started: no transient cookie, so no state to compare."""
     response = _callback(Client(), code="c", state="whatever")
     assert_denied(response, "callback with no state cookie")
-    assert VIEWER_COOKIE not in response.cookies
+    assert ACCESS_COOKIE not in response.cookies
 
 
 def test_callback_denies_a_tampered_state_cookie(keycloak: _FakeKeycloak) -> None:
@@ -257,12 +276,12 @@ def test_callback_denies_an_expired_state_cookie(
 
 def test_callback_denies_when_the_token_exchange_fails(keycloak: _FakeKeycloak) -> None:
     """Keycloak refused the code, or the ID token did not validate — the seam answers ``None``."""
-    keycloak.claims = None
+    keycloak.tokens = None
     client = Client()
     _login(client)
     response = _callback(client, code="stale", state=keycloak.seen["state"])
     assert_denied(response, "failed token exchange")
-    assert VIEWER_COOKIE not in response.cookies
+    assert ACCESS_COOKIE not in response.cookies
 
 
 def test_callback_rejects_a_post(keycloak: _FakeKeycloak) -> None:
@@ -318,9 +337,11 @@ def test_safe_next_of_nothing_is_nothing() -> None:
 # --- logout ---------------------------------------------------------------------------------------
 
 
-def test_logout_clears_the_cookie_and_ends_the_sso_session(keycloak: _FakeKeycloak) -> None:
-    """Shared-computer ruling (ADR 0018): the local cookie goes AND the browser is sent through
-    Keycloak's ``end_session_endpoint``, or the live SSO session re-logs the previous person in."""
+def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(
+    keycloak: _FakeKeycloak,
+) -> None:
+    """Shared-computer ruling (ADR 0018): the cookies go AND the browser is sent through Keycloak's
+    end-session endpoint, with what it needs to end the Keycloak session unasked."""
     client = Client()
     _login(client)
     _callback(client, code="c", state=keycloak.seen["state"])
@@ -329,23 +350,56 @@ def test_logout_clears_the_cookie_and_ends_the_sso_session(keycloak: _FakeKeyclo
     response = client.post("/logout")
     assert response.status_code == 302
     assert response["Location"].startswith(_END_SESSION)
+    assert keycloak.logout_refresh == "refresh-archivist"
     assert keycloak.seen["post_logout"] == "http://testserver/"
-    assert client.cookies[VIEWER_COOKIE].value == ""
+    assert client.cookies[ACCESS_COOKIE].value == ""
+    assert client.cookies[REFRESH_COOKIE].value == ""
 
 
-def test_logout_clears_the_cookie_even_with_no_realm_to_return_through(
+def test_logout_clears_the_cookies_even_with_no_realm_to_return_through(
     keycloak: _FakeKeycloak,
 ) -> None:
-    """An unconfigured/unreachable realm may not strand a signed-in browser: the local cookie is the
-    part we own, so it goes and the visitor lands on the workbench."""
-    keycloak.end_session = None
+    keycloak.logout = None
     client = Client()
     _login(client)
     _callback(client, code="c", state=keycloak.seen["state"])
     response = client.post("/logout")
     assert response.status_code == 302
     assert response["Location"] == "/"
-    assert client.cookies[VIEWER_COOKIE].value == ""
+    assert client.cookies[ACCESS_COOKIE].value == ""
+    assert client.cookies[REFRESH_COOKIE].value == ""
+
+
+def test_logout_without_token_cookies_still_clears_and_redirects(keycloak: _FakeKeycloak) -> None:
+    response = Client().post("/logout")
+    assert response.status_code == 302
+    assert keycloak.logout_refresh is None
+    assert response.cookies[ACCESS_COOKIE].value == ""
+
+
+def test_a_refresh_through_the_real_middleware_stack_renews_both_cookies(
+    keycloak: _FakeKeycloak,
+) -> None:
+    """The deployed MIDDLEWARE, not a hand-built one: a browser holding only a refresh cookie opens
+    the archivist route and gets both renewed cookies back."""
+    keycloak.refreshed_to = _ARCHIVIST_TOKENS
+    client = Client()
+    client.cookies[REFRESH_COOKIE] = "refresh-old"
+    response = client.get("/artikel/neu")
+    assert response.status_code == 200
+    assert response.cookies[ACCESS_COOKIE].value == "access-archivist"
+    assert response.cookies[REFRESH_COOKIE].value == "refresh-archivist"
+
+
+def test_a_dead_refresh_cookie_is_cleared_on_the_way_to_the_login(
+    keycloak: _FakeKeycloak,
+) -> None:
+    client = Client()
+    client.cookies[REFRESH_COOKIE] = "revoked"
+    response = client.get("/artikel/neu")
+    assert response.status_code == 302
+    assert response.cookies[ACCESS_COOKIE].value == ""
+    assert response.cookies[REFRESH_COOKIE].value == ""
 
 
 def test_logout_rejects_a_get(keycloak: _FakeKeycloak) -> None:

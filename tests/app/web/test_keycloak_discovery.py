@@ -121,7 +121,7 @@ def test_the_logout_url_adds_to_whatever_the_realm_advertises(
     realm.body = {**_DOCUMENT, "end_session_endpoint": advertised}
     settings.OIDC_ISSUER, settings.OIDC_CLIENT_ID = _ISSUER, "bundesarchiv"
 
-    url = keycloak.end_session_url(post_logout_redirect_uri="https://archiv.example/")
+    url = keycloak._end_session_url("https://archiv.example/", id_token_hint=None)
 
     assert url is not None
     parts = urlsplit(url)
@@ -131,3 +131,91 @@ def test_the_logout_url_adds_to_whatever_the_realm_advertises(
         "client_id": ["bundesarchiv"],
         "post_logout_redirect_uri": ["https://archiv.example/"],
     }
+
+
+def test_a_token_response_without_a_refresh_token_logs_nobody_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(keycloak, "verify_access", lambda token: {"sub": "u1"})
+    assert keycloak._tokens_of({"access_token": "a"}) is None
+    assert keycloak._tokens_of({"access_token": "a", "refresh_token": "r"}) == keycloak.Tokens(
+        access="a", refresh="r", claims={"sub": "u1"}, id_token=None
+    )
+
+
+def test_a_token_response_whose_access_token_fails_the_check_logs_nobody_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(keycloak, "verify_access", lambda token: None)
+    assert keycloak._tokens_of({"access_token": "a", "refresh_token": "r"}) is None
+
+
+class _Session:
+    """The realm's token endpoints as ``refresh``/``_revoke`` stand-ins; records every call."""
+
+    def __init__(self, tokens: keycloak.Tokens | None) -> None:
+        self.tokens = tokens
+        self.refreshed: list[str] = []
+        self.revoked: list[str] = []
+
+    def refresh(self, refresh_token: str) -> keycloak.Tokens | None:
+        self.refreshed.append(refresh_token)
+        return self.tokens
+
+    def revoke(self, refresh_token: str) -> None:
+        self.revoked.append(refresh_token)
+
+
+def _logout_realm(
+    realm: _Realm,
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    tokens: keycloak.Tokens | None,
+) -> _Session:
+    realm.body = {**_DOCUMENT, "end_session_endpoint": _LOGOUT}
+    settings.OIDC_ISSUER, settings.OIDC_CLIENT_ID = _ISSUER, "bundesarchiv"
+    session = _Session(tokens)
+    monkeypatch.setattr(keycloak, "refresh", session.refresh)
+    monkeypatch.setattr(keycloak, "_revoke", session.revoke)
+    return session
+
+
+_FRESH = keycloak.Tokens(access="a2", refresh="r2", claims={}, id_token="id2")
+
+
+def test_logout_revokes_the_fresh_token_and_hints_its_id_token(
+    realm: _Realm, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = _logout_realm(realm, settings, monkeypatch, _FRESH)
+    url = keycloak.logout_url(
+        refresh_token="r1", post_logout_redirect_uri="https://archiv.example/"
+    )
+    assert session.refreshed == ["r1"]
+    assert session.revoked == ["r2"]
+    assert url is not None
+    assert parse_qs(urlsplit(url).query)["id_token_hint"] == ["id2"]
+
+
+def test_logout_without_a_refresh_cookie_sends_no_hint(
+    realm: _Realm, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = _logout_realm(realm, settings, monkeypatch, _FRESH)
+    url = keycloak.logout_url(
+        refresh_token=None, post_logout_redirect_uri="https://archiv.example/"
+    )
+    assert session.refreshed == []
+    assert session.revoked == []
+    assert url is not None
+    assert "id_token_hint" not in parse_qs(urlsplit(url).query)
+
+
+def test_logout_with_a_dead_refresh_token_revokes_nothing(
+    realm: _Realm, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = _logout_realm(realm, settings, monkeypatch, None)
+    url = keycloak.logout_url(
+        refresh_token="r1", post_logout_redirect_uri="https://archiv.example/"
+    )
+    assert session.revoked == []
+    assert url is not None
+    assert "id_token_hint" not in parse_qs(urlsplit(url).query)

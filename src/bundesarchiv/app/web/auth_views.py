@@ -1,18 +1,18 @@
 """The login surface: ``GET /login``, ``GET /oidc/callback``, ``POST /logout`` (ADR 0018).
 
-The three routes that turn a Keycloak login into the ONE signed Viewer cookie ``viewer_of``
-resolves — no Django sessions, no user model, no stored tokens. There is no login PAGE and no
+The three routes that turn a Keycloak login into the two token cookies ``viewer_of`` resolves — no
+Django sessions, no user model; the server stores no token. There is no login PAGE and no
 Abmelden landing page (owner, 2026-08-29): ``/login`` IS the redirect to Keycloak, and a logout
 lands back on the workbench as an anonymous visitor.
 
-Everything that touches the realm goes through the three ``keycloak`` seams imported here as module
+Everything that touches the realm goes through the ``keycloak`` seams imported here as module
 names — the suite fakes them in place (the web subtree's boundary-stub pattern) and everything else
 in this module runs for real.
 
 Fail-closed, in the shape the rest of the surface uses: a missing signing key, an unreachable realm,
 a callback nobody's ``/login`` started, a token exchange that failed — all the shared empty 404. Two
 deliberate exceptions, both because the alternative is worse than the deny: ``/logout`` always clears
-the local cookie (refusing to sign somebody OUT is not a safe failure), and a callback whose VERIFIED
+the local cookies (refusing to sign somebody OUT is not a safe failure), and a callback whose VERIFIED
 transient carries another state restarts the login instead of stranding a stale tab on a blank page.
 """
 
@@ -25,10 +25,14 @@ from django.core import signing
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
-from bundesarchiv.app.web.keycloak import authorization_url, end_session_url, fetch_claims
+from bundesarchiv.app.web.keycloak import authorization_url, fetch_tokens, logout_url
 from bundesarchiv.app.web.media_views import _not_found
-from bundesarchiv.app.web.oidc import viewer_from_claims
-from bundesarchiv.app.web.viewers import VIEWER_COOKIE, mint_viewer_cookie
+from bundesarchiv.app.web.viewers import (
+    REFRESH_COOKIE,
+    VIEWER_COOKIE,
+    delete_token_cookies,
+    set_token_cookies,
+)
 
 #: The short-lived cookie carrying one login's ``state``/``nonce``/``next`` across the redirect to
 #: Keycloak and back. Signed with the viewer key under its OWN salt; it is transient by design and
@@ -129,8 +133,8 @@ def _transient_of(request: HttpRequest) -> _Transient | None:
 
 
 def oidc_callback(request: HttpRequest) -> HttpResponse:
-    """``GET /oidc/callback`` — Keycloak's answer: match the state, exchange the code for validated
-    claims, mint the Viewer cookie for the tier they map to, and land on the remembered path."""
+    """``GET /oidc/callback`` — Keycloak's answer: match the state, exchange the code for checked
+    tokens, set the two token cookies, and land on the remembered path."""
     if request.method != "GET":
         return _not_found()
     transient = _transient_of(request)
@@ -145,24 +149,27 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         # cookie. That is a stale login, not an attack — send them back through the flow rather
         # than onto a dead 404. It terminates: the restart mints the state it will match.
         return HttpResponseRedirect(login_redirect(transient.next_path))
-    claims = fetch_claims(code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request))
-    if claims is None:
+    tokens = fetch_tokens(code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request))
+    if tokens is None:
         return _not_found()
     response = HttpResponseRedirect(transient.next_path)
-    if not mint_viewer_cookie(viewer_from_claims(claims), response):
-        return _not_found()
+    set_token_cookies(tokens, response)
     response.delete_cookie(STATE_COOKIE)
     return response
 
 
 def logout(request: HttpRequest) -> HttpResponse:
-    """``POST /logout`` — drop the Viewer cookie and continue through Keycloak's end-session
-    endpoint, so the SSO session cannot silently sign the next person in on a shared machine
-    (ADR 0018). With no realm to return through, the cookie still goes."""
+    """``POST /logout`` — end the Keycloak session as far as the server can (``logout_url``), drop
+    the token cookies, and continue through Keycloak's end-session endpoint (ADR 0018 "Logout").
+    With no realm to return through, the cookies still go."""
     if request.method != "POST":
         return _not_found()
     home = request.build_absolute_uri(_DEFAULT_NEXT)
-    response = HttpResponseRedirect(end_session_url(post_logout_redirect_uri=home) or _DEFAULT_NEXT)
+    url = logout_url(
+        refresh_token=request.COOKIES.get(REFRESH_COOKIE), post_logout_redirect_uri=home
+    )
+    response = HttpResponseRedirect(url or _DEFAULT_NEXT)
+    delete_token_cookies(response)
     response.delete_cookie(VIEWER_COOKIE)
     return response
 

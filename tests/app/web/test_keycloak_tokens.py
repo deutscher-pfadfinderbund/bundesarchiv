@@ -10,10 +10,12 @@ import json
 import time
 from base64 import urlsafe_b64encode
 from collections.abc import Iterator, Mapping
+from functools import partial
 from typing import Any
 
 import httpx
 import pytest
+from authlib.integrations.httpx_client import OAuth2Client
 from authlib.jose import JsonWebKey, JsonWebToken
 from pytest_django.fixtures import Settings
 
@@ -76,7 +78,10 @@ class _Realm:
             self.key_fetches += 1
             body: object = self.keys
         else:
-            body = {"jwks_uri": _JWKS_URI}
+            body = {
+                "jwks_uri": _JWKS_URI,
+                "token_endpoint": f"{_ISSUER}/protocol/openid-connect/token",
+            }
         return httpx.Response(200, json=body, request=httpx.Request("GET", url))
 
 
@@ -170,3 +175,25 @@ def test_garbage_is_rejected_without_a_refetch(realm: _Realm, garbage: str) -> N
 def test_an_unconfigured_realm_accepts_nothing(realm: _Realm, settings: Settings) -> None:
     settings.OIDC_CLIENT_ID = None
     assert keycloak.verify_access(_token()) is None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param([], id="list"),
+        pytest.param("x", id="string"),
+        pytest.param(5, id="number"),
+        pytest.param(None, id="null"),
+    ],
+)
+def test_a_refresh_answer_that_is_not_an_object_is_a_failed_refresh(
+    realm: _Realm, settings: Settings, monkeypatch: pytest.MonkeyPatch, body: object
+) -> None:
+    """A proxy or a misbehaving realm answering 200 with a non-object: ``viewer_of`` must still fall
+    closed rather than raise (a 500 on every request, the cookies never cleared)."""
+    settings.OIDC_CLIENT_SECRET = "secret"
+    # The realm behind the client's transport: no network, and no SSL context either (building one
+    # starts a native thread on macOS, which the suite's fork-based tests then warn about).
+    transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=body))
+    monkeypatch.setattr(keycloak, "OAuth2Client", partial(OAuth2Client, transport=transport))
+    assert keycloak.refresh("r1") is None

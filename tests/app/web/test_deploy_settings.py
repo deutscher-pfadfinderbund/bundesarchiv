@@ -70,6 +70,20 @@ def test_the_upload_ceiling_is_four_gibibytes_by_default() -> None:
     assert prod_settings.BUNDESARCHIV_MAX_UPLOAD_BYTES == 4 * 1024**3
 
 
+def test_the_token_cookie_middleware_wraps_everything_that_resolves_the_viewer() -> None:
+    """``TokenCookieMiddleware`` writes a refresh outcome onto the response, so it must sit outside
+    every middleware that calls ``viewer_of`` (ADR 0018). Missing, a refreshed login never reaches
+    the browser and a dead refresh cookie is never cleared."""
+    token = "bundesarchiv.app.web.viewers.TokenCookieMiddleware"
+    later = (
+        "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
+        "bundesarchiv.app.web.dev.DevViewerMiddleware",
+    )
+    for stack in (prod_settings.MIDDLEWARE, settings_dev.MIDDLEWARE):
+        assert token in stack
+        assert all(stack.index(token) < stack.index(name) for name in later if name in stack)
+
+
 def test_security_middleware_leads_both_middleware_stacks() -> None:
     for stack in (prod_settings.MIDDLEWARE, settings_dev.MIDDLEWARE):
         assert stack[0] == "django.middleware.security.SecurityMiddleware"

@@ -1,8 +1,9 @@
 """OIDC login adapter — validated Keycloak claims → domain ``Viewer`` (ADR 0018).
 
-The claims→Viewer mapping is a PURE function over the already-validated ID-token claims: the
-authlib flow (issuer/nonce/signature validation) happens before it and hands it a plain dict, so
-the one authorization decision a login makes is testable as a table with no server in sight.
+The claims→Viewer mapping is a PURE function over the already-checked access-token claims:
+``keycloak.verify_access`` (signature, issuer, audience, expiry) runs before it and hands it a plain
+dict, so the one authorization decision a request makes is testable as a table with no server in
+sight.
 
 Least privilege is the tie-breaker: only the exact realm role grants ``Archivist``; every other
 authenticated user — including one whose token carries claims in shapes we do not recognize — is a
@@ -20,7 +21,7 @@ ARCHIVIST_REALM_ROLE = "Bundesarchiv"
 
 
 def viewer_from_claims(claims: Mapping[str, object]) -> Viewer:
-    """Map validated ID-token claims to the ``Viewer`` a login mints a cookie for: ``Archivist``
+    """Map checked access-token claims to the request's ``Viewer``: ``Archivist``
     for the realm role ``Bundesarchiv`` in ``realm_access.roles``, named by ``preferred_username``
     (the default name when that is absent or blank), otherwise ``Member`` carrying the ``groups``
     claim (empty when absent — group rollout is then Keycloak configuration, not code). Claims of

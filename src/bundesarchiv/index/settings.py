@@ -113,15 +113,15 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "bundesarchiv.app.web.viewers.TokenCookieMiddleware",  # outside everything that calls viewer_of
     "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
 ]
 
-# Authentication (ADR 0018): OIDC against the DPB Keycloak realm, ending in ONE signed Viewer
-# cookie — no Django sessions, no contrib.auth, no stored tokens. Every value arrives from the
-# deploy environment and every one of them is OPTIONAL HERE ON PURPOSE: absent settings must fall
-# closed (no key -> no cookie can be minted or verified -> Public), exactly like the dev-key pattern
-# in ``app/web/viewers.py``. A misconfigured deploy therefore authenticates nobody rather than
-# trusting an unsigned or SECRET_KEY-signed cookie.
+# Authentication (ADR 0018): OIDC against the DPB Keycloak realm. The browser keeps Keycloak's tokens
+# in two cookies; the server stores none — no Django sessions, no contrib.auth. Every value arrives
+# from the deploy environment and every one of them is OPTIONAL HERE ON PURPOSE: absent settings must
+# fall closed (nobody can log in, every token check fails -> Public). VIEWER_SIGNING_KEY signs the
+# transient login cookie and the (deferred) capability-link Viewer cookie.
 VIEWER_SIGNING_KEY = os.environ.get("BUNDESARCHIV_VIEWER_SIGNING_KEY") or None
 OIDC_ISSUER = os.environ.get("BUNDESARCHIV_OIDC_ISSUER") or None
 OIDC_CLIENT_ID = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_ID") or None
