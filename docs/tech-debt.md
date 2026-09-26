@@ -183,8 +183,9 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Tests
 
-### 12. Pre-existing e2e failures on main — defect (UI), open
-- **Indicator:** 3 red journeys (2026-09-02)
+### 12. Pre-existing e2e failures on main — done
+- **Indicator:** 3 red journeys (2026-09-02); 0 red, 44/44 green (2026-09-26, the anchor-insets
+  fix for #53)
 - **Evidence:** `test_control_rows_compute_one_height_source`,
   `test_the_control_row_walk_sees_what_the_screens_compose`,
   `test_overlays_stay_inside_the_viewport` — the `+ Neu…` / `Mehr…` panels start off-viewport
