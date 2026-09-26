@@ -36,7 +36,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
   module or moves to its one importer.
 
-### 19. The fixity check reads the repositories' private layout — Worth exploring
+### 20. The fixity check reads the repositories' private layout — Worth exploring
 - **Indicator:** 5 private imports, all in `persistence/fixity.py` (2026-09-25, the count of #11)
 - **Evidence:** `_folder` and `_ulid_of_readme` from both repositories, and `repository._digest` —
   the key layout and the hash the check re-reads (ADR 0019 "Fixity"). Accreted.
