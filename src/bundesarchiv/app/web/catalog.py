@@ -161,7 +161,7 @@ def parse_edit_form(
     if date_error is not None:
         errors["date"] = date_error
 
-    audience, audience_error = _parse_audience(_get(post, "sichtbarkeit"), _get(post, "gruppen"))
+    audience, audience_error = parse_audience(_get(post, "sichtbarkeit"), _get(post, "gruppen"))
     if audience_error is not None:
         errors["gruppen"] = audience_error
 
@@ -242,7 +242,7 @@ def _parse_date(raw: str) -> tuple[EdtfDate | None, str | None]:
         return None, f"Datierung: {err}."
 
 
-def _parse_audience(sichtbarkeit: str, gruppen: str) -> tuple[Audience | None, str | None]:
+def parse_audience(sichtbarkeit: str, gruppen: str) -> tuple[Audience | None, str | None]:
     """The Sichtbarkeit group: empty → inherit (``audience=None``); otherwise the chosen rung. The
     GROUPS rung REQUIRES at least one group (the model's GROUPS-iff invariant, server-enforced);
     groups named on a non-GROUPS rung are dropped (naming them there is a silent over-exposure the

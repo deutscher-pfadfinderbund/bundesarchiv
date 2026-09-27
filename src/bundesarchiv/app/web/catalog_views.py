@@ -36,13 +36,10 @@ from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import BestandCrumb, bestand_crumbs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
-from bundesarchiv.domain.access import VisibilityPreview, preview
-from bundesarchiv.domain.collections import resolve_chain
-from bundesarchiv.domain.errors import DomainError
+from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
     Article,
-    AudienceTier,
     Lifecycle,
     MediaRef,
     Ulid,
@@ -51,16 +48,6 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored, cleaned_name
-
-# The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
-# 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
-_SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("", vocab.SICHTBARKEIT_ERBEN),
-    ("public", vocab.SICHTBARKEIT_PUBLIC),
-    ("members", vocab.SICHTBARKEIT_MEMBERS),
-    ("groups", vocab.SICHTBARKEIT_GRUPPEN),
-)
-
 
 #: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
 #: resolve, said as a field error on the Bestand.
@@ -241,10 +228,10 @@ def _handle_edit_post(
         result.article is not None
         and current.lifecycle is Lifecycle.DRAFT
         and lifecycle is Lifecycle.PUBLISHED
-        and _exposure_audience(result.article, bestand) is None
+        and bestand.chain_of(result.article.collection_id) is None
     ):
         # FAIL-CLOSED, server-side (learning G.43/G.48). The Status select drops Veröffentlicht when
-        # the exposure is None, but that is the client half only, and the state is reachable with
+        # the chain does not resolve, but that is the client half only, and the state is reachable with
         # ordinary UI actions — re-parenting a Bestand under a missing parent leaves the article's
         # own version untouched, so CAS passes. Published, the record 404s for everyone including its
         # cataloguer, and a later repair puts it live at whatever rung results unreviewed.
@@ -466,10 +453,8 @@ class EditSurface:
 def _crumbs(article: Article, bestand: BestandChooser) -> tuple[BestandCrumb, ...]:
     """The saved article's Bestand chain as crumbs, root first — the detail page's own builder. A
     chain the domain cannot resolve yields none: the crumbs show a place, and there is none."""
-    try:
-        return bestand_crumbs(resolve_chain(article.collection_id, bestand.by_ulid()))
-    except DomainError:
-        return ()
+    chain = bestand.chain_of(article.collection_id)
+    return () if chain is None else bestand_crumbs(chain)
 
 
 @dataclass(frozen=True, slots=True)
@@ -554,20 +539,6 @@ def _post_to_form_values(
     values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
     values["is_draft"] = lifecycle is Lifecycle.DRAFT
     return values
-
-
-def _sichtbarkeit_value(article: Article) -> str:
-    """The Sichtbarkeit select value for a stored Article: empty (inherit) when audience is None,
-    else the rung's select value."""
-    if article.audience is None:
-        return ""
-    match article.audience.tier:
-        case AudienceTier.PUBLIC:
-            return "public"
-        case AudienceTier.MEMBERS:
-            return "members"
-        case AudienceTier.GROUPS:
-            return "groups"
 
 
 def _audience_label(article: Article) -> str:
@@ -721,7 +692,7 @@ _FIELDS: tuple[_Field, ...] = (
         section="margin",
         options="sichtbarkeit_options",
         diff="Sichtbarkeit",
-        seed=_sichtbarkeit_value,
+        seed=lambda article: vocab.sichtbarkeit_value(article.audience),
         shown=_audience_label,
     ),
     _Field(
@@ -905,7 +876,7 @@ def _card_fields(
     errors: catalog.FormErrors,
     autofocus: str,
     conflicts: Mapping[str, str] | None = None,
-    sichtbarkeit_options: _Options = _SICHTBARKEIT_OPTIONS,
+    sichtbarkeit_options: _Options = vocab.SICHTBARKEIT_OPTIONS,
     lifecycle_options: _Options = _LIFECYCLE_OPTIONS,
 ) -> dict[str, tuple[_CardRow, ...]]:
     """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
@@ -1028,13 +999,9 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
 def _exposure_audience(article: Article, bestand: BestandChooser) -> str | None:
     """Who would see ``article`` once published, in German, computed by the domain ``preview()``
     over the resolved collection chain so the who-sees decision stays in the domain. ``None`` when
-    the chain cannot resolve (fail-closed: no statement rather than a misleading one). The publish
-    gate refuses on ``None``."""
-    try:
-        chain = resolve_chain(article.collection_id, bestand.by_ulid())
-    except DomainError:
-        return None
-    return _preview_audience_label(preview(article, chain))
+    the chain cannot resolve (fail-closed: no statement rather than a misleading one)."""
+    chain = bestand.chain_of(article.collection_id)
+    return None if chain is None else vocab.exposure_label(preview(article, chain))
 
 
 def _sichtbarkeit_options(inherited: str | None) -> _Options:
@@ -1042,21 +1009,8 @@ def _sichtbarkeit_options(inherited: str | None) -> _Options:
     always says who will see the record (owner ruling 5; a1 round 3). ``inherited`` is the
     audience with the article's own setting cleared; unresolvable, the plain caption stays."""
     if inherited is None:
-        return _SICHTBARKEIT_OPTIONS
-    return (("", f"{inherited} (wie Bestand)"), *_SICHTBARKEIT_OPTIONS[1:])
-
-
-def _preview_audience_label(result: VisibilityPreview) -> str:
-    """The who-gains-sight string (spec §6.2): the widest rung the article would reach after
-    publication, in plain German. Reuses the shared rung captions so it can't drift from the
-    ledger/CAS-diff wording; the ``Niemand`` fallback is its own."""
-    if result.public:
-        return vocab.SICHTBARKEIT_PUBLIC
-    if result.groups:
-        return vocab.groups_label(result.groups)
-    if result.members:
-        return vocab.SICHTBARKEIT_MEMBERS
-    return "Niemand (kein Bestand-Zugriff)"
+        return vocab.SICHTBARKEIT_OPTIONS
+    return (("", f"{inherited} (wie Bestand)"), *vocab.SICHTBARKEIT_OPTIONS[1:])
 
 
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------

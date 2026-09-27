@@ -22,6 +22,8 @@ process-level cache — a Bestand created in this request must be choosable in t
 from collections.abc import Callable, Mapping
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
+from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Collection, Ulid
 
 #: The Eltern-Bestand top-level marker — a Bestand with no parent. Public because the Bestand form's
@@ -57,6 +59,15 @@ class BestandChooser:
         if self._loaded is None:
             self._loaded = {c.ulid: c for c in self._load()}
         return self._loaded
+
+    def chain_of(self, collection_id: Ulid) -> ResolvedChain | None:
+        """The Bestand chain above ``collection_id``, leaf first, or ``None`` when it does not
+        resolve (unknown, orphaned, cyclic). ``None`` is THE publish gate: no chain, no exposure
+        statement, no publishing."""
+        try:
+            return resolve_chain(collection_id, self.by_ulid())
+        except DomainError:
+            return None
 
     def names(self) -> Mapping[Ulid, str]:
         """ULID → name for every saved Bestand — how a screen showing raw collection values (the

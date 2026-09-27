@@ -13,6 +13,7 @@ Pure presentation helpers:
 import pytest
 
 from bundesarchiv.app.web import vocab
+from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
 
 #: The Medienart ``narrowed_vocabulary`` narrows, and the single Dokumenttyp it leaves it.
@@ -173,3 +174,22 @@ def test_datierung_parts_of_no_date_are_empty() -> None:
 )
 def test_human_size_is_german(byte_size: int | None, expected: str) -> None:
     assert vocab.human_size(byte_size) == expected
+
+
+# --- the exposure statement ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("public", "members", "groups", "expected"),
+    [
+        (True, True, (), "Öffentlich"),
+        (False, True, (), "Alle Mitglieder"),
+        (False, False, ("vorstand", "kasse"), "Gruppe: vorstand, kasse"),
+        (False, False, (), "Niemand (kein Bestand-Zugriff)"),
+    ],
+)
+def test_exposure_label_names_the_widest_rung(
+    public: bool, members: bool, groups: tuple[str, ...], expected: str
+) -> None:
+    result = VisibilityPreview(public, members, groups, frozenset())
+    assert vocab.exposure_label(result) == expected

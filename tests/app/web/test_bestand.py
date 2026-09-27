@@ -86,3 +86,26 @@ def test_the_loaded_set_is_addressable_by_ulid_and_by_name() -> None:
     chooser = _chooser(*_LOAD_ORDER)
     assert chooser.by_ulid() == {c.ulid: c for c in _LOAD_ORDER}
     assert chooser.names() == {c.ulid: c.name for c in _LOAD_ORDER}
+
+
+# --- the chain: the one fail-closed resolution ---------------------------------------
+
+
+def test_chain_of_is_the_collection_chain_leaf_first() -> None:
+    root = Collection(ulid="ROOT", name="Archiv")
+    leaf = Collection(ulid="LEAF", name="Fotografien", parent_id="ROOT")
+    chain = _chooser(root, leaf).chain_of("LEAF")
+    assert chain is not None and chain.collections == (leaf, root)
+
+
+@pytest.mark.parametrize(
+    "collection_id",
+    [
+        "UNKNOWN",  # names no Bestand
+        "WAISE",  # its parent is missing
+        "",
+    ],
+)
+def test_chain_of_an_unresolvable_bestand_is_none(collection_id: str) -> None:
+    waise = Collection(ulid="WAISE", name="Waise", parent_id="FEHLT")
+    assert _chooser(waise).chain_of(collection_id) is None

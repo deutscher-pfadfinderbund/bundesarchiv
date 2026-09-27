@@ -18,6 +18,7 @@ one source with no database:
 import re
 from dataclasses import dataclass
 
+from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier
 
@@ -129,6 +130,42 @@ SICHTBARKEIT_MEMBERS = "Alle Mitglieder"
 #: option, chosen together with the Gruppen field. ``groups_label`` spells the same rung once the
 #: names exist; both live here so the form's option list is not a second source (law C7).
 SICHTBARKEIT_GRUPPEN = "Gruppe(n)"
+
+
+#: The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
+#: 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
+SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("", SICHTBARKEIT_ERBEN),
+    ("public", SICHTBARKEIT_PUBLIC),
+    ("members", SICHTBARKEIT_MEMBERS),
+    ("groups", SICHTBARKEIT_GRUPPEN),
+)
+
+
+def sichtbarkeit_value(audience: Audience | None) -> str:
+    """The Sichtbarkeit select value for a stored audience: empty (inherit) for ``None``, else the
+    rung's value."""
+    if audience is None:
+        return ""
+    match audience.tier:
+        case AudienceTier.PUBLIC:
+            return "public"
+        case AudienceTier.MEMBERS:
+            return "members"
+        case AudienceTier.GROUPS:
+            return "groups"
+
+
+def exposure_label(result: VisibilityPreview) -> str:
+    """Who gains sight once the record is published (spec §6.2): the widest rung ``preview()``
+    reports, as its rung caption."""
+    if result.public:
+        return SICHTBARKEIT_PUBLIC
+    if result.groups:
+        return groups_label(result.groups)
+    if result.members:
+        return SICHTBARKEIT_MEMBERS
+    return "Niemand (kein Bestand-Zugriff)"
 
 
 def groups_label(groups: tuple[str, ...]) -> str:

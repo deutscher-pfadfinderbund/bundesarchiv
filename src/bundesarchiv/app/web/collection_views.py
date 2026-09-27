@@ -11,7 +11,7 @@ Two archivist-only routes, both methods gated to the byte-identical 404 (existen
   they can move descendants' visibility and need the over-exposure machinery a rename does not.
 
 The Sichtbarkeit option vocabulary + the GROUPS-iff audience parse are the SAME single source the 4.7
-article form uses (``catalog_views._SICHTBARKEIT_OPTIONS`` / ``catalog._parse_audience``) — the
+article form uses (``vocab.SICHTBARKEIT_OPTIONS`` / ``catalog.parse_audience``) — the
 GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-implemented.
 """
 
@@ -26,8 +26,7 @@ from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
-from bundesarchiv.app.web.catalog import FormErrors, _parse_audience, parse_version
-from bundesarchiv.app.web.catalog_views import _SICHTBARKEIT_OPTIONS
+from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -54,7 +53,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         parent_id = request.POST.get("parent_id", "").strip()
         sichtbarkeit = request.POST.get("sichtbarkeit", "")
         gruppen = request.POST.get("gruppen", "")
-        audience, audience_error = _parse_audience(sichtbarkeit, gruppen)
+        audience, audience_error = parse_audience(sichtbarkeit, gruppen)
         errors = _create_errors(name, parent_id, bestand, audience_error)
         if not errors:
             result = create_collection(
@@ -117,7 +116,7 @@ def _create_context(
         "sichtbarkeit": sichtbarkeit,
         "gruppen": gruppen,
         "parent_options": bestand.parent_options(),
-        "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
+        "sichtbarkeit_options": vocab.SICHTBARKEIT_OPTIONS,
         "errors": errors,
         "autofocus": "parent_id" if name and "name" not in errors else "name",
     }
