@@ -33,23 +33,9 @@
     <header class="stack" style="--stack-gap: var(--gap-head)">
       <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
       <!-- mock: BA 1784 is published in data.json; shown here as an Entwurf -->
-      <div class="section-head">
-        <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971<span class="mark">Entwurf</span></h1>
-        <p class="section-head-lede">Nach Veröffentlichung sichtbar für: Alle Mitglieder.</p>
-      </div>
+      <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971<span class="mark">Entwurf</span></h1>
       <!-- origin: when, where, who — self-evident values, no labels -->
       <p class="byline"><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span></p>
-      <div class="row">
-        <a class="button" href="#">Bearbeiten</a>
-        <a class="button" href="#">Veröffentlichen</a>
-        <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
-          <ul class="menu" id="menu-2" popover>
-            <li><a href="#">Kopieren</a></li>
-            <li><a class="danger" href="loeschen.html">Löschen</a></li>
-          </ul>
-      </div>
-      <!-- management info for archivists, not a fact about the article: quiet, labelled -->
-      <dl class="byline quiet" style="--byline-type: var(--type-meta)" aria-label="Verwaltung"><div><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div><div><dt>Standort</dt><dd>Bund › Alben</dd></div></dl>
     </header>
   <div class="split">
     <div class="plate" aria-label="Medien">
@@ -66,6 +52,16 @@
       <!-- Beschreibung: mock text — absent = nothing rendered -->
 
       <p class="prose">Album mit Abzügen vom Austausch zwischen spanischen und deutschen Gruppen, vom ersten Treffen auf dem Hohen Meißner bis zu den Fahrten nach Cuenca und Madrid.</p>
+      <!-- the archivist block: management info and tools after the content they manage, one quiet voice -->
+      <footer class="stack" style="--stack-gap: var(--space-2)" aria-label="Verwaltung">
+        <p class="quiet" style="font: var(--type-meta)">Nach Veröffentlichung sichtbar für: Alle Mitglieder.</p>
+        <dl class="byline quiet" style="--byline-type: var(--type-meta)"><div><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div><div><dt>Standort</dt><dd>Bund › Alben</dd></div></dl>
+        <p class="byline" style="--byline-type: var(--type-meta)"><a href="#">Bearbeiten</a><a href="#">Veröffentlichen</a><button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button></p>
+        <ul class="menu" id="menu-2" popover>
+          <li><a href="#">Kopieren</a></li>
+          <li><a class="danger" href="loeschen.html">Löschen</a></li>
+        </ul>
+      </footer>
     </div>
   </div>
   </article>

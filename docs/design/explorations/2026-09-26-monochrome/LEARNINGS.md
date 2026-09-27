@@ -164,3 +164,8 @@ the article: it is how the archive finds the object, so it belongs with the arch
 rules, a wrapped title's second line sat as far from its first line as from the next row, so the
 list stopped reading as rows. The gap between rows has to be clearly larger than the gap inside a
 row; equal spacing groups nothing.
+
+**31. Count the voices in one area.** Each fix in the title area was sound alone (an origin line, a
+management line, an action row), but together they stacked five type voices under one title and
+put the archivist's tools before the content. Price an area as a whole: at most three voices, and
+the page's primary task (reading) decides what comes first; tools for a minority close the column.

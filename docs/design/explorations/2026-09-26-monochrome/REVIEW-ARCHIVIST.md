@@ -250,3 +250,13 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
 - **Onward lists grouped by space:** without lines, a row's own lines sit one leading apart and rows
   sit a clear gap apart (`--space-5`), so a wrapped title stays with its date instead of drifting
   toward the next row.
+
+## Owner rulings, round 4 on a3 (2026-09-27, applied)
+
+- **The title area was cluttered and the hierarchy off:** five voices under one another (crumbs, serif
+  title, origin, a bold framed button row, a labelled meta line), and the archivist's tools stood
+  between the title and the content. The title area is now crumbs, title and origin only: three
+  voices. Content (media, Beschreibung) comes next.
+- **The archivist block** closes the text column, after the content it manages, in one quiet meta
+  voice: the draft's audience line, "Signatur … · Standort …", then "Bearbeiten · Weitere Aktionen …"
+  (text, no framed button; editing is not the page's primary task — reading is).

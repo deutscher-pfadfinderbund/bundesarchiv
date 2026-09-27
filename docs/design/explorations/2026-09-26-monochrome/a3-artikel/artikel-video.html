@@ -35,17 +35,6 @@
       <h1 id="h-art">Bundeslager 2007: Eine Fotodokumentation</h1>
       <!-- origin: when, where, who — self-evident values, no labels -->
       <p class="byline"><span>CD / DVD</span><time datetime="2007">2007</time><span>Iserlohn</span><span>von Ring Florian Geyer</span></p>
-      <div class="row">
-        <a class="button" href="#">Bearbeiten</a>
-        <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
-          <ul class="menu" id="menu-2" popover>
-            <li><a href="#">Kopieren</a></li>
-            <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
-            <li><a class="danger" href="loeschen.html">Löschen</a></li>
-          </ul>
-      </div>
-      <!-- management info for archivists, not a fact about the article: quiet, labelled -->
-      <dl class="byline quiet" style="--byline-type: var(--type-meta)" aria-label="Verwaltung"><div><dt>Signatur</dt><dd><data value="BA 1035">BA 1035</data></dd></div><div><dt>Standort</dt><dd>Gruppen des DPB › Audio/Video 1</dd></div></dl>
     </header>
   <div class="split">
     <figure class="plate" style="--plate-lead-ratio: 16 / 9" aria-label="Medien">
@@ -57,6 +46,16 @@
 
       <!-- Beschreibung: mock text — absent = nothing rendered -->
       <p class="prose">DVD mit Bildern und kurzen Filmen vom Bundeslager 2007, zusammengestellt vom Ring Florian Geyer.</p>
+      <!-- the archivist block: management info and tools after the content they manage, one quiet voice -->
+      <footer class="stack" style="--stack-gap: var(--space-2)" aria-label="Verwaltung">
+        <dl class="byline quiet" style="--byline-type: var(--type-meta)"><div><dt>Signatur</dt><dd><data value="BA 1035">BA 1035</data></dd></div><div><dt>Standort</dt><dd>Gruppen des DPB › Audio/Video 1</dd></div></dl>
+        <p class="byline" style="--byline-type: var(--type-meta)"><a href="#">Bearbeiten</a><button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button></p>
+        <ul class="menu" id="menu-2" popover>
+          <li><a href="#">Kopieren</a></li>
+          <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
+          <li><a class="danger" href="loeschen.html">Löschen</a></li>
+        </ul>
+      </footer>
     </div>
   </div>
   </article>
