@@ -64,8 +64,9 @@
      the end edge, out of the reading path. Knobs: none. */
   .record-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-6); }
 
-  /* record-tools — Bearbeiten (a button), then the rare actions behind one "more" icon button (all of
-     them are archivists' only); a draft adds Veröffentlichen first. Knobs: none. */
+  /* record-tools — the rare actions behind one vertical "more" icon button (all of them are
+     archivists' only), then Bearbeiten; a draft closes with Veröffentlichen. A framed button is last,
+     so its corner is the page's corner at the end edge. Knobs: none. */
   .record-tools { display: flex; align-items: center; gap: var(--space-2); }
   .record-tools > .menu-button { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
   .record-tools > .menu-button:hover { color: var(--ink); }

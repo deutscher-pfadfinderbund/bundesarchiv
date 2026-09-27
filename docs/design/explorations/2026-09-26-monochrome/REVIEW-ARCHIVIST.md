@@ -277,3 +277,5 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   a video lead spans the full width.
 - **Byline wrapping:** no line starts with a dot (the separator slot of a line's first item is
   clipped).
+- **Round 5b:** the "more" glyph is vertical (⋮) and stands before the buttons; a framed button is
+  last, so its corner shapes the page's corner at the end edge (a draft closes with Veröffentlichen).
