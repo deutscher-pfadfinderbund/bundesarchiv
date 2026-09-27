@@ -109,6 +109,7 @@ class ArticleIndex(models.Model):
     # archivist_only/tier/groups alone; this only drives display for the archivist who already sees
     # the row. Members/public never receive archivist_only rows, so is_draft never reaches them.
     is_draft = models.BooleanField(default=False)
+    added_at = models.DateTimeField(null=True)  # the date added; None = unknown
     # bump when the FTS config changes (indexer.CONFIG_VERSION) to trigger a rebuild
     config_version = models.IntegerField()
 
@@ -130,4 +131,5 @@ class ArticleIndex(models.Model):
             GinIndex(fields=["archivist_tsv"], name="index_archivist_tsv_gin"),
             Index(fields=["collection_id"], name="index_collection_id_btree"),
             Index(fields=["date_earliest"], name="index_date_earliest_btree"),
+            Index(fields=["added_at"], name="index_added_at_btree"),
         ]

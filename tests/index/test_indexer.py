@@ -30,7 +30,8 @@ from bundesarchiv.domain.models import (
     Lifecycle,
     MediaRef,
 )
-from bundesarchiv.index import indexer
+from bundesarchiv.domain.viewer import Archivist
+from bundesarchiv.index import indexer, search
 from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -434,6 +435,21 @@ def test_rebuild_empty_store_indexes_nothing(store: InMemoryObjectStore) -> None
     assert report.indexed == 0
     assert report.failed_closed == ()
     assert ArticleIndex.objects.count() == 0  # the wipe cleared the stale row
+
+
+@pytest.mark.django_db
+def test_the_added_sort_is_newest_first_unknown_last_ulid_breaking_ties() -> None:
+    store = InMemoryObjectStore()
+    CollectionRepository(store).save(_root(), 0, changed_by="tester")
+    articles = ArticleRepository(store)
+    newer = datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC)
+    older = datetime.datetime(2017, 6, 26, 6, 6, 40, tzinfo=datetime.UTC)
+    for ulid, added_at in (("01C", None), ("01D", newer), ("01B", older), ("01A", newer)):
+        articles.save(_article(ulid=ulid, added_at=added_at), 0, changed_by="tester")
+    indexer.rebuild(store)
+
+    hits = search(Archivist(), sort="added").hits
+    assert [hit.ulid for hit in hits] == ["01A", "01D", "01B", "01C"]
 
 
 # ===========================================================================

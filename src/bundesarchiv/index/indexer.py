@@ -53,7 +53,8 @@ from bundesarchiv.persistence.repository import ArticleRepository
 #   v1: initial FTS infrastructure.
 #   v2: media captions join the body-weight bucket (ADR 0015).
 #   v3: is_draft column added (archivist chrome — ENTWURF badge).
-CONFIG_VERSION = 3
+#   v4: added_at column added (the "added" sort).
+CONFIG_VERSION = 4
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -143,6 +144,7 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         "archivist_text": _archivist_text(article),
         # Lifecycle marker for archivist chrome only (the ENTWURF badge); NOT a scope column.
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
+        "added_at": article.added_at,
         "date_edtf": article.date.value if article.date is not None else None,
         "date_earliest": earliest,
         "date_latest": latest,

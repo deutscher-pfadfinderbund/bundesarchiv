@@ -54,7 +54,7 @@ _MAX_PAGE_SIZE = 200
 # "B 2", "Ä 3" sorts with A. Used by both the ref_code and title sorts.
 _DE_NUMERIC = "de_numeric"
 
-type SortOrder = Literal["relevance", "ref_code", "date", "title"]
+type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -391,7 +391,9 @@ def _ordered(
     ``descending`` reverses the PRIMARY key of a COLUMN sort (ref_code / date / title) — the
     workbench's header cycle asc→desc; the ``ulid`` tiebreaker stays ascending so pages remain
     deterministic within a key value. It does not apply to ``relevance`` (rank is always best-first;
-    relevance is never a column header), so a descending relevance is a no-op.
+    relevance is never a column header), so a descending relevance is a no-op. ``added`` is newest
+    first with unknown dates last; it is a preset, not a column header, so ``descending`` is a no-op
+    there too.
     """
     match sort:
         case "relevance":
@@ -415,6 +417,8 @@ def _ordered(
         case "title":
             primary = F("_t").desc() if descending else F("_t").asc()
             return qs.annotate(_t=Collate("title", _DE_NUMERIC)).order_by(primary, "ulid")
+        case "added":
+            return qs.order_by(F("added_at").desc(nulls_last=True), "ulid")
         case _ as unreachable:
             assert_never(unreachable)
 
