@@ -1,46 +1,49 @@
 {% extends "workbench/base.html" %}
-{% load static %}
 {% comment %}
-Create step (Part 4.7 Slice A, spec §2/§1 focal-point A). Archivist-only (the view gates it). The
-minimal create form: Titel + Bestand — the two required fields are the ONE loud focal point on a
-near-empty page. Plain no-JS POST → create_article → 302 to /bearbeiten. Validation state B
-re-renders here with the verbatim error + preserved values. Autofocus (server-computed) lands on
-Titel (or the first errored field). Anlegen is first-in-source so Enter submits it. Chrome: the shared workbench/_header.html without
-its search (ohne_suche: a search on a form invites leaving it). The
-"Zurück zur Suche" link is BACK (zurueck=True, rendered by the shared header): the form wave dropped
-it on the grounds that "the search field IS the way back", but a search box is a way back only if you
-type something, so the create step had no visible return path at all.
+The create step (spec §2): Titel + Bestand, then the full edit form. Archivist-only (the view gates
+it). Plain no-JS POST → create_article → 302 to /bearbeiten; validation re-renders here with the
+verbatim error and the values kept. The composition is the edit form's form-sheet (a1 mock
+neu.html): no crumbs, the article has no place until a Bestand is chosen.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist ohne_suche=True %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column narrow">
-  <h1>Neuer Artikel</h1>
-  {% if angelegt %}<p class="hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
-  <form method="post" action="{% url 'artikel-neu' %}">
-    {% csrf_token %}
-    <div class="field">
-      <label for="feld-title">Titel</label>
-      <input type="text" name="title" id="feld-title" value="{{ title }}"
-             {% if errors.title %}aria-invalid="true" aria-describedby="feld-title-fehler"{% endif %}
-             {% if autofocus == "title" %}autofocus{% endif %}>
-      {% if errors.title %}<span class="error" id="feld-title-fehler">{{ errors.title }}</span>{% endif %}
-    </div>
-    <div class="field">
-      <label for="feld-collection_id">Bestand</label>
-      <select name="collection_id" id="feld-collection_id"
-              {% if errors.collection_id %}aria-invalid="true" aria-describedby="feld-collection_id-fehler"{% endif %}
-              {% if autofocus == "collection_id" %}autofocus{% endif %}>
-        {% for value, caption in collection_options %}
-        <option value="{{ value }}"{% if value == collection_id %} selected{% endif %}>{{ caption }}</option>
-        {% endfor %}
-      </select>
-      {% if errors.collection_id %}<span class="error" id="feld-collection_id-fehler">{{ errors.collection_id }}</span>{% endif %}
-    </div>
-    <footer>
+<main id="inhalt">
+<form class="form-sheet" method="post" action="{% url 'artikel-neu' %}">
+  {% csrf_token %}
+  <header>
+    <label class="visually-hidden" for="feld-title">Titel</label>
+    <h1 class="title-field"><textarea id="feld-title" name="title" rows="1" placeholder="Titel"{% if errors.title %} aria-invalid="true" aria-describedby="feld-title-fehler"{% endif %}{% if autofocus == "title" %} autofocus{% endif %}>{{ title }}</textarea></h1>
+    {% if errors.title %}<span class="error" id="feld-title-fehler">{{ errors.title }}</span>{% endif %}
+  </header>
+
+  <aside class="record-meta" aria-label="Status und Aktionen">
+    <p class="record-meta-state">Neuer Artikel</p>
+    {% if angelegt %}<p class="hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
+    <p class="record-meta-line">Wird als Entwurf angelegt; die übrigen Angaben folgen danach.</p>
+    <div class="record-meta-actions">
       <button class="primary" type="submit">Anlegen</button>
-    </footer>
-  </form>
+    </div>
+  </aside>
+
+  <div>
+    {% comment %}One field: a section heading would cost more than it tells (a1 NOTES).{% endcomment %}
+    <section aria-label="Kerndaten">
+      <div class="field-grid">
+        <div class="field">
+          <label for="feld-collection_id">Bestand <span aria-hidden="true">*</span></label>
+          <select name="collection_id" id="feld-collection_id" required
+                  {% if errors.collection_id %}aria-invalid="true" aria-describedby="feld-collection_id-fehler"{% endif %}
+                  {% if autofocus == "collection_id" %}autofocus{% endif %}>
+            {% for value, caption in collection_options %}
+            <option value="{{ value }}"{% if value == collection_id %} selected{% endif %}>{{ caption }}</option>
+            {% endfor %}
+          </select>
+          {% if errors.collection_id %}<span class="error" id="feld-collection_id-fehler">{{ errors.collection_id }}</span>{% endif %}
+        </div>
+      </div>
+    </section>
+  </div>
+</form>
 </main>
 {% endblock %}

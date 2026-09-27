@@ -221,6 +221,22 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">aside.record-meta: .record-meta-alert (role="alert": the heavy red rule, a red subhead, a .record-meta-line naming the changed fields as links) · the Status select · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
 
+<h2>Record margin — the create step</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <aside class="record-meta" aria-label="Status und Aktionen">
+      <p class="record-meta-state">Neuer Artikel</p>
+      <p class="record-meta-line">Wird als Entwurf angelegt; die übrigen Angaben folgen danach.</p>
+      <div class="record-meta-actions">
+        <button class="primary" type="button">Anlegen</button>
+      </div>
+    </aside>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">.record-meta-state: the page's state in words where no heading names it yet (the Titel is still empty) · the .record-meta-line says what the one action does</code>
+
 <h2>Field with validation error</h2>
 <div class="probe">
   {% for mode in modes %}

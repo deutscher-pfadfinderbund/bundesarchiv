@@ -444,8 +444,9 @@
   }
 
   /* ---- record-meta — the form's margin: the conflict notice, the record's Status and audience,
-     then the actions. Parts: .record-meta-alert (+ -head), .record-meta-line (a quiet sentence),
-     .record-meta-actions (Speichern first). ---- */
+     then the actions. Parts: .record-meta-state (the page's state in words, the create step),
+     .record-meta-alert (+ -head), .record-meta-line (a quiet sentence), .record-meta-actions
+     (Speichern first). ---- */
   .record-meta {
     display: flex;
     flex-direction: column;

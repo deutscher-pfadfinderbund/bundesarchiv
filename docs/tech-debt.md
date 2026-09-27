@@ -209,8 +209,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   - `.pane > div` framed while the pane question is suspended (row 10).
   - Wave K1 found, outside its fence: the detail page's `<small>Nur intern</small>` (the note
     "intern" instead); the list page's chip and facet ✕ are text glyphs, not the remove control;
-    `components/empty_state.html` draws a dashed frame (row 6); the create step marks no required
-    field; the Datierung parse error is English. (`_reach_edit_folded_open` went with the folds,
+    `components/empty_state.html` draws a dashed frame (row 6); the Datierung parse error is
+    English. (The create step marks its required Bestand since Wave R U4.) (`_reach_edit_folded_open` went with the folds,
     Wave R U1.)
 - **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
   selector on a non-root class that sets a non-custom property on a component root.

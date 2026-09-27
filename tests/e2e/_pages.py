@@ -186,7 +186,7 @@ SCREENS: tuple[Screen, ...] = (
         _at("/artikel/neu"),
         "artikel-neu",
         overlays=1,
-        control_rows=("header",),
+        control_rows=("header", "div.record-meta-actions"),
     ),
     Screen("bestand-neu", "create a Bestand", True, _at("/bestand/neu"), "bestand-neu", overlays=1),
     Screen(

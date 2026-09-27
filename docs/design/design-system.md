@@ -274,10 +274,10 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Badge | `.badge` | `components/badge_visibility` | `components.css` badge |
 | Note | `.note` | inline (`_feld`, the edit form's Weitere Angaben) | `components.css` note |
 | Help | `.help` | inline (`_feld`) | `components.css` help |
-| Title field | `.title-field` | inline (edit form) | `components.css` title-field |
+| Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field |
 | Crumbs | `.crumbs` | inline (edit form) | `components.css` crumbs |
 | Section head | `.section-head` | inline (edit form) | `components.css` section-head |
-| Record margin | `.record-meta` | inline (edit form) | `components.css` record-meta |
+| Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta |
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register |

@@ -113,10 +113,6 @@ def test_search_works_from_a_screen_without_the_results_region(
     ):
         page.goto(form_url)
         expect(page.locator('[role="search"]')).to_have_count(0)
-    # the create step's visible return path is back
-    page.goto(live_workbench + "/artikel/neu")
-    page.get_by_text("Zurück zur Suche").click()
-    page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
 
 
 def test_the_edit_forms_small_swap_lands_its_own_partial(
@@ -1016,7 +1012,7 @@ def test_create_bestand_then_file_an_article_under_it(
     page.wait_for_url("**/artikel/neu?**")  # 302 to the create-article form, not the workbench
     expect(page.get_by_text("Bestand „Plakate“ angelegt.")).to_be_visible()  # success hinweis
     expect(page.locator('select[name="collection_id"]')).to_contain_text("Plakate")
-    page.fill('input[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
+    page.fill('textarea[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
     # now the Bestand has an article, so it appears in the workbench's Bestand filter dropdown
@@ -1033,7 +1029,7 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     """Drive the create step (Titel + Bestand → Anlegen) then set the required Medienart on the edit
     form, so the draft is saveable/publishable. Returns the new draft's edit-form URL."""
     page.goto(base + "/artikel/neu")
-    page.fill('input[name="title"]', title)
+    page.fill('textarea[name="title"]', title)
     page.select_option('select[name="collection_id"]', "FOTOS")
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
@@ -1644,7 +1640,7 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     # no HTMX swap, no PE enhancements. This pins the baseline promise the other journeys (JS on)
     # take for granted. Create step → edit form (server 302, not an hx-swap).
     page.goto(live_workbench + "/artikel/neu")
-    page.fill('input[name="title"]', "E2E Ohne JS")
+    page.fill('textarea[name="title"]', "E2E Ohne JS")
     page.select_option('select[name="collection_id"]', "FOTOS")
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
