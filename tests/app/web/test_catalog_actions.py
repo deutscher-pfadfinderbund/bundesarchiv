@@ -14,8 +14,6 @@ did not happen (nothing created / article still exists / lifecycle unchanged / n
 The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
 """
 
-from dataclasses import replace
-
 import pytest
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
@@ -39,7 +37,7 @@ def _other_ulids(corpus: Corpus) -> set[str]:
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
-# --- Kopieren ----------------------------------------------------------------------
+# --- Duplizieren -------------------------------------------------------------------
 
 
 def test_kopieren_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) -> None:
@@ -126,7 +124,9 @@ def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: 
 _UNRESOLVABLE = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
 
 
-def _article_whose_bestand_chain_is_broken(corpus: Corpus) -> str:
+def _article_whose_bestand_chain_is_broken(
+    corpus: Corpus, lifecycle: Lifecycle = Lifecycle.DRAFT
+) -> str:
     """Save an article filed under a collection whose PARENT does not exist, so ``resolve_chain``
     raises ``BrokenCollectionTree`` and ``preview()`` can compute no exposure at all. The collection
     itself IS in the store, so the Bestand select still offers it and the edit form renders."""
@@ -135,7 +135,7 @@ def _article_whose_bestand_chain_is_broken(corpus: Corpus) -> str:
         make_article(
             _UNRESOLVABLE,
             collection_id="WAISE",
-            lifecycle=Lifecycle.DRAFT,
+            lifecycle=lifecycle,
             title="Ohne Bestandskette",
         )
     )
@@ -143,8 +143,7 @@ def _article_whose_bestand_chain_is_broken(corpus: Corpus) -> str:
 
 
 def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: Corpus) -> None:
-    # The retired preview gate BLOCKED publishing when the audience chain could not be resolved; the
-    # exposure view-model is None then, and Veröffentlicht must not stay on offer (G.34).
+    # With no resolvable audience chain there is no exposure, so Veröffentlicht is not on offer (G.34).
     ulid = _article_whose_bestand_chain_is_broken(corpus)
     body = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
     assert 'name="lifecycle"' in body  # the Status select is there...
@@ -158,11 +157,7 @@ def test_a_published_record_with_an_unresolvable_chain_keeps_its_status_on_offer
     corpus: Corpus,
 ) -> None:
     # Without Veröffentlicht in the select, the next Speichern would withdraw the record silently.
-    ulid = _article_whose_bestand_chain_is_broken(corpus)
-    articles = corpus.articles
-    articles.save(
-        replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1, changed_by="tester"
-    )
+    ulid = _article_whose_bestand_chain_is_broken(corpus, Lifecycle.PUBLISHED)
     body = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
     assert '<option value="published" selected>' in body
 
@@ -182,13 +177,9 @@ def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]
 
 
 def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpus) -> None:
-    # The render half above hides the affordance; this is the half that actually holds. The gate was
-    # UI-only, and the state is reachable with ordinary UI actions: re-parent a Bestand under a missing
-    # parent (the article's own version is untouched, so CAS passes), then POST Veröffentlichen — the
-    # record stored as PUBLISHED and then 404'd for everyone, its own cataloguer included, and went live
-    # at whatever rung a later repair produced with no archivist having read an exposure statement. The
-    # deleted lifecycle route said it in its own docstring: server-enforced, not just the client-side
-    # required attr.
+    # The render half above hides the affordance; this is the half that actually holds. The state is
+    # reachable with ordinary UI actions: re-parent a Bestand under a missing parent (the article's
+    # own version is untouched, so CAS passes), then POST Veröffentlicht.
     ulid = _article_whose_bestand_chain_is_broken(corpus)
     before = corpus.articles.load(ulid)
     response = client_as(Archivist()).post(
@@ -206,17 +197,13 @@ def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpu
 def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: Corpus) -> None:
     # The refusal is about PUBLISHING. Taking a record back off the shelf needs no exposure fact, and
     # refusing it would strand a published record with a broken chain published forever.
-    ulid = _article_whose_bestand_chain_is_broken(corpus)
-    articles = corpus.articles
-    articles.save(
-        replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1, changed_by="tester"
-    )
+    ulid = _article_whose_bestand_chain_is_broken(corpus, Lifecycle.PUBLISHED)
     response = client_as(Archivist()).post(
         f"/artikel/{ulid}/bearbeiten",
         _publish_post(corpus, ulid, lifecycle="draft"),
     )
     assert response.status_code == 302
-    assert articles.load(ulid).article.lifecycle is Lifecycle.DRAFT
+    assert corpus.articles.load(ulid).article.lifecycle is Lifecycle.DRAFT
 
 
 @pytest.mark.parametrize("lifecycle", [Lifecycle.DRAFT, Lifecycle.PUBLISHED])
@@ -224,15 +211,13 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
     corpus: Corpus, lifecycle: Lifecycle
 ) -> None:
     # Only draft to published is gated.
-    ulid = _article_whose_bestand_chain_is_broken(corpus)
-    articles = corpus.articles
-    articles.save(replace(articles.load(ulid).article, lifecycle=lifecycle), 1, changed_by="tester")
+    ulid = _article_whose_bestand_chain_is_broken(corpus, lifecycle)
     response = client_as(Archivist()).post(
         f"/artikel/{ulid}/bearbeiten",
         _publish_post(corpus, ulid, title="Nur gespeichert", lifecycle=lifecycle.value),
     )
     assert response.status_code == 302
-    stored = articles.load(ulid).article
+    stored = corpus.articles.load(ulid).article
     assert (stored.title, stored.lifecycle) == ("Nur gespeichert", lifecycle)
 
 

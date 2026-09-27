@@ -5,10 +5,11 @@ longer re-derives them by hand. Marked ``e2e`` (excluded from the default run; `
 The ``archivist_page`` / ``public_page`` fixtures (conftest) carry the right viewer cookie; the
 corpus is the canonical one from ``_corpus``.
 
-Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two contexts) · Kopieren
+Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two contexts) · Duplizieren
 loop · Löschen confirm · one-click publish · bulk select→confirm→partial result.
 """
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -523,7 +524,7 @@ _OVERLAY_WALK_JS = (
 }"""
     )
     .replace("PANEL_OF", OVERLAY_PANEL_OF_JS)
-    .replace("CENTRED", repr(OVERLAY_CENTRED_PANEL))
+    .replace("CENTRED", json.dumps(OVERLAY_CENTRED_PANEL))
 )
 
 #: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
@@ -1203,7 +1204,7 @@ def test_cas_conflict_second_saver_sees_panel(
     ctx2.close()
 
 
-# --- Kopieren loop -----------------------------------------------------------------
+# --- Duplizieren loop --------------------------------------------------------------
 
 
 def test_kopieren_creates_draft_copy_signatur_focused(

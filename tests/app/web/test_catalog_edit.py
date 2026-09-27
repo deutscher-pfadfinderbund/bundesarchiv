@@ -22,6 +22,7 @@ from django.http import HttpRequest, QueryDict
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
     PUB,
+    PUBLISHED_ULID,
     Corpus,
     client_as,
     make_article,
@@ -122,7 +123,7 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
 
 
 def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus) -> None:
-    # fix-wave (owner finding): the edit header shows the Signatur mark ONLY when a code exists —
+    # Owner finding: the edit header shows the Signatur mark ONLY when a code exists —
     # absence is carried by the Signatur INPUT on the same screen, not a hollow "ohne Signatur" slot
     # (signals-once). The hollow slot stays in the ledger + read view, not here.
     no_sig = "01KX7YT9E3VX0CP3A5Q49RZMWK"
@@ -142,7 +143,7 @@ def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -
     # which rung the Bestand hands down, even when the article's own setting overrides it
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
     assert '<option value="" selected>Öffentlich (wie Bestand)</option>' in body
-    own = "01KX7YT9E3VX0CP3A5Q49RZMWK"
+    own = PUBLISHED_ULID
     corpus.add_article(
         make_article(own, collection_id="PUB", audience=Audience(AudienceTier.MEMBERS), title="X")
     )
@@ -379,8 +380,7 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
 
 
 def test_published_article_invalid_post_re_render_keeps_its_status(corpus: _EditCorpus) -> None:
-    # fix-wave: `_post_to_form_values` hardcoded is_draft=True, so a PUBLISHED article's
-    # validation-error re-render wrongly showed it as a draft.
+    # The re-render takes the Status from the record, never assumes a draft.
     published = "01KX7YT9E3VX0CP3A5Q49RZMWP"
     corpus.add_article(
         make_article(
@@ -405,7 +405,7 @@ def test_published_article_invalid_post_re_render_keeps_its_status(corpus: _Edit
 
 
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:
-    # fix-wave: unconditionally appending a blank add-row produced +1 blank row per error re-render.
+    # An error re-render must not grow one blank custom row per round trip.
     first = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
         {
@@ -435,29 +435,34 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
     assert second_blank_pairs == 0
 
 
-class _AutofocusScanner(HTMLParser):
-    """The name of the ONE control a render marks ``autofocus``."""
+class _ControlScanner(HTMLParser):
+    """The attributes of every named control a render prints, in document order."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.name = ""
+        self.controls: list[dict[str, str | None]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if "autofocus" in values and values.get("name"):
-            self.name = str(values["name"])
+        if values.get("name"):
+            self.controls.append(values)
+
+
+def _controls(body: str) -> list[dict[str, str | None]]:
+    scanner = _ControlScanner()
+    scanner.feed(body)
+    return scanner.controls
 
 
 def _autofocused(body: str) -> str:
-    scanner = _AutofocusScanner()
-    scanner.feed(body)
-    return scanner.name
+    """The name of the control a render marks ``autofocus`` — the first, as a browser takes it."""
+    return next((str(c["name"]) for c in _controls(body) if "autofocus" in c), "")
 
 
 # --- the field registry's columns ---------------------------------------------------
 #
-# Dropping `scanned=True`, dropping
-# `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite green.
+# Dropping `scanned=True`, dropping `focusable=True`, or deleting a whole `_Field` row left the fast
+# suite AND the e2e suite green.
 # The consequential column is `diff`: `_conflict_rows` derives the CAS "Inzwischen geändert" notice
 # from it, so a dropped `diff=` means a racing archivist is silently not told that field changed under
 # them — loss-adjacent, on the surface tests/CLAUDE.md calls load-bearing. Each guard below joins the
@@ -476,9 +481,9 @@ def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> 
 
 def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus) -> None:
     # The card's sections are `{% for %}` loops over `_card_fields`, so the template can no longer
-    # render a field the registry does not declare — that direction is closed by construction, and the
-    # HTML scanner that used to prove it went with the hand-written blocks. The open direction is a
-    # section whose loop was never wired: walk the real render for each declared control.
+    # render a field the registry does not declare — that direction is closed by construction. The
+    # open direction is a section whose loop was never wired: walk the real render for each declared
+    # control.
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
@@ -582,8 +587,7 @@ def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> No
     # `scanned` is the GET autofocus spine: the fields walked for the first EMPTY one. It is the
     # focusable set minus exactly ONE declared exception — Gruppen, which is empty on almost every
     # record by design (it means something only at the GROUPS rung), so scanning it would park the
-    # caret there on every fully catalogued record and pop the Zugriff fold open with it. Pinning the
-    # relation rather than the membership means a dropped `scanned=True` fails here, and a SECOND
+    # caret there on every fully catalogued record. Pinning the relation rather than the membership means a dropped `scanned=True` fails here, and a SECOND
     # exception has to be argued for rather than typed.
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
@@ -608,19 +612,6 @@ def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
         )
 
 
-class _RequiredScanner(HTMLParser):
-    """The names of the controls a render announces as required."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.names: set[str] = set()
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        values = dict(attrs)
-        if values.get("aria-required") == "true" and values.get("name"):
-            self.names.add(str(values["name"]))
-
-
 def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     corpus: _EditCorpus,
 ) -> None:
@@ -630,8 +621,8 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     from bundesarchiv.app.web import catalog
     from bundesarchiv.app.web.catalog_views import _FIELDS
 
-    scanner = _RequiredScanner()
-    scanner.feed(client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode())
+    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    marked = {str(c["name"]) for c in _controls(body) if c.get("aria-required") == "true"}
     chooser = BestandChooser(lambda: (make_collection("PUB"),))
     refused = {
         registered.name
@@ -643,7 +634,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
         ).errors
     }
     assert refused, "no field is refused blank — the guard proves nothing"
-    assert scanner.names == refused
+    assert marked == refused
 
 
 #: Every field the CAS "Inzwischen geändert" notice names when all of them changed, in the order it shows
