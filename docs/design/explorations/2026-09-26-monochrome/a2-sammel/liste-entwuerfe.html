@@ -46,13 +46,9 @@
     <form action="pruefen.html" method="get">
     <div class="toolbar" role="toolbar" aria-label="Werkzeuge">
       <div class="toolbar-selection">
-        <span role="status">3 ausgewählt</span>
-        <a href="liste.html">Auswahl aufheben</a>
-        <button class="menu-button" type="button" popovertarget="t-feld">Feld ändern …</button>
-        <button class="menu-button" type="button" popovertarget="t-bestand">Verschieben …</button>
-        <button class="menu-button" type="button" popovertarget="t-mehr">Mehr …</button>
+        <span role="status">3 ausgewählt</span><a class="toolbar-clear" href="liste.html" aria-label="Auswahl aufheben" title="Auswahl aufheben"><svg class="icon" aria-hidden="true"><use href="../system/icons.svg#x"/></svg></a><div class="button-group"><button class="button menu-button" type="button" popovertarget="t-feld">Feld ändern …</button><button class="button menu-button" type="button" popovertarget="t-bestand">Verschieben …</button><button class="button menu-button" type="button" popovertarget="t-mehr">Mehr …</button></div>
       </div>
-      <button class="menu-button toolbar-view" type="button" popovertarget="t-spalten">Spalten …</button>
+      <button class="button menu-button toolbar-view" type="button" popovertarget="t-spalten">Spalten …</button>
       <div class="toolpanel" id="t-feld" popover>
         <div><label for="tf-feld">Feld</label>
           <select id="tf-feld" name="feld">

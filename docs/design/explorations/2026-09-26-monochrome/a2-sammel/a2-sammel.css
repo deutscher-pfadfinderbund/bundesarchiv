@@ -19,7 +19,6 @@
   .ledger thead .ledger-pick input { inset-block-start: 0.15em; } /* the head row has no top padding */
   /* ledger-digital — which files a record has ("PDF", "2 Fotos"); empty = none. Short, quiet, like Typ. */
   .ledger-digital { white-space: nowrap; font: var(--type-meta); color: var(--ink-2); }
-  @container (width < 40rem) { .ledger-digital { grid-row: 3; grid-column: 2; text-align: end; } } /* S: on the Signatur line, at its end */
   .ledger-edit { margin-inline-start: var(--space-4); font: var(--type-meta); color: var(--ink-2); }
   .ledger-edit:hover { color: var(--ink); }
   @media (hover: hover) {
@@ -39,14 +38,15 @@
      Verschieben, Veröffentlichen …) is one more button or one more menu entry, never a new layout.
      Progressive: at rest only the view tool "Spalten …" shows, at the ledger's end edge above its
      last column; once a row is picked (CSS :has, no JS), .toolbar-selection appears at the start:
-     the count, "Auswahl aufheben", then the selection's tools. S: absent (bulk work is L/M). */
-  .toolbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-6); min-block-size: var(--control-height, 2.5rem); font: var(--type-meta); }
-  .toolbar-selection { display: none; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-6); }
+     "2 ausgewählt", its clearing cross, then the tools as one joined strip (button-group, small
+     buttons). One voice for all of it (owner 2026-09-28: the mixed voices looked ugly). S: absent. */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); min-block-size: var(--control-height, 2.5rem); font: var(--type-meta); }
+  .toolbar-selection { display: none; align-items: center; gap: var(--space-3); }
   .toolbar:has(~ .ledger tbody .ledger-pick :checked) .toolbar-selection { display: flex; }
   .toolbar-selection > [role="status"] { color: var(--ink); }
-  .toolbar-selection > a { color: var(--ink-2); }
-  .toolbar-selection > a:hover { color: var(--ink); }
-  .toolbar .menu-button { font: var(--type-control); }
+  .toolbar-clear { display: inline-grid; place-items: center; min-inline-size: var(--space-7); min-block-size: var(--space-7); color: var(--ink-2); --icon-size: 1rem; }
+  .toolbar-clear:hover { color: var(--ink); }
+  .toolbar .button { padding-block: var(--space-2); --button-pad-inline: var(--space-3); font: var(--type-meta); font-weight: 600; } /* the small size: a tool strip, not a page action */
   .toolbar-view { margin-inline-start: auto; }
   @container (width < 40rem) { .toolbar { display: none; } }
 

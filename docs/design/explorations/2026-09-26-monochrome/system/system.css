@@ -330,7 +330,8 @@
   .ledger-title a:hover { text-decoration: underline; }
   .ledger-date { inline-size: var(--measure-date); white-space: nowrap; color: var(--ink-2); }
   .ledger td:is(.ledger-date, .ledger-sig) { font: var(--type-data); } /* ch counts in the data face */
-  .ledger-type { inline-size: var(--measure-type); font: var(--type-meta); color: var(--ink-2); }
+  .ledger-type { inline-size: var(--measure-type); max-inline-size: var(--measure-type); font: var(--type-meta); color: var(--ink-2); }
+  .ledger td:not(.ledger-title, .ledger-pick) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* every cell but the title is one line; a long value ends in … (owner 2026-09-28) */
   .ledger-sig { inline-size: var(--measure-sig); white-space: nowrap; color: var(--ink-2); }
   .ledger-sort { display: inline-flex; align-items: baseline; gap: var(--space-1); color: inherit; text-decoration: none; }
   .ledger-sort::after { content: "↕"; opacity: 0; }
@@ -339,19 +340,19 @@
   .ledger [aria-sort="descending"] > .ledger-sort::after { content: "↓"; opacity: 1; }
   @container (width < 40rem) {
     .ledger thead { display: none; }
-    .ledger tr { display: grid; grid-template-columns: 1fr auto; padding-block: var(--pad-row); }
+    .ledger tr { display: flex; flex-wrap: wrap; align-items: baseline; padding-block: var(--pad-row); } /* the title, then one line of the rest (owner 2026-09-28) */
     .ledger tbody tr + tr { border-block-start: var(--line); }
     .ledger tbody tr td, .ledger tbody tr + tr td { padding: 0; border: 0; inline-size: auto; } /* the row, not each cell, carries the line */
-    .ledger-title { grid-column: 1 / -1; padding-block-end: var(--space-1); }
-    .ledger-date { grid-row: 2; grid-column: 1; }
-    .ledger-type { grid-row: 2; grid-column: 2; text-align: end; }
-    .ledger-sig { grid-row: 3; grid-column: 1 / -1; }
+    .ledger-title { flex-basis: 100%; padding-block-end: var(--space-1); }
+    .ledger td:not(.ledger-title, .ledger-pick) { flex: 0 1 auto; inline-size: auto; min-inline-size: 0; max-inline-size: none; font: var(--type-meta); color: var(--ink-2); }
+    .ledger td :is(time, data) { font: inherit; } /* one line is no column: mono only aligns columns */
+    .ledger td:not(.ledger-title, .ledger-pick):not(:empty) ~ td:not(:empty)::before { content: "·" / ""; margin-inline: var(--space-2); }
   }
 
-  /* ---------- pager — the result range owns its steps ----------
+  /* ---------- pager — the result range between its steps ----------
      Knobs: none. "Zurück" on the first page stays visible, disabled (aria-disabled). */
-  .pager { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-8); font: var(--type-meta); }
-  .pager-range { margin-inline-end: auto; color: var(--ink-2); }
+  .pager { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: var(--space-2) var(--space-5); font: var(--type-meta); } /* ‹ Zurück  1–25 von 2.506  Weiter › — the range between its steps (owner 2026-09-28) */
+  .pager-range { color: var(--ink-2); }
   .pager-range data { color: var(--ink); }
   .pager-step { font: var(--type-control); text-decoration: none; }
   a.pager-step:hover { text-decoration: underline; }
@@ -469,6 +470,12 @@
   .toolpanel :is(select, input[type="text"]) { inline-size: 100%; }
   .toolpanel select { font: inherit; color: var(--ink); background: var(--ground); border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0; }
   .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
+  /* ---------- button-group — several tools in one joined frame ----------
+     Knobs: none. Buttons (or menu-buttons carrying .button) side by side; each after the first
+     draws no start edge, so the frames join into one tool strip. */
+  .button-group { display: inline-flex; align-items: stretch; }
+  .button-group > .button + .button { border-inline-start-width: 0; }
+
   /* ---------- split-button — one action and its rarer siblings in one frame ----------
      Knobs: none. Parts: a .button (the frequent action, e.g. Bearbeiten), then a button.menu-button
      holding the chevron icon (accessible name "Weitere Aktionen"), which opens a ul.menu[popover].

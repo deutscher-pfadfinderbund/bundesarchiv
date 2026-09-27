@@ -354,3 +354,15 @@ sorting by Titel, Datierung, Signatur). A critique pass against `LEARNINGS.md` f
   folds the rest;
 - on S the Digital value took a line of its own; it now ends the Signatur line;
 - counts in menus lacked the thousands dot.
+
+## Owner rulings, round 10 — the list's toolbar, pager, cells, phone line (2026-09-28, applied)
+
+- **Toolbar:** the mixed voices (grey status, an underlined link, bold tool words) looked ugly. Now one
+  voice and one strip: "2 ausgewählt" and its clearing cross, then the tools as small framed buttons
+  joined in one frame (new system component `button-group`); "Spalten …" is the same small button at
+  the end edge.
+- **Pager:** "‹ Zurück  1–25 von 2.506  Weiter ›" — the range between its steps, one group at the end
+  edge.
+- **Cells:** every cell but the title stays on one line and ends in "…" when it does not fit.
+- **S:** the title, then one line: "1866-11-20 · Lagerheft · PDF · BA 1842" (body sans, not mono —
+  one line is no column).
