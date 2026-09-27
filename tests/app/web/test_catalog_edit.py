@@ -312,15 +312,42 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> N
     assert 'value="Meyer"' not in body  # the removed row's value is gone
     # nothing was saved (removal is a re-render, not a save)
     assert corpus.articles.load(_ULID).version == corpus.version
+    assert _fold(body, "Weitere Angaben").is_open, "the bag folded under the row just removed"
+
+
+def test_the_bag_renders_no_empty_pair_until_one_is_added(corpus: _EditCorpus) -> None:
+    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    assert 'name="custom_key"' not in body
+    assert "+ Angabe hinzufügen" in body
+
+
+def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorpus) -> None:
+    response = client_as(Archivist()).post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            **_valid_post(corpus),
+            "custom_key": ["Fotograf"],
+            "custom_value": ["Meyer"],
+            "custom_neu": "",
+        },
+    )
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'value="Meyer"' in body  # the typed row survives the round trip
+    assert body.count('name="custom_key" value=""') == 1
+    scan = _scan(body)
+    assert scan.autofocused == "custom_key"
+    assert _fold(body, "Weitere Angaben").is_open
+    assert corpus.articles.load(_ULID).version == corpus.version
 
 
 def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
     corpus: _EditCorpus,
 ) -> None:
     # A blanked-out earlier row shifts positions once `_post_to_form_values` drops it — but
-    # `custom_entfernen` names a position in the RAW POST lists (what the Entfernen button actually
-    # submitted), not in that filtered result. Rows A/B/C, A blanked, Entfernen on B (raw index 1)
-    # must drop B and keep C — not drop C because the filtered list only has two entries left.
+    # `custom_entfernen` names a position in the RAW POST lists (what the row's remove cross
+    # actually submitted), not in that filtered result. Rows A/B/C, A blanked, the cross on B (raw
+    # index 1) must drop B and keep C — not drop C because the filtered list only has two left.
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
         {
@@ -370,8 +397,7 @@ def test_published_article_invalid_post_re_render_omits_entwurf_mark(corpus: _Ed
 
 
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:
-    # fix-wave: the POSTed custom rows already include the trailing blank add-row; unconditionally
-    # appending another produced +1 blank row per error re-render.
+    # fix-wave: unconditionally appending a blank add-row produced +1 blank row per error re-render.
     first = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
         {
@@ -383,7 +409,7 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
     assert first.status_code == 200
     first_body = first.content.decode()
     first_blank_pairs = first_body.count('name="custom_key" value=""')
-    assert first_blank_pairs == 1  # exactly one trailing blank row, not two
+    assert first_blank_pairs == 0  # the blank row is dropped, never re-added
 
     # re-send the same hand-built payload (the first assertion pinned it equivalent to the
     # re-rendered form) — the blank-row count must not grow
@@ -398,7 +424,7 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
     assert second.status_code == 200
     second_body = second.content.decode()
     second_blank_pairs = second_body.count('name="custom_key" value=""')
-    assert second_blank_pairs == 1
+    assert second_blank_pairs == 0
 
 
 # --- folded sections: a fold may hide neither a message nor the focus -------------
@@ -522,7 +548,9 @@ def test_folded_sections_own_every_field_they_hold(corpus: _EditCorpus) -> None:
     # lines that used to rule out that impossibility went with it.
     from bundesarchiv.app.web.catalog_views import _SECTION_FIELDS
 
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    with_bag = "01KX7YT9E3VX0CP3A5Q49RZMWR"  # the bag renders its fields only once it holds a row
+    corpus.add_article(make_article(with_bag, collection_id="PUB", custom=(("Fotograf", "Meyer"),)))
+    body = client_as(Archivist()).get(f"/artikel/{with_bag}/bearbeiten").content.decode()
     folds = _folds(body)
     assert len(folds) == 3, (
         f"the scanner found {[f.label for f in folds]} — the guard proves nothing"
@@ -621,7 +649,7 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "body": "Ein Text.",
         "sichtbarkeit": "groups",
         "gruppen": "vorstand, archiv",
-        "custom_rows": [("Fotograf", "Meyer"), ("", "")],
+        "custom_rows": [("Fotograf", "Meyer")],
         "is_draft": True,
     }
 

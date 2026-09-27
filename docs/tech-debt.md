@@ -208,7 +208,6 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
     `.column dd` decoration (row 6 licenses dashes only for hollow slots).
   - `.c-sig--leer` prints "—" as a placeholder (no dashes).
   - `.pane > div` framed while the pane question is suspended (row 10).
-  - the native `::file-selector-button` keeps the UA gray (goes with "+ Dateien hinzufügen").
 - **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
   selector on a non-root class that sets a non-custom property on a component root.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a

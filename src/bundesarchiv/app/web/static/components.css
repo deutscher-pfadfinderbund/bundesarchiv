@@ -42,10 +42,11 @@
     color: var(--ink-2);
   }
 
-  /* Default = outline; .primary = inversion (register row 3), and every button inverts under the
-     pointer. Declared in :where() (law C13) so .primary, button.link and every component outrank it
-     without a contest. */
-  :where(button, a.button) {
+  /* Default = outline (the native file chooser's button too); .primary = inversion (register row
+     3), and every button inverts under the pointer. Declared in :where() (law C13) so .primary,
+     button.link and every component outrank it without a contest. */
+  :where(button, a.button),
+  ::file-selector-button {
     display: inline-block;
     /* a <button> centers its content natively; the min-height knob (below) stretches an
        inline-block a.button PAST its line box, so the shared set centers explicitly —
@@ -61,6 +62,7 @@
     white-space: nowrap;
   }
   :where(button, a.button):hover,
+  ::file-selector-button:hover,
   :where(button, a.button).primary {
     background: var(--ink);
     color: var(--ground);
@@ -136,7 +138,8 @@
 
   /* screen-reader-only text — and the skip link, which is exactly that until it takes focus */
   .visually-hidden,
-  .skip:not(:focus) {
+  .skip:not(:focus),
+  [data-upload-on-choose] .upload input[type="file"] {
     position: absolute;
     width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
     height: 1px; /* (same) */
@@ -240,7 +243,7 @@
      2026-08-07): .chip sets --hit-fallback, which also sizes it in the demo, outside any row. */
   [role="toolbar"] > :is(a:not(.button), button.link),
   .pane header > a,
-  .facet .remove,
+  .remove,
   .chip > a {
     display: inline-flex;
     align-items: center;
@@ -279,6 +282,56 @@
     font: var(--type-label);
     color: var(--ink-2);
     white-space: nowrap;
+  }
+
+  /* ---- remove — the one × for every removal (DESIGN.md Remove); it carries .danger, so the ink it
+     takes on hover, press and focus is red. Hit area: the shared icon-control rule above. ---- */
+  .remove {
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--ink-2);
+  }
+  .remove:is(:hover, :active, :focus-visible) {
+    color: var(--ink);
+  }
+
+  /* ---- add — "+ …" adds one more of its kind, the header's "+ Neu …" voice: text, no frame. A
+     button, or the label over a file input. ---- */
+  .add {
+    padding: var(--space-1) 0;
+    font: var(--type-meta);
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .add:hover {
+    text-decoration: underline;
+    text-underline-offset: var(--underline-offset);
+  }
+
+  /* ---- upload — "+ Dateien hinzufügen" over the file input. Once catalog_form.js marks the root
+     the chosen files upload at once, so the input hides and the submit goes; without it both
+     stay. ---- */
+  .upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .upload label:has(:focus-visible) {
+    outline: var(--focus-width) solid var(--ink);
+    outline-offset: var(--focus-width);
+  }
+  [data-upload-on-choose] .upload button {
+    display: none;
+  }
+  .upload input[type="file"] {
+    margin-inline-start: var(--space-2);
+  }
+  .upload ::file-selector-button {
+    margin-inline-end: var(--space-2);
   }
 
   /* ---- note — a quiet annotation touching its label or heading ("intern") ---- */
@@ -461,8 +514,9 @@
     text-decoration: underline;
   }
   /* facet delta: a facet VALUE is unbounded, so its entry ellipsizes — hence a BLOCK container (a
-     flex box cannot ellipsize its own text), with align-content centering the line. */
-  .facet li > a {
+     flex box cannot ellipsize its own text), with align-content centering the line. The ✕ is no
+     value: it keeps the shared icon-control hit area. */
+  .facet li > a:not(.remove) {
     min-width: 0;
     align-content: center;
     overflow: hidden;

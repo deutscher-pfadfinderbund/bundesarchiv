@@ -14,9 +14,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from playwright.sync_api import Browser, Page, Route, expect
+from playwright.sync_api import Browser, Dialog, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
-from tests.e2e._corpus import CorpusHandles
+from tests.e2e._corpus import CorpusHandles, _png
 from tests.e2e._pages import (
     OVERLAY_CENTRED_PANEL,
     OVERLAY_PANEL_OF_JS,
@@ -1218,6 +1218,7 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.click('summary:has-text("Weitere Angaben")')
+    page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('input[name="custom_key"]', "Quelle")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
     # and the plain path still works: a Gruppe-1 field inside the form reveals it too
@@ -1322,6 +1323,9 @@ def test_publish_is_one_click_with_the_exposure_on_screen(
     # with ONE click and find both on the read view.
     page.fill('input[name="ref_code"]', "E2E-42")
     page.click('summary:has-text("Weitere Angaben")')
+    page.click(
+        'button:has-text("+ Angabe hinzufügen")'
+    )  # a round trip that keeps the Signatur typed
     page.fill('input[name="custom_key"]', "Quelle")
     page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
     page.click('button:has-text("Veröffentlichen")')
@@ -1713,32 +1717,61 @@ def test_karte_labels_share_one_axis(
     assert not overflowing, "a label outgrew the axis (--label-spalte):\n" + "\n".join(overflowing)
 
 
-def test_the_custom_bag_enhancement_survives_a_form_region_swap(
+def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # G.27 sweep of a PRE-EXISTING bug the wave enlarged: catalog_form.js bound the custom-bag
-    # listeners to the #custom-bag node it found AT LOAD, so after any #form-region swap — every
-    # validation error, CAS conflict and index-lag re-render performs one — the bag in the DOM was a new
-    # node and the client-side row add/remove was dead until a full reload. Nothing said so: the no-JS
-    # baseline still worked, one round-trip per row. The wave's fix for the sibling class covered the
-    # OTHER enhancement only (catalog_bulk.js re-initialising after a history restore).
+    # The bag renders no empty pair; "+ Angabe hinzufügen" and the remove cross are submits the
+    # server answers with the region re-rendered, so the swap must keep the bag open and the caret
+    # in the new row.
     page = archivist_page
-    edit_url = _create_draft(page, live_workbench, "E2E Fachwerk")
-    page.goto(edit_url)
+    page.goto(_create_draft(page, live_workbench, "E2E Fachwerk"))
     page.click('summary:has-text("Weitere Angaben")')
     rows = page.locator("#custom-bag .bag-row")
-    expect(rows).to_have_count(1)  # the always-present trailing empty add-row
-    page.fill('input[name="custom_key"]', "Quelle")
-    expect(rows).to_have_count(2)  # ...grew a fresh spare: the enhancement is live before the swap
-    # now force a #form-region swap: an empty Titel re-renders the whole region inline via htmx
-    page.fill('input[name="title"]', "")
-    page.click('button:has-text("Speichern")')
-    expect(page.locator(".karte .error").first).to_be_visible()
-    page.click('summary:has-text("Weitere Angaben")')
-    swapped = page.locator("#custom-bag .bag-row")
-    before = swapped.count()
-    swapped.last.locator('input[name="custom_key"]').fill("Querverweis")
-    expect(swapped).to_have_count(before + 1)
+    expect(rows).to_have_count(0)
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    expect(rows).to_have_count(1)
+    expect(rows.first.locator('input[name="custom_key"]')).to_be_focused()
+    page.keyboard.type("Quelle")
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    expect(rows).to_have_count(2)
+    expect(rows.first.locator('input[name="custom_key"]')).to_have_value("Quelle")
+    expect(rows.last.locator('input[name="custom_key"]')).to_be_focused()
+    page.keyboard.type("Fotograf")
+    rows.first.get_by_role("button", name="Quelle entfernen").click()
+    expect(rows).to_have_count(1)
+    expect(rows.first.locator('input[name="custom_key"]')).to_have_value("Fotograf")
+
+
+def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # With JS the "+ Dateien hinzufügen" label over the hidden input is the whole upload, and the
+    # remove cross deletes for good only after the browser's own confirm.
+    page = archivist_page
+    page.goto(_create_draft(page, live_workbench, "E2E Hochladen"))
+    expect(page.locator('#medien-drawer button:has-text("Hochladen")')).to_be_hidden()
+    page.set_input_files(
+        '#medien-drawer input[type="file"]',
+        {"name": "neu.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+    )
+    rows = page.locator("#medien-drawer .media > div")
+    expect(rows).to_have_count(1)
+    remove = page.get_by_role("button", name="neu.png entfernen")
+    asked: list[str] = []
+
+    def dismiss(dialog: Dialog) -> None:
+        asked.append(dialog.message)
+        dialog.dismiss()
+
+    page.once("dialog", dismiss)
+    remove.click()
+    expect(rows).to_have_count(1)
+    assert asked == [
+        "neu.png entfernen? Die Datei wird gelöscht; das lässt sich nicht rückgängig machen."
+    ]
+    page.once("dialog", lambda dialog: dialog.accept())
+    remove.click()
+    expect(page.get_by_text("Noch keine Medien")).to_be_visible()
 
 
 def test_an_empty_summary_value_renders_the_hollow_cue(

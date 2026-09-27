@@ -210,7 +210,7 @@ def _handle_edit_post(
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
     302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
-    submit is the no-JS custom-row removal — re-render with that row cleared, no save (spec §5).
+    or ``custom_neu`` submit removes or adds a custom row — a re-render, no save (spec §5).
 
     SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): the edit form's own submit carries the
     lifecycle verb, so the ONE CAS save commits the metadata and the transition together. A separate
@@ -220,13 +220,15 @@ def _handle_edit_post(
     REFUSED when the exposure cannot be computed (the branch below)."""
     current = stored.article
     surface = EditSurface.of(current, stored.version, bestand)
-    if "custom_entfernen" in request.POST:
-        # spec §5: drop the named row, preserve everything else, save nothing.
+    if "custom_entfernen" in request.POST or "custom_neu" in request.POST:
+        # spec §5: drop the named row or add an empty one, preserve everything else, save nothing.
+        adding = "custom_neu" in request.POST
         return surface.submitted(
             request.POST,
             catalog.parse_version(request.POST.get("expected_version", "")),
-            drop_custom_row=_named_custom_row(request.POST),
-        ).render(request)
+            drop_custom_row=None if adding else _named_custom_row(request.POST),
+            add_custom_row=adding,
+        ).render(request, autofocus="custom_key" if adding else "custom")
     verb = request.POST.get("lebenszyklus", "")
     lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
     if lifecycle is None:
@@ -393,17 +395,26 @@ class EditSurface:
         )
 
     def submitted(
-        self, post: QueryDict, version: Version, *, drop_custom_row: int | None = None
+        self,
+        post: QueryDict,
+        version: Version,
+        *,
+        drop_custom_row: int | None = None,
+        add_custom_row: bool = False,
     ) -> EditSurface:
         """The same saved surface with the form re-seeded from ``post``: the just-typed values
         verbatim (the archivist never loses input) and the register carrying the captions that ride
         THIS submission, so a re-render shows no caption the next Speichern would not write.
-        ``drop_custom_row`` is the no-JS custom-row removal (spec §5)."""
+        ``drop_custom_row`` / ``add_custom_row`` are the custom-row removal and add (spec §5)."""
         return replace(
             self,
             version=version,
             values=_post_to_form_values(
-                post, self.stored.ulid, self.stored.lifecycle, drop_custom_row=drop_custom_row
+                post,
+                self.stored.ulid,
+                self.stored.lifecycle,
+                drop_custom_row=drop_custom_row,
+                add_custom_row=add_custom_row,
             ),
             media=catalog.apply_captions(post, self.stored.media),
         )
@@ -531,16 +542,21 @@ def _article_to_form_values(article: Article) -> dict[str, object]:
     for registered in _FIELDS:
         if registered.control:
             values[registered.name] = registered.value_of(article)
-    values["custom_rows"] = [*article.custom, ("", "")]  # one trailing empty row (the no-JS add)
+    values["custom_rows"] = list(article.custom)
     values["is_draft"] = article.lifecycle is Lifecycle.DRAFT
     return values
 
 
 def _post_to_form_values(
-    post: QueryDict, ulid: Ulid, lifecycle: Lifecycle, *, drop_custom_row: int | None = None
+    post: QueryDict,
+    ulid: Ulid,
+    lifecycle: Lifecycle,
+    *,
+    drop_custom_row: int | None = None,
+    add_custom_row: bool = False,
 ) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
-    so the archivist never loses input; custom rows carry exactly one trailing blank pair.
+    so the archivist never loses input; blank custom pairs drop, and ``add_custom_row`` appends one.
     ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed.
 
     ``drop_custom_row`` names a position in the RAW lists, so it is popped BEFORE the blank rows are
@@ -553,7 +569,8 @@ def _post_to_form_values(
     for registered in _FIELDS:
         if registered.control:
             values[registered.name] = post.get(registered.name, "")
-    values["custom_rows"] = [*(pair for pair in raw if pair != ("", "")), ("", "")]
+    rows = [pair for pair in raw if pair != ("", "")]
+    values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
     values["is_draft"] = lifecycle is Lifecycle.DRAFT
     return values
 

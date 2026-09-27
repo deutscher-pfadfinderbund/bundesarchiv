@@ -202,8 +202,8 @@ sheet is the pane.{% endcomment %}
     form="bearbeiten-form" so they ride THAT form's save (captions are README front matter, ADR 0015)
     despite the drawer sitting outside it; each row's reorder/remove controls belong to their OWN
     per-row form so each carries exactly one unambiguous hash, never the whole register. The upload
-    controls likewise belong to form#medien-upload via form=, and the file input stays the NATIVE one
-    (owner ruling 7: a German browser renders German strings).
+    controls likewise belong to form#medien-upload via form=; without JS the file input is the NATIVE
+    one (owner ruling 7: a German browser renders German strings).
 
     The swap TRIPLE is declared ONCE, here, on the region it names, and :inherited by the five forms
     below. A swap selector must resolve WHERE IT FIRES (G.32), and on this region it does by
@@ -237,10 +237,10 @@ sheet is the pane.{% endcomment %}
           {% comment %}The row's actions: ONE role="toolbar" of icon buttons from the vendored set
           (owner ruling 6, register row 9), each with its accessible name. The end rows' arrows are
           natively disabled, so a dead-end control is non-interactive rather than merely quiet. The
-          two-step remove keeps its WORDS — a confirm is a sentence, not a glyph.{% endcomment %}
+          no-JS two-step remove keeps its WORDS — a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
           <span class="confirm">Wirklich entfernen?
-            <button class="link" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
+            <button class="link danger" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
             <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
@@ -251,8 +251,8 @@ sheet is the pane.{% endcomment %}
             <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
                     name="richtung" value="runter" aria-label="Nach unten"
                     {% if row.is_last %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-down" only %}</button>
-            <button class="link" type="submit" form="entfernen-frage-{{ row.content_hash }}"
-                    aria-label="Entfernen">{% include "components/icon.html" with name="x" only %}</button>
+            <button class="remove danger" type="submit" form="entfernen-frage-{{ row.content_hash }}"
+                    aria-label="{{ row.filename }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
           </span>
           {% endif %}
         </div>
@@ -262,12 +262,13 @@ sheet is the pane.{% endcomment %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
       <div class="upload">
-        <input type="file" name="dateien" form="medien-upload" multiple aria-label="Dateien auswählen">
-        <button type="submit" form="medien-upload">Hinzufügen</button>
+        <label class="add">+ Dateien hinzufügen <input type="file" name="dateien" form="medien-upload" multiple></label>
+        <button type="submit" form="medien-upload">Hochladen</button>
       </div>
 
       {% comment %}Per-row structural forms — siblings of the row markup, referenced via form=.
-      Non-CAS, separate from the caption metadata save.{% endcomment %}
+      Non-CAS, separate from the caption metadata save. The × asks in the browser and, confirmed, sends
+      bestaetigt itself; without JS it asks through the server's two-step.{% endcomment %}
       {% for row in media_rows %}
       <form id="verschieben-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-verschieben' values.ulid %}"
@@ -276,7 +277,9 @@ sheet is the pane.{% endcomment %}
       </form>
       <form id="entfernen-frage-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-confirm="{{ row.filename }} entfernen? Die Datei wird gelöscht; das lässt sich nicht rückgängig machen."
+            hx-vals='{"bestaetigt": "1"}' hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-ja-{{ row.content_hash }}" method="post"
@@ -318,17 +321,17 @@ sheet is the pane.{% endcomment %}
       <div class="bag-row">
         <label class="field">
           <span>Feld</span>
-          <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form">
+          <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>
         </label>
         <label class="field">
           <span>Wert</span>
           <input type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
         </label>
-        {% if key or val %}
-        <button class="link" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form">Entfernen</button>
-        {% endif %}
+        <button class="remove danger" type="submit" name="custom_entfernen" value="{{ forloop.counter0 }}" form="bearbeiten-form"
+                aria-label="{{ key|default:"Angabe" }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
       </div>
       {% endfor %}
+      <button class="add" type="submit" name="custom_neu" form="bearbeiten-form">+ Angabe hinzufügen</button>
     </details>
   </div>{# /.karte #}
 </main>

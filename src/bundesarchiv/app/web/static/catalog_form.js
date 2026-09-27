@@ -1,7 +1,7 @@
 // Cataloging-form progressive enhancement (Part 4.7 Slice E, spec §5).
 //
 // Every behaviour here is ENHANCEMENT-ONLY: the no-JS baseline works without it (the dirty register
-// is simply absent, custom rows are added by the always-present empty row + a save round-trip).
+// is simply absent, an upload takes the native input and its submit).
 // Self-contained, same-origin, no framework (dormancy rule) — one script, two small features. HTMX
 // (loaded separately) handles the AJAX swaps; this only covers what HTMX can't express declaratively.
 (function () {
@@ -20,43 +20,13 @@
     if (status) status.hidden = false;
   });
 
-  // 2. Custom bag — client-side add/remove of key/value rows. Baseline: the always-present trailing
-  // empty row is the "add" affordance and empties drop server-side; this just spares a round-trip.
-  //
-  // DELEGATED ON THE DOCUMENT, like the dirty register above, and for the same reason one level
-  // further on: this used to hold a reference to #custom-bag captured at LOAD time, so after any
-  // #form-region swap — which every validation error, CAS conflict and index-lag re-render performs —
-  // the bag in the DOM was a NEW node and the client-side add/remove was simply dead until a full
-  // reload. Nothing said so; the no-JS baseline still worked, one round-trip at a time. The wave's own
-  // fix for the sibling class (catalog_bulk.js re-initialising after a history restore) covered only
-  // the OTHER enhancement. Delegation needs no re-init at all: there is nothing to bind, so a swap
-  // and a history restore are both non-events (learning G.25, H.8).
-  document.addEventListener("input", function (event) {
-    // typing into the LAST row's key/value grows a fresh empty row (so there's always one spare)
-    var row = event.target.closest && event.target.closest(".bag-row");
-    var bag = row && row.closest("#custom-bag");
-    if (!bag) return;
-    var rows = bag.querySelectorAll(".bag-row");
-    if (row === rows[rows.length - 1] && event.target.value !== "") {
-      var clone = row.cloneNode(true);
-      clone.querySelectorAll("input").forEach(function (i) {
-        i.value = "";
-      });
-      row.after(clone);
+  // 2. Upload on choose — the chosen files go up at once; the CSS hides the native input and the
+  // submit only once this script has marked the root, so a page without it keeps the no-JS path.
+  document.documentElement.dataset.uploadOnChoose = "";
+  document.addEventListener("change", function (event) {
+    var input = event.target;
+    if (input.matches && input.matches('.upload input[type="file"]') && input.files.length) {
+      input.form.requestSubmit();
     }
-  });
-  document.addEventListener("click", function (event) {
-    // a client-side remove link on a row clears + drops it (baseline: the server drops empties)
-    if (!event.target.matches || !event.target.matches('button[name="custom_entfernen"]')) return;
-    var row = event.target.closest(".bag-row");
-    var bag = row && row.closest("#custom-bag");
-    if (!bag) return;
-    event.preventDefault();
-    var rows = bag.querySelectorAll(".bag-row");
-    if (rows.length > 1) row.remove();
-    else
-      row.querySelectorAll("input").forEach(function (i) {
-        i.value = "";
-      });
   });
 })();
