@@ -94,16 +94,16 @@
   input:is([type="checkbox"], [type="radio"]) {
     accent-color: var(--ink);
   }
-  /* Knobs: --field-border, --field-font, --field-inset — the control chrome API (law C3), set on
-     a .field root and inherited, so every STATE rule below still holds. Restating the chrome from
-     a later layer would beat them whatever its specificity (C13, G.47). */
+  /* Knob: --field-font — the control type, set on an ancestor and inherited, so every STATE rule
+     below still holds. Restating the chrome from a later layer would beat them whatever its
+     specificity (C13, G.47). */
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
     font: var(--field-font, var(--type-meta));
     background: var(--ground);
-    border: var(--line-width) solid var(--field-border, var(--edge));
-    padding: var(--space-1) var(--field-inset, var(--space-2));
+    border: var(--line-width) solid var(--edge);
+    padding: var(--space-1) var(--space-2);
   }
   input[type="file"] {
     font: var(--type-meta);
@@ -163,51 +163,24 @@
   }
 
   /* ---- field (workbench/_feld.html; inline in the standalone forms, the Feld chooser, the media
-     register and the custom bag). Knobs: --field-display, --field-label-axis, --field-align,
-     --field-padding-block, --field-rule, plus the control chrome knobs (elements layer).
-     Stacked by default; `--field-display: grid` puts the label beside the value on the axis.
+     register and the custom bag): the label over its control, then its hint and error. Knob:
+     --field-display, plus the control type knob (elements layer).
      A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
      field carrying one is a <div> with an explicit <label for>, or its control names itself via
      aria-labelledby (_feld.html). ---- */
   .field {
     display: var(--field-display, inline-flex);
     flex-direction: column;
-    grid-template-columns: var(--field-label-axis, auto) minmax(0, 1fr);
-    align-items: var(--field-align, normal);
-    gap: var(--space-1) var(--space-3);
-    padding-block: var(--field-padding-block, 0);
-    border-top: var(--field-rule, none);
-  }
-  .field > * {
-    grid-column: 2;
+    gap: var(--space-1);
   }
   .field > :is(label, span):first-child {
-    grid-column: 1;
-    grid-row: 1;
     font: var(--type-label);
     color: var(--ink-2);
-  }
-  /* worked-on: a control whose resting edge is knobbed away shows its edge again (Q6) */
-  .field > :is(input, select, textarea):is(:hover, :focus-visible) {
-    --field-border: var(--edge);
   }
   /* the edge doubled (register row 5): a 1px red line alone does not stand out from the gray edge */
   .field :is(input, select, textarea)[aria-invalid="true"] {
     border-color: var(--error);
     box-shadow: inset 0 0 0 var(--line-width) var(--error);
-  }
-  /* the registry's width facts (_FIELDS.fit), from the content's ceiling (learning G.31) */
-  .field > :is(.kurz, .signatur) {
-    max-width: 100%;
-  }
-  .field > .kurz {
-    width: 18ch; /* an EDTF interval, a personal name */
-  }
-  /* the Signatur: no spaces, at most 8 characters (owner 2026-08-07) plus the caret */
-  .field > .signatur {
-    width: 12ch;
-    font: var(--type-mono);
-    font-weight: 600;
   }
 
   /* ---- action rows: ONE pattern for a row of related actions. [role=toolbar] is the named,
@@ -299,6 +272,7 @@
   /* ---- add — "+ …" adds one more of its kind, the header's "+ Neu …" voice: text, no frame. A
      button, or the label over a file input. ---- */
   .add {
+    align-self: start; /* one more row of its kind, not a bar: it keeps its own width in a stack */
     padding: var(--space-1) 0;
     font: var(--type-meta);
     background: none;
@@ -351,6 +325,93 @@
   }
   .hint > .help {
     margin-inline-start: var(--space-2);
+  }
+
+  /* ---- title-field — the page heading is the record's Titel, editable in place (DESIGN.md). Root
+     is the h1; its one textarea shows the placeholder while empty. No frame: an edge shows under it
+     on hover, and focus thickens that edge to the focus width — the underline is the focus
+     signal. ---- */
+  .title-field {
+    font: var(--type-display);
+  }
+  .title-field > textarea {
+    display: block;
+    width: 100%;
+    margin: 0;
+    /* the glyphs reach past a tight line box: a hair of padding keeps them in */
+    padding: 0.06em 0;
+    min-height: calc(1lh + 0.12em);
+    resize: none;
+    field-sizing: content;
+    font: inherit;
+    background: transparent;
+    border: 0;
+    border-block-end: var(--line-width) solid transparent;
+  }
+  @supports (field-sizing: content) {
+    .title-field > textarea {
+      overflow: hidden; /* the box grows with its text, so nothing is left to scroll */
+    }
+  }
+  .title-field > textarea:hover {
+    border-block-end-color: var(--edge);
+  }
+  .title-field > textarea:focus-visible {
+    outline: 0;
+    border-block-end: var(--focus-width) solid var(--ink);
+  }
+  /* invalid: the edge it has is its only one, so the error doubles that edge (register row 5) */
+  .title-field > textarea[aria-invalid="true"] {
+    border-block-end: calc(2 * var(--line-width)) solid var(--error);
+  }
+  .title-field > textarea[aria-invalid="true"]:focus-visible {
+    border-block-end-width: var(--focus-width);
+  }
+
+  /* ---- crumbs — the place, not the path: "Archiv", then the Bestand chain, each step opening the
+     scoped list (design-system.md, navigation). ---- */
+  .crumbs {
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  .crumbs a:hover {
+    color: var(--ink);
+  }
+  .crumbs a + a::before {
+    content: "›";
+    display: inline-block;
+    margin-inline: var(--space-2);
+  }
+
+  /* ---- section-head — a section's rank: its heading over the section's content ---- */
+  .section-head > h2 {
+    margin: 0;
+    font: var(--type-title);
+  }
+
+  /* ---- record-meta — the form's margin: the record's state, its audience, then the actions.
+     Parts: .record-meta-state (the state in words), .record-meta-actions (Speichern first). ---- */
+  .record-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .record-meta > p {
+    margin: 0;
+  }
+  /* Gruppen means something only at the GROUPS rung; without :has it simply stays visible */
+  @supports selector(:has(a)) {
+    .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
+      --field-display: none;
+    }
+  }
+  .record-meta-actions {
+    /* a CONTROL ROW (law C8): Speichern, the lifecycle action and "Mehr …" share one height */
+    --control-height: var(--touch-target);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-5);
   }
 
   /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark
@@ -420,7 +481,7 @@
      width. A trigger's own viewport offset is not expressible in Baseline CSS, so trigger-pinning
      protects one edge only and both panels escaped at real widths. Which EDGE a panel pins to
      stays per component (below); the row is whatever positioned ancestor it sits in (layouts.css
-     marks the rail and the record row). */
+     marks the rail and the header). */
   .facet > ul {
     position: absolute;
     top: calc(100% + var(--space-1));
@@ -459,9 +520,9 @@
        containing block. Under its button, right edges aligned; a panel that would overflow shifts
        back inside the viewport (default overflow alignment). Without anchor positioning the
        browser centres it (UA margin: auto). The scope keeps each list on its own button when a
-       page holds two menus: named containers, never an unqualified :has() (layouts.css
-       #form-region); a menu outside them fails the e2e "panel under its own trigger" fact. */
-    :is(body > header, [role="toolbar"]) {
+       page holds two menus: named containers, never an unqualified :has(); a menu outside them
+       fails the e2e "panel under its own trigger" fact. */
+    :is(body > header, [role="toolbar"], .record-meta-actions) {
       anchor-scope: --menu-button;
     }
     .menu-button {
@@ -541,7 +602,7 @@
   }
 
   /* ---- menu: a button that opens a list of actions, a native popover (button.menu-button +
-     ul.menu[popover]) — the header's "+ Neu …" and the record row's "Mehr …". ---- */
+     ul.menu[popover]) — the header's "+ Neu …" and the form margin's "Mehr …". ---- */
   /* the button is text, not a framed button (DESIGN.md "Menu"). Its ink binds to the role,
      because the elements layer's button hover would otherwise invert it. */
   .menu-button {

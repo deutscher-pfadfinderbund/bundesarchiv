@@ -262,40 +262,42 @@ monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
 column: a compositions-layer selector may reach a root and never past it. A new component joins
-this table. Views (`_results`, `_header`, `_lesesicht`, the edit card `.karte`) and layout
-primitives (`.frame`, `.column`, `.split`, the record row) are compositions, not components.
-`_filterset` and `_trefferzahl` are parts of the filter rail, `_wertmarke` of the card's value
-line; they are split out only as swap units or single renderers (law C7).
+this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.split`,
+`.form-sheet`, `.field-grid`) are compositions, not components. `_filterset` and `_trefferzahl`
+are parts of the filter rail; they are split out only as swap units (law C7).
 
 | Component | Root | Template | CSS section |
 |---|---|---|---|
 | Action row | `.actions` | inline | `components.css` action rows |
 | Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
 | Badge | `.badge` | `components/badge_visibility` | `components.css` badge |
-| Note | `.note` | inline (`_feld`, the card's Weitere Angaben) | `components.css` note |
+| Note | `.note` | inline (`_feld`, the edit form's Weitere Angaben) | `components.css` note |
 | Help | `.help` | inline (`_feld`) | `components.css` help |
-| Remove | `.remove` | inline (edit card: media rows, Weitere Angaben) | `components.css` remove |
-| Add | `.add` | inline (edit card: Weitere Angaben, upload) | `components.css` add |
-| Upload | `.upload` | inline (edit card) | `components.css` upload |
+| Title field | `.title-field` | inline (edit form) | `components.css` title-field |
+| Crumbs | `.crumbs` | inline (edit form) | `components.css` crumbs |
+| Section head | `.section-head` | inline (edit form) | `components.css` section-head |
+| Record margin | `.record-meta` | inline (edit form) | `components.css` record-meta |
+| Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
+| Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
+| Upload | `.upload` | inline (edit form) | `components.css` upload |
 | Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
-| Menu | `.menu` | inline (`_header` and the record row, both popovers) | `components.css` menu |
+| Menu | `.menu` | inline (`_header` and the edit form's margin, both popovers) | `components.css` menu |
 | Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
 | Field | `.field` | `workbench/_feld` + standalone forms | `components.css` field |
-| Media register | `.media` | inline (edit card) | `forms.css` media register |
+| Media register | `.media` | inline (edit form) | `forms.css` media register |
 | Panel | `.panel` | inline (confirm pages, CAS conflict) | `forms.css` panel |
 | Field diff | `.diff` | inline (CAS conflict) | `forms.css` panel |
-| Exposure statement | `.einblick` | `workbench/_einblick` | `forms.css` exposure statement |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Sammelbearbeitung | `.bulk` | `workbench/_sammelleiste` | `layouts.css` Sammelbearbeitung |
 | Filter rail | `.filterrail` | `workbench/_filterrail` | `layouts.css` filter rail |
-| Pane | `.pane` | `workbench/_pane`, `_lesesicht` | `layouts.css` preview pane |
+| Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
 | Cover Platte | `.platte` | inline (`detail`) | `detail.css` cover Platte |
 | Record card | `.facts` | inline (`detail`) | `detail.css` record card |

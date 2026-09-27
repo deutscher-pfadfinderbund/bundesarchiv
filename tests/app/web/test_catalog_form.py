@@ -66,6 +66,13 @@ def test_minimal_valid_form_builds_an_article() -> None:
     assert result.article.ulid == "01ARTICLEULID0000000000000"
 
 
+def test_a_line_break_in_the_titel_becomes_one_space() -> None:
+    # the Titel is a textarea; a break would reach the ledger, <title>, the crumbs and the index
+    result = _parse(_post(title=" Wander-\r\n\n fahrt\n"))
+    assert result.article is not None
+    assert result.article.title == "Wander- fahrt"
+
+
 def test_every_empty_optional_scalar_becomes_none() -> None:
     result = _parse(_post())
     art = result.article

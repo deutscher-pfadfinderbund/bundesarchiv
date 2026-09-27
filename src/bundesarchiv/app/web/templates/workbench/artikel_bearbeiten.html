@@ -1,132 +1,105 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-The archivist edit surface (spec §3/§4/§5/§6.1; owner rulings 2026-08-08 in
-docs/requirements/owner-interview-2026-08.md). Archivist-only, no-JS baseline: one real <form>,
-native controls, one POST, server re-render preserving every value.
-
-Composition E (ruling 1): the ruled record card in the work column + the reader's sheet in the pane
-column, on the SAME frame the workbench uses, so the sheet appears on the ONE 80rem switch
-(layouts.css). body.vorschau is that switch's hook, and it is literally true here.
-ONE place to act (ruling 2): the sticky .recordrow. NO title header (ruling 3): every identity fact
-is a field, so a header repeating Titel/Signatur would be a Q2 duplication.
+The archivist edit surface (spec §3/§4/§5/§6.1). Archivist-only, no-JS baseline: one real <form>,
+native controls, one POST, server re-render preserving every value. The composition is the
+form-sheet — lead · margin · body (a1 mocks, docs/design/explorations/2026-09-26-monochrome/a1-formular).
 The hidden expected_version rides the form for CAS (ADR 0013).
 {% endcomment %}
 {% block title %}{{ values.title|default:"Artikel" }} — bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">
 <script src="{% static "catalog_form.js" %}" defer></script>
 <script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
-{% block body_class %}vorschau{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist ohne_suche=True %}{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF: hx-headers here is inherited by every hx-get/hx-post inside, so the
 enhancement POSTs clear CsrfViewMiddleware like the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %} does.
 
-#form-region wraps the record row + the frame, and the save swaps exactly this out of the SAME
-full-page render (hx-select) — so a validation/conflict/state-H re-render moves the panels, the
-refreshed expected_version on EVERY form in the row, and the reader's sheet together. A row left
-outside the swap would keep a stale CAS version. A successful save gets HX-Redirect instead.{% endcomment %}
+#form-region wraps the whole sheet, and the save swaps exactly this out of the SAME full-page render
+(hx-select) — so a validation/conflict/state-H re-render moves every part and the refreshed
+expected_version on EVERY form together. A part left outside the swap would keep a stale CAS
+version. A successful save gets HX-Redirect instead.{% endcomment %}
 <div id="form-region" hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<main id="inhalt" class="form-sheet">
 
-{% comment %}The record row — the view's ONE control row and ONE action place (owner ruling 2). In
-reading order: the back affordance · the save-state output and the Entwurf mark · then ONE
-role="toolbar" holding Speichern, the lifecycle action and the overflow menu. A new action lands
-in that list, never as a new button position (G.9).
+  {% with titel=card_fields.lead.0 %}
+  <header>
+    <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+    <label id="feld-title-label" class="visually-hidden" for="feld-title">{{ titel.label }}</label>
+    <h1 class="title-field"><textarea id="feld-title" name="title" form="bearbeiten-form" rows="1" placeholder="{{ titel.label }}" {% include "workbench/_feld_aria.html" with feld=titel base="feld-title" %}{% if titel.autofocus %} autofocus{% endif %}>{{ titel.value }}</textarea></h1>
+    {% if titel.error %}<span class="error" id="feld-title-fehler">{{ titel.error }}</span>{% endif %}
+  </header>
+  {% endwith %}
 
-The LIFECYCLE action is a submit button of #bearbeiten-form (owner decision 2026-08-08): a lifecycle
-POST of its own rebuilt the record from disk and threw the archivist's unsaved edits away without a
-word. It now saves and transitions in one CAS write. Enter is unaffected — implicit submission fires
-the FIRST submit button in tree order, which is Speichern (spec §6.2: Enter never publishes).{% endcomment %}
-<div class="recordrow">
-  <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
-  {% include "components/mark_lifecycle.html" with draft=values.is_draft only %}
-  {% comment %}The dirty register, a mark.
-  Enhancement-only — the no-JS baseline simply never shows it.{% endcomment %}
-  <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
-  <div role="toolbar" aria-label="Satzaktionen">
-    <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
-    {% comment %}Publishing is ONE click (owner ruling 5): the over-exposure preview gate retired with
-    the permanent exposure statement. The click submits the EDIT form with the lifecycle verb, so the
-    save and the transition are one CAS write.
-    ...but the gate's FAIL-CLOSED half did not retire with it (G.34/G.43), so the affordance derives
-    from the SAME view-model the statement does — and the REFUSAL is the server's
-    (catalog_views._handle_edit_post): hiding a button is not a gate. Zurückziehen is not gated;
-    refusing it would strand a record published.{% endcomment %}
-    {% if values.is_draft %}
-    {% if sheet.einblick %}
-    <button type="submit" form="bearbeiten-form"
-            name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
+  {% comment %}The margin: the record's state, its audience, then the actions. Speichern is the
+  form's FIRST submit button in tree order, so implicit submission (Enter) fires it and never the
+  lifecycle action (spec §6.2). The lifecycle action saves and transitions in one CAS write (owner
+  decision 2026-08-08); the client hides Veröffentlichen when the exposure cannot be computed, and
+  the REFUSAL is the server's (catalog_views._handle_edit_post). Zurückziehen is never gated.{% endcomment %}
+  <aside class="record-meta" aria-label="Status und Aktionen">
+    <p class="record-meta-state">{% include "components/mark_lifecycle.html" with draft=values.is_draft only %}
+      <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output></p>
+    {% if conflict %}
+    <section class="panel konflikt" aria-labelledby="konflikt-titel">
+      <h2 id="konflikt-titel">Inzwischen geändert</h2>
+      <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
+      {% if conflict_rows %}
+      <div class="diff">
+        <table>
+          <thead><tr><th>Feld</th><th>Deine Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
+          <tbody>
+            {% for row in conflict_rows %}
+            <tr>
+              <td>{{ row.label }}</td>
+              {% if row.is_sig %}
+              <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
+              <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
+              {% else %}
+              <td>{{ row.mine }}</td>
+              <td>{{ row.theirs }}</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
     {% endif %}
-    {% else %}
-    <button type="submit" form="bearbeiten-form"
-            name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
-    {% endif %}
-    {% comment %}The overflow: the row's rare actions, the same popover menu as the header's "+ Neu …".{% endcomment %}
-    <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
-    <ul class="menu" id="mehr-menu" popover>
-      <li><a href="{% url 'artikel-detail' values.ulid %}">Ansehen</a></li>
-      <li>
-        <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
-          {% csrf_token %}
-          <button class="link" type="submit">Kopieren</button>
-        </form>
-      </li>
-      <li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
-      {% comment %}Verwerfen is drafts-only and routes through the same confirm page: the
-      destructive idiom lives on its own page, never inline (spec §7).{% endcomment %}
-      {% if values.is_draft %}<li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
-    </ul>
-  </div>
-</div>
-
-{% comment %}The page frame, shared with the workbench: the card fills the work column, the reader's
-sheet is the pane.{% endcomment %}
-<div class="frame">
-<main id="inhalt">
-
-  {% if conflict %}
-  <section class="panel konflikt" aria-labelledby="konflikt-titel">
-    <h2 id="konflikt-titel">Inzwischen geändert</h2>
-    <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
-    {% if conflict_rows %}
-    <div class="diff">
-      <table>
-        <thead><tr><th>Feld</th><th>Deine Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
-        <tbody>
-          {% for row in conflict_rows %}
-          <tr>
-            <td>{{ row.label }}</td>
-            {% if row.is_sig %}
-            <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
-            <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
-            {% else %}
-            <td>{{ row.mine }}</td>
-            <td>{{ row.theirs }}</td>
-            {% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
+    {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
+    {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
+    <div class="record-meta-actions">
+      <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
+      {% if values.is_draft %}
+      {% if einblick %}
+      <button type="submit" form="bearbeiten-form" name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
+      {% endif %}
+      {% else %}
+      <button type="submit" form="bearbeiten-form" name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
+      {% endif %}
+      <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
+      <ul class="menu" id="mehr-menu" popover>
+        <li><a href="{% url 'artikel-detail' values.ulid %}">Zur Artikelseite</a></li>
+        <li>
+          <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
+            {% csrf_token %}
+            <button class="link" type="submit">Duplizieren</button>
+          </form>
+        </li>
+        <li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
+        {% comment %}Verwerfen is drafts-only and routes through the same confirm page: the
+        destructive idiom lives on its own page, never inline (spec §7).{% endcomment %}
+        {% if values.is_draft %}<li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
+      </ul>
     </div>
-    {% endif %}
-  </section>
-  {% endif %}
+  </aside>
 
-  {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
-  {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
-
-  {% comment %}The RECORD CARD (owner ruling 1): the whole record as one catalog card — one ruled row
-  per field, a shared label axis, hairlines, no boxes. Sections flow in a two-column GRID (forms.css:
-  "no breakpoint guessing, use a grid"); prose and media span every column; Kerndaten/Einordnung stay
-  open while the rare sections fold WITH their values in the summary (ruling 4 — folding may never
-  hide data).
-
-  #bearbeiten-form is display:contents, so it takes part in submission but not in layout: the media
-  register must hold real <form> children and forms cannot nest, so the DOM splits at the drawer while
-  the CARD does not. Gruppe 6/7 are wired back via form="bearbeiten-form" on every field.{% endcomment %}
-  <div class="karte">
-  {% comment %}This form's swap triple must stay NOT :inherited — the two GET enhancements inside answer
-  with their own partials, which hold no #form-region (G.27).{% endcomment %}
+  <div>
+  {% comment %}#bearbeiten-form closes BEFORE Medien: #medien-drawer must hold real <form> children
+  and forms cannot nest, so every control outside it rides its single POST via form=. Its swap
+  triple must stay NOT :inherited — the two GET enhancements inside answer with their own partials,
+  which hold no #form-region (G.27).{% endcomment %}
   <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
@@ -134,90 +107,42 @@ sheet is the pane.{% endcomment %}
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
 
-    {% comment %}The card's field sections are `{% templatetag openblock %} for {% templatetag closeblock %}` loops over the field registry
-    (catalog_views._FIELDS → _card_fields), so a field exists on this card exactly when the registry
-    declares it — label, control, hint, options, htmx wiring and autofocus all ride the row. The two
-    hand-written controls below are the ones that are not ruled rows: the Beschreibung textarea (its
-    section heading IS its label) and the custom bag's paired inputs.{% endcomment %}
-
-    {# Gruppe 1 — Kerndaten (stays open: the identity facts) #}
-    <section class="fach">
-      <h2>Kerndaten</h2>
-      {% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
+    <section aria-labelledby="h-kerndaten">
+      <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
+      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}</div>
     </section>
 
-    {# Gruppe 2 — Einordnung (stays open: the cataloging decisions) #}
-    <section class="fach">
-      <h2>Einordnung</h2>
-      {% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
+    {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
+    <section aria-labelledby="feld-beschreibung">
+      <header class="section-head"><h2 id="feld-beschreibung">Beschreibung</h2></header>
+      <div class="field"><textarea name="body" rows="6" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea></div>
     </section>
 
-    {% comment %}Gruppe 3 — Herkunft: rarely touched, so it FOLDS, with its own values in the
-    summary from the SAME context the fields print (law C7), disappearing while the section is open
-    so no fact is on screen twice (Q2).
-    [open] is SERVER-DECIDED (catalog_views._open_sections) from the same error/autofocus context the
-    fields are rendered with: a fold may hide neither a message nor the autofocus target, because a
-    closed <details> has no focusable contents (G.33). One rule, every fold.{% endcomment %}
-    <details class="fach"{% if "herkunft" in open_sections %} open{% endif %}>
-      <summary>Herkunft
-        <span class="werte">
-          {% include "workbench/_wertmarke.html" with label="Autor" value=values.creator only %}
-          {% include "workbench/_wertmarke.html" with label="Ort" value=values.subject_place only %}
-          {% include "workbench/_wertmarke.html" with label="Standort" value=values.physical_location only %}
-        </span>
-      </summary>
-      {% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
-    </details>
-
-    {% comment %}Gruppe 4 — Beschreibung: the section heading IS the field's label
-    (aria-labelledby), never both (Q2).{% endcomment %}
-    <section class="fach prosa">
-      <h2 id="feld-beschreibung">Beschreibung</h2>
-      <textarea name="body" rows="10" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea>
+    <section aria-labelledby="h-einordnung">
+      <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
+      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}</div>
     </section>
 
-    {% comment %}Gruppe 5 — Zugriff: folded like Herkunft. Both summary values ride _wertmarke.html
-    like every other one, so an absent value cannot be spelled two ways (law C7).{% endcomment %}
-    <details class="fach"{% if "zugriff" in open_sections %} open{% endif %}>
-      <summary>Zugriff
-        <span class="werte">
-          {% include "workbench/_wertmarke.html" with label="Sichtbarkeit" value=sichtbarkeit_caption only %}
-          {% include "workbench/_wertmarke.html" with label="Gruppen" value=values.gruppen only %}
-        </span>
-      </summary>
-      {% for feld in card_fields.zugriff %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
-    </details>
-
-    {% comment %}The EXPOSURE statement below the pane's 80rem switch — OUTSIDE the fold: a
-    permanent fact may not live behind a disclosure (owner ruling 5, G.34). ONE renderer
-    (workbench/_einblick.html), two placements; layouts.css owns the swap.{% endcomment %}
-    {% include "workbench/_einblick.html" with einblick=sheet.einblick only %}
-
-    {% comment %}bearbeiten-form closes here, BEFORE Medien: #medien-drawer must hold real <form>
-    children and forms cannot nest. Gruppe 6 + 7 continue as the card's own sections, wired back via
-    form= so Speichern still rides this form's single POST.{% endcomment %}
+    <section aria-labelledby="h-herkunft">
+      <header class="section-head"><h2 id="h-herkunft">Herkunft</h2></header>
+      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}</div>
+    </section>
   </form>
 
-    {% comment %}Gruppe 6 — Medien (spec §6.3), on the ledger's subgrid grammar. Caption inputs carry
-    form="bearbeiten-form" so they ride THAT form's save (captions are README front matter, ADR 0015)
-    despite the drawer sitting outside it; each row's reorder/remove controls belong to their OWN
-    per-row form so each carries exactly one unambiguous hash, never the whole register. The upload
-    controls likewise belong to form#medien-upload via form=; without JS the file input is the NATIVE
-    one (owner ruling 7: a German browser renders German strings).
+    {% comment %}Medien (spec §6.3). Caption inputs carry form="bearbeiten-form" so they ride THAT
+    form's save (captions are README front matter, ADR 0015); each row's reorder/remove controls
+    belong to their OWN per-row form so each carries exactly one unambiguous hash, never the whole
+    register. The upload controls likewise belong to form#medien-upload via form=; without JS the
+    file input is the NATIVE one (owner ruling 7: a German browser renders German strings).
 
-    The swap TRIPLE is declared ONCE, here, on the region it names, and :inherited by the five forms
+    The swap TRIPLE is declared ONCE, here, on the region it names, and :inherited by the forms
     below. A swap selector must resolve WHERE IT FIRES (G.32), and on this region it does by
     construction. The hidden forms are SIBLINGS inside the section (forms cannot nest), so a swap
-    delivers fresh forms for the CURRENT row set.
-
-    hx-select-oob carries the READER'S SHEET along, inherited by every form below: order is meaning,
-    so promoting a plate re-covers the record (ADR 0015) and the sheet must not keep the old
-    thumbnail until a full reload. One response either way — only the metadata save swaps
-    #form-region.{% endcomment %}
-    <section id="medien-drawer" class="fach"
+    delivers fresh forms for the CURRENT row set.{% endcomment %}
+    <section id="medien-drawer" aria-labelledby="h-medien"
              hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
-             hx-swap:inherited="outerHTML" hx-select-oob:inherited="#lesesicht">
-      <h2>Medien</h2>
+             hx-swap:inherited="outerHTML">
+      <header class="section-head"><h2 id="h-medien">Medien</h2></header>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
       <div class="media">
@@ -305,17 +230,9 @@ sheet is the pane.{% endcomment %}
       </form>
     </section>
 
-    {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded, its summary
-    naming the keys it holds so folding hides nothing (ruling 4).{% endcomment %}
-    <details id="custom-bag" class="fach"{% if "weitere" in open_sections %} open{% endif %}>
-      <summary>Weitere Angaben <span class="note">intern</span>
-        <span class="werte">
-          {% comment %}Each KEY is the value here, empty case included — both through
-          _wertmarke.html, so the bag cannot spell absence differently from the other folds
-          (law C7).{% endcomment %}
-          {% for key in custom_keys %}{% include "workbench/_wertmarke.html" with label="Angaben" value=key only %}{% empty %}{% include "workbench/_wertmarke.html" with label="Angaben" value="" only %}{% endfor %}
-        </span>
-      </summary>
+    {% comment %}Weitere Angaben (the custom bag): the escape hatch.{% endcomment %}
+    <section id="custom-bag" aria-labelledby="h-weitere">
+      <header class="section-head"><h2 id="h-weitere">Weitere Angaben <span class="note">intern</span></h2></header>
       {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
       <div class="bag-row">
@@ -332,10 +249,8 @@ sheet is the pane.{% endcomment %}
       </div>
       {% endfor %}
       <button class="add" type="submit" name="custom_neu" form="bearbeiten-form">+ Angabe hinzufügen</button>
-    </details>
-  </div>{# /.karte #}
+    </section>
+  </div>
 </main>
-{% include "workbench/_lesesicht.html" with sheet=sheet only %}
-</div>{# /.frame #}
 </div>{# /#form-region #}
 {% endblock %}

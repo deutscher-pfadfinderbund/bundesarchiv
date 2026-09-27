@@ -1,6 +1,6 @@
-/* The editing views: the work column, the RECORD CARD, the media register, field errors and the CAS
-   panel. Load order: tokens, components, layouts, then this file. The form is flat neutral chrome —
-   no per-group fills, no card shadows; that flatness is load-bearing. */
+/* The editing views: the work column, the media register, the custom bag and the CAS panel. Load
+   order: tokens, components, layouts, then this file. The form is flat neutral chrome — no
+   per-group fills, no card shadows; that flatness is load-bearing. */
 
 @layer compositions {
   /* the create step is near-empty: the two required fields are the focal point */
@@ -10,9 +10,8 @@
     gap: var(--space-4);
   }
 
-  /* fields fill the column; the record card sizes its fields from their CONTENT instead. The display
-     is a knob on the column, not a declaration on the field, so the Feld chooser can still hide its
-     unchosen widgets here. */
+  /* fields fill the column. The display is a knob on the column, not a declaration on the field, so
+     the Feld chooser can still hide its unchosen widgets here. */
   .column {
     --field-display: flex;
   }
@@ -20,138 +19,18 @@
     width: 100%;
   }
 
-  /* ============================================================
-     THE RECORD CARD (owner ruling 1, 2026-08-08 — composition E, with A's two columns inside it):
-     the whole record as ONE catalog card — one ruled row per field, a shared label axis, hairlines
-     between rows, NO boxes. The grammar is the ledger's.
-     Every selector below is a DIRECT-CHILD path (law C14), which the `.fach` class is what makes
-     possible: the card's DOM splits at the media register (a register holds real <form> children and
-     forms cannot nest), so the sections are two element names at two depths.
-     ============================================================ */
-  .karte {
-    /* the card's API (law C3/C5), both knobs named here and consumed below:
-       --label-spalte  the shared label axis, sized for the LONGEST label the form carries on one
-                       line. Re-measured every run by test_karte_labels_share_one_axis: a label that
-                       outgrows the axis just WRAPS to a second line, which is a defect the eye skims
-                       past.
-       --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full. */
-    --label-spalte: 7rem;
-    --wert-min: 14rem;
-    /* the two-column behaviour, INTRINSIC (law C11 — "no breakpoint guessing, use a grid", owner
-       ruling 1): auto-fit lays as many section columns as the card's own width allows and shares the
-       slack between them, so there is NO width query in this card at all. The floor is DERIVED, not
-       picked: a section column must hold its label axis plus a value cell plus the gap between them,
-       i.e. 7rem + 14rem + 0.75rem = 21.75rem. Two columns therefore appear at 44.5rem of card
-       width (2 x 21.75 + the 1rem column gap) — measured live: the 1440px desk with the reader's
-       sheet open gives the card ~61rem, the 680px viewport ~40.5rem, so the desk gets two columns
-       and the narrow viewport one, by arithmetic rather than by a threshold. */
-    --spalten-boden: calc(var(--label-spalte) + var(--wert-min) + var(--space-3));
-    display: grid;
-    /* min(floor, 100%) — a bare minmax(floor, 1fr) has the FLOOR as its real minimum, so on a
-       viewport narrower than one section column the track stayed 380px wide and pushed the page body
-       into horizontal scroll (the G.24 class, caught by the overlay-containment walker on the edit
-       surface at 360px). With min() the single column simply shrinks below the floor instead: one
-       column was already the answer at that width, so nothing is lost. */
-    grid-template-columns: repeat(auto-fit, minmax(min(var(--spalten-boden), 100%), 1fr));
-    align-items: start;
-    gap: var(--space-6) var(--space-4);
-  }
-  /* the form takes part in submission, not in layout — so its sections are the CARD's grid items */
-  .karte > form {
-    display: contents;
-  }
-  /* ---- `.fach` is the card's OWN SECTION (law C1's licence): `.fach > …` reaches only what the
-     composition placed, so the CAS conflict panel's own h2 — in `main`, in no `.fach` — is
-     untouched (law C14). ---- */
-  /* the section head: h2 and summary share ONE treatment, so an open section and a folded one never
-     read as different kinds of thing (proven computed, not claimed here — G.1) */
-  .fach > :is(h2, summary) {
-    margin: 0;
-    padding-block: var(--space-1);
-    font: var(--type-label);
-    color: var(--ink-2);
-  }
-  /* the folded sections' value line (owner ruling 4). It disappears while the section is OPEN,
-     because then the fields carry those values and no fact may be on screen twice (Q2). */
-  details.fach > summary > .werte {
-    font: var(--type-meta);
-  }
-  details.fach[open] > summary > .werte {
-    display: none;
-  }
-  /* an EMPTY value in a summary line: register row 6's hollow-slot cue, so "Standort leer" cannot
-     read as a real Standort. A dashed UNDERLINE, not a box — the summary is running text. */
-  .werte > .leer {
-    border-bottom: var(--line-width) dashed var(--edge);
-  }
-  /* a folded section that CONTAINS an error renders OPEN, and its summary SAYS so — an opened
-     section is otherwise indistinguishable from one the archivist opened, and the message may sit a
-     screenful below. Read off the section's own contents with :has(), so no server flag and no JS
-     can disagree with where the .error actually is. */
-  details.fach:has(.error) > summary::after {
-    content: " · Fehler";
-    color: var(--error);
-  }
-  .werte > span + span::before {
-    content: " · ";
-  }
-  /* ---- one ruled field row: label column + value, a hairline between, no box. Each row carries the
-     axis itself out of the SHARED knob rather than subgridding onto its section — the section is
-     plain flow, so a folded <details> lays its rows out identically to an open <section>, which a
-     subgrid would have to reach through ::details-content to do. At rest the value sits ON the
-     row's line; the field's own state rules bring the box back (law C13). ---- */
-  .fach > .field {
-    --field-display: grid;
-    --field-label-axis: var(--label-spalte);
-    --field-align: baseline;
-    --field-padding-block: var(--space-2);
-    --field-rule: var(--line-width) solid var(--rule);
-    --field-border: transparent;
-    --field-font: var(--type-body);
-    --field-inset: 0;
-  }
-  /* ---- prose + register sections span every column ---- */
-  .fach.prosa,
-  #medien-drawer.fach {
-    grid-column: 1 / -1;
-  }
-  /* Beschreibung: the section HEADING is the field's label (aria-labelledby), so no label column */
-  .fach.prosa > textarea {
-    /* the ONE control in the card that keeps its box: a prose area's EXTENT is part of what it tells
-       the archivist, and an empty one drawn as a bare line is invisible */
-    display: block;
-    width: 100%;
-    min-height: 8rem; /* the prose floor — about five lines; no token names a text-area minimum */
-    field-sizing: content; /* law F, newly-available tier: grows with the content where supported,
-       degrades to exactly the floor above where it is not */
-  }
   /* in-flight cue for HTMX swaps: a static opacity dim, no spinner */
   #medien-drawer.htmx-request,
   #form-region form.htmx-request {
     opacity: 0.6;
   }
-  /* ---- the exposure statement, TWO PLACEMENTS of ONE renderer (workbench/_einblick.html): the
-     sheet carries it where the sheet exists, the card where it does not. The card is the DEFAULT —
-     always rendered — and layouts.css's ONE pane switch is the only thing that suppresses it, inside
-     the same query that puts the sheet on screen, so no threshold is restated here (law C9/G.44).
-     A direct child of the form, NOT of the folded Zugriff section: a permanent fact may not live
-     behind a disclosure (owner ruling 5, learning G.34). ---- */
-  .karte > form > .einblick {
-    grid-column: 1 / -1;
-    padding-top: var(--space-2);
-    border-top: var(--line-width) solid var(--rule);
-  }
 
-  /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
+  /* ---- the custom bag: key/value pairs ---- */
   .bag-row {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     align-items: end;
     gap: var(--space-3);
-  }
-  .bag-row + .bag-row,
-  .fach > :is(.add, .upload) {
-    margin-top: var(--space-3);
   }
 
   /* ---- read-only facts: a <dl>; the dashed baseline reads as a printed fact, not an input ---- */
@@ -172,8 +51,7 @@
     border-bottom: var(--line-width) dashed var(--rule);
   }
 
-  /* ---- footer action bar (spec §3): the create/confirm pages' one action row. The edit surface has
-     no footer band — its one action place is the sticky record row (owner ruling 2). ---- */
+  /* ---- footer action bar (spec §3): the create/confirm pages' one action row ---- */
   .column footer,
   .column.narrow > .actions {
     /* the row is the ONE height source for its controls (law C8); without it a button falls back to
@@ -251,11 +129,6 @@
     gap: var(--space-2);
     font: var(--type-meta);
     color: var(--ink-2);
-  }
-
-  /* ---- exposure statement (workbench/_einblick.html) ---- */
-  .einblick > p {
-    margin: 0;
   }
 
   /* ---- panel: flat, framed by an edge. `.konflikt` is the CAS case: red LEFT border + error

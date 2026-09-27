@@ -171,17 +171,45 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">bare &lt;input&gt;/&lt;select&gt;/&lt;textarea&gt; styled by the cascade · label.field stacks the label span over its control</code>
 
-<h2>Fields — on a label axis (the record card's rows)</h2>
+<h2>Form head — crumbs, title field, section head (the edit form)</h2>
 <div class="probe">
   {% for mode in modes %}
-  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; --field-display: grid; --field-label-axis: 7rem; --field-align: baseline">
-    <label class="field"><span>Signatur</span><input type="text" name="ref_code" value="F12/3" class="signatur"></label>
-    <label class="field"><span>Datierung</span><input type="text" name="date" value="1962-07" class="kurz"></label>
-    <label class="field"><span>Titel</span><input type="text" name="titel" value="Sommerfahrt 1962"></label>
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <nav class="crumbs" aria-label="Ort im Archiv"><a href="#demo-form-head">Archiv</a><a href="#demo-form-head">Bund</a></nav>
+    <label class="visually-hidden" for="demo-title-{{ mode }}">Titel</label>
+    <h1 class="title-field"><textarea id="demo-title-{{ mode }}" rows="1" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
+    <header class="section-head"><h2>Kerndaten</h2></header>
   </div>
   {% endfor %}
 </div>
-<code class="doc">knobs set on any ancestor: --field-display: grid + --field-label-axis + --field-align · the width classes .kurz / .signatur come from the field registry (catalog_views._FIELDS.fit)</code>
+<code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank</code>
+
+<h2>Record margin — state, audience, actions (the edit form)</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <aside class="record-meta" aria-label="Status und Aktionen">
+      <p class="record-meta-state">{% include "components/mark_lifecycle.html" with draft=True only %}</p>
+      <div class="field">
+        <label for="demo-sicht-{{ mode }}">Sichtbar für</label>
+        <select id="demo-sicht-{{ mode }}" name="sichtbarkeit">
+          <option value="">Vom Bestand erben</option>
+          <option value="groups">Gruppe(n)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="demo-gruppen-{{ mode }}">Gruppen</label>
+        <input id="demo-gruppen-{{ mode }}" type="text" name="gruppen">
+      </div>
+      <div class="record-meta-actions">
+        <button class="primary" type="button">Speichern</button>
+        <button class="menu-button" type="button">Mehr …</button>
+      </div>
+    </aside>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">aside.record-meta: .record-meta-state · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
 
 <h2>Field with validation error</h2>
 <div class="probe">
@@ -281,15 +309,15 @@ list anchored to its own button. {% endcomment %}
       <li><a href="#demo-menu">Neuer Artikel</a></li>
       <li><a href="#demo-menu">Neuer Bestand</a></li>
       <li><a href="#demo-menu">Bestand bearbeiten</a></li>
-      {% comment %} A panel entry that must POST (Kopieren mutates, so it cannot be a link): the
-      record row's overflow menu carries this flavour, and the panel-entry rule covers both.
+      {% comment %} A panel entry that must POST (Duplizieren mutates, so it cannot be a link): the
+      edit form's "Mehr …" carries this flavour, and the panel-entry rule covers both.
       {% endcomment %}
-      <li><form method="post" action="#demo-menu"><button class="link" type="submit">Kopieren</button></form></li>
+      <li><form method="post" action="#demo-menu"><button class="link" type="submit">Duplizieren</button></form></li>
     </ul>
   </div>
   {% endfor %}
 </div>
-<code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with an edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The record row's "Mehr …" is the same menu; its Löschen / Verwerfen carry the .danger context</code>
+<code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with an edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen / Verwerfen carry the .danger context</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">

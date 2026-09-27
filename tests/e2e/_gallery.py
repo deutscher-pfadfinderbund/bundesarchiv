@@ -9,7 +9,7 @@ It reuses the E2E stack (live server + Postgres index + the cached chromium) so 
 page, byte-for-byte what ships — not a static mock. The GET-renderable states come from THE screen
 inventory (``_pages.SCREENS``), shared with the a11y pass and the control-row/overlay walkers, so the
 gallery and the guards can never disagree about which screens the app has; the states behind an
-INTERACTION — an unfolded card section, a rejected save — are declared here and reached the way a user
+INTERACTION — an open menu, a rejected save — are declared here and reached the way a user
 reaches them, by driving the affordance. A whole SCREEN that needs driving (the two bulk surfaces)
 belongs in the inventory instead, with its own reach, so every guard covers it too.
 
@@ -85,7 +85,7 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a DRAFT, so the menu holds both destructive entries (Löschen, Verwerfen)
     page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
-    page.click(".recordrow .menu-button")
+    page.click(".record-meta .menu-button")
 
 
 def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -93,25 +93,14 @@ def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> 
     page.click("#feld-date-hinweis .help")
 
 
-def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
-    # the value-carrying summaries and what they hide — including the exposure statement's in-card
-    # placement
-    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
-    page.click('summary:has-text("Herkunft")')
-    page.click('summary:has-text("Zugriff")')
-
-
 def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the REJECTED state of the record card, and specifically an error inside a FOLDED section:
-    # Sichtbarkeit=Gruppe(n) with an empty Gruppen field. The server decides [open] from the same error
-    # context that renders the message, and the summary carries the red "Fehler" mark — a visible cue
-    # needs a render to be judged on (learning G.7), and this shot is also the C13 error-border state.
+    # the REJECTED state of the edit form: Sichtbarkeit=Gruppe(n) with an empty Gruppen field, the
+    # error in the margin — a visible cue needs a render to be judged on (learning G.7), and this shot
+    # is also the C13 error-border state.
     page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
-    page.click('summary:has-text("Zugriff")')
     page.select_option('select[name="sichtbarkeit"]', "groups")
     page.click('button:has-text("Speichern")')
-    page.wait_for_selector(".karte .error")
+    page.wait_for_selector(".record-meta .error")
 
 
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -128,7 +117,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
     page.wait_for_selector(".column .error")
 
 
-#: The states that are not SCREENS but STATES OF one — a fold opened, a save rejected. A screen that
+#: The states that are not SCREENS but STATES OF one — a menu opened, a save rejected. A screen that
 #: merely needs driving to reach (the two bulk surfaces) belongs in the inventory with its own reach,
 #: so the guards cover it too; only a second state of a screen already in the inventory lives here.
 _INTERACTION_STATES: tuple[GalleryState, ...] = (
@@ -162,7 +151,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "edit-mehr-open",
-        "the edit surface, the record row's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
+        "the edit surface, the margin's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
         True,
         _reach_edit_mehr_open,
     ),
@@ -173,14 +162,8 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_edit_datierung_help,
     ),
     GalleryState(
-        "edit-folded-open",
-        "the edit surface with Herkunft + Zugriff unfolded",
-        True,
-        _reach_edit_folded_open,
-    ),
-    GalleryState(
         "edit-rejected",
-        "the edit surface rejected: an error inside a folded section (opened, summary marked)",
+        "the edit surface rejected: a Gruppen error in the margin",
         True,
         _reach_edit_rejected,
     ),

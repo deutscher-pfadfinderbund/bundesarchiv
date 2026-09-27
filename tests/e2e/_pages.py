@@ -15,7 +15,7 @@ So the screens live here once, and each guard derives its own view of them:
   control rows and every toolbar button's ink;
 - ``test_journeys.test_overlays_stay_inside_the_viewport`` opens every overlay on every screen that
   composes one, across the width range;
-- ``_gallery`` renders every screen from here and declares only its own INTERACTION states (a fold
+- ``_gallery`` renders every screen from here and declares only its own INTERACTION states (a menu
   opened, a rejected save) itself.
 
 A new screen therefore lands in one tuple and is covered everywhere at once — and it cannot be
@@ -54,9 +54,10 @@ OVERLAY_PANEL_OF_JS = (
     + " : null)"
 )
 
-#: The one panel the browser CENTRES when anchor positioning is absent (the help popover, DESIGN.md
-#: Fields): the fallback-tier walker exempts it from "hangs under its trigger".
-OVERLAY_CENTRED_PANEL = ".popover"
+#: The panels the browser CENTRES when anchor positioning is absent (the help popover, DESIGN.md
+#: Fields; the popover menus, components.css "menu"): the fallback-tier walker exempts them from
+#: "hangs under its trigger". The anchored tier still holds them to it.
+OVERLAY_CENTRED_PANEL = ".popover, ul.menu[popover]"
 
 #: How a guard gets a browser onto a screen: navigate, or drive whatever affordance leads there.
 #: Every reach leaves the page fully loaded, so a caller only measures.
@@ -121,7 +122,7 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
 #: header, hence one overlay (the "+ Neu …" create menu) at minimum; the filtered workbench adds
-#: one dropdown per filter-rail facet group, and the edit surface adds the record row's "Mehr …".
+#: one dropdown per filter-rail facet group, and the edit surface adds the margin's "Mehr …".
 SCREENS: tuple[Screen, ...] = (
     Screen(
         "workbench-empty",
@@ -211,7 +212,7 @@ SCREENS: tuple[Screen, ...] = (
         _goto(lambda c: f"/artikel/{c.draft_ulid}/bearbeiten"),
         "artikel-bearbeiten",
         overlays=2,
-        control_rows=("header", "div.recordrow"),
+        control_rows=("header", "div.record-meta-actions"),
     ),
     # The PUBLISHED record's edit surface is the only screen carrying MEDIA — so it is the only one
     # that composes the media register's icon toolbar (owner ruling 6, the form wave's control row).
@@ -223,7 +224,7 @@ SCREENS: tuple[Screen, ...] = (
         _goto(lambda c: f"/artikel/{c.published_ulid}/bearbeiten"),
         "artikel-bearbeiten",
         overlays=2,
-        control_rows=("header", "div.recordrow", "span[toolbar]"),
+        control_rows=("header", "div.record-meta-actions", "span[toolbar]"),
     ),
     Screen(
         "read-published",

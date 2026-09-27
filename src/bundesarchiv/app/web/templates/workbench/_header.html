@@ -18,10 +18,11 @@ Params (all optional — an empty value simply renders less):
                     not chrome: a literal here would hand the create menu to the first lower-tier
                     viewer that ever reaches a shared-header screen
   aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
+  ohne_suche      — drops the search form: a search on a form invites leaving it with unsaved edits
+                    (a1 NOTES, "Top bar"), so the two article forms set it
   zurueck         — renders the back link at the end of the row. For the screens whose own body
                     carries no way back: the create/rename forms, the confirm and result surfaces. The
-                    edit surface has it in its record row, and the workbench IS the search — both leave
-                    it empty. Typing an empty query and submitting technically lands on the workbench,
+                    workbench IS the search and leaves it empty. Typing an empty query and submitting technically lands on the workbench,
                     but that is not an affordance an archivist can see, so the explicit link stays.
   zurueck_href    — where the back link goes; defaults to the workbench. The delete-confirm surface
                     points at the article it is about, not at the search.
@@ -39,11 +40,13 @@ type-to-search ENHANCEMENT therefore lives on the region it swaps (#results, wor
 instead of on the shared trigger: it exists exactly where its target exists, by construction, and the
 form below degrades to the plain navigation everywhere else without knowing anything about its page.
 {% endcomment %}
+{% if not ohne_suche %}
 <form role="search" method="get" action="{% url 'workbench' %}">
   <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}<button type="submit">Suchen</button>
 </form>
+{% endif %}
 {% comment %}ONE "+ Neu …" menu (owner 2026-08-07, Mock B). The list is the header's create SLOT
 (learning G.9): a new create action lands in this list, never as a new header button. A native
 popover: light dismiss, Esc and the top layer without JS.{% endcomment %}

@@ -82,13 +82,11 @@
   /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
        --z-overlay-panel  a dropped overlay panel — above the sticky sheet it may overlap
-       --z-control-row    a STICKY control row (the edit surface's record row)
        --z-header         the page header — above every control row (learning G.36)
        --z-banner         the viewport-fixed failure banner: above everything
      A popover (the menus) sits in the top layer and needs no value. A new layer joins this
      scale. */
   --z-overlay-panel: 2;
-  --z-control-row: 4;
   --z-header: 5;
   --z-banner: 10;
 }

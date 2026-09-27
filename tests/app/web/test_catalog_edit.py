@@ -11,7 +11,7 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 
 import io
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING
@@ -111,15 +111,14 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
     assert response.status_code == 200
     body = response.content.decode()
     # the stored values are seeded into the form
-    assert 'value="Wanderfahrt 1962"' in body
+    assert ">Wanderfahrt 1962</textarea>" in body
     assert 'value="F12/3"' in body
-    # the group drawers are present (spec §3)
-    for legend in ("Kerndaten", "Einordnung", "Herkunft", "Beschreibung", "Zugriff"):
-        assert legend in body
-    assert "Weitere Angaben" in body  # Gruppe 7
+    for section in ("Kerndaten", "Beschreibung", "Einordnung", "Herkunft", "Medien"):
+        assert section in body
+    assert "Weitere Angaben" in body
     # the hidden expected_version rides the form
     assert f'name="expected_version" value="{corpus.version}"' in body
-    # the Entwurf mark (draft) sits in the header
+    # the Entwurf mark (draft) sits in the margin
     assert "Entwurf" in body
     # the Signatur mark reflects ref_code
     assert "F12/3" in body
@@ -140,6 +139,19 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
     assert "c-sig--leer" not in body  # the hollow-slot class is absent
     # the Signatur input is present and empty
     assert 'name="ref_code" value=""' in body
+
+
+def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -> None:
+    # owner ruling 5: the exposure statement is permanently on screen — here the inherit option says
+    # which rung the Bestand hands down, even when the article's own setting overrides it
+    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    assert '<option value="" selected>Öffentlich (wie Bestand)</option>' in body
+    own = "01KX7YT9E3VX0CP3A5Q49RZMWK"
+    corpus.add_article(
+        make_article(own, collection_id="PUB", audience=Audience(AudienceTier.MEMBERS), title="X")
+    )
+    body = client_as(Archivist()).get(f"/artikel/{own}/bearbeiten").content.decode()
+    assert '<option value="">Öffentlich (wie Bestand)</option>' in body
 
 
 # --- GET/POST: archivist gate (both methods, all tiers) ---------------------------
@@ -312,7 +324,6 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> N
     assert 'value="Meyer"' not in body  # the removed row's value is gone
     # nothing was saved (removal is a re-render, not a save)
     assert corpus.articles.load(_ULID).version == corpus.version
-    assert _fold(body, "Weitere Angaben").is_open, "the bag folded under the row just removed"
 
 
 def test_the_bag_renders_no_empty_pair_until_one_is_added(corpus: _EditCorpus) -> None:
@@ -335,9 +346,7 @@ def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorp
     body = response.content.decode()
     assert 'value="Meyer"' in body  # the typed row survives the round trip
     assert body.count('name="custom_key" value=""') == 1
-    scan = _scan(body)
-    assert scan.autofocused == "custom_key"
-    assert _fold(body, "Weitere Angaben").is_open
+    assert _autofocused(body) == "custom_key"
     assert corpus.articles.load(_ULID).version == corpus.version
 
 
@@ -427,144 +436,28 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
     assert second_blank_pairs == 0
 
 
-# --- folded sections: a fold may hide neither a message nor the focus -------------
-#
-# Owner ruling 4 folds the rare sections WITH their values in the summary — folding may never hide
-# data. The form wave left two ways for it to hide something else: a validation error rendered inside
-# a folded section is invisible (Sichtbarkeit=Gruppe(n) with an empty Gruppen field; errors.custom in
-# the bag), and `autofocus` on a field inside a fold focuses nothing at all, because a closed
-# <details> has no focusable contents (the field registry holds three such fields). Both are now
-# decided server-side from the same context that renders the message — catalog_views._open_sections.
-#
-# DELIBERATE LAYERING, not duplication (do not collapse): these prove the SERVER's decision — which
-# fold carries [open], which field carries `autofocus` — while the e2e pair
-# (test_a_fold_hides_neither_the_error_nor_the_focus / test_a_fold_never_swallows_the_autofocus)
-# proves what only a browser can answer: is the message on screen, is the input actually focused.
-
-
-@dataclass
-class _Fold:
-    """One rendered ``<details>`` inside the record card: its summary label, whether it renders open,
-    and the names of the form fields it CONTAINS (possibly none — a fold may hold only a message)."""
-
-    label: str = ""
-    is_open: bool = False
-    fields: set[str] = field(default_factory=set)
-
-
-#: HTML elements with no end tag. The scanner tracks nesting depth to know what is inside the card,
-#: and a void element that never closes would leave the depth counter permanently one too deep.
-_VOID = frozenset({"input", "img", "br", "hr", "meta", "link", "source", "col", "area"})
-
-
-class _FoldScanner(HTMLParser):
-    """Collect every ``<details>`` INSIDE THE RECORD CARD with its ``open`` state, summary label and
-    contained field names, plus the name of the ONE field carrying ``autofocus``. A real parser rather
-    than a regex, because "contained" is a nesting question.
-
-    Scoped to ``.karte`` STRUCTURALLY: a ``<details>`` outside the card is not a fold. Hidden inputs are still skipped: they are plumbing
-    (CSRF, expected_version, the media hashes), not fields the archivist fills."""
+class _AutofocusScanner(HTMLParser):
+    """The name of the ONE control a render marks ``autofocus``."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.folds: list[_Fold] = []
-        self.autofocused = ""
-        self._stack: list[_Fold] = []
-        self._in_summary = False
-        self._depth = 0
-        self._karte_depth: int | None = None
+        self.name = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if tag not in _VOID:
-            self._depth += 1
-            if self._karte_depth is None and "karte" in (values.get("class") or "").split():
-                self._karte_depth = self._depth
-        if tag == "details" and self._karte_depth is not None:
-            fold = _Fold(is_open="open" in values)
-            self.folds.append(fold)
-            self._stack.append(fold)
-        elif tag == "summary" and self._stack:
-            self._in_summary = True
-        elif tag in ("input", "select", "textarea"):
-            name = values.get("name")
-            if not name or values.get("type") == "hidden":
-                return
-            if "autofocus" in values:
-                self.autofocused = name
-            for fold in self._stack:
-                fold.fields.add(name)
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "details" and self._stack:
-            self._stack.pop()
-        elif tag == "summary":
-            self._in_summary = False
-        if tag not in _VOID:
-            if self._karte_depth == self._depth:
-                self._karte_depth = None
-            self._depth -= 1
-
-    def handle_data(self, data: str) -> None:
-        if self._in_summary and self._stack and not self._stack[-1].label:
-            self._stack[-1].label = data.strip()
+        if "autofocus" in values and values.get("name"):
+            self.name = str(values["name"])
 
 
-def _scan(body: str) -> _FoldScanner:
-    scanner = _FoldScanner()
+def _autofocused(body: str) -> str:
+    scanner = _AutofocusScanner()
     scanner.feed(body)
-    return scanner
+    return scanner.name
 
 
-def _folds(body: str) -> list[_Fold]:
-    """Every ``<details>`` the record card renders, in POSITION order — field-bearing or not.
-
-    Keyed by position, never by label: a summary label is not unique (nothing stops two sections
-    sharing one, and the label is free German copy), so a dict keyed by it silently collapses folds
-    and the count assertion below then passes over a SHRUNKEN walk — exactly the defect class this
-    wave just fixed in the C8 walker (learning G.37). Field-less folds are included for the same
-    reason: filtering on ``fold.fields`` dropped precisely the shape the guard exists for — a fold
-    whose contents are a MESSAGE (``errors.custom``) rather than an input."""
-    return _scan(body).folds
-
-
-def _fold(body: str, label: str) -> _Fold:
-    """The one card fold whose summary starts with ``label`` (folds are position-keyed; callers name
-    the section they mean). Fails loudly on zero or several matches rather than picking one."""
-    matches = [f for f in _folds(body) if f.label.startswith(label)]
-    assert len(matches) == 1, (
-        f"„{label}“ matched {len(matches)} folds: {[f.label for f in _folds(body)]}"
-    )
-    return matches[0]
-
-
-def test_folded_sections_own_every_field_they_hold(corpus: _EditCorpus) -> None:
-    # The drift guard for the mechanism above: the field registry is the ONE declaration of which
-    # fields live behind which fold, so a field moved into a fold without a `section` would silently
-    # lose the open-on-error/open-on-focus behaviour. Walk the real render instead of trusting the map.
-    #
-    # A field maps to AT MOST ONE section BY CONSTRUCTION now — the registry gives each field one
-    # `section` string, where the old shape was three frozensets that could overlap — so the three
-    # lines that used to rule out that impossibility went with it.
-    from bundesarchiv.app.web.catalog_views import _SECTION_FIELDS
-
-    with_bag = "01KX7YT9E3VX0CP3A5Q49RZMWR"  # the bag renders its fields only once it holds a row
-    corpus.add_article(make_article(with_bag, collection_id="PUB", custom=(("Fotograf", "Meyer"),)))
-    body = client_as(Archivist()).get(f"/artikel/{with_bag}/bearbeiten").content.decode()
-    folds = _folds(body)
-    assert len(folds) == 3, (
-        f"the scanner found {[f.label for f in folds]} — the guard proves nothing"
-    )
-    for fold in folds:
-        owners = [name for name, fields in _SECTION_FIELDS.items() if fold.fields & fields]
-        assert owners, f"„{fold.label}“ ({sorted(fold.fields)}) belongs to no declared section"
-        unowned = fold.fields - _SECTION_FIELDS[owners[0]]
-        assert not unowned, f"„{fold.label}“ holds {sorted(unowned)}, absent from the registry"
-
-
-# --- the field registry's OTHER columns ---------------------------------------------
+# --- the field registry's columns ---------------------------------------------------
 #
-# `section` had the walk above and the other columns had nothing: dropping `scanned=True`, dropping
+# Dropping `scanned=True`, dropping
 # `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite green.
 # The consequential column is `diff`: `_conflict_rows` derives the CAS "Inzwischen geändert" table
 # from it, so a dropped `diff=` means a racing archivist is silently not told that field changed under
@@ -761,16 +654,16 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
 #: Bestand is deliberately absent: a diff of collection MOVES is its own surface, not this one.
 _CAS_DIFF_ROWS = (
     "Titel",
+    "Sichtbarkeit",
     "Signatur",
+    "Standort",
+    "Beschreibung",
     "Medienart",
     "Dokumenttyp",
     "Schlagworte",
-    "Datierung",
     "Autor",
     "Ort",
-    "Standort",
-    "Beschreibung",
-    "Sichtbarkeit",
+    "Datierung",
     "Status",
 )
 
@@ -847,54 +740,21 @@ def _diff_labels(body: str) -> list[str]:
     return scanner.labels
 
 
-def test_error_inside_a_folded_section_renders_it_open(corpus: _EditCorpus) -> None:
-    # Sichtbarkeit=Gruppe(n) with an empty Gruppen field: the message and the errored input both live
-    # in the folded Zugriff section. Folded, the archivist saw a form that simply refused to save.
+def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
     )
     assert response.status_code == 200
-    body = response.content.decode()
-    assert "Bitte mindestens eine Gruppe angeben." in body
-    assert _fold(body, "Zugriff").is_open, "the errored Zugriff section rendered folded"
-    assert not _fold(body, "Herkunft").is_open  # the clean folds stay folded (ruling 4)
+    assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
 
 
-def test_custom_bag_error_renders_the_bag_open(corpus: _EditCorpus) -> None:
-    # errors.custom is the same class: it renders as a <p class="error"> inside #custom-bag.
+def test_a_custom_bag_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
         {**_valid_post(corpus), "custom_key": ["title"], "custom_value": ["gekapert"]},
     )
     assert response.status_code == 200
-    body = response.content.decode()
-    assert "Bezeichnung ist reserviert." in body
-    assert _fold(body, "Weitere Angaben").is_open, "the errored custom bag rendered folded"
-
-
-def test_autofocus_target_inside_a_folded_section_renders_it_open(corpus: _EditCorpus) -> None:
-    # The GET autofocus scans the cataloguing spine for the first EMPTY field, and three of its
-    # fields (Autor, Ort, Standort) sit
-    # behind the Herkunft fold — so on a record whose earlier fields are all filled the autofocus
-    # landed on an input inside a closed <details>, focusing nothing at all.
-    filled = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
-    corpus.add_article(
-        make_article(
-            filled,
-            collection_id="PUB",
-            lifecycle=Lifecycle.DRAFT,
-            title="Vollständig",
-            ref_code="F1",
-            media_type="Foto(s)",
-            document_type="Positiv",
-            tags=("sommer",),
-            date=EdtfDate("1962"),
-        )
-    )
-    body = client_as(Archivist()).get(f"/artikel/{filled}/bearbeiten").content.decode()
-    assert _scan(body).autofocused == "creator"  # confirms the case this guard is about
-    assert _fold(body, "Herkunft").is_open, "the autofocus target rendered inside a closed fold"
-    assert not _fold(body, "Zugriff").is_open  # the other folds are untouched
+    assert "Bezeichnung ist reserviert." in response.content.decode()
 
 
 # --- publish/withdraw FROM THE EDIT SCREEN: saving is part of publishing ----------
@@ -975,7 +835,7 @@ def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCo
     assert loser.status_code == 200
     body = loser.content.decode()
     assert "Inzwischen geändert" in body
-    assert 'value="Verlierer"' in body  # the loser's input survives the conflict re-render
+    assert ">Verlierer</textarea>" in body  # the loser's input survives the conflict re-render
     assert f'name="expected_version" value="{corpus.version + 1}"' in body  # refreshed
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"
@@ -993,51 +853,3 @@ def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Wanderfahrt 1962"
     assert stored.version == corpus.version
-
-
-# --- the reader's sheet on a RE-RENDER ---------------------------------------------
-
-
-def _lesesicht(body: str) -> str:
-    """The reader's-sheet region of a rendered edit form: ``<aside id="lesesicht">`` to its close."""
-    start = body.index('id="lesesicht"')
-    return body[body.rindex("<aside", 0, start) : body.index("</aside>", start)]
-
-
-def test_every_re_render_shows_the_saved_record_in_the_readers_sheet(
-    corpus: _EditCorpus,
-) -> None:
-    """A box labelled „Leseansicht“ shows the record as SAVED on every state, never the keystrokes."""
-    # It carries the exposure statement (owner ruling 5), so keystrokes in it would answer "who sees
-    # this?" about a record that does not exist yet. The three states that re-seed the form from the
-    # POST are the ones where the two can diverge; each used to argue it separately at its own call
-    # site, and the GET-only sheet tests (test_catalog_actions) could not see any of them.
-    archivist = client_as(Archivist())
-    typed = "Nur getippt, nie gespeichert"
-
-    invalid = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title=typed, media_type="")
-    ).content.decode()
-    removed = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
-        {
-            **_valid_post(corpus, title=typed),
-            "custom_key": "Fotograf",
-            "custom_value": "Meyer",
-            "custom_entfernen": "0",
-        },
-    ).content.decode()
-    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
-    raced = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title=typed)
-    ).content.decode()
-
-    for state, body, saved in (
-        ("Validierungsfehler", invalid, "Wanderfahrt 1962"),
-        ("Zeile entfernt", removed, "Wanderfahrt 1962"),
-        ("Konflikt", raced, "Gewinner"),
-    ):
-        assert f'value="{typed}"' in body, f"{state}: the card lost the archivist's input"
-        sheet = _lesesicht(body)
-        assert typed not in sheet, f"{state}: the sheet shows unsaved keystrokes"
-        assert saved in sheet, f"{state}: the sheet does not show the saved record"

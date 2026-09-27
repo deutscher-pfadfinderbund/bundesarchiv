@@ -37,6 +37,7 @@ from bundesarchiv.app.web.article_auth import (
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
+from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import search
@@ -679,11 +680,22 @@ class _DetailMedia:
 
 
 @dataclass(frozen=True, slots=True)
-class _DetailCrumb:
+class BestandCrumb:
     """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
 
     name: str
     href: str
+
+
+def bestand_crumbs(chain: ResolvedChain) -> tuple[BestandCrumb, ...]:
+    """The chain as crumbs, root first (the chain is leaf-first), each opening the scoped list."""
+    return tuple(
+        BestandCrumb(
+            name=c.name,
+            href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}",
+        )
+        for c in reversed(chain.collections)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -723,13 +735,7 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
     ``zurueck_href`` is the sanitized return-to-search link (built in the view from ?zurueck)."""
     article = resolution.article
     media = _detail_media(article)
-    crumbs = tuple(
-        _DetailCrumb(
-            name=c.name,
-            href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}",
-        )
-        for c in reversed(resolution.chain.collections)
-    )
+    crumbs = bestand_crumbs(resolution.chain)
     tags = tuple(
         _DetailTag(
             label=t, href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_TAG, t)}"

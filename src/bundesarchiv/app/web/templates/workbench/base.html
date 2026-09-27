@@ -20,8 +20,7 @@ the wordmark is always present and always links home.
   <script>
     // htmx failures are otherwise silent — document-level listeners on the failure events reveal
     // the banner; dismiss or a fresh success hides it by setting [hidden], which the modes-layer CSS
-    // makes absolute. A reveal lifts nothing: the edit surface's one action place is the sticky record
-    // row at the TOP (owner ruling 2), so a bottom-fixed banner cannot occlude it.
+    // makes absolute.
     // On the document and looked up per event: htmx fires on the document when the source element
     // is gone, and a history restore replaces the banner node.
     (function () {

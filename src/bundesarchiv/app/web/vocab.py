@@ -155,10 +155,9 @@ def sichtbarkeit_label(audience: Audience | None) -> str:
 
 def datierung_mono(date: EdtfDate | None) -> str:
     """The MACHINE date: the EDTF value verbatim, or ``""`` when absent. The ONE renderer for the
-    mono machine spelling — the ledger's date column, the preview pane's meta
-    line, the reader's sheet on the edit surface, the detail record card's mono row, the CAS diff and
-    the Datierung field's own value all print it, so a single spelling of the fact cannot fork into
-    five inline copies of ``date.value if date is not None else ""``. Its sibling is
+    mono machine spelling — the ledger's date column, the preview pane's meta line, the detail record
+    card's mono row, the CAS diff and the Datierung field's own value all print it, so a single
+    spelling of the fact cannot fork into inline copies of ``date.value if date is not None else ""``. Its sibling is
     ``edtf_to_german`` — the HUMAN spelling, the other licensed rendering of the same fact."""
     return date.value if date is not None else ""
 

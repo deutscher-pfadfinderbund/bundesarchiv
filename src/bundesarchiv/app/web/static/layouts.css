@@ -117,14 +117,10 @@
     --field-display: inherit; /* whatever display the context gives every other field */
   }
 
-  /* ---- preview pane: the sheet beside the list — flat, framed by an edge.
-     Knobs: --pane-top (the sheet's sticky offset). ---- */
+  /* ---- preview pane: the sheet beside the list — flat, framed by an edge ---- */
   .pane > div {
     position: sticky;
-    /* clears whatever sticky chrome stands above: on the edit surface the record row, whose height
-       arrives as --pane-top from the region that owns both. On the workbench nothing is sticky above
-       it, so the fallback is the frame's own gap. */
-    top: var(--pane-top, var(--space-4));
+    top: var(--space-4); /* nothing sticky stands above it: the frame's own gap */
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -193,9 +189,9 @@
 
   /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by base.html's failure
      listener. Hiding is the modes-layer [hidden] rule, which outranks this display, so the banner
-     can never intercept clicks while hidden — the recorded regression class. A reveal lifts nothing:
-     the edit surface's one action place is the sticky record row at the TOP, which
-     test_failed_save_banner_leaves_speichern_clickable pins with a real hit-test. ---- */
+     can never intercept clicks while hidden — the recorded regression class.
+     test_failed_save_banner_leaves_speichern_clickable pins Speichern clickable with a real
+     hit-test. ---- */
   .error-banner {
     position: fixed;
     inset-block-end: 0;
@@ -230,9 +226,8 @@
     --control-height: var(--touch-target-compact);
     /* the containing block for the overlay panels its controls drop (law C12) */
     position: relative;
-    /* ...and it must OUT-STACK the sticky record row below, because the "+ Neu …" panel drops into
-       that row's band. A sticky row is a stacking context, so the panel can only win through its
-       ANCESTOR's value (learning G.36). The scale, in order: --z-* in tokens.css. */
+    /* ...and it must out-stack whatever sticky element its panels drop over (learning G.36). The
+       scale, in order: --z-* in tokens.css. */
     z-index: var(--z-header);
     display: flex;
     flex-wrap: wrap;
@@ -274,6 +269,17 @@
   header > :is(.back, .abmelden):last-child {
     margin-left: auto;
   }
+  /* no search (the article forms): nothing grows, so the create menu docks the tools right as one
+     group, as in the a1 top bar — a wrapped line of them too */
+  body > header:has(> .wordmark + .menu-button) {
+    justify-content: flex-end;
+  }
+  header > .wordmark + .menu-button {
+    margin-left: auto;
+  }
+  header > .wordmark + .menu-button ~ :last-child {
+    margin-left: 0;
+  }
 
   /* ---- a control row's TEXT occupants consume the row knob too (law C8: EVERY interactive child).
      A bare <a> or <p> is an inline box, and min-height does nothing to one — so the components-layer
@@ -283,50 +289,10 @@
      own occupants. DIRECT-CHILD paths through the structures the compositions placed (law C14), so it
      can never reach into a dropped overlay panel, whose entries are sized by the panel's own
      re-declared knob. ---- */
-  :is(body > header, body > header > nav, .recordrow) > :is(a, p) {
+  :is(body > header, body > header > nav) > :is(a, p) {
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);
-  }
-
-  /* ---- record row: the edit surface's ONE control row and its ONE action place (owner ruling 2,
-     2026-08-08). It takes the slot the workbench spends on the filter rail and STICKS there, so
-     Speichern is reachable at any scroll position without a second band.
-     Material role (register row 8, learning G.17): FURNITURE — flat, no tint, no depth cue, one
-     hairline. Its only fill is the desk, which is what makes it opaque while content scrolls
-     under it. ---- */
-  /* The region that HOLDS the row owns its dimensions, because TWO things consume them (C5): the row
-     is that tall, and the sticky sheet beside it must clear exactly that much. They are siblings, so
-     a shared ancestor is the only place one property reaches both.
-     Named by its id, not found structurally: `:has(> .recordrow)` was the only UNQUALIFIED :has() in
-     the codebase — nothing to bucket it, so the engine evaluates it against every element of every
-     page, including the 50-row ledger where no record row exists. */
-  #form-region {
-    --recordrow-control: var(--touch-target-compact);
-    /* the sheet's sticky offset, DERIVED from the row's own anatomy (C9's rule one level down — a
-       guessed constant is what put the sheet under the row): the row's control height + its block
-       padding on both sides + its bottom rule, plus the frame gap the sheet already rests in. */
-    --pane-top: calc(
-      var(--recordrow-control) + 2 * var(--space-2) + var(--line-width) + var(--space-4)
-    );
-  }
-  .recordrow {
-    /* a CONTROL ROW (law C8), from #form-region's knob above — the same value --pane-top derives
-       from, so the row's height and the sheet's clearance cannot disagree */
-    --control-height: var(--recordrow-control);
-    position: sticky;
-    top: 0;
-    z-index: var(--z-control-row); /* above the sticky pane sheet — the row is chrome (the scale + why: tokens.css) */
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background: var(--ground);
-    border-bottom: var(--line-width) solid var(--rule);
-  }
-  .recordrow > [role="toolbar"] {
-    margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
   }
 
   /* ---- page frame: main · (pane), the pane column present only at/above the 80rem switch ---- */
@@ -340,9 +306,8 @@
   }
 
   /* the work column: a vertical stack, whatever the screen puts in it. The workbench's bulk form
-     repeats the stack of the column it sits in, so ONE rule serves both. DIRECT child only — the
-     edit surface's form sits deeper and is display:contents, so a descendant selector would
-     silently relayout the card (law C14). */
+     repeats the stack of the column it sits in, so ONE rule serves both. DIRECT child only (law
+     C14). */
   .frame main,
   .frame main > form {
     display: flex;
@@ -365,10 +330,9 @@
 
   /* ---- preview pane: the frame's second column ---- */
   .pane {
-    /* HIDDEN BY DEFAULT: the ONE width query at the bottom of this file switches the column on, and
-       nothing switches it off — that is what leaves exactly one 80rem literal in the app. A negated
-       second query is a complement kept true by hand, and the card's own copy of it was NOT the
-       complement it claimed (learning G.44). */
+    /* HIDDEN BY DEFAULT: the pane switch at the bottom of this file switches the column on, and
+       nothing switches it off. A negated second query is a complement kept true by hand (learning
+       G.44). */
     display: none;
     grid-column: pane;
     /* stretch across the frame's ROW, against the frame's align-items: start. Without it a grid item
@@ -443,11 +407,10 @@
   }
 
   /* ============================================================
-     THE ONE VIEWPORT COMPOSITION SWITCH: at/above it an open pane adds a second frame column (the
-     ledger re-densifies by itself — it is a size container). All THREE consequences are declared
-     inside this one query — the frame grows its pane track, the pane shows, and the card's own copy
-     of the exposure statement stands down because the sheet now carries it. The complement is the
-     DEFAULTS above, so the condition is read once instead of negated by hand (learning G.44).
+     THE PANE SWITCH: at/above it an open pane adds a second frame column (the ledger re-densifies
+     by itself — it is a size container). Both consequences are declared inside this one query —
+     the frame grows its pane track and the pane shows. The complement is the DEFAULTS above, so the
+     condition is read once instead of negated by hand (learning G.44).
      ============================================================ */
   /* REM, not px: the ledger's last-resort fold is a 32rem CONTAINER query (components.css) whose
      "never folds while the pane is open" guarantee (decision 1) is an inequality against this
@@ -461,11 +424,78 @@
     body.vorschau .pane {
       display: block; /* the pane column exists here (it is a grid item, so this only un-hides it) */
     }
-    /* the sheet is on screen, so the CARD's copy stands down — exactly once at every width, and
-       never zero times: a card without body.vorschau has no sheet, so this rule does not fire
-       (owner ruling 5 / G.34). Only the SUPPRESSION belongs here; the placement is forms.css. */
-    body.vorschau .karte > form > .einblick {
-      display: none;
+  }
+
+  /* ============================================================
+     form-sheet — an article form: lead (header: crumbs + the Titel), margin (aside: record-meta)
+     and body (the sections). S/M: one column, the margin under the lead. L: body | margin, the
+     margin sticky so Speichern stays in reach. The page's own arrangement, so it asks the viewport,
+     not a container (space budget L, design-system.md). Knob for the fields inside: the control
+     type (--field-font).
+     ============================================================ */
+  .form-sheet {
+    --field-font: var(--type-body);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "lead" "meta" "body";
+    gap: var(--space-8);
+    max-width: 80rem; /* the page measure of the a1 mocks; no token names a page measure yet */
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4) var(--space-8);
+  }
+  .form-sheet > header {
+    grid-area: lead;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .form-sheet > header > .title-field {
+    margin: 0;
+  }
+  .form-sheet > aside {
+    grid-area: meta;
+  }
+  .form-sheet > div {
+    grid-area: body;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+  /* the form takes part in submission, not in layout: its sections are the body's stack items */
+  .form-sheet > div > form {
+    display: contents;
+  }
+  .form-sheet > div section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  @media (width >= 80rem) { /* space budget L (design-system.md): the margin takes a side column */
+    .form-sheet {
+      grid-template-columns: minmax(0, 1fr) 18rem; /* the margin column: the mock's --column-min */
+      grid-template-areas: "lead meta" "body meta";
     }
+    .form-sheet > aside {
+      position: sticky;
+      top: var(--space-8);
+      align-self: start;
+    }
+  }
+
+  /* field-grid — fields in aligned cells, at most two per row; [data-span="all"] takes the row.
+     S gets one per row: a cell is never narrower than --field-grid-min. */
+  .field-grid {
+    display: grid;
+    --field-grid-min: 18rem; /* the narrowest cell: the mock's --column-min */
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
+    );
+    align-items: start;
+    gap: var(--space-6) var(--space-8);
+  }
+  .field-grid > [data-span="all"] {
+    grid-column: 1 / -1;
   }
 }

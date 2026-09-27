@@ -78,16 +78,14 @@ _PAST_SEARCH_DEBOUNCE_MS = 450
 def test_search_works_from_a_screen_without_the_results_region(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # The shared header is included by FIVE screens; #results exists on ONE. While the form carried
-    # hx-get + hx-target="#results", htmx cancelled the native submit on the other four and aborted
-    # with htmx:targetError, so with JS ON the search box did nothing at all there (G.32). The
-    # enhancement now lives on the region it swaps, so the form is plain HTML everywhere.
+    # The shared header's search lives on screens without #results. While the form carried
+    # hx-get + hx-target="#results", htmx cancelled the native submit there and aborted with
+    # htmx:targetError, so with JS ON the search box did nothing at all (G.32). The enhancement now
+    # lives on the region it swaps, so the form is plain HTML everywhere.
     page = archivist_page
-    edit_url = _create_draft(page, live_workbench, "E2E Suche vom Formular")
     for path, submit in (
-        ("/artikel/neu", "click"),
         ("/bestand/neu", "click"),
-        (edit_url, "enter"),  # the edit surface, and by implicit submission rather than a click
+        ("/bestand/neu", "enter"),  # and by implicit submission rather than a click
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
         page.evaluate(_COUNT_HTMX_JS)
@@ -108,7 +106,14 @@ def test_search_works_from_a_screen_without_the_results_region(
             page.keyboard.press("Enter")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
-    # the create step's visible return path is back (the search box is a way back only if you type)
+    # the two article forms carry no search at all: it invites leaving a form with unsaved edits
+    for form_url in (
+        live_workbench + "/artikel/neu",
+        _create_draft(page, live_workbench, "E2E Formular ohne Suche"),
+    ):
+        page.goto(form_url)
+        expect(page.locator('[role="search"]')).to_have_count(0)
+    # the create step's visible return path is back
     page.goto(live_workbench + "/artikel/neu")
     page.get_by_text("Zurück zur Suche").click()
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
@@ -156,17 +161,17 @@ def test_ledger_headers_compute_one_uniform_treatment(
 #: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
 #: WALKERS over all instances). Rows are DISCOVERED, never listed: EVERY element that DECLARES the
 #: --control-height knob (its computed value differs from its parent's) and EVERY [role=toolbar] is
-#: walked as a row — so the header cluster, the filter rail, the edit surface's record row, each
+#: walked as a row — so the header cluster, the filter rail, the edit form's action row, each
 #: toolbar and each dropped overlay panel are found by the mechanism law C8 is written in, and the next
 #: row built the same way is covered the day it appears. A toolbar that INHERITS its owning row's knob
-#: (the record row's action slot) is walked too; that costs nothing, because the equality it then
+#: (a toolbar inside a row) is walked too; that costs nothing, because the equality it then
 #: asserts inside the toolbar is a SUBSET of the one its owning row already asserts.
 #: The control set is EVERY interactive element in the row — link, button, input, select, textarea,
 #: summary, chip — so the selector and law C8's own words ("every interactive child of a control row")
 #: agree. Nothing is left out: `input`/`select`, the two types the consumption rule names explicitly,
 #: were missing, and while they were the header's search field could have stood 61px tall at a 24px
 #: font beside 32px buttons with the whole suite green; bare links were missing too, and `a.back` stood
-#: 19px in the record row (under the AA floor) for the same reason.
+#: 19px in a control row (under the AA floor) for the same reason.
 #: Per-instance copies of this proof are forbidden.
 _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
     const declaresKnob = (el) => {
@@ -321,8 +326,8 @@ def test_control_rows_compute_one_height_source(
     # control row — was composed on a screen this walk never visited (G.21 applied to page coverage).
     #
     # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, each
-    # ledger row's action toolbar, the dropped overlay panels' entries, the record row (whose action
-    # toolbar consumes the row's knob — Speichern, the lifecycle action and the overflow summary must
+    # ledger row's action toolbar, the dropped overlay panels' entries, the edit form's action row
+    # (Speichern, the lifecycle action and "Mehr …" must
     # compute one height) and the media register's row toolbars. Each screen NAMES the row prefixes it
     # must compose, so a silent no-find can never pass as a green walk.
     #
@@ -439,7 +444,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     # rail's chips, one row toolbar per ledger row (the keying regression hid exactly here — every one
     # of them names itself "span[toolbar]", so keying rows by name collapsed 50 rows into one entry and
     # the walk proved a SINGLE toolbar while reporting green, G.37), the dropped panels' entries, and
-    # the record row plus the media register's per-row toolbars on the published edit surface.
+    # the edit form's action row plus the media register's per-row toolbars on the published edit
+    # surface.
     page = archivist_page
     page.goto(live_workbench + "/?schlagwort=sommer")
     filtered = _walk_control_rows(page)
@@ -457,8 +463,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 
     page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
     edit = _walk_control_rows(page)
-    row = next(n for n in edit if "recordrow" in n)
-    assert len(edit[row]) >= 3, f"the record row's controls were not found: {edit[row]}"
+    row = next(n for n in edit if "record-meta-actions" in n)
+    assert len(edit[row]) >= 3, f"the edit form's action row was not found: {edit[row]}"
     # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
     # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
     media = [n for n in edit if n.startswith("span[toolbar]") and len(edit[n]) >= 3]
@@ -468,7 +474,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 #: One overlay's containment facts: the panel's box against the viewport, the panel's top edge
 #: against its own trigger's bottom edge (issue #53 — the anchored tier landed both panels OVER
 #: their trigger row, and no fact here measured it), the document's own horizontal overflow while it
-#: is open, and — added after the sticky record row was found painting over the header's create
+#: is open, and — added after a sticky control row was found painting over the header's create
 #: menu — whether each of the panel's own entries is HIT-TESTABLE at its centre. Being on-viewport is not the same as being reachable: a panel can sit
 #: perfectly inside the viewport under an opaque sticky row that eats every click, which is the
 #: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
@@ -564,7 +570,7 @@ def _walk_overlay_containment(
                 where = f"{width}px · {screen.name} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")
-                # unanchored, a help popover is the centred native one by design (DESIGN.md, Fields)
+                # unanchored, a popover panel (help, menu) is the centred native one by design
                 centred = rect["centred"] and not anchored
                 if not centred and float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
                     defects.append(
@@ -644,11 +650,10 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The recorded regression class (CLAUDE.md): a fixed/sticky element whose paint order lets it
-    # intercept clicks. The sticky record row is opaque and forms a stacking context at z 4; the
-    # header's "+ Neu …" panel is a z-2 descendant of the (then z-auto) header and drops straight into
-    # the row's band — so on the edit surface every create entry was painted over and DEAD. The guard
-    # is therefore a real CLICK, not a geometry measurement: the walker's hit-test above catches the
-    # class generically, this proves the archivist's actual path end to end.
+    # intercept clicks — once a sticky control row painted over the header's "+ Neu …" panel on this
+    # screen, and the form's margin is sticky now. The guard is a real CLICK, not a geometry
+    # measurement: the walker's hit-test above catches the class generically, this proves the
+    # archivist's actual path end to end.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     for entry, destination in (
@@ -659,50 +664,6 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
         page.click("header .menu-button")
         page.get_by_role("link", name=entry).click(timeout=5000)
         page.wait_for_url(f"**{destination}")
-
-
-def test_the_sheet_clears_the_sticky_record_row(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    # The reader's sheet is sticky beside the card, and the record row is sticky above it. The sheet's
-    # offset was a guessed constant (--space-4 = 16px) while the row measures 49px, so scrolling slid
-    # the sheet's own header — Signatur and Titel — under the row. The offset now DERIVES from the
-    # row's anatomy through one knob both consume (C5/C9), which is what this measures: whatever the
-    # row's height turns out to be, the sheet starts below it.
-    page = archivist_page
-    page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
-    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-    boxes: dict[str, float] = page.evaluate(
-        """() => {
-        const row = document.querySelector('.recordrow').getBoundingClientRect();
-        const sheet = document.querySelector('.pane > div').getBoundingClientRect();
-        return {rowBottom: row.bottom, sheetTop: sheet.top, rowHeight: row.height};
-    }"""
-    )
-    assert boxes["sheetTop"] >= boxes["rowBottom"], (
-        f"the record row ({boxes['rowHeight']}px tall) covers the sheet: "
-        f"sheet top {boxes['sheetTop']}px vs row bottom {boxes['rowBottom']}px"
-    )
-
-
-def test_promoting_a_plate_refreshes_the_readers_sheet(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    # A structural media POST swaps only #medien-drawer, but order is MEANING (ADR 0015): promoting
-    # the second plate re-covers the record, and the reader's sheet shows the cover — so the sheet kept
-    # the OLD thumbnail until a full reload. The drawer now carries it as an out-of-band fragment of
-    # the same response.
-    page = archivist_page
-    page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
-    sheet_thumb = page.locator("#lesesicht img")
-    before = sheet_thumb.get_attribute("src")
-    rows = page.locator("#medien-drawer .media > div")
-    expect(rows).to_have_count(2)  # the corpus record's cover + one further plate
-    page.locator('#medien-drawer [aria-label="Nach oben"]').nth(1).click()
-    expect(page.locator("#medien-drawer .media > div.cover")).to_contain_text("plate.png")
-    expect(sheet_thumb).not_to_have_attribute("src", before or "")
 
 
 def test_treffer_count_rides_the_rail_and_stays_live(
@@ -786,9 +747,7 @@ _LONG_TITLE = (
     " am Pfingstlager des Gaues Hochland"
 )
 _LONG_TYP = max(vocab.DOKUMENTTYPEN, key=len)  # derived: the vocabulary IS the ceiling here
-#: Long HERKUNFT values: an institutional author and a full place name — what the record card's
-#: FOLDED sections have to absorb, since a folded section prints its values in its summary line
-#: (owner ruling 4), the one place on this surface where unbounded text has no input box around it.
+#: Long HERKUNFT values: an institutional author and a full place name.
 _LONG_CREATOR = "Bundesleitung des Bundes Deutscher Pfadfinderinnen, Referat Öffentlichkeitsarbeit"
 _LONG_PLACE = "Burg Rieneck im Sinntal, Unterfranken"
 _LONG_ULID = "01KXE2E1ANG0000000000000AA"
@@ -797,11 +756,8 @@ _LONG_ULID = "01KXE2E1ANG0000000000000AA"
 def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
     """Add ONE article whose fields are as long as real archive content gets: a Signatur at the
     8-character ceiling, an unbounded free-text Titel, the widest vocabulary Dokumenttyp, a full-date
-    EDTF interval, and an institutional Autor/Ort pair (what the record card's folded summaries have
-    to absorb). Seeded per test (not into the shared corpus) so the count-asserting journeys keep
-    their canonical hit count. Every single-line field EXCEPT Standort carries a value, which also
-    makes this the record whose autofocus target sits behind the Herkunft fold
-    (test_a_fold_never_swallows_the_autofocus)."""
+    EDTF interval, and an institutional Autor/Ort pair. Seeded per test (not into the shared corpus)
+    so the count-asserting journeys keep their canonical hit count."""
     from bundesarchiv.domain.edtf import EdtfDate
     from bundesarchiv.domain.models import Article, Lifecycle
     from bundesarchiv.index import indexer
@@ -1085,18 +1041,11 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     return page.url
 
 
-def _open_herkunft(page: Page) -> None:
-    """Unfold the record card's Herkunft section (Autor · Ort · Standort). Since the form wave the
-    rarely-touched sections are folded <details> whose summary carries their values (owner ruling 4),
-    so a journey that edits one of those fields opens the section the way an archivist does."""
-    page.click('summary:has-text("Herkunft")')
-
-
 def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: str) -> None:
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Neuer Entwurf")
     assert "/bearbeiten" in edit_url
-    # the edit form is seeded with the new title + shows the ENTWURF header badge
-    expect(archivist_page.locator('input[name="title"]')).to_have_value("E2E Neuer Entwurf")
+    # the edit form is seeded with the new title + shows the Entwurf mark
+    expect(archivist_page.locator('textarea[name="title"]')).to_have_value("E2E Neuer Entwurf")
     expect(archivist_page.get_by_text("Entwurf", exact=True).first).to_be_visible()
 
 
@@ -1107,16 +1056,12 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Zu Bearbeiten")
     page.fill('input[name="ref_code"]', "E2E-1")
-    # Autor lives in the FOLDED Herkunft section (owner ruling 4) — its summary shows the values, and
-    # editing one means opening it, a native <details> toggle that needs no JS
-    _open_herkunft(page)
     page.fill('input[name="creator"]', "K. Meyer")
-    # Saved by pressing ENTER in a field, not by clicking: since the form wave Speichern lives in the
-    # record row, OUTSIDE #bearbeiten-form's subtree and associated to it by form=, and the record
-    # card's own DOM splits at the media register. Implicit submission still has to find Speichern as
-    # the form's default button — and the lifecycle actions, which are their own forms, still must not
-    # be reachable this way (spec §6.2: Enter never publishes). Every other journey clicks the button.
-    page.click('input[name="title"]')
+    # Saved by pressing ENTER in a field, not by clicking: Speichern lives in the form's margin,
+    # OUTSIDE #bearbeiten-form's subtree and associated to it by form=. Implicit submission still has
+    # to find Speichern as the form's default button — and the lifecycle action beside it must not be
+    # reachable this way (spec §6.2: Enter never publishes). Every other journey clicks the button.
+    page.click('input[name="ref_code"]')
     page.keyboard.press("Enter")
     # save 302s to the read view (the detail stub in this slice)
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
@@ -1130,12 +1075,12 @@ def test_failed_save_banner_leaves_speichern_clickable(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # A failed save reveals the global error banner, fixed at the viewport BOTTOM. Since the form
-    # wave the edit surface's one action place is the sticky record row at the TOP (owner ruling 2),
-    # so the recorded regression class — a bottom-docked Speichern occluded by the banner at exactly
-    # the moment the archivist needs to retry — is gone BY CONSTRUCTION rather than by a
-    # measure-and-lift dance. This journey pins that: while the banner is up, a real browser
-    # hit-test at Speichern's center still reaches the button, and the retry fires again.
+    # A failed save reveals the global error banner, fixed at the viewport BOTTOM. On L the form's
+    # margin, which holds Speichern, is sticky at the TOP, so the recorded regression class — a
+    # Speichern occluded by the banner at exactly the moment the archivist needs to retry — cannot
+    # occur there. This journey pins that: while the banner is up, a real browser hit-test at
+    # Speichern's center still reaches the button, and the retry fires again.
+    page.set_viewport_size({"width": 1440, "height": 900})
     _create_draft(page, live_workbench, "E2E Fehlschlag")
 
     def fail_saves(route: Route) -> None:
@@ -1148,15 +1093,14 @@ def test_failed_save_banner_leaves_speichern_clickable(
     page.route("**/bearbeiten", fail_saves)
     page.click('button:has-text("Speichern")')  # htmx:error → the banner reveals
     expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
-    # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the record
-    # row is still pinned at the top and its Speichern is still the topmost element at its own
-    # center. A bare page.click cannot pin this: Playwright's actionability retry scrolls an
+    # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the margin
+    # is still pinned at the top and its Speichern is still the topmost element at its own center. A bare page.click cannot pin this: Playwright's actionability retry scrolls an
     # occluded element into a clickable position and the click lands anyway.
     page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
     state = page.evaluate(
         """() => {
         const banner = document.querySelector('.error-banner');
-        const btn = document.querySelector('.recordrow button.primary');
+        const btn = document.querySelector('.record-meta button.primary');
         const b = banner.getBoundingClientRect();
         const r = btn.getBoundingClientRect();
         const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
@@ -1169,7 +1113,7 @@ def test_failed_save_banner_leaves_speichern_clickable(
     )
     assert state["speichernHit"], "the error banner paints over Speichern (hit-test misses)"
     assert state["speichernBottom"] <= state["bannerTop"] + 1, (
-        f"the record row overlaps the banner: Speichern bottom {state['speichernBottom']}px "
+        f"the margin overlaps the banner: Speichern bottom {state['speichernBottom']}px "
         f"vs banner top {state['bannerTop']}px"
     )
     # and the retry itself works end to end: the second Speichern fires another save while the
@@ -1186,7 +1130,7 @@ def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
     # htmx-config meta in base.html says otherwise.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Verweigert")
-    page.fill('input[name="title"]', "E2E Ungespeichert")
+    page.fill('textarea[name="title"]', "E2E Ungespeichert")
 
     def deny_saves(route: Route) -> None:
         if route.request.method == "POST":
@@ -1198,12 +1142,12 @@ def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
     page.click('button:has-text("Speichern")')
     banner = page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")
     expect(banner).to_be_visible()
-    expect(page.locator('input[name="title"]')).to_have_value("E2E Ungespeichert")
+    expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ungespeichert")
     # a later success hides it: a validation re-render is a 200 that stays on the page
     page.unroute("**/bearbeiten")
-    page.fill('input[name="title"]', "")
+    page.fill('textarea[name="title"]', "")
     page.click('button:has-text("Speichern")')
-    expect(page.locator(".karte .error").first).to_be_visible()
+    expect(page.locator(".form-sheet .error").first).to_be_visible()
     expect(banner).to_be_hidden()
 
 
@@ -1219,14 +1163,13 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     edit_url = _create_draft(page, live_workbench, "E2E Ungespeichert")
     page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
-    page.click('summary:has-text("Weitere Angaben")')
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('input[name="custom_key"]', "Quelle")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
-    # and the plain path still works: a Gruppe-1 field inside the form reveals it too
+    # and the plain path still works: a field inside the form reveals it too
     page.goto(edit_url)
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
-    page.fill('input[name="title"]', "E2E Ungespeichert 2")
+    page.fill('input[name="ref_code"]', "E2E-U2")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
 
 
@@ -1251,20 +1194,15 @@ def test_cas_conflict_second_saver_sees_panel(
     page2.select_option('select[name="media_type"]', "Foto(s)")
 
     # archivist 1 saves first (wins)
-    _open_herkunft(archivist_page)
     archivist_page.fill('input[name="creator"]', "Erster")
     archivist_page.click('button:has-text("Speichern")')
     archivist_page.wait_for_url(lambda url: "/bearbeiten" not in url)
 
     # archivist 2 saves the now-stale form → the conflict panel appears inline, values preserved
-    _open_herkunft(page2)
     page2.fill('input[name="creator"]', "Zweiter")
     page2.click('button:has-text("Speichern")')
     expect(page2.get_by_text("Inzwischen geändert")).to_be_visible()
-    # the re-render preserves every submitted value — including the one in the folded section, whose
-    # SUMMARY now shows it without the archivist having to open anything (ruling 4)
-    expect(page2.locator("summary", has_text="Herkunft")).to_contain_text("Zweiter")
-    _open_herkunft(page2)
+    # the re-render preserves every submitted value
     expect(page2.locator('input[name="creator"]')).to_have_value("Zweiter")
     ctx2.close()
 
@@ -1284,7 +1222,7 @@ def test_kopieren_creates_draft_copy_signatur_focused(
     expect(page.locator('input[name="ref_code"]')).to_have_value("")
     expect(page.locator('input[name="ref_code"]')).to_be_focused()
     # title carried over
-    expect(page.locator('input[name="title"]')).to_have_value("Sommerfahrt 1962")
+    expect(page.locator('textarea[name="title"]')).to_have_value("Sommerfahrt 1962")
 
 
 # --- Löschen confirm ---------------------------------------------------------------
@@ -1305,26 +1243,21 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     )  # → workbench
 
 
-# --- publish: one click, exposure permanently on screen -----------------------------
+# --- publish: one click --------------------------------------------------------------
 
 
-def test_publish_is_one_click_with_the_exposure_on_screen(
-    archivist_page: Page, live_workbench: str
-) -> None:
+def test_publish_is_one_click_and_saves_the_form(archivist_page: Page, live_workbench: str) -> None:
     page = archivist_page
-    # Owner ruling 5 (2026-08-08): the over-exposure preview GATE retired — the fact it used to
-    # charge three interactions for is on screen the whole time, in the reader's sheet beside the
-    # card, in the future tense while the record is a draft. Publishing is then one click.
+    # Publishing is one click (owner ruling 5, 2026-08-08) — and SAVING IS PART OF PUBLISHING (owner
+    # decision 2026-08-08): Veröffentlichen sits beside Speichern, so the archivist reaches for it
+    # with unsaved edits on screen.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
-    expect(page.locator(".pane")).to_contain_text("Nach Veröffentlichung sichtbar für")
-    # ...and SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): Veröffentlichen sits in the same
-    # row as Speichern (ruling 2), so the archivist reaches for it with unsaved edits on screen. It used
+    # It It used
     # to POST a lifecycle transition of its own, which rebuilt the record from disk and threw those
     # edits away without a word. Type into two fields — one inside #bearbeiten-form's subtree and one
     # OUTSIDE it (the media/custom split), because they are wired to the form differently — then publish
     # with ONE click and find both on the read view.
     page.fill('input[name="ref_code"]', "E2E-42")
-    page.click('summary:has-text("Weitere Angaben")')
     page.click(
         'button:has-text("+ Angabe hinzufügen")'
     )  # a round trip that keeps the Signatur typed
@@ -1336,45 +1269,6 @@ def test_publish_is_one_click_with_the_exposure_on_screen(
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
     expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived
     expect(page.get_by_text("Privatbesitz Meyer")).to_be_visible()  # ...and the custom row
-
-
-def test_exposure_statement_is_on_screen_at_every_width(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    # ONE renderer, TWO placements (law C7): the reader's sheet carries the exposure statement where
-    # the pane's 80rem switch shows the pane, and the card carries it below that — so the fact is on
-    # screen at EVERY width, and exactly ONCE (no Q2 duplication). Both are server-rendered: this
-    # holds with JS off too.
-    #
-    # Nothing is CLICKED here any more, and that is the point. This proof used to open the folded
-    # Zugriff section to find the statement below the switch — which meant the statement was not on
-    # screen at all on a narrow window (the pane is display:none there), while the publish gate had
-    # already been retired BECAUSE the statement is permanent (owner ruling 5). A test that has to
-    # open a fold to see a permanent fact is reporting the defect, not the promise.
-    page = archivist_page
-    url = live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
-    for width, in_sheet in ((1440, True), (1000, False), (680, False), (360, False)):
-        page.set_viewport_size({"width": width, "height": 900})
-        page.goto(url)
-        shown = page.locator(".einblick:visible")
-        assert shown.count() == 1, f"{width}px: {shown.count()} exposure statements on screen"
-        expect(shown).to_contain_text("Nach Veröffentlichung sichtbar für")
-        assert page.locator(".pane:visible").count() == (1 if in_sheet else 0)
-    # ...AND on a record card with NO SHEET BESIDE IT. The pane appears on ONE condition — ≥80rem AND
-    # body.vorschau — while the card's copy of the statement used to hide on the WIDTH HALF ALONE, so
-    # any card render without body.vorschau was publish-blind above 80rem: no sheet, no in-card
-    # statement, nothing on screen. This walk drove only the edit surface, which always sets the
-    # class, so the hole was invisible to it. Removing the class in the browser reaches the state
-    # exactly (the question is CSS-only), and there is now ONE condition to answer it.
-    page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(url)
-    page.evaluate("() => document.body.classList.remove('vorschau')")
-    assert page.locator(".pane:visible").count() == 0  # confirms the state this half is about
-    shown = page.locator(".einblick:visible")
-    assert shown.count() == 1, (
-        f"1440px without body.vorschau: {shown.count()} exposure statements on screen — a card with"
-        " no sheet beside it must keep the statement (owner ruling 5 / G.34)"
-    )
 
 
 # --- bulk select → confirm → result ------------------------------------------------
@@ -1581,14 +1475,14 @@ def test_bulk_fresh_ticks_survive_paging(
     assert not _auswahl_in_url(page)
 
 
-# --- record-card guards (the form wave) ---------------------------------------------
+# --- edit form guards ----------------------------------------------------------------
 
 #: Every field on the edit surface that CARRIES AN ERROR, with its control's four border colors and
 #: the ink its own error message computes. Written as a WALKER over all errored fields (learning
 #: G.21 — never one instance), and comparing against the message's OWN ink rather than a colour
 #: constant, so the proof reads "the border is the error ink" in whatever mode/theme resolved it.
 _ERROR_FIELD_WALKER_JS = """() => {
-    const fields = document.querySelectorAll('.karte .fach > .field:has(.error)');
+    const fields = document.querySelectorAll('.form-sheet .field:has(.error)');
     return [...fields].map((field) => {
         const control = field.querySelector('input, select, textarea');
         const message = field.querySelector('.error');
@@ -1605,14 +1499,13 @@ _ERROR_FIELD_WALKER_JS = """() => {
 
 
 def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbench: str) -> None:
-    # Law C13 / learning G.29, proven computed: the card's RESTING look ("value on the line, no box")
-    # is declared in :where(), so a field carrying an error must out-rank it and actually draw the red
-    # border. This is the wave's own mock bug — an error border that existed in the stylesheet and was
-    # invisible on screen — and in SOURCE an out-ranked state rule is indistinguishable from a correct
-    # one, so the only honest check is the browser's.
+    # Law C13 / learning G.29, proven computed: a field carrying an error must out-rank the resting
+    # look and actually draw the red border (a form wave mock bug: an error border that existed in
+    # the stylesheet and was invisible on screen). In SOURCE an out-ranked state rule is
+    # indistinguishable from a correct one, so the only honest check is the browser's.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehlerhaft")
-    page.fill('input[name="title"]', "")  # Titel ist erforderlich.
+    page.select_option('select[name="media_type"]', "")  # Medienart is required
     page.fill('input[name="date"]', "nicht-ein-datum")  # an unparseable EDTF value
     page.click('button:has-text("Speichern")')
     expect(page.locator(".error").first).to_be_visible()
@@ -1626,108 +1519,31 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
     assert not defects, "an error state lost to the resting look (C13/G.29):\n" + "\n".join(defects)
 
 
-def test_a_fold_hides_neither_the_error_nor_the_focus(
+def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Owner ruling 4 folds the rare sections WITH their values, so folding hides no DATA. It must hide
-    # no MESSAGE either: Sichtbarkeit=Gruppe(n) with an empty Gruppen field re-rendered the message AND
-    # the errored input inside the folded Zugriff section, with `autofocus` focusing nothing (a closed
-    # <details> has no focusable contents). The server decides [open] from the same error context that
-    # renders the message, and the summary says so via :has(.error) — proven in the browser, because
-    # "on screen" and "focused" are browser facts.
+    # Gruppen shows only while Sichtbarkeit says Gruppe(n) (CSS :has). An empty Gruppen at that rung
+    # re-renders the message in the margin, and the caret must land on the input — "on screen" and
+    # "focused" are browser facts.
     page = archivist_page
-    _create_draft(page, live_workbench, "E2E Fehler im Fach")
-    page.click('summary:has-text("Zugriff")')
+    _create_draft(page, live_workbench, "E2E Fehler am Rand")
+    gruppen = page.locator('input[name="gruppen"]')
+    expect(gruppen).to_be_hidden()  # not at the GROUPS rung
     page.select_option('select[name="sichtbarkeit"]', "groups")  # Gruppen stays empty -> invalid
+    expect(gruppen).to_be_visible()
     page.click('button:has-text("Speichern")')
-    # the swap discards whatever the archivist had opened: this is the SERVER's fold state
-    zugriff = page.locator("details", has=page.locator('input[name="gruppen"]'))
-    expect(zugriff).to_have_attribute("open", "")
-    expect(zugriff.locator(".error")).to_be_visible()
-    expect(zugriff.locator(".error")).to_have_text("Bitte mindestens eine Gruppe angeben.")
-    marker = page.evaluate(
-        """() => {
-            const d = [...document.querySelectorAll('.karte details')]
-                .find((el) => el.querySelector('[name=gruppen]'));
-            return getComputedStyle(d.querySelector('summary'), '::after').content;
-        }"""
-    )
-    assert "Fehler" in marker, f"the opened section's summary does not say why: {marker}"
-
-
-def test_a_fold_never_swallows_the_autofocus(
-    archivist_page: Page,
-    live_workbench: str,
-    _e2e_root: Path,
-    django_db_blocker: DjangoDbBlocker,
-) -> None:
-    # The other half of the same class: the GET autofocus scans for the first EMPTY field and three of
-    # them (Autor, Ort, Standort) sit behind the Herkunft fold, so on a well-catalogued record the
-    # server told the browser to focus an input inside a closed <details> — which focuses NOTHING. The
-    # fixture is the realistic long-content record (H.7): a Plakat with everything filled except its
-    # Standort, which is exactly the state an archivist reaches at the end of cataloguing.
-    _seed_long_content(_e2e_root, django_db_blocker)
-    page = archivist_page
-    page.goto(live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten")
-    standort = page.locator('input[name="physical_location"]')
-    expect(standort).to_have_attribute("autofocus", "")  # the case this guard is about
-    expect(standort).to_be_focused()
-
-
-#: Every label on the record card, with its own box width and the width its text WANTS. The card's
-#: --label-spalte knob is the one axis every section subscribes to (C3), and the arithmetic beside the
-#: knob in forms.css claims it holds the longest label — both halves are measured here rather than
-#: asserted in prose (learning G.1).
-_LABEL_AXIS_JS = """() => {
-    const fields = document.querySelectorAll('.karte .fach > .field');
-    return [...fields].map((field) => {
-        // a grid item is blockified, so the label's clientWidth IS the axis track's used width
-        const label = field.querySelector(':scope > :is(label, span):first-child');
-        const box = label.clientWidth;
-        // what the label WANTS on one line. Measured with wrapping suppressed, because a label that
-        // does not fit its column simply wraps to a second line — a Range around the wrapped text
-        // reports the column width back and the proof would pass vacuously.
-        const before = label.style.whiteSpace;
-        label.style.whiteSpace = 'nowrap';
-        const wanted = label.scrollWidth;
-        label.style.whiteSpace = before;
-        return {text: label.textContent.trim(), box: box, text_width: wanted};
-    });
-}"""
-
-
-def test_karte_labels_share_one_axis(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    # The label axis, computed (the claim forms.css writes next to --label-spalte): ONE width for every
-    # label in the card whichever section it sits in, and wide enough for the longest label — a label
-    # that outgrows its column does not wrap, it silently overflows into the gap, which no gallery shot
-    # would reveal.
-    page = archivist_page
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
-    page.click('summary:has-text("Herkunft")')  # measure the folded sections' labels too
-    page.click('summary:has-text("Zugriff")')
-    labels: list[dict[str, object]] = page.evaluate(_LABEL_AXIS_JS)
-    assert len(labels) >= 10, f"only {len(labels)} card labels found — the walker proves nothing"
-    widths = {int(str(label["box"])) for label in labels}
-    assert len(widths) == 1, f"the card computes more than one label axis: {sorted(widths)}"
-    overflowing = [
-        f"{label['text']}: wants {label['text_width']}px in a {label['box']}px column"
-        for label in labels
-        if int(str(label["text_width"])) > int(str(label["box"]))
-    ]
-    assert not overflowing, "a label outgrew the axis (--label-spalte):\n" + "\n".join(overflowing)
+    error = page.locator(".record-meta .error")
+    expect(error).to_have_text("Bitte mindestens eine Gruppe angeben.")
+    expect(page.locator('input[name="gruppen"]')).to_be_focused()
 
 
 def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # The bag renders no empty pair; "+ Angabe hinzufügen" and the remove cross are submits the
-    # server answers with the region re-rendered, so the swap must keep the bag open and the caret
-    # in the new row.
+    # server answers with the region re-rendered, so the swap must keep the caret in the new row.
     page = archivist_page
     page.goto(_create_draft(page, live_workbench, "E2E Fachwerk"))
-    page.click('summary:has-text("Weitere Angaben")')
     rows = page.locator("#custom-bag .bag-row")
     expect(rows).to_have_count(0)
     page.click('button:has-text("+ Angabe hinzufügen")')
@@ -1776,36 +1592,7 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     expect(page.get_by_text("Noch keine Medien")).to_be_visible()
 
 
-def test_an_empty_summary_value_renders_the_hollow_cue(
-    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
-) -> None:
-    # A folded section's promise is that folding hides NO DATA (owner ruling 4), and the summary keeps
-    # that promise by naming what is empty ("Standort leer"). `.leer` carried that name and was styled
-    # NOWHERE, so an absent Standort rendered pixel-identical to a real one — the promise stated in
-    # markup and not delivered on screen, which no assertion about the text could catch. The cue is
-    # register row 6's hollow/empty idiom (the licensed cue for absence), so the proof is that the
-    # empty mark computes a DASHED edge the filled marks beside it do not.
-    page = archivist_page
-    page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
-    marks: list[dict[str, str]] = page.evaluate(
-        """() => [...document.querySelectorAll('.karte .werte > span')].map((el) => {
-            const s = getComputedStyle(el);
-            return {text: el.textContent.trim(), leer: el.classList.contains('leer'),
-                    style: s.borderBottomStyle, width: s.borderBottomWidth};
-        })"""
-    )
-    empty = [m for m in marks if m["leer"]]
-    filled = [m for m in marks if not m["leer"]]
-    assert empty and filled, f"the record needs both an empty and a filled summary value: {marks}"
-    undressed = [m for m in empty if m["style"] != "dashed" or m["width"] == "0px"]
-    assert not undressed, f"an empty summary value renders like a real one: {undressed}"
-    assert all(m["style"] != "dashed" for m in filled), (
-        f"a real value carries the hollow cue: {filled}"
-    )
-
-
-def test_karte_absorbs_long_content(
+def test_the_edit_form_absorbs_long_content(
     archivist_page: Page,
     live_workbench: str,
     _e2e_root: Path,
@@ -1813,21 +1600,18 @@ def test_karte_absorbs_long_content(
 ) -> None:
     # Learning G.24: an intrinsic-sizing proof run on short demo data passes VACUOUSLY, so the stress
     # sits where content really grows — the Titel is the archive's one unbounded field (free text an
-    # archivist types). It reaches the card as an input VALUE, the reader's sheet as a heading and the
-    # <title>; none of them may push the page body sideways. The seed also carries an institutional
-    # Autor and a full place name, which the FOLDED sections print in their summary lines — the one
-    # place on this surface where unbounded text is laid out with no input box around it. Walked at the
-    # narrow width where the card is one column and at the wide one where the sheet sits beside it.
+    # archivist types). It reaches the form as the heading's textarea and the <title>; neither may
+    # push the page body sideways. Walked at the narrow widths where the form is one column and at the
+    # wide one where the margin sits beside it.
     _seed_long_content(_e2e_root, django_db_blocker)
     url = live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten"
-    # 360 is in the range because that is where the card's own two-column floor bit: a bare
-    # minmax(floor, 1fr) track cannot shrink below its floor (G.24), so the single column stayed
-    # 380px wide inside a 328px column and scrolled the page body. The walk itself is the shared one
-    # (the ledger proof drives it too, with its own extra probes) — this used to be a clone of its tail.
+    # 360 is in the range because a grid's column floor bites there: a bare minmax(floor, 1fr) track
+    # cannot shrink below its floor (G.24) and scrolls the page body. The walk itself is the shared one
+    # (the ledger proof drives it too, with its own extra probes).
     defects = _sideways_scroll_defects(
         archivist_page, tuple((width, url) for width in (360, 680, 1000, 1440))
     )
-    assert not defects, "the record card does not absorb long content:\n" + "\n".join(defects)
+    assert not defects, "the edit form does not absorb long content:\n" + "\n".join(defects)
 
 
 # --- no-JS baseline ----------------------------------------------------------------
@@ -1866,10 +1650,9 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     page.select_option('select[name="collection_id"]', "FOTOS")
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
-    expect(page.locator('input[name="title"]')).to_have_value("E2E Ohne JS")
+    expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ohne JS")
     # save: a plain form POST that 302s to the read view (no JS in the loop at all)
     page.select_option('select[name="media_type"]', "Foto(s)")
-    _open_herkunft(page)  # a native <details> — the fold is part of the no-JS baseline
     page.fill('input[name="creator"]', "K. Meyer")
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)

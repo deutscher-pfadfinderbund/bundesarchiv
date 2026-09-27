@@ -12,10 +12,7 @@ whatever the form shows — the overlay its outcome calls for.
   re-renders state B (verbatim errors, preserved values).
 - ``article_edit`` — ``GET/POST /artikel/<ulid>/bearbeiten``: GET renders the full form seeded from
   the stored Article; POST parses + saves (CAS on ``expected_version``). A ``Conflict`` re-renders
-  the "Inzwischen geändert" panel (state G) with the just-submitted values preserved. Since the form
-  wave the render also carries the READER'S SHEET — the reader's view of the stored record plus the
-  exposure statement (owner rulings 1 + 5, 2026-08-08) — which is why there is no separate
-  over-exposure preview route any more.
+  the "Inzwischen geändert" panel (state G) with the just-submitted values preserved.
 
 The ``<ulid>`` is validated in-view via ``is_valid_ulid`` (never a route converter), so a malformed
 value collapses to the same 404 as an absent one. ``neu`` is registered before ``<str:ulid>`` in
@@ -36,10 +33,10 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, Updated
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.browse_views import _body_paragraphs
+from bundesarchiv.app.web.browse_views import BestandCrumb, bestand_crumbs
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
-from bundesarchiv.domain.access import VisibilityPreview, preview, project
+from bundesarchiv.domain.access import VisibilityPreview, preview
 from bundesarchiv.domain.collections import resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -51,7 +48,7 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.domain.viewer import Archivist, Public
+from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored, cleaned_name
 
@@ -66,7 +63,7 @@ _SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
 
 
 #: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
-#: resolve. Same fact as _einblick.html's absence branch, said as a field error on the Bestand.
+#: resolve, said as a field error on the Bestand.
 _EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
 
 
@@ -115,7 +112,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
-        title = request.POST.get("title", "").strip()
+        title = catalog.one_line(request.POST.get("title", ""))
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, bestand)
         if not errors:
@@ -244,9 +241,9 @@ def _handle_edit_post(
     if (
         result.article is not None
         and verb == "veroeffentlichen"
-        and _einblick_view_model(result.article, bestand) is None
+        and _exposure_audience(result.article, bestand) is None
     ):
-        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The record row hides
+        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The margin hides
         # Veröffentlichen when the exposure view-model is None, but that is the client half only, and
         # the state is reachable with ordinary UI actions — re-parenting a Bestand under a missing
         # parent leaves the article's own version untouched, so CAS passes. Published, the record 404s
@@ -367,9 +364,8 @@ class EditSurface:
     currently shows.
 
     ``stored`` is always the article as it stands on disk — the GET seed, the article the POST was
-    parsed against, the winner of a lost CAS race, or the one a save just wrote. That is what makes
-    the reader's sheet honest: a box labelled „Leseansicht“ carries the exposure statement (owner
-    ruling 5), so it may never show keystrokes describing a record that does not exist yet.
+    parsed against, the winner of a lost CAS race, or the one a save just wrote. The crumbs and the
+    publish affordance read it, so neither describes a record that does not exist yet.
 
     ``values``/``media`` are what the FORM shows, which is the stored record on a GET and the
     archivist's own input on every re-render. ``version`` is what the hidden ``expected_version``
@@ -431,12 +427,10 @@ class EditSurface:
         autofocus: str = "",
         overlay: Overlay = _NO_OVERLAY,
     ) -> HttpResponseBase:
-        """THE render of the edit form. ``autofocus`` is the field to focus, ``""`` for none; the
-        folded sections holding an error or the focus open themselves from the same two arguments,
-        so neither can end up inside a fold (G.33)."""
+        """THE render of the edit form. ``autofocus`` is the field to focus, ``""`` for none."""
         errors = errors or {}
-        rows = self.values.get("custom_rows")
         conflict = overlay if isinstance(overlay, Conflict) else None
+        inherited = _exposure_audience(replace(self.stored, audience=None), self.bestand)
         confirm = overlay.content_hash if isinstance(overlay, RemoveConfirm) else ""
         return render_screen(
             request,
@@ -449,20 +443,16 @@ class EditSurface:
                 # The card's rows, section by section — the template loops these, so the registry is
                 # the ONE place a field of the record card exists.
                 "card_fields": _card_fields(
-                    self.values, self.bestand, errors=errors, autofocus=autofocus
+                    self.values,
+                    self.bestand,
+                    errors=errors,
+                    autofocus=autofocus,
+                    sichtbarkeit_options=_sichtbarkeit_options(inherited),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
-                # The folded sections' summary values (owner ruling 4: folding may never hide data).
-                # Both read what the FIELDS print — the caption off the very option list the select
-                # renders — so a summary cannot spell a fact differently from its field (law C7).
-                "sichtbarkeit_caption": _sichtbarkeit_caption(
-                    str(self.values.get("sichtbarkeit") or "")
-                ),
-                "custom_keys": [key for key, _ in rows if key] if isinstance(rows, list) else [],
-                "open_sections": _open_sections(errors, autofocus),
-                # The reader's sheet (ruling 1) and, through it, the exposure statement (ruling 5) —
-                # ONE view-model for both of that statement's placements.
-                "sheet": _sheet_view_model(self.stored, self.bestand),
+                "crumbs": _crumbs(self.stored, self.bestand),
+                # the client half of the fail-closed publish gate (the server's: _handle_edit_post)
+                "einblick": inherited is not None,
                 "conflict": conflict is not None,
                 "conflict_rows": (
                     _conflict_rows(conflict.submitted, self.stored) if conflict else ()
@@ -473,13 +463,13 @@ class EditSurface:
         )
 
 
-def _sichtbarkeit_caption(value: str) -> str:
-    """The German caption the Sichtbarkeit select shows for ``value`` — read from the SAME option
-    list the template renders, so the folded Zugriff summary and the open select can never disagree.
-    An unknown value (only reachable from a hand-crafted POST) falls back to the inherit caption, the
-    same rung the parse layer applies to it."""
-    captions = dict(_SICHTBARKEIT_OPTIONS)
-    return captions.get(value, captions[""])
+def _crumbs(article: Article, bestand: BestandChooser) -> tuple[BestandCrumb, ...]:
+    """The saved article's Bestand chain as crumbs, root first — the detail page's own builder. A
+    chain the domain cannot resolve yields none: the crumbs show a place, and there is none."""
+    try:
+        return bestand_crumbs(resolve_chain(article.collection_id, bestand.by_ulid()))
+    except DomainError:
+        return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -597,11 +587,11 @@ def _audience_label(article: Article) -> str:
 
 # --- THE FIELD REGISTRY ------------------------------------------------------------
 #
-# The record card's fields, declared ONCE, in DOM/tab order: what each one is called, where it sits,
-# how it renders, how it is seeded from an Article and how the CAS diff spells it. Every derivation
-# below is a filter over it, and so is the card's own markup (`_card_fields` → `workbench/_feld.html`),
-# so the template holds no second enumeration. The columns are guarded against the real render or the
-# real behaviour — tests/app/web/test_catalog_edit.py, the block after the fold walk.
+# The form's fields, declared ONCE, in DOM/tab order: what each one is called, where it sits, how it
+# renders, how it is seeded from an Article and how the CAS diff spells it. Every derivation below is
+# a filter over it, and so is the form's own markup (`_card_fields` → `workbench/_feld.html`), so the
+# template holds no second enumeration. The columns are guarded against the real render or the real
+# behaviour — tests/app/web/test_catalog_edit.py, "the field registry's columns".
 
 
 def _seed_tags(article: Article) -> str:
@@ -622,12 +612,11 @@ def _lifecycle_label(article: Article) -> str:
 
 @dataclass(frozen=True, slots=True)
 class _Field:
-    """One row of the record card's field registry.
+    """One row of the form's field registry.
 
-    ``section`` is the card section that holds the field, or ``""`` for the rows that are not on the
-    card at all — a single string, not membership in one of several sets, which is what makes "a field
-    lives in at most one section" structural instead of something a test has to rule out. The three
-    in ``_FOLDED`` render as ``<details>``.
+    ``section`` is the part of the form that holds the field: ``lead`` (the heading field),
+    ``margin`` (the record's margin), a body section, or ``""`` for the rows that are not on the form
+    at all — a single string, so "a field lives in at most one section" is structural.
 
     ``control`` is what the card renders for it: ``text``, ``select`` (flat options), ``groups``
     (optgrouped options), ``textarea``, or ``""`` for a row that is no control. A row with a control
@@ -636,16 +625,14 @@ class _Field:
     ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
     §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
     something only at the GROUPS rung), so "first empty field" would park the caret there on every
-    fully catalogued record and pop the Zugriff fold open with it.
+    fully catalogued record.
 
     ``focusable`` marks every field with its own single-line input, i.e. every field that can CARRY
     ``autofocus`` — the spine plus Gruppen, since a validation re-render focuses whatever errored.
     ``body`` is excluded (a textarea is not an "empty field" in the field sense) and so are the custom
     bag's inputs (the escape hatch).
 
-    ``fit`` is a text control's width class from its content's ceiling (learning G.31): ``kurz`` for
-    a short domain value, ``signatur`` for the Signatur (which also takes the mono face), or ``""``
-    to fill the value cell.
+    ``span`` gives the field the whole row of its section's grid (long values).
 
     ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
@@ -670,7 +657,7 @@ class _Field:
     element_id: str = ""
     hx: tuple[tuple[str, str], ...] = ()
     hx_get: str = ""
-    fit: str = ""
+    span: bool = False
     required: bool = False
     archivist_only: bool = False
     help: str = ""
@@ -693,21 +680,40 @@ class _Field:
         return self.shown(article) if self.shown is not None else self.value_of(article)
 
 
-#: Every field of the record card in DOM/tab order. ``custom`` is the ``errors`` key for the bag as a
-#: whole (it maps to no single input, so it is neither scanned nor focusable);
-#: ``custom_key``/``custom_value`` are its inputs, rendered by the bag's own row loop. ``lifecycle`` is
-#: not a field at all — it is the record's state, and it rides here only because the CAS diff shows it
-#: as a row, last.
+#: Every field of the form in DOM/tab order: the lead, the margin, then the body sections.
+#: ``custom`` is the ``errors`` key for the bag as a whole (it maps to no single input, so it is
+#: neither scanned nor focusable); ``custom_key``/``custom_value`` are its inputs, rendered by the
+#: bag's own row loop. ``lifecycle`` is not a field at all — it is the record's state, and it rides
+#: here only because the CAS diff shows it as a row, last.
 _FIELDS: tuple[_Field, ...] = (
     _Field(
         "title",
         label="Titel",
         control="text",
-        section="kerndaten",
+        section="lead",
         required=True,
         scanned=True,
         focusable=True,
         diff="Titel",
+    ),
+    _Field(
+        "sichtbarkeit",
+        label="Sichtbar für",
+        control="select",
+        section="margin",
+        options="sichtbarkeit_options",
+        diff="Sichtbarkeit",
+        seed=_sichtbarkeit_value,
+        shown=_audience_label,
+    ),
+    _Field(
+        "gruppen",
+        label="Gruppen",
+        control="text",
+        section="margin",
+        hint="Mehrere durch Komma trennen",
+        focusable=True,
+        seed=_seed_gruppen,
     ),
     # Bestand has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
     _Field(
@@ -725,10 +731,27 @@ _FIELDS: tuple[_Field, ...] = (
         label="Signatur",
         control="text",
         section="kerndaten",
-        fit="signatur",
         scanned=True,
         focusable=True,
         diff="Signatur",
+    ),
+    _Field(
+        "physical_location",
+        label="Standort",
+        control="text",
+        section="kerndaten",
+        span=True,
+        archivist_only=True,
+        scanned=True,
+        focusable=True,
+        diff="Standort",
+    ),
+    _Field(
+        "body",
+        label="Beschreibung",
+        control="textarea",
+        section="beschreibung",
+        diff="Beschreibung",
     ),
     _Field(
         "media_type",
@@ -767,30 +790,17 @@ _FIELDS: tuple[_Field, ...] = (
         control="text",
         section="einordnung",
         hint="Mehrere durch Komma trennen",
+        span=True,
         scanned=True,
         focusable=True,
         diff="Schlagworte",
         seed=_seed_tags,
     ),
     _Field(
-        "date",
-        label="Datierung",
-        control="text",
-        section="einordnung",
-        hint="z. B. 1962, 1984/1995, 1970~",
-        help="workbench/_hilfe_datierung.html",
-        fit="kurz",
-        scanned=True,
-        focusable=True,
-        diff="Datierung",
-        seed=_seed_date,
-    ),
-    _Field(
         "creator",
         label="Autor",
         control="text",
         section="herkunft",
-        fit="kurz",
         scanned=True,
         focusable=True,
         diff="Autor",
@@ -800,89 +810,27 @@ _FIELDS: tuple[_Field, ...] = (
         label="Ort",
         control="text",
         section="herkunft",
-        fit="kurz",
         scanned=True,
         focusable=True,
         diff="Ort",
     ),
     _Field(
-        "physical_location",
-        label="Standort",
+        "date",
+        label="Datierung",
         control="text",
         section="herkunft",
-        archivist_only=True,
+        hint="z. B. 1962, 1984/1995, 1970~",
+        help="workbench/_hilfe_datierung.html",
         scanned=True,
         focusable=True,
-        diff="Standort",
-    ),
-    _Field(
-        "body",
-        label="Beschreibung",
-        control="textarea",
-        section="beschreibung",
-        diff="Beschreibung",
-    ),
-    _Field(
-        "sichtbarkeit",
-        label="Sichtbarkeit",
-        control="select",
-        section="zugriff",
-        options="sichtbarkeit_options",
-        diff="Sichtbarkeit",
-        seed=_sichtbarkeit_value,
-        shown=_audience_label,
-    ),
-    _Field(
-        "gruppen",
-        label="Gruppen",
-        control="text",
-        section="zugriff",
-        hint="Mehrere durch Komma trennen",
-        focusable=True,
-        seed=_seed_gruppen,
+        diff="Datierung",
+        seed=_seed_date,
     ),
     _Field("custom", section="weitere"),
     _Field("custom_key", section="weitere"),
     _Field("custom_value", section="weitere"),
     _Field("lifecycle", diff="Status", shown=_lifecycle_label),
 )
-
-#: The card sections that render as a ``<details>``. Everything else on the card is always open.
-_FOLDED: frozenset[str] = frozenset({"herkunft", "zugriff", "weitere"})
-
-
-#: The folded card sections and the fields each HOLDS. Folding may hide neither DATA (owner ruling 4)
-#: nor a MESSAGE nor the FOCUS: a validation error inside a folded section is invisible, and an
-#: ``autofocus`` inside one focuses nothing at all (learning G.33). Both are decided from the SAME
-#: error/autofocus context the fields render with — one rule over every fold, not a patch per
-#: instance.
-def _derive_section_fields() -> dict[str, frozenset[str]]:
-    """Group the registry's fields by their folded section, in first-appearance order.
-
-    A function, not a module-level comprehension: on the pinned CPython (3.14.0rc2) writing this as
-    ``{s: frozenset(f.name for f in _FIELDS if f.section == s) for s in ...}`` at module scope
-    SEGFAULTS while executing THIS module — 5/5 runs, in ``_PySet_AddTakeRef``. The trigger is
-    narrower than "a nested comprehension" (a review refuted that shape, correctly, from a toy
-    module): it is ``frozenset(<generator>)`` inside a module-scope comprehension. Measured on this
-    file, 5 runs each — ``frozenset({set comp})`` 0/5, ``frozenset([list comp])`` 0/5,
-    ``frozenset(<genexp>)`` 5/5 with any outer iterable (``dict.fromkeys``, ``sorted``, a bare name).
-    It needs this module's own state to reproduce, so a reproduction extracted into a small file
-    passes and proves nothing. Issue #46 pins a final 3.14."""
-    sections: dict[str, set[str]] = {}
-    for registered in _FIELDS:
-        if registered.section in _FOLDED:
-            sections.setdefault(registered.section, set()).add(registered.name)
-    return {name: frozenset(names) for name, names in sections.items()}
-
-
-_SECTION_FIELDS: dict[str, frozenset[str]] = _derive_section_fields()
-
-
-def _open_sections(errors: catalog.FormErrors, autofocus: str) -> frozenset[str]:
-    """The folded sections that must render OPEN: the ones holding an errored field or the autofocus
-    target. Empty on a clean render, so the rare sections stay folded as ruled."""
-    marked = set(errors) | ({autofocus} if autofocus else set())
-    return frozenset(name for name, fields in _SECTION_FIELDS.items() if fields & marked)
 
 
 def _first_empty_field(values: dict[str, object]) -> str:
@@ -910,9 +858,9 @@ type _Options = tuple[tuple[str, str], ...] | tuple[tuple[str, tuple[tuple[str, 
 
 @dataclass(frozen=True, slots=True)
 class _CardRow:
-    """One ruled row of the record card, ready to render: the registry's declaration joined to THIS
-    render's value, error and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
-    is on the card exactly when the registry says so."""
+    """One field of the form, ready to render: the registry's declaration joined to THIS render's
+    value, error and focus. ``workbench/_feld.html`` prints it and nothing else, so a field is on the
+    form exactly when the registry says so."""
 
     name: str
     label: str
@@ -925,7 +873,7 @@ class _CardRow:
     blank: str
     element_id: str
     hx: tuple[tuple[str, str], ...]
-    fit: str
+    span: bool
     required: bool
     archivist_only: bool
     help: str
@@ -937,8 +885,9 @@ def _card_fields(
     *,
     errors: catalog.FormErrors,
     autofocus: str,
+    sichtbarkeit_options: _Options = _SICHTBARKEIT_OPTIONS,
 ) -> dict[str, tuple[_CardRow, ...]]:
-    """The card's rows grouped by section, in DOM order — the ONE list the template loops over.
+    """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
 
     Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
     focuses nothing rather than nothing-visible."""
@@ -946,7 +895,7 @@ def _card_fields(
         "collection_options": bestand.options(),
         "media_type_options": vocab.media_type_options(),
         "document_type_groups": vocab.grouped_document_type_options(),
-        "sichtbarkeit_options": _SICHTBARKEIT_OPTIONS,
+        "sichtbarkeit_options": sichtbarkeit_options,
     }
     ulid = str(values.get("ulid") or "")
     sections: dict[str, list[_CardRow]] = {}
@@ -970,7 +919,7 @@ def _card_fields(
                 blank=registered.blank,
                 element_id=registered.element_id,
                 hx=hx,
-                fit=registered.fit,
+                span=registered.span,
                 required=registered.required,
                 archivist_only=registered.archivist_only,
                 help=registered.help,
@@ -1080,104 +1029,34 @@ def _lifecycle_for(aktion: str) -> Lifecycle | None:
             return None
 
 
-# --- the reader's sheet on the edit surface (owner rulings 1 + 5, 2026-08-08) -------
+# --- the exposure statement: who gains sight (G.34) --------------------------------
 
 
-@dataclass(frozen=True, slots=True)
-class _EinblickViewModel:
-    """The EXPOSURE statement: who gains sight of this record, and which fields they get. Permanent
-    chrome on the edit surface since the separate over-exposure preview gate retired (owner ruling 5,
-    2026-08-08) — the fact the archivist used to buy with three extra interactions is simply on
-    screen. Built from the domain ``preview()`` like the retired panel was, so the who-sees decision
-    stays in the domain and is never re-implemented (and never client-side).
-
-    ``draft`` switches the statement's tense: a draft is archivist-only TODAY, so saying "Sichtbar
-    für: Öffentlich" about it would be a lie — it reads "Nach Veröffentlichung sichtbar für: …".
-    ``public`` drives WEIGHT emphasis only (no loud color — the exposure fact is neither draft nor
-    error)."""
-
-    audience: str
-    public: bool
-    fields: str
-    draft: bool
-
-
-@dataclass(frozen=True, slots=True)
-class _SheetViewModel:
-    """The reader's view of THIS record, server-rendered beside the card (owner ruling 1 —
-    composition E: the work column plus THE pulled sheet). Deliberately the reader's facts only:
-    Titel, Signatur, the machine Datierung, the cover thumbnail, the first body paragraph, and the
-    exposure statement. Every value comes from the stored Article through the same renderers the
-    reader's own surfaces use (law C7), and the exposure comes from the domain — nothing here is a
-    second implementation of a reader fact.
-
-    ``ref_code`` empty renders NO Signatur mark rather than the hollow "ohne Signatur" slot: on this
-    screen absence is carried by the Signatur INPUT (owner finding, signals-once)."""
-
-    title: str
-    ref_code: str
-    datierung: str
-    thumb_url: str
-    absatz: str
-    einblick: _EinblickViewModel | None
-
-
-def _einblick_view_model(article: Article, bestand: BestandChooser) -> _EinblickViewModel | None:
-    """The exposure statement for ``article``, computed by the domain ``preview()`` over the resolved
-    collection chain. ``None`` when the chain cannot resolve (fail-closed: no statement rather than a
-    misleading one — the same rule the retired preview panel followed)."""
+def _exposure_audience(article: Article, bestand: BestandChooser) -> str | None:
+    """Who would see ``article`` once published, in German, computed by the domain ``preview()``
+    over the resolved collection chain so the who-sees decision stays in the domain. ``None`` when
+    the chain cannot resolve (fail-closed: no statement rather than a misleading one). The publish
+    gate refuses on ``None``."""
     try:
         chain = resolve_chain(article.collection_id, bestand.by_ulid())
     except DomainError:
         return None
-    result = preview(article, chain)
-    return _EinblickViewModel(
-        audience=_preview_audience_label(result),
-        public=result.public,
-        fields=_preview_fields_label(result),
-        draft=article.lifecycle is Lifecycle.DRAFT,
-    )
+    return _preview_audience_label(preview(article, chain))
 
 
-def _sheet_view_model(article: Article, bestand: BestandChooser) -> _SheetViewModel:
-    """The reader's-sheet view-model, built from the STORED article's READER PROJECTION — never from
-    unsaved keystrokes: the sheet answers "what does a reader see of the record as it stands", which
-    is why it can retire the publish-time preview.
-
-    THE PROJECTION IS THE POINT (learning G.42). A box labelled ``aria-label="Leseansicht"`` must show
-    what the domain's ``project()`` produces. Reading the stored Article field by field printed the
-    same bytes only by COINCIDENCE — ``project`` floors exactly ``ARCHIVIST_ONLY_FIELDS`` and the
-    sheet happens to show none of them. Calling the pipeline means the floor already holds the day
-    that set grows. Only the FLOOR half runs: ``can_view`` would deny every non-archivist a DRAFT by
-    definition, and "who WOULD see this once published" is the exposure statement's question.
-
-    It travels with EVERY write, by two mechanisms: the metadata save swaps the whole
-    ``#form-region``, and the structural media POSTs carry it out-of-band
-    (``hx-select-oob="#lesesicht"``). Both read this one view-model out of the same full-page
-    render."""
-    read = project(Public(), article)
-    return _SheetViewModel(
-        title=read.title,
-        ref_code=read.ref_code or "",
-        # the machine value through the ONE machine-date renderer (vocab.datierung_mono, law C7) —
-        # exactly what the workbench pane, the reader's own preview of a record, prints in this very
-        # .meta hook (mono). The human-German spelling has its own single
-        # renderer (vocab.edtf_to_german) and belongs to the detail reader's header.
-        datierung=vocab.datierung_mono(read.date),
-        thumb_url=(thumbnail_url(read.ulid, read.media[0].content_hash) if read.media else ""),
-        # the FIRST body paragraph, split by the reader view's own paragraph rule (browse_views) so
-        # the sheet cannot disagree with the page it previews
-        absatz=next(iter(_body_paragraphs(read.body)), ""),
-        # the EXPOSURE statement is computed from the STORED article: it reports who gains sight of
-        # the record, which is a question about the record, not about the projection of it.
-        einblick=_einblick_view_model(article, bestand),
-    )
+def _sichtbarkeit_options(inherited: str | None) -> _Options:
+    """The Sichtbarkeit options with the inherit caption naming the rung it inherits, so the form
+    always says who will see the record (owner ruling 5; a1 round 3). ``inherited`` is the
+    audience with the article's own setting cleared; unresolvable, the plain caption stays."""
+    if inherited is None:
+        return _SICHTBARKEIT_OPTIONS
+    return (("", f"{inherited} (wie Bestand)"), *_SICHTBARKEIT_OPTIONS[1:])
 
 
 def _preview_audience_label(result: VisibilityPreview) -> str:
-    """The who-gains-sight string for the preview panel (spec §6.2): the widest rung the article
-    would reach after publication, in plain German. Reuses the shared rung captions so the preview
-    can't drift from the ledger/CAS-diff wording; the ``Niemand`` fallback is preview-specific."""
+    """The who-gains-sight string (spec §6.2): the widest rung the article would reach after
+    publication, in plain German. Reuses the shared rung captions so it can't drift from the
+    ledger/CAS-diff wording; the ``Niemand`` fallback is its own."""
     if result.public:
         return vocab.SICHTBARKEIT_PUBLIC
     if result.groups:
@@ -1185,32 +1064,6 @@ def _preview_audience_label(result: VisibilityPreview) -> str:
     if result.members:
         return vocab.SICHTBARKEIT_MEMBERS
     return "Niemand (kein Bestand-Zugriff)"
-
-
-# The member-visible fields, in a stable German-labelled display order, for the preview's "Sichtbare
-# Felder:" line. Only the fields a non-archivist could see (ARCHIVIST_ONLY_FIELDS are excluded by
-# the domain preview's visible_fields set); Standort/interne Felder are called out as hidden.
-_VISIBLE_FIELD_LABELS: tuple[tuple[str, str], ...] = (
-    ("title", "Titel"),
-    ("ref_code", "Signatur"),
-    ("media_type", "Medienart"),
-    ("document_type", "Dokumenttyp"),
-    ("tags", "Schlagworte"),
-    ("date", "Datierung"),
-    ("creator", "Autor"),
-    ("subject_place", "Ort"),
-    ("body", "Beschreibung"),
-    ("media", "Medien"),
-)
-
-
-def _preview_fields_label(result: VisibilityPreview) -> str:
-    """The "Sichtbare Felder:" list for the preview panel (spec §6.2) — the member-visible fields the
-    domain reports, in display order. Empty when nobody would see the article."""
-    names = tuple(
-        label for field_name, label in _VISIBLE_FIELD_LABELS if field_name in result.visible_fields
-    )
-    return ", ".join(names)
 
 
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------

@@ -5,15 +5,15 @@ Create step (Part 4.7 Slice A, spec §2/§1 focal-point A). Archivist-only (the 
 minimal create form: Titel + Bestand — the two required fields are the ONE loud focal point on a
 near-empty page. Plain no-JS POST → create_article → 302 to /bearbeiten. Validation state B
 re-renders here with the verbatim error + preserved values. Autofocus (server-computed) lands on
-Titel (or the first errored field). Anlegen is first-in-source so Enter submits it. Chrome: the WORKBENCH header (search + "+ Neu …"),
-shared via workbench/_header.html — the form wave retired this screen's own reduced header. The
+Titel (or the first errored field). Anlegen is first-in-source so Enter submits it. Chrome: the shared workbench/_header.html without
+its search (ohne_suche: a search on a form invites leaving it). The
 "Zurück zur Suche" link is BACK (zurueck=True, rendered by the shared header): the form wave dropped
 it on the grounds that "the search field IS the way back", but a search box is a way back only if you
 type something, so the create step had no visible return path at all.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Neuer Artikel</h1>

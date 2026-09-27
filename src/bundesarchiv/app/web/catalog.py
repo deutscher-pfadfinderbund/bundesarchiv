@@ -20,6 +20,7 @@ The Django coupling is a single ``getlist`` helper so the parser can be driven b
 tests and a ``QueryDict`` in the view without knowing which it holds.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -95,6 +96,13 @@ def _get(post: Mapping[str, object], key: str) -> str:
     return values[0] if values else ""
 
 
+def one_line(raw: str) -> str:
+    """A single-line field's value: every run of line breaks (and the spaces around it) becomes one
+    space, then the ends are stripped. The Titel is a textarea, so the browser no longer drops a
+    pasted or typed break; the server does, with and without JS."""
+    return re.sub(r"\s*[\r\n]+\s*", " ", raw).strip()
+
+
 def _none_if_blank(raw: str) -> str | None:
     """The ``"" → None`` boundary for an optional scalar: a blank or whitespace-only value becomes
     ``None``; otherwise the stripped value. Pinned by the leak-sensitive form contract (spec §8)."""
@@ -128,7 +136,7 @@ def parse_edit_form(
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
 
-    title = _get(post, "title").strip()
+    title = one_line(_get(post, "title"))
     if not title:
         errors["title"] = "Titel ist erforderlich."
 
