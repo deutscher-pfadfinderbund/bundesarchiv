@@ -6,15 +6,21 @@
 @layer components {
 
   /* ---------- plate — the article's square lead preview, further sheets beneath ----------
-     Knobs: --plate-columns (thumbnail columns, default 4).
+     Knobs: --plate-columns (thumbnail columns, default 4), --plate-lead-ratio (the lead's aspect,
+     default square; a video lead is 16 / 9).
      The lead spans every column and is square (RULES §6, direction C); the other sheets are
      square thumbnails in one row. An item without an image draws the placeholder cross. */
-  .plate { display: grid; grid-template-columns: repeat(var(--plate-columns, 4), minmax(0, 1fr)); gap: var(--space-3); align-content: start; }
+  .plate { display: grid; grid-template-columns: repeat(var(--plate-columns, 4), minmax(0, 1fr)); gap: var(--space-3); align-content: start; margin: 0; }
   .plate-item {
     aspect-ratio: 1; display: flex; align-items: flex-end; padding: var(--space-2);
     border: var(--line-width) solid var(--faint); color: inherit; text-decoration: none; background: var(--placeholder);
   }
-  .plate-item:first-child { grid-column: 1 / -1; padding: var(--space-3); }
+  .plate-item:first-child { grid-column: 1 / -1; padding: var(--space-3); aspect-ratio: var(--plate-lead-ratio, 1); }
+  .plate > video.plate-item:first-child { inline-size: 100%; padding: 0; border: 0; background: var(--band-ground); } /* the player is its own surface */
+  /* plate-file — the lead medium's name, kind and size, right under it (one fact: this file) */
+  .plate-file { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-block-start: calc(var(--space-2) - var(--space-3)); font: var(--type-meta); color: var(--ink-2); }
+  .plate-file > :first-child { color: var(--ink); }
+  .plate-file > * + *::before { content: "·" / ""; display: inline-block; margin-inline-end: var(--space-3); color: var(--ink-2); } /* inline-block: a link's underline stays off the dot */
   .plate-caption { padding: var(--space-1); background: var(--ground); font: var(--type-label); color: var(--ink-2); }
   .plate-caption b { display: block; color: var(--ink); }
   a.plate-item:hover .plate-caption b { text-decoration: underline; }

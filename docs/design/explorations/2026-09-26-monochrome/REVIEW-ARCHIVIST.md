@@ -194,3 +194,20 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   drawings), tuned up in dark where `--rule` vanished; one shared `--placeholder` drawing replaces
   three copies.
 - Owner: "In general, I like the new monochrome look."
+
+## Owner rulings on a2 / a3, round 1 (2026-09-27, applied)
+
+- **Scope:** the delete, new-Bestand and edit-Bestand screens are low priority; not reviewed further
+  before the page waves.
+- **"Artikel ohne Medien" was wrong twice:** it had media (a video), and it had no hierarchy (text and
+  facts side by side, equal weight). Renamed `artikel-video.html`. The video leads on the plate like
+  every article's media, as the native player (knob `--plate-lead-ratio: 16 / 9`); its name, kind,
+  size and "Herunterladen" sit right under it (`plate-file`), not at the far edge of a row. A file
+  with no player (e.g. a document without a preview) is still open.
+- **Section heads:** the aside ("Gruppen des DPB · alle ›", "nach Jahrzehnt", "später") touches its
+  heading instead of floating at the far edge. System change; checked on start, article, video.
+- **Bulk edit:** no bottom bar. While a row is picked, the ledger's column heads give way to the
+  archivist toolbar in the same row (CSS `:has`, no JS, no row moves): the page box, "3 ausgewählt",
+  "Auswahl aufheben", then "Feld ändern …" right after them. "Feld ändern …" opens the chooser
+  sentence in place (`details`). The row sticks to the top while the list scrolls. New state page
+  `liste-feld.html` (step two). Cost: the sort heads are gone while rows are picked.

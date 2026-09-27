@@ -125,3 +125,22 @@ rule ("a line only for two-ended rows") was more specific than the rules that ke
 and the "Unbekannt" row line-free, so lines reappeared there. A change to a shared component has to
 be checked against every consumer (the gallery and the r4 pages), not only the screen that
 prompted it. Specificity is part of a rule's boundary.
+
+## Part 3 — from the a2 / a3 review (2026-09-27)
+
+**24. A qualifier touches what it qualifies.** The "alle ›" links at the far edge of the section
+heads, a file's size at the far edge of its row, and the toolbar's action pushed right of the
+selection all floated loose: nothing tied them to what they belong to. A single row has no line to
+connect its two ends (lesson 22), so the ends must sit together. The "intern" rule of round 5 was
+the same lesson on one element; it holds for links, figures and actions too.
+
+**25. The state names the thing, not the absence.** "Artikel ohne Medien" was a video: it had media,
+only no image preview. Named by what was missing, the page dropped the medium from the lead and
+lost its hierarchy. Named by what it is, the medium leads like on every other article, as the
+native player.
+
+**26. A mode replaces, it does not add.** The bulk bar at the bottom added a whole band for a mode
+the archivist enters by ticking a box. The list already has a row whose job pauses in that mode:
+the column heads. Swapping them for the toolbar costs no space, keeps every row in place, and puts
+the tool where the eye already is. Step two (the field sentence) opens on purpose, so only it may
+grow the row.

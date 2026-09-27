@@ -251,11 +251,11 @@
      Knobs: --section-head-type (the h2's role,
      default --type-heading; secondary sections use --type-subhead — rank follows gain). Parts: the heading (h1/h2 — its
      type comes from the element), .section-head-aside (link or note), .section-head-lede. */
+  /* the aside touches its heading (it qualifies it); pushed to the far edge it floated loose */
   .section-head {
-    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-    gap: var(--space-2) var(--space-6); margin-block-end: var(--gap-head);
+    display: flex; flex-wrap: wrap; align-items: baseline;
+    gap: var(--space-2) var(--space-5); margin-block-end: var(--gap-head);
   }
-  .section-head > :is(h1, h2) { flex: 1 1 0; }
   .section-head > h2 { font: var(--section-head-type, var(--type-heading)); }
   .section-head-aside { font: var(--type-meta); color: var(--ink-2); white-space: nowrap; }
   a.section-head-aside:hover { color: var(--ink); }

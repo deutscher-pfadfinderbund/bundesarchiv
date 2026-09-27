@@ -1,6 +1,6 @@
 # a3-artikel: article page (archivist view), delete confirm, Bestand forms
 
-Pages: `artikel.html` (BA 1784, photo album, direction C), `artikel-ohne-medien.html` (BA 1035,
+Pages: `artikel.html` (BA 1784, photo album, direction C), `artikel-video.html` (BA 1035,
 DVD, one column), `artikel-entwurf.html` (BA 1784 shown as an Entwurf, a mock state),
 `loeschen.html`, `bestand-neu.html`, `bestand-bearbeiten.html`. Built from `../system/system.css`
 plus `a3-artikel.css` (four small additions, listed at the end).

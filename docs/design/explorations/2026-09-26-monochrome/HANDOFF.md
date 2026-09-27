@@ -77,7 +77,7 @@ of the new look is in the Django app yet.
 
 - **All archivist screens are mocked** on the system: `a1-formular/` (bearbeiten, bearbeiten-konflikt,
   neu), `a2-sammel/` (liste, liste-auswahl, pruefen, pruefen-fehler, ergebnis), `a3-artikel/`
-  (artikel, artikel-ohne-medien, artikel-entwurf, loeschen, bestand-neu, bestand-bearbeiten).
+  (artikel, artikel-video, artikel-entwurf, loeschen, bestand-neu, bestand-bearbeiten).
   Each folder's `NOTES.md` holds the writer's job tables and per-element pricing, plus
   "Proposed system additions" (not yet merged into `system/`).
 - **My overnight review:** `REVIEW-ARCHIVIST.md` — element tables per screen, what I changed and

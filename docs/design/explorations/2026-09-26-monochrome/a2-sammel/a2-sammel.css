@@ -27,25 +27,31 @@
     .ledger :is(.ledger-pick, .ledger-act) { display: none; }
   }
 
-  /* ---------- bulkbar — the selection's own bar, under the ledger ----------
-     Knobs: none. Sticks to the viewport's bottom edge while the ledger scrolls, rests under the
-     last row; the one line is its top edge (the only thing between it and the rows behind it).
-     The ground reaches into the page gutter (shadow, clipped at the top edge) so the rows'
-     hanging boxes scroll behind it. Absent while nothing is selected ([hidden]); S: absent. */
-  .bulkbar {
-    position: sticky; inset-block-end: 0; z-index: 1;
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4) var(--space-8);
-    padding-block: var(--space-4); background: var(--ground); border-block-start: var(--line);
-    box-shadow: 0 0 0 var(--gutter) var(--ground); clip-path: inset(0 calc(-1 * var(--gutter)));
-  }
-  .bulkbar > .chooser { flex: 1 1 auto; justify-content: flex-end; }
-  .bulkbar[hidden] { display: none; }
-  .bulkbar-status { display: flex; flex-wrap: wrap; align-items: baseline; font: var(--type-meta); color: var(--ink-2); }
-  .bulkbar-status > :first-child { color: var(--ink); }
+  /* ---------- bulkbar — the archivist toolbar: the ledger's head row, while a row is picked ----------
+     Knobs: none. Lives in the ledger's thead as a second row (.ledger-bulk) next to the column
+     heads (.ledger-heads). While no row is picked it is absent; once one is, it takes the column
+     heads' place: same spot, same one-line height, so no row moves under the pointer (CSS :has,
+     no JS). It sticks to the viewport top while the list scrolls. It reads as one line from the
+     left: the pick column's box (selects the page), the count, "Auswahl aufheben", then the one
+     action "Feld ändern …" right after them — never pushed to the far edge, where it would float
+     loose. "Feld ändern …" is a disclosure: it opens the chooser sentence in its place, in the same
+     row. Step two is opened on purpose, so only then may the row grow. S: absent (bulk is L/M). */
+  .ledger-bulk { display: none; }
+  .ledger:has(tbody .ledger-pick :checked) .ledger-bulk { display: table-row; }
+  .ledger:has(tbody .ledger-pick :checked) .ledger-heads { display: none; }
+  .ledger .ledger-bulk > th, .ledger .ledger-bulk > th.ledger-pick { position: sticky; inset-block-start: 0; z-index: 1; background: var(--ground); padding-block-start: var(--space-3); }
+  .ledger-bulk .ledger-pick input { inset-block-start: calc(50% - var(--space-3) / 2); translate: 0 -50%; } /* centred on the row's line, which grows in step two */
+  .bulkbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-8); color: var(--ink); }
+  .bulkbar-status { display: flex; flex-wrap: wrap; align-items: baseline; }
   .bulkbar-status > * + *::before { content: "·" / ""; display: inline-block; margin-inline: var(--space-3); color: var(--ink-2); }
+  .bulkbar-status a { color: var(--ink-2); }
   .bulkbar-status a:hover { color: var(--ink); }
+  .bulkbar-act > summary::after { content: " …"; }
+  .bulkbar-act > summary:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+  .bulkbar-act[open] { flex: 1 1 auto; } /* the value field may grow; the sentence still starts right after the status */
+  .bulkbar-act[open] > summary { display: none; }
   @container (width < 40rem) {
-    .bulkbar { display: none; }
+    .ledger:has(tbody .ledger-pick :checked) .ledger-bulk { display: none; }
   }
 
   /* ---------- chooser — "[Feld] auf [Wert] setzen  Änderung prüfen" ----------
