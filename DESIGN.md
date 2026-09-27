@@ -16,8 +16,6 @@ colors:
   band-black: "#000000"
   band-ink: "#ffffff"
   band-secondary-ink: "#b3b3b3"
-  door-gray: "#333333"
-  on-door-gray: "#ffffff"
   correction-red: "#c4000b"
 typography:
   wordmark:
@@ -118,12 +116,6 @@ components:
   button-secondary-hover:
     backgroundColor: "{colors.print-black}"
     textColor: "{colors.paper-white}"
-  button-door:
-    backgroundColor: "{colors.door-gray}"
-    textColor: "{colors.on-door-gray}"
-    typography: "{typography.control}"
-    rounded: "{rounded.none}"
-    padding: "0.75rem 1.25rem"
   field-input:
     backgroundColor: "{colors.paper-white}"
     textColor: "{colors.print-black}"
@@ -213,8 +205,6 @@ A monochrome palette: two inks on paper, three grays with one job each, and one 
   without an image. Tuned brighter in dark, where the hairline would vanish.
 - **Band Black** / **Band Ink** / **Band Secondary Ink** (#000 / #fff / #b3b3b3): the top bar, an
   inverse band on light. In dark it becomes the page with an edge.
-- **Door Gray** (#333333, text #fff): the one sanctioned gray fill, the "Anmelden mit DPB Login"
-  button on the door page (owner ruling).
 
 ### Semantic
 - **Correction Red** (#c4000b light, #ff6b61 dark): field errors and conflicts (a doubled edge),
@@ -318,9 +308,9 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
 ### Buttons
 - **Shape:** square (0), padding 0.75rem 1.25rem, Control type, 1px ink border.
 - **Primary:** solid Print Black, white text; hover inverts to outline. One per surface (Speichern,
-  Anlegen, Suchen).
+  Anlegen, Suchen, the door's login).
 - **Secondary:** outline, ink text; hover fills.
-- **Door:** Door Gray fill, white text; the door page's login only.
+- The door page's "Anmelden mit DPB Login" is a primary button (owner 2026-09-27: no gray fill).
 - **Add ("+ …"):** not a framed button: a plain meta-size text control starting with "+"
   ("+ Angabe hinzufügen", "+ Dateien hinzufügen", the top bar's "+ Neu …"); underline on hover.
 - A `label` styled as a button (file chooser) gets the pointer cursor from the component.

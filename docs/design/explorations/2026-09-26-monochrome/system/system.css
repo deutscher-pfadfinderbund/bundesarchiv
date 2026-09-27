@@ -29,8 +29,6 @@
     --band-ink: light-dark(#fff, #f0f0f0);
     --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
     --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
-    --sso: light-dark(#333, #474747); /* the one sanctioned gray fill (door button, owner) */
-    --on-sso: #fff;
     --error: light-dark(#c4000b, #ff6b61);
     --hover-lift: brightness(1.15);
 
@@ -399,7 +397,7 @@
 
   /* ---------- button ----------
      Knobs: --button-pad-inline (default --space-5). Default = secondary (outline); variants on
-     the root: .button-primary (solid ink), .button-sso (the dark-gray door button). */
+     the root: .button-primary (solid ink; the door's login too — owner 2026-09-27: no gray fill). */
   .button {
     display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
     padding: var(--space-3) var(--button-pad-inline, var(--space-5));
@@ -409,8 +407,6 @@
   }
   .button:hover, .button-primary { color: var(--ground); background: var(--ink); }
   .button-primary:hover { color: var(--ink); background: transparent; }
-  .button-sso, .button-sso:hover { color: var(--on-sso); background: var(--sso); border-color: var(--sso); }
-  .button-sso:hover { filter: var(--hover-lift); }
 
   /* ---------- mark — a state is words, not a box (Entwurf, später) ----------
      Knobs: none. */

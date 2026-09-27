@@ -10,7 +10,7 @@
   --rule-strong: #0a0a0a;    /* the underline of the search inputs */
   --fill-inverse: #0a0a0a;   /* inverted marks (Entwurf, bars) */
   --on-inverse: #ffffff;
-  --button: #333333;         /* the one sanctioned gray fill: door button */
+  --button: #000000;         /* the door button is a primary button (owner 2026-09-27) */
   --on-button: #ffffff;
   --error: #b3261e;
 
@@ -32,8 +32,8 @@
     --rule-strong: #f4f4f4;
     --fill-inverse: #f4f4f4;
     --on-inverse: #0b0b0b;
-    --button: #474747;
-    --on-button: #ffffff;
+    --button: #f0f0f0;
+    --on-button: #0b0b0b;
     --error: #ff6b61;
   }
 }

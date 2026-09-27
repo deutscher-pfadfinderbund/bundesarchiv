@@ -97,7 +97,7 @@ purpose (rules first, fixes later).
 | 16 | Help mark ⓘ | the character U+24D8 at the end of a field hint (`.help`), opening a `.popover` | forbidden — no "?" glyphs, no hover-only tooltips |
 | 17 | Note | `.note` (note type, `--ink-3`) touching a label or heading ("intern") | forbidden — never at a far edge, never boxed |
 | 18 | Placeholder cross | `--placeholder` in `--faint` on an item without an image (`.media-item`, `.plate-item`, `.file-row-thumb`) | forbidden — no placeholder where no medium is expected |
-| 19 | Gray fill | `--sso` on the door page's login button only | forbidden |
+| 19 | Gray fill | **RETIRED** (owner 2026-09-27: the door's login is a primary button). | forbidden |
 | 20 | Underline | links and crumb steps at rest; text controls (menu entries, "+ …", suggestion options, field asides) on hover only | forbidden as decoration |
 
 **Reserved (recorded, NOT licensed):** none open. The serif reading role reserved for the

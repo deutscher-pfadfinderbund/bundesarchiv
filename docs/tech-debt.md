@@ -182,16 +182,16 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
-- **Indicator:** 7 open occurrences (2026-09-27): 5 in the monochrome mock system, 2 known in the app.
+- **Indicator:** 6 open occurrences (2026-09-27): 4 in the monochrome mock system, 2 known in the app.
 - **The pattern:** a modifier class that sets a component's own properties (`.button-danger`) instead
   of a context that re-points roles or knobs and works on any component (`.danger` re-points
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
   and the chip × — all now the one `.danger` context; `.facts-quiet`, the set-apart register
-  label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context.
+  label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context;
+  `.button-sso` gone (owner: the door's login is just a primary button).
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
     the button must paint its background with `--ground`, and the hover outline needs an edge.
-  - `.button-sso`: a one-off variant for the door's login. Candidate: a knob or the door context.
   - `.facts-wide` vs the field grid's `[data-span="all"]`: two mechanisms for one job (span a row).
   - search sentence `.is-minor` (encodes "folds on S"; structure can say it: every slot after the
     first) and `.is-more` (a different element, so a part: `.search-sentence-more`). `.is-set` is

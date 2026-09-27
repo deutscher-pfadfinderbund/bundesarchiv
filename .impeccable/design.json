@@ -154,36 +154,6 @@
           "#ffffff"
         ]
       },
-      "door-gray": {
-        "role": "neutral",
-        "displayName": "Door Gray",
-        "canonical": "light-dark(#333, #474747)",
-        "tonalRamp": [
-          "#0b0b0b",
-          "#262626",
-          "#555555",
-          "#595959",
-          "#767676",
-          "#8f8f8f",
-          "#dcdcdc",
-          "#ffffff"
-        ]
-      },
-      "on-door-gray": {
-        "role": "neutral",
-        "displayName": "On Door Gray",
-        "canonical": "#fff",
-        "tonalRamp": [
-          "#0b0b0b",
-          "#262626",
-          "#555555",
-          "#595959",
-          "#767676",
-          "#8f8f8f",
-          "#dcdcdc",
-          "#ffffff"
-        ]
-      },
       "correction-red": {
         "role": "semantic",
         "displayName": "Correction Red",

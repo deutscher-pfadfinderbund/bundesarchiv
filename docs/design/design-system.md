@@ -231,7 +231,6 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
 | `--edge` | control, chip and panel edges | 3:1 (non-text) |
 | `--faint` | disabled controls, placeholder drawings | exempt (inactive), tuned visible in dark |
 | `--band-*` | the top bar's inverse band | 4.5:1 within the band |
-| `--sso` / `--on-sso` | the door's login button only | 4.5:1 |
 | `--error` | errors, conflicts, removing controls about to act | 4.5:1 on ground |
 
 - **Type roles:** wordmark, title, heading, subhead, entry, query, body, control, meta, label,
