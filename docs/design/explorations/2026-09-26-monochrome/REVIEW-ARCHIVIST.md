@@ -307,3 +307,6 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   flipping at the edge; the column chooser stays end-aligned).
 - **Dark mode buttons:** the secondary uses the primary's full-ink edge, one look for now, until a
   better way to tell them apart in dark is found (`--button-edge` removed).
+- **Round 7b:** Standort read badly inside the origin line. It is its own labelled line right after
+  the Beschreibung ("Standort Bund › Alben"); inside the record head the stack owns every gap, so
+  origin, description and Standort read as one block.

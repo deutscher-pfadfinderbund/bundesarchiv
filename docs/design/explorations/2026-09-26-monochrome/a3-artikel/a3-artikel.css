@@ -69,3 +69,9 @@
      so its corner is the page's corner at the end edge. Knobs: none. */
   .record-tools { display: flex; align-items: center; gap: var(--space-2); }
 }
+
+@layer layouts {
+  /* inside the record's head the stack owns the gaps: the description adds no margins of its own, so
+     the Standort line sits as close to it as the origin line sits to the title */
+  article > header > .prose { margin-block: 0; }
+}
