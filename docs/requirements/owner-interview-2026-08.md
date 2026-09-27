@@ -749,3 +749,15 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   Werkstatt screen. Breadcrumbs on article and form pages show where the article lives; the way
   back to a search is browser Back. New start-page compartment: by type. Highlights later, as
   curated pinned articles — not important now.
+
+## Rulings of 2026-09-27 (design review, legacy data)
+
+- **Look:** the monochrome system "Druckschwarz" is approved and formalized (`DESIGN.md`,
+  `docs/design/design-system.md`, register in `docs/design/design-review-law.md`). The door's
+  login is a primary button; there is no gray fill.
+- **Terms:** keep "Bestand"; the legacy term was "Sammlungsteil"; revisit only on archivist
+  feedback.
+- **Legacy import:** `pub_date` is the date added (`added_at`); legacy Schlagworte are separated
+  by line (and by `--` inside a line), never by word. The earlier word split was a mapping error,
+  not an owner ruling.
+- **Order:** component waves first; the Medienart / Dokumenttyp rework next.
