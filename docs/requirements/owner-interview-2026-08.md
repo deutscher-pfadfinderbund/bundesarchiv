@@ -782,3 +782,5 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   shrinks or grows out of its row: the article's images sit in justified rows of equal height.
 - **A PDF shows as a thumbnail of its first page** and opens in a new tab (the browser's own
   viewer); no grid of small page tiles, no embedded viewer.
+- **The Beschreibung is Markdown, rendered on the server.** The page receives finished HTML from
+  the backend (sanitized: no raw HTML from the README passes through), never a client-side renderer.

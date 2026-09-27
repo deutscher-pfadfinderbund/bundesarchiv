@@ -325,3 +325,8 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   caption, Esc and focus return; without JS the link opens the image.
 - **PDF:** the first page as a thumbnail inside the gallery; the link opens the PDF in a new tab.
   The page grid and the embedded viewer are both dropped.
+- **Round 8b:** the onward lists ("Mehr aus …") were too airy, and on S the date stood on its own
+  line as far from its title as from the entry above. Rows now sit `--space-3` apart, and date and
+  title stay side by side on every size (the date column as wide as its longest date, capped at one
+  full date). Lists with a far figure (start page) keep their own wrapping.
+- **Beschreibung:** Markdown, rendered on the server (requirement recorded 2026-09-28).

@@ -296,7 +296,10 @@
   }
   /* a lead register without figures has no lines, so space alone must group: a row's own lines sit
      one leading apart, rows sit a clear gap apart (a wrapped title stays with its date) */
-  .register:has(.register-lead):not(:has(.register-figure)) { display: grid; row-gap: var(--space-5); }
+  .register:has(.register-lead):not(:has(.register-figure)) { display: grid; grid-template-columns: fit-content(var(--measure-date)) minmax(0, 1fr); column-gap: var(--space-4); row-gap: var(--space-3); } /* still clearly more than a wrapped label's leading (owner 2026-09-28: tighter) */
+  .register:has(.register-lead):not(:has(.register-figure)) > li,
+  .register:has(.register-lead):not(:has(.register-figure)) .register-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
+  /* on every size: date and title side by side — on S a date on its own line sat as far from its title as from the entry above */
   .register:has(.register-lead):not(:has(.register-figure)) .register-row { padding-block: 0; }
   .register-label { flex: 1 1 auto; font: var(--register-label-type, var(--type-entry)); }
   a.register-row:hover .register-label { text-decoration: underline; }
@@ -308,8 +311,8 @@
     background: linear-gradient(var(--ink-2), var(--ink-2)) 0 0 / max(var(--bar-weight), calc(var(--register-value, 0) * 100%)) 100% no-repeat;
   }
   @container (width < 40rem) {
-    .register-row:has(.register-lead) { flex-wrap: wrap; row-gap: var(--space-1); }
-    .register-row:has(.register-lead) .register-label { order: 1; flex-basis: 100%; }
+    .register:has(.register-figure) .register-row:has(.register-lead) { flex-wrap: wrap; row-gap: var(--space-1); }
+    .register:has(.register-figure) .register-row:has(.register-lead) .register-label { order: 1; flex-basis: 100%; }
   }
 
   /* ---------- ledger — the result table ----------
