@@ -247,14 +247,47 @@ def test_the_bestand_names_are_the_legacy_ones_plus_unsortiert() -> None:
 # --- keywords -> tags ---------------------------------------------------------------
 
 
-def test_keywords_split_on_the_dashes_then_on_whitespace() -> None:
-    article = _map(_row(keywords="Filmaufnahmen -- Jugendbewegung Pfadfinder")).article
-    assert article.tags == ("Filmaufnahmen", "Jugendbewegung", "Pfadfinder")
+def _tags(keywords: str) -> tuple[str, ...]:
+    return _map(_row(keywords=keywords)).article.tags
 
 
-def test_keywords_lose_their_carriage_returns_and_duplicates_but_keep_their_order() -> None:
-    article = _map(_row(keywords="Lager\r -- Fahrt\r\n-- Lager -- Bund")).article
-    assert article.tags == ("Lager", "Fahrt", "Bund")
+def test_a_line_is_one_tag_however_many_words_it_has() -> None:
+    assert _tags("Foto auf Holzplatte als Wandbild\nMotiv: Tony Wirtz") == (
+        "Foto auf Holzplatte als Wandbild",
+        "Motiv: Tony Wirtz",
+    )
+    assert _tags("Pilgerpfad Heft 1") == ("Pilgerpfad Heft 1",)
+
+
+def test_dashes_separate_tags_within_a_line() -> None:
+    assert _tags("Lieder -- Volkslieder -- Wanderlieder\nBilder -- Wandervogel") == (
+        "Lieder",
+        "Volkslieder",
+        "Wanderlieder",
+        "Bilder",
+        "Wandervogel",
+    )
+
+
+@pytest.mark.parametrize("newline", ["\r\n", "\r", "\n"])
+def test_every_legacy_line_break_separates_tags(newline: str) -> None:
+    assert _tags(f"Blätter St. Georg 18{newline}Gaubrief der Franken") == (
+        "Blätter St. Georg 18",
+        "Gaubrief der Franken",
+    )
+
+
+def test_a_table_of_contents_loses_its_bullets_but_keeps_each_line() -> None:
+    toc = "Inhalt:\r\n•\tTermine im Gau\r\n- Fahrtenbericht\r\n\N{EN DASH} Lieder zur Klampfe"
+    assert _tags(toc) == ("Inhalt:", "Termine im Gau", "Fahrtenbericht", "Lieder zur Klampfe")
+
+
+def test_empty_pieces_are_no_tags() -> None:
+    assert _tags("•\t\r\n-- Lager\n\n  \nFahrt --\n--") == ("Lager", "Fahrt")
+
+
+def test_duplicates_go_case_sensitively_and_first_occurrence_order_stays() -> None:
+    assert _tags("Lager\nlager -- Bund\n• Lager\nBund") == ("Lager", "lager", "Bund")
 
 
 def test_no_keywords_is_no_tags() -> None:

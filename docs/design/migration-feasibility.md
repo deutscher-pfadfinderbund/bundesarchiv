@@ -3,7 +3,9 @@
 **Status:** executed, 2026-09-19 — `src/bundesarchiv/app/legacy.py` is the mapping that runs, and
 it is the contract; this memo is the spike that argued for it. Where the two differ, the module
 wins: the custom keys became `Quelle` / `Anmerkungen` / `Besitzer` / `Anzahl` / `Legacy-ID`, the
-lookup-table Dokumenttyp beats the free text instead of the other way round, and every shape §4
+lookup-table Dokumenttyp beats the free text instead of the other way round, `keywords` split on
+lines and `--` but never on spaces (the old archive separated Schlagworte by line, owner
+2026-09-27; §2's space split broke multi-word Schlagworte apart), and every shape §4
 files under "needs human review" is left unread rather than guessed (year only, original words kept
 verbatim). Run it with `mise run legacy:import` (see the README). One claim of the spike is
 FALSE of the export that replaced its dump and cost data before it was caught: §1 and §4 say `day`

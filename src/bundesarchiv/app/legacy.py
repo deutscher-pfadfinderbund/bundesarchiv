@@ -391,13 +391,15 @@ def _doctype_disagrees(row: Mapping[str, str]) -> bool:
 
 
 def _tags(keywords: str) -> tuple[str, ...]:
-    """`keywords` → tags: split on `--`, then on whitespace, deduped, first-occurrence order.
+    """`keywords` → tags: one per line and per `--` within a line, deduped, first-occurrence order.
 
-    The column mixes both delimiters and carries literal `\\r` from the old admin forms; splitting
-    on whitespace after the dashes is the owner's call (one word per tag beats one long pseudo-tag).
+    The legacy archive separated Schlagworte by line (owner, 2026-09-27), so a multi-word line is
+    one tag. Lines end in `\\r\\n` or a bare `\\r` from the old admin forms; tables of contents
+    prefix lines with a bullet (`•`, `-`, en dash), which is dropped.
     """
-    tokens = (token for part in keywords.split("--") for token in part.split())
-    return tuple(dict.fromkeys(token.strip() for token in tokens if token.strip()))
+    pieces = (piece for line in keywords.splitlines() for piece in line.split("--"))
+    tags = (piece.strip().lstrip("•-\N{EN DASH}").strip() for piece in pieces)
+    return tuple(dict.fromkeys(tag for tag in tags if tag))
 
 
 def _media(media_rows: Iterable[Mapping[str, str]]) -> tuple[MediaFile, ...]:
