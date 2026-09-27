@@ -14,7 +14,8 @@ one source with no database:
 - ``edtf_to_german`` — the 4.6 detail-page date presentation (the sentence under the title). It
   reads the already-validated ``EdtfDate`` value object; an absent date yields ``""``. It stays a
   DISPLAY helper: it never validates (the field's error path owns that), so it can only ever return
-  neutral body text, never an error. Its month/century phrasings are PROVISIONAL pending owner sign-off (4.6 §11 Q1).
+  neutral body text, never an error. Its month/century phrasings are PROVISIONAL pending owner
+  sign-off (4.6 §11 Q1).
 """
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -157,8 +158,9 @@ def datierung_mono(date: EdtfDate | None) -> str:
     """The MACHINE date: the EDTF value verbatim, or ``""`` when absent. The ONE renderer for the
     mono machine spelling — the ledger's date column, the preview pane's meta line, the detail record
     card's mono row, the CAS diff and the Datierung field's own value all print it, so a single
-    spelling of the fact cannot fork into inline copies of ``date.value if date is not None else ""``. Its sibling is
-    ``edtf_to_german`` — the HUMAN spelling, the other licensed rendering of the same fact."""
+    spelling of the fact cannot fork into inline copies of ``date.value if date is not None else
+    ""``. Its sibling is ``edtf_to_german`` — the HUMAN spelling, the other licensed rendering of the
+    same fact."""
     return date.value if date is not None else ""
 
 
@@ -191,9 +193,9 @@ def edtf_to_german(date: EdtfDate | None) -> str:
 
     A DISPLAY helper only: an absent date yields ``""``, and any form this small mapping does not
     phrase falls back to the verbatim EDTF value — it is never an error surface, so it stays neutral
-    body text. Handles the common Level 0/1 shapes the archivist types: plain year,
-    decade (``197X`` → ``1970er``), qualifiers (``~`` → ``um``, ``?`` → ``(unsicher)``), and closed
-    intervals (``A/B`` → ``A bis B``). Open intervals and unspecified centuries echo verbatim."""
+    body text. Handles the common Level 0/1 shapes the archivist types: plain year, decade (``197X``
+    → ``1970er``), qualifiers (``~`` → ``um``, ``?`` → ``(unsicher)``), and closed intervals (``A/B``
+    → ``A bis B``). Open intervals and unspecified centuries print verbatim."""
     if date is None:
         return ""
     value = date.value

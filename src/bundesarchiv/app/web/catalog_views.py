@@ -190,8 +190,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
         return _handle_edit_post(request, archive, ulid, stored, bestand, archivist.username)
-    # After Kopieren the copy's edit form lands with the Signatur field focused (spec §5 — the one
-    # field that must change first on the volume path, just cleared). ?fokus=signatur carries that.
+    # After Duplizieren the copy lands with the just-cleared Signatur focused (spec §5).
     fokus = "ref_code" if request.GET.get("fokus") == "signatur" else ""
     surface = EditSurface.of(stored.article, stored.version, bestand)
     return surface.render(request, autofocus=fokus or surface.first_empty_field())
@@ -224,7 +223,7 @@ def _handle_edit_post(
             catalog.parse_version(request.POST.get("expected_version", "")),
             drop_custom_row=None if adding else _named_custom_row(request.POST),
             add_custom_row=adding,
-        ).render(request, autofocus="custom_key" if adding else "custom")
+        ).render(request, autofocus="custom_key" if adding else "")
     status = request.POST.get("lifecycle")
     try:
         lifecycle = current.lifecycle if status is None else Lifecycle(status)
@@ -244,12 +243,11 @@ def _handle_edit_post(
         and lifecycle is Lifecycle.PUBLISHED
         and _exposure_audience(result.article, bestand) is None
     ):
-        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The Status select
-        # drops Veröffentlicht when the exposure view-model is None, but that is the client half only, and
-        # the state is reachable with ordinary UI actions — re-parenting a Bestand under a missing
-        # parent leaves the article's own version untouched, so CAS passes. Published, the record 404s
-        # for everyone including its cataloguer, and a later repair puts it live at whatever rung
-        # results with no archivist having read an exposure statement.
+        # FAIL-CLOSED, server-side (learning G.43/G.48). The Status select drops Veröffentlicht when
+        # the exposure is None, but that is the client half only, and the state is reachable with
+        # ordinary UI actions — re-parenting a Bestand under a missing parent leaves the article's
+        # own version untouched, so CAS passes. Published, the record 404s for everyone including its
+        # cataloguer, and a later repair puts it live at whatever rung results unreviewed.
         # Refusing as a FIELD ERROR on the Bestand is what makes the whole re-render the existing
         # validation path: nothing written, every value preserved, the caret on the field that has to
         # change. Only the draft → published transition is gated: withdrawing, and saving a record
@@ -906,7 +904,6 @@ class _CardRow:
     autofocus: bool
     options: _Options
     blank: str
-    element_id: str
     hx: tuple[tuple[str, str], ...]
     span: bool
     required: bool
@@ -958,7 +955,6 @@ def _card_fields(
                 autofocus=registered.focusable and registered.name == autofocus,
                 options=option_lists.get(registered.options, ()),
                 blank=registered.blank,
-                element_id=registered.element_id,
                 hx=hx,
                 span=registered.span,
                 required=registered.required,
@@ -1002,7 +998,6 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return _not_found()
     archive, _, archivist = gated
     copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
-    # ?fokus=signatur tells the edit view to autofocus the Signatur field on this first load.
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
 
@@ -1012,9 +1007,8 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
 def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /artikel/<ulid>/loeschen`` — the delete confirm page (GET) and its execution
     (POST). Archivist-only; a non-archivist / malformed / absent ulid gets the byte-identical 404,
-    both methods. GET shows the ``.c-sig`` + Titel context so the archivist confirms WHICH record;
-    POST hard-deletes and 302s to the workbench. The read-view Löschen trigger stays neutral — red
-    lives ONLY on this page's Endgültig löschen button (spec §7)."""
+    both methods. GET shows the Signatur + Titel so the archivist confirms WHICH record; POST
+    hard-deletes and 302s to the workbench."""
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()

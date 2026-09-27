@@ -98,8 +98,8 @@ def _get(post: Mapping[str, object], key: str) -> str:
 
 def one_line(raw: str) -> str:
     """A single-line field's value: every run of line breaks (and the spaces around it) becomes one
-    space, then the ends are stripped. The Titel is a textarea, so the browser no longer drops a
-    pasted or typed break; the server does, with and without JS."""
+    space, then the ends are stripped. The Titel is a textarea, which keeps a pasted or typed break;
+    the server drops it, with and without JS."""
     return re.sub(r"\s*[\r\n]+\s*", " ", raw).strip()
 
 
@@ -128,9 +128,10 @@ def parse_edit_form(
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
     captions ride the metadata CAS save; reorder/remove/upload are separate structural POSTs).
     ``lifecycle`` is the state the saved Article carries. The caller passes the article's CURRENT
-    lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing from
-    the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08). This layer stays pure either
-    way: it never decides the transition, it only records the state it was handed. ``added_at`` is
+    lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing
+    from the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08).
+    This layer stays pure either way: it never decides the transition, it only records the state it
+    was handed. ``added_at`` is
     the stored date added, carried through like the ulid: no edit changes it."""
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
