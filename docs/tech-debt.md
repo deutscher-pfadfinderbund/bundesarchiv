@@ -182,7 +182,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
-- **Indicator:** 6 open occurrences (2026-09-27): 4 in the monochrome mock system, 2 known in the app.
+- **Indicator:** 4 open in the monochrome mock system, 7 in the app (after Wave K1, 2026-09-27).
 - **The pattern:** a modifier class that sets a component's own properties (`.button-danger`) instead
   of a context that re-points roles or knobs and works on any component (`.danger` re-points
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
@@ -208,6 +208,11 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
     `.column dd` decoration (row 6 licenses dashes only for hollow slots).
   - `.c-sig--leer` prints "—" as a placeholder (no dashes).
   - `.pane > div` framed while the pane question is suspended (row 10).
+  - Wave K1 found, outside its fence: the detail page's `<small>Nur intern</small>` (the note
+    "intern" instead); the list page's chip and facet ✕ are text glyphs, not the remove control;
+    `components/empty_state.html` draws a dashed frame (row 6); the create step marks no required
+    field; the Datierung parse error is English; the gallery state `_reach_edit_folded_open`
+    renders Herkunft closed.
 - **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
   selector on a non-root class that sets a non-custom property on a component root.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
