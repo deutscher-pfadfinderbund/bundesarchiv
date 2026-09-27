@@ -1,14 +1,6 @@
-/* Bundesarchiv design tokens (docs/design/design-system.md) — the three layers, NOTHING else.
-   NO component styles in this file. Consumers reference ROLE tokens only; a hex value in a
-   component style is a defect (spec principle "Roles, not colors").
-
-   Format contract (keep the layers machine-readable):
-   - the seed:      --seed: oklch(<L> <C> <H>);
-   - ramp entries:  --<name>: oklch(from var(--seed) <L> <C|c> h);   (relative, seed hue)
-                    --<name>: oklch(<L> <C> <H>);                    (absolute, semantic hues)
-   - role entries:  --<role>: light-dark(var(--<light-ramp>), var(--<dark-ramp>));
-   The exact L/C values are an implementation detail (the spec's pair table in
-   design-system.md is the contract); judge edits at the design gate, both modes. */
+/* Bundesarchiv design tokens (docs/design/design-system.md "Tokens") — NOTHING else. Consumers
+   reference ROLE tokens only; a hex value in a component style is a defect (themability law).
+   Values: DESIGN.md (light) and the mock system's @layer tokens (light-dark pairs). */
 
 /* The cascade architecture (design-review-law.md appendix F): every stylesheet contributes to one
    of these layers. tokens.css loads FIRST on every page, so this declaration fixes the order for
@@ -21,171 +13,49 @@
 @layer tokens {
 
 :root {
-  /* ==================================================================
-     Layer 1 — seed. The ONLY line a sibling DPB service changes.
-     Chroma pulled 0.13 -> 0.055 (owner, color-grammar round 2026-07-10):
-     the violet is stamp INK, not paint — global chroma down.
-     ================================================================== */
   color-scheme: light dark;
-  --seed: oklch(0.52 0.055 300);
 
-  /* ==================================================================
-     Layer 2 — reference ramps. Derived from the seed with relative
-     color syntax; nothing below this layer mixes color by hand.
+  /* Values — light-dark(light, dark). Dark is tuned, not inverted: no pure black or white, and
+     the rule is quieter than in light, because bright lines smear on black. */
+  --page-ground: light-dark(#fff, #0b0b0b);
+  --page-ink: light-dark(#000, #f0f0f0);
+  --page-ink-2: light-dark(#595959, #a0a0a0);
+  --page-ink-3: light-dark(#767676, #7c7c7c);
+  --page-rule: light-dark(#dcdcdc, #262626);
+  --page-edge: light-dark(#8f8f8f, #6e6e6e);
+  --page-faint: light-dark(#d0d0d0, #555); /* dark tuned up: --rule would vanish on black */
+  --band-ground: light-dark(#000, #0b0b0b); /* the header: an inverse band on light, page in dark */
+  --band-ink: light-dark(#fff, #f0f0f0);
+  --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
+  --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
+  --error: light-dark(#c4000b, #ff6b61);
 
-     Tonal ramp: the seed's hue at fixed L steps, chroma capped low so
-     the violet reads as ink. Every entry stays inside sRGB gamut (an
-     out-of-gamut token would render clamped, drifting from the value
-     written here).
-     ================================================================== */
-  --tone-25: oklch(from var(--seed) 0.25 0.035 h);
-  --tone-32: oklch(from var(--seed) 0.32 0.045 h);
-  --tone-35: oklch(from var(--seed) 0.35 0.045 h);
-  --tone-45: oklch(from var(--seed) 0.45 0.05 h);
-  --tone-50: oklch(from var(--seed) 0.50 c h);
-  --tone-78: oklch(from var(--seed) 0.78 c h);
-  --tone-88: oklch(from var(--seed) 0.88 0.035 h);
-  --tone-92: oklch(from var(--seed) 0.92 0.022 h);
+  /* Roles — what components consume. A surface (the header band) re-points them for its subtree;
+     a floating panel points them back to the page. */
+  --ground: var(--page-ground);
+  --ink: var(--page-ink);
+  --ink-2: var(--page-ink-2);
+  --ink-3: var(--page-ink-3);
+  --rule: var(--page-rule);
+  --edge: var(--page-edge);
+  --faint: var(--page-faint);
 
-  /* Neutral ramp: PURE gray paper (chroma 0) since the color-grammar
-     round — the divide between hued marks and hueless chrome must be
-     unmistakable, so surfaces carry no seed tint at all. Variants that
-     want tinted sheets derive them via color-mix over roles. */
-  --neutral-22: oklch(from var(--seed) 0.22 0 h);
-  --neutral-25: oklch(from var(--seed) 0.25 0 h);
-  --neutral-28: oklch(from var(--seed) 0.28 0 h);
-  --neutral-31: oklch(from var(--seed) 0.31 0 h);
-  --neutral-34: oklch(from var(--seed) 0.34 0 h);
-  --neutral-40: oklch(from var(--seed) 0.40 0 h);
-  --neutral-46: oklch(from var(--seed) 0.46 0 h);
-  --neutral-50: oklch(from var(--seed) 0.50 0 h);
-  --neutral-72: oklch(from var(--seed) 0.72 0 h);
-  --neutral-78: oklch(from var(--seed) 0.78 0 h);
-  --neutral-84: oklch(from var(--seed) 0.84 0 h);
-  --neutral-90: oklch(from var(--seed) 0.90 0 h);
-  --neutral-92: oklch(from var(--seed) 0.92 0 h);
-  --neutral-93: oklch(from var(--seed) 0.93 0 h);
-  --neutral-94: oklch(from var(--seed) 0.94 0 h);
-  --neutral-96: oklch(from var(--seed) 0.96 0 h);
-  --neutral-98: oklch(from var(--seed) 0.98 0 h);
-  --neutral-99: oklch(from var(--seed) 0.99 0 h);
-
-  /* Semantic hue ramps: lifecycle amber (ENTWURF) and error red. Fixed
-     hues by design — a draft must look like a draft and an error like an
-     error in EVERY sibling service, so these deliberately do not retint
-     with the seed. Kept SATURATED on purpose: with the violet quieted,
-     lifecycle and errors are the loud channel and must pop at a glance. */
-  --amber-32: oklch(0.32 0.06 80);
-  --amber-40: oklch(0.42 0.11 72);
-  --amber-85: oklch(0.85 0.14 85);
-  --amber-92: oklch(0.90 0.10 85);
-  --red-25: oklch(0.25 0.09 25);
-  --red-50: oklch(0.52 0.20 27);
-  --red-75: oklch(0.75 0.14 25);
-
-  /* ==================================================================
-     Layer 3 — roles. Each declares its light and dark value in one
-     place via light-dark(); components consume ONLY these.
-     ================================================================== */
-  --surface: light-dark(var(--neutral-98), var(--neutral-22));
-  --surface-container-lowest: light-dark(var(--neutral-96), var(--neutral-25));
-  --surface-container-low: light-dark(var(--neutral-94), var(--neutral-28));
-  --surface-container-mid: light-dark(var(--neutral-92), var(--neutral-31));
-  --surface-container-high: light-dark(var(--neutral-90), var(--neutral-34));
-  --on-surface: light-dark(var(--neutral-25), var(--neutral-93));
-  --on-surface-variant: light-dark(var(--neutral-46), var(--neutral-78));
-
-  --primary: light-dark(var(--tone-45), var(--tone-78));
-  --on-primary: light-dark(var(--neutral-99), var(--tone-25));
-  --primary-container: light-dark(var(--tone-92), var(--tone-35));
-  --on-primary-container: light-dark(var(--tone-32), var(--tone-88));
-
-  --draft: light-dark(var(--amber-92), var(--amber-32));
-  --on-draft: light-dark(var(--amber-40), var(--amber-85));
-
-  --error: light-dark(var(--red-50), var(--red-75));
-  --on-error: light-dark(var(--neutral-99), var(--red-25));
-
-  /* Disabled ink (role token, added 2026-08-08): the quiet ink faded toward the surface, for a
-     control that is present, non-interactive and visibly so (the media register's end-of-register
-     arrows). A ROLE, not a mix written in component CSS: a hard-coded
-     color-mix(--on-surface-variant, --surface 55%) is unreachable by the planned
-     `prefers-contrast: more` remap, and by the themability law an unreachable value IS the defect —
-     that remap wants a HARDER disabled ink, and it can only reach one that lives here. */
-  --on-surface-disabled: color-mix(in oklab, var(--on-surface-variant), var(--surface) 55%);
-
-  --outline: light-dark(var(--neutral-50), var(--neutral-72));
-  --outline-variant: light-dark(var(--neutral-84), var(--neutral-40));
-  --focus-ring: light-dark(var(--tone-50), var(--tone-78));
-
-  /* Sheet material (cue-register row 8 as amended 2026-08-07 — material ROLES, not taste):
-     TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state.
-     A sheet is a whisper of seed tint mixed OVER --primary-container (high lightness, so the
-     sheet tints without darkening; retints automatically with a sibling service's seed), a
-     hairline edge, and EXACTLY ONE depth cue: the RESTING-CONTACT shadow (--sheet-shadow) —
-     a single tight layer, the way a sheet resting on a desk touches it. NOT a Material
-     elevation ramp (the 2px lower edge --sheet-edge is retired, superseded by the shadow).
-     Facet panels are FURNITURE, not sheets — flat plain container, hairline only.
-     Root-level DERIVED tokens by design (themability law): the future
-     `prefers-contrast: more` remap sets these to the plain container roles and ZEROES
-     --sheet-shadow (shadow: none) — zero component changes. */
-  --sheet: color-mix(in oklab, var(--surface-container-low), var(--primary-container) 30%);
-  --sheet-lowest: color-mix(in oklab, var(--surface-container-lowest), var(--primary-container) 25%);
-  /* one layer, 1px y-offset, 2px blur, low-alpha near-black ink (the neutral ramp's floor is
-     ink-dark in BOTH modes; dark mode needs more alpha to read against dark surfaces) */
-  --sheet-shadow: 0 1px 2px 0
-    light-dark(
-      color-mix(in oklab, var(--neutral-22) 20%, transparent),
-      color-mix(in oklab, var(--neutral-22) 55%, transparent)
-    );
-  /* Overlay shadow (cue-register row 12, owner 2026-08-07): TRANSIENT floating panels only —
-     the filter rail's dropdown panels and the header's "+ Neu …" create-menu panel (Mock B,
-     rail round 2). An overlay genuinely floats; a resting sheet does not,
-     so the two shadows stay distinct tokens: same single-layer discipline, larger blur than the
-     sheet's contact shadow, low-alpha ink over roles. Still no elevation ramps/stacks anywhere.
-     The future `prefers-contrast: more` remap ZEROES this token too (shadow: none), like
-     --sheet-shadow — zero component changes. */
-  --overlay-shadow: 0 2px 8px 0
-    light-dark(
-      color-mix(in oklab, var(--neutral-22) 22%, transparent),
-      color-mix(in oklab, var(--neutral-22) 60%, transparent)
-    );
-
-  /* ==================================================================
-     Non-color tokens.
-     ================================================================== */
-
-  /* Type roles (system stacks in v1; vendored OFL faces are a later,
-     drop-in decision — swap the family stacks, roles stay). Usage:
-     `font: var(--type-title);` — label additionally applies
-     `letter-spacing: var(--label-tracking);`.
-     A component sets a type ROLE and nothing else — an ad-hoc font-size/weight
-     is the typography equivalent of a raw hex. `meta`/`mono-meta` are the
-     dense-UI step below body/mono (controls, chips, secondary cells, dev
-     chrome); added deliberately (owner type audit, 2026-07-10) to retire the
-     scattered 0.9/0.85/0.78rem one-offs that used to ride body/mono. */
+  /* Type roles (system stacks). Usage: `font: var(--type-title);`. A component sets a type ROLE
+     and nothing else — an ad-hoc font-size/weight is the typography equivalent of a raw hex. */
   --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  /* The wordmark role (owner-licensed 2026-08-07, exploration 05 idea (b)): the ONE display
-     face with character — a small-caps system serif for the .wordmark in the header, nothing
-     else. Consumers pair the font with `font-variant-caps: small-caps` (the Kapitälchen) and
-     --wordmark-tracking; everything else in the header stays working-sans. */
   --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
-  /* stepped up above --type-display (owner rail-wave verdict 2026-08-07: "wordmark larger") —
-     the mark leads the header without shouting; judged on renders at 1440/680 */
-  --type-wordmark: 600 1.5rem/1.2 var(--font-wordmark);
+  --type-wordmark: small-caps 600 1.5rem/1.2 var(--font-wordmark);
   --wordmark-tracking: 0.12em;
   --type-display: 600 1.35rem/1.2 var(--font-display);
   --type-title: 600 1.05rem/1.35 var(--font-display);
   --type-body: 400 0.95rem/1.5 var(--font-body);
   --type-meta: 400 0.85rem/1.4 var(--font-body);
-  --type-label: 600 0.72rem/1.3 var(--font-body);
+  --type-label: 400 0.85rem/1.3 var(--font-body); /* mixed case, no tracking: the meta size, as in DESIGN.md */
   --type-mono: 400 0.85rem/1.4 var(--font-mono);
   --type-mono-meta: 400 0.78rem/1.4 var(--font-mono);
-  /* the label role reads MIXED CASE (owner 2026-08-22, carve-out drop 2026-08-28); this is the
-     residual mixed-case tracking, not the retired 0.08em caps tracking */
-  --label-tracking: 0.02em;
+  --underline-offset: 0.2em;
 
   /* Spacing: 4px-base scale — compact but not cramped (a weekly work tool). */
   --space-1: 0.25rem; /*  4px */
@@ -197,49 +67,25 @@
   --space-7: 1.75rem; /* 28px */
   --space-8: 2rem; /* 32px */
 
-  /* Shape: two radii and the bevel size. The house corner style is native
-     `corner-shape: bevel` — the index-card cut (cards, Signatur tab, drawer
-     tabs); the browser draws the geometry, so borders and fills follow it
-     automatically. Older browsers ignore corner-shape and render rounded
-     corners instead — explicitly accepted, no fallback (owner, 2026-07-10). */
-  --radius-s: 4px;
-  --radius-m: 6px;
-  --bevel: 12px;
-
-  /* Named non-spacing dimensions (design-review-law.md C5): the ONLY licensed sources for these
-     three recurring values. A bare px/rem literal in component CSS is an S3 defect unless a
-     comment names why no token fits. */
+  /* Named non-spacing dimensions (design-review-law.md C5). Square corners everywhere: there is
+     no radius token. */
   --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
      the value each [role=toolbar] row sets as its --control-height (law C8) */
   --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
-     round 2): the filter-rail chips + their ✕ ONLY, so chips sit visually level with the rail's
-     dropdown buttons; still ≥ the WCAG 2.2 AA 24px target-size floor. Since the round-2 C8 fix
-     this is the VALUE the header and the rail set as their --control-height row knob — every
-     control on those two rows (buttons, summaries, chips, the search input) consumes the knob,
-     so their equal height holds by construction. */
-  --hairline: 1px; /* the hairline edge — a contrast mode may thicken it globally */
-  --state-border: 3px; /* the state-marking left border (e.g. the CAS conflict panel) */
+     round 2): the filter-rail chips + their ✕ ONLY; still ≥ the WCAG 2.2 AA 24px floor. It is
+     also the VALUE the header and the rail set as their --control-height row knob. */
+  --line-width: 1px; /* every line; a contrast mode may thicken it globally */
+  --focus-width: 3px; /* the focus ring: width and offset */
+  --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
 
-  /* THE STACKING MODEL (C5 one level down: a bare z-index is a raw literal whose RELATIONSHIP to its
-     neighbours is the whole meaning, and that relationship used to live only in prose scattered across
-     two files). The complete order, lowest first:
-
-       (auto)             the desk, the record card, the ledger — everything in normal flow, plus the
-                          pane column's sticky reader's sheet, which needs no value: nothing in flow
-                          competes with it
-       --z-overlay-panel  a dropped overlay panel (register row 12) — above the sticky sheet it may
-                          overlap while open
-       --z-control-row    a STICKY control row (the edit surface's record row): chrome, above the work
-                          scrolling under it and above the sheet beside it
-       --z-header         the page header — above every control row, because the overlay panel its own
-                          disclosure drops hangs INTO the row's band, and a sticky row is a stacking
-                          context, so a descendant of the header can only out-stack it through THIS
-                          value
-       --z-banner         the viewport-fixed failure banner: above everything, always reachable
-
-     Named rather than guessed because the committed view-switching wave adds another sticky row, and
-     a wrong guess reproduces the click-eating class exactly (learning G.36: an opaque sticky row that
-     sat on top and swallowed every entry of the panel beneath it). A new layer joins this scale. */
+  /* THE STACKING MODEL (C5 one level down), lowest first:
+       (auto)             everything in normal flow, plus the pane column's sticky sheet
+       --z-overlay-panel  a dropped overlay panel — above the sticky sheet it may overlap
+       --z-control-row    a STICKY control row (the edit surface's record row)
+       --z-header         the page header — above every control row (learning G.36)
+       --z-banner         the viewport-fixed failure banner: above everything
+     The header's popover menu sits in the top layer and needs no value. A new layer joins this
+     scale. */
   --z-overlay-panel: 2;
   --z-control-row: 4;
   --z-header: 5;

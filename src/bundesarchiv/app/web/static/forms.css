@@ -24,8 +24,6 @@
      THE RECORD CARD (owner ruling 1, 2026-08-08 — composition E, with A's two columns inside it):
      the whole record as ONE catalog card — one ruled row per field, a shared label axis, hairlines
      between rows, NO boxes. The grammar is the ledger's.
-     MATERIAL ROLE (register row 8, learning G.17): NOT a sheet — ruled lines drawn on the desk. The
-     one TRUE SHEET on this screen is the reader's pane beside it.
      Every selector below is a DIRECT-CHILD path (law C14), which the `.fach` class is what makes
      possible: the card's DOM splits at the media register (a register holds real <form> children and
      forms cannot nest), so the sections are two element names at two depths.
@@ -33,12 +31,12 @@
   .karte {
     /* the card's API (law C3/C5), both knobs named here and consumed below:
        --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
-                       "Datierung (EDTF)" — 16 characters of --type-label (0.72rem semibold, mixed
-                       case, 0.02em tracking) measure 102px, so 7rem (112px) holds it on one line.
+                       "Datierung (EDTF)" — 16 characters of --type-label (0.85rem regular, mixed
+                       case) measure 109px, so 7rem (112px) holds it on one line.
                        Measured in the browser, and re-measured every run by
                        test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
                        a second line, which is a defect the eye skims past (at 6rem the test reports
-                       "Datierung (EDTF): wants 102px in a 96px column").
+                       "Datierung (EDTF): wants 109px in a 96px column").
        --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full. */
     --label-spalte: 7rem;
     --wert-min: 14rem;
@@ -74,13 +72,11 @@
     margin: 0;
     padding-block: var(--space-1);
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   /* the folded sections' value line (owner ruling 4). It disappears while the section is OPEN,
      because then the fields carry those values and no fact may be on screen twice (Q2). */
   details.fach > summary > .werte {
-    letter-spacing: normal;
     font: var(--type-meta);
   }
   details.fach[open] > summary > .werte {
@@ -89,7 +85,7 @@
   /* an EMPTY value in a summary line: register row 6's hollow-slot cue, so "Standort leer" cannot
      read as a real Standort. A dashed UNDERLINE, not a box — the summary is running text. */
   .werte > .leer {
-    border-bottom: var(--hairline) dashed var(--outline-variant);
+    border-bottom: var(--line-width) dashed var(--edge);
   }
   /* a folded section that CONTAINS an error renders OPEN, and its summary SAYS so — an opened
      section is otherwise indistinguishable from one the archivist opened, and the message may sit a
@@ -112,11 +108,9 @@
     --field-label-axis: var(--label-spalte);
     --field-align: baseline;
     --field-padding-block: var(--space-2);
-    --field-rule: var(--hairline) solid var(--outline-variant);
-    --field-fill: none;
+    --field-rule: var(--line-width) solid var(--rule);
     --field-border: transparent;
     --field-font: var(--type-body);
-    --field-radius: 0;
     --field-inset: 0;
   }
   /* ---- prose + register sections span every column ---- */
@@ -155,7 +149,7 @@
   .karte > form > .einblick {
     grid-column: 1 / -1;
     padding-top: var(--space-2);
-    border-top: var(--hairline) solid var(--outline-variant);
+    border-top: var(--line-width) solid var(--rule);
   }
 
   /* ---- the custom bag (Gruppe 7): key/value pairs inside the card's folded section ---- */
@@ -181,15 +175,14 @@
   }
   .column dt {
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   .column dd {
     margin: 0;
     font: var(--type-body);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
     padding: var(--space-1) 0;
-    border-bottom: var(--hairline) dashed var(--outline-variant);
+    border-bottom: var(--line-width) dashed var(--rule);
   }
 
   /* ---- footer action bar (spec §3): the create/confirm pages' one action row. The edit surface has
@@ -222,7 +215,7 @@
   /* ---- EDTF echo: neutral meta text under the Datierung field ---- */
   .echo {
     font: var(--type-meta); /* sits inside label.field — the field's gap owns the spacing (C4) */
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ---- media register (spec §6.3): the ledger's subgrid grammar reused. Row:
@@ -232,8 +225,7 @@
     --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content;
     display: grid;
     grid-template-columns: var(--media-cols);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
+    border: var(--line-width) solid var(--edge);
     overflow-x: auto;
   }
   .media > div {
@@ -245,21 +237,15 @@
     padding: var(--space-2) var(--space-3);
   }
   .media > div + div {
-    border-top: var(--hairline) solid var(--outline-variant);
-  }
-  /* the cover row sits a hair raised — a position cue, still neutral */
-  .media > div.cover {
-    background: var(--surface-container-mid);
+    border-top: var(--line-width) solid var(--rule);
   }
   .media img {
     width: 3rem; /* the register thumbnail box — one structural size, no token fits */
     height: 3rem; /* (same box) */
     object-fit: cover;
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
-    background: var(--surface-container-low);
+    border: var(--line-width) solid var(--edge);
   }
-  /* datei: filename (mono ink mark) + byte size, its own little stack (C4) */
+  /* datei: filename (mono) + byte size, its own little stack (C4) */
   .file {
     min-width: 0;
     display: flex;
@@ -268,24 +254,19 @@
   }
   .file > span {
     font: var(--type-mono);
-    color: var(--primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .file small {
     font: var(--type-mono-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
-  /* the TITELBILD cover mark — INVERSION (register row 3), never amber/violet/tint */
-  .titelbild {
+  /* the Titelbild cover mark: a state in words, never a box */
+  .file > .titelbild {
     align-self: flex-start;
-    padding: 0 var(--space-1);
-    background: var(--on-surface);
-    color: var(--surface);
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    border-radius: var(--radius-s);
+    color: var(--ink-2);
   }
   /* the row's icon toolbar carries NOTHING local — hit area, ink and hit floor all come from the
      shared icon-control rule, the end rows' disabled arrows included */
@@ -294,7 +275,7 @@
     align-items: baseline;
     gap: var(--space-2);
     font: var(--type-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ---- exposure statement (workbench/_einblick.html) ---- */
@@ -302,14 +283,11 @@
     margin: 0;
   }
 
-  /* ---- panel: the shared TRUE-SHEET base (register row 8). `.konflikt` is the CAS case: red LEFT
-     border + error heading only, never a flood fill — the diff stays neutral. ---- */
+  /* ---- panel: flat, framed by an edge. `.konflikt` is the CAS case: red LEFT border + error
+     heading only, never a flood fill — the diff stays neutral. ---- */
   .panel {
     padding: var(--space-4);
-    background: var(--sheet);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
-    box-shadow: var(--sheet-shadow);
+    border: var(--line-width) solid var(--edge);
   }
   .panel.konflikt {
     border-left: var(--state-border) solid var(--error);
@@ -317,7 +295,6 @@
   .panel h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-title);
-    color: var(--on-surface);
   }
   .panel.konflikt h2 {
     color: var(--error);
@@ -325,7 +302,6 @@
   .panel p {
     margin: 0 0 var(--space-2);
     font: var(--type-body);
-    color: var(--on-surface);
   }
   /* register rows inside a panel (the bulk confirm/result lists) */
   .panel ul {
@@ -341,11 +317,11 @@
     padding: var(--space-1) 0;
   }
   .panel li + li {
-    border-top: var(--hairline) solid var(--outline-variant);
+    border-top: var(--line-width) solid var(--rule);
   }
   .panel small {
     font: var(--type-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   /* the neutral field diff: changed values in mono, scrolling in its own box */
   .diff {
@@ -359,22 +335,20 @@
   .diff th {
     text-align: left;
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
     padding: var(--space-1) var(--space-3) var(--space-1) 0;
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    border-bottom: var(--line-width) solid var(--rule);
   }
   .diff td {
     padding: var(--space-2) var(--space-3) var(--space-2) 0;
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    border-bottom: var(--line-width) solid var(--rule);
     vertical-align: top;
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    color: var(--on-surface);
   }
   .diff td:first-child {
     font: var(--type-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
     white-space: nowrap;
   }
 
@@ -382,6 +356,5 @@
   .count {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    color: var(--on-surface);
   }
 }

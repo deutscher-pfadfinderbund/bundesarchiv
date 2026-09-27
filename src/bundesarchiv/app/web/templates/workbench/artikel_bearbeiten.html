@@ -40,8 +40,8 @@ the FIRST submit button in tree order, which is Speichern (spec §6.2: Enter nev
 <div class="recordrow">
   <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
   {% include "components/badge_lifecycle.html" with draft=values.is_draft only %}
-  {% comment %}The dirty register: a NEUTRAL badge (amber is licensed only on ENTWURF, register
-  row 4). Enhancement-only — the no-JS baseline simply never shows it.{% endcomment %}
+  {% comment %}The dirty register: a NEUTRAL badge.
+  Enhancement-only — the no-JS baseline simply never shows it.{% endcomment %}
   <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
   <div role="toolbar" aria-label="Satzaktionen">
     <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>

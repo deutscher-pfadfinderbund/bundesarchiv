@@ -6,12 +6,10 @@ component (``templates/components/``), each shown side-by-side in light and dark
 force ``color-scheme`` per container, and ``light-dark()`` resolves per element, so both modes
 render in one document without JS.
 
-ONE theme (owner ruling, 2026-08-06): the papier variant file and the variant toggle are gone —
-the papier recipe (sheet material) was promoted into the baseline as cue-register row 8
-(``docs/design/design-review-law.md``). Design iterations happen ON the real components.
+ONE theme (owner ruling, 2026-08-06): design iterations happen ON the real components.
 
 Doubles as developer documentation: every sample is annotated with its include path + params, and
-a token-swatch section shows the surface ramp and the primary/draft/error pairs with role names.
+a token-swatch section shows the monochrome ink/ground pairs and the lines with role names.
 Page chrome is English (development-facing); the SAMPLE CONTENT inside atoms is German (product
 UI copy). Sample data below is inert demo fixture data — no store, no index, no viewer.
 """
@@ -143,24 +141,17 @@ _LEDGER_COLUMNS = (
     {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
 )
 
-#: Token swatch sections: (section label, tuple of (background role, text role)).
-_SWATCH_SURFACE_RAMP = (
-    ("surface", "on-surface"),
-    ("surface-container-lowest", "on-surface"),
-    ("surface-container-low", "on-surface"),
-    ("surface-container-mid", "on-surface"),
-    ("surface-container-high", "on-surface"),
-)
-_SWATCH_SHEETS = (
-    ("sheet-lowest", "on-surface"),
-    ("sheet", "on-surface"),
-)
+#: Token swatches: (background role, text role) pairs, then the line roles.
 _SWATCH_PAIRS = (
-    ("primary", "on-primary"),
-    ("primary-container", "on-primary-container"),
-    ("draft", "on-draft"),
-    ("error", "on-error"),
+    ("ground", "ink"),
+    ("ground", "ink-2"),
+    ("ground", "ink-3"),
+    ("ink", "ground"),
+    ("error", "ground"),
+    ("band-ground", "band-ink"),
+    ("band-ground", "band-ink-2"),
 )
+_SWATCH_LINES = ("rule", "edge", "faint")
 
 
 def component_library(request: HttpRequest) -> HttpResponse:
@@ -175,9 +166,8 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "modes": _MODES,
             "sort_options": _SORT_OPTIONS,
             "facet_items_bestand": _FACET_ITEMS_BESTAND,
-            "swatch_surface_ramp": _SWATCH_SURFACE_RAMP,
-            "swatch_sheets": _SWATCH_SHEETS,
             "swatch_pairs": _SWATCH_PAIRS,
+            "swatch_lines": _SWATCH_LINES,
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
         },

@@ -8,8 +8,7 @@
   "use strict";
 
   // 1. Dirty register — reveal the neutral "Nicht gespeicherte Änderungen" badge on the first
-  // edit (amber is licensed only on the ENTWURF badge — cue-register row 4). No-JS can't detect
-  // dirtiness, so the baseline hides the badge (hidden attr); JS unhides it.
+  // edit. No-JS can't detect dirtiness, so the baseline hides the badge (hidden attr); JS unhides it.
   // Listen on the document and match the field's form OWNER, not DOM ancestry: caption and
   // custom-bag fields sit OUTSIDE #bearbeiten-form's subtree (the #medien-drawer fieldset holds the
   // real per-row forms, and forms cannot nest) but still ride its save via form= — an edit there is

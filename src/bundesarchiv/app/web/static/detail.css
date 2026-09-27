@@ -1,11 +1,7 @@
 /* Part 4.6 — Artikel DETAIL read view (the Lesesaal): the reading sheet composition and its two
    components (the record card, the plate register). Role tokens ONLY; a raw color here is a
    defect. Loads after tokens.css + components.css + layouts.css (which owns the shared .column).
-
-   Grammar (spec §0): violet ink appears ONLY on the Signatur (.c-sig), the mono machine values
-   (dd.mono, the Blatt count) and the inline links; the human Datierung under the title is NEUTRAL
-   body text (signals-once — the machine value carries the ink mark). No loud color anywhere on a
-   member view; the active plate is a neutral-ink INVERSION frame, never a tint. */
+   No loud color anywhere on a member view; the active plate is an ink frame, never a tint. */
 
 @layer compositions {
   /* Bestand breadcrumb in the page header (next to the Zurück link). It NAMES its type role rather
@@ -13,10 +9,9 @@
      meta role as the .back link beside it — the two were 15.2px and 13.6px on one row. */
   body > header nav a {
     font: var(--type-meta);
-    color: var(--primary);
   }
   body > header nav span {
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
     margin-inline: var(--space-1);
   }
 
@@ -31,7 +26,6 @@
   .column.wide header p {
     margin: var(--space-1) 0 0;
     font: var(--type-body);
-    color: var(--on-surface);
   }
 
   /* archivist action row: a quiet secondary cluster, top-right of the column */
@@ -63,13 +57,11 @@
   .split h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   .prose p {
     margin: 0 0 var(--space-3);
     font: var(--type-body);
-    color: var(--on-surface);
   }
 
   /* the composition owns the space around the Platte and above the plate register (C4) */
@@ -102,23 +94,19 @@
 }
 
 @layer components {
-  /* ---- cover Platte — THE focal point: a paper-mounted photo with a hairline edge. No bevel:
-     the cut is licensed solely on .c-sig (register row 1). ---- */
+  /* ---- cover Platte — THE focal point: a mounted photo with an edge ---- */
   .platte {
     padding: var(--space-3);
-    background: var(--surface-container-low);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-m);
+    border: var(--line-width) solid var(--edge);
   }
   .platte img {
     display: block;
     width: 100%;
     height: auto;
-    border-radius: var(--radius-s);
   }
   .platte figcaption {
     margin-top: var(--space-2);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
     font: var(--type-meta);
   }
 
@@ -130,9 +118,7 @@
     position: sticky;
     top: var(--space-4);
     padding: var(--space-4);
-    background: var(--surface-container-low);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-m);
+    border: var(--line-width) solid var(--edge);
   }
   .facts > div {
     margin-bottom: var(--space-3);
@@ -148,23 +134,21 @@
   }
   .facts dt {
     font: var(--type-label);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   .facts dd {
     margin: 0;
     font: var(--type-meta);
-    color: var(--on-surface);
     text-align: right;
   }
   .facts dd.mono {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    color: var(--primary);
   }
   /* archivist-only rows carry a quiet neutral "Nur intern" hint — NO loud color (§0 law trap) */
   .facts small {
     font: var(--type-mono-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   /* Schlagworte: ink-text links on the card, right-aligned like every value */
   .facts .tags {
@@ -184,12 +168,11 @@
   .filmstrip h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
-    letter-spacing: var(--label-tracking);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   .filmstrip h2 span {
     font: var(--type-mono-meta);
-    color: var(--primary);
+    color: var(--ink);
   }
   .filmstrip > div {
     display: flex;
@@ -200,21 +183,19 @@
   .filmstrip a {
     flex: 0 0 auto;
     width: 9rem; /* one plate width — the strip's own rhythm, no token fits */
-    color: var(--on-surface-variant);
-  }
-  .filmstrip a:hover {
+    color: var(--ink-2);
     text-decoration: none;
   }
   .filmstrip img {
     display: block;
     width: 100%;
     height: auto;
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
+    border: var(--line-width) solid var(--edge);
   }
   .filmstrip a[aria-current] img {
-    outline: 2px solid var(--on-surface); /* the focus-ring geometry, in neutral ink (row 3) */
-    outline-offset: 2px; /* (same) */
+    /* inset: the strip scrolls in its own box, which clips anything drawn outside a plate */
+    outline: var(--focus-width) solid var(--ink);
+    outline-offset: calc(-1 * var(--focus-width));
   }
   .filmstrip a > span {
     display: block;

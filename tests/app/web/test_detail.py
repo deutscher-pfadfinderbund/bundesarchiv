@@ -215,11 +215,10 @@ def test_member_published_view_carries_no_action_row(corpus: _DetailArchive) -> 
     assert "/bearbeiten" not in body
 
 
-def test_member_published_view_has_no_amber_or_red(corpus: _DetailArchive) -> None:
-    # §0/§9: a member published view carries NO draft (amber) or error (red) chrome.
+def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) -> None:
+    # §0/§9: a member published view carries NO draft mark or error (red) chrome.
     body = _body(Member(groups=()), corpus.pub)
     assert 'class="badge entwurf"' not in body
-    assert "--draft" not in body
     assert "--error" not in body
 
 

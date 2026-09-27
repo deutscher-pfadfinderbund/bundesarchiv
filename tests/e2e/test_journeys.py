@@ -356,8 +356,7 @@ _TOOLBAR_BUTTON_JS = """() => {
         probe.style.color = 'var(' + name + ')';
         return getComputedStyle(probe).color;
     };
-    const roles = {surface: role('--surface'), onSurface: role('--on-surface'),
-                   containerLow: role('--surface-container-low')};
+    const roles = {ground: role('--ground'), ink: role('--ink')};
     probe.remove();
     const buttons = [...document.querySelectorAll('[role=toolbar] a.button')].map((a) => {
         const s = getComputedStyle(a);
@@ -381,16 +380,16 @@ def _toolbar_buttons(page: Page) -> tuple[dict[str, str], list[dict[str, str | b
 
 def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
     """Every toolbar `a.button` on the current page, checked against the two role pairs the elements
-    layer declares for it: `.primary` is the INVERSION (`--surface` ink on `--on-surface`), a plain
-    one is `--on-surface` ink on `--surface-container-low`. Returns (how many were measured, defects)
-    so the caller can also assert the walk was not empty."""
+    layer declares for it: `.primary` is the INVERSION (`--ground` ink on `--ink`), a plain one is
+    `--ink` on `--ground`. Returns (how many were measured, defects) so the caller can also assert
+    the walk was not empty."""
     roles, buttons = _toolbar_buttons(page)
     defects: list[str] = []
     for button in buttons:
         want = (
-            (roles["surface"], roles["onSurface"])
+            (roles["ground"], roles["ink"])
             if button["primary"]
-            else (roles["onSurface"], roles["containerLow"])
+            else (roles["ink"], roles["ground"])
         )
         got = (button["color"], button["background"])
         if got != want:
@@ -400,7 +399,7 @@ def _toolbar_button_defects(page: Page, where: str) -> tuple[int, list[str]]:
     return len(buttons), defects
 
 
-def test_the_primary_toolbar_button_keeps_its_inversion_under_the_pointer(
+def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The RESTING ink of every toolbar button on every screen is walked by the C8 test above; this is
@@ -411,7 +410,7 @@ def test_the_primary_toolbar_button_keeps_its_inversion_under_the_pointer(
     # 14.06:1 -> 1.64:1 dark, and the hover rule dropped the inversion entirely, so the mark vanished
     # under the pointer. A computed check is the only honest one here — axe's color-contrast is
     # disabled by owner ruling (2026-08 audit), and in source a layer-outranked declaration looks
-    # exactly like a live one.
+    # exactly like a live one. Under the pointer the primary turns to its outline (DESIGN.md).
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto(live_workbench + f"/?artikel={e2e_corpus.published_ulid}")
@@ -419,11 +418,10 @@ def test_the_primary_toolbar_button_keeps_its_inversion_under_the_pointer(
     expect(primary).to_be_visible()
     primary.hover()
     roles, buttons = _toolbar_buttons(page)
-    # only the INK is pinned: the fill deepens toward --surface on hover by design
     marks = [b for b in buttons if b["primary"]]
-    assert marks and all(b["color"] == roles["surface"] for b in marks), (
-        f"hover discards the primary inversion: {marks}"
-    )
+    assert marks and all(
+        (b["color"], b["background"]) == (roles["ink"], roles["ground"]) for b in marks
+    ), f"hover loses the primary's outline roles: {marks}"
 
 
 def test_the_control_row_walk_sees_what_the_screens_compose(

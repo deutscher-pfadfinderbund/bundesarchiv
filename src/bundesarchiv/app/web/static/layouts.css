@@ -6,8 +6,8 @@
 @layer elements {
   body {
     margin: 0;
-    background: var(--surface);
-    color: var(--on-surface);
+    background: var(--ground);
+    color: var(--ink);
     font: var(--type-body);
   }
 }
@@ -53,12 +53,12 @@
     margin: 0 0 0 auto;
     font: var(--type-mono-meta);
     font-variant-numeric: tabular-nums;
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
      occasional chrome and recede). No wrapper band (law C10), so a hidden one collapses to
-     nothing. Open, it is furniture: flat, hairline, no tint (register row 8). ---- */
+     nothing. Open, it is flat with an edge. ---- */
   details.bulk summary {
     padding: var(--space-1) 0;
   }
@@ -67,14 +67,12 @@
   details.bulk summary [data-bulk-zahl] {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    color: var(--on-surface);
+    color: var(--ink);
     padding-inline-start: var(--space-3);
   }
   details.bulk[open] {
     padding: 0 var(--space-3) var(--space-3);
-    background: var(--surface-container-low);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
+    border: var(--line-width) solid var(--edge);
   }
   details.bulk > div:first-of-type {
     display: flex;
@@ -119,7 +117,7 @@
     --field-display: inherit; /* whatever display the context gives every other field */
   }
 
-  /* ---- preview pane: THE pulled sheet (register row 8) — tint, hairline, contact shadow.
+  /* ---- preview pane: the sheet beside the list — flat, framed by an edge.
      Knobs: --pane-top (the sheet's sticky offset). ---- */
   .pane > div {
     position: sticky;
@@ -130,10 +128,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    background: var(--sheet);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
-    box-shadow: var(--sheet-shadow);
+    background: var(--ground);
+    border: var(--line-width) solid var(--edge);
     padding: var(--space-4);
   }
   .pane :is(h2, p, ul) {
@@ -157,18 +153,16 @@
   }
   .pane h2 {
     font: var(--type-title);
-    color: var(--on-surface);
   }
   /* the meta line — a NAMED hook (law C1): positional selectors made every pane reshuffle a silent
      retarget risk */
   .pane .meta {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
-    color: var(--primary); /* mono meta = ink data (stamp grammar) */
   }
   .pane .meta span + span::before {
     content: " · ";
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
   /* media list — cover first (ADR 0015); no media shows one hollow placeholder */
   .pane ul {
@@ -186,9 +180,7 @@
     width: 100%;
     aspect-ratio: 4 / 3;
     object-fit: cover;
-    background: var(--surface-container-lowest);
-    border: var(--hairline) solid var(--outline-variant);
-    border-radius: var(--radius-s);
+    border: var(--line-width) solid var(--edge);
   }
   .pane .hollow {
     border-style: dashed;
@@ -196,7 +188,7 @@
   .pane li p {
     margin-top: var(--space-1);
     font: var(--type-meta);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ---- global htmx failure banner: viewport-fixed at the bottom, revealed by base.html's failure
@@ -215,7 +207,7 @@
     gap: var(--space-3);
     padding: var(--space-2) var(--space-4);
     background: var(--error);
-    color: var(--on-error);
+    color: var(--ground);
   }
   .error-banner p {
     margin: 0;
@@ -224,7 +216,7 @@
   .error-banner button {
     background: none;
     border: none;
-    color: var(--on-error);
+    color: inherit;
     font: var(--type-title);
     line-height: 1;
     padding: 0 var(--space-1);
@@ -247,20 +239,20 @@
     align-items: center;
     gap: var(--space-3) var(--space-4);
     padding: var(--space-3) var(--space-4);
-    background: var(--surface-container-high);
-    /* the fine double rule under the header (05 idea (b)) — ONLY here, quiet */
-    border-bottom: 3px double var(--outline); /* 3px: the minimum where `double` draws two hairlines — no token names a double-rule width */
+    /* the band: re-points the roles for its subtree (tokens.css) */
+    --ground: var(--band-ground);
+    --ink: var(--band-ink);
+    --ink-2: var(--band-ink-2);
+    background: var(--ground);
+    color: var(--ink);
+    border-bottom: var(--line-width) solid var(--band-edge);
   }
   /* the wordmark: the ONE place a display face has character (owner 2026-08-07) */
   .wordmark {
     font: var(--type-wordmark);
-    font-variant-caps: small-caps;
     letter-spacing: var(--wordmark-tracking);
-    color: var(--on-surface);
-    white-space: nowrap;
-  }
-  .wordmark:hover {
     text-decoration: none;
+    white-space: nowrap;
   }
   header [role="search"] {
     display: flex;
@@ -315,7 +307,7 @@
        guessed constant is what put the sheet under the row): the row's control height + its block
        padding on both sides + its bottom rule, plus the frame gap the sheet already rests in. */
     --pane-top: calc(
-      var(--recordrow-control) + 2 * var(--space-2) + var(--hairline) + var(--space-4)
+      var(--recordrow-control) + 2 * var(--space-2) + var(--line-width) + var(--space-4)
     );
   }
   .recordrow {
@@ -332,8 +324,8 @@
     align-items: center;
     gap: var(--space-2) var(--space-3);
     padding: var(--space-2) var(--space-4);
-    background: var(--surface);
-    border-bottom: var(--hairline) solid var(--outline-variant);
+    background: var(--ground);
+    border-bottom: var(--line-width) solid var(--rule);
   }
   .recordrow > [role="toolbar"] {
     margin-left: auto; /* the actions END the row — composition-owned placement (law C4) */
@@ -404,7 +396,6 @@
   .column h1 {
     margin: 0 0 var(--space-5);
     font: var(--type-display);
-    color: var(--on-surface);
   }
   /* the screen header: h1 / context + the reserved marks, once */
   .column header {
@@ -426,7 +417,6 @@
   /* a confirm page names WHICH record: the quoted title next to its Signatur mark */
   .column header strong {
     font: var(--type-title);
-    color: var(--on-surface);
   }
   /* the BETWEEN is the composition's, whatever the paragraph is (law C4) */
   .column > p {
@@ -437,7 +427,7 @@
      outrank them (law C13's second mechanism). */
   .column > p:not([class]) {
     font: var(--type-body);
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ---- dev viewer-switcher stub (dev.py) ---- */
@@ -451,7 +441,7 @@
     margin: 0 0 var(--space-3);
   }
   .stub p {
-    color: var(--on-surface-variant);
+    color: var(--ink-2);
   }
 
   /* ============================================================

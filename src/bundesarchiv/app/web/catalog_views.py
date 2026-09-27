@@ -639,7 +639,7 @@ class _Field:
     bag's inputs (the escape hatch).
 
     ``fit`` is a text control's width class from its content's ceiling (learning G.31): ``kurz`` for
-    a short domain value, ``signatur`` for the Signatur (which also takes its violet ink), or ``""``
+    a short domain value, ``signatur`` for the Signatur (which also takes the mono face), or ``""``
     to fill the value cell.
 
     ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
@@ -1154,7 +1154,7 @@ def _sheet_view_model(article: Article, bestand: BestandChooser) -> _SheetViewMo
         ref_code=read.ref_code or "",
         # the machine value through the ONE machine-date renderer (vocab.datierung_mono, law C7) —
         # exactly what the workbench pane, the reader's own preview of a record, prints in this very
-        # .meta hook (mono violet, register row 2). The human-German spelling has its own single
+        # .meta hook (mono). The human-German spelling has its own single
         # renderer (vocab.edtf_to_german) and belongs to the detail reader's header.
         datierung=vocab.datierung_mono(read.date),
         thumb_url=(thumbnail_url(read.ulid, read.media[0].content_hash) if read.media else ""),
