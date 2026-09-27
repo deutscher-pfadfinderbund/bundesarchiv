@@ -1,4 +1,4 @@
-"""Controlled vocabulary + the EDTF German echo for the cataloging form (Part 4.7, spec §3/§4/§5).
+"""Controlled vocabulary + the human-German date (Part 4.7, spec §3/§4).
 
 Two pure presentation helpers, IO-free and request-free so the form controller and its tests read
 one source with no database:
@@ -11,11 +11,10 @@ one source with no database:
   ``document_types_for`` / ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set
   so the dependent-select render (no-JS baseline), the server-side pair re-validation, and the HTMX
   ``/dokumenttypen`` endpoint never derive the vocabulary twice.
-- ``edtf_to_german`` — the human-German echo rendered server-side after a submit (spec §5) AND the
-  4.6 detail-page date presentation (the sentence under the title). It reads the already-validated
-  ``EdtfDate`` value object; an absent date yields an empty echo. It stays a DISPLAY helper: it never
-  validates (the field's error path owns that), so it can only ever return neutral body text, never
-  an error. Its month/century phrasings are PROVISIONAL pending owner sign-off (4.6 §11 Q1).
+- ``edtf_to_german`` — the 4.6 detail-page date presentation (the sentence under the title). It
+  reads the already-validated ``EdtfDate`` value object; an absent date yields ``""``. It stays a
+  DISPLAY helper: it never validates (the field's error path owns that), so it can only ever return
+  neutral body text, never an error. Its month/century phrasings are PROVISIONAL pending owner sign-off (4.6 §11 Q1).
 """
 
 from bundesarchiv.domain.edtf import EdtfDate
@@ -164,7 +163,7 @@ def datierung_mono(date: EdtfDate | None) -> str:
     return date.value if date is not None else ""
 
 
-# --- EDTF -> German echo -----------------------------------------------------------
+# --- EDTF -> German ----------------------------------------------------------------
 
 #: EDTF season codes -> German season word (spec open-question 2; seasons 21-24).
 _SEASONS: dict[str, str] = {"21": "Frühjahr", "22": "Sommer", "23": "Herbst", "24": "Winter"}
@@ -189,11 +188,11 @@ _MONTHS: dict[str, str] = {
 
 
 def edtf_to_german(date: EdtfDate | None) -> str:
-    """Render an already-validated ``EdtfDate`` to a human-German echo sentence fragment (spec §5).
+    """Render an already-validated ``EdtfDate`` to a human-German sentence fragment.
 
-    A DISPLAY helper only: an absent date yields ``""`` (no echo), and any form this small mapping
-    does not phrase falls back to the verbatim EDTF value — the echo is never an error surface, so it
-    stays neutral body text. Handles the common Level 0/1 shapes the archivist types: plain year,
+    A DISPLAY helper only: an absent date yields ``""``, and any form this small mapping does not
+    phrase falls back to the verbatim EDTF value — it is never an error surface, so it stays neutral
+    body text. Handles the common Level 0/1 shapes the archivist types: plain year,
     decade (``197X`` → ``1970er``), qualifiers (``~`` → ``um``, ``?`` → ``(unsicher)``), and closed
     intervals (``A/B`` → ``A bis B``). Open intervals and unspecified centuries echo verbatim."""
     if date is None:

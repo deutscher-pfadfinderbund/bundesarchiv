@@ -113,14 +113,14 @@ def test_search_works_from_a_screen_without_the_results_region(
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
 
 
-def test_the_edit_forms_two_small_swaps_land_their_own_partials(
+def test_the_edit_forms_small_swap_lands_its_own_partial(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # The same class one level down (G.27/G.32): htmx INHERITS hx-select, so #bearbeiten-form's
-    # hx-select="#form-region" reached the two little GET enhancements inside it — whose responses are
-    # an <option> list and one <span>, containing no #form-region. htmx selected nothing and swapped
-    # exactly that: picking a Medienart EMPTIED the Dokumenttyp select, and typing a Datierung deleted
-    # the echo's own target. Enhancement-only, so no server-side test saw it.
+    # hx-select="#form-region" reached the little GET enhancement inside it — whose response is an
+    # <option> list, containing no #form-region. htmx selected nothing and swapped exactly that:
+    # picking a Medienart EMPTIED the Dokumenttyp select. Enhancement-only, so no server-side test
+    # saw it.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
     dokumenttyp = page.locator("#dokumenttyp-select")
@@ -130,8 +130,6 @@ def test_the_edit_forms_two_small_swaps_land_their_own_partials(
     # Medienart narrows the vocabulary, so the only thing that tells them apart is the baseline's
     # single <optgroup>, which the partial does not emit. Without this the half is vacuous.
     expect(dokumenttyp.locator("optgroup")).to_have_count(0)
-    page.locator('input[name="date"]').press_sequentially("1962-07")
-    expect(page.locator("#datierung-echo")).to_have_text("Juli 1962")
 
 
 def test_ledger_headers_compute_one_uniform_treatment(

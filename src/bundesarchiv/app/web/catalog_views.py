@@ -41,7 +41,6 @@ from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.access import VisibilityPreview, preview, project
 from bundesarchiv.domain.collections import resolve_chain
-from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
@@ -525,17 +524,6 @@ def _human_size(byte_size: int | None) -> str:
     return f"{size:.1f} GB"
 
 
-def _edtf_echo(date_value: str) -> str:
-    """The server-side EDTF echo (spec §5): render the human-German sentence if the value parses,
-    else empty (a bad value shows its field error, not a broken echo)."""
-    if not date_value.strip():
-        return ""
-    try:
-        return vocab.edtf_to_german(EdtfDate(date_value.strip()))
-    except ValueError:
-        return ""
-
-
 def _article_to_form_values(article: Article) -> dict[str, object]:
     """A stored Article → the flat form-value dict the template prints (GET seed). Every field's own
     ``seed`` renders it; ``custom_rows`` and ``is_draft`` are the two shapes no single field owns."""
@@ -661,7 +649,6 @@ class _Field:
     element_id: str = ""
     hx: tuple[tuple[str, str], ...] = ()
     hx_get: str = ""
-    echo: bool = False
     fit: str = ""
     scanned: bool = False
     focusable: bool = False
@@ -764,15 +751,6 @@ _FIELDS: tuple[_Field, ...] = (
         control="text",
         section="einordnung",
         hint="z. B. 1962, 1984/1995, 1970~ (EDTF)",
-        # Debounced keyup swaps the human-German echo below. No-JS baseline unchanged: the echo also
-        # renders server-side after any submit.
-        hx_get="artikel-datierung-echo",
-        hx=(
-            ("hx-trigger", "keyup changed delay:400ms"),
-            ("hx-target", "#datierung-echo"),
-            ("hx-swap", "outerHTML"),
-        ),
-        echo=True,
         fit="kurz",
         scanned=True,
         focusable=True,
@@ -919,8 +897,6 @@ class _CardRow:
     blank: str
     element_id: str
     hx: tuple[tuple[str, str], ...]
-    echo: bool
-    echo_text: str
     fit: str
 
 
@@ -934,8 +910,7 @@ def _card_fields(
     """The card's rows grouped by section, in DOM order — the ONE list the template loops over.
 
     Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
-    focuses nothing rather than nothing-visible. ``echo`` is the Datierung field's human-German line;
-    it is empty for every other row and for a value that does not parse."""
+    focuses nothing rather than nothing-visible."""
     option_lists: dict[str, _Options] = {
         "collection_options": bestand.options(),
         "media_type_options": vocab.media_type_options(),
@@ -964,8 +939,6 @@ def _card_fields(
                 blank=registered.blank,
                 element_id=registered.element_id,
                 hx=hx,
-                echo=registered.echo,
-                echo_text=_edtf_echo(value) if registered.echo else "",
                 fit=registered.fit,
             )
         )
@@ -1370,11 +1343,10 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
     return tuple(r for r in media if r.content_hash != content_hash)
 
 
-# --- HTMX enhancement partials (Slice E, spec §5) ----------------------------------
-# Two archivist-gated GET transforms the edit form's HTMX layer swaps in. Both have a no-JS baseline
-# already shipped (the grouped optgroup select; the server-side echo after submit), so these ONLY
-# remove a round-trip. Pure transforms, no mutation. Gated via _load_gated -> byte-identical 404 for
-# anyone else and NEVER partial content (they join the 4.10 leak suite).
+# --- HTMX enhancement partial (Slice E, spec §5) -----------------------------------
+# An archivist-gated GET transform the edit form's HTMX layer swaps in. Its no-JS baseline already
+# ships (the grouped optgroup select), so it ONLY removes a round-trip. A pure transform, no mutation.
+# Gated via _load_gated -> 404 for anyone else and NEVER partial content (the 4.10 leak suite).
 
 
 def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -1391,18 +1363,4 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
         request,
         "workbench/_dokumenttyp_options.html",
         {"document_types": vocab.document_types_for(media_type)},
-    )
-
-
-def article_datierung_echo(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /artikel/<ulid>/datierung-echo?date=`` — the human-German EDTF echo line (spec §5).
-    Archivist-only, GET-only. Empty echo for an unparseable value (no error surface while typing —
-    validation errors ride the field on submit, not the echo)."""
-    gated = _load_gated(request, ulid)
-    if gated is None or request.method != "GET":
-        return _not_found()
-    return render_screen(
-        request,
-        "workbench/_datierung_echo.html",
-        {"edtf_echo": _edtf_echo(request.GET.get("date", ""))},
     )

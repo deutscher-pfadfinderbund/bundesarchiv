@@ -249,10 +249,6 @@ def _p_dokumenttypen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/dokumenttypen"
 
 
-def _p_datierung_echo(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/datierung-echo"
-
-
 def _p_detail(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}"
 
@@ -373,13 +369,6 @@ _CONTRACT: dict[str, Route] = {
         build_path=_p_dokumenttypen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # options partial
-        post_nonarch=FOUR_OH_FOUR,
-        post_arch=FOUR_OH_FOUR,  # POST disallowed
-    ),
-    "artikel-datierung-echo": Route(
-        build_path=_p_datierung_echo,
-        get_nonarch=FOUR_OH_FOUR,
-        get_arch=OK,  # echo partial
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),

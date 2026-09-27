@@ -65,7 +65,6 @@ flowchart TD
     LAND["Create step, Bestand pre-selected\n(artikel-neu?bestand=…&angelegt=…)"] --> NEU
     NEU -->|"POST: draft created"| EDIT["Edit form (artikel-bearbeiten)"]
     EDIT -.->|"Medienart change (artikel-dokumenttypen)"| EDIT
-    EDIT -.->|"Datierung blur → echo (artikel-datierung-echo)"| EDIT
     EDIT -->|"media upload / caption / reorder / remove"| EDIT
     EDIT -->|"Speichern"| SAVE{"CAS check"}
     SAVE -->|"clean"| READ["Read view (artikel-detail)"]

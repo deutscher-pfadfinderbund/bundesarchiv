@@ -1,14 +1,12 @@
-"""HTMX enhancement endpoints (Part 4.7 Slice E, spec §5).
+"""HTMX enhancement endpoint (Part 4.7 Slice E, spec §5).
 
-Two archivist-gated GET partials the edit form's HTMX layer swaps in (the no-JS baseline renders the
-same content server-side and is unchanged):
+``/artikel/<ulid>/dokumenttypen?medienart=`` → the Dokumenttyp option list for one Medienart, the
+partial the edit form's HTMX layer swaps in (the no-JS baseline renders the same content
+server-side and is unchanged).
 
-- ``/artikel/<ulid>/dokumenttypen?medienart=`` → the Dokumenttyp option list for one Medienart.
-- ``/artikel/<ulid>/datierung-echo?date=`` → the human-German EDTF echo line.
-
-Both are archivist-gated via _load_gated → 404 for Member/Public/anon/malformed/absent,
+It is archivist-gated via _load_gated → 404 for Member/Public/anon/malformed/absent,
 and must NEVER render partial content for a non-archivist (content-absence asserts — they join the
-4.10 leak suite). Pure transforms; no mutation. Plus the state-H index-lag hinweis on the save path.
+4.10 leak suite). A pure transform; no mutation. Plus the state-H index-lag hinweis on the save path.
 """
 
 import pytest
@@ -53,52 +51,11 @@ def test_dokumenttypen_post_is_404(corpus: Corpus) -> None:
     )
 
 
-# --- /datierung-echo ---------------------------------------------------------------
-
-
-def test_datierung_echo_renders_german(corpus: Corpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/datierung-echo?date=1962")
-    assert response.status_code == 200
-    assert "1962" in response.content.decode()
-
-
-def test_datierung_echo_decade(corpus: Corpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/datierung-echo?date=197X")
-    assert "1970er" in response.content.decode()
-
-
-def test_datierung_echo_invalid_is_empty(corpus: Corpus) -> None:
-    # a bad value yields an EMPTY echo (no error surface while typing, spec §5). The wrapper span
-    # stays present (a stable HTMX swap target) but carries no echo text.
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/datierung-echo?date=unsinn")
-    assert response.status_code == 200
-    body = response.content.decode()
-    assert 'id="datierung-echo"' in body  # the swap target is present
-    assert "unsinn" not in body  # but no echo rendered for the bad value
-
-
-@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_datierung_echo_denied_is_404_never_content(corpus: Corpus, viewer: Viewer) -> None:
-    response = client_as(viewer).get(f"/artikel/{DRAFT_ULID}/datierung-echo?date=1962")
-    assert_denied(response)
-    assert b"1962" not in response.content  # no echo leaked
-
-
-def test_datierung_echo_post_is_404(corpus: Corpus) -> None:
-    # GET-only (a pure transform); a POST must not reach it.
-    assert (
-        client_as(Archivist())
-        .post(f"/artikel/{DRAFT_ULID}/datierung-echo", {"date": "1962"})
-        .status_code
-        == 404
-    )
-
-
 @pytest.mark.parametrize(
     "path",
     [
         "/artikel/not-a-ulid/dokumenttypen?medienart=Foto(s)",
-        "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/datierung-echo?date=1962",  # well-formed absent
+        "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/dokumenttypen?medienart=Foto(s)",  # well-formed absent
     ],
 )
 def test_htmx_endpoints_malformed_or_absent_ulid_is_404(corpus: Corpus, path: str) -> None:

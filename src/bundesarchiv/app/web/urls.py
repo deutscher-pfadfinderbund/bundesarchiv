@@ -17,7 +17,6 @@ from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttype
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
     article_create,
-    article_datierung_echo,
     article_delete,
     article_dokumenttypen,
     article_edit,
@@ -72,9 +71,6 @@ urlpatterns = [
         name="artikel-medien-hochladen",
     ),
     path("artikel/<str:ulid>/dokumenttypen", article_dokumenttypen, name="artikel-dokumenttypen"),
-    path(
-        "artikel/<str:ulid>/datierung-echo", article_datierung_echo, name="artikel-datierung-echo"
-    ),
     path("artikel/<str:ulid>", article_detail, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

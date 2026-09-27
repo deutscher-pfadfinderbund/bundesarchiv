@@ -7,7 +7,7 @@ of the record card exists.
 It stays a bare <label>: the card sets its row knobs on `.fach > .field`, a direct-child path (law
 C14), so a wrapper here would drop the row off its own axis. Inside a label the hint and error text
 would join the control's accessible name, so the control names itself from the label span alone
-(aria-labelledby) and takes the messages — and the Datierung echo — as its description.
+(aria-labelledby) and takes the messages as its description.
 {% endcomment %}{% with base="feld-"|add:feld.name %}<label class="field">
   <span id="{{ base }}-label">{{ feld.label }}</span>
   {% if feld.control == "select" %}
@@ -32,6 +32,5 @@ would join the control's accessible name, so the control names itself from the l
   {% endif %}
   {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}</span>{% endif %}
   {% if feld.error %}<span class="error" id="{{ base }}-fehler">{{ feld.error }}</span>{% endif %}
-  {% if feld.echo %}{% include "workbench/_datierung_echo.html" with edtf_echo=feld.echo_text only %}{% endif %}
 </label>
 {% endwith %}

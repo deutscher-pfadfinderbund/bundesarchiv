@@ -1,5 +1,0 @@
-{% comment %}
-EDTF German echo line (spec §5). The enhancement swaps THIS in as the archivist types; the no-JS
-baseline renders the same line after a submit. Empty when the value is unparseable — validation
-errors ride the field, not the echo. The wrapper span is always present so the swap has a target.
-{% endcomment %}<span class="echo" id="datierung-echo">{% if edtf_echo %}{{ edtf_echo }}{% endif %}</span>

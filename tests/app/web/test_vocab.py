@@ -1,4 +1,4 @@
-"""The cataloging-form controlled vocabulary + EDTF echo (Part 4.7, spec §3/§4/§5).
+"""The cataloging-form controlled vocabulary + the human-German date (Part 4.7, spec §3/§4).
 
 Two pure presentation helpers the form controller reads:
 
@@ -6,9 +6,8 @@ Two pure presentation helpers the form controller reads:
   vocabulary. The legacy lists are pinned verbatim here (a silent edit to a Medienart the legacy
   archive already uses would orphan records); the pair rule itself is proven against a NARROWED
   vocabulary, because every Medienart currently offers the full Dokumenttyp list.
-- ``edtf_to_german`` — the human-German echo rendered server-side after submit (spec §5). Anything
-  the EDTF value object rejects yields an empty echo (no echo while the value is unparseable), so
-  the echo is never an error surface — validation errors ride the field, not the echo.
+- ``edtf_to_german`` — the human-German date the detail page prints. It is never an error
+  surface: validation errors ride the field.
 """
 
 import pytest
@@ -141,30 +140,30 @@ def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabul
     )
 
 
-# --- EDTF -> German echo -----------------------------------------------------------
+# --- EDTF -> German ----------------------------------------------------------------
 
 
-def test_edtf_echo_plain_year() -> None:
+def test_edtf_german_plain_year() -> None:
     assert vocab.edtf_to_german(EdtfDate("1962")) == "1962"
 
 
-def test_edtf_echo_decade() -> None:
+def test_edtf_german_decade() -> None:
     assert vocab.edtf_to_german(EdtfDate("197X")) == "1970er"
 
 
-def test_edtf_echo_approximate() -> None:
+def test_edtf_german_approximate() -> None:
     assert vocab.edtf_to_german(EdtfDate("1970~")) == "um 1970"
 
 
-def test_edtf_echo_uncertain() -> None:
+def test_edtf_german_uncertain() -> None:
     assert vocab.edtf_to_german(EdtfDate("1970?")) == "1970 (unsicher)"
 
 
-def test_edtf_echo_interval() -> None:
+def test_edtf_german_interval() -> None:
     assert vocab.edtf_to_german(EdtfDate("1984/1995")) == "1984 bis 1995"
 
 
-def test_edtf_echo_none_is_empty() -> None:
+def test_edtf_german_none_is_empty() -> None:
     assert vocab.edtf_to_german(None) == ""
 
 
@@ -189,10 +188,10 @@ _EDTF_TABLE_46 = [
 
 
 @pytest.mark.parametrize(("edtf", "expected"), _EDTF_TABLE_46)
-def test_edtf_echo_detail_table(edtf: str, expected: str) -> None:
+def test_edtf_german_detail_table(edtf: str, expected: str) -> None:
     assert vocab.edtf_to_german(EdtfDate(edtf)) == expected
 
 
-def test_edtf_echo_approximate_month_composes() -> None:
+def test_edtf_german_approximate_month_composes() -> None:
     # a qualifier over a YYYY-MM composes with the month name (um + Juli 1958)
     assert vocab.edtf_to_german(EdtfDate("1958-07~")) == "um Juli 1958"

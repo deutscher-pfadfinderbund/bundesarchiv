@@ -211,12 +211,6 @@
 }
 
 @layer components {
-  /* ---- EDTF echo: neutral meta text under the Datierung field ---- */
-  .echo {
-    font: var(--type-meta); /* sits inside label.field — the field's gap owns the spacing (C4) */
-    color: var(--ink-2);
-  }
-
   /* ---- media register (spec §6.3): the ledger's subgrid grammar reused. Row:
      [thumb][datei][caption][action toolbar] — one slot, since the three text links became icons
      (owner ruling 6). Scrolls in its own box; the page body never scrolls sideways. ---- */
