@@ -525,7 +525,9 @@ _OVERLAY_WALK_JS = (
 _CONTAINMENT_WIDTHS = (360, 540, 680, 900, 1100, 1440)
 
 
-def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHandles) -> list[str]:
+def _walk_overlay_containment(
+    page: Page, live_workbench: str, corpus: CorpusHandles, *, anchored: bool
+) -> list[str]:
     """Open every overlay on every screen that composes one, at every containment width, and return the
     containment defects.
 
@@ -536,7 +538,11 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
     ONE ``goto`` per screen, widths swept INSIDE it, and one ``evaluate`` per (screen, width):
     containment and reachability are pure CSS-geometry questions, so re-loading the page at each width
     and paying two click round-trips per panel bought nothing. The old two-page list spent 16 avoidable
-    page loads on it; this walk visits nine more screens for less wall clock."""
+    page loads on it; this walk visits nine more screens for less wall clock.
+
+    ``anchored`` adds the anchored tier's own promise (G.50): each panel hangs from ITS trigger, the
+    drop gap below it and no more. Two menus on one page resolving one anchor name land a panel under
+    the other menu's button, which stays on-viewport and below its trigger."""
     defects: list[str] = []
     for screen in SCREENS:
         if not screen.overlays:
@@ -555,6 +561,12 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
                 if float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
                     defects.append(
                         f"{where}: panel top {rect['top']}px covers its trigger "
+                        f"(bottom {rect['triggerBottom']}px)"
+                    )
+                # the drop gap is --space-1 (4px); the slack covers rounding
+                if anchored and float(str(rect["top"])) > float(str(rect["triggerBottom"])) + 8:
+                    defects.append(
+                        f"{where}: panel top {rect['top']}px does not hang from its trigger "
                         f"(bottom {rect['triggerBottom']}px)"
                     )
                 if float(str(rect["left"])) < -1:
@@ -601,7 +613,8 @@ def test_overlays_stay_inside_the_viewport(
         "this browser has no anchor positioning — the anchored tier would go unproven"
     )
     defects = [
-        f"[anchored] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
+        f"[anchored] {d}"
+        for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=True)
     ]
     page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
     page.goto(live_workbench + "/")
@@ -613,7 +626,8 @@ def test_overlays_stay_inside_the_viewport(
         f"the enhancement is still live — the fallback tier would go unproven: {anchors}"
     )
     defects += [
-        f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
+        f"[fallback] {d}"
+        for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=False)
     ]
     assert not defects, "overlays leaving the viewport (G.26):\n" + "\n".join(defects)
 
