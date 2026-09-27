@@ -75,3 +75,54 @@
      the Standort line sits as close to it as the origin line sits to the title */
   article > header > .prose { margin-block: 0; }
 }
+
+@layer components {
+  /* ---------- gallery — the article's images in justified rows ----------
+     Knobs: --gallery-row (the target row height, default 16rem; one image 30rem, two 22rem).
+     Each figure carries --r (its image's width ÷ height). Its flex basis and its growth are both
+     proportional to --r, so every image in a row ends at the same height, keeps its own shape (no
+     crop, no white bands) and the row is flush at both edges — no image grows or shrinks out of
+     its row. The last row grows only a little (the trailing spacer takes a share of its free space).
+     A lone image is capped by the viewport height, so it is always seen whole. Each image links to
+     the full file; lightbox.js turns the links into the lightbox. Caption under the image, optional. */
+  .gallery { --gallery-row: 16rem; display: flex; flex-wrap: wrap; gap: var(--space-5) var(--space-3); margin: 0; padding: 0; list-style: none; }
+  .gallery:has(> li:nth-child(2):last-child) { --gallery-row: 22rem; }
+  .gallery:has(> li:only-child) { --gallery-row: 30rem; }
+  .gallery::after { content: ""; flex-grow: 1; } /* the last row may grow a little, never to giant images; a one-row gallery ends near flush */
+  .gallery > li { flex: var(--r) 1 calc(var(--r) * var(--gallery-row)); min-inline-size: 0; max-inline-size: calc(var(--r) * 75vh); }
+  .gallery figure { margin: 0; }
+  .gallery a { display: block; }
+  .gallery img { display: block; inline-size: 100%; block-size: auto; aspect-ratio: var(--r); background: var(--placeholder); }
+  .gallery figcaption { margin-block-start: var(--space-2); font: var(--type-meta); color: var(--ink-2); }
+  @container (width < 40rem) { .gallery { --gallery-row: 9rem; } .gallery:has(> li:only-child) { --gallery-row: 16rem; } }
+
+  /* A PDF is one more item of the gallery: its first page as the thumbnail (--r from the page), the
+     caption names the file ("PDF, 10 Seiten"), and the link opens the PDF in a new tab — the browser's
+     own viewer pages, zooms and searches better than any tile grid (owner, 2026-09-28). lightbox.js
+     leaves links with a target alone. */
+  .gallery a[target] img { border: var(--line-width) solid var(--edge); }
+
+  /* ---------- lightbox — one image at a time, full screen (native <dialog>) ----------
+     Knobs: none. Built by lightbox.js from a .gallery: showModal gives the top layer, focus
+     containment, Esc and focus return. The band surface (black) lets the image stand alone;
+     ‹ › and the arrow keys step through the article's images and wrap; the count says where you
+     are; the caption stays under the image. */
+  .lightbox {
+    --ground: var(--band-ground); --ink: var(--band-ink); --ink-2: var(--band-ink-2);
+    inset: 0; inline-size: 100vw; block-size: 100vh; max-inline-size: none; max-block-size: none; margin: 0;
+    padding: var(--space-6); border: 0; background: var(--ground); color: var(--ink);
+    display: none; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--space-4);
+  }
+  .lightbox[open] { display: grid; }
+  .lightbox::backdrop { background: var(--band-ground); }
+  .lightbox figure { grid-column: 2; grid-row: 2; margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--space-3); min-block-size: 0; }
+  .lightbox img { inline-size: 100%; block-size: 100%; object-fit: contain; min-block-size: 0; }
+  .lightbox figcaption { font: var(--type-meta); color: var(--ink-2); text-align: center; }
+  .lightbox-count { grid-column: 1 / -1; grid-row: 1; margin: 0; font: var(--type-meta); color: var(--ink-2); }
+  .lightbox-close { grid-column: 3; grid-row: 1; justify-self: end; }
+  .lightbox-prev { grid-column: 1; grid-row: 2; }
+  .lightbox-next { grid-column: 3; grid-row: 2; }
+  .lightbox :is(.lightbox-prev, .lightbox-next, .lightbox-close) { display: inline-grid; place-items: center; align-self: center; min-inline-size: var(--space-9); min-block-size: var(--space-9); color: var(--ink-2); --icon-size: 1.75rem; }
+  .lightbox :is(.lightbox-prev, .lightbox-next, .lightbox-close):hover { color: var(--ink); }
+  .lightbox:has(figure[data-single]) :is(.lightbox-prev, .lightbox-next) { visibility: hidden; }
+}

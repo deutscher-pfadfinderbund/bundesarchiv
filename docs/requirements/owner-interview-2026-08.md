@@ -772,3 +772,13 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 - **Legacy tables of contents** held in Schlagworte (94 records): the archivists decide whether
   they move into Beschreibung.
 - **Versions:** a simple solution is enough for now (list the versions, view an old one).
+
+## Rulings of 2026-09-28 (article media)
+
+- **Images carry alt text and an optional caption.** Alt text may be generated automatically in an
+  offline batch process; the caption is the archivist's.
+- **Images open in a lightbox** with forward and backward navigation.
+- **Images keep their own shape.** No image is cropped or letterboxed into a fixed tile, and none
+  shrinks or grows out of its row: the article's images sit in justified rows of equal height.
+- **A PDF shows as a thumbnail of its first page** and opens in a new tab (the browser's own
+  viewer); no grid of small page tiles, no embedded viewer.
