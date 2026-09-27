@@ -40,11 +40,9 @@
   .filterrail > .filterset {
     display: contents;
   }
-  /* the rail's two TEXT occupants keep their own type role — the clear-all link ("Alle Filter
-     entfernen", owner 2026-08-07 rail round 2: a quiet text link ending the chip row, deliberately
-     not a chip) and the "N Treffer" count. */
-  .filterrail > .filterset > a,
-  .filterrail > p {
+  /* the clear-all link ("Alle Filter entfernen", owner 2026-08-07 rail round 2): a quiet text
+     link ending the chip row, deliberately not a chip */
+  .filterrail > .filterset > a {
     font: var(--type-meta);
   }
   /* the count ENDS the rail line (law C10: status text rides an occupied band). Demoted status
@@ -141,14 +139,12 @@
   .pane header h2 {
     flex: 1 1 auto;
     min-width: 0;
+    font: var(--type-title);
   }
   /* the ✕ close: hit area and ink come from the shared icon-control rule. The one local delta is
      alignment — an icon-only flex item has no text baseline to share with the header. */
   .pane header > a {
     align-self: flex-start;
-  }
-  .pane h2 {
-    font: var(--type-title);
   }
   /* the meta line — a NAMED hook (law C1): positional selectors made every pane reshuffle a silent
      retarget risk */
@@ -207,7 +203,6 @@
   }
   .error-banner p {
     margin: 0;
-    font: var(--type-body);
   }
   .error-banner button {
     background: none;
@@ -388,7 +383,6 @@
      component roles, and this layer sits above theirs, so an unnarrowed rule would silently
      outrank them (law C13's second mechanism). */
   .column > p:not([class]) {
-    font: var(--type-body);
     color: var(--ink-2);
   }
 

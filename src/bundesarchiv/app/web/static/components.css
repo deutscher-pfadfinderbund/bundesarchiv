@@ -240,7 +240,7 @@
     color: var(--ink);
     text-decoration: none;
   }
-  :is([role="toolbar"] > button.link):disabled {
+  [role="toolbar"] > button.link:disabled {
     color: var(--faint);
   }
 
@@ -455,11 +455,9 @@
   .record-meta p {
     margin: 0;
   }
-  /* Gruppen means something only at the GROUPS rung; without :has it simply stays visible */
-  @supports selector(:has(a)) {
-    .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
-      --field-display: none;
-    }
+  /* Gruppen means something only at the GROUPS rung */
+  .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
+    --field-display: none;
   }
   /* a conflict outranks everything in the margin: the heavy rule and a red subhead (rows 5, 15) */
   .record-meta-alert {
@@ -560,8 +558,6 @@
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
     z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
     margin: 0;
-  }
-  .facet > ul {
     /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
     inset-inline-start: 0;
     min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
@@ -847,10 +843,9 @@
   .ledger :is([role="cell"], [role="columnheader"]) {
     min-width: 0;
   }
-  /* header cells: ONE treatment for every column head, span and anchor alike — proven computed,
-     not claimed here (learning G.1). Sortable heads differ only by the link affordance. */
-  .ledger [role="columnheader"],
-  .ledger [role="columnheader"] a {
+  /* header cells: ONE treatment for every column head; a sortable head's link inherits it and
+     differs only by the link affordance — proven computed, not claimed here (learning G.1). */
+  .ledger [role="columnheader"] {
     font: var(--type-label);
     color: var(--ink-2);
   }

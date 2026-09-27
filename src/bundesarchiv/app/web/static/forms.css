@@ -96,7 +96,6 @@
   }
   .panel p {
     margin: 0 0 var(--space-2);
-    font: var(--type-body);
   }
   /* register rows inside a panel (the bulk confirm/result lists) */
   .panel ul {

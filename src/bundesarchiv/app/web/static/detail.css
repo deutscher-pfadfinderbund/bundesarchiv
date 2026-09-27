@@ -20,12 +20,8 @@
     display: block;
     margin-bottom: var(--space-5);
   }
-  .column.wide header h1 {
-    margin: 0;
-  }
   .column.wide header p {
     margin: var(--space-1) 0 0;
-    font: var(--type-body);
   }
 
   /* archivist action row: a quiet secondary cluster, top-right of the column */
@@ -54,14 +50,14 @@
   .prose {
     max-width: 65ch;
   }
-  .split h2 {
+  /* the prose's heading only: the record card inside the split owns its own (law C14) */
+  .split > .prose > h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
     color: var(--ink-2);
   }
   .prose p {
     margin: 0 0 var(--space-3);
-    font: var(--type-body);
   }
 
   /* the composition owns the space around the Platte and above the plate register (C4) */
@@ -165,6 +161,8 @@
   /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the
      page never scrolls sideways. The active plate (the cover) carries aria-current and a
      neutral-ink INVERSION frame (register row 3). ---- */
+  /* the card's and the register's heading: one label voice */
+  .facts > h2,
   .filmstrip h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
