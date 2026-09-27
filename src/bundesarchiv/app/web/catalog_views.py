@@ -630,6 +630,9 @@ class _Field:
     a short domain value, ``signatur`` for the Signatur (which also takes the mono face), or ``""``
     to fill the value cell.
 
+    ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
+    archivists ever sees. Both put a marker after the label (the minority is marked).
+
     ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
     has no diff row.
 
@@ -650,6 +653,8 @@ class _Field:
     hx: tuple[tuple[str, str], ...] = ()
     hx_get: str = ""
     fit: str = ""
+    required: bool = False
+    archivist_only: bool = False
     scanned: bool = False
     focusable: bool = False
     diff: str = ""
@@ -680,6 +685,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Titel",
         control="text",
         section="kerndaten",
+        required=True,
         scanned=True,
         focusable=True,
         diff="Titel",
@@ -690,6 +696,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Bestand",
         control="select",
         section="kerndaten",
+        required=True,
         options="collection_options",
         scanned=True,
         focusable=True,
@@ -709,6 +716,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Medienart",
         control="select",
         section="einordnung",
+        required=True,
         options="media_type_options",
         # On change, swap in the dependent Dokumenttyp options. No-JS baseline unchanged: the full
         # grouped optgroup list + server pairing re-validation still stand.
@@ -782,7 +790,7 @@ _FIELDS: tuple[_Field, ...] = (
         label="Standort",
         control="text",
         section="herkunft",
-        hint="Nur intern sichtbar",
+        archivist_only=True,
         scanned=True,
         focusable=True,
         diff="Standort",
@@ -898,6 +906,8 @@ class _CardRow:
     element_id: str
     hx: tuple[tuple[str, str], ...]
     fit: str
+    required: bool
+    archivist_only: bool
 
 
 def _card_fields(
@@ -940,6 +950,8 @@ def _card_fields(
                 element_id=registered.element_id,
                 hx=hx,
                 fit=registered.fit,
+                required=registered.required,
+                archivist_only=registered.archivist_only,
             )
         )
     return {name: tuple(rows) for name, rows in sections.items()}

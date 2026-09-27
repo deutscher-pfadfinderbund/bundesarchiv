@@ -9,7 +9,7 @@ C14), so a wrapper here would drop the row off its own axis. Inside a label the 
 would join the control's accessible name, so the control names itself from the label span alone
 (aria-labelledby) and takes the messages as its description.
 {% endcomment %}{% with base="feld-"|add:feld.name %}<label class="field">
-  <span id="{{ base }}-label">{{ feld.label }}</span>
+  <span id="{{ base }}-label">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</span>
   {% if feld.control == "select" %}
   <select name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
     {% for value, caption in feld.options %}

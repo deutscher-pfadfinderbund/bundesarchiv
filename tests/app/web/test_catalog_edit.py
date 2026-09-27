@@ -688,6 +688,44 @@ def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
         )
 
 
+class _RequiredScanner(HTMLParser):
+    """The names of the controls a render announces as required."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.names: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if values.get("aria-required") == "true" and values.get("name"):
+            self.names.add(str(values["name"]))
+
+
+def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
+    corpus: _EditCorpus,
+) -> None:
+    # The "*" is a promise about the save: a field it marks must be refused blank, and a field the
+    # save refuses blank must carry it. Both sides are read back: the markers from the render, the
+    # refusals from the parse.
+    from bundesarchiv.app.web import catalog
+    from bundesarchiv.app.web.catalog_views import _FIELDS
+
+    scanner = _RequiredScanner()
+    scanner.feed(client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode())
+    chooser = BestandChooser(lambda: (make_collection("PUB"),))
+    refused = {
+        registered.name
+        for registered in _FIELDS
+        if registered.control
+        and registered.name
+        in catalog.parse_edit_form(
+            {**_valid_post(corpus), registered.name: ""}, ulid=_ULID, bestand=chooser, added_at=None
+        ).errors
+    }
+    assert refused, "no field is refused blank — the guard proves nothing"
+    assert scanner.names == refused
+
+
 #: Every row the CAS "Inzwischen geändert" table shows when all of them changed, in the order it shows
 #: them — the archivist's contract on the loss-adjacent surface, so it is pinned VERBATIM rather than
 #: derived from the registry it guards (an expectation read off `_FIELDS` moves with a dropped `diff=`

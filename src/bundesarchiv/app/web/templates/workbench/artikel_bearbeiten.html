@@ -305,7 +305,7 @@ sheet is the pane.{% endcomment %}
     {% comment %}Gruppe 7 — Weitere Angaben (the custom bag): the escape hatch, folded, its summary
     naming the keys it holds so folding hides nothing (ruling 4).{% endcomment %}
     <details id="custom-bag" class="fach"{% if "weitere" in open_sections %} open{% endif %}>
-      <summary>Weitere Angaben
+      <summary>Weitere Angaben <span class="note">intern</span>
         <span class="werte">
           {% comment %}Each KEY is the value here, empty case included — both through
           _wertmarke.html, so the bag cannot spell absence differently from the other folds

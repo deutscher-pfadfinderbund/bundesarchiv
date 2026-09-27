@@ -281,6 +281,12 @@
     white-space: nowrap;
   }
 
+  /* ---- note — a quiet annotation touching its label or heading ("intern") ---- */
+  .note {
+    font: var(--type-note);
+    color: var(--ink-3);
+  }
+
   /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark
      (G.2). ---- */
   .c-sig {
