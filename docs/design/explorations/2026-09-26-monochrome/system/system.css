@@ -250,14 +250,14 @@
   }
 
   /* ---------- section-head — rank + at most one aside ----------
-     Knobs: --section-head-ink (heading ink, default --ink), --section-head-type (the h2's role,
+     Knobs: --section-head-type (the h2's role,
      default --type-heading; secondary sections use --type-subhead — rank follows gain). Parts: the heading (h1/h2 — its
      type comes from the element), .section-head-aside (link or note), .section-head-lede. */
   .section-head {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
     gap: var(--space-2) var(--space-6); margin-block-end: var(--gap-head);
   }
-  .section-head > :is(h1, h2) { flex: 1 1 0; color: var(--section-head-ink, var(--ink)); }
+  .section-head > :is(h1, h2) { flex: 1 1 0; }
   .section-head > h2 { font: var(--section-head-type, var(--type-heading)); }
   .section-head-aside { font: var(--type-meta); color: var(--ink-2); white-space: nowrap; }
   a.section-head-aside:hover { color: var(--ink); }
@@ -265,14 +265,15 @@
 
   /* ---------- register — ruled rows: label left, figure right ----------
      Replaces r3's .register, .lines, .later ol and .zeit.
-     Knobs: --register-ink (row ink, default --ink), --register-label-type (default
+     Knobs: --register-label-type (default
      --type-entry; --type-data in a bar register), --register-lead (lead column width, default
      --measure-date).
      Content decides the columns: a .register-lead (a <time>) adds the leading column; a
      .register-bar (--register-value 0…1) adds the data bar — dense rows and no lines, the bar
-     itself ties the ends; li.register-apart is set apart by space instead of a line.
+     itself ties the ends; li.register-apart is set apart by space instead of a line (quieter
+     too: it also carries .quiet).
      S: a lead row puts lead + figure on the first line, the label under it. */
-  .register { list-style: none; padding: 0; color: var(--register-ink, var(--ink)); }
+  .register { list-style: none; padding: 0; }
   .register:not(:has(.register-bar)) > li:not(.register-apart) + li:not(.register-apart):has(:is(.register-figure, .register-lead)) { border-block-start: var(--line); } /* a line connects two ends; a one-ended row gets none */
   .register:has(.register-bar) > li, .register > .register-apart { border-block-start: 0; }
   .register > .register-apart { margin-block-start: var(--space-4); }
@@ -281,7 +282,6 @@
   .register-label { flex: 1 1 auto; font: var(--register-label-type, var(--type-entry)); }
   a.register-row:hover .register-label { text-decoration: underline; }
   .register-figure { margin-inline-start: auto; min-inline-size: var(--measure-count); text-align: end; font: var(--type-meta); color: var(--ink-2); }
-  .register-apart .register-label { color: var(--ink-2); }
   .register:has(.register-bar) .register-row { align-items: center; padding-block: var(--pad-row-dense); }
   .register:has(.register-bar) .register-label { flex: 0 0 var(--measure-decade); font: var(--register-label-type, var(--type-data)); }
   .register-bar {
@@ -334,13 +334,12 @@
   .pager-step[aria-disabled] { font: var(--type-meta); color: var(--ink-2); }
 
   /* ---------- facts — the article's definition list ----------
-     Knobs: none. Label over value, so no lines. .facts-wide spans two columns; .facts-quiet
-     is one tier quieter (Standort, Signatur). S: two columns. */
+     Knobs: none. Label over value, so no lines. .facts-wide spans two columns; a fact one tier
+     quieter (Standort, Signatur) carries .quiet. S: two columns. */
   .facts { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--space-8); }
   .facts > div { padding-block: var(--space-3) var(--space-4); }
   .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); margin-block-end: var(--space-2); }
   .facts-wide { grid-column: span 2; }
-  .facts-quiet dd { color: var(--ink-2); }
   .facts :is(time, data) { font: inherit; } /* one value is not a column: mono only aligns columns */
   @container (width < 40rem) {
     .facts { grid-template-columns: repeat(2, 1fr); }
@@ -466,6 +465,13 @@
      entry, a link. It reaches only what READS --ink: `color: inherit` inherits the parent's resolved
      colour, not the role, so a part that should answer a context binds itself to var(--ink). Knobs: none. */
   .danger:is(:hover, :active, :focus-visible) { --ink: var(--error); }
+
+  /* ---------- quiet — a context, not a variant (law C2) ----------
+     One tier quieter: re-points --ink to --ink-2 and draws its own text in it, so plain text
+     inside follows by inheritance and every part that reads --ink follows by the role. Parts that
+     are already secondary stay as they are. On a fact, a register row, a whole section (a
+     compartment that comes "später"). Knobs: none. */
+  .quiet { --ink: var(--ink-2); color: var(--ink); }
 
   /* ---------- note — a quiet annotation right after a label or heading ("intern") ----------
      Knobs: none. Quieter than its host by size and contrast, never by a box or a far position:

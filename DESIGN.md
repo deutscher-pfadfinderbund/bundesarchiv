@@ -360,7 +360,10 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   links or buttons, underline on hover. Anchored under its button, right edges aligned. A
   destructive entry ("Löschen") carries the danger context.
 
-### Danger (a context, not a variant)
+### Contexts, not variants
+- `.quiet` makes a fact, a register row or a whole section one tier quieter: it re-points the ink
+  to Secondary Ink and draws its own text in it (Standort and Signatur in the facts, a compartment
+  that comes "später", the set-apart "Unbekannt" row).
 - `.danger` on any action that deletes for good re-points the ink to Correction Red while it is
   about to act (hover, press, focus). It sets no property itself, so a button, a ×, a menu entry or
   a link turns red without a variant of its own. There is no danger button.

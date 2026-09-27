@@ -116,8 +116,8 @@ trapezoid register tab lapsed with the square-corner ruling.
 2. **Context over variants.** A component adapts to where it sits (ancestor
    scope, `@container`), never via variant modifier classes. A context may sit on
    the element itself: `.danger` re-points `--ink` to `--error` and sets no property,
-   so `.button`, `.remove` and a menu entry turn red without knowing it
-   (2026-09-27). The test: a context re-points roles or knobs and works on any
+   so `.button`, `.remove` and a menu entry turn red without knowing it; `.quiet`
+   re-points `--ink` to `--ink-2` for a fact, a row or a section (2026-09-27). The test: a context re-points roles or knobs and works on any
    component; a variant sets one component's own properties (`.button-danger`). **State
    modifiers are exempt**: a class encoding runtime state (`--aktiv`) is
    legal — but prefer styling on `aria-current`/`aria-selected`/`[hidden]`

@@ -182,15 +182,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
-- **Indicator:** 8 open occurrences (2026-09-27): 6 in the monochrome mock system, 2 known in the app.
+- **Indicator:** 7 open occurrences (2026-09-27): 5 in the monochrome mock system, 2 known in the app.
 - **The pattern:** a modifier class that sets a component's own properties (`.button-danger`) instead
   of a context that re-points roles or knobs and works on any component (`.danger` re-points
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
-  and the chip × — all now the one `.danger` context.
+  and the chip × — all now the one `.danger` context; `.facts-quiet`, the set-apart register
+  label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context.
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
-  - `.facts-quiet`, `.register-apart .register-label`, and the `--section-head-ink` /
-    `--register-ink` knobs set per use: one hand-rolled "quiet" each. Candidate: a `.quiet` context
-    re-pointing `--ink` to `--ink-2`.
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
     the button must paint its background with `--ground`, and the hover outline needs an edge.
   - `.button-sso`: a one-off variant for the door's login. Candidate: a knob or the door context.
