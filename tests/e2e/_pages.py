@@ -122,7 +122,8 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
 #: header, hence one overlay (the "+ Neu …" create menu) at minimum; the filtered workbench adds
-#: one dropdown per filter-rail facet group, and the edit surface adds the margin's "Mehr …".
+#: one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article
+#: page its split button's menu.
 SCREENS: tuple[Screen, ...] = (
     Screen(
         "workbench-empty",
@@ -228,10 +229,12 @@ SCREENS: tuple[Screen, ...] = (
     ),
     Screen(
         "read-published",
-        "the read view as an archivist (the action row)",
+        "the article page as an archivist (Bearbeiten and its split menu)",
         True,
         _goto(lambda c: f"/artikel/{c.published_ulid}"),
         "artikel-detail",
+        overlays=2,
+        control_rows=("header", "div.actions"),
     ),
     Screen(
         "delete-confirm",
@@ -243,21 +246,23 @@ SCREENS: tuple[Screen, ...] = (
     ),
     Screen(
         "detail-archivist-draft",
-        "detail read view, archivist draft (ENTWURF + action row)",
+        "the article page, a draft as an archivist (Veröffentlichen; Standort, Weitere Angaben)",
         True,
         _goto(lambda c: f"/artikel/{c.draft_ulid}"),
         "artikel-detail",
+        overlays=2,
+        control_rows=("header", "div.actions"),
     ),
     Screen(
         "detail-member-cover",
-        "detail read view, member, with cover + filmstrip",
+        "the article page as a member: cover Platte and the plate register",
         False,
         _goto(lambda c: f"/artikel/{c.published_ulid}"),
         "artikel-detail",
     ),
     Screen(
         "detail-no-media",
-        "detail read view, member, no media (title focal)",
+        "the article page as a member, no media (the title is the focus)",
         False,
         _goto(lambda c: f"/artikel/{c.second_ulid}"),
         "artikel-detail",

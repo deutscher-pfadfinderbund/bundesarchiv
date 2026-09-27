@@ -1,6 +1,6 @@
-"""Controlled vocabulary + the human-German date (Part 4.7, spec §3/§4).
+"""Controlled vocabulary + the display spellings (Part 4.7, spec §3/§4).
 
-Two pure presentation helpers, IO-free and request-free so the form controller and its tests read
+Pure presentation helpers, IO-free and request-free so the form controller and its tests read
 one source with no database:
 
 - ``MEDIENART_DOKUMENTTYP`` — the Medienart→Dokumenttyp vocabulary. The words are the ARCHIVISTS'
@@ -11,12 +11,12 @@ one source with no database:
   ``document_types_for`` / ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set
   so the dependent-select render (no-JS baseline), the server-side pair re-validation, and the HTMX
   ``/dokumenttypen`` endpoint never derive the vocabulary twice.
-- ``edtf_to_german`` — the 4.6 detail-page date presentation (the sentence under the title). It
-  reads the already-validated ``EdtfDate`` value object; an absent date yields ``""``. It stays a
-  DISPLAY helper: it never validates (the field's error path owns that), so it can only ever return
-  neutral body text, never an error. Its month/century phrasings are PROVISIONAL pending owner
-  sign-off (4.6 §11 Q1).
+- ``datierung_parts`` / ``human_size`` — how the article page spells a date (``<time>`` parts) and
+  the edit form a file's size. Display helpers: they never validate, so they cannot be an error surface.
 """
+
+import re
+from dataclasses import dataclass
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier
@@ -119,8 +119,8 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 # --- Sichtbarkeit (audience) German labels -----------------------------------------
 
 #: The German Sichtbarkeit rung captions — the ONE source for the ladder's user-facing words. Every
-#: audience-label helper across the web slice (the archivist ledger, the CAS diff, the inherit
-#: caption, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
+#: audience-label helper across the web slice (the archivist ledger, the CAS diff, the publish
+#: preview, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
 #: the strings can never drift between screens. ``SICHTBARKEIT_ERBEN`` is the ADR-0001 inherit default.
 SICHTBARKEIT_ERBEN = "Vom Bestand erben"
 SICHTBARKEIT_PUBLIC = "Öffentlich"
@@ -139,7 +139,7 @@ def groups_label(groups: tuple[str, ...]) -> str:
 def sichtbarkeit_label(audience: Audience | None) -> str:
     """An ``Audience`` (or ``None`` = inherit) as its human-German Sichtbarkeit caption. Shared by the
     4.7 CAS diff and the 4.8 read-only Bestand row (both hold an ``Audience | None``); the ledger and
-    the inherit caption, which start from other shapes, reuse the same rung strings above."""
+    the publish preview, which start from other shapes, reuse the same rung strings above."""
     if audience is None:
         return SICHTBARKEIT_ERBEN
     match audience.tier:
@@ -156,88 +156,48 @@ def sichtbarkeit_label(audience: Audience | None) -> str:
 
 def datierung_mono(date: EdtfDate | None) -> str:
     """The MACHINE date: the EDTF value verbatim, or ``""`` when absent. The ONE renderer for the
-    mono machine spelling — the ledger's date column, the preview pane's meta line, the detail record
-    card's mono row, the CAS diff and the Datierung field's own value all print it, so a single
-    spelling of the fact cannot fork into inline copies of ``date.value if date is not None else
-    ""``. Its sibling is ``edtf_to_german`` — the HUMAN spelling, the other licensed rendering of the
-    same fact."""
+    mono machine spelling — the ledger's date column, the preview pane's meta line, the CAS diff and
+    the Datierung field's own value all print it, so a single spelling of the fact cannot fork into
+    inline copies of ``date.value if date is not None else ""``. Its sibling is ``datierung_parts``,
+    the same text split for ``<time>``."""
     return date.value if date is not None else ""
 
 
-# --- EDTF -> German ----------------------------------------------------------------
+# --- the article page's spellings ---------------------------------------------------
 
-#: EDTF season codes -> German season word (spec open-question 2; seasons 21-24).
-_SEASONS: dict[str, str] = {"21": "Frühjahr", "22": "Sommer", "23": "Herbst", "24": "Winter"}
-
-#: EDTF month numbers -> German month name (01-12), for the 4.6 detail-page date presentation
-#: ("1958-07" -> "Juli 1958"). PROVISIONAL: the exact phrasing awaits owner sign-off (4.7 Q2 /
-#: 4.6 §11 Q1); centralized here so a sign-off change is one edit in this file, never in a template.
-_MONTHS: dict[str, str] = {
-    "01": "Januar",
-    "02": "Februar",
-    "03": "März",
-    "04": "April",
-    "05": "Mai",
-    "06": "Juni",
-    "07": "Juli",
-    "08": "August",
-    "09": "September",
-    "10": "Oktober",
-    "11": "November",
-    "12": "Dezember",
-}
+#: A token HTML can date: a year, a month or a day (``<time datetime>``).
+_HTML_DATE = re.compile(r"\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?")
 
 
-def edtf_to_german(date: EdtfDate | None) -> str:
-    """Render an already-validated ``EdtfDate`` to a human-German sentence fragment.
+@dataclass(frozen=True, slots=True)
+class DatePart:
+    """One EDTF token of a date as the page prints it: ``text`` verbatim (a qualifier stays in it),
+    ``datetime`` the machine value HTML understands, or ``""`` where there is none (a decade, a
+    season, an open end)."""
 
-    A DISPLAY helper only: an absent date yields ``""``, and any form this small mapping does not
-    phrase falls back to the verbatim EDTF value — it is never an error surface, so it stays neutral
-    body text. Handles the common Level 0/1 shapes the archivist types: plain year, decade (``197X``
-    → ``1970er``), qualifiers (``~`` → ``um``, ``?`` → ``(unsicher)``), and closed intervals (``A/B``
-    → ``A bis B``). Open intervals and unspecified centuries print verbatim."""
+    text: str
+    datetime: str
+
+
+def datierung_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
+    """The date as ``<time>`` parts: one, or two for an interval. No date → ``()``."""
     if date is None:
+        return ()
+    return tuple(DatePart(token, _html_date(token)) for token in date.value.split("/"))
+
+
+def _html_date(token: str) -> str:
+    core = token.rstrip("?~%")
+    return core if _HTML_DATE.fullmatch(core) else ""
+
+
+def human_size(byte_size: int | None) -> str:
+    """A file size in German spelling ("1,2 GB"). Absent → empty."""
+    if byte_size is None:
         return ""
-    value = date.value
-    if "/" in value:
-        left, _, right = value.partition("/")
-        if left and right and right != ".." and left != "..":
-            return f"{_single_to_german(left)} bis {_single_to_german(right)}"
-        return value  # open-ended interval: echo verbatim (no clean two-sided phrasing)
-    return _single_to_german(value)
-
-
-def _single_to_german(token: str) -> str:
-    """One EDTF token (no ``/``) → German. Strips a trailing qualifier and re-attaches its phrasing.
-    Falls back to the verbatim token for any shape not explicitly phrased."""
-    qualifier = token[-1] if token and token[-1] in "?~%" else ""
-    core = token[:-1] if qualifier else token
-    phrased = _core_to_german(core)
-    if qualifier == "~":
-        return f"um {phrased}"
-    if qualifier == "?":
-        return f"{phrased} (unsicher)"
-    if qualifier == "%":
-        return f"{phrased} (unsicher, etwa)"
-    return phrased
-
-
-def _core_to_german(core: str) -> str:
-    """The qualifier-stripped core token → German. Decade (``197X`` → ``1970er``), century
-    (``19XX`` → ``1900-1999`` with a typographic en-dash), month (``1958-07`` → ``Juli 1958``),
-    season (``1962-21`` → ``Frühjahr 1962``); anything else (plain year, open interval) echoes
-    verbatim — the archivist reads the digits directly, no lossy re-phrasing.
-
-    The month/century phrasings are PROVISIONAL (owner sign-off pending, 4.6 §11 Q1); the strings
-    live in ``_MONTHS`` so a change is one edit here."""
-    if len(core) == 4 and core[:3].isdigit() and core[3] == "X":
-        return f"{core[:3]}0er"  # decade — check before century (197X vs 19XX)
-    if len(core) == 4 and core[:2].isdigit() and core[2:] == "XX":
-        return f"{core[:2]}00\N{EN DASH}{core[:2]}99"  # century, en-dash range
-    if len(core) == 7 and core[4] == "-":
-        year, month = core[:4], core[5:]
-        if month in _MONTHS:
-            return f"{_MONTHS[month]} {year}"
-        if month in _SEASONS:
-            return f"{_SEASONS[month]} {year}"
-    return core
+    size, unit = float(byte_size), "B"
+    for bigger in ("KB", "MB", "GB"):
+        if size < 1024:
+            break
+        size, unit = size / 1024, bigger
+    return f"{byte_size} B" if unit == "B" else f"{size:.1f} {unit}".replace(".", ",")

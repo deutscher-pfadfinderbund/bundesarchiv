@@ -1,13 +1,13 @@
-"""The cataloging-form controlled vocabulary + the human-German date (Part 4.7, spec §3/§4).
+"""The cataloging-form controlled vocabulary + the display spellings (Part 4.7, spec §3/§4).
 
-Two pure presentation helpers the form controller reads:
+Pure presentation helpers:
 
 - ``MEDIENART_DOKUMENTTYP`` behind ``document_types_for`` / ``is_valid_pair`` — the archivists'
   vocabulary. The legacy lists are pinned verbatim here (a silent edit to a Medienart the legacy
   archive already uses would orphan records); the pair rule itself is proven against a NARROWED
   vocabulary, because every Medienart currently offers the full Dokumenttyp list.
-- ``edtf_to_german`` — the human-German date the detail page prints. It is never an error
-  surface: validation errors ride the field.
+- ``datierung_parts`` / ``human_size`` — how the article page spells a date and the edit form a
+  file size.
 """
 
 import pytest
@@ -140,58 +140,36 @@ def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabul
     )
 
 
-# --- EDTF -> German ----------------------------------------------------------------
+# --- the origin line's date and a file's size --------------------------------------
 
 
-def test_edtf_german_plain_year() -> None:
-    assert vocab.edtf_to_german(EdtfDate("1962")) == "1962"
+@pytest.mark.parametrize(
+    ("edtf", "expected"),
+    [
+        ("1962", (("1962", "1962"),)),
+        ("1962-07", (("1962-07", "1962-07"),)),
+        ("1962-07-15", (("1962-07-15", "1962-07-15"),)),
+        ("1963~", (("1963~", "1963"),)),  # the qualifier stays in the text, not in the datetime
+        ("1958-07%", (("1958-07%", "1958-07"),)),
+        ("1984-11-26/1995-03-14", (("1984-11-26", "1984-11-26"), ("1995-03-14", "1995-03-14"))),
+        ("197X", (("197X", ""),)),  # a decade is no HTML date
+        ("1962-21", (("1962-21", ""),)),  # nor is a season
+        ("1965/..", (("1965", "1965"), ("..", ""))),  # an open end has none
+    ],
+)
+def test_datierung_parts_carry_a_datetime_only_where_html_has_one(
+    edtf: str, expected: tuple[tuple[str, str], ...]
+) -> None:
+    assert tuple((p.text, p.datetime) for p in vocab.datierung_parts(EdtfDate(edtf))) == expected
 
 
-def test_edtf_german_decade() -> None:
-    assert vocab.edtf_to_german(EdtfDate("197X")) == "1970er"
+def test_datierung_parts_of_no_date_are_empty() -> None:
+    assert vocab.datierung_parts(None) == ()
 
 
-def test_edtf_german_approximate() -> None:
-    assert vocab.edtf_to_german(EdtfDate("1970~")) == "um 1970"
-
-
-def test_edtf_german_uncertain() -> None:
-    assert vocab.edtf_to_german(EdtfDate("1970?")) == "1970 (unsicher)"
-
-
-def test_edtf_german_interval() -> None:
-    assert vocab.edtf_to_german(EdtfDate("1984/1995")) == "1984 bis 1995"
-
-
-def test_edtf_german_none_is_empty() -> None:
-    assert vocab.edtf_to_german(None) == ""
-
-
-# --- the full §5 detail-page table (Part 4.6) --------------------------------------
-# The 4.6 spec §5 table is the contract for the detail-page date presentation. The strings are
-# PROVISIONAL pending owner sign-off (4.7 Q2 / 4.6 §11 Q1); this pins exactly what the helper
-# produces so a phrasing change is a deliberate one-file edit here + in vocab.py. The two rows the
-# controller signed off EXTENDING (month name, century phrasing) are marked below.
-_EDTF_TABLE_46 = [
-    ("1958", "1958"),  # plain year
-    ("1958-07", "Juli 1958"),  # month name — EXTENSION (controller sign-off, §5)
-    ("197X", "1970er"),  # decade
-    ("19XX", "1900\N{EN DASH}1999"),  # century phrasing — EXTENSION (controller sign-off, §5)
-    ("1970~", "um 1970"),  # approximate
-    ("1970?", "1970 (unsicher)"),  # uncertain
-    ("1970%", "1970 (unsicher, etwa)"),  # uncertain + approximate
-    ("1965/1969", "1965 bis 1969"),  # closed interval
-    ("1962-21", "Frühjahr 1962"),  # season
-    ("1965/..", "1965/.."),  # open interval echoes verbatim
-    ("../1969", "../1969"),  # open interval echoes verbatim
-]
-
-
-@pytest.mark.parametrize(("edtf", "expected"), _EDTF_TABLE_46)
-def test_edtf_german_detail_table(edtf: str, expected: str) -> None:
-    assert vocab.edtf_to_german(EdtfDate(edtf)) == expected
-
-
-def test_edtf_german_approximate_month_composes() -> None:
-    # a qualifier over a YYYY-MM composes with the month name (um + Juli 1958)
-    assert vocab.edtf_to_german(EdtfDate("1958-07~")) == "um Juli 1958"
+@pytest.mark.parametrize(
+    ("byte_size", "expected"),
+    [(None, ""), (512, "512 B"), (1536, "1,5 KB"), (1288490189, "1,2 GB")],
+)
+def test_human_size_is_german(byte_size: int | None, expected: str) -> None:
+    assert vocab.human_size(byte_size) == expected

@@ -979,17 +979,16 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     page.goto(live_workbench + "/")
     page.locator(".ledger .titel a", has_text="Sommerfahrt 1962").click()
     page.wait_for_url("**/artikel/**")
-    # the reading structure: title, record card facts (Signatur + human + mono date), the cover
+    # the reading structure: title, the origin line (Signatur, date), the cover Platte
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
-    expect(page.locator("main header p")).to_have_text("Juli 1962")  # human German under the title
-    expect(page.locator(".facts dd.mono").first).to_have_text("1962-07")  # mono machine date
+    expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
     expect(page.locator("main figure img")).to_be_visible()  # cover Platte
     expect(page.locator(".filmstrip > div > a")).to_have_count(2)  # cover + one further plate
-    # a plate links its gated media byte route; Zurück returns to the search
+    # a plate links its gated media byte route; the crumbs lead back into the list
     href = page.locator(".filmstrip > div > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
-    page.get_by_text("Zurück zur Suche").click()
+    page.get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
 
 
@@ -1211,8 +1210,10 @@ def test_kopieren_creates_draft_copy_signatur_focused(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # from the published article's read view, Duplizieren → a fresh draft's edit form, Signatur focused
+    # from the published article's page, Duplizieren (in Bearbeiten's menu) → a fresh draft's edit
+    # form, Signatur focused
     page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}")
+    page.get_by_label("Weitere Aktionen").click()
     page.click('button:has-text("Duplizieren")')
     page.wait_for_url("**/bearbeiten**")
     # the copy cleared the Signatur (ref_code) and the field is focused (spec §5)
@@ -1229,8 +1230,10 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Zu Löschen")
     ulid = page.url.split("/artikel/")[1].split("/")[0]
-    # from the read view, Löschen → the confirm page (the ONE red button.danger), then delete
+    # from the article page, Löschen (in Bearbeiten's menu) → the confirm page (the ONE red
+    # button.danger), then delete
     page.goto(live_workbench + f"/artikel/{ulid}")
+    page.get_by_label("Weitere Aktionen").click()
     page.click('a:has-text("Löschen")')
     expect(page.get_by_text("Artikel löschen?")).to_be_visible()
     expect(page.locator("button.danger")).to_be_visible()

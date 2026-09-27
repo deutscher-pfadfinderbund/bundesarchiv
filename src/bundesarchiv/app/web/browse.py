@@ -40,10 +40,8 @@ PARAM_DATE_TO = "bis"
 PARAM_SORT = "sortierung"
 PARAM_PAGE = "seite"
 
-#: The whitelist of SEARCH-state query keys — the full set the workbench URL carries as its state.
-#: Deliberately excludes ``artikel`` (pane selection) and ``auswahl`` (bulk selection): neither is
-#: search state. ``sanitize_query`` keeps ONLY these, so a return-state string can never smuggle a
-#: pane/bulk param or an arbitrary key back into a link.
+#: The SEARCH-state query keys — the full set the workbench URL carries as its state. Deliberately
+#: excludes ``artikel`` (pane selection) and ``auswahl`` (bulk selection): neither is search state.
 _SEARCH_PARAMS: frozenset[str] = frozenset(
     {
         PARAM_Q,
@@ -59,20 +57,6 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_PAGE,
     }
 )
-
-
-def sanitize_query(raw: str) -> str:
-    """Re-serialize an untrusted return-state query string to a CLEAN one carrying only known
-    search params (4.6 §2, the ``zurueck`` return link). Parse the raw string, keep only
-    ``_SEARCH_PARAMS`` with a non-empty value, and ``urlencode`` the result — so a value is never
-    echoed raw (no reflection / open-redirect surface) and any unknown / pane / bulk key is dropped.
-    Returns ``""`` when nothing survives (the caller then falls back to a bare ``/``)."""
-    from urllib.parse import parse_qsl
-
-    kept = {
-        k: v for k, v in parse_qsl(raw, keep_blank_values=False) if k in _SEARCH_PARAMS and v != ""
-    }
-    return urlencode(kept)
 
 
 #: The workbench's fixed result-page size. ONE constant shared by the view's ``search`` call and

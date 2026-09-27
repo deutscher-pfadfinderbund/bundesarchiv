@@ -502,7 +502,7 @@ def _media_rows(
             filename=ref.filename,
             content_hash=ref.content_hash,
             thumb_url=thumbnail_url(ulid, ref.content_hash),
-            size=_human_size(ref.byte_size),
+            size=vocab.human_size(ref.byte_size),
             caption=ref.caption or "",
             is_cover=i == 0,
             is_first=i == 0,
@@ -511,18 +511,6 @@ def _media_rows(
         )
         for i, ref in enumerate(media)
     )
-
-
-def _human_size(byte_size: int | None) -> str:
-    """A compact human byte size (mono meta mark). Absent → empty."""
-    if byte_size is None:
-        return ""
-    size = float(byte_size)
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024 or unit == "GB":
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} GB"
 
 
 def _article_to_form_values(article: Article) -> dict[str, object]:

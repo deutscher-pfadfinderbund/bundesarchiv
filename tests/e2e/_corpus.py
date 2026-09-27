@@ -154,6 +154,9 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             lifecycle=Lifecycle.DRAFT,
             ref_code="F9",
             media_type="Foto(s)",
+            # the archivist-only lines, so the article page's draft state shows them under the head
+            physical_location="Bund \u203a Alben",
+            custom=(("Legacy-ID", "1293"),),
         ),
         0,
         changed_by="tester",

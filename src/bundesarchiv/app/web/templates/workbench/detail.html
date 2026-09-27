@@ -1,124 +1,75 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Artikel DETAIL read view (Part 4.6, the Lesesaal). ONE template fed a visible-projected Article:
-the archivist-only rows (Standort, Weitere Angaben) are floored to None/() by project() before
-they reach here, so the same {% if value %} guard that omits an absent field also omits a floored
-one — there is NO member/archivist fork (spec §4/§10). The action row +
-ENTWURF badge render only for is_archivist; both lifecycle actions are LINKS to the edit surface,
-where the transition rides that form's own CAS write. The record card is a real <dl> (one fact, one row).
-No JS, no HTMX — the app's purest no-JS surface (§7).
+The article page (a3 mock, docs/design/explorations/2026-09-26-monochrome/a3-artikel). ONE template fed
+a visible-projected Article: project() floors the archivist-only values (Standort, Weitere Angaben)
+before they reach here, so the {% templatetag openblock %} if {% templatetag closeblock %} that omits an absent value omits a floored one — no
+member/archivist fork (spec §4/§10). Only the tools are presentation-gated on is_archivist.
 {% endcomment %}
 {% block title %}{{ title }} — Bundesarchiv{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% endblock %}
-{% block header %}
-<a class="back" href="{{ zurueck_href }}">Zurück zur Suche</a>
-{% if crumbs %}
-<nav aria-label="Bestand">
-  {% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% if not forloop.last %}<span aria-hidden="true">›</span>{% endif %}{% endfor %}
-</nav>
-{% endif %}
-{% endblock %}
+{% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column wide">
-  {% if is_archivist %}
-  <div class="actions">
-    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
-    <form method="post" action="{% url 'artikel-kopieren' ulid %}">
-      {% csrf_token %}
-      <button type="submit">Duplizieren</button>
-    </form>
-    {% comment %}Both lifecycle actions are LINKS to the edit surface, where the transition rides the
-    form's own single CAS-guarded write (owner decision 2026-08-08 — saving IS publishing). Withdraw
-    used to POST a lifecycle route of its own; that route's remaining verb was UI-unreachable, so it
-    died and this action became symmetric with the publish link beside it. The archivist reads the
-    exposure statement on that screen before acting either way, which is the whole point of ruling 5.
-    {% endcomment %}
-    <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">{% if is_draft %}Veröffentlichen{% else %}Als Entwurf zurückziehen{% endif %}</a>
-    <a class="button" href="{% url 'artikel-loeschen' ulid %}">Löschen</a>
-  </div>
-  {% endif %}
+<main id="inhalt" class="artikel">
+  <article aria-labelledby="artikel-titel">
+    <header>
+      <div class="record-head">
+        <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+        {% if is_archivist %}
+        {% comment %}Both lifecycle actions link to the edit surface, where the transition rides its
+        CAS write (owner 2026-08-08: saving is publishing).{% endcomment %}
+        <div class="actions">
+          <div class="split-button">
+            <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
+            <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
+            <ul class="menu" id="aktionen-menu" popover>
+              <li><form method="post" action="{% url 'artikel-kopieren' ulid %}">{% csrf_token %}<button class="link" type="submit">Duplizieren</button></form></li>
+              {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}
+              <li><a class="danger" href="{% url 'artikel-loeschen' ulid %}">Löschen</a></li>
+            </ul>
+          </div>
+          {% if is_draft %}<a class="button primary" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <h1 id="artikel-titel">{{ title }}</h1>
+      {% if ref_code or typ or datierung or ort or creator %}
+      <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if typ %}<span>{{ typ }}</span>{% endif %}{% if datierung %}<span>{% for part in datierung %}{% if not forloop.first %}/<wbr>{% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if ort %}<span>{{ ort }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
+      {% endif %}
+      {% if body_paragraphs %}
+      <div class="prose">{% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}</div>
+      {% endif %}
+      {% if standort %}
+      <dl class="byline"><div><dt>Standort</dt><dd>{{ standort }}</dd></div></dl>
+      {% endif %}
+      {% if tags %}
+      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd></div></dl>
+      {% endif %}
+      {% if custom %}
+      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+      {% endif %}
+    </header>
 
-  {% comment %}Cover Platte — the ONE focal point. Omitted entirely when there is no media (§1
-  no-media rule: no empty frame, the title becomes the focus). The image links its full gated byte
-  route (opens the native full-size view) — so a single-media article, which has no filmstrip,
-  still has a path to the full image (design-gate LOW-MED). No-JS native.{% endcomment %}
-  {% if cover %}
-  <figure class="platte">
-    <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
-    {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
-  </figure>
-  {% endif %}
-
-  <header>
-    <h1>{{ title }}{% if is_draft %} {% include "components/mark_lifecycle.html" with draft=is_draft only %}{% endif %}</h1>
-    {% if datierung_prose %}<p>{{ datierung_prose }}</p>{% endif %}
-  </header>
-
-  <div class="split">
-    {% if body_paragraphs %}
-    <section class="prose">
-      <h2>Beschreibung</h2>
-      {% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}
+    {% comment %}The media keep their pre-a3 rendering until the media wave (owner 2026-09-28): the
+    cover Platte, omitted with no media (the title is then the focus), and the plate register for
+    further sheets. Every image links its full gated byte route.{% endcomment %}
+    {% if cover %}
+    <figure class="platte">
+      <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
+      {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
+    </figure>
+    {% endif %}
+    {% if weitere %}
+    <section class="filmstrip">
+      <h2>Weitere Aufnahmen <span>Blatt 1 / {{ umfang }}</span></h2>
+      <div>
+        <a href="{{ cover.file_url }}" aria-current="true"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
+        {% for plate in weitere %}
+        <a href="{{ plate.file_url }}"><img src="{{ plate.thumb_url }}" alt="{{ plate.caption }}" loading="lazy">{% if plate.caption %}<span>{{ plate.caption }}</span>{% endif %}</a>
+        {% endfor %}
+      </div>
     </section>
     {% endif %}
-
-    <aside class="facts">
-      <h2>Katalogeintrag</h2>
-      <div>{% include "components/signatur_tab.html" with ref_code=ref_code only %}</div>
-
-      <dl>
-        {% if datierung_mono %}
-        <div><dt>Datierung</dt><dd class="mono">{{ datierung_mono }}</dd></div>
-        {% endif %}
-        {% if typ %}
-        <div><dt>Typ</dt><dd>{{ typ }}</dd></div>
-        {% endif %}
-        {% if creator %}
-        <div><dt>Autor</dt><dd>{{ creator }}</dd></div>
-        {% endif %}
-        {% if ort %}
-        <div><dt>Ort</dt><dd>{{ ort }}</dd></div>
-        {% endif %}
-        {% comment %}Bestand row appears only when the topbar breadcrumb is hidden (≤560px, css) —
-        it shows just the leaf as a link so the filing is never wholly lost on mobile (§3
-        signals-once: the chain lives in the topbar on wide, this row on narrow).{% endcomment %}
-        {% if leaf_bestand %}
-        <div class="fallback"><dt>Bestand</dt><dd><a href="{{ leaf_bestand.href }}">{{ leaf_bestand.name }}</a></dd></div>
-        {% endif %}
-        {% if umfang %}
-        <div><dt>Umfang</dt><dd class="mono">{{ umfang }} Blatt</dd></div>
-        {% endif %}
-        {% if tags %}
-        <div><dt>Schlagworte</dt><dd class="tags">{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% endfor %}</dd></div>
-        {% endif %}
-
-        {% comment %}Archivist-only rows: floored to None/() for members by project(), so this
-        {% if %} simply skips for them — no fork. Quiet neutral chrome, NO loud color.{% endcomment %}
-        {% if standort %}
-        <div><dt>Standort</dt><dd>{{ standort }} <small>Nur intern</small></dd></div>
-        {% endif %}
-        {% for key, value in custom %}
-        <div><dt>{{ key }}</dt><dd>{{ value }} <small>Nur intern</small></dd></div>
-        {% endfor %}
-      </dl>
-    </aside>
-  </div>
-
-  {% comment %}Plate register — further sheets beyond the cover. Omitted when ≤1 media (§1: the
-  cover already shows the only sheet). Each plate links its full gated byte route (opens native
-  image). The active plate (the cover, always Blatt 1) carries aria-current + the neutral-ink
-  inversion frame.{% endcomment %}
-  {% if weitere %}
-  <section class="filmstrip">
-    <h2>Weitere Aufnahmen <span>Blatt 1 / {{ umfang }}</span></h2>
-    <div>
-      <a href="{{ cover.file_url }}" aria-current="true"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
-      {% for plate in weitere %}
-      <a href="{{ plate.file_url }}"><img src="{{ plate.thumb_url }}" alt="{{ plate.caption }}" loading="lazy">{% if plate.caption %}<span>{{ plate.caption }}</span>{% endif %}</a>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+  </article>
 </main>
 {% endblock %}

@@ -263,8 +263,8 @@ monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
 column: a compositions-layer selector may reach a root and never past it. A new component joins
-this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.split`,
-`.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
+this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.artikel`,
+`.record-head`, `.prose`, `.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
 `_trefferzahl` are parts of the filter rail; they are split out only as swap units (law C7).
 
 | Component | Root | Template | CSS section |
@@ -274,7 +274,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Note | `.note` | inline (`_feld`, the edit form's Weitere Angaben) | `components.css` note |
 | Help | `.help` | inline (`_feld`) | `components.css` help |
 | Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field |
-| Crumbs | `.crumbs` | inline (edit form) | `components.css` crumbs |
+| Crumbs | `.crumbs` | inline (edit form, article page) | `components.css` crumbs |
 | Section head | `.section-head` | inline (edit form) | `components.css` section-head |
 | Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta |
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
@@ -286,7 +286,9 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
-| Menu | `.menu` | inline (`_header` and the edit form's margin, both popovers) | `components.css` menu |
+| Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers) | `components.css` menu |
+| Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
+| Byline | `.byline` | inline (article page: the origin and the labelled lines) | `components.css` byline |
 | Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
@@ -300,7 +302,6 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
 | Cover Platte | `.platte` | inline (`detail`) | `detail.css` cover Platte |
-| Record card | `.facts` | inline (`detail`) | `detail.css` record card |
 | Plate register | `.filmstrip` | inline (`detail`) | `detail.css` plate register |
 
 ### Roles

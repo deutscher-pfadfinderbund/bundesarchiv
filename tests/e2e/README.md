@@ -52,8 +52,8 @@ so a review brief can reference a shot. Override the output dir with
 The states live in `_gallery.py:STATES`: the workbench (empty / results /
 filtered / pane-open / bulk cold — proving NO Sammelbearbeitung shows without a
 selection — + bulk selection / public), the create step, the edit surface in its
-two shapes (draft / published) plus its menu and help overlays, the 4.6
-detail read view (member with cover + filmstrip / no-media / archivist draft), and
+two shapes (draft / published) plus its menu and help overlays, the article
+page (member with cover + filmstrip / no media / archivist draft / its menu), and
 the confirm surfaces (bulk-confirm, delete-confirm) — the states behind an
 interaction reached by driving the affordance, so they appear in the gallery too.
 Read-only states only: no gallery render mutates the shared corpus (so every shot

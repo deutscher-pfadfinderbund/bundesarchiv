@@ -233,11 +233,6 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     # query (a bare "?" would). artikel is pane state, not search state.
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
-    # Öffnen carries the current search back to the detail page via ?zurueck (search state only —
-    # artikel + auswahl excluded), so its "Zurück zur Suche" restores this search (spec §2).
-    search_params = {
-        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
-    }
     return _Pane(
         ulid=article.ulid,
         title=article.title,
@@ -245,20 +240,11 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         datierung=vocab.datierung_mono(article.date),
         typ=article.document_type or "",
         media=media,
-        oeffnen_href=f"{reverse('artikel-detail', args=[article.ulid])}{_zurueck_suffix(search_params)}",
+        oeffnen_href=reverse("artikel-detail", args=[article.ulid]),
         # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
         bearbeiten_href=reverse("artikel-bearbeiten", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
-
-
-def _zurueck_suffix(search_params: dict[str, str]) -> str:
-    """The ``?zurueck=<encoded current search>`` suffix a detail link carries so the detail page's
-    "Zurück zur Suche" restores this search (spec §2). ``search_params`` must already exclude the
-    pane (artikel) + bulk (auswahl) keys — only search state travels. Empty string when there is no
-    active search (the detail page then falls back to a bare "/")."""
-    current = urlencode({k: v for k, v in search_params.items() if v != ""})
-    return f"?{urlencode({'zurueck': current})}" if current else ""
 
 
 # Which index facet key feeds which rail facet group: (facet key, param key, German heading). The
@@ -291,7 +277,6 @@ def _ledger_row(
     selected_ulid: str | None,
     vorschau_prefix: str,
     auswahl: frozenset[str],
-    zurueck: str,
 ) -> dict[str, object]:
     """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
     logic in the template). The ENTWURF flag + Bearbeiten href + bulk checkbox are archivist
@@ -300,15 +285,12 @@ def _ledger_row(
     the pane; ``auswahl`` is the bulk selection as a set (this row's checkbox is checked + the row
     inverts when its ulid is in it). ``vorschau_prefix`` is the row-invariant encoded pane-link
     prefix (``browse.pane_query_prefix`` — search state + the whole selection), computed once per
-    page; only the trailing ``artikel=<ulid>`` differs per row. ``zurueck`` is the encoded
-    ``?zurueck=`` suffix carrying the current search so the detail page's "Zurück zur Suche"
-    returns here (empty when no search)."""
+    page; only the trailing ``artikel=<ulid>`` differs per row."""
     return {
         "title": hit.title,
         # ONE-CLICK ENTRY (owner 2026-08-07): the Titel IS the canonical detail navigation — no
-        # pane interception. ?zurueck carries the search back so detail's "Zurück zur Suche"
-        # restores it (spec §2).
-        "href": f"{reverse('artikel-detail', args=[hit.ulid])}{zurueck}",
+        # pane interception; the way back to the search is browser Back.
+        "href": reverse("artikel-detail", args=[hit.ulid]),
         "ulid": hit.ulid,
         "ref_code": hit.ref_code or "",
         "datierung": hit.date_edtf or "",
@@ -335,14 +317,12 @@ def _ledger_rows(
     selected_ulid: str | None,
     vorschau_prefix: str,
     auswahl: frozenset[str],
-    zurueck: str,
 ) -> tuple[dict[str, object], ...]:
     """The ledger row view-models for the page's SearchHits. The title link points at the
     canonical detail route ``/artikel/<ulid>`` (plain navigation, works with no JS on every
     viewport); the pane opens via each row's explicit Vorschau link. No visibility logic — that
     already happened in ``search``; the archivist chrome is a presentation gate off
-    ``is_archivist``. ``zurueck`` is the shared encoded return suffix (same for every row — the
-    current search)."""
+    ``is_archivist``."""
     hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
     return tuple(
         _ledger_row(
@@ -351,7 +331,6 @@ def _ledger_rows(
             selected_ulid=selected_ulid,
             vorschau_prefix=vorschau_prefix,
             auswahl=auswahl,
-            zurueck=zurueck,
         )
         for hit in hits
     )
@@ -436,9 +415,6 @@ def _results_context(
     total: int = page.total  # type: ignore[attr-defined]
     size = len(page.hits)  # type: ignore[attr-defined]
     bestand = BestandChooser.of(Archive.canonical())
-    # The ?zurueck= suffix every detail link carries: the current search (params already excludes
-    # artikel + auswahl), so the detail page's "Zurück zur Suche" restores it. Empty when no search.
-    zurueck = _zurueck_suffix(params)
     context: dict[str, object] = {
         "text": parsed.text or "",
         # The search form's hidden inputs (GH #21) — every active filter, so typing a new q keeps
@@ -459,7 +435,6 @@ def _results_context(
             # both row-invariant: encoded once here, not once per row
             vorschau_prefix=browse.pane_query_prefix(params, auswahl),
             auswahl=frozenset(auswahl),
-            zurueck=zurueck,
         ),
         "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
         "current_page": parsed.page,
@@ -653,19 +628,12 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     any deny/absence/malformed/broken-chain → the byte-identical 404 (existence-hiding). The template
     is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
     floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
-    member-vs-archivist template fork (spec §4/§10). The action row + ENTWURF badge are
-    presentation-gated on ``is_archivist``."""
+    member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
+    on ``is_archivist``."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
         return _not_found()
-    # The "Zurück zur Suche" target: the search the visitor came from, carried in ?zurueck= and
-    # sanitized through the browse param whitelist (never echoed raw — no reflection/open-redirect,
-    # spec §2). Falls back to a bare "/" when absent or nothing survives sanitizing.
-    clean = browse.sanitize_query(request.GET.get("zurueck", ""))
-    zurueck_href = f"{reverse('workbench')}?{clean}" if clean else reverse("workbench")
-    return render_screen(
-        request, "workbench/detail.html", _detail_context(resolution, zurueck_href)
-    )
+    return render_screen(request, "workbench/detail.html", _detail_context(resolution))
 
 
 @dataclass(frozen=True, slots=True)
@@ -726,16 +694,14 @@ def _detail_media(article: Article) -> tuple[_DetailMedia, ...]:
     )
 
 
-def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str, object]:
+def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     """The detail template context, built ONLY from the projected Article (no floored field can reach
     it) + the member-safe chain. Every value is `{% if %}`-gated in the template, so an absent field
-    (or a floored archivist-only field) emits no row — no member/archivist fork, no "—" placeholders.
-    The breadcrumb runs root→leaf (chain is leaf-first, so reversed); tags + Bestand link back into
-    the workbench facets (the archive's browsing loop).
-    ``zurueck_href`` is the sanitized return-to-search link (built in the view from ?zurueck)."""
+    (or a floored archivist-only field) renders nothing — no member/archivist fork, no "—"
+    placeholders. The crumbs run root→leaf; tags + crumbs link back into the workbench facets (the
+    archive's browsing loop)."""
     article = resolution.article
     media = _detail_media(article)
-    crumbs = bestand_crumbs(resolution.chain)
     tags = tuple(
         _DetailTag(
             label=t, href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_TAG, t)}"
@@ -746,11 +712,9 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
         "ulid": article.ulid,
         "is_archivist": resolution.is_archivist,
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
-        "zurueck_href": zurueck_href,
         "title": article.title,
         "ref_code": article.ref_code or "",
-        "datierung_prose": vocab.edtf_to_german(article.date),
-        "datierung_mono": vocab.datierung_mono(article.date),
+        "datierung": vocab.datierung_parts(article.date),
         "typ": article.document_type or article.media_type or "",
         "creator": article.creator or "",
         "ort": article.subject_place or "",
@@ -759,8 +723,7 @@ def _detail_context(resolution: DetailResolution, zurueck_href: str) -> dict[str
         # so no markup is interpreted). Flagged to the owner as §11: rich Markdown rendering is a later
         # decision, not manufactured here.
         "body_paragraphs": _body_paragraphs(article.body),
-        "crumbs": crumbs,
-        "leaf_bestand": crumbs[-1] if crumbs else None,
+        "crumbs": bestand_crumbs(resolution.chain),
         "tags": tags,
         "umfang": len(media),
         "cover": media[0] if media else None,

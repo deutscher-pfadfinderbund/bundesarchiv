@@ -3,8 +3,8 @@
 The leak surface (spec §9): per-tier projection honesty. One template fed a `visible`-projected
 Article, so archivist-only fields (Standort/physical_location, Weitere Angaben/custom) are FLOORED
 before the template and cannot reach a member/public body even by a template mistake. These assert
-field-VALUE absence (not just a missing class), draft 404 discipline, the action row + Entwurf mark
-for archivists, the EDTF human-vs-mono double render, and no amber/red on a member view.
+field-VALUE absence (not just a missing class), draft 404 discipline, the archivist's tools, and no
+red on a member view.
 
 Pure request-handling against a local FS store (load + resolve + visible) — no Postgres.
 """
@@ -122,30 +122,23 @@ def _body(viewer: Viewer, ulid: str, query: str = "") -> str:
 # --- the read view renders the record ---------------------------------------------
 
 
-def test_detail_renders_title_and_record_card(corpus: _DetailArchive) -> None:
+def test_detail_renders_title_and_origin(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
     assert "Sommerfahrt 1962" in body
     assert "F12" in body  # Signatur
-    assert "K. Meyer" in body  # Autor
+    assert "von K. Meyer" in body  # Urheber
     assert "Harz" in body  # Ort
     assert "Zeitschrift" in body  # Typ (document_type preferred)
+    assert '<time datetime="1962-07">1962-07</time>' in body  # Datierung
     assert "Erste Zeile." in body  # Beschreibung prose
 
 
-def test_detail_renders_edtf_human_and_mono(corpus: _DetailArchive) -> None:
+def test_detail_renders_every_medium_as_a_gated_thumb_and_link(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
-    assert "Juli 1962" in body  # human German under the title (edtf_to_german)
-    assert "1962-07" in body  # raw machine value in the card mono row
-
-
-def test_detail_renders_cover_and_filmstrip_thumbs(corpus: _DetailArchive) -> None:
-    body = _body(Public(), corpus.pub)
-    assert f"/media/{corpus.pub}/{corpus.cover_hash}/thumb" in body  # cover
-    assert f"/media/{corpus.pub}/{corpus.second_hash}/thumb" in body  # filmstrip plate
-    assert "Am Lagerfeuer" in body  # cover caption
-    assert (
-        f'href="/media/{corpus.pub}/{corpus.second_hash}"' in body
-    )  # plate → full gated byte route
+    for content_hash in (corpus.cover_hash, corpus.second_hash):
+        assert f"/media/{corpus.pub}/{content_hash}/thumb" in body
+        assert f'href="/media/{corpus.pub}/{content_hash}"' in body
+    assert "Am Lagerfeuer" in body  # caption
     # no raw bytes inlined — only /media/ URLs
     assert "data:image" not in body
 
@@ -177,11 +170,11 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     corpus: _DetailArchive,
 ) -> None:
     # guards against a NEW archivist-only field silently reaching members: the two renders must
-    # differ ONLY by the archivist-only values + the archivist chrome (action row, its markers).
+    # differ ONLY by the archivist-only values + the archivist chrome (the tools).
     member = _body(Member(groups=()), corpus.pub)
     archivist = _body(Archivist(), corpus.pub)
     # both carry the shared reading structure
-    for shared in ("Sommerfahrt 1962", "Juli 1962", "F12", "K. Meyer", "Erste Zeile."):
+    for shared in ("Sommerfahrt 1962", "1962-07", "F12", "K. Meyer", "Erste Zeile."):
         assert shared in member
         assert shared in archivist
     # the archivist-only VALUES appear only for the archivist
@@ -198,12 +191,19 @@ def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) 
     assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
 
 
-def test_draft_is_200_with_mark_and_actions_for_archivist(corpus: _DetailArchive) -> None:
+def test_draft_is_200_and_closes_with_publish_for_archivist(corpus: _DetailArchive) -> None:
     response = client_as(Archivist()).get(f"/artikel/{corpus.draft}")
     assert response.status_code == 200
     body = response.content.decode()
-    assert draft_mark() in body
-    assert "/bearbeiten" in body  # action row present
+    assert "Veröffentlichen" in body
+    assert "Als Entwurf zurückziehen" not in body  # it can never become active on a draft
+    assert "/bearbeiten" in body
+
+
+def test_published_record_offers_withdraw_to_archivist(corpus: _DetailArchive) -> None:
+    body = _body(Archivist(), corpus.pub)
+    assert "Als Entwurf zurückziehen" in body
+    assert "Veröffentlichen" not in body
 
 
 # --- action row / archivist chrome ------------------------------------------------
@@ -237,16 +237,6 @@ def test_schlagworte_link_into_tag_facet(corpus: _DetailArchive) -> None:
     assert "?schlagwort=sommer" in body
 
 
-# --- design-gate fixups ------------------------------------------------------------
-
-
-def test_cover_platte_links_to_full_image(corpus: _DetailArchive) -> None:
-    # LOW-MED: the cover always links its full gated byte route, so a single-media article (no
-    # filmstrip) still has a path to the full image.
-    body = _body(Public(), corpus.pub)
-    assert f'href="/media/{corpus.pub}/{corpus.cover_hash}"' in body
-
-
 # --- escaping: free-text values round-trip inert (the leak-surface pin) -------------
 
 
@@ -262,34 +252,3 @@ def test_markup_bearing_fields_render_escaped(corpus: _DetailArchive) -> None:
     # … and NEVER as executable markup.
     assert "<script>alert" not in body
     assert "<img src=x onerror=1>" not in body
-
-
-def test_zurueck_default_when_no_return_query(corpus: _DetailArchive) -> None:
-    # no ?zurueck → the return link is a bare "/" (unchanged behavior).
-    body = _body(Public(), corpus.pub)
-    assert '<a class="back" href="/">' in body
-
-
-def test_zurueck_round_trips_a_clean_search_query(corpus: _DetailArchive) -> None:
-    # MED: the return link carries the search back (q + facet + page), sanitized through the browse
-    # param whitelist and re-serialized (never echoed raw).
-    body = _body(Public(), corpus.pub, "?zurueck=q%3Dfahrt%26schlagwort%3Dsommer%26seite%3D2")
-    assert 'class="back"' in body
-    for fragment in ("q=fahrt", "schlagwort=sommer", "seite=2"):
-        assert fragment in body
-
-
-def test_zurueck_drops_unknown_and_pane_params(corpus: _DetailArchive) -> None:
-    # the sanitizer whitelists known search params only: an injected artikel= (pane state) or a
-    # bogus key must not survive into the return link (no reflection / existence oracle).
-    body = _body(Public(), corpus.pub, "?zurueck=q%3Dfahrt%26artikel%3DXYZ%26evil%3D%3Cscript%3E")
-    assert "q=fahrt" in body
-    assert "artikel=" not in body
-    assert "evil" not in body
-    assert "script" not in body.lower().split('class="back"')[1][:200]
-
-
-def test_zurueck_malformed_falls_back_to_root(corpus: _DetailArchive) -> None:
-    # a ?zurueck with no recognizable search params → the return link is a bare "/".
-    body = _body(Public(), corpus.pub, "?zurueck=%7Bnot-a-query%7D")
-    assert '<a class="back" href="/">' in body

@@ -340,6 +340,34 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with the ink edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen / Verwerfen carry the .danger context</code>
 
+<h2>Split button — the article page's Bearbeiten</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; --control-height: var(--touch-target)">
+    <div class="split-button">
+      <a class="button" href="#demo-split">Bearbeiten</a>
+      <button class="menu-button" type="button" popovertarget="demo-split-{{ mode }}" aria-label="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
+      <ul class="menu" id="demo-split-{{ mode }}" popover>
+        <li><a href="#demo-split">Als Entwurf zurückziehen</a></li>
+        <li><a class="danger" href="#demo-split">Löschen</a></li>
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">.split-button: a.button (the frequent action) + button.menu-button (the chevron, named "Weitere Aktionen") + ul.menu[popover] (the rare actions) in one frame; the chevron draws no start edge, so the action's end edge divides them; both invert on hover. Its row sets --control-height (law C8)</code>
+
+<h2>Byline — one line of facts</h2>
+<div class="probe">
+  {% for mode in modes %}
+  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
+    <p class="byline"><data value="F12/3-b2">F12/3-b2</data><span>Foto(s)</span><span><time datetime="1984-11-26">1984-11-26</time>/<wbr><time datetime="1995-03-14">1995-03-14</time></span><span>Hoher Meißner, Cuenca, Madrid</span><span>von Ring Florian Geyer</span></p>
+    <dl class="byline"><div><dt>Standort</dt><dd>Bund › Alben</dd></div></dl>
+  </div>
+  {% endfor %}
+</div>
+<code class="doc">.byline on a &lt;p&gt; (self-evident values: spans, &lt;time&gt;, &lt;data&gt;) or a &lt;dl&gt; (labelled pairs); a middle dot separates the items, and no line, the first or a wrapped one, begins with one</code>
+
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">
   {% for mode in modes %}

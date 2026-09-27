@@ -1,96 +1,66 @@
-/* Part 4.6 — Artikel DETAIL read view (the Lesesaal): the reading sheet composition and its two
-   components (the record card, the plate register). Role tokens ONLY; a raw color here is a
-   defect. Loads after tokens.css + components.css + layouts.css (which owns the shared .column).
-   No loud color anywhere on a member view; the active plate is an ink frame, never a tint. */
+/* The article page (a3 mock, docs/design/explorations/2026-09-26-monochrome/a3-artikel): its
+   composition and, until the media wave, the old Platte and plate register. Role tokens only.
+   Loads after tokens.css + components.css + layouts.css. */
 
 @layer compositions {
-  /* Bestand breadcrumb in the page header (next to the Zurück link). It NAMES its type role rather
-     than inheriting the document's body face (G.12): a crumb is header chrome, so it carries the same
-     meta role as the .back link beside it — the two were 15.2px and 13.6px on one row. */
-  body > header nav a {
-    font: var(--type-meta);
+  /* the page on the page grid (the header's measure and gutter): the record, then its media */
+  .artikel {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: var(--space-8) var(--gutter);
   }
-  body > header nav span {
-    color: var(--ink-2);
-    margin-inline: var(--space-1);
-  }
-
-  /* the title block: display title, human Datierung as NEUTRAL prose below it (§0/§10) */
-  .column.wide header {
-    display: block;
-    margin-bottom: var(--space-5);
-  }
-  .column.wide header p {
-    margin: var(--space-1) 0 0;
-  }
-
-  /* archivist action row: a quiet secondary cluster, top-right of the column */
-  .column.wide > .actions {
+  .artikel > article {
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: var(--space-4);
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+  /* inside the head the stack owns every gap: origin, description and the labelled lines read as
+     one block */
+  .artikel > article > header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .artikel > article > header > * {
+    margin: 0;
+  }
+  /* the article's flex gap spaces the media; the figure's own margin would add to it (C4) */
+  .artikel > article > .platte {
+    margin: 0;
+  }
+  .artikel h1 {
+    max-width: 30ch; /* the title measure (the mock's --measure-title) */
+    font: var(--type-page-title);
   }
 
-  /* body split: prose left (~65ch), record card right; folds to one column narrow */
-  .split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 20rem; /* the record-card rail — one structural track */
-    gap: var(--space-6);
-    align-items: start;
+  /* the place at the start, the archivist's tools at the end edge of the same line */
+  .record-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-6);
   }
-  /* Pure text record — no Beschreibung prose: the two-track grid would maroon the card top-right
-     beside an empty prose column. Collapse to a single ≤40rem column so the card sits directly
-     under the title as one cohesive block (design-gate HOLD, gate option a). */
-  .split:not(:has(.prose)) {
-    grid-template-columns: minmax(0, 40rem); /* one cohesive block under the title (gate ruling) */
+  /* the tools are a control row (law C8) */
+  .record-head > .actions {
+    --control-height: var(--touch-target);
   }
-  .split:not(:has(.prose)) .facts {
-    grid-column: 1;
-  }
+
+  /* the Beschreibung: the record's lede, at reading measure */
   .prose {
-    max-width: 65ch;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: 65ch; /* the reading measure (the mock's --measure-prose) */
   }
-  /* the prose's heading only: the record card inside the split owns its own (law C14) */
-  .split > .prose > h2 {
-    margin: 0 0 var(--space-2);
-    font: var(--type-label);
-    color: var(--ink-2);
-  }
-  .prose p {
-    margin: 0 0 var(--space-3);
-  }
-
-  /* the composition owns the space around the Platte and above the plate register (C4) */
-  .column .platte {
-    margin: 0 0 var(--space-5);
-  }
-  .column .filmstrip {
-    margin-top: var(--space-6);
-  }
-
-  /* narrow fold: record card under the prose (single column); the breadcrumb hides very narrow
-     and the card's leaf-Bestand fallback row appears so the filing is never wholly lost (§3) */
-  @media (max-width: 900px) { /* the reader's one MODAL fold: below it the record card cannot sit beside the prose (C9/C11 — a composition breakpoint, no token names one). NOT re-derived from measured content: the detail reader is explicitly out of the form wave (form-wave-brief D), so this threshold is inherited unchanged and is a standing C9 debt, filed with the reader's own wave. */
-    .split {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .facts {
-      grid-column: 1;
-      position: static;
-    }
-  }
-  @media (max-width: 560px) { /* the phone step of the same fold (breadcrumb out, the card's leaf-Bestand row in) — same standing C9 debt as the query above, same wave. */
-    body > header nav {
-      display: none;
-    }
-    .facts {
-      --facts-fallback: flex;
-    }
+  .prose > p {
+    margin: 0;
   }
 }
 
 @layer components {
-  /* ---- cover Platte — THE focal point: a mounted photo with an edge ---- */
+  /* The media keep their pre-a3 rendering until the media wave (owner 2026-09-28). */
+  /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
   .platte {
     padding: var(--space-3);
     border: var(--line-width) solid var(--edge);
@@ -106,63 +76,9 @@
     font: var(--type-meta);
   }
 
-  /* ---- record card (Katalogeintrag): a quiet register of facts as a <dl>, sticky on wide.
-     Pinned to the 20rem right track so a body-less article keeps it at rail width.
-     Knobs: --facts-fallback (the Bestand row's display). ---- */
-  .facts {
-    grid-column: 2;
-    position: sticky;
-    top: var(--space-4);
-    padding: var(--space-4);
-    border: var(--line-width) solid var(--edge);
-  }
-  .facts > div {
-    margin-bottom: var(--space-3);
-  }
-  .facts dl {
-    margin: 0;
-  }
-  .facts dl > div {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-1) 0;
-  }
-  .facts dt {
-    font: var(--type-label);
-    color: var(--ink-2);
-  }
-  .facts dd {
-    margin: 0;
-    font: var(--type-meta);
-    text-align: right;
-  }
-  .facts dd.mono {
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  /* archivist-only rows carry a quiet neutral "Nur intern" hint — NO loud color (§0 law trap) */
-  .facts small {
-    font: var(--type-mono-meta);
-    color: var(--ink-2);
-  }
-  /* Schlagworte: ink-text links on the card, right-aligned like every value */
-  .facts .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-2);
-    justify-content: flex-end;
-  }
-  /* the card's Bestand row is a mobile fallback — hidden while the breadcrumb shows */
-  .facts .fallback {
-    display: var(--facts-fallback, none);
-  }
-
   /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the
      page never scrolls sideways. The active plate (the cover) carries aria-current and a
      neutral-ink INVERSION frame (register row 3). ---- */
-  /* the card's and the register's heading: one label voice */
-  .facts > h2,
   .filmstrip h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-label);
