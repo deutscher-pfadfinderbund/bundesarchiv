@@ -26,7 +26,7 @@ No JS, no HTMX — the app's purest no-JS surface (§7).
     <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
     <form method="post" action="{% url 'artikel-kopieren' ulid %}">
       {% csrf_token %}
-      <button type="submit">Kopieren</button>
+      <button type="submit">Duplizieren</button>
     </form>
     {% comment %}Both lifecycle actions are LINKS to the edit surface, where the transition rides the
     form's own single CAS-guarded write (owner decision 2026-08-08 — saving IS publishing). Withdraw

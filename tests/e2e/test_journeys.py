@@ -1214,9 +1214,9 @@ def test_kopieren_creates_draft_copy_signatur_focused(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # from the published article's read view, Kopieren → a fresh draft's edit form, Signatur focused
+    # from the published article's read view, Duplizieren → a fresh draft's edit form, Signatur focused
     page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}")
-    page.click('button:has-text("Kopieren")')
+    page.click('button:has-text("Duplizieren")')
     page.wait_for_url("**/bearbeiten**")
     # the copy cleared the Signatur (ref_code) and the field is focused (spec §5)
     expect(page.locator('input[name="ref_code"]')).to_have_value("")
