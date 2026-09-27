@@ -119,8 +119,8 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 # --- Sichtbarkeit (audience) German labels -----------------------------------------
 
 #: The German Sichtbarkeit rung captions — the ONE source for the ladder's user-facing words. Every
-#: audience-label helper across the web slice (the archivist ledger, the CAS diff, the publish
-#: preview, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
+#: audience-label helper across the web slice (the archivist ledger, the CAS diff, the inherit
+#: caption, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
 #: the strings can never drift between screens. ``SICHTBARKEIT_ERBEN`` is the ADR-0001 inherit default.
 SICHTBARKEIT_ERBEN = "Vom Bestand erben"
 SICHTBARKEIT_PUBLIC = "Öffentlich"
@@ -139,7 +139,7 @@ def groups_label(groups: tuple[str, ...]) -> str:
 def sichtbarkeit_label(audience: Audience | None) -> str:
     """An ``Audience`` (or ``None`` = inherit) as its human-German Sichtbarkeit caption. Shared by the
     4.7 CAS diff and the 4.8 read-only Bestand row (both hold an ``Audience | None``); the ledger and
-    the publish preview, which start from other shapes, reuse the same rung strings above."""
+    the inherit caption, which start from other shapes, reuse the same rung strings above."""
     if audience is None:
         return SICHTBARKEIT_ERBEN
     match audience.tier:

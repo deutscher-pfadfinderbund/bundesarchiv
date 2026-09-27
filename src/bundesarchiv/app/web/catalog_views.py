@@ -215,9 +215,9 @@ def _handle_edit_post(
     branch below)."""
     current = stored.article
     surface = EditSurface.of(current, stored.version, bestand)
-    if "custom_entfernen" in request.POST or "custom_neu" in request.POST:
+    adding = "custom_neu" in request.POST
+    if adding or "custom_entfernen" in request.POST:
         # spec §5: drop the named row or add an empty one, preserve everything else, save nothing.
-        adding = "custom_neu" in request.POST
         return surface.submitted(
             request.POST,
             catalog.parse_version(request.POST.get("expected_version", "")),
@@ -228,7 +228,7 @@ def _handle_edit_post(
     try:
         lifecycle = current.lifecycle if status is None else Lifecycle(status)
     except ValueError:
-        return _not_found()  # no Status → no save, no transition, indistinguishable 404
+        return _not_found()  # not a Status → no save, no transition, indistinguishable 404
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -274,12 +274,12 @@ def _handle_edit_post(
                 return saved.render(request, overlay=IndexLag())
             return _redirect(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
-            # The surface is the WINNER's: the sheet, the media and the refreshed expected_version all
-            # come from the record as it now stands, with the archivist's own values still in the card.
+            # The surface is the WINNER's: crumbs, media and the refreshed expected_version come from
+            # the record as it now stands; the form keeps the archivist's own values.
             return (
                 EditSurface.of(conflict.winner, conflict.current_version, bestand)
                 .submitted(request.POST, conflict.current_version)
-                .render(request, autofocus="speichern", overlay=Conflict(conflict.submitted))
+                .render(request, overlay=Conflict(conflict.submitted))
             )
         case catalog.DeletedOutcome():
             # hard-deleted underneath the save — collapse to the byte-identical 404
@@ -440,8 +440,6 @@ class EditSurface:
                 "version": self.version,
                 "errors": errors,
                 "autofocus": autofocus,
-                # The card's rows, section by section — the template loops these, so the registry is
-                # the ONE place a field of the record card exists.
                 "card_fields": _card_fields(
                     self.values,
                     self.bestand,
@@ -635,9 +633,10 @@ class _Field:
     ``margin`` (the record's margin), a body section, or ``""`` for the rows that are not on the form
     at all — a single string, so "a field lives in at most one section" is structural.
 
-    ``control`` is what the card renders for it: ``text``, ``select`` (flat options), ``groups``
+    ``control`` is what the form renders for it: ``text``, ``select`` (flat options), ``groups``
     (optgrouped options), ``textarea``, or ``""`` for a row that is no control. A row with a control
-    carries a scalar form value — it is seeded, echoed and printed by that column alone.
+    carries a scalar form value — it is seeded, re-rendered from the POST and printed by that column
+    alone.
 
     ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
     §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
@@ -1035,7 +1034,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
-# --- the exposure statement: who gains sight (G.34) --------------------------------
+# --- who would see it once published (G.34) ----------------------------------------
 
 
 def _exposure_audience(article: Article, bestand: BestandChooser) -> str | None:
