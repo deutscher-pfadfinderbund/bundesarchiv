@@ -6,8 +6,13 @@ from typing import Any
 from bundesarchiv.domain.models import Change
 
 
+def utc_text(at: datetime) -> str:
+    """A UTC instant as front-matter text: ISO 8601 with a ``Z``."""
+    return at.isoformat().replace("+00:00", "Z")
+
+
 def to_front_matter(change: Change) -> dict[str, str]:
-    return {"changed_at": change.at.isoformat().replace("+00:00", "Z"), "changed_by": change.by}
+    return {"changed_at": utc_text(change.at), "changed_by": change.by}
 
 
 def from_front_matter(front_matter: dict[str, Any]) -> Change | None:

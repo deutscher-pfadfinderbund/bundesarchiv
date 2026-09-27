@@ -17,6 +17,7 @@ only index + queue seams are stubbed (conftest.py).
 import io
 import tracemalloc
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,7 @@ from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaR
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+_ADDED_AT = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
 
 
 class _MediaCorpus:
@@ -59,6 +61,7 @@ class _MediaCorpus:
                 title="Lagerchronik",
                 media_type="Foto(s)",
                 media=(self.ref_a, self.ref_b),
+                added_at=_ADDED_AT,
             )
         )
 
@@ -101,6 +104,14 @@ def test_verschieben_runter_moves_cover_and_re_covers(corpus: _MediaCorpus) -> N
     assert response.status_code == 200
     after = _hashes(corpus)
     assert after == [before[1], before[0]]  # swapped → the second entry is now the cover
+
+
+def test_a_structural_media_edit_keeps_the_date_added(corpus: _MediaCorpus) -> None:
+    client_as(Archivist()).post(
+        f"/artikel/{_ULID}/medien/verschieben",
+        {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
+    )
+    assert corpus.articles.load(_ULID).article.added_at == _ADDED_AT
 
 
 def test_verschieben_hoch_at_top_is_noop(corpus: _MediaCorpus) -> None:

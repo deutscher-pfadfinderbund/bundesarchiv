@@ -22,6 +22,7 @@ tests and a ``QueryDict`` in the view without knowing which it holds.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from bundesarchiv.app import articles
@@ -108,6 +109,7 @@ def parse_edit_form(
     bestand: BestandChooser,
     current_media: tuple[MediaRef, ...] = (),
     lifecycle: Lifecycle = Lifecycle.DRAFT,
+    added_at: datetime | None,
 ) -> ParseResult:
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
     error map. Total: malformed input never raises, it becomes a field error. ``bestand`` is the
@@ -121,7 +123,8 @@ def parse_edit_form(
     lifecycle for a plain save (a metadata save never silently changes published state) — or the TARGET
     state when the archivist's submit carried a lifecycle verb, so publishing from the edit screen saves
     the form and transitions in ONE CAS write (owner decision 2026-08-08). This layer stays pure either
-    way: it never decides the transition, it only records the state it was handed."""
+    way: it never decides the transition, it only records the state it was handed. ``added_at`` is
+    the stored date added, carried through like the ulid: no edit changes it."""
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
 
@@ -180,6 +183,7 @@ def parse_edit_form(
         creator=_none_if_blank(_get(post, "creator")),
         subject_place=_none_if_blank(_get(post, "subject_place")),
         custom=custom,
+        added_at=added_at,
     )
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 

@@ -4,6 +4,14 @@ Status: Proposed (2026-09-24). Amends ADR 0005 (history, `changes/`, `.snapshots
 ADR 0006 (media keys; its ULID-only folders stand), ADR 0013 (media exemption, secondary
 history) and ADR 0015 (media layout). ADR 0018 carries `changed_by` in the viewer cookie.
 
+> **Amended 2026-09-27:** the README front matter gains an optional `added_at` (ISO 8601, UTC,
+> whole seconds): when the record entered the archive (*Hinzugefügt am*). The legacy import fills
+> it from `pub_date`; a new Article gets the time it was created; no edit changes it. It is a field
+> of the Article, not version 1's `changed_at`: the date is a fact of the record, while `changed_at`
+> says when a file was written. Setting version 1's `changed_at` to 2017 would falsify that, and a
+> field survives a later history rewrite or layout migration. Absent means unknown (a README
+> written before the field existed).
+
 ## Context
 
 The canonical tree was compared with two preservation layouts (sources below). The

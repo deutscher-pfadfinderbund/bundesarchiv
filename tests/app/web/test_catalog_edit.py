@@ -12,6 +12,7 @@ The whole write path is REAL (repository + README + CAS); only the index + queue
 import io
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
@@ -169,6 +170,17 @@ def test_edit_post_saves_and_redirects_to_read_view(corpus: _EditCorpus) -> None
     assert stored.article.title == "Neuer Titel"
     assert stored.article.creator == "Kurt Meyer"
     assert stored.version == corpus.version + 1
+
+
+def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
+    added_at = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
+    ulid = "01KX7YT9E3VX0CP3A5Q49RZMWK"
+    version = corpus.add_article(
+        make_article(ulid, collection_id="PUB", title="Wanderfahrt 1962", added_at=added_at)
+    )
+    post = _valid_post(corpus, expected_version=str(version), added_at="2026-01-01T00:00:00Z")
+    assert client_as(Archivist()).post(f"/artikel/{ulid}/bearbeiten", post).status_code == 302
+    assert corpus.articles.load(ulid).article.added_at == added_at
 
 
 def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:

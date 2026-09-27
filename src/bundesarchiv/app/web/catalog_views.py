@@ -238,6 +238,7 @@ def _handle_edit_post(
         bestand=bestand,
         current_media=current.media,
         lifecycle=lifecycle,
+        added_at=current.added_at,
     )
     if (
         result.article is not None

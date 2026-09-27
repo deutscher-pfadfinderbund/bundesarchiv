@@ -9,6 +9,7 @@ caller concern (Part 2), so they live in `domain`, not the persistence layer.
 
 import re
 import unicodedata
+from datetime import UTC, datetime
 
 from ulid import ULID
 
@@ -41,8 +42,8 @@ def create_article(
 ) -> Article:
     """Create a NEW Article, minting its stable ULID at creation (ADR 0006: identity is a
     ULID minted here, never derived from a slug). The single place a ULID is minted — every
-    other field mirrors Article's. Existing Articles are reconstructed by the README codec
-    (which carries the already-minted ULID), not created here."""
+    other field mirrors Article's, and ``added_at`` is now. Existing Articles are reconstructed by
+    the README codec (which carries the already-minted ULID), not created here."""
     return Article(
         ulid=new_ulid(),
         title=title,
@@ -60,6 +61,7 @@ def create_article(
         creator=creator,
         subject_place=subject_place,
         custom=custom,
+        added_at=datetime.now(UTC).replace(microsecond=0),
     )
 
 

@@ -99,3 +99,16 @@ def test_a_change_is_never_by_a_blank_or_control_character_name(by: str) -> None
 def test_a_change_is_stamped_in_utc(at: datetime) -> None:
     with pytest.raises(ValueError):
         Change(at, "anna")
+
+
+@pytest.mark.parametrize(
+    "added_at",
+    [
+        datetime(2017, 6, 26, 6, 6, 40),  # noqa: DTZ001 — the naive time is the case under test
+        datetime(2017, 6, 26, 8, 6, 40, tzinfo=timezone(timedelta(hours=2))),
+        datetime(2017, 6, 26, 6, 6, 40, 957434, tzinfo=UTC),
+    ],
+)
+def test_the_date_added_is_utc_in_whole_seconds(added_at: datetime) -> None:
+    with pytest.raises(ValueError):
+        Article(ulid="01J0", title="t", collection_id="c", added_at=added_at)

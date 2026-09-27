@@ -49,7 +49,9 @@ _BESTAND = BestandChooser(
 
 
 def _parse(post: dict[str, list[str]]) -> catalog.ParseResult:
-    return catalog.parse_edit_form(post, ulid="01ARTICLEULID0000000000000", bestand=_BESTAND)
+    return catalog.parse_edit_form(
+        post, ulid="01ARTICLEULID0000000000000", bestand=_BESTAND, added_at=None
+    )
 
 
 # --- happy path + the "" -> None boundary ------------------------------------------

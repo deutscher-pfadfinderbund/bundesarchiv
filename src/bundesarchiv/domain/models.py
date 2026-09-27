@@ -136,8 +136,14 @@ class Article:
     # Archivist-only escape hatch for metadata the schema doesn't cover (ADR 0009). The body
     # already holds the (physical or digital) description, so there is no separate field for it.
     custom: tuple[tuple[str, str], ...] = ()
+    # Hinzugefügt am: UTC, whole seconds; None = unknown (ADR 0019 amendment).
+    added_at: datetime | None = None
 
     def __post_init__(self) -> None:
+        if self.added_at is not None and (
+            self.added_at.utcoffset() != timedelta(0) or self.added_at.microsecond
+        ):
+            raise ValueError(f"added_at must be UTC in whole seconds, got {self.added_at!r}")
         # Normalize custom: sort by key (canonical, order-independent), dedupe (last wins),
         # coerce values to str, and reject a key that collides with a predefined field name
         # (a custom key must never masquerade as a visible predefined field). frozen -> setattr.

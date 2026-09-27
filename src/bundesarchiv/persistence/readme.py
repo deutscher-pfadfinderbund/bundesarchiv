@@ -9,6 +9,7 @@ Only the `ArchiveError` hierarchy crosses out: malformed/unfenced/non-mapping/in
 front-matter all surface as `ArchiveError`, never a raw `yaml`/`KeyError`/`ValueError`.
 """
 
+from datetime import datetime
 from typing import Any
 
 import yaml
@@ -77,6 +78,9 @@ def encode(article: Article, version: Version, change: Change) -> str:
         **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
         # Custom metadata as a sub-mapping; omitted when empty (like audience) to avoid noise.
         **({"custom": dict(article.custom)} if article.custom else {}),
+        **(
+            {"added_at": _change.utc_text(article.added_at)} if article.added_at is not None else {}
+        ),
     }
     yaml_block = yaml.safe_dump(
         front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
@@ -188,6 +192,16 @@ def _as_opt_edtf(value: object) -> EdtfDate | None:
     return EdtfDate(str(value))
 
 
+def _as_opt_instant(value: object) -> datetime | None:
+    """An optional UTC instant: absent -> None, ISO 8601 text -> datetime (Article checks UTC and
+    whole seconds), anything else — incl. an unquoted YAML timestamp — -> reject."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"expected an ISO 8601 text, got {type(value).__name__}")
+    return datetime.fromisoformat(value)
+
+
 def _as_str_map(value: object) -> tuple[tuple[str, str], ...]:
     """Coerce the optional custom mapping to (str, str) pairs: absent -> empty, a non-mapping ->
     reject. Article.__post_init__ re-normalizes (sort, dedupe, reserved-key check)."""
@@ -243,6 +257,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         creator=_as_opt_str(fm.get("creator")),
         subject_place=_as_opt_str(fm.get("subject_place")),
         custom=_as_str_map(fm.get("custom")),
+        added_at=_as_opt_instant(fm.get("added_at")),
         media=tuple(
             MediaRef(
                 filename=str(m["filename"]),

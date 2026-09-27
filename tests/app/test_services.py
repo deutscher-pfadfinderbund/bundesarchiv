@@ -11,6 +11,7 @@ FORBIDDEN inside the gate tests.
 
 import io
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
@@ -318,6 +319,7 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
         date=EdtfDate("1962"),
         creator="K. Meier",
         custom=(("Fotograf", "Meyer"),),
+        added_at=datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC),
     )
     articles.save(source, 0, changed_by="tester")
 
@@ -328,6 +330,7 @@ def test_copy_article_copies_metadata_clears_signatur_and_media(
     assert copy.lifecycle is Lifecycle.DRAFT  # a copy always starts as a draft
     assert copy.ref_code is None  # Signatur cleared (spec §7)
     assert copy.media == ()  # NO media copied (spec §7)
+    assert copy.added_at is not None and copy.added_at > datetime(2017, 6, 27, tzinfo=UTC)
     # metadata carried over
     assert copy.title == "Sommerfahrt 1962"
     assert copy.collection_id == "FOTOS"

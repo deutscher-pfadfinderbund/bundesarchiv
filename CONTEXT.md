@@ -76,6 +76,9 @@ Arbitrary key/value metadata an Archivist can attach for things the predefined f
 **EDTF date** (*Datierung*) — code field `date`:
 An archival date as an EDTF Level 0/1 string: plain year (`1967`), year-month (`1967-03`), full date (`1967-03-15`), unspecified digit (`196X`), interval (`1960/1969`), or open interval (`1960/..`). Qualifiers `?`, `~`, `%` flag uncertainty/approximation. Stored verbatim; bounds are derived for facet search. Any other EDTF feature is out of scope for v1.
 
+**Date added** (*Hinzugefügt am*) — code field `added_at`:
+When an Article entered the archive, UTC. Set once at creation (the legacy import carries the old `pub_date`) and never changed by an edit; a copy is a new Article with its own. Not an archival date — that is the EDTF date. Unknown for trees written before the field existed.
+
 **Index** (*Suchindex*):
 The derived, disposable Postgres table rebuilt from the canonical `README.md` files. Holds each Article's resolved effective-audience columns (materialized at build time, ADR 0012) and searchable text. Rebuilt in full by `rebuild()`; queried by `search()`. Never canonical — the README is.
 

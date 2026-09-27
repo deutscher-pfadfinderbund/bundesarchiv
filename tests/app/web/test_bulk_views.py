@@ -9,6 +9,7 @@ only index + queue seams are stubbed (conftest.py).
 
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime
 
 import pytest
 from tests.app.web._asserts import assert_denied
@@ -67,7 +68,9 @@ def test_bulk_get_is_404(two_drafts: Corpus) -> None:
     assert_denied(client_as(Archivist()).get("/artikel/sammelbearbeitung"))
 
 
-@pytest.mark.parametrize("feld", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit"])
+@pytest.mark.parametrize(
+    "feld", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit", "added_at"]
+)
 def test_forbidden_feld_writes_nothing(two_drafts: Corpus, feld: str) -> None:
     response = client_as(Archivist()).post(
         "/artikel/sammelbearbeitung",
@@ -234,6 +237,18 @@ def test_commit_applies_and_shows_result(two_drafts: Corpus) -> None:
     assert "2 Artikel gespeichert." in body
     assert _stored(two_drafts, _A).creator == "K. Meyer"
     assert _stored(two_drafts, _B).creator == "K. Meyer"
+
+
+def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
+    added_at = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
+    ulid = "01KX7YT9E3VX0CP3A5Q49RZM03"
+    two_drafts.add_article(make_article(ulid, collection_id="PUB", added_at=added_at))
+    client_as(Archivist()).post(
+        "/artikel/sammelbearbeitung",
+        {"auswahl": [ulid], "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
+    )
+    stored = _stored(two_drafts, ulid)
+    assert (stored.creator, stored.added_at) == ("K. Meyer", added_at)
 
 
 def test_commit_cas_race_loser_value_not_on_disk(

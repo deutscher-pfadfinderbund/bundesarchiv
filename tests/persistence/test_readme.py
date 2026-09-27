@@ -23,6 +23,7 @@ def _article(**overrides: object) -> Article:
         "ref_code": "Foto-1955/007",
         "tags": ("zeltlager", "1955"),
         "media": (MediaRef("photo.jpg", "a" * 64, "image/jpeg", 1234),),
+        "added_at": datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC),
     }
     defaults.update(overrides)
     return Article(**defaults)  # type: ignore[arg-type]
@@ -191,6 +192,38 @@ def test_decode_without_marker_still_parses() -> None:
         (
             "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nchanged_at: '2026-09-25T10:30:00Z'\nchanged_by:\n  - anna\n---\n",
             "a list for changed_by",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: gestern\n---\n",
+            "added_at that is no ISO 8601 time",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: ''\n---\n",
+            "an empty added_at",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: '2017-06-26T06:06:40'\n---\n",
+            "added_at without a zone",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: '2017-06-26'\n---\n",
+            "added_at as a bare date",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: '2017-06-26T08:06:40+02:00'\n---\n",
+            "added_at outside UTC",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: '2017-06-26T06:06:40.957434Z'\n---\n",
+            "added_at with microseconds",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at: 2017-06-26T06:06:40Z\n---\n",
+            "added_at as a YAML timestamp",
+        ),
+        (
+            "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\nadded_at:\n  - '2017-06-26T06:06:40Z'\n---\n",
+            "a list for added_at",
         ),
     ],
 )
@@ -473,3 +506,26 @@ def test_a_readme_written_before_the_change_record_loads_without_one() -> None:
     text = "---\nulid: x\nversion: 3\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
     article, version, change = readme.decode("x", text)
     assert (article.title, version, change) == ("t", 3, None)
+
+
+# --- the date added (ADR 0019 amendment) ------------------------------------------------------
+
+
+def test_the_front_matter_carries_added_at_in_utc() -> None:
+    assert "\nadded_at: '2017-06-26T06:06:40Z'\n" in readme.encode(_article(), 1, _CHANGE)
+
+
+def test_an_unknown_date_added_is_omitted_and_reads_back_as_unknown() -> None:
+    article = _article(added_at=None)
+    text = readme.encode(article, 1, _CHANGE)
+    assert "added_at" not in text
+    assert readme.decode("01J0", text)[0] == article
+
+
+@pytest.mark.parametrize(
+    "added_at",
+    [datetime(1, 1, 1, tzinfo=UTC), datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)],
+)
+def test_the_date_added_round_trips_any_instant(added_at: datetime) -> None:
+    article = _article(added_at=added_at)
+    assert readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0] == article
