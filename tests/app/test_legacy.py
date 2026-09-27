@@ -10,6 +10,7 @@ The rows here are SYNTHETIC — shaped like the real export, never copied from i
 
 import csv
 import io
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,7 @@ def _row(**overrides: str) -> dict[str, str]:
             "amount": "1",
             "active": "t",
             "reviewed": "t",
+            "pub_date": "2017-06-26 06:06:40.957434+00",
         }
     )
     row.update(overrides)
@@ -96,7 +98,6 @@ def test_the_dropped_columns_are_exactly_the_ones_the_owner_agreed_to_lose() -> 
     assert set(legacy.DROPPED_COLUMNS) == {
         "active",
         "reviewed",
-        "pub_date",
         "modified",
         "crossreference",
         "file_id",
@@ -128,6 +129,7 @@ _PROBES: dict[str, tuple[dict[str, str], str]] = {
     "collection": ({"collection": "Orden St. Georg"}, "Orden St. Georg"),
     "amount": ({"amount": "12"}, "12"),
     "owner": ({"owner": "Nachlass Schäder"}, "Nachlass Schäder"),
+    "pub_date": ({"pub_date": "2019-03-04 05:06:07.8+00"}, "2019-03-04 05:06:07+00:00"),
 }
 
 
@@ -147,6 +149,7 @@ def _rendered(mapped: legacy.MappedItem) -> str:
             article.date.value if article.date is not None else "",
             *article.tags,
             *(f"{key}={value}" for key, value in article.custom),
+            str(article.added_at),
         )
     )
 
@@ -164,6 +167,15 @@ def test_the_legacy_id_survives_as_a_custom_field() -> None:
 
 
 # --- the plain fields --------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "pub_date",
+    ["2017-06-26 06:06:40.957434+00", "2017-06-26 08:06:40+02", " 2017-06-26 06:06:40+00:00 "],
+)
+def test_pub_date_becomes_the_date_added_in_utc_whole_seconds(pub_date: str) -> None:
+    added_at = _map(_row(pub_date=pub_date)).article.added_at
+    assert added_at == datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
 
 
 def test_the_signatur_keeps_its_inner_space_verbatim() -> None:
@@ -440,6 +452,16 @@ def test_the_report_samples_at_most_ten_unreadable_dates() -> None:
     report = _plan_of(rows).report
     assert report.unparseable_date_count == 25
     assert len(report.unparseable_dates) == legacy.MAX_SAMPLES
+
+
+@pytest.mark.parametrize("pub_date", ["", "gestern", "2017-06-26 06:06:40", "2017-06-26"])
+def test_an_unreadable_pub_date_leaves_the_date_added_unknown_and_is_reported(
+    pub_date: str,
+) -> None:
+    plan = _plan_of([_row(id="7", pub_date=pub_date), _row(id="8")])
+    assert [item.article.added_at is None for item in plan.items] == [True, False]
+    assert plan.report.unreadable_added_count == 1
+    assert plan.report.unreadable_added == (("7", pub_date),)
 
 
 def test_missing_blobs_join_the_report_without_rebuilding_it() -> None:

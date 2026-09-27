@@ -17,6 +17,7 @@ import re
 from collections import Counter
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
@@ -89,7 +90,6 @@ DROPPED_COLUMNS: dict[str, str] = {
     "crossreference": "empty in the whole export",
     "active": "true in every row",
     "reviewed": "true in every row",
-    "pub_date": "the admin record's creation timestamp, not an archival date",
     "modified": "the admin record's last-edit timestamp",
     "file_id": "the item→file join lives in files.csv",
     "file2_id": "the item→file join lives in files.csv",
@@ -119,6 +119,7 @@ MAPPED_COLUMNS: tuple[str, ...] = (
     "collection",
     "amount",
     "owner",
+    "pub_date",
 )
 
 
@@ -154,6 +155,8 @@ class Report:
     per_bestand: tuple[tuple[str, int], ...]
     unparseable_date_count: int
     unparseable_dates: tuple[tuple[str, str], ...]
+    unreadable_added_count: int
+    unreadable_added: tuple[tuple[str, str], ...]
     doctype_disagreements: int
     date_conflicts: int
     date_conflict_samples: tuple[tuple[str, str], ...]
@@ -184,6 +187,8 @@ class Report:
             f"Dokumenttyp-Abweichungen (Freitext ≠ Nachschlagetabelle): {self.doctype_disagreements}",
             f"Unlesbare Datumsangaben: {self.unparseable_date_count}",
             *(f"  {legacy_id}: {raw}" for legacy_id, raw in self.unparseable_dates),
+            f"Unlesbare Angaben „Hinzugefügt am“: {self.unreadable_added_count}",
+            *(f"  {legacy_id}: {raw}" for legacy_id, raw in self.unreadable_added),
             f"Datum widerspricht den Spalten Monat/Tag: {self.date_conflicts}",
             *(f"  {legacy_id}: {detail}" for legacy_id, detail in self.date_conflict_samples),
             f"Medienarten außerhalb des Formular-Vokabulars: {len(self.unknown_media_types)}",
@@ -229,6 +234,7 @@ def map_item(
     The Article is PUBLISHED with no explicit audience: the legacy site showed all of this, and the
     Bestand chain is where the archivists will narrow it (ADR 0001). Its media is still empty — the
     blobs must be stored before a README may reference them, so the files ride alongside.
+    `pub_date` is when the record was entered, so it is the date added.
     """
     date, date_template = _map_date(row)
     custom = {
@@ -239,7 +245,7 @@ def map_item(
         DATE_TEMPLATE_KEY: date_template or "",
         "Legacy-ID": row["id"],
     }
-    article = identity.create_article(
+    created = identity.create_article(
         title=row["title"].strip(),
         collection_id=collection_id,
         lifecycle=Lifecycle.PUBLISHED,
@@ -256,7 +262,7 @@ def map_item(
     return MappedItem(
         legacy_id=row["id"],
         bestand=bestand_name(row),
-        article=article,
+        article=replace(created, added_at=_added_at(row["pub_date"])),
         media=_media(media_rows),
     )
 
@@ -283,6 +289,11 @@ def plan(
         for item in items
         if (template := dict(item.article.custom).get(DATE_TEMPLATE_KEY)) is not None
     )
+    unreadable_added = tuple(
+        (item.legacy_id, row["pub_date"])
+        for row, item in zip(rows, items, strict=True)
+        if item.article.added_at is None
+    )
     conflicts = tuple(
         (item.legacy_id, _conflict_detail(row))
         for row, item in zip(rows, items, strict=True)
@@ -296,6 +307,8 @@ def plan(
             per_bestand=tuple(Counter(item.bestand for item in items).items()),
             unparseable_date_count=len(unreadable),
             unparseable_dates=unreadable[:MAX_SAMPLES],
+            unreadable_added_count=len(unreadable_added),
+            unreadable_added=unreadable_added[:MAX_SAMPLES],
             doctype_disagreements=sum(1 for row in rows if _doctype_disagrees(row)),
             date_conflicts=len(conflicts),
             date_conflict_samples=conflicts[:MAX_SAMPLES],
@@ -341,6 +354,18 @@ def _strangers(values: Iterable[str], known: Vocabulary) -> tuple[str, ...]:
 def _text(value: str) -> str | None:
     """A legacy text cell as an Article field: stripped, absent when blank (never ``""``)."""
     return value.strip() or None
+
+
+def _added_at(pub_date: str) -> datetime | None:
+    """`pub_date` (`2017-06-26 06:06:40.957434+00`) as UTC in whole seconds, or ``None`` when it
+    is not a timestamp with a zone."""
+    try:
+        parsed = datetime.fromisoformat(pub_date.strip())
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(UTC).replace(microsecond=0)
 
 
 def _place(value: str) -> str | None:

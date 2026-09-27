@@ -77,7 +77,7 @@ Verified against file header (row 1):
 | `collection` | Collection lookup | 8 distinct strings; must map to new Collection tree (§5) | Medium |
 | `file_id`, `file2_id`, `file3_id` | `media` tuple | Django-filer FK → requires separate filer export to resolve filenames/paths | Medium |
 | `id` | discard | Replaced by ULID | — |
-| `pub_date` | import log only | Admin entry timestamp; not archival date | — |
+| `pub_date` | `added_at` | Admin entry timestamp; not archival date. Mapped as the date added (owner, 2026-09-27) | High |
 | `modified` | import log only | Last-edit timestamp; import provenance | — |
 | `active` | discard | All `t`; all rows are active | — |
 | `reviewed` | discard | All `t`; all rows reviewed | — |
@@ -254,7 +254,7 @@ All 2 485 rows are active and reviewed. Either the dump was pre-filtered or inac
 
 ### `pub_date` vs `modified`
 
-`pub_date` is the Django admin record-creation timestamp, not an archival date. It must not be mapped to `date`. It can be stored in the import log for audit purposes.
+`pub_date` is the Django admin record-creation timestamp, not an archival date. It must not be mapped to `date`. It becomes the Article's date added, `added_at` (owner, 2026-09-27; ADR 0019 amendment), which feeds a "Zuletzt hinzugefügt" list.
 
 ### Pre-Part-7 model changes needed
 
