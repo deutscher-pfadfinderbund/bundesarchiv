@@ -5,7 +5,7 @@ Covers the four new routes and the read-view action row:
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
 - the fail-closed publish affordance: no exposure, no Veröffentlichen. There is no lifecycle route
-  left to cover: both verbs ride the edit form's own CAS write (tests/app/web/test_catalog_edit.py).
+  left to cover: the Status rides the edit form's own CAS write (tests/app/web/test_catalog_edit.py).
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
@@ -144,24 +144,39 @@ def _article_whose_bestand_chain_is_broken(corpus: Corpus) -> str:
 
 def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: Corpus) -> None:
     # The retired preview gate BLOCKED publishing when the audience chain could not be resolved; the
-    # exposure view-model is None then, and Veröffentlichen must not stay one click away (G.34).
+    # exposure view-model is None then, and Veröffentlicht must not stay on offer (G.34).
     ulid = _article_whose_bestand_chain_is_broken(corpus)
     body = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
-    assert 'value="veroeffentlichen"' not in body
+    assert 'name="lifecycle"' in body  # the Status select is there...
+    assert '<option value="published"' not in body  # ...without Veröffentlicht
     # a resolvable record is unaffected — the gate is the missing FACT, not the screen
     ok = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/bearbeiten").content.decode()
-    assert 'value="veroeffentlichen"' in ok
+    assert '<option value="published"' in ok
+
+
+def test_a_published_record_with_an_unresolvable_chain_keeps_its_status_on_offer(
+    corpus: Corpus,
+) -> None:
+    # Without Veröffentlicht in the select, the next Speichern would withdraw the record silently.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    articles = corpus.articles
+    articles.save(
+        replace(articles.load(ulid).article, lifecycle=Lifecycle.PUBLISHED), 1, changed_by="tester"
+    )
+    body = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten").content.decode()
+    assert '<option value="published" selected>' in body
 
 
 def _publish_post(corpus: Corpus, ulid: str, **overrides: str) -> dict[str, str]:
-    """A form POST carrying the publish verb, at the article's current version so CAS passes."""
+    """A form POST setting Status to Veröffentlicht, at the article's current version so CAS
+    passes."""
     version = corpus.articles.load(ulid).version
     return {
         "title": "Ohne Bestandskette",
         "collection_id": "WAISE",
         "media_type": "Foto(s)",
         "expected_version": str(version),
-        "lebenszyklus": "veroeffentlichen",
+        "lifecycle": "published",
         **overrides,
     }
 
@@ -198,10 +213,27 @@ def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: Corpus) -> None
     )
     response = client_as(Archivist()).post(
         f"/artikel/{ulid}/bearbeiten",
-        _publish_post(corpus, ulid, lebenszyklus="zurueckziehen"),
+        _publish_post(corpus, ulid, lifecycle="draft"),
     )
     assert response.status_code == 302
     assert articles.load(ulid).article.lifecycle is Lifecycle.DRAFT
+
+
+@pytest.mark.parametrize("lifecycle", [Lifecycle.DRAFT, Lifecycle.PUBLISHED])
+def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
+    corpus: Corpus, lifecycle: Lifecycle
+) -> None:
+    # Only draft to published is gated.
+    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    articles = corpus.articles
+    articles.save(replace(articles.load(ulid).article, lifecycle=lifecycle), 1, changed_by="tester")
+    response = client_as(Archivist()).post(
+        f"/artikel/{ulid}/bearbeiten",
+        _publish_post(corpus, ulid, title="Nur gespeichert", lifecycle=lifecycle.value),
+    )
+    assert response.status_code == 302
+    stored = articles.load(ulid).article
+    assert (stored.title, stored.lifecycle) == ("Nur gespeichert", lifecycle)
 
 
 # --- malformed / absent ulid across every new route --------------------------------

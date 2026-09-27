@@ -219,7 +219,7 @@ SCREENS: tuple[Screen, ...] = (
     # Every guard here was walking the DRAFT, which has no media at all.
     Screen(
         "edit-published",
-        "the edit surface (a published record: media rows + their icon toolbars, retract action)",
+        "the edit surface (a published record: media rows + their icon toolbars)",
         True,
         _goto(lambda c: f"/artikel/{c.published_ulid}/bearbeiten"),
         "artikel-bearbeiten",

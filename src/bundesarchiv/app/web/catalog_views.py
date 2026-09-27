@@ -209,12 +209,11 @@ def _handle_edit_post(
     302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
     or ``custom_neu`` submit removes or adds a custom row — a re-render, no save (spec §5).
 
-    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): the edit form's own submit carries the
-    lifecycle verb, so the ONE CAS save commits the metadata and the transition together. A separate
-    lifecycle POST rebuilt the record from disk and discarded the archivist's unsaved edits silently.
-    Everything downstream is unchanged by construction — publishing cannot behave differently from
-    saving, because it IS saving. An unknown verb is a 404 with no mutation; ``veroeffentlichen`` is
-    REFUSED when the exposure cannot be computed (the branch below)."""
+    SAVING IS PART OF PUBLISHING (owner decision 2026-08-08; a1 round 4): the margin's Status select
+    rides the form, so the ONE CAS save commits the metadata and the Status together — Speichern
+    applies it, Enter included. An unchanged Status is a plain save; a value that is no Status is a
+    404 with no mutation; draft → published is REFUSED when the exposure cannot be computed (the
+    branch below)."""
     current = stored.article
     surface = EditSurface.of(current, stored.version, bestand)
     if "custom_entfernen" in request.POST or "custom_neu" in request.POST:
@@ -226,10 +225,11 @@ def _handle_edit_post(
             drop_custom_row=None if adding else _named_custom_row(request.POST),
             add_custom_row=adding,
         ).render(request, autofocus="custom_key" if adding else "custom")
-    verb = request.POST.get("lebenszyklus", "")
-    lifecycle = _lifecycle_for(verb) if verb else current.lifecycle
-    if lifecycle is None:
-        return _not_found()  # unknown verb → no save, no transition, indistinguishable 404
+    status = request.POST.get("lifecycle")
+    try:
+        lifecycle = current.lifecycle if status is None else Lifecycle(status)
+    except ValueError:
+        return _not_found()  # no Status → no save, no transition, indistinguishable 404
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -240,19 +240,20 @@ def _handle_edit_post(
     )
     if (
         result.article is not None
-        and verb == "veroeffentlichen"
+        and current.lifecycle is Lifecycle.DRAFT
+        and lifecycle is Lifecycle.PUBLISHED
         and _exposure_audience(result.article, bestand) is None
     ):
-        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The margin hides
-        # Veröffentlichen when the exposure view-model is None, but that is the client half only, and
+        # The retired gate's FAIL-CLOSED branch, server-side (learning G.43/G.48). The Status select
+        # drops Veröffentlicht when the exposure view-model is None, but that is the client half only, and
         # the state is reachable with ordinary UI actions — re-parenting a Bestand under a missing
         # parent leaves the article's own version untouched, so CAS passes. Published, the record 404s
         # for everyone including its cataloguer, and a later repair puts it live at whatever rung
         # results with no archivist having read an exposure statement.
         # Refusing as a FIELD ERROR on the Bestand is what makes the whole re-render the existing
         # validation path: nothing written, every value preserved, the caret on the field that has to
-        # change. Zurückziehen is deliberately not gated — that is why the verb, not the target
-        # lifecycle, is the condition.
+        # change. Only the draft → published transition is gated: withdrawing, and saving a record
+        # already published, need no exposure fact.
         result = replace(
             result,
             article=None,
@@ -448,11 +449,14 @@ class EditSurface:
                     errors=errors,
                     autofocus=autofocus,
                     sichtbarkeit_options=_sichtbarkeit_options(inherited),
+                    lifecycle_options=(
+                        _LIFECYCLE_OPTIONS[1:]
+                        if inherited is None and self.stored.lifecycle is Lifecycle.DRAFT
+                        else _LIFECYCLE_OPTIONS
+                    ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
                 "crumbs": _crumbs(self.stored, self.bestand),
-                # the client half of the fail-closed publish gate (the server's: _handle_edit_post)
-                "einblick": inherited is not None,
                 "conflict": conflict is not None,
                 "conflict_rows": (
                     _conflict_rows(conflict.submitted, self.stored) if conflict else ()
@@ -559,6 +563,9 @@ def _post_to_form_values(
     for registered in _FIELDS:
         if registered.control:
             values[registered.name] = post.get(registered.name, "")
+    if values["lifecycle"] not in _LIFECYCLE_VALUES:
+        # Veröffentlicht is the first option, so a value matching none would show a draft as published
+        values["lifecycle"] = lifecycle.value
     rows = [pair for pair in raw if pair != ("", "")]
     values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
     values["is_draft"] = lifecycle is Lifecycle.DRAFT
@@ -608,6 +615,18 @@ def _seed_gruppen(article: Article) -> str:
 
 def _lifecycle_label(article: Article) -> str:
     return "Entwurf" if article.lifecycle is Lifecycle.DRAFT else "Veröffentlicht"
+
+
+def _seed_lifecycle(article: Article) -> str:
+    return article.lifecycle.value
+
+
+#: The Status select (a1 round 4): the POST value is the Lifecycle's own value.
+_LIFECYCLE_OPTIONS: tuple[tuple[str, str], ...] = (
+    (Lifecycle.PUBLISHED.value, "Veröffentlicht"),
+    (Lifecycle.DRAFT.value, "Entwurf (nur Archivare)"),
+)
+_LIFECYCLE_VALUES = frozenset(value for value, _ in _LIFECYCLE_OPTIONS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -683,8 +702,7 @@ class _Field:
 #: Every field of the form in DOM/tab order: the lead, the margin, then the body sections.
 #: ``custom`` is the ``errors`` key for the bag as a whole (it maps to no single input, so it is
 #: neither scanned nor focusable); ``custom_key``/``custom_value`` are its inputs, rendered by the
-#: bag's own row loop. ``lifecycle`` is not a field at all — it is the record's state, and it rides
-#: here only because the CAS diff shows it as a row, last.
+#: bag's own row loop.
 _FIELDS: tuple[_Field, ...] = (
     _Field(
         "title",
@@ -695,6 +713,16 @@ _FIELDS: tuple[_Field, ...] = (
         scanned=True,
         focusable=True,
         diff="Titel",
+    ),
+    _Field(
+        "lifecycle",
+        label="Status",
+        control="select",
+        section="margin",
+        options="lifecycle_options",
+        diff="Status",
+        seed=_seed_lifecycle,
+        shown=_lifecycle_label,
     ),
     _Field(
         "sichtbarkeit",
@@ -829,7 +857,6 @@ _FIELDS: tuple[_Field, ...] = (
     _Field("custom", section="weitere"),
     _Field("custom_key", section="weitere"),
     _Field("custom_value", section="weitere"),
-    _Field("lifecycle", diff="Status", shown=_lifecycle_label),
 )
 
 
@@ -886,6 +913,7 @@ def _card_fields(
     errors: catalog.FormErrors,
     autofocus: str,
     sichtbarkeit_options: _Options = _SICHTBARKEIT_OPTIONS,
+    lifecycle_options: _Options = _LIFECYCLE_OPTIONS,
 ) -> dict[str, tuple[_CardRow, ...]]:
     """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
 
@@ -896,6 +924,7 @@ def _card_fields(
         "media_type_options": vocab.media_type_options(),
         "document_type_groups": vocab.grouped_document_type_options(),
         "sichtbarkeit_options": sichtbarkeit_options,
+        "lifecycle_options": lifecycle_options,
     }
     ulid = str(values.get("ulid") or "")
     sections: dict[str, list[_CardRow]] = {}
@@ -1004,29 +1033,6 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "action": reverse("artikel-loeschen", args=[ulid]),
         },
     )
-
-
-# --- the lifecycle verb (spec §6.2) ------------------------------------------------
-#
-# There is no lifecycle ROUTE any more. Publishing and withdrawing both ride the edit form's own
-# CAS-guarded write (owner decision 2026-08-08 — saving IS publishing: a separate transition rebuilt
-# the record from disk and discarded the archivist's unsaved edits without a word). After the form
-# wave the standalone POST /artikel/<ulid>/lebenszyklus had exactly one live caller — the detail
-# reader's withdraw form — while its `veroeffentlichen` branch was UI-unreachable from anywhere. The
-# detail reader now LINKS to /bearbeiten for both verbs, symmetric with its publish link, so the
-# archivist reads the exposure statement before either transition; the route, its urls.py row, its
-# leak-matrix contract row and the six tests guarding a verb nothing could reach went with it.
-
-
-def _lifecycle_for(aktion: str) -> Lifecycle | None:
-    """Map the lifecycle POST verb to its target state, or ``None`` for an unknown verb."""
-    match aktion:
-        case "veroeffentlichen":
-            return Lifecycle.PUBLISHED
-        case "zurueckziehen":
-            return Lifecycle.DRAFT
-        case _:
-            return None
 
 
 # --- the exposure statement: who gains sight (G.34) --------------------------------

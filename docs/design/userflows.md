@@ -83,34 +83,33 @@ Journeys: `test_create_draft_lands_on_edit_form`,
 
 ## 3. Publish (lifecycle)
 
-Publish is ONE click (owner ruling 5, 2026-08-08). The over-exposure preview
-GATE retired: the archivist reads who would gain sight the whole time they are
-cataloging — the exposure statement is permanent chrome on the edit surface (in
-the reader's sheet at/above 80rem, in the card beside Zugriff below it) — so
-the fact that used to cost a preview round trip, a checkbox and a second
-Veröffentlichen is simply on screen. The audience computation itself did not
+The archivist sets the Status and saves. The over-exposure preview GATE retired
+(owner ruling 5, 2026-08-08): who would gain sight is on screen the whole time
+they are cataloging — the margin's "Sichtbar für" select names the audience, the
+inherited option included (a1 round 3). The audience computation itself did not
 change: it is still the domain's `preview()`, still archivist-only. v1 lifecycle
-is binary; absence of the ENTWURF badge = published.
+is binary.
 
 ```mermaid
 flowchart TD
-    EDIT["Edit surface (draft)\nexposure statement on screen"] -->|"Veröffentlichen\n(the edit form's own POST + CAS)"| READ["Read view, published"]
+    EDIT["Edit surface (draft)"] -->|"Status: Veröffentlicht, Speichern\n(the edit form's own POST + CAS)"| READ["Read view, published"]
     DET["Detail (draft)"] -->|"Veröffentlichen"| EDIT
     READ -->|"Als Entwurf zurückziehen"| EDIT
 ```
 
-Both verbs ride the EDIT FORM's single CAS-guarded write (owner decision
-2026-08-08: saving is publishing), and the detail reader LINKS to that form for
-either one. There is no separate lifecycle route: after the form wave its
-`veroeffentlichen` branch was UI-unreachable and its only caller was the detail
-reader's withdraw form, so it was deleted (2026-08-08 cleanup review).
+The Status is one select in the edit form's margin, and Speichern applies it in
+the form's single CAS-guarded write (owner decision 2026-08-08: saving is
+publishing; a1 round 4: one place for the state). Enter submits Speichern, so it
+publishes exactly when the archivist set Veröffentlicht. The detail reader LINKS
+to that form for either direction. There is no separate lifecycle route.
 
-An exposure statement that cannot be COMPUTED (an unresolvable Bestand chain)
-withdraws the publish affordance and says so in German — the fail-closed branch
-the retired preview gate owned.
+Draft → published is the one gated transition: when the exposure cannot be
+COMPUTED (an unresolvable Bestand chain) the select offers no Veröffentlicht, and
+the server refuses it with a German error on Bestand — the fail-closed branch the
+retired preview gate owned.
 
-Journeys: `test_publish_is_one_click_with_the_exposure_on_screen`,
-`test_exposure_statement_is_on_screen_at_every_width`.
+Journeys: `test_publish_by_status_saves_the_form`,
+`test_edit_and_save_redirects_to_read_view` (Enter).
 
 ## 4. Delete
 

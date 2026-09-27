@@ -456,7 +456,7 @@
     }
   }
   .record-meta-actions {
-    /* a CONTROL ROW (law C8): Speichern, the lifecycle action and "Mehr …" share one height */
+    /* a CONTROL ROW (law C8): Speichern and "Mehr …" share one height */
     --control-height: var(--touch-target);
     display: flex;
     flex-wrap: wrap;

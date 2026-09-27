@@ -464,7 +464,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
     edit = _walk_control_rows(page)
     row = next(n for n in edit if "record-meta-actions" in n)
-    assert len(edit[row]) >= 3, f"the edit form's action row was not found: {edit[row]}"
+    # Speichern and "Mehr …"
+    assert len(edit[row]) >= 2, f"the edit form's action row was not found: {edit[row]}"
     # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
     # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
     media = [n for n in edit if n.startswith("span[toolbar]") and len(edit[n]) >= 3]
@@ -1044,9 +1045,9 @@ def _create_draft(page: Page, base: str, title: str) -> str:
 def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: str) -> None:
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Neuer Entwurf")
     assert "/bearbeiten" in edit_url
-    # the edit form is seeded with the new title + shows the Entwurf mark
+    # the edit form is seeded with the new title, its Status a draft
     expect(archivist_page.locator('textarea[name="title"]')).to_have_value("E2E Neuer Entwurf")
-    expect(archivist_page.get_by_text("Entwurf", exact=True).first).to_be_visible()
+    expect(archivist_page.locator('select[name="lifecycle"]')).to_have_value("draft")
 
 
 # --- edit + save -------------------------------------------------------------------
@@ -1059,16 +1060,15 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     page.fill('input[name="creator"]', "K. Meyer")
     # Saved by pressing ENTER in a field, not by clicking: Speichern lives in the form's margin,
     # OUTSIDE #bearbeiten-form's subtree and associated to it by form=. Implicit submission still has
-    # to find Speichern as the form's default button — and the lifecycle action beside it must not be
-    # reachable this way (spec §6.2: Enter never publishes). Every other journey clicks the button.
+    # to find Speichern as the form's default button, and Speichern applies the Status (a1 round 4):
+    # Enter publishes exactly when the archivist set Veröffentlicht. Every other journey clicks.
+    page.select_option('select[name="lifecycle"]', "published")
     page.click('input[name="ref_code"]')
     page.keyboard.press("Enter")
-    # save 302s to the read view (the detail stub in this slice)
+    # save 302s to the read view
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
-    assert "/bearbeiten" not in page.url
-    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(
-        1
-    )  # Enter saved; it did not publish
+    expect(page.get_by_text("E2E-1")).to_be_visible()  # Enter saved the form...
+    expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
 
 
 def test_failed_save_banner_leaves_speichern_clickable(
@@ -1246,25 +1246,23 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
 # --- publish: one click --------------------------------------------------------------
 
 
-def test_publish_is_one_click_and_saves_the_form(archivist_page: Page, live_workbench: str) -> None:
+def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: str) -> None:
     page = archivist_page
-    # Publishing is one click (owner ruling 5, 2026-08-08) — and SAVING IS PART OF PUBLISHING (owner
-    # decision 2026-08-08): Veröffentlichen sits beside Speichern, so the archivist reaches for it
-    # with unsaved edits on screen.
+    # SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): the Status select sits in the margin
+    # (a1 round 4), so the archivist sets it with unsaved edits on screen, and Speichern must write
+    # both. Type into two fields — one inside #bearbeiten-form's subtree and one OUTSIDE it (the
+    # media/custom split), because they are wired to the form differently — then publish and find
+    # both on the read view.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
-    # It It used
-    # to POST a lifecycle transition of its own, which rebuilt the record from disk and threw those
-    # edits away without a word. Type into two fields — one inside #bearbeiten-form's subtree and one
-    # OUTSIDE it (the media/custom split), because they are wired to the form differently — then publish
-    # with ONE click and find both on the read view.
     page.fill('input[name="ref_code"]', "E2E-42")
     page.click(
         'button:has-text("+ Angabe hinzufügen")'
     )  # a round trip that keeps the Signatur typed
     page.fill('input[name="custom_key"]', "Quelle")
     page.fill('input[name="custom_value"]', "Privatbesitz Meyer")
-    page.click('button:has-text("Veröffentlichen")')
-    # straight to the read view, published — no panel, no checkbox, no second Veröffentlichen
+    page.select_option('select[name="lifecycle"]', "published")
+    page.click('button:has-text("Speichern")')
+    # straight to the read view, published — no panel, no checkbox, no second step
     page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
     expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived

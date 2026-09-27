@@ -171,7 +171,8 @@ Standing rulings (owner, 2026-09-26/27):
 - **Every signal carries information, exactly once** (owner, 2026-07-10): no labels restating the
   visible, no badges for default states, no filler chrome.
 - **Archivist ergonomics rank with the visual laws** (owner, 2026-07-11). A weekly work tool:
-  tab order = field order, Enter submits the primary action and never publishes, autofocus lands
+  tab order = field order, Enter submits the primary action (on the article form Speichern, which
+  applies the chosen Status: owner, a1 round 4), autofocus lands
   where the work starts, serial workflows (Duplizieren, bulk edit) get the fewest round-trips.
 - **Modes follow the OS.** `color-scheme: light dark` + `light-dark()` per role; no toggle in v1.
   Dark is tuned, not inverted.

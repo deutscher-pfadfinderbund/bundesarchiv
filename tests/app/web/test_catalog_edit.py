@@ -24,7 +24,6 @@ from tests.app.web._fixtures import (
     PUB,
     Corpus,
     client_as,
-    draft_mark,
     make_article,
     make_collection,
 )
@@ -118,8 +117,6 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
     assert "Weitere Angaben" in body
     # the hidden expected_version rides the form
     assert f'name="expected_version" value="{corpus.version}"' in body
-    # the Entwurf mark (draft) sits in the margin
-    assert "Entwurf" in body
     # the Signatur mark reflects ref_code
     assert "F12/3" in body
 
@@ -379,9 +376,9 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
 # --- POST re-render fidelity: lifecycle + custom-row accumulation ------------------
 
 
-def test_published_article_invalid_post_re_render_omits_entwurf_mark(corpus: _EditCorpus) -> None:
+def test_published_article_invalid_post_re_render_keeps_its_status(corpus: _EditCorpus) -> None:
     # fix-wave: `_post_to_form_values` hardcoded is_draft=True, so a PUBLISHED article's
-    # validation-error re-render wrongly showed the Entwurf mark.
+    # validation-error re-render wrongly showed it as a draft.
     published = "01KX7YT9E3VX0CP3A5Q49RZMWP"
     corpus.add_article(
         make_article(
@@ -402,7 +399,7 @@ def test_published_article_invalid_post_re_render_omits_entwurf_mark(corpus: _Ed
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body  # confirms we hit the error re-render
-    assert draft_mark() not in body
+    assert _status(body).selected == ["published"]
 
 
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:
@@ -530,6 +527,7 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
     assert _article_to_form_values(article) == {
         "ulid": _ULID,
         "title": "Wanderfahrt 1962",
+        "lifecycle": "draft",
         "collection_id": PUB,
         "ref_code": "F12/3",
         "media_type": "Foto(s)",
@@ -552,7 +550,8 @@ def test_every_card_field_echoes_the_post_verbatim() -> None:
     # writes that blank over the stored value. Data loss, so the whole table is walked, not sampled.
     from bundesarchiv.app.web.catalog_views import _FIELDS, _post_to_form_values
 
-    typed = {f.name: f"getippt {f.name}" for f in _FIELDS if f.control}
+    # the Status echoes only a Status (the fallback is its own test), so it types the other one
+    typed = {f.name: f"getippt {f.name}" for f in _FIELDS if f.control} | {"lifecycle": "published"}
     values = _post_to_form_values(QueryDict(urlencode(typed)), _ULID, Lifecycle.DRAFT)
     assert len(typed) >= 13, f"only {sorted(typed)} typed — the walk proves nothing"
     for name, text in typed.items():
@@ -654,6 +653,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
 #: Bestand is deliberately absent: a diff of collection MOVES is its own surface, not this one.
 _CAS_DIFF_ROWS = (
     "Titel",
+    "Status",
     "Sichtbarkeit",
     "Signatur",
     "Standort",
@@ -664,7 +664,6 @@ _CAS_DIFF_ROWS = (
     "Autor",
     "Ort",
     "Datierung",
-    "Status",
 )
 
 
@@ -695,7 +694,7 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
     # is otherwise read from the article on disk, i.e. the winner's).
     loser = archivist.post(
         f"/artikel/{_ULID}/bearbeiten",
-        _valid_post(corpus, lebenszyklus="veroeffentlichen"),
+        _valid_post(corpus, lifecycle="published"),
     )
     assert loser.status_code == 200
     rows = _diff_labels(loser.content.decode())
@@ -757,13 +756,90 @@ def test_a_custom_bag_error_renders_its_message(corpus: _EditCorpus) -> None:
     assert "Bezeichnung ist reserviert." in response.content.decode()
 
 
-# --- publish/withdraw FROM THE EDIT SCREEN: saving is part of publishing ----------
+# --- Status: one select in the margin, applied by Speichern ------------------------
 #
-# Owner ruling 2 put Veröffentlichen in the same row as Speichern; the lifecycle POST it fired
-# rebuilt the record from disk and 302'd away, so every unsaved edit on screen was silently
-# discarded. That is DATA LOSS, so this block gets real coverage (testing razor). The decision
-# (2026-08-08): publishing from the edit screen SAVES the form first and transitions in the same CAS
-# write. No confirm step — that is the gate ruling 5 retired.
+# Saving is part of publishing (owner decision 2026-08-08): the Status the archivist chose rides the
+# form's ONE CAS write with every unsaved edit. Losing those edits, or publishing by accident, is the
+# risk this block covers (testing razor).
+
+_PUBLISHED_ULID = "01KX7YT9E3VX0CP3A5Q49RZMWR"
+
+
+def _published(corpus: _EditCorpus) -> Version:
+    return corpus.add_article(
+        make_article(
+            _PUBLISHED_ULID,
+            collection_id="PUB",
+            lifecycle=Lifecycle.PUBLISHED,
+            title="Veröffentlicht",
+        )
+    )
+
+
+class _StatusScanner(HTMLParser):
+    """The Status select's options (value, caption) and the selected value, as rendered."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.options: list[tuple[str, str]] = []
+        self.selected: list[str] = []
+        self._in_select = False
+        self._value: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "select" and values.get("name") == "lifecycle":
+            self._in_select = True
+        elif tag == "option" and self._in_select:
+            self._value = values.get("value") or ""
+            if "selected" in values:
+                self.selected.append(self._value)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "select":
+            self._in_select = False
+
+    def handle_data(self, data: str) -> None:
+        if self._value is not None and data.strip():
+            self.options.append((self._value, data.strip()))
+            self._value = None
+
+
+def _status(body: str) -> _StatusScanner:
+    scanner = _StatusScanner()
+    scanner.feed(body)
+    return scanner
+
+
+def test_the_margin_offers_the_status_seeded_from_the_record(corpus: _EditCorpus) -> None:
+    _published(corpus)
+    archivist = client_as(Archivist())
+    draft = _status(archivist.get(f"/artikel/{_ULID}/bearbeiten").content.decode())
+    assert draft.options == [("published", "Veröffentlicht"), ("draft", "Entwurf (nur Archivare)")]
+    assert draft.selected == ["draft"]
+    published = _status(archivist.get(f"/artikel/{_PUBLISHED_ULID}/bearbeiten").content.decode())
+    assert published.selected == ["published"]
+
+
+@pytest.mark.parametrize(
+    ("record", "status"),
+    [("draft", "draft"), ("published", "published")],
+)
+def test_an_unchanged_status_is_a_plain_save(corpus: _EditCorpus, record: str, status: str) -> None:
+    ulid, version = (
+        (_ULID, corpus.version) if record == "draft" else (_PUBLISHED_ULID, _published(corpus))
+    )
+    response = client_as(Archivist()).post(
+        f"/artikel/{ulid}/bearbeiten",
+        {
+            **_valid_post(corpus, title="Neu getippt", expected_version=str(version)),
+            "lifecycle": status,
+        },
+    )
+    assert response.status_code == 302
+    stored = corpus.articles.load(ulid)
+    assert stored.article.title == "Neu getippt"
+    assert stored.article.lifecycle is Lifecycle(status)
 
 
 def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
@@ -771,7 +847,7 @@ def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) 
         f"/artikel/{_ULID}/bearbeiten",
         {
             **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
-            "lebenszyklus": "veroeffentlichen",
+            "lifecycle": "published",
         },
     )
     assert response.status_code == 302
@@ -784,24 +860,16 @@ def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) 
 
 
 def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
-    published = "01KX7YT9E3VX0CP3A5Q49RZMWR"
-    version = corpus.add_article(
-        make_article(
-            published,
-            collection_id="PUB",
-            lifecycle=Lifecycle.PUBLISHED,
-            title="Veröffentlicht",
-        )
-    )
+    version = _published(corpus)
     response = client_as(Archivist()).post(
-        f"/artikel/{published}/bearbeiten",
+        f"/artikel/{_PUBLISHED_ULID}/bearbeiten",
         {
             **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
-            "lebenszyklus": "zurueckziehen",
+            "lifecycle": "draft",
         },
     )
     assert response.status_code == 302
-    stored = corpus.articles.load(published)
+    stored = corpus.articles.load(_PUBLISHED_ULID)
     assert stored.article.title == "Doch noch Entwurf"
     assert stored.article.lifecycle is Lifecycle.DRAFT
 
@@ -813,16 +881,29 @@ def test_publish_with_an_invalid_form_publishes_nothing(corpus: _EditCorpus) -> 
         f"/artikel/{_ULID}/bearbeiten",
         {
             **_valid_post(corpus, title="", creator="Behalten"),
-            "lebenszyklus": "veroeffentlichen",
+            "lifecycle": "published",
         },
     )
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body
     assert 'value="Behalten"' in body
+    assert _status(body).selected == ["published"]  # the chosen Status survives the re-render
     stored = corpus.articles.load(_ULID)
     assert stored.article.lifecycle is Lifecycle.DRAFT  # nothing published
     assert stored.version == corpus.version  # nothing saved either
+
+
+def test_a_re_render_without_a_valid_status_shows_the_stored_one(corpus: _EditCorpus) -> None:
+    # Veröffentlicht is the select's first option, so a re-render whose value matches no option would
+    # show it — and the next Speichern would publish a draft nobody chose to publish.
+    for posted in ({}, {"lifecycle": "sabotage"}):
+        response = client_as(Archivist()).post(
+            f"/artikel/{_ULID}/bearbeiten",
+            {**_valid_post(corpus), **posted, "custom_neu": ""},
+        )
+        assert response.status_code == 200
+        assert _status(response.content.decode()).selected == ["draft"], posted
 
 
 def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCorpus) -> None:
@@ -830,7 +911,7 @@ def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCo
     archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
     loser = archivist.post(
         f"/artikel/{_ULID}/bearbeiten",
-        {**_valid_post(corpus, title="Verlierer"), "lebenszyklus": "veroeffentlichen"},
+        {**_valid_post(corpus, title="Verlierer"), "lifecycle": "published"},
     )
     assert loser.status_code == 200
     body = loser.content.decode()
@@ -842,12 +923,14 @@ def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCo
     assert stored.article.lifecycle is Lifecycle.DRAFT  # the lost race published nothing
 
 
-def test_unknown_lifecycle_verb_on_the_edit_post_is_404_without_saving(corpus: _EditCorpus) -> None:
-    # Same rule as the standalone lifecycle route: never mutate on a bad verb — and here that means
-    # the SAVE does not happen either.
+@pytest.mark.parametrize("status", ["sabotage", "", "veroeffentlichen", "PUBLISHED", " draft"])
+def test_an_unknown_status_on_the_edit_post_is_404_without_saving(
+    corpus: _EditCorpus, status: str
+) -> None:
+    # Never mutate on a bad value — and here that means the SAVE does not happen either.
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",
-        {**_valid_post(corpus, title="Gekapert"), "lebenszyklus": "sabotage"},
+        {**_valid_post(corpus, title="Gekapert"), "lifecycle": status},
     )
     assert_denied(response)
     stored = corpus.articles.load(_ULID)

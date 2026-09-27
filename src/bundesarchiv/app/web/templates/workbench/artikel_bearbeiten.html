@@ -31,14 +31,11 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
   </header>
   {% endwith %}
 
-  {% comment %}The margin: the record's state, its audience, then the actions. Speichern is the
-  form's FIRST submit button in tree order, so implicit submission (Enter) fires it and never the
-  lifecycle action (spec §6.2). The lifecycle action saves and transitions in one CAS write (owner
-  decision 2026-08-08); the client hides Veröffentlichen when the exposure cannot be computed, and
-  the REFUSAL is the server's (catalog_views._handle_edit_post). Zurückziehen is never gated.{% endcomment %}
+  {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
+  the form's FIRST submit button in tree order, so implicit submission (Enter) fires it; it applies
+  the Status (a1 round 4). The publish refusal is the server's (catalog_views._handle_edit_post).{% endcomment %}
   <aside class="record-meta" aria-label="Status und Aktionen">
-    <p class="record-meta-state">{% include "components/mark_lifecycle.html" with draft=values.is_draft only %}
-      <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output></p>
+    <p class="record-meta-state"><output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output></p>
     {% if conflict %}
     <section class="panel konflikt" aria-labelledby="konflikt-titel">
       <h2 id="konflikt-titel">Inzwischen geändert</h2>
@@ -71,13 +68,6 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
     {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     <div class="record-meta-actions">
       <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
-      {% if values.is_draft %}
-      {% if einblick %}
-      <button type="submit" form="bearbeiten-form" name="lebenszyklus" value="veroeffentlichen">Veröffentlichen</button>
-      {% endif %}
-      {% else %}
-      <button type="submit" form="bearbeiten-form" name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
-      {% endif %}
       <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
       <ul class="menu" id="mehr-menu" popover>
         <li><a href="{% url 'artikel-detail' values.ulid %}">Zur Artikelseite</a></li>

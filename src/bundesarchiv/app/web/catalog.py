@@ -128,9 +128,8 @@ def parse_edit_form(
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
     captions ride the metadata CAS save; reorder/remove/upload are separate structural POSTs).
     ``lifecycle`` is the state the saved Article carries. The caller passes the article's CURRENT
-    lifecycle for a plain save (a metadata save never silently changes published state) — or the TARGET
-    state when the archivist's submit carried a lifecycle verb, so publishing from the edit screen saves
-    the form and transitions in ONE CAS write (owner decision 2026-08-08). This layer stays pure either
+    lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing from
+    the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08). This layer stays pure either
     way: it never decides the transition, it only records the state it was handed. ``added_at`` is
     the stored date added, carried through like the ulid: no edit changes it."""
     errors: FormErrors = {}
