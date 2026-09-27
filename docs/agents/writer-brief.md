@@ -21,6 +21,16 @@ schema — `src/bundesarchiv/index/`, migrations, search-relevant persistence �
 and before you declare a task done. The task definitions in `mise.toml` are the
 single source of what each runs.
 
+`mise run gate` can outlast the 600s silent-stream watchdog. Run it in the background into a
+log (`mise run gate > gate.log 2>&1; echo "exit $?" >> gate.log`) and wait on the log with a
+background `until grep -q '^exit ' gate.log; do sleep 20; done` loop; foreground `sleep` is
+blocked.
+
+In an isolated worktree, compound shell commands that contain git (a heredoc commit message,
+`cmd; git …`) are refused. Write the message to a file and commit with `git commit -F <file>`.
+ruff's RUF001/RUF002 reject confusable characters (en dash, bullet) that German legacy text
+needs: write them as `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
+
 pyrefly is always invoked as `uv run pyrefly check src tests`; a bare
 `pyrefly check` resolves zero files in a worktree and passes vacuously.
 
