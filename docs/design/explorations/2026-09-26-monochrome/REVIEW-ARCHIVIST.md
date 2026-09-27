@@ -376,3 +376,14 @@ sorting by Titel, Datierung, Signatur). A critique pass against `LEARNINGS.md` f
   frameless split control: the frequent tool "Feld ändern …" as words, the rest behind a chevron
   (Verschieben …, Veröffentlichen, Als Entwurf zurückziehen, Löschen …). "Spalten …" is plain words
   at the end edge. `button-group` is removed again.
+
+## Proposal (not yet reviewed) — the card view, an alternative to the list (2026-09-28)
+
+- Owner asked for an alternative browsing screen to scan media quickly, next to the list (not
+  replacing it). "Liste · Karten" at the tool row's end edge switches the one list's view; the search
+  sentence and filters stay. The cards reuse the article's justified rows (`gallery`, row 12rem, 7rem
+  on S): each record's first image, or its first PDF page, with the title (at most two lines) and
+  "date · type" under it. Only records with files — the sentence shows "digital" set, fixed in this
+  view. "Spalten …" is absent in the cards (no columns). Small images (480 px) and lazy loading.
+- `gallery` gained a growth cap (1.8× the row height): a picture alone in a row, because its
+  neighbour wrapped, no longer balloons.

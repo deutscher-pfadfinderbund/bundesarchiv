@@ -89,7 +89,7 @@
   .gallery:has(> li:nth-child(2):last-child) { --gallery-row: 22rem; }
   .gallery:has(> li:only-child) { --gallery-row: 30rem; }
   .gallery::after { content: ""; flex-grow: 1; } /* the last row may grow a little, never to giant images; a one-row gallery ends near flush */
-  .gallery > li { flex: var(--r) 1 calc(var(--r) * var(--gallery-row)); min-inline-size: 0; max-inline-size: calc(var(--r) * 75vh); }
+  .gallery > li { flex: var(--r) 1 calc(var(--r) * var(--gallery-row)); min-inline-size: 0; max-inline-size: min(calc(var(--r) * 75vh), calc(var(--r) * var(--gallery-row) * 1.8)); } /* grows at most to 1.8× its row height: a picture alone in a row (its neighbour wrapped) must not balloon */
   .gallery figure { margin: 0; }
   .gallery a { display: block; }
   .gallery img { display: block; inline-size: 100%; block-size: auto; aspect-ratio: var(--r); background: var(--placeholder); }
