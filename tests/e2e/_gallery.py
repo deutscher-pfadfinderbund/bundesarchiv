@@ -82,6 +82,12 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.click("details.bulk > summary")
 
 
+def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # a DRAFT, so the menu holds both destructive entries (Löschen, Verwerfen)
+    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
+    page.click(".recordrow .menu-button")
+
+
 def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
     # the value-carrying summaries and what they hide — including the exposure statement's in-card
@@ -148,6 +154,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "bulk edit, confirm surface rejected: the chooser re-rendered under the message",
         True,
         _reach_bulk_confirm_error,
+    ),
+    GalleryState(
+        "edit-mehr-open",
+        "the edit surface, the record row's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
+        True,
+        _reach_edit_mehr_open,
     ),
     GalleryState(
         "edit-folded-open",
