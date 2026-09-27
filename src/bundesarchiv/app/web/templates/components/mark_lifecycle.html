@@ -1,5 +1,5 @@
 {% comment %}
-Lifecycle mark. Param: draft (bool). Renders ONLY for drafts. A published item gets NO lifecycle marker (row 7 — quiet default): v1
-lifecycle is binary, so "Veröffentlicht" carried no information. Absence = published.
+Lifecycle mark. Param: draft. Renders only for drafts; a published item carries no mark (register
+row 7).
 {% endcomment %}
 {% if draft %}<span class="mark">Entwurf</span>{% endif %}

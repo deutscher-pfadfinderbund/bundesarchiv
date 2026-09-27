@@ -1,11 +1,7 @@
 {% load static %}
 {% comment %}
-Base layout for the archivist workbench (Part 4.5, rebuilt on the design system). German UI.
-Progressive enhancement: htmx is loaded but every screen works without it (the no-JS baseline is
-BINDING). Styling is the design-system stack — tokens.css (roles + the @layer order),
-components.css (elements + components), layouts.css (the compositions) — each self-contained, no
-external requests. The header block carries screen-specific chrome (the workbench's search form);
-the wordmark is always present and always links home.
+The base layout of every screen. Every screen works without JS (plan §4.5); htmx only enhances.
+No external requests. The header block carries the screen's chrome after the wordmark.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>

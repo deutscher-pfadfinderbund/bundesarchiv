@@ -1,23 +1,15 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Delete / discard confirm page (Part 4.7 Slice C, spec §7 state M). Archivist-only (the view gates
-it). Shows the .c-sig mark + Titel so the archivist confirms WHICH record before an irreversible
-delete. The Endgültig löschen / Entwurf verwerfen button is the ONE loud element — the sole place
-button.danger (error inversion) appears. Abbrechen is subtle → back to the read view. Own no-JS
-page: one POST executes; there is no undo (no Papierkorb this version).
+Delete / discard confirm page (spec §7 state M). Archivist-only (the view gates it). The Signatur
+and Titel name the record before an irreversible delete; one POST executes, there is no undo.
 {% endcomment %}
 {% block title %}{{ titel_confirm }}{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
-screen. Its back link keeps pointing at the ARTICLE this page is about rather than at the search —
-that is a per-screen parameter of the one partial, not a reason to hand-draw a second header.{% endcomment %}
 {% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>{{ titel_confirm }}</h1>
-  {% comment %}The record being confirmed sits on a true sheet (register row 8: confirm panels
-  are sheets) — same material grammar as the bulk-confirm page, one look per confirm surface.{% endcomment %}
   <section class="panel" aria-labelledby="loeschen-titel">
     <header>
       <strong id="loeschen-titel">„{{ title }}“</strong>

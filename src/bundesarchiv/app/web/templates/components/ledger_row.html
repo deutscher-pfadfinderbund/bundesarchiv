@@ -1,30 +1,15 @@
 {% comment %}
-One ledger row — a result register line. Params (via {% include with %}):
-- title + href       — the detail link (required; TITEL column). ONE-CLICK ENTRY (owner
-                       2026-08-07): the Titel click IS plain navigation to the canonical
-                       /artikel/<ulid> detail route — no pane interception, no JS hook.
-- ref_code           — Signatur, the plain mono code. Empty/absent renders the quiet "ohne
-                       Signatur" slot, independent of lifecycle.
-- datierung          — mono date string (DATIERUNG column); absent renders NOTHING (no placeholder)
-- typ                — document type, plain neutral text (TYP column); absent renders NOTHING. In
-                       the narrow fold the "·" separator only appears BETWEEN a present datierung
-                       and typ (css adjacent-sibling rule), so absence dangles nothing.
-- draft (bool)       — the ENTWURF deviation rides WITH the title (owner 2026-08-07, learning
-                       G.10): the lifecycle mark renders directly after the title text, a state
-                       in words. A published row shows
-                       nothing (quiet default, row 7). A future GRUPPE mark takes the same slot.
-- bearbeiten_href    — archivist chrome: the row's edit-form link (pencil icon); empty renders no
-                       Bearbeiten control at all.
-- vorschau_href      — the explicit pane affordance for EVERY viewer: a plain GET link to
-                       ?artikel=<ulid> carrying the current search + selection (URL-borne pane
-                       state; identical no-JS baseline). Split-view (panel) icon.
-- selected (bool)    — this row is shown in the preview pane; aria-current marks it (law C2)
-- bulk / gewaehlt    — the selection checkbox cell / its server-rendered checked state. The row's
-                       inversion styling derives from the checkbox itself (CSS :has).
-
-The row end is the role="toolbar" action slot (learning G.9: slots, not scattered buttons) —
-icon-only controls from the ONE vendored set (row 9), each named via aria-label, hover/focus-
-revealed on pointer devices only (always present in DOM for keyboard + touch).
+One ledger row. Params:
+- title, href          — the Titel link to the detail page (plain navigation)
+- ref_code             — the Signatur
+- datierung, typ       — absent renders nothing
+- draft                — the Entwurf mark after the title (learning G.10)
+- bearbeiten_href      — archivist chrome: the pencil link; empty renders none
+- vorschau_href        — the pane link (?artikel=<ulid> with the current search), for every viewer
+- selected             — the row shown in the pane (aria-current, law C2)
+- bulk, ulid, gewaehlt — the selection checkbox and its checked state
+The row end is the one action slot (role=toolbar, learning G.9); every icon control is named by
+aria-label.
 {% endcomment %}
 <div role="row"{% if selected %} aria-current="true"{% endif %}>
   {% if bulk %}

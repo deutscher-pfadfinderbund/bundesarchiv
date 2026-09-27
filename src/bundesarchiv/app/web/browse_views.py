@@ -63,8 +63,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     Back-button restore."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
-    # Presentation-only chrome flag: the templates hide archivist affordances (SICHTBARKEIT column,
-    # ENTWURF badge, Bearbeiten, "Neuer Artikel") for non-Archivists. This is NOT scoping (§11) —
+    # Presentation-only chrome flag: the templates hide archivist affordances (the Entwurf mark,
+    # Bearbeiten, the bulk selection, "+ Neu …") for non-Archivists. This is NOT scoping (§11) —
     # result visibility is decided exclusively by search()/can_view; the /artikel/neu ROUTE stays
     # independently Archivist-gated regardless of this flag.
     is_archivist = isinstance(viewer, Archivist)
@@ -98,19 +98,16 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
     # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
-    # The pane column exists only while the pane is open (body.vorschau grows the frame ≥1280px);
-    # the ledger re-densifies by itself — it is a size container (components.css). Width is the
-    # ONLY density input (charter item 5 settled 2026-08-07; the ?fold switch and the pane-open
-    # fold died with the verdict), absorbed intrinsically per law C11 — no drop thresholds.
+    # body.vorschau adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
+    # itself, it is a size container (law C11).
     context["vorschau"] = pane is not None
     # A Back-button restore swaps the whole body, so it gets the full page. Checked first, so a
     # restore that also carries HX-Request (htmx 2 did) can never get the chrome-less partial.
     if request.headers.get("HX-History-Restore-Request"):
         return render_screen(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
-        # The hit count lives on the filter rail (law C10), OUTSIDE the #results swap target —
-        # the partial therefore prepends an hx-swap-oob fragment updating the rail's count in
-        # the same response (oob gates it: the full page renders the count once, from the rail).
+        # The filter rail sits outside the #results swap target, so the partial prepends its
+        # out-of-band fragments (oob gates them: the full page renders the rail once).
         context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render_screen(request, "workbench/workbench.html", context)

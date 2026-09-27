@@ -12,13 +12,11 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 <script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
-{% comment %}HTMX CSRF: hx-headers here is inherited by every hx-get/hx-post inside, so the
-enhancement POSTs clear CsrfViewMiddleware like the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %} does.
+{% comment %}hx-headers:inherited gives every htmx request inside the CSRF token.
 
-#form-region wraps the whole sheet, and the save swaps exactly this out of the SAME full-page render
-(hx-select) — so a validation/conflict/state-H re-render moves every part and the refreshed
-expected_version on EVERY form together. A part left outside the swap would keep a stale CAS
-version. A successful save gets HX-Redirect instead.{% endcomment %}
+#form-region wraps the whole sheet; the save swaps exactly this out of the same full-page render
+(hx-select), so a re-render moves every part and the refreshed expected_version together. A part
+left outside the swap would keep a stale CAS version. A successful save gets HX-Redirect.{% endcomment %}
 <div id="form-region" hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <main id="inhalt" class="form-sheet">
 
@@ -97,16 +95,14 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
     </section>
   </form>
 
-    {% comment %}Medien (spec §6.3). Caption inputs carry form="bearbeiten-form" so they ride THAT
-    form's save (captions are README front matter, ADR 0015); each row's reorder/remove controls
-    belong to their OWN per-row form so each carries exactly one unambiguous hash, never the whole
-    register. The upload controls likewise belong to form#medien-upload via form=; without JS the
-    file input is the NATIVE one (owner ruling 7: a German browser renders German strings).
+    {% comment %}Medien (spec §6.3). Captions ride the #bearbeiten-form save (they are README front
+    matter, ADR 0015); each row's reorder/remove controls belong to their own per-row form, so each
+    carries exactly one hash. The upload controls belong to #medien-upload; without JS the file
+    input is the native one (owner ruling 7).
 
-    The swap TRIPLE is declared ONCE, here, on the region it names, and :inherited by the forms
-    below. A swap selector must resolve WHERE IT FIRES (G.32), and on this region it does by
-    construction. The hidden forms are SIBLINGS inside the section (forms cannot nest), so a swap
-    delivers fresh forms for the CURRENT row set.{% endcomment %}
+    The swap triple is declared once, on the region it names, and inherited by the forms below: a
+    swap selector must resolve where it fires (G.32). The hidden forms are siblings inside the
+    section (forms cannot nest), so a swap delivers fresh forms for the current rows.{% endcomment %}
     <section id="medien-drawer" aria-labelledby="h-medien"
              hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
              hx-swap:inherited="outerHTML">
@@ -125,10 +121,8 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
             <span>Bildunterschrift</span>
             <input type="text" name="caption[{{ row.content_hash }}]" value="{{ row.caption }}" form="bearbeiten-form">
           </label>
-          {% comment %}The row's actions: ONE role="toolbar" of icon buttons from the vendored set
-          (owner ruling 6, register row 9), each with its accessible name. The end rows' arrows are
-          natively disabled, so a dead-end control is non-interactive rather than merely quiet. The
-          no-JS two-step remove keeps its WORDS — a confirm is a sentence, not a glyph.{% endcomment %}
+          {% comment %}The end rows' arrows are natively disabled. The no-JS two-step remove keeps its
+          words: a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
           <span class="file-row-tools confirm">Wirklich entfernen?
             <button class="link danger" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>

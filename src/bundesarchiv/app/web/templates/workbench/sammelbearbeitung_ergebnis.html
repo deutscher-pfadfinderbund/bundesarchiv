@@ -1,18 +1,13 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Bulk-edit result page (Sammelbearbeitung state R, spec §2/§7). Archivist-only. The saved COUNT
-carries the successes (signals-once — successes are NOT listed individually). ONLY actionable rows
-appear: conflicts as quiet register rows (c-sig + Titel + quiet "inzwischen geändert" + "Diesen
-Artikel bearbeiten" link → the 4.7 CAS panel owns the real diff); missing in a "Nicht mehr
-vorhanden:" bucket; doctype-cleared as a neutral sub-note. NO red anywhere — a conflict is a race
-outcome, not an error. Index lag → a quiet role=status line.
+Bulk-edit result page (Sammelbearbeitung state R, spec §2/§7). Archivist-only. The saved count
+stands for the successes (signals-once); only actionable rows are listed: conflicts, each linking
+its edit form (whose CAS panel owns the diff), and articles no longer there. No error colour: a
+conflict is a race outcome, not an error.
 {% endcomment %}
 {% block title %}Sammelbearbeitung{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
-screen — the partial exists precisely so no screen hand-draws a reduced version of it (precedent
-rule). This one kept its own lone back link through the form wave.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">

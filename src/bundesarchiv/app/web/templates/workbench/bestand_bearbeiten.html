@@ -1,13 +1,10 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Rename-Bestand form (Part 4.8 SLIM, archivist-only — the view gates it). The Name field is the
-ONLY editable control; Eltern-Bestand + Sichtbarkeit render as a quiet read-only <dl> with one
-hint, because moving + changing visibility are deferred (they move descendants' visibility and
-need the over-exposure machinery a rename does not). Plain no-JS POST → save_collection (CAS +
-subtree reindex, so the new name is live in facets) → 302 to the workbench filtered to this
-Bestand. Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
-screen since the form wave.
+Rename-Bestand form (Part 4.8, archivist-only — the view gates it). Name is the only editable
+control; Eltern-Bestand and Sichtbarkeit are read-only, because moving and changing visibility move
+descendants' visibility and need the over-exposure machinery a rename does not. POST saves under
+CAS and 302s to the workbench filtered to this Bestand.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
@@ -16,9 +13,8 @@ screen since the form wave.
 <main id="inhalt" class="column narrow">
   <h1>Bestand bearbeiten</h1>
   {% if conflict_name %}
-  {% comment %}Racing rename (ADR 0013): another archivist renamed this Bestand while this form was
-  open. The "Inzwischen geändert" panel (parity with the article edit form) shows the now-stored
-  name; the form below carries a refreshed version + this archivist's just-typed name.{% endcomment %}
+  {% comment %}A racing rename (ADR 0013): the panel names the stored winner; the form below carries
+  the refreshed version and the name just typed.{% endcomment %}
   <section class="panel konflikt" aria-labelledby="konflikt-titel">
     <h2 id="konflikt-titel">Inzwischen geändert</h2>
     <p>Ein anderer Bearbeiter hat diesen Bestand gespeichert, während du ihn bearbeitet hast (jetzt „{{ conflict_name }}“). Bitte prüfen und erneut speichern.</p>

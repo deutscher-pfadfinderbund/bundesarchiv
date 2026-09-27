@@ -2,28 +2,20 @@
 {% load static %}
 {% comment %}
 Bulk-edit confirm page (Sammelbearbeitung state D, spec §2/§7). Archivist-only (the view gates it).
-The interstitial for the highest-consequence action: Feld · Neuer Wert · Betroffen: {n} Artikel ·
-the article list (c-sig + Titel). A Medienart change that orphans Dokumenttypen lists each affected
-row (Dokumenttyp: {alt} → (leer)) under a weight-emphasized "— Achtung" heading (NO loud color) and
-requires dokumenttyp_leeren=1 on commit. The one primary "Auf {n} Artikel anwenden" is the focal
-point. A validation error re-renders here with the verbatim message + the selection preserved.
-Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server session state).
+A Medienart change that orphans Dokumenttypen lists each affected row and requires
+dokumenttyp_leeren=1 on commit. Hidden inputs carry auswahl, feld and wert into the commit (no
+server session state).
 {% endcomment %}
 {% block title %}Sammelbearbeitung prüfen{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
-screen — the partial exists precisely so no screen hand-draws a reduced version of it (precedent
-rule). This one kept its own lone back link through the form wave.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
   <h1>Sammelbearbeitung prüfen</h1>
 
   {% if fehler %}
-  {% comment %}Validation error (spec §2 C): re-render the shared chooser (_feldwahl.html) with the
-  verbatim error, the selection carried as hidden auswahl inputs, so the archivist fixes the
-  field/value and re-submits from here — the selection is never lost. The back-link also preserves
-  ?auswahl=.{% endcomment %}
+  {% comment %}Validation error (spec §2 C): the chooser again, with the verbatim error and the
+  selection as hidden inputs, so the archivist fixes it and re-submits from here.{% endcomment %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
@@ -43,8 +35,6 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   </section>
 
   {% if orphans %}
-  {% comment %}Orphan case: weight-emphasized heading, NO loud color (spec §7). Per-row listing of
-  the Dokumenttypen that will be cleared; commit requires dokumenttyp_leeren=1.{% endcomment %}
   <section class="panel" aria-labelledby="orphans-titel">
     <h2 id="orphans-titel">Medienart ändern — Achtung</h2>
     <p>Medienart wird auf „{{ wert }}“ gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
@@ -60,8 +50,6 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
   </section>
   {% endif %}
 
-  {% comment %}The affected articles are their own region: the list had no heading at all, so it
-  read as a continuation of the summary panel above it.{% endcomment %}
   <section class="panel" aria-labelledby="betroffene-titel">
     <h2 id="betroffene-titel">Betroffene Artikel</h2>
     <ul>

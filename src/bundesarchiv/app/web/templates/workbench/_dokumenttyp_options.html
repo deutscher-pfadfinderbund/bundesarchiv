@@ -1,7 +1,6 @@
 {% comment %}
-Dependent Dokumenttyp option list (Part 4.7 Slice E, spec §5). The HTMX enhancement swaps THIS into
-the Dokumenttyp select's inner content on Medienart change; the no-JS baseline renders the full
-grouped optgroup list instead. Just <option>s — the empty "kein Dokumenttyp" first, then the chosen
-Medienart's types. Server pairing re-validation on save is unchanged.
+The Dokumenttyp options for one Medienart (spec §5): htmx swaps them into the Dokumenttyp select on
+a Medienart change; without JS the select keeps the full grouped list. The server re-validates the
+pairing on save.
 {% endcomment %}<option value="">— kein Dokumenttyp —</option>{% for value in document_types %}
 <option value="{{ value }}">{{ value }}</option>{% endfor %}

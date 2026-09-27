@@ -1,35 +1,15 @@
 {% comment %}
-Ledger — the results register (the one result-list view; it renders in the full workbench column
-and beside the open pane as the SAME component, adapting to its container). Params:
-- rows      — list of dicts, each carrying a ledger_row's params (title, href, ref_code,
-              datierung, typ, draft, bearbeiten_href, vorschau_href, selected, gewaehlt)
-- columns   — list of column headers {label, key, sortable, [query, active, order]}. Sortable heads
-              are links whose href is the header's NEXT sort state (asc→desc→default cycle,
-              computed in the view); the active column shows ▲/▼. URL-as-state, no JS — the sort
-              control IS the headers.
-- bulk (bool) — the leading selection-checkbox track (class "bulk"); rows carry name="auswahl"
-              checkboxes. A checked row inverts via CSS :has — no class, no JS.
+Ledger — the results register, the same component in the full column and beside the open pane.
+Params:
+- rows    — dicts carrying ledger_row's params
+- columns — column headers {label, key, sortable, [query, active, order]}; a sortable head links to
+            its NEXT sort state (asc→desc→default, computed in the view), the active one shows ▲/▼
+- bulk    — adds the leading selection-checkbox track
 
-Column anatomy is Sig · Titel · Datierung · Typ · row-action toolbar (owner ruling 2026-08-07):
-the SICHTBARKEIT column is gone — ÖFFENTLICH (the quiet default, row 7) renders nothing anywhere
-in the ledger, and deviations ride WITH the title (the ENTWURF mark in the Titel cell; a future
-GRUPPE mark takes the same slot). Every row carries the toolbar slot — Vorschau for every viewer,
-Bearbeiten only where the row supplies its href (archivist rows); rows never leak archivist data
-(search()/SearchHit already scope them). ONE-CLICK ENTRY: the Titel navigates to the detail page;
-the pane is the explicit Vorschau action. WIDTH is the only density input (decision 1 settled —
-the ?fold switch and the pane-open fold died), absorbed INTRINSICALLY (law C11, owner 2026-08-07
-— the invented drop thresholds died with it): the mono columns tighten to content and the Titel
-ellipsizes first, so every column stays visible down to the phone-width ~32rem container fold
-(C9-derived, below the narrowest pane-open container) — the one modal last resort. Row anatomy
-never changes with pane state.
-
-The root div is the size container the density rules query; the inner [role=table] grid scrolls
-in its own box if it still overflows (THE PAGE BODY NEVER SCROLLS SIDEWAYS — the standing
-contract). That contract rests on two mechanisms, both in components.css (learning G.24): every
-column whose content is unbounded is a minmax(floor, max-content) track, so long values give
-space back by ellipsizing instead of forcing the grid wide; and the scroll box is a containing
-block, so the sr-only column labels cannot escape it and stretch the document. Every column head
-uses the ONE label treatment; body marks (SIG codes, Datierung) carry ink per the stamp grammar.
+Width is the only density input (law C11): the mono columns tighten to content and the Titel
+ellipsizes first, so every column stays visible down to the ~32rem container fold. The root div is
+the size container; the inner grid scrolls in its own box, so the page never scrolls sideways
+(learning G.24, components.css).
 {% endcomment %}
 <div class="ledger{% if bulk %} bulk{% endif %}">
   <div role="table" aria-label="Trefferliste">

@@ -1,12 +1,9 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Create-Bestand form (Part 4.8, archivist-only — the view gates it). The 4.7 form grammar wholesale:
-Name (required, autofocus) + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is safe (a fresh
-Bestand is empty — no over-exposure). Plain no-JS POST → create_collection → 302 to the workbench
-filtered to the new Bestand. Validation re-renders here with the verbatim error + preserved values.
-Anlegen is first-in-source so Enter submits it. Chrome: the shared WORKBENCH header
-(workbench/_header.html), like every other archivist screen since the form wave.
+Create-Bestand form (Part 4.8, archivist-only — the view gates it). Choosing the audience at
+creation is safe: a fresh Bestand is empty, so nothing is over-exposed. Validation re-renders here
+with the verbatim error and the values kept.
 {% endcomment %}
 {% block title %}Neuer Bestand{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}

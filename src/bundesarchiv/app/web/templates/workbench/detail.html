@@ -55,9 +55,8 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% endif %}
     </header>
 
-    {% comment %}The media keep their pre-a3 rendering until the media wave (owner 2026-09-28): the
-    cover Platte, omitted with no media (the title is then the focus), and the plate register for
-    further sheets. Every image links its full gated byte route.{% endcomment %}
+    {% comment %}The cover Platte, omitted without media, and the plate register for further sheets.
+    Every image links its full gated byte route.{% endcomment %}
     {% if cover %}
     <figure class="platte">
       <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>

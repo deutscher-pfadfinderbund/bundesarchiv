@@ -1,44 +1,24 @@
 {% comment %}
-The ONE header chrome every archivist screen carries (precedent rule: a new view copies the nearest
-approved view — the workbench's header IS that view). Before the form wave the edit/create screens
-each drew their own reduced header (no search, one lone "Zurück zur Suche"), so the approved chrome
-existed on exactly one screen; this partial is the chrome itself, included from the {% templatetag openblock %} block header {% templatetag closeblock %} of
-every screen that has it.
+The header chrome of every archivist screen, included from its {% templatetag openblock %} block header {% templatetag closeblock %}.
 
-Params (all optional — an empty value simply renders less):
-  text            — the current search text (the workbench's q); blank elsewhere
-  filter_params   — the ACTIVE facet/sort filters as hidden inputs, so typing q refines WITHIN
-                    the current scope instead of dropping it (GH #21); empty elsewhere
-  is_signed_in    — gates Abmelden: the sign-out belongs to whoever holds a cookie, Member included
-                    (ADR 0018 — shared workstations, and a Member's cookie is the longer-lived one)
-  is_archivist    — gates the "+ Neu …" create menu (archivist chrome). It comes from the VIEW,
-                    resolved from viewer_of (viewers.render_screen stamps every screen's context) —
-                    never asserted as `is_archivist=True` at an include site. Whether archivist chrome
-                    renders is an authorization-shaped fact, and the leak matrix asserts route gates,
-                    not chrome: a literal here would hand the create menu to the first lower-tier
-                    viewer that ever reaches a shared-header screen
-  aktiver_bestand — the focused Bestand, if any: adds the "Bestand bearbeiten" entry (4.8)
-  ohne_suche      — drops the search form: a search on a form invites leaving it with unsaved edits
-                    (a1 NOTES, "Top bar"), so the two article forms set it
-  zurueck         — renders the back link at the end of the row. For the screens whose own body
-                    carries no way back: the create/rename forms, the confirm and result surfaces. The
-                    workbench IS the search and leaves it empty. Typing an empty query and submitting technically lands on the workbench,
-                    but that is not an affordance an archivist can see, so the explicit link stays.
-  zurueck_href    — where the back link goes; defaults to the workbench. The delete-confirm surface
-                    points at the article it is about, not at the search.
-  zurueck_label   — the back link's German words; defaults to "Zurück zur Suche".
+Params (all optional; an empty value renders less):
+  text            — the search text (the workbench's q)
+  filter_params   — the active filters as hidden inputs, so a new q refines within them (GH #21)
+  is_signed_in    — gates Abmelden: whoever holds a cookie, Member included (ADR 0018)
+  is_archivist    — gates the "+ Neu …" menu. viewers.render_screen stamps it; never pass it as a
+                    literal at an include site — the leak matrix asserts route gates, not chrome
+  aktiver_bestand — the focused Bestand: adds "Bestand bearbeiten" (4.8)
+  ohne_suche      — drops the search form: on the article forms a search invites leaving unsaved
+                    edits (a1 NOTES, "Top bar")
+  zurueck         — renders the back link, for screens whose body offers no way back
+  zurueck_href    — the back link's target; defaults to the workbench
+  zurueck_label   — the back link's words; defaults to "Zurück zur Suche"
 
-The wordmark itself lives in base.html (always present, always links home). The header is the page's
-one CONTROL ROW at the top (layouts.css sets its --control-height knob) — the search input, Suchen
-and the "+ Neu …" button all consume it, so their heights hold by construction (law C8).
+The header is one control row: its controls share layouts.css's --control-height (law C8).
 
-The form is PLAIN HTML on purpose, and that is what makes it work identically on every screen: a GET
-navigation to the workbench, with JS and without. It used to carry hx-get + hx-target="#results",
-which exists only on the workbench — so on the edit/create/Bestand screens htmx cancelled the native
-submit and aborted with htmx:targetError, and searching from those screens did NOTHING. The
-type-to-search ENHANCEMENT therefore lives on the region it swaps (#results, workbench/_results.html)
-instead of on the shared trigger: it exists exactly where its target exists, by construction, and the
-form below degrades to the plain navigation everywhere else without knowing anything about its page.
+The search form is plain HTML, a GET to the workbench from every screen. Type-to-search lives on
+#results (workbench/_results.html), the region it swaps: an hx-target here would abort on every
+screen without #results.
 {% endcomment %}
 {% if not ohne_suche %}
 <form role="search" method="get" action="{% url 'workbench' %}">
@@ -47,9 +27,8 @@ form below degrades to the plain navigation everywhere else without knowing anyt
   {% endfor %}<button type="submit">Suchen</button>
 </form>
 {% endif %}
-{% comment %}ONE "+ Neu …" menu (owner 2026-08-07, Mock B). The list is the header's create SLOT
-(learning G.9): a new create action lands in this list, never as a new header button. A native
-popover: light dismiss, Esc and the top layer without JS.{% endcomment %}
+{% comment %}The header's create slot (learning G.9): a new create action joins this list, never a
+new header button.{% endcomment %}
 {% if is_archivist %}
 <button class="menu-button" type="button" popovertarget="neu-menu">+ Neu …</button>
 <ul class="menu" id="neu-menu" popover>
@@ -59,11 +38,7 @@ popover: light dismiss, Esc and the top layer without JS.{% endcomment %}
 </ul>
 {% endif %}
 {% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
-{% comment %}Abmelden — for whoever is SIGNED IN, not for archivists: a Member's cookie is the
-longer-lived of the two tiers, and this header is the only screen a Member reaches. Shared computers
-are the normal case (ADR 0018), so the sign-out is on every screen that carries this header, never on
-a page of its own. A POST form, not a link: a logout changes state, and it carries the CSRF token
-every other write form does. Rare, so an icon named by its label (owner 2026-09-27).{% endcomment %}
+{% comment %}A POST form: a logout changes state and carries the CSRF token like every write.{% endcomment %}
 {% if is_signed_in %}
 <form class="abmelden" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit" aria-label="Abmelden" title="Abmelden">{% include "components/icon.html" with name="log-out" only %}</button></form>
 {% endif %}

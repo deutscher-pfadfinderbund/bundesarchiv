@@ -1,13 +1,8 @@
 {% load static %}
 {% comment %}
-Dev-only layout demo (/_dev/layouts/<name>/ — see layouts_demo.py). A FULL archivist-workbench
-composition built from the REAL partials (components/facet_group, components/ledger,
-workbench/_pane) over static German demo context — lockstep with the live app by construction.
-English dev chrome; German product copy inside the components. The page frame is the CSS grid
-from layouts.css: filter rail (facet dropdowns + active chips + the right-aligned hit count,
-law C10) · main (ledger) · preview pane. Two server-rendered states via ?vorschau=0|1 (no JS): the pane column exists only
-when vorschau=1; the ledger re-densifies by itself (it is a size container). Below 1280px a
-media query hides the pane — layouts.css owns that, not the view.
+Dev-only layout demo (/_dev/layouts/<name>/, layouts_demo.py): the workbench composition built from
+the real partials over static German demo context. English dev chrome. ?vorschau=0|1 switches the
+pane column.
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -56,11 +51,8 @@ media query hides the pane — layouts.css owns that, not the view.
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
 
-{% comment %} Header bar: the REAL shared partial (workbench/_header.html) over demo context, like
-every other partial on this page — it used to be hand-copied here while this file claimed to be built
-from the real ones, so a header change silently made the storyboard lie (lockstep, owner 2026-08-06:
-the demo pages ARE the styleguide). Only the wordmark stays local: on the live screens it lives in
-base.html, and here it must link back into the demo. {% endcomment %}
+{% comment %} The wordmark is local: on the live screens base.html draws it, here it links back into
+the demo. {% endcomment %}
 <header>
   <a class="wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
   {% include "workbench/_header.html" with is_archivist=True is_signed_in=True %}
@@ -77,8 +69,6 @@ filter_chips); one group is served open to exhibit the dropped overlay panel. {%
     {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
   </main>
 
-  {% comment %} Preview pane — the REAL workbench partial over demo context; present only when
-  vorschau=1; hidden below 1280px by layouts.css. {% endcomment %}
   {% if vorschau %}{% include "workbench/_pane.html" with pane=preview only %}{% endif %}
 
 </div>

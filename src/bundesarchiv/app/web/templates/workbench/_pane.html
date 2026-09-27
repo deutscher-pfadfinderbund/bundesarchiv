@@ -1,18 +1,9 @@
 {% comment %}
-The preview pane (Part 4.5) — THE pulled sheet, server-rendered from a `visible`-projected
-Article (pane view-model), so no floored field can reach it. Present only when ?artikel resolves
-to a viewable article; a denied/absent/malformed ulid renders no pane at all (the view returns
-pane=None), so the pane can never be an existence oracle.
-
-Anatomy (owner 2026-08-07): header row = Signatur tab (register row 1's licensed context) +
-Titel side by side, ✕ (Schließen, the icon set's x) at the end; below it ONE role="toolbar" —
-Öffnen (primary) then Bearbeiten (archivist-only; empty href renders nothing); then the mono
-meta line. One consistent gap unit (the sheet's own column gap) runs header → toolbar → meta.
-
-Cover image leads (media is cover-first, ADR 0015); each media file shows its thumbnail (via the
-gated /media/.../thumb route, which re-authorizes) + caption. Below 1280px layouts.css hides the
-pane; the row links then open the detail page directly. The layout demo includes THIS file over
-static demo context (lockstep by construction).
+The preview pane (Part 4.5), rendered from a `visible`-projected Article, so no floored field can
+reach it. A denied, absent or malformed ?artikel renders no pane at all (the view returns
+pane=None): the pane is never an existence oracle. Media are cover-first (ADR 0015); each thumbnail
+goes through the gated /media/.../thumb route. Below the pane switch (layouts.css) the pane hides.
+The layout demo includes this file too.
 {% endcomment %}
 <aside class="pane" aria-label="Vorschau">
   <div>

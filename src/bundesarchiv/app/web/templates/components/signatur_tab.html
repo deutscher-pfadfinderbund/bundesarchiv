@@ -1,12 +1,6 @@
 {% comment %}
-Signatur tab — the shape signature (cue-register rows 1/2: the .c-sig/.c-sig-code selector names
-are pinned BY the register). Param: ref_code.
-The mono code alone IS the Signatur — no visible "Sig" microlabel (owner de-redundancy,
-2026-07-10); a screen-reader-only prefix keeps the accessible name ("Signatur …" / "Ohne
-Signatur"). A Signatur carries no spaces and tops out around 8 characters (owner, 2026-08-07); a
-ceiling code like "F12/3-b2" grows with the content and ellipsizes rather than overflow when the
-column squeezes below it.
-Without ref_code: nothing visible (no dash placeholder, owner 2026-09-27) — only the
-screen-reader text "Ohne Signatur"; a draft WITH a ref_code shows its code normally.
+Signatur tab (register rows 1/2 pin the .c-sig / .c-sig-code names). Param: ref_code. The mono
+code alone is visible; a screen-reader prefix keeps the accessible name. Without ref_code nothing
+is visible, only the screen-reader text "Ohne Signatur".
 {% endcomment %}
 {% if ref_code %}<span class="c-sig"><span class="visually-hidden">Signatur </span><span class="c-sig-code">{{ ref_code }}</span></span>{% else %}<span class="visually-hidden">Ohne Signatur</span>{% endif %}
