@@ -15,8 +15,8 @@ and enforces:
 5. bare px/rem literals outside ``tokens.css`` flagged, except (a) a custom-property DEFINITION
    (naming the dimension IS the C3/C5 mechanism) or (b) a line carrying a comment naming why no
    token fits;
-6. no ``box-shadow`` at all (register rows 8 and 12: flat; a floating panel is ground with an
-   edge);
+6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
+   except the doubled edge of an invalid control (register row 5, law E);
 7. no compositions-layer selector continues past a component root (law C1/C14 — owned components).
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
@@ -38,7 +38,8 @@ STYLESHEETS = ("tokens.css", "components.css", "layouts.css", "forms.css", "deta
 #: Register row 5 — red. Selectors that license var(--error), each matched as a whole class
 #: (`.error` does not license `.error-banner`).
 ERROR_LICENSED = (
-    ".error",  # a field error: its message, and via :has() its edge (the register's `.field-error`)
+    ".error",  # a field error's message (the register's `.field-error`)
+    '[aria-invalid="true"]',  # the doubled edge of an invalid control
     ".konflikt",  # the edit-conflict notice (the register's `.record-meta-alert`)
     ".danger",  # the context on every action that deletes for good
     ".error-banner",  # the failed-request message: an error
@@ -330,14 +331,43 @@ def test_no_raw_colors_outside_tokens() -> None:
     )
 
 
-def test_no_box_shadow() -> None:
-    offenders = [
-        f"{name}:{lineno}: {sel} -> {raw.strip()}"
-        for name, decls in _all_declarations().items()
+#: The one licensed shadow (register row 5, law E): the inset that doubles an invalid control's edge.
+SHADOW_LICENSED = '[aria-invalid="true"]'
+SHADOW_VALUE = "box-shadow: inset 0 0 0 var(--line-width) var(--error);"
+
+
+def _shadow_offenders(decls: list[Decl]) -> list[int]:
+    return [
+        lineno
         for sel, prop, raw, lineno, _comment in decls
         if prop == "box-shadow"
+        and not (_licensed(sel, (SHADOW_LICENSED,)) and raw.strip() == SHADOW_VALUE)
+    ]
+
+
+def test_no_box_shadow() -> None:
+    offenders = [
+        f"{name}:{lineno}"
+        for name, decls in _all_declarations().items()
+        for lineno in _shadow_offenders(decls)
     ]
     assert not offenders, "box-shadow (register rows 8/12: flat):\n" + "\n".join(offenders)
+
+
+def test_the_invalid_edge_is_the_only_shadow_licensed() -> None:
+    planted = """@layer components {
+  .field :is(input, select)[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 var(--line-width) var(--error);
+  }
+  .field [aria-invalid="true"] {
+    box-shadow: inset 0 0 0 2px var(--error);
+  }
+  .panel {
+    box-shadow: inset 0 0 0 var(--line-width) var(--error);
+  }
+}
+"""
+    assert _shadow_offenders(_declarations(planted)) == [6, 9]
 
 
 def test_square_corners() -> None:

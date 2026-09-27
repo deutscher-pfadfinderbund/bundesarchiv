@@ -196,7 +196,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. The .error line still drives the red border (:has — one source, no drift)</code>
+<code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. aria-invalid doubles the red edge (border plus a 1px inset)</code>
 
 <h2>Mark — lifecycle</h2>
 <div class="probe">
