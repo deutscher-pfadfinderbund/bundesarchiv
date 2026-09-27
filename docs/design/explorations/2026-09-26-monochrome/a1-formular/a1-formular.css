@@ -99,7 +99,7 @@
      Knobs: none. Parts: a <dl> of example · meaning. M/L: anchored under its button; S: the centred native popover. */
   .popover {
     max-inline-size: min(28rem, calc(100vw - 2 * var(--gutter))); padding: var(--space-4) var(--space-5);
-    font: var(--type-meta); background: var(--ground); border: var(--line-width) solid var(--edge);
+    font: var(--type-meta); background: var(--ground); border: var(--line-width) solid var(--ink);
   }
   @supports (position-area: block-end) { @media (width >= 40rem) {
     .popover { inset: auto; margin: var(--space-2) 0 0; position-area: block-end span-inline-end; position-try-fallbacks: flip-inline; }

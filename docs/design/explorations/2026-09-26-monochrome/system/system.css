@@ -30,6 +30,15 @@
     --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
     --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
     --error: light-dark(#c4000b, #ff6b61);
+    /* Buttons. Light inverts (a solid black primary, a black hover fill); dark never fills with ink:
+       a bright block glares on black. There a primary is set apart by its full-ink edge against the
+       secondary's quieter edge, and hover lifts to a dim ground. */
+    --button-edge: light-dark(#000, #6e6e6e);
+    --button-fill: light-dark(#000, transparent);
+    --button-fill-ink: light-dark(#fff, #f0f0f0);
+    --button-hover: light-dark(#000, #262626);
+    --button-hover-ink: light-dark(#fff, #f0f0f0);
+    --button-primary-hover: light-dark(transparent, #262626);
     --hover-lift: brightness(1.15);
 
     /* Surface roles — what components consume. A surface (the top bar) re-points them for its
@@ -196,6 +205,7 @@
   .topbar-tools { margin-inline-start: auto; display: flex; align-items: center; gap: var(--space-7); font: var(--type-meta); }
   .topbar-tools > a { color: var(--ink-2); }
   .topbar-tools > a:hover { color: var(--ink); }
+  .topbar-tools > a:has(> .icon) { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); } /* Abmelden: rare, so an icon (named by the link) */
   @container (width < 40rem) {
     .topbar-row { flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding-block: var(--space-3); }
     .topbar-tools { display: contents; }
@@ -414,7 +424,7 @@
   .menu {
     --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
     min-inline-size: var(--measure-menu); margin: 0; padding: var(--space-2) 0; list-style: none;
-    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--edge);
+    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--ink); /* a floating panel is never quieter than the control that opened it */
   }
   @supports (position-area: block-end) {
     .menu { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, flip-block; }
@@ -429,11 +439,12 @@
     display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
     padding: var(--space-3) var(--button-pad-inline, var(--space-5));
     font: var(--type-control); text-decoration: none; white-space: nowrap;
-    color: var(--ink); background: transparent; border: var(--line-width) solid var(--ink); border-radius: 0;
+    color: var(--ink); background: transparent; border: var(--line-width) solid var(--button-edge); border-radius: 0;
     cursor: pointer; /* also on a label.button (file chooser), which is not a <button> */
   }
-  .button:hover, .button-primary { color: var(--ground); background: var(--ink); }
-  .button-primary:hover { color: var(--ink); background: transparent; }
+  .button:hover { color: var(--button-hover-ink); background: var(--button-hover); }
+  .button-primary { color: var(--button-fill-ink); background: var(--button-fill); border-color: var(--ink); }
+  .button-primary:hover { color: var(--ink); background: var(--button-primary-hover); }
 
   /* ---------- split-button — one action and its rarer siblings in one frame ----------
      Knobs: none. Parts: a .button (the frequent action, e.g. Bearbeiten), then a button.menu-button
@@ -443,9 +454,9 @@
   .split-button { display: inline-flex; align-items: stretch; }
   .split-button > .menu-button {
     display: inline-grid; place-items: center; padding-inline: var(--space-2);
-    color: var(--ink); border: var(--line-width) solid var(--ink); border-inline-start-width: 0;
+    color: var(--ink); border: var(--line-width) solid var(--button-edge); border-inline-start-width: 0;
   }
-  .split-button > .menu-button:hover { color: var(--ground); background: var(--ink); }
+  .split-button > .menu-button:hover { color: var(--button-hover-ink); background: var(--button-hover); }
 
   /* ---------- mark — a state is words, not a box (Entwurf, später) ----------
      Knobs: none. */
@@ -486,7 +497,7 @@
   .autocomplete-list {
     position: absolute; inset-inline: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 2;
     max-block-size: 18rem; overflow-y: auto; margin: 0; padding: var(--space-1) 0; list-style: none;
-    background: var(--ground); border: var(--line-width) solid var(--edge);
+    background: var(--ground); border: var(--line-width) solid var(--ink);
   }
   .autocomplete-list [role="option"] { padding: var(--space-2) var(--space-3); cursor: pointer; }
   .autocomplete-list [role="option"]:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }

@@ -283,3 +283,16 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   `split-button`): the action and a chevron part in one frame; the chevron (`chevron-down`, name
   "Weitere Aktionen") opens the rare actions. The small "Entwurf" mark after the draft's title is
   gone: it was overlooked, and the primary "Veröffentlichen" already says the record is a draft.
+
+## Owner rulings, round 6 — buttons, panels, Abmelden (2026-09-27, applied)
+
+- **Dark mode never fills with ink:** a bright block glares on black. In dark the primary button is
+  outlined, set apart by its full-ink edge against the secondary's quieter edge (`--button-edge`),
+  and hover lifts to a dim ground (`--button-hover`); the split button's chevron follows. Light keeps
+  the solid black primary and the inverting hover. Tokens: `--button-edge`, `--button-fill`,
+  `--button-fill-ink`, `--button-hover`, `--button-hover-ink`, `--button-primary-hover`.
+- **A floating panel is never quieter than what opened it:** menus, the help popover, the tool
+  panels and the autocomplete list take the full-ink edge (register row 12 amended in the mock).
+- **Abmelden is an icon** (`log-out` glyph, named "Abmelden" by the link and its title): rare, so it
+  gives up its word. Alternative left open: a menu under the signed-in name, if identity on screen is
+  wanted later.

@@ -54,7 +54,7 @@
   .toolpanel {
     --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
     inline-size: var(--measure-query); margin: 0; padding: var(--space-5);
-    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--edge);
+    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--ink);
   }
   @supports (position-area: block-end) {
     .toolpanel { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-end; position-try-fallbacks: flip-inline, flip-block; }
