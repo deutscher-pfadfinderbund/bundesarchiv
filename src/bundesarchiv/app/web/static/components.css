@@ -332,7 +332,7 @@
      on hover, and focus thickens that edge to the focus width — the underline is the focus
      signal. ---- */
   .title-field {
-    font: var(--type-display);
+    font: var(--type-page-title);
   }
   .title-field > textarea {
     display: block;
@@ -383,10 +383,11 @@
     margin-inline: var(--space-2);
   }
 
-  /* ---- section-head — a section's rank: its heading over the section's content ---- */
+  /* ---- section-head — a section's rank: its heading over the section's content. Knob:
+     --section-head-type (the h2's role; the form's sections set the Subhead). ---- */
   .section-head > h2 {
     margin: 0;
-    font: var(--type-title);
+    font: var(--section-head-type, var(--type-title));
   }
 
   /* ---- record-meta — the form's margin: the record's state, its audience, then the actions.

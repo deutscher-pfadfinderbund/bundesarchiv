@@ -435,6 +435,7 @@
      ============================================================ */
   .form-sheet {
     --field-font: var(--type-body);
+    --section-head-type: var(--type-subhead);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "lead" "meta" "body";
