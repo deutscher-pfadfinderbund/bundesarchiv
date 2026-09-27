@@ -271,7 +271,6 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 |---|---|---|---|
 | Action row | `.actions` | inline | `components.css` action rows |
 | Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
-| Badge | `.badge` | `components/badge_visibility` | `components.css` badge |
 | Note | `.note` | inline (`_feld`, the edit form's Weitere Angaben) | `components.css` note |
 | Help | `.help` | inline (`_feld`) | `components.css` help |
 | Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field |

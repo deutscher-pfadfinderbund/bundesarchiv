@@ -244,16 +244,6 @@
     color: var(--faint);
   }
 
-  /* ---- badge: a neutral outline (the visibility badges only) ---- */
-  .badge {
-    display: inline-block;
-    font: var(--type-label);
-    padding: calc(var(--space-1) / 2) var(--space-2);
-    border: var(--line-width) solid var(--edge);
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-
   /* ---- mark — a state in words, never a box (Entwurf, Titelbild, the dirty register) ---- */
   .mark {
     font: var(--type-label);
@@ -501,10 +491,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .c-sig--leer .c-sig-code {
-    color: var(--ink-2);
-    font-weight: 400;
   }
 
   /* ---- facet group (components/facet_group.html): a <details> dropdown on the filter rail. The

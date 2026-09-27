@@ -271,20 +271,6 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/mark_lifecycle.html · draft=True → ENTWURF; draft=False → nothing</code>
 
-<h2>Badges — visibility</h2>
-<div class="probe">
-  {% for mode in modes %}
-  <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    <div class="row">
-      {% include "components/badge_visibility.html" with text="Öffentlich" only %}
-      {% include "components/badge_visibility.html" with text="Alle Mitglieder" only %}
-      {% include "components/badge_visibility.html" with text="Gruppe: vorstand" only %}
-    </div>
-  </div>
-  {% endfor %}
-</div>
-<code class="doc">components/badge_visibility.html · text=…</code>
-
 <h2>Signatur mark</h2>
 <div class="probe">
   {% for mode in modes %}
@@ -298,7 +284,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/signatur_tab.html · ref_code=… — plain ink mono, everywhere; absent → quiet "ohne Signatur" dash; long codes ellipsize</code>
+<code class="doc">components/signatur_tab.html · ref_code=… — plain ink mono, everywhere; absent → nothing visible (screen-reader "Ohne Signatur"); long codes ellipsize</code>
 
 <h2>Icons — the one vendored set (register row 9)</h2>
 <div class="probe">

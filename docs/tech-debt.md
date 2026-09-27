@@ -181,7 +181,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
-- **Indicator:** 4 open in the monochrome mock system, 7 in the app (after Wave K1, 2026-09-27).
+- **Indicator:** 3 open in the monochrome mock system, 5 in the app (2026-09-27, after the `.badge` and
+  empty-Signatur fixes).
 - **The pattern:** a modifier class that sets a component's own properties (`.button-danger`) instead
   of a context that re-points roles or knobs and works on any component (`.danger` re-points
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
@@ -190,22 +191,21 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   `.button-sso` gone (owner: the door's login is just a primary button). Wave K1: `.badge.entwurf`,
   the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the Bestand form's quiet
   facts — now `.quiet`; the record row's `<details class="menu">` — now the one popover menu, its
-  Löschen / Verwerfen under `.danger`.
+  Löschen / Verwerfen under `.danger`. Owner 2026-09-27: `.badge` deleted (no production user left);
+  the empty Signatur shows nothing (no dash placeholder).
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
     the button must paint its background with `--ground`, and the hover outline needs an edge.
-  - `.facts-wide` vs the field grid's `[data-span="all"]`: two mechanisms for one job (span a row).
   - search sentence `.is-minor` (encodes "folds on S"; structure can say it: every slot after the
     first) and `.is-more` (a different element, so a part: `.search-sentence-more`). `.is-set` is
     state and stays exempt.
 - **Open, app** (Wave T report, 2026-09-27; Wave T fixed `button.danger`, the Signatur tab, the
   amber ENTWURF mark and the Titelbild inversion):
-  - `.badge` (the visibility badges) is still a box; it goes with the visibility redesign.
-  - `.primary`: a button variant (candidate: an inverse context).
+  - `.primary`: a button variant (candidate: an inverse context). Owner 2026-09-27: settle it in the
+    list-page wave, together with the facet inversion below.
   - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
   - lines row 14 forbids: the ledger's covering rules, its header underline; the dashed
     `.column dd` decoration (row 6 licenses dashes only for hollow slots).
-  - `.c-sig--leer` prints "—" as a placeholder (no dashes).
   - `.pane > div` framed while the pane question is suspended (row 10).
   - Wave K1 found, outside its fence: the detail page's `<small>Nur intern</small>` (the note
     "intern" instead); the list page's chip and facet ✕ are text glyphs, not the remove control;

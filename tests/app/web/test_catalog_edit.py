@@ -133,7 +133,6 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
     # the sr-only "Ohne Signatur" text (rendered by the hollow-slot signatur_tab) must NOT appear —
     # the edit header omits the slot entirely; the Signatur input carries absence instead
     assert "Ohne Signatur" not in body
-    assert "c-sig--leer" not in body  # the hollow-slot class is absent
     # the Signatur input is present and empty
     assert 'name="ref_code" value=""' in body
 

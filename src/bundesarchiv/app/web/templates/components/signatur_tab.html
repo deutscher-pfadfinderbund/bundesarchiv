@@ -6,7 +6,7 @@ The mono code alone IS the Signatur — no visible "Sig" microlabel (owner de-re
 Signatur"). A Signatur carries no spaces and tops out around 8 characters (owner, 2026-08-07); a
 ceiling code like "F12/3-b2" grows with the content and ellipsizes rather than overflow when the
 column squeezes below it.
-Without ref_code: the hollow dashed slot (row 6) meaning exactly "ohne Signatur" — decoupled from
-lifecycle; a draft WITH a ref_code shows its code normally.
+Without ref_code: nothing visible (no dash placeholder, owner 2026-09-27) — only the
+screen-reader text "Ohne Signatur"; a draft WITH a ref_code shows its code normally.
 {% endcomment %}
-{% if ref_code %}<span class="c-sig"><span class="visually-hidden">Signatur </span><span class="c-sig-code">{{ ref_code }}</span></span>{% else %}<span class="c-sig c-sig--leer"><span class="visually-hidden">Ohne Signatur</span><span class="c-sig-code" aria-hidden="true">—</span></span>{% endif %}
+{% if ref_code %}<span class="c-sig"><span class="visually-hidden">Signatur </span><span class="c-sig-code">{{ ref_code }}</span></span>{% else %}<span class="visually-hidden">Ohne Signatur</span>{% endif %}
