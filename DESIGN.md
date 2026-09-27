@@ -3,9 +3,9 @@ name: Bundesarchiv
 description: The DPB archive as a well-set printed catalogue. Black ink on white paper, type carries the order.
 colors:
   # Light-mode values. Dark values and the light-dark() pairs live in .impeccable/design.json
-  # colorMeta. NORMATIVE SOURCE until the retoken wave: the mock system,
-  # docs/design/explorations/2026-09-26-monochrome/system/system.css (@layer tokens).
-  # After it: src/bundesarchiv/app/web/static/tokens.css. Change colors there, never here.
+  # colorMeta. NORMATIVE SOURCE (since Wave T, 2026-09-27): src/bundesarchiv/app/web/static/tokens.css.
+  # The mock system (docs/design/explorations/2026-09-26-monochrome/system/) proves the components.
+  # Change colors there, never here.
   paper-white: "#ffffff"
   print-black: "#000000"
   secondary-ink: "#595959"

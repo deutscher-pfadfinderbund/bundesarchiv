@@ -73,9 +73,9 @@ adding a row first, and rows are owner decisions.
 
 **Monochrome amendment (owner, 2026-09-27).** The register below is the "Druckschwarz" state
 (`design-system.md`, `DESIGN.md`). Rows keep their numbers; a retired row stays as a record and
-licenses nothing. The app's CSS still carries the old rows until the retoken wave, and the design
-lint's allowlists (E) follow the new rows in that wave — until then lint and law differ on
-purpose (rules first, fixes later).
+licenses nothing. The retoken wave (Wave T, 2026-09-27) moved the app's tokens and the design
+lint (E) onto these rows; components still carrying retired cues are listed in `docs/tech-debt.md`
+#20 and change with their component wave.
 
 | # | Cue | Licensed selectors + position | Everywhere else |
 |---|-----|-------------------------------|-----------------|
@@ -131,7 +131,7 @@ trapezoid register tab lapsed with the square-corner ruling.
 5. **Tokens are the only value source.** Spacing from `--space-*`. The
    non-spacing dimensions have named tokens: `--touch-target` (2.75rem),
    `--touch-target-compact` (2rem — the filter-rail chips + their ✕ only;
-   owner ruling 2026-08-07, rail round 2), `--hairline` (1px),
+   owner ruling 2026-08-07, rail round 2), `--line-width` (1px),
    `--state-border` (3px). A dimension used once,
    structurally, may be a literal **with a comment naming why no token
    fits**; a bare literal is an S3 defect. This binds **at-rule conditions**
@@ -256,9 +256,11 @@ The machine-checkable slice of B and C, enforced by
 `tests/app/web/test_design_lint.py`:
 
 - no raw hex in component CSS (existing law, restated);
-- no `corner-shape` outside register row 1's selectors;
-- no `--error` consumption outside row 5's licensed selectors (the check still names rows 2/4
-  until the retoken wave moves the allowlists to the monochrome register);
+- square corners: no `corner-shape`, no `border-radius` other than `0`;
+- no `box-shadow` (row 8 retired, row 12 amended) — except the doubled error edge of row 5
+  (`inset 0 0 0 var(--line-width) var(--error)` on `[aria-invalid="true"]`), which the field
+  component wave adds to the check's allowlist;
+- no `--error` consumption outside row 5's licensed selectors;
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
   C5);

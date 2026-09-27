@@ -7,10 +7,9 @@ no formal acceptance step. Governs all web UI from Part 4 on.
 "stamp ink on paper" look. Its visual digest is `DESIGN.md` at the repo root; its
 proof is the mock system in `docs/design/explorations/2026-09-26-monochrome/system/`
 (`system.css`, `gallery.html`, `icons.svg`, `autocomplete.js`) and the archivist
-screens built on it (`a1-formular/`, `a2-sammel/`, `a3-artikel/`). Until the retoken
-wave lands, that `system.css` is the normative token source; the app's `tokens.css`
-still carries the old look and is measured against this document (rules first,
-fixes later).
+screens built on it (`a1-formular/`, `a2-sammel/`, `a3-artikel/`). Since the retoken wave
+(Wave T, 2026-09-27) the app's `tokens.css` is the normative token source; components still
+carrying the old structure are measured against this document and change in their own wave.
 
 **Enforceable half:** `design-review-law.md` (same directory) — the review
 catechism, the cue register (the ONLY licensed visual cues, MAY-only), the
@@ -275,7 +274,7 @@ line; they are split out only as swap units or single renderers (law C7).
 | Badge | `.badge` | `components/badge_lifecycle`, `badge_visibility` | `components.css` badges |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
-| Menu | `.menu` | inline (`_header`, record row) | `components.css` header create menu |
+| Menu | `.menu` | inline (`_header` popover; the record row's `<details>` until wave K) | `components.css` menu |
 | Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
@@ -353,8 +352,8 @@ never at the cost of the core.
 
 1. The rules into the law — this document, `DESIGN.md`, and the cue register of
    `design-review-law.md`. Done 2026-09-27.
-2. Monochrome retoken of `tokens.css` + top bar + door page in the app (one writer); the design
-   lint's allowlists follow the new register in the same wave.
+2. Monochrome retoken of `tokens.css` + the top bar, with the design lint on the new register.
+   Done 2026-09-27 (Wave T). The door page follows as its own wave (auth surface).
 3. Components per the system, one writer each (Wave C's owned-component model), each rendered in
    the component gallery at S / M / L before a page uses it.
 4. Pages: start, list, article; each checked against its screen-job table.

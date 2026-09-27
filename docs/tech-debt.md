@@ -196,8 +196,18 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   - search sentence `.is-minor` (encodes "folds on S"; structure can say it: every slot after the
     first) and `.is-more` (a different element, so a part: `.search-sentence-more`). `.is-set` is
     state and stays exempt.
-- **Open, app:** the Signatur tab and the ledger's ENTWURF mark (Wave C escalations); both retire
-  with the monochrome system (register rows 1 and 4).
+- **Open, app** (Wave T report, 2026-09-27; Wave T fixed `button.danger`, the Signatur tab, the
+  amber ENTWURF mark and the Titelbild inversion):
+  - `.badge` (visibility badges, `#dirty-flag`) is still a box; `.badge.entwurf` a variant of it.
+  - `.primary`: a button variant (candidate: an inverse context).
+  - the record row's "Mehr …" in `workbench/artikel_bearbeiten.html` is still `<details class="menu">`
+    (two menu mechanisms); its Löschen / Verwerfen carry no `.danger`.
+  - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
+  - lines row 14 forbids: the ledger's covering rules, its header underline, `.diff th`; the dashed
+    `.column dd` decoration (row 6 licenses dashes only for hollow slots).
+  - `.c-sig--leer` prints "—" as a placeholder (no dashes).
+  - `.pane > div` framed while the pane question is suspended (row 10).
+  - the native `::file-selector-button` keeps the UA gray (goes with "+ Dateien hinzufügen").
 - **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
   selector on a non-root class that sets a non-custom property on a component root.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
