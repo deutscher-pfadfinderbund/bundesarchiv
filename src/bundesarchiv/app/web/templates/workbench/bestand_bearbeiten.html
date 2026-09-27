@@ -33,7 +33,7 @@ screen since the form wave.
              {% if errors.name %}aria-invalid="true" aria-describedby="feld-name-fehler"{% endif %}>
       {% if errors.name %}<span class="error" id="feld-name-fehler">{{ errors.name }}</span>{% endif %}
     </div>
-    <dl>
+    <dl class="quiet">
       <div>
         <dt>Eltern-Bestand</dt>
         <dd>{{ parent_display }}</dd>

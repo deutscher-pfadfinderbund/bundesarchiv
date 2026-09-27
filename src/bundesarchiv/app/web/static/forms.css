@@ -180,7 +180,6 @@
   .column dd {
     margin: 0;
     font: var(--type-body);
-    color: var(--ink-2);
     padding: var(--space-1) 0;
     border-bottom: var(--line-width) dashed var(--rule);
   }

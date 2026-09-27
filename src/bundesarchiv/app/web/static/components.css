@@ -829,6 +829,13 @@
   .danger:is(:hover, :active, :focus-visible) {
     --ink: var(--error);
   }
+
+  /* ---- quiet — a context, not a variant (law C2): one tier quieter. Its own text follows by
+     inheritance, every part that reads --ink by the role. ---- */
+  .quiet {
+    --ink: var(--ink-2);
+    color: var(--ink);
+  }
 }
 
 /* ============================================================
