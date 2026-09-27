@@ -761,3 +761,14 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   by line (and by `--` inside a line), never by word. The earlier word split was a mapping error,
   not an owner ruling.
 - **Order:** component waves first; the Medienart / Dokumenttyp rework next.
+- **Door page:** every anonymous request shows the door (wordmark, one explaining sentence,
+  primary button "Anmelden mit DPB Login"); the button keeps the requested target. No silent
+  redirect to Keycloak — the door explains.
+- **Art (Medienart / Dokumenttyp):** a simple UI for now (two fields, shown as one path
+  "Schrifttum › Zeitschrift"), but persisted as a tree path already, so the UI can change later
+  without a format change.
+- **Namespaced tags:** wanted. Introduced progressively and additively: an old README stays
+  valid, adding a namespace breaks nothing.
+- **Legacy tables of contents** held in Schlagworte (94 records): the archivists decide whether
+  they move into Beschreibung.
+- **Versions:** a simple solution is enough for now (list the versions, view an old one).
