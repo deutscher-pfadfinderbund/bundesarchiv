@@ -225,6 +225,7 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
                     // selectors, not a category — anything else IS compared.
                     text: el.matches('.wordmark, .filterset > a'),
                     height: el.offsetHeight,
+                    width: el.offsetWidth,
                     // FACE and WEIGHT are separate, because their exemptions are (see above).
                     face: [s.fontSize, s.fontFamily, s.textTransform, s.letterSpacing].join('|'),
                     weight: s.fontWeight,
@@ -269,7 +270,8 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
 #: The WCAG 2.2 AA target-size floor (law D's a11y floor, 24 CSS px). A row's controls agreeing on a
 #: height that is BELOW it is a uniform defect, which C8's equality check cannot see — the 23px facet
 #: entry (learning G.38) agreed with nothing and was found by eye. Checked per control, so it holds for
-#: a lone control too, where there is no equality to compare.
+#: a lone control too, where there is no equality to compare — and on BOTH axes: the active facet ✕
+#: once kept its height and fell to 10px wide.
 _AA_TARGET_FLOOR = 24
 
 
@@ -286,10 +288,10 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
     defects: list[str] = []
     for name, controls in by_name.items():
         defects.extend(
-            f"row '{name}' control '{c['label']}' is {c['height']}px — under the WCAG 2.2 AA"
-            f" {_AA_TARGET_FLOOR}px target floor"
+            f"row '{name}' control '{c['label']}' is {c['width']}x{c['height']}px — under the"
+            f" WCAG 2.2 AA {_AA_TARGET_FLOOR}px target floor"
             for c in controls
-            if int(str(c["height"])) < _AA_TARGET_FLOOR
+            if min(int(str(c["width"])), int(str(c["height"]))) < _AA_TARGET_FLOOR
         )
         if len(controls) < 2:
             continue  # nothing to compare within this row
