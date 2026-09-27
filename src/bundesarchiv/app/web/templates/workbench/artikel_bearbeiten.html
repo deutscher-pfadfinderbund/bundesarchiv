@@ -145,19 +145,17 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
       <header class="section-head"><h2 id="h-medien">Medien</h2></header>
       {% if medien_fehler %}<p class="error">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
-      <div class="media">
+      <ul class="register">
         {% for row in media_rows %}
-        <div{% if row.is_cover %} class="cover"{% endif %}>
-          <img src="{{ row.thumb_url }}" alt="" loading="lazy">
-          <span class="file">
+        <li class="file-row">
+          <img class="file-row-thumb" src="{{ row.thumb_url }}" alt="" loading="lazy">
+          <span class="file-row-name">
             <span>{{ row.filename }}</span>
-            {% if row.size %}<small>{{ row.size }}</small>{% endif %}
-            {% if row.is_cover %}<span class="mark">Titelbild</span>{% endif %}
+            {% if row.size or row.is_cover %}<small>{{ row.size }}{% if row.is_cover %} <span class="mark">Titelbild</span>{% endif %}</small>{% endif %}
           </span>
           <label class="field">
-            <span class="visually-hidden">Bildunterschrift</span>
-            <input type="text" name="caption[{{ row.content_hash }}]"
-                   value="{{ row.caption }}" aria-label="Bildunterschrift" form="bearbeiten-form">
+            <span>Bildunterschrift</span>
+            <input type="text" name="caption[{{ row.content_hash }}]" value="{{ row.caption }}" form="bearbeiten-form">
           </label>
           {% comment %}The row's actions: ONE role="toolbar" of icon buttons from the vendored set
           (owner ruling 6, register row 9), each with its accessible name. The end rows' arrows are
@@ -180,9 +178,9 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
                     aria-label="{{ row.filename }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
           </span>
           {% endif %}
-        </div>
+        </li>
         {% endfor %}
-      </div>
+      </ul>
       {% else %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
       {% endif %}
@@ -235,7 +233,7 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
       <header class="section-head"><h2 id="h-weitere">Weitere Angaben <span class="note">intern</span></h2></header>
       {% if errors.custom %}<p class="error">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
-      <div class="bag-row">
+      <div class="pairs">
         <label class="field">
           <span>Feld</span>
           <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>

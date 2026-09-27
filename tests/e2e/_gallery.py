@@ -103,6 +103,14 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_selector(".record-meta .error")
 
 
+def _reach_edit_weitere_angaben(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the corpus holds no custom row; "+ Angabe hinzufügen" re-renders one without saving
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.click('button:has-text("+ Angabe hinzufügen")')
+    page.fill('#custom-bag input[name="custom_key"]', "Legacy-ID")
+    page.fill('#custom-bag input[name="custom_value"]', "1293")
+
+
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
     # message, which must show exactly one "Neuer Wert" widget
@@ -166,6 +174,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface rejected: a Gruppen error in the margin",
         True,
         _reach_edit_rejected,
+    ),
+    GalleryState(
+        "edit-weitere-angaben",
+        "the edit surface, one Weitere Angaben row added and filled (unsaved)",
+        True,
+        _reach_edit_weitere_angaben,
     ),
 )
 

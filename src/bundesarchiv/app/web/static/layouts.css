@@ -459,6 +459,7 @@
   .form-sheet > div {
     grid-area: body;
     min-width: 0;
+    container-type: inline-size;
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
@@ -498,5 +499,35 @@
   }
   .field-grid > [data-span="all"] {
     grid-column: 1 / -1;
+  }
+
+  /* pairs — one Weitere Angaben row: Feld | Wert | remove. The fields' label and control rows are
+     the row's own (subgrid), so the remove centres on the controls whatever their height. S: the
+     remove moves beside Feld, Wert takes the next row. */
+  .pairs {
+    --field-display: grid;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    gap: var(--space-4) var(--space-5);
+  }
+  .pairs > .field {
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    row-gap: var(--space-1);
+  }
+  .pairs > .remove {
+    grid-area: 2 / 3;
+    align-self: center;
+  }
+  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+    .pairs {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .pairs > :nth-child(2) {
+      grid-column: 1 / -1;
+    }
+    .pairs > .remove {
+      grid-area: 2 / 2;
+    }
   }
 }

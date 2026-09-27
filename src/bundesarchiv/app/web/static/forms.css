@@ -1,4 +1,4 @@
-/* The editing views: the work column, the media register, the custom bag and the CAS panel. Load
+/* The editing views: the work column, the confirm line and the CAS panel. Load
    order: tokens, components, layouts, then this file. The form is flat neutral chrome — no
    per-group fills, no card shadows; that flatness is load-bearing. */
 
@@ -23,14 +23,6 @@
   #medien-drawer.htmx-request,
   #form-region form.htmx-request {
     opacity: 0.6;
-  }
-
-  /* ---- the custom bag: key/value pairs ---- */
-  .bag-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    align-items: end;
-    gap: var(--space-3);
   }
 
   /* ---- read-only facts: a <dl>; the dashed baseline reads as a printed fact, not an input ---- */
@@ -77,52 +69,7 @@
 }
 
 @layer components {
-  /* ---- media register (spec §6.3): the ledger's subgrid grammar reused. Row:
-     [thumb][datei][caption][action toolbar] — one slot, since the three text links became icons
-     (owner ruling 6). Scrolls in its own box; the page body never scrolls sideways. ---- */
-  .media {
-    --media-cols: max-content minmax(8rem, 1fr) minmax(8rem, 1.4fr) max-content;
-    display: grid;
-    grid-template-columns: var(--media-cols);
-    border: var(--line-width) solid var(--edge);
-    overflow-x: auto;
-  }
-  .media > div {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-  }
-  .media > div + div {
-    border-top: var(--line-width) solid var(--rule);
-  }
-  .media img {
-    width: 3rem; /* the register thumbnail box — one structural size, no token fits */
-    height: 3rem; /* (same box) */
-    object-fit: cover;
-    border: var(--line-width) solid var(--edge);
-  }
-  /* datei: filename (mono) + byte size, its own little stack (C4) */
-  .file {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--space-1) / 2);
-  }
-  .file > span:first-child {
-    font: var(--type-mono);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .file small {
-    font: var(--type-mono-meta);
-    color: var(--ink-2);
-  }
-  /* the row's icon toolbar carries NOTHING local — hit area, ink and hit floor all come from the
-     shared icon-control rule, the end rows' disabled arrows included */
+  /* the no-JS two-step remove: a sentence in the file-row's tools slot */
   .confirm {
     display: inline-flex;
     align-items: baseline;

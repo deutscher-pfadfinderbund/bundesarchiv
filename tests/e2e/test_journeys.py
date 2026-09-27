@@ -1544,7 +1544,7 @@ def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
     # server answers with the region re-rendered, so the swap must keep the caret in the new row.
     page = archivist_page
     page.goto(_create_draft(page, live_workbench, "E2E Fachwerk"))
-    rows = page.locator("#custom-bag .bag-row")
+    rows = page.locator("#custom-bag .pairs")
     expect(rows).to_have_count(0)
     page.click('button:has-text("+ Angabe hinzufügen")')
     expect(rows).to_have_count(1)
@@ -1572,7 +1572,7 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
         '#medien-drawer input[type="file"]',
         {"name": "neu.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
     )
-    rows = page.locator("#medien-drawer .media > div")
+    rows = page.locator("#medien-drawer .file-row")
     expect(rows).to_have_count(1)
     remove = page.get_by_role("button", name="neu.png entfernen")
     asked: list[str] = []

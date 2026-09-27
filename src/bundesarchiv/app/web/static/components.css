@@ -162,8 +162,8 @@
     z-index: var(--z-banner);
   }
 
-  /* ---- field (workbench/_feld.html; inline in the standalone forms, the Feld chooser, the media
-     register and the custom bag): the label over its control, then its hint and error. Knob:
+  /* ---- field (workbench/_feld.html; inline in the standalone forms, the Feld chooser, the
+     file-row's caption and the pairs): the label over its control, then its hint and error. Knob:
      --field-display, plus the control type knob (elements layer).
      A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
      field carrying one is a <div> with an explicit <label for>, or its control names itself via
@@ -283,6 +283,55 @@
   .add:hover {
     text-decoration: underline;
     text-underline-offset: var(--underline-offset);
+  }
+
+  /* ---- register — a list of rows. Its one-ended rows (a file-row) draw no line (register row
+     14). ---- */
+  ul.register {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* ---- file-row — one medium in a register: thumb, name over size and marks, the caption field,
+     the tools. Knob: --file-row-thumb (the thumb's side). S: caption and tools move under the
+     name. ---- */
+  .file-row {
+    --file-row-thumb: 5.5rem; /* the mock's --space-10 */
+    display: grid;
+    grid-template-columns: var(--file-row-thumb) minmax(0, 1fr) minmax(0, 1.3fr) auto;
+    align-items: center;
+    gap: var(--space-3) var(--space-5);
+    padding-block: var(--space-3);
+  }
+  .file-row-thumb {
+    inline-size: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border: var(--line-width) solid var(--faint);
+  }
+  .file-row-name {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  .file-row-name small {
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+    .file-row {
+      --file-row-thumb: 3rem; /* the mock's --space-9 */
+      grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
+      align-items: start;
+    }
+    .file-row > :nth-child(n + 3) {
+      grid-column: 2;
+    }
   }
 
   /* ---- upload — "+ Dateien hinzufügen" over the file input. Once catalog_form.js marks the root
