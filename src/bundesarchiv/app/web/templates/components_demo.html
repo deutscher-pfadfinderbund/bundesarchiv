@@ -149,7 +149,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">&lt;button&gt; is the outline default (also the header's Suchen); every button inverts under the pointer · .primary = the ink inversion, outline under the pointer · a.button = link-as-button · .link = text affordance · .danger = a context: red while about to act (hover, press, focus)</code>
+<code class="doc">&lt;button&gt; is the outline default (also the header's Suchen); every button inverts under the pointer · .primary = the ink inversion, outline under the pointer · dark never fills with ink: .primary is outlined too, and the pointer lifts to a dim ground · a.button = link-as-button · .link = text affordance · .danger = a context: red while about to act (hover, press, focus)</code>
 
 <h2>Fields — stacked (the default)</h2>
 <div class="probe">
@@ -179,10 +179,11 @@ components; this storyboard updates in lockstep with them.
     <label class="visually-hidden" for="demo-title-{{ mode }}">Titel</label>
     <h1 class="title-field"><textarea id="demo-title-{{ mode }}" rows="1" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
     <header class="section-head"><h2>Kerndaten</h2></header>
+    <header class="section-head"><h2>Mehr aus diesem Bestand</h2><a class="section-head-aside" href="#demo-form-head">Bund · alle ›</a></header>
   </div>
   {% endfor %}
 </div>
-<code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank</code>
+<code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank; a .section-head-aside (link or note) touches its heading</code>
 
 <h2>Record margin — conflict, Status, audience, actions (the edit form)</h2>
 <div class="probe">
@@ -296,11 +297,13 @@ components; this storyboard updates in lockstep with them.
       <span title="x (Schließen / Entfernen)">{% include "components/icon.html" with name="x" only %}</span>
       <span title="arrow-up (nach oben)">{% include "components/icon.html" with name="arrow-up" only %}</span>
       <span title="arrow-down (nach unten)">{% include "components/icon.html" with name="arrow-down" only %}</span>
+      <span title="log-out (Abmelden)">{% include "components/icon.html" with name="log-out" only %}</span>
+      <span title="chevron-down (Weitere Aktionen)">{% include "components/icon.html" with name="chevron-down" only %}</span>
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: role="toolbar" + the pane ✕. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
+<code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down|log-out|chevron-down — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: register row 9. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
 
 <h2>Facet group — the filter-rail dropdown</h2>
 {% comment %} The dropped panel positions absolutely against its CONTROL ROW — here the exhibit
@@ -314,7 +317,7 @@ annotation. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel is a floating panel with an edge (register row 12) and positions against its control row — pinned to the row's leading edge and capped at its width, so it is on-viewport by construction, with anchor positioning refining it to the trigger where available (law F); the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it. On the rail the groups share a `name`, so opening one closes the others (native exclusive accordion — they all drop from one place). Every ENTRY consumes the PANEL's own --control-height knob (--touch-target): a panel is not part of the row it hangs from, so it declares its own height source and its value link is not left at a bare line box (23px, under the WCAG 2.2 AA 24px target floor)</code>
+<code class="doc">components/facet_group.html · heading=… items=[{label,count,query,active}…] open=… — a native &lt;details&gt; dropdown on the filter rail: the dropped panel is a floating panel with the ink edge (register row 12) and positions against its control row — pinned to the row's leading edge and capped at its width, so it is on-viewport by construction, with anchor positioning refining it to the trigger where available (law F); the active row inverts (aria-current) and carries the remove ✕; a chip on the rail mirrors it. On the rail the groups share a `name`, so opening one closes the others (native exclusive accordion — they all drop from one place). Every ENTRY consumes the PANEL's own --control-height knob (--touch-target): a panel is not part of the row it hangs from, so it declares its own height source and its value link is not left at a bare line box (23px, under the WCAG 2.2 AA 24px target floor)</code>
 
 <h2>Menu — the header's "+ Neu …" popover</h2>
 {% comment %} A popover cannot be served open: click the button. anchor-scope keeps each column's
@@ -335,7 +338,7 @@ list anchored to its own button. {% endcomment %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with an edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen / Verwerfen carry the .danger context</code>
+<code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with the ink edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen / Verwerfen carry the .danger context</code>
 
 <h2>Filter chip — the rail's active-filter mark</h2>
 <div class="probe">

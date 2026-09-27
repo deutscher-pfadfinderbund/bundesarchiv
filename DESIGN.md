@@ -188,7 +188,8 @@ A monochrome palette: two inks on paper, three grays with one job each, and one 
 
 ### Primary
 - **Print Black** (#000000): all content text, headings, the primary button's fill, the focus
-  ring, the active option in a suggestion list (inverted: black ground, white text).
+  ring, the edge of a floating panel, the active option in a suggestion list (inverted: black
+  ground, white text).
 
 ### Neutral
 - **Paper White** (#ffffff): the page ground and every floating panel (menu, popover, suggestion
@@ -199,7 +200,7 @@ A monochrome palette: two inks on paper, three grays with one job each, and one 
   ("intern").
 - **Hairline** (#dcdcdc, ~1.4:1): the one connecting line, drawn only between the two ends of a
   row. Too faint to be an affordance on purpose.
-- **Control Edge** (#8f8f8f, ≥3:1): the edge of an input, a chip box, a floating panel. An
+- **Control Edge** (#8f8f8f, ≥3:1): the edge of an input or a chip box. An
   affordance, so it meets the 3:1 non-text contrast floor; it is not a connector.
 - **Faint** (#d0d0d0): present but inactive: disabled arrows, the placeholder cross of an item
   without an image. Tuned brighter in dark, where the hairline would vanish.
@@ -287,8 +288,9 @@ against its gain for these users, per size. High cost and low gain: cut.
 ## Elevation & Depth
 
 Flat. There are no shadows at rest and none in motion. Floating panels (the menu, the ⓘ popover,
-the suggestion list) are page surface with a Control Edge border, placed in the top layer by the
-native popover; the edge, not a shadow, separates them. Focus is the one depth-like cue: a 3px
+the suggestion list) are page surface with a Print Black border, placed in the top layer by the
+native popover; the edge, not a shadow, separates them. A panel is never quieter than the control
+that opened it. Focus is the one depth-like cue: a 3px
 Print Black outline, offset 3px; where an underline is the field (the title field, the compact
 search), focus thickens that underline to 3px instead.
 
@@ -310,6 +312,8 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
 - **Primary:** solid Print Black, white text; hover inverts to outline. One per surface (Speichern,
   Anlegen, Suchen, the door's login).
 - **Secondary:** outline, ink text; hover fills.
+- **Dark:** never an ink fill (a bright block glares on black). Primary and secondary are both
+  outlined in ink; hover lifts to a dim ground.
 - The door page's "Anmelden mit DPB Login" is a primary button (owner 2026-09-27: no gray fill).
 - **Add ("+ …"):** not a framed button: a plain meta-size text control starting with "+"
   ("+ Angabe hinzufügen", "+ Dateien hinzufügen", the top bar's "+ Neu …"); underline on hover.
@@ -335,7 +339,7 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
 - **Multiple:** chosen values become square chips inside one field edge (a hairline frame, meta
   type, a removing ×), then the typing input. Enter or comma adds, Backspace removes the last,
   pasted lists split, pending text is added on leaving the field (Schlagworte, Gruppen).
-- **Suggestions:** a Paper White list with a Control Edge; the active option inverts (black
+- **Suggestions:** a Paper White list with a Print Black edge; the active option inverts (black
   ground, white text).
 - Without JS it is the plain input with the native datalist; the server contract is the comma list.
 
@@ -346,7 +350,7 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   two-step).
 
 ### Menu
-- A text button ending in "…" opens a native popover list: Paper White, Control Edge, rows of
+- A text button ending in "…" opens a native popover list: Paper White, Print Black edge, rows of
   links or buttons, underline on hover. Anchored under its button, right edges aligned. A
   destructive entry ("Löschen") carries the danger context.
 
@@ -359,8 +363,8 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   a link turns red without a variant of its own. There is no danger button.
 
 ### Navigation
-- **Top bar:** Band Black, 4.25rem, the wordmark left; right: "+ Neu …" (archivists) and
-  "Abmelden". No account name, no browse items.
+- **Top bar:** Band Black, 4.25rem, its content on the page grid, the wordmark left; right:
+  "+ Neu …" (archivists) and Abmelden, an icon named "Abmelden". No account name, no browse items.
 - **Crumbs:** meta type, Secondary Ink, underlined links, "›" between steps, first step "Archiv".
 - **Search sentence:** the list's heading; set filters in ink, open ones quieter, centre dots
   between them.

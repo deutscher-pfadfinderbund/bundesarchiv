@@ -228,7 +228,8 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3) var(--space-4);
-    padding: var(--space-3) var(--space-4);
+    /* the band spans the viewport; its content sits on the page grid (the measure, then the gutter) */
+    padding: var(--space-3) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
     /* the band: re-points the roles for its subtree (tokens.css) */
     --ground: var(--band-ground);
     --ink: var(--band-ink);
@@ -434,9 +435,9 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "lead" "meta" "body";
     gap: var(--space-8);
-    max-width: 80rem; /* the page measure of the a1 mocks; no token names a page measure yet */
+    max-width: var(--measure);
     margin: 0 auto;
-    padding: var(--space-6) var(--space-4) var(--space-8);
+    padding: var(--space-6) var(--gutter) var(--space-8);
   }
   .form-sheet > header {
     grid-area: lead;

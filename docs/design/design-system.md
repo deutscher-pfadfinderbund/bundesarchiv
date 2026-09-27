@@ -228,7 +228,7 @@ page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the
 | `--ink-2` | secondary text only | 4.5:1 (7:1 light) |
 | `--ink-3` | the note ("intern") | 4.5:1 |
 | `--rule` | the connecting hairline, two-ended rows only | none (decorative on purpose) |
-| `--edge` | control, chip and panel edges | 3:1 (non-text) |
+| `--edge` | control and chip edges | 3:1 (non-text) |
 | `--faint` | disabled controls, placeholder drawings | exempt (inactive), tuned visible in dark |
 | `--band-*` | the top bar's inverse band | 4.5:1 within the band |
 | `--error` | errors, conflicts, removing controls about to act | 4.5:1 on ground |
@@ -307,9 +307,9 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 
 | Element | Treatment |
 |---|---|
-| Page and floating panels | `--ground`; panels add a 1px `--edge`, no shadow |
+| Page and floating panels | `--ground`; panels add a 1px `--ink` edge (never quieter than their control), no shadow |
 | Top bar | the inverse band (`--band-*`); menus opened from it are page surface |
-| Primary action | solid `--ink`, `--ground` text; hover inverts to outline |
+| Primary action | solid `--ink`, `--ground` text; hover inverts to outline. Dark: outlined in `--ink`, hover lifts to a dim ground (no ink fill) |
 | Add action ("+ …") | text in meta type, no frame; underline on hover |
 | Field | label in label type, `--ink-2`; control edge `--edge`; hover edge `--ink`; focus ring; error / conflict: doubled `--error` edge |
 | Required / archivist-only | "*" in the label's ink / the note "intern" (`--ink-3`, note type) touching the label or heading |

@@ -29,6 +29,7 @@
   --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
   --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
   --error: light-dark(#c4000b, #ff6b61);
+  --page-lift: #262626; /* dark only: the dim ground a button's hover lifts to (light inverts) */
 
   /* Roles — what components consume. A surface (the header band) re-points them for its subtree;
      a floating panel points them back to the page. */
@@ -83,6 +84,8 @@
   --line-width: 1px; /* every line; a contrast mode may thicken it globally */
   --focus-width: 3px; /* the focus ring: width and offset */
   --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
+  --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
+  --gutter: 3rem;
 
   /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
@@ -95,10 +98,11 @@
   --z-header: 5;
   --z-banner: 10;
 }
-/* S (DESIGN.md): the Title steps down; type follows the viewport, not a container */
+/* S (DESIGN.md): the Title and the gutter step down; they follow the viewport, not a container */
 @media (width < 40rem) {
   :root {
     --type-page-title: 700 2rem/1.08 var(--font-serif);
+    --gutter: var(--space-4);
   }
 }
 

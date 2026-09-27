@@ -63,7 +63,7 @@ popover: light dismiss, Esc and the top layer without JS.{% endcomment %}
 longer-lived of the two tiers, and this header is the only screen a Member reaches. Shared computers
 are the normal case (ADR 0018), so the sign-out is on every screen that carries this header, never on
 a page of its own. A POST form, not a link: a logout changes state, and it carries the CSRF token
-every other write form does.{% endcomment %}
+every other write form does. Rare, so an icon named by its label (owner 2026-09-27).{% endcomment %}
 {% if is_signed_in %}
-<form class="abmelden" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Abmelden</button></form>
+<form class="abmelden" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit" aria-label="Abmelden" title="Abmelden">{% include "components/icon.html" with name="log-out" only %}</button></form>
 {% endif %}
