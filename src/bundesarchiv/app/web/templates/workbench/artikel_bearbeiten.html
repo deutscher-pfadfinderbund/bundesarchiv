@@ -135,12 +135,12 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
           natively disabled, so a dead-end control is non-interactive rather than merely quiet. The
           no-JS two-step remove keeps its WORDS — a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
-          <span class="confirm">Wirklich entfernen?
+          <span class="file-row-tools confirm">Wirklich entfernen?
             <button class="link danger" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
             <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
-          <span role="toolbar" aria-label="Medienaktionen">
+          <span class="file-row-tools" role="toolbar" aria-label="Medienaktionen">
             <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
                     name="richtung" value="hoch" aria-label="Nach oben"
                     {% if row.is_first %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-up" only %}</button>

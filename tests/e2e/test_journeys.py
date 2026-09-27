@@ -465,7 +465,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert len(edit[row]) >= 2, f"the edit form's action row was not found: {edit[row]}"
     # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
     # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
-    media = [n for n in edit if n.startswith("span[toolbar]") and len(edit[n]) >= 3]
+    media = [n for n in edit if n.startswith("span.file-row-tools[toolbar]") and len(edit[n]) >= 3]
     assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 

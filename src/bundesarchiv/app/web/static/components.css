@@ -308,27 +308,34 @@
     list-style: none;
   }
 
-  /* ---- file-row — one medium in a register: thumb, name over size and marks, the caption field,
-     the tools. Knob: --file-row-thumb (the thumb's side). S: caption and tools move under the
-     name. ---- */
+  /* ---- file-row — one medium in a register: the thumb, then one column of the name (size and
+     marks on its line) over the caption field, the tools level with the caption input right after
+     it. The column stops at the query measure. Parts: -thumb, -name, -tools. Knob:
+     --file-row-thumb (the thumb's side). S: the tools under the caption. ---- */
   .file-row {
-    --file-row-thumb: 5.5rem; /* the mock's --space-10 */
+    --file-row-thumb: 8rem; /* the mock's --measure-thumb */
     display: grid;
-    grid-template-columns: var(--file-row-thumb) minmax(0, 1fr) minmax(0, 1.3fr) auto;
-    align-items: center;
-    gap: var(--space-3) var(--space-5);
+    grid-template-columns: var(--file-row-thumb) minmax(0, var(--measure-query)) auto;
+    grid-template-rows: auto auto 1fr;
+    align-items: start;
+    gap: var(--space-2) var(--space-5);
     padding-block: var(--space-3);
   }
   .file-row-thumb {
+    grid-row: 1 / -1;
     inline-size: 100%;
     aspect-ratio: 1;
     object-fit: cover;
     border: var(--line-width) solid var(--faint);
   }
+  .file-row > .field {
+    grid-column: 2;
+  }
   .file-row-name {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
     min-inline-size: 0;
     overflow-wrap: anywhere;
   }
@@ -336,14 +343,23 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
+  .file-row-tools {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: end;
+  }
   @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
     .file-row {
-      --file-row-thumb: 3rem; /* the mock's --space-9 */
+      --file-row-thumb: 5.5rem; /* the mock's --space-10 */
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
-      align-items: start;
+      grid-template-rows: auto;
     }
-    .file-row > :nth-child(n + 3) {
+    .file-row-thumb {
+      grid-row: 1 / span 3;
+    }
+    .file-row-tools {
       grid-column: 2;
+      grid-row: auto;
     }
   }
 
@@ -802,7 +818,7 @@
      Its surface is the floating-panel rule's (register row 12); it hangs under its button like a
      menu. Light dismiss and Esc cancel; without popover support it shows inline. ---- */
   .toolpanel {
-    inline-size: 26rem; /* the mock's --measure-query — one structural size, no token fits */
+    inline-size: var(--measure-query);
     max-inline-size: 100%;
     padding: var(--space-5);
   }

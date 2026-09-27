@@ -225,7 +225,7 @@ SCREENS: tuple[Screen, ...] = (
         _goto(lambda c: f"/artikel/{c.published_ulid}/bearbeiten"),
         "artikel-bearbeiten",
         overlays=2,
-        control_rows=("header", "div.record-meta-actions", "span[toolbar]"),
+        control_rows=("header", "div.record-meta-actions", "span.file-row-tools[toolbar]"),
     ),
     Screen(
         "read-published",

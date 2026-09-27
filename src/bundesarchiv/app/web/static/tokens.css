@@ -86,6 +86,7 @@
   --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
   --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
   --gutter: 3rem;
+  --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
 
   /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
