@@ -470,12 +470,6 @@
   .toolpanel :is(select, input[type="text"]) { inline-size: 100%; }
   .toolpanel select { font: inherit; color: var(--ink); background: var(--ground); border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0; }
   .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
-  /* ---------- button-group — several tools in one joined frame ----------
-     Knobs: none. Buttons (or menu-buttons carrying .button) side by side; each after the first
-     draws no start edge, so the frames join into one tool strip. */
-  .button-group { display: inline-flex; align-items: stretch; }
-  .button-group > .button + .button { border-inline-start-width: 0; }
-
   /* ---------- split-button — one action and its rarer siblings in one frame ----------
      Knobs: none. Parts: a .button (the frequent action, e.g. Bearbeiten), then a button.menu-button
      holding the chevron icon (accessible name "Weitere Aktionen"), which opens a ul.menu[popover].

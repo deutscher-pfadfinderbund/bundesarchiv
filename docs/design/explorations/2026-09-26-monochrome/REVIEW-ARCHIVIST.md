@@ -366,3 +366,13 @@ sorting by Titel, Datierung, Signatur). A critique pass against `LEARNINGS.md` f
 - **Cells:** every cell but the title stays on one line and ends in "…" when it does not fit.
 - **S:** the title, then one line: "1866-11-20 · Lagerheft · PDF · BA 1842" (body sans, not mono —
   one line is no column).
+
+## Owner rulings, round 11 — types as filters, the toolbar out of the way (2026-09-28, applied)
+
+- **A type adds itself to the filter:** the Typ cell is a link that looks like the other cells and
+  underlines only on hover. While a type filter is set, the Typ column is hidden (every row would
+  repeat the same value — lesson 16).
+- **Toolbar without frames:** the joined strip was not better. Now "2 ausgewählt ×", then a
+  frameless split control: the frequent tool "Feld ändern …" as words, the rest behind a chevron
+  (Verschieben …, Veröffentlichen, Als Entwurf zurückziehen, Löschen …). "Spalten …" is plain words
+  at the end edge. `button-group` is removed again.
