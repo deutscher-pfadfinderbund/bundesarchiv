@@ -330,3 +330,14 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   title stay side by side on every size (the date column as wide as its longest date, capped at one
   full date). Lists with a far figure (start page) keep their own wrapping.
 - **Beschreibung:** Markdown, rendered on the server (requirement recorded 2026-09-28).
+
+## Owner rulings, round 9 — drafts on the start page, the Digital filter (2026-09-28, applied)
+
+- **"Weiter bearbeiten"** on the start page shows at most three drafts. From four on it shows two and
+  a link "und n weitere", which opens the one list with the filter Entwürfe set
+  (`a2-sammel/liste-entwuerfe.html`). A list filtered to drafts marks none of its rows; a one-page
+  list shows no Zurück / Weiter.
+- **"Digital"** (a record has files): a column ("PDF", "Foto", "2 Fotos", "Foto, PDF"; empty = none)
+  and a secondary filter. "+ Filter" opens the secondary filters as a check list (Digital (mit
+  Dateien), Entwürfe); a set one joins the search sentence as a set slot. The column is also in
+  "Spalten …". In the archive 842 of 2,506 records have files.

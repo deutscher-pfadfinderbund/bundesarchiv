@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entwürfe — A2 Sammel · Liste</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a2-sammel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <button class="menu-button" type="button" popovertarget="menu-1">+ Neu …</button>
+        <ul class="menu" id="menu-1" popover>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      <a href="../x3-register/door.html" aria-label="Abmelden" title="Abmelden"><svg class="icon" aria-hidden="true"><use href="../system/icons.svg#log-out"/></svg></a>
+    </div>
+  </div>
+</header>
+
+<main class="page stack">
+  <section class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-archiv">
+    <h1 class="search-sentence" id="h-archiv">
+      <span class="search-sentence-label">Suche</span>
+      <input class="search-sentence-field" type="search" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+      <span>in</span>
+      <span class="search-sentence-slots">
+        <button class="is-minor" type="button">allen Beständen</button>
+        <button class="is-minor" type="button">alle Jahrzehnte</button>
+        <button class="is-minor" type="button">jeder Typ</button>
+        <button class="is-set" type="button">Entwürfe</button>
+        <button class="is-more" type="button">Filter</button>
+      </span>
+      <button class="search-sentence-add menu-button" type="button" popovertarget="t-filter">+ Filter</button>
+      <div class="toolpanel" id="t-filter" popover>
+        <ul class="toolpanel-checks">
+          <li><label><input type="checkbox"> Digital (mit Dateien)</label></li>
+          <li><label><input type="checkbox" checked> Entwürfe</label></li>
+        </ul>
+      </div>
+    </h1>
+    <form action="pruefen.html" method="get">
+    <div class="toolbar" role="toolbar" aria-label="Werkzeuge">
+      <div class="toolbar-selection">
+        <span role="status">3 ausgewählt</span>
+        <a href="liste.html">Auswahl aufheben</a>
+        <button class="menu-button" type="button" popovertarget="t-feld">Feld ändern …</button>
+        <button class="menu-button" type="button" popovertarget="t-bestand">Verschieben …</button>
+        <button class="menu-button" type="button" popovertarget="t-mehr">Mehr …</button>
+      </div>
+      <button class="menu-button toolbar-view" type="button" popovertarget="t-spalten">Spalten …</button>
+      <div class="toolpanel" id="t-feld" popover>
+        <div><label for="tf-feld">Feld</label>
+          <select id="tf-feld" name="feld">
+            <option value="">Feld wählen</option>
+            <option selected>Standort</option><option>Autor</option><option>Ort</option><option>Medienart</option><option>Dokumenttyp</option><option>Quelle</option><option>Querverweis</option><option>Besitzer</option>
+          </select></div>
+        <div><label for="tf-wert">Neuer Wert</label>
+          <input id="tf-wert" type="text" name="wert_text" value="Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Box 1"></div>
+        <button class="button button-primary" type="submit">Änderung prüfen</button>
+      </div>
+      <div class="toolpanel" id="t-bestand" popover>
+        <div><label for="tb-bestand">In den Bestand</label>
+          <select id="tb-bestand" name="bestand">
+            <option value="">Bestand wählen</option>
+            <option>Bund</option><option>DPB vor 1945</option><option>Gruppen des DPB</option><option>Jungenbund</option><option>Mädchenbund</option><option>Orden St. Christophorus</option><option>Orden St. Georg</option><option>Unsortiert</option><option>Überbündisches</option>
+          </select></div>
+        <button class="button button-primary" type="submit">Verschieben prüfen</button>
+      </div>
+      <ul class="menu" id="t-mehr" popover>
+        <li><a href="pruefen.html">Veröffentlichen</a></li>
+        <li><a href="pruefen.html">Als Entwurf zurückziehen</a></li>
+        <li><a class="danger" href="pruefen.html">Löschen …</a></li>
+      </ul>
+      <div class="toolpanel" id="t-spalten" popover>
+        <ul class="toolpanel-checks">
+          <li><label><input type="checkbox" checked> Datierung</label></li>
+          <li><label><input type="checkbox" checked> Typ</label></li>
+          <li><label><input type="checkbox" checked> Digital</label></li>
+          <li><label><input type="checkbox" checked> Signatur</label></li>
+          <li><label><input type="checkbox"> Bestand</label></li>
+          <li><label><input type="checkbox"> Urheber</label></li>
+          <li><label><input type="checkbox"> Ort</label></li>
+          <li><label><input type="checkbox"> Standort</label></li>
+        </ul>
+      </div>
+    </div>
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-pick"><input type="checkbox" aria-label="Alle auf dieser Seite auswählen"></th><th scope="col" class="ledger-title"><a class="ledger-sort" href="liste.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="ascending"><a class="ledger-sort" href="liste.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="liste.html">Typ</a></th><th scope="col" class="ledger-digital">Digital</th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="liste.html">Signatur</a></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 587" aria-label="Nachrichtenblatt des Gau Ordensland, Nr. 2 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Nachrichtenblatt des Gau Ordensland, Nr. 2</a> <a class="ledger-edit" href="#" aria-label="Nachrichtenblatt des Gau Ordensland, Nr. 2 bearbeiten">Bearbeiten</a></td><td class="ledger-date"><time datetime="1959-12">1959-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-digital">PDF</td><td class="ledger-sig"><data value="BA 587">BA 587</data></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1588" aria-label="Die Feuerrunde Heft 2 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Die Feuerrunde Heft 2</a> <a class="ledger-edit" href="#" aria-label="Die Feuerrunde Heft 2 bearbeiten">Bearbeiten</a></td><td class="ledger-date"><time datetime="1963">1963~</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-digital"></td><td class="ledger-sig"><data value="BA 1588">BA 1588</data></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 459" aria-label="Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</a> <a class="ledger-edit" href="#" aria-label="Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24 bearbeiten">Bearbeiten</a></td><td class="ledger-date"><time datetime="1968-01">1968-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-digital"></td><td class="ledger-sig"><data value="BA 459">BA 459</data></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 655" aria-label="Kiek ut 1/69 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Kiek ut 1/69</a> <a class="ledger-edit" href="#" aria-label="Kiek ut 1/69 bearbeiten">Bearbeiten</a></td><td class="ledger-date"><time datetime="1969">1969</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-digital">Foto</td><td class="ledger-sig"><data value="BA 655">BA 655</data></td></tr>
+        </tbody>
+      </table>
+    </div>
+    </form>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="4">4</data> Entwürfe</span>
+      <!-- one page: no Zurück / Weiter — neither can become active here -->
+    </nav>
+    <p style="font: var(--type-meta); color: var(--ink-2)">Mock: die Liste hinter „und 2 weitere“ auf der Startseite (Filter „Entwürfe“); die Titel sind Beispiele.</p>
+  </section>
+</main>
+<script>/* mock: the count and the page box follow the picks (the app does the same; without JS the row shows no count) */
+{ const head = document.querySelector("thead .ledger-pick input");
+  const boxes = [...document.querySelectorAll("tbody .ledger-pick input")];
+  const count = document.querySelector(".toolbar-selection [role=status]");
+  const sync = () => { const n = boxes.filter(b => b.checked).length;
+    head.checked = n === boxes.length; head.indeterminate = n > 0 && n < boxes.length; count.textContent = `${n} ausgewählt`; };
+  boxes.forEach(b => b.addEventListener("change", sync));
+  head.addEventListener("change", () => { boxes.forEach(b => { b.checked = head.checked; }); sync(); });
+  sync(); }
+</script>
+</body>
+</html>

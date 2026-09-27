@@ -17,6 +17,8 @@
     inline-size: var(--space-4); block-size: var(--space-4); margin: 0; accent-color: var(--ink);
   }
   .ledger thead .ledger-pick input { inset-block-start: 0.15em; } /* the head row has no top padding */
+  /* ledger-digital — which files a record has ("PDF", "2 Fotos"); empty = none. Short, quiet, like Typ. */
+  .ledger-digital { white-space: nowrap; font: var(--type-meta); color: var(--ink-2); }
   .ledger-edit { margin-inline-start: var(--space-4); font: var(--type-meta); color: var(--ink-2); }
   .ledger-edit:hover { color: var(--ink); }
   @media (hover: hover) {
