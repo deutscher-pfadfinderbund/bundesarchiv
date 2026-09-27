@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neuer Bestand — Bundesarchiv</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a3-artikel.css">
+</head>
+<body>
+<!-- top bar: r4-system/archiv.html verbatim (a form page: no header search) -->
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="bestand-neu.html">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <section class="stack column" style="--stack-gap: var(--gap-block)" aria-labelledby="h-neu">
+    <h1 id="h-neu">Neuer Bestand</h1>
+    <form class="stack" style="--stack-gap: var(--space-8)" method="post" action="#">
+      <div class="field">
+        <label for="feld-name">Name</label>
+        <input type="text" name="name" id="feld-name" autofocus>
+      </div>
+      <div class="field">
+        <label for="feld-parent_id">Eltern-Bestand</label>
+        <select name="parent_id" id="feld-parent_id">
+          <option value="" selected>Oberste Ebene</option>
+          <option>Bund</option>
+          <option>DPB vor 1945</option>
+          <option>Gruppen des DPB</option>
+          <option>Jungenbund</option>
+          <option>Mädchenbund</option>
+          <option>Orden St. Christophorus</option>
+          <option>Orden St. Georg</option>
+          <option>Überbündisches</option>
+          <option>Unsortiert</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="feld-sichtbarkeit">Sichtbarkeit</label>
+        <select name="sichtbarkeit" id="feld-sichtbarkeit">
+          <option value="" selected>Vom Bestand erben</option>
+          <option value="public">Öffentlich</option>
+          <option value="members">Alle Mitglieder</option>
+          <option value="groups">Gruppe(n)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="feld-gruppen">Gruppen</label>
+        <input type="text" name="gruppen" id="feld-gruppen" aria-describedby="feld-gruppen-hinweis">
+        <span class="field-hint" id="feld-gruppen-hinweis">Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)</span>
+      </div>
+      <div class="row">
+        <button class="button button-primary" type="submit">Anlegen</button>
+        <a class="button" href="../r4-system/archiv.html">Abbrechen</a>
+      </div>
+    </form>
+  </section>
+</main>
+</body>
+</html>

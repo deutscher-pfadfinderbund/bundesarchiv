@@ -1,0 +1,58 @@
+/* a3-artikel — proposed system additions (NOTES.md "Proposed system additions").
+   Same layers and rules as ../system/system.css: one root class per component, knobs listed at the
+   top of each section, tokens only. Load after system.css. */
+@layer tokens, elements, components, layouts;
+
+@layer components {
+
+  /* ---------- plate — the article's square lead preview, further sheets beneath ----------
+     Knobs: --plate-columns (thumbnail columns, default 4).
+     The lead spans every column and is square (RULES §6, direction C); the other sheets are
+     square thumbnails in one row. An item without an image draws the placeholder cross. */
+  .plate { display: grid; grid-template-columns: repeat(var(--plate-columns, 4), minmax(0, 1fr)); gap: var(--space-3); align-content: start; }
+  .plate-item {
+    aspect-ratio: 1; display: flex; align-items: flex-end; padding: var(--space-2);
+    border: var(--line); color: inherit; text-decoration: none;
+    background:
+      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2)),
+      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2));
+  }
+  .plate-item:first-child { grid-column: 1 / -1; padding: var(--space-3); }
+  .plate-caption { padding: var(--space-1); background: var(--ground); font: var(--type-label); color: var(--ink-2); }
+  .plate-caption b { display: block; color: var(--ink); }
+  a.plate-item:hover .plate-caption b { text-decoration: underline; }
+
+  /* ---------- field — one form field: label over control, hint or error under it ----------
+     Knobs: --field-size (max width, default --measure-query).
+     The control is the system input (an underline); a select gets the same underline.
+     An invalid control ([aria-invalid]) turns its underline and message --error. */
+  .field { display: flex; flex-direction: column; gap: var(--space-2); max-inline-size: var(--field-size, var(--measure-query)); }
+  .field > label { font: var(--type-label); color: var(--ink-2); }
+  .field > select, .field > select::picker(select) { appearance: base-select; }
+  .field > select {
+    font: inherit; color: var(--ink); background: transparent; border: 0; border-radius: 0;
+    border-block-end: var(--line-width) solid var(--ink); padding: var(--space-1) 0;
+  }
+  .field > [aria-invalid="true"] { border-block-end-color: var(--error); }
+  .field-hint { font: var(--type-meta); color: var(--ink-2); }
+  .field-error { font: var(--type-meta); color: var(--error); }
+
+  /* ---------- button-danger — variant of the system button ----------
+     Knobs: none. Worn together with .button-primary; only on a confirm surface's committing
+     button (the one sanctioned red). It re-points the button's ink to --error. */
+  .button-danger { --ink: var(--error); }
+}
+
+@layer layouts {
+  /* row — items side by side, wrapping; for an action row. Knob: --row-gap (default --space-5). */
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--row-gap, var(--space-5)); }
+
+  /* column — one narrow column for a form or confirm surface, so its lines stay short.
+     Knob: --column-size (default --measure-search). */
+  .column { max-inline-size: var(--column-size, var(--measure-search)); }
+}
+
+@layer components {
+  /* prose — running text of a record (Beschreibung), at reading measure */
+  .prose { font: var(--type-body); max-inline-size: var(--measure-prose); margin-block: var(--gap-head) var(--gap-block); }
+}

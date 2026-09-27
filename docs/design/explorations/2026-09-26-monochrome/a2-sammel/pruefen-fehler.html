@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A2 Sammel · Prüfen, Fehler</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a2-sammel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<!-- Error mode (real: sammelbearbeitung_pruefen.html with fehler): the verbatim message before
+     the chooser it is about, the submitted value re-echoed, the selection kept as hidden inputs.
+     Red only for the archivist's own invalid input. -->
+<main class="page stack" style="--stack-gap: var(--gap-block)">
+  <header class="section-head">
+    <h1>Änderung prüfen</h1>
+    <p class="section-head-lede">3 ausgewählt</p>
+  </header>
+
+  <form class="chooser" action="pruefen.html" method="get">
+    <input type="hidden" name="auswahl" value="BA 1588">
+    <input type="hidden" name="auswahl" value="BA 523">
+    <input type="hidden" name="auswahl" value="BA 1611">
+    <p class="chooser-error" id="fehler" role="alert">Bitte ein Feld wählen.</p>
+    <select name="feld" aria-label="Feld" aria-invalid="true" aria-describedby="fehler">
+      <option value="" selected>Feld wählen</option>
+      <option>Standort</option>
+      <option>Autor</option>
+      <option>Ort</option>
+      <option>Medienart</option>
+      <option>Dokumenttyp</option>
+      <option>Quelle</option>
+      <option>Sammlungsteil</option>
+      <option>Querverweis</option>
+      <option>Besitzer</option>
+    </select>
+    <span>auf</span>
+    <input class="chooser-value" type="text" name="wert_text" value="Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Box 1" aria-label="Neuer Wert">
+    <span>setzen</span>
+    <button class="button button-primary" type="submit">Änderung prüfen</button>
+  </form>
+
+  <p><a href="liste-auswahl.html">Zurück zur Auswahl</a></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neuer Artikel — Bundesarchiv</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a1-formular.css">
+</head>
+<body>
+<!-- Top bar: r4-system/archiv.html verbatim; only the hrefs point back into r4-system. -->
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="neu.html">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<!-- The create step: the real form's two required fields (Titel, Bestand) on the edit form's
+     composition. No crumbs: the article has no place until a Bestand is chosen. Anlegen opens
+     bearbeiten.html with the caret on the first empty field. -->
+<main class="page">
+<form class="form-sheet" method="post" action="bearbeiten.html">
+
+  <header>
+    <div class="field" style="--field-type: var(--type-title)">
+      <label class="field-label" for="f-title">Titel</label>
+      <h1><textarea id="f-title" name="title" rows="1" autofocus></textarea></h1>
+    </div>
+  </header>
+
+  <aside class="record-meta" aria-label="Status und Aktionen">
+    <p class="record-meta-state">Neuer Artikel</p>
+    <p class="record-meta-line">Wird als Entwurf angelegt; die übrigen Angaben folgen danach.</p>
+    <div class="record-meta-actions">
+      <button class="button button-primary" type="submit">Anlegen</button>
+    </div>
+  </aside>
+
+  <div class="stack" style="--stack-gap: var(--space-9)">
+    <section aria-label="Kerndaten"><!-- one field: a section heading would cost more than it tells -->
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-bestand">Bestand</label>
+          <select id="f-bestand" name="collection_id">
+            <option value="" selected>— Bestand wählen —</option>
+            <option>Bund</option>
+            <option>DPB vor 1945</option>
+            <option>Gruppen des DPB</option>
+            <option>Jungenbund</option>
+            <option>Mädchenbund</option>
+            <option>Orden St. Christophorus</option>
+            <option>Orden St. Georg</option>
+            <option>Unsortiert</option>
+            <option>Überbündisches</option>
+          </select>
+        </div>
+      </div>
+    </section>
+  </div>
+</form>
+</main>
+</body>
+</html>

@@ -22,6 +22,7 @@
     --page-ink: light-dark(#000, #f0f0f0);
     --page-ink-2: light-dark(#595959, #a0a0a0); /* secondary text only; 7:1 on white */
     --page-rule: light-dark(#dcdcdc, #262626); /* the one line: ~1.4:1 light, ~1.35:1 dark */
+    --page-edge: light-dark(#8f8f8f, #6e6e6e); /* a control's edge (input frame): an affordance, ≥3:1 — not a connector */
     --band-ground: light-dark(#000, #0b0b0b); /* top bar: inverse band on light, page in dark */
     --band-ink: light-dark(#fff, #f0f0f0);
     --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
@@ -37,6 +38,7 @@
     --ink: var(--page-ink);
     --ink-2: var(--page-ink-2);
     --rule: var(--page-rule);
+    --edge: var(--page-edge);
 
     /* Type — every text node uses exactly one role. Families: serif (wordmark, headings, list
        entries), sans (everything else), mono (data in columns). */
@@ -46,6 +48,7 @@
     --type-wordmark: small-caps 600 1.5rem/1 var(--serif);
     --type-title: 700 3rem/1.08 var(--serif); /* page h1: article title, start heading */
     --type-heading: 700 2rem/1.1 var(--serif); /* section h2 */
+    --type-subhead: 700 1.35rem/1.25 var(--serif); /* secondary sections: onward lists, file lists */
     --type-entry: 400 1.1rem/1.35 var(--sans); /* the lead of a list row — sans (owner: serif only for headings + titles) */
     --type-query: 400 1.25rem/1.4 var(--sans); /* search sentence, large search field */
     --type-body: 400 1rem/1.5 var(--sans);
@@ -87,6 +90,7 @@
     --bar-weight: 3px;
     --mark-lift: 0.15em;
     --measure: 80rem;
+    --measure-prose: 65ch; /* running text */
     --measure-title: 30ch;
     --measure-search: 56rem;
     --measure-query: 26rem;
@@ -130,7 +134,7 @@
   body { margin: 0; background: var(--ground); color: var(--ink); font: var(--type-body); }
   main { display: block; padding-block: var(--gap-page) var(--gap-section); }
   :where(h1, h2, h3, p, ul, ol, dl, dd) { margin: 0; }
-  h1 { font: var(--type-title); letter-spacing: var(--tracking-display); max-inline-size: var(--measure-title); }
+  h1 { font: var(--h1-type, var(--type-title)); letter-spacing: var(--tracking-display); max-inline-size: var(--measure-title); }
   h2 { font: var(--type-heading); letter-spacing: var(--tracking-display); }
   a { color: inherit; text-underline-offset: var(--underline-offset); }
   :focus-visible { outline: var(--focus-width) solid var(--ink); outline-offset: var(--focus-width); }
@@ -235,13 +239,15 @@
   }
 
   /* ---------- section-head — rank + at most one aside ----------
-     Knobs: --section-head-ink (heading ink, default --ink). Parts: the heading (h1/h2 — its
+     Knobs: --section-head-ink (heading ink, default --ink), --section-head-type (the h2's role,
+     default --type-heading; secondary sections use --type-subhead — rank follows gain). Parts: the heading (h1/h2 — its
      type comes from the element), .section-head-aside (link or note), .section-head-lede. */
   .section-head {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
     gap: var(--space-2) var(--space-6); margin-block-end: var(--gap-head);
   }
   .section-head > :is(h1, h2) { flex: 1 1 0; color: var(--section-head-ink, var(--ink)); }
+  .section-head > h2 { font: var(--section-head-type, var(--type-heading)); }
   .section-head-aside { font: var(--type-meta); color: var(--ink-2); white-space: nowrap; }
   a.section-head-aside:hover { color: var(--ink); }
   .section-head-lede { flex-basis: 100%; font: var(--type-meta); color: var(--ink-2); }
@@ -256,7 +262,7 @@
      itself ties the ends; li.register-apart is set apart by space instead of a line.
      S: a lead row puts lead + figure on the first line, the label under it. */
   .register { list-style: none; padding: 0; color: var(--register-ink, var(--ink)); }
-  .register > li + li { border-block-start: var(--line); }
+  .register:not(:has(.register-bar)) > li:not(.register-apart) + li:not(.register-apart):has(:is(.register-figure, .register-lead)) { border-block-start: var(--line); } /* a line connects two ends; a one-ended row gets none */
   .register:has(.register-bar) > li, .register > .register-apart { border-block-start: 0; }
   .register > .register-apart { margin-block-start: var(--space-4); }
   .register-row { display: flex; align-items: baseline; gap: var(--space-4); padding-block: var(--pad-row); color: inherit; text-decoration: none; }
@@ -324,6 +330,7 @@
   .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); margin-block-end: var(--space-2); }
   .facts-wide { grid-column: span 2; }
   .facts-quiet dd { color: var(--ink-2); }
+  .facts :is(time, data) { font: inherit; } /* one value is not a column: mono only aligns columns */
   @container (width < 40rem) {
     .facts { grid-template-columns: repeat(2, 1fr); }
     .facts-wide { grid-column: 1 / -1; }
@@ -413,7 +420,7 @@
 
   /* split — media | facts side by side while both fit --column-min, else stacked, media first */
   .split { display: flex; flex-wrap: wrap; gap: var(--gap-block) var(--gap-section); }
-  .split > * { min-inline-size: 0; container-type: inline-size; } /* each side is a size region */
+  .split > * { min-inline-size: 0; container-type: inline-size; --h1-type: var(--type-heading); } /* each side is a size region; a title in a side column takes the heading role */
   .split > :first-child { flex: 3 1 var(--column-min); }
   .split > :last-child { flex: 2 1 var(--column-min); }
 

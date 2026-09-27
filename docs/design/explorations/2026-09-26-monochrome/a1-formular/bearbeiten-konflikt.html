@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die Kompassnadel, Nr. 20 — bearbeiten</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a1-formular.css">
+</head>
+<body>
+<!-- Top bar: r4-system/archiv.html verbatim; only the hrefs point back into r4-system. -->
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="neu.html">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<!-- State: "Inzwischen geändert" (CAS conflict) — voice pattern "Conflict is not an error": no red,
+     each differing field names what is stored now; the margin lists them, each a link to its field.
+     Mock scenario: someone else saved Datierung 1960-03 while this archivist typed Schlagworte and a
+     Beschreibung. The form holds the archivist's input; Speichern writes it over the stored one.
+     BA 860 from data.json. Mock-made: the three media files and their sizes, the one caption,
+     the Legacy-ID value. Schlagworte and Beschreibung are empty, as in the imported record. -->
+<main class="page">
+<form id="bearbeiten-form" class="form-sheet" method="post" action="#">
+
+  <header class="stack" style="--stack-gap: var(--gap-block)">
+    <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Bund</a></nav>
+    <div class="field" style="--field-type: var(--type-title)">
+      <label class="field-label" for="f-title">Titel</label>
+      <h1><textarea id="f-title" name="title" rows="1">Die Kompassnadel, Nr. 20</textarea></h1>
+    </div>
+  </header>
+
+  <aside class="record-meta" aria-label="Status und Aktionen">
+    <p class="record-meta-state">Inzwischen geändert</p>
+    <p class="record-meta-line">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
+    <ul class="register" style="--register-label-type: var(--type-meta)" aria-label="Abweichende Felder">
+      <li><a class="register-row" href="#f-tags"><span class="register-label">Schlagworte</span></a></li>
+      <li><a class="register-row" href="#f-date"><span class="register-label">Datierung</span></a></li>
+      <li><a class="register-row" href="#f-body"><span class="register-label">Beschreibung</span></a></li>
+    </ul>
+    <p class="record-meta-line">Veröffentlicht, sichtbar für alle Mitglieder.</p>
+    <div class="record-meta-actions">
+      <button class="button button-primary" type="submit">Speichern</button>
+      <details class="menu">
+        <summary>Mehr …</summary>
+        <ul>
+          <li><a href="../r4-system/artikel.html">Ansehen</a></li>
+          <li><a href="#">Als Entwurf zurückziehen</a></li>
+          <li><a href="#">Kopieren</a></li>
+          <li><a href="#">Löschen</a></li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+
+  <div class="stack" style="--stack-gap: var(--space-9)">
+
+    <section aria-labelledby="h-kern">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-kern">Kerndaten</h2></header>
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-bestand">Bestand</label>
+          <select id="f-bestand" name="collection_id">
+            <option value="">— Bestand wählen —</option>
+            <option selected>Bund</option>
+            <option>DPB vor 1945</option>
+            <option>Gruppen des DPB</option>
+            <option>Jungenbund</option>
+            <option>Mädchenbund</option>
+            <option>Orden St. Christophorus</option>
+            <option>Orden St. Georg</option>
+            <option>Unsortiert</option>
+            <option>Überbündisches</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-sig">Signatur</label>
+          <input id="f-sig" name="ref_code" type="text" value="BA 860">
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-besch">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-besch">Beschreibung</h2></header>
+      <div class="field">
+        <textarea id="f-body" name="body" rows="6" aria-labelledby="h-besch" aria-describedby="f-body-was">Heft 20 der Bundeszeitschrift, mit Fahrtenberichten, Liedern und Nachrichten aus den Gauen.</textarea>
+        <span class="field-was" id="f-body-was">Inzwischen gespeichert: (leer)</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-einord">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-einord">Einordnung</h2></header>
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-medienart">Medienart</label>
+          <select id="f-medienart" name="media_type">
+            <option value="">— Medienart wählen —</option>
+            <option>Audiodatei</option><option>Buch</option><option>CD / DVD</option><option>Dia(s)</option>
+            <option>Fahne / Wimpel</option><option>Filmspule</option><option>Foto(s)</option><option>Gegenstand</option>
+            <option>Kassette</option><option>Schallplatte</option><option selected>Schrifttum</option><option>Sonstiges</option>
+            <option>Stempel</option><option>Tonband</option><option>VHS</option><option>Videodatei</option><option>Wappen und Zeichen</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-doktyp">Dokumenttyp</label>
+          <select id="f-doktyp" name="document_type">
+            <option value="">— kein Dokumenttyp —</option>
+            <optgroup label="Alle Medienarten">
+              <option>Adressverzeichnis</option><option>Chronik / Dokumentation</option><option>Fahrtenbericht</option>
+              <option>Kalender</option><option>Lagerheft</option><option>Lebensbericht</option><option>Liederbuch</option>
+              <option>Ordnung</option><option>Protokoll</option><option>Reden</option>
+              <option>Schöpferisches (Gedicht, Lieder, ...)</option><option>Schriftwechsel</option><option>Sonstiges</option>
+              <option selected>Zeitschrift</option><option>Zeitungsartikel</option><option>Urkunde</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-tags">Schlagworte</label>
+          <input id="f-tags" name="tags" type="text" value="Bundeszeitschrift" aria-describedby="f-tags-was f-tags-hint">
+          <span class="field-was" id="f-tags-was">Inzwischen gespeichert: (leer)</span>
+          <span class="field-hint" id="f-tags-hint">Mehrere durch Komma trennen</span>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-date">Datierung</label>
+          <input id="f-date" name="date" type="text" value="1960~" aria-describedby="datierung-echo f-date-was f-date-hint">
+          <span class="field-echo" id="datierung-echo">um 1960</span>
+          <span class="field-was" id="f-date-was">Inzwischen gespeichert: 1960-03</span>
+          <span class="field-hint" id="f-date-hint">z. B. 1962, 1984/1995, 1970~</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-herkunft">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-herkunft">Herkunft</h2></header>
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-autor">Autor</label>
+          <input id="f-autor" name="creator" type="text" value="Deutscher Pfadfinderbund">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-ort">Ort</label>
+          <input id="f-ort" name="subject_place" type="text" value="Bonn">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-standort">Standort</label>
+          <input id="f-standort" name="physical_location" type="text" value="Bund -- Zeitschrift -- Die Kompassnadel" aria-describedby="f-standort-hint">
+          <span class="field-hint" id="f-standort-hint">Nur intern sichtbar</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-medien">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-medien">Medien</h2></header>
+      <div class="stack" style="--stack-gap: var(--gap-head)">
+      <ul class="register">
+        <li><div class="file-row">
+          <span class="file-row-thumb"></span>
+          <span class="file-row-name"><span>kompassnadel-20-s1.jpg</span><small>1.8 MB <span class="mark">Titelbild</span></small></span>
+          <div class="field">
+            <label class="field-label" for="f-cap-1">Bildunterschrift</label>
+            <input id="f-cap-1" type="text" value="Titelseite">
+          </div>
+          <span class="file-row-tools" role="toolbar" aria-label="Medienaktionen">
+            <button type="button" aria-label="Nach oben" disabled>↑</button>
+            <button type="button" aria-label="Nach unten">↓</button>
+            <button class="field-aside" type="button">Entfernen</button>
+          </span>
+        </div></li>
+        <li><div class="file-row">
+          <span class="file-row-thumb"></span>
+          <span class="file-row-name"><span>kompassnadel-20-s2.jpg</span><small>1.6 MB</small></span>
+          <div class="field">
+            <label class="field-label" for="f-cap-2">Bildunterschrift</label>
+            <input id="f-cap-2" type="text" value="">
+          </div>
+          <span class="file-row-tools" role="toolbar" aria-label="Medienaktionen">
+            <button type="button" aria-label="Nach oben">↑</button>
+            <button type="button" aria-label="Nach unten">↓</button>
+            <button class="field-aside" type="button">Entfernen</button>
+          </span>
+        </div></li>
+        <li><div class="file-row">
+          <span class="file-row-thumb"></span>
+          <span class="file-row-name"><span>kompassnadel-20-s3.jpg</span><small>1.7 MB</small></span>
+          <div class="field">
+            <label class="field-label" for="f-cap-3">Bildunterschrift</label>
+            <input id="f-cap-3" type="text" value="">
+          </div>
+          <span class="file-row-tools" role="toolbar" aria-label="Medienaktionen">
+            <button type="button" aria-label="Nach oben">↑</button>
+            <button type="button" aria-label="Nach unten" disabled>↓</button>
+            <button class="field-aside" type="button">Entfernen</button>
+          </span>
+        </div></li>
+      </ul>
+      <div class="upload">
+        <div class="field">
+          <label class="field-label" for="f-dateien">Dateien hinzufügen</label>
+          <input id="f-dateien" type="file" name="dateien" multiple aria-describedby="f-dateien-hint">
+        </div>
+        <button class="button" type="button">Hochladen</button>
+        <p class="upload-hint" id="f-dateien-hint">Neue Dateien kommen ans Ende; die erste ist das Titelbild.</p>
+      </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-zugriff">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-zugriff">Zugriff</h2></header>
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-sicht">Sichtbarkeit</label>
+          <select id="f-sicht" name="sichtbarkeit">
+            <option value="" selected>Vom Bestand erben</option>
+            <option value="public">Öffentlich</option>
+            <option value="members">Alle Mitglieder</option>
+            <option value="groups">Gruppe(n)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-gruppen">Gruppen</label>
+          <input id="f-gruppen" name="gruppen" type="text" value="" aria-describedby="f-gruppen-hint">
+          <span class="field-hint" id="f-gruppen-hint">Mehrere durch Komma trennen</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-weitere">
+      <header class="section-head" style="--section-head-type: var(--type-subhead)"><h2 id="h-weitere">Weitere Angaben</h2></header>
+      <div class="field-grid">
+        <div class="field">
+          <label class="field-label" for="f-key-1">Feld</label>
+          <input id="f-key-1" name="custom_key" type="text" value="Legacy-ID">
+        </div>
+        <div class="field">
+          <span class="field-label"><label for="f-val-1">Wert</label><button class="field-aside" type="submit" name="custom_entfernen" value="0">Entfernen</button></span>
+          <input id="f-val-1" name="custom_value" type="text" value="1293">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-key-2">Feld</label>
+          <input id="f-key-2" name="custom_key" type="text" value="">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-val-2">Wert</label>
+          <input id="f-val-2" name="custom_value" type="text" value="">
+        </div>
+      </div>
+    </section>
+
+  </div>
+</form>
+</main>
+</body>
+</html>

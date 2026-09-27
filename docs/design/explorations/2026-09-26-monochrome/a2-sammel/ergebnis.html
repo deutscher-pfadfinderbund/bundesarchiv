@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A2 Sammel · Ergebnis</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a2-sammel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<!-- Conflict is not an error (design-system.md): the count carries the successes; only rows the
+     archivist can act on are listed, quiet, each with its onward link, plus one collective
+     recovery. No red. Mock outcome: of the 3, BA 1611 saved, BA 1588 and BA 523 changed by
+     someone else in between (real: sammelbearbeitung_ergebnis.html). -->
+<main class="page stack" style="--stack-gap: var(--gap-block)">
+  <header class="section-head">
+    <h1>1 von 3 gespeichert</h1>
+    <p class="section-head-lede">Standort → Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Box 1</p>
+    <!-- only while the search index lags behind the write -->
+    <p class="section-head-lede" role="status">Die Suche zeigt einige Änderungen in Kürze.</p>
+  </header>
+
+  <section aria-labelledby="h-offen">
+    <header class="section-head">
+      <h2 id="h-offen">Nicht gespeichert</h2>
+      <p class="section-head-lede">Jemand anderes hat diese Artikel inzwischen geändert; ihr Standort ist unverändert.</p>
+    </header>
+    <table class="affected">
+      <tbody>
+        <tr>
+          <td class="affected-record"><a href="#">Die Feuerrunde Heft 2</a> <data class="affected-sig" value="BA 1588">BA 1588</data></td>
+        </tr>
+        <tr>
+          <td class="affected-record"><a href="#">Die Feuerrunde, Heft 1/79</a> <data class="affected-sig" value="BA 523">BA 523</data></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="cluster">
+    <a class="button" href="liste-auswahl.html">Diese 2 erneut auswählen</a>
+    <a href="liste.html">Zurück zur Suche</a>
+  </p>
+</main>
+</body>
+</html>

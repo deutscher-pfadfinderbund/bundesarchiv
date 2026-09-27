@@ -1,0 +1,90 @@
+/* a2-sammel — proposed system additions for the archivist list and bulk edit (NOTES.md,
+   "Proposed system additions"). Same contract as ../system/system.css: one root class per
+   component, knobs listed, tokens only. Loaded after system.css, into its layers. */
+
+@layer components {
+
+  /* ---------- ledger-pick / ledger-act — the archivist's two ledger cells ----------
+     Knobs: none. .ledger-pick hangs the selection box in the page gutter, so the titles keep
+     their line with the search sentence; .ledger-act is the row-end action slot ("Bearbeiten").
+     Pointer devices: both show on row hover or focus; once one row is picked, every box shows
+     (the archivist chose to select). Touch: always shown. S: absent (bulk work is L/M). */
+  .ledger :is(th, td).ledger-pick { position: relative; inline-size: 0; padding: 0; }
+  .ledger-pick input {
+    position: absolute; inset-inline-end: var(--space-4); inset-block-start: calc(var(--pad-row) + var(--space-1));
+    inline-size: var(--space-4); block-size: var(--space-4); margin: 0; accent-color: var(--ink);
+  }
+  .ledger-act { inline-size: 0; white-space: nowrap; font: var(--type-meta); }
+  .ledger-act a { color: var(--ink-2); }
+  .ledger-act a:hover { color: var(--ink); }
+  @media (hover: hover) {
+    .ledger :is(.ledger-pick input, .ledger-act a) { opacity: 0; }
+    .ledger tr:is(:hover, :focus-within) :is(.ledger-pick input, .ledger-act a),
+    .ledger-pick input:checked,
+    .ledger:has(.ledger-pick :checked) .ledger-pick input { opacity: 1; }
+  }
+  @container (width < 40rem) {
+    .ledger :is(.ledger-pick, .ledger-act) { display: none; }
+  }
+
+  /* ---------- bulkbar — the selection's own bar, under the ledger ----------
+     Knobs: none. Sticks to the viewport's bottom edge while the ledger scrolls, rests under the
+     last row; the one line is its top edge (the only thing between it and the rows behind it).
+     The ground reaches into the page gutter (shadow, clipped at the top edge) so the rows'
+     hanging boxes scroll behind it. Absent while nothing is selected ([hidden]); S: absent. */
+  .bulkbar {
+    position: sticky; inset-block-end: 0; z-index: 1;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4) var(--space-8);
+    padding-block: var(--space-4); background: var(--ground); border-block-start: var(--line);
+    box-shadow: 0 0 0 var(--gutter) var(--ground); clip-path: inset(0 calc(-1 * var(--gutter)));
+  }
+  .bulkbar > .chooser { flex: 1 1 auto; justify-content: flex-end; }
+  .bulkbar[hidden] { display: none; }
+  .bulkbar-status { display: flex; flex-wrap: wrap; align-items: baseline; font: var(--type-meta); color: var(--ink-2); }
+  .bulkbar-status > :first-child { color: var(--ink); }
+  .bulkbar-status > * + *::before { content: "·" / ""; display: inline-block; margin-inline: var(--space-3); color: var(--ink-2); }
+  .bulkbar-status a:hover { color: var(--ink); }
+  @container (width < 40rem) {
+    .bulkbar { display: none; }
+  }
+
+  /* ---------- chooser — "[Feld] auf [Wert] setzen  Änderung prüfen" ----------
+     Knobs: none. The Feld chooser as one sentence in body type: a select, the value field, the
+     submit. .chooser-error (the archivist's own invalid input, the one red) takes its own line
+     before the sentence; the field it is about carries aria-invalid. */
+  .chooser { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); color: var(--ink-2); }
+  .chooser select {
+    font: inherit; color: var(--ink); background: var(--ground);
+    border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0;
+  }
+  .chooser-value { flex: 1 1 0; min-inline-size: var(--measure-search-rest); max-inline-size: var(--measure-query); }
+  .chooser-error { flex-basis: 100%; color: var(--error); }
+  .chooser [aria-invalid="true"] { border-block-end-color: var(--error); }
+
+  /* ---------- affected — the records an action touches, one quiet row each ----------
+     Knobs: none. Cells: .affected-record (Titel, then the quiet .affected-sig), .affected-old
+     (the value the action removes, one tier quieter), .affected-new ("→ neu", weight emphasis,
+     no color), .affected-act (the row's one onward link). S: record line · old · new. */
+  .affected th { padding: 0 var(--space-5) var(--space-3) 0; }
+  .affected td { padding: var(--pad-row) var(--space-5) var(--pad-row) 0; vertical-align: baseline; }
+  .affected :is(th, td):last-child { padding-inline-end: 0; }
+  .affected tbody tr + tr td { border-block-start: var(--line); }
+  .affected-record { min-inline-size: var(--column-min); }
+  .affected-sig { margin-inline-start: var(--space-2); color: var(--ink-2); white-space: nowrap; }
+  .affected-old { color: var(--ink-2); }
+  .affected-new::before { content: "→" / ""; margin-inline-end: var(--space-2); color: var(--ink-2); }
+  .affected-act { inline-size: 0; white-space: nowrap; text-align: end; font: var(--type-meta); }
+  @container (width < 40rem) {
+    .affected thead { display: none; }
+    .affected tr { display: grid; row-gap: var(--space-1); padding-block: var(--pad-row); }
+    .affected tbody tr + tr { border-block-start: var(--line); }
+    .affected tbody tr td, .affected tbody tr + tr td { padding: 0; border: 0; inline-size: auto; min-inline-size: 0; }
+    .affected-act { text-align: start; }
+  }
+}
+
+@layer layouts {
+  /* cluster — a row of things that wrap (buttons, a link beside them). Knob: --cluster-gap
+     (default --space-4). */
+  .cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cluster-gap, var(--space-4)); }
+}

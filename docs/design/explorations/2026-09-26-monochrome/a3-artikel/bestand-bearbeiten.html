@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bestand bearbeiten — Bundesarchiv</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a3-artikel.css">
+</head>
+<body>
+<!-- top bar: r4-system/archiv.html verbatim (a form page: no header search) -->
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="bestand-neu.html">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <!-- mock values: Bund is top-level (data.json); its Sichtbarkeit is not in data.json -->
+  <section class="stack column" style="--stack-gap: var(--gap-block)" aria-labelledby="h-bearbeiten">
+    <h1 id="h-bearbeiten">Bestand bearbeiten</h1>
+    <form class="stack" style="--stack-gap: var(--space-8)" method="post" action="#">
+      <input type="hidden" name="expected_version" value="7">
+      <div class="field">
+        <label for="feld-name">Name</label>
+        <input type="text" name="name" id="feld-name" value="Bund" autofocus aria-describedby="feld-name-hinweis">
+        <span class="field-hint" id="feld-name-hinweis">Der neue Name gilt sofort für alle 463 Artikel in diesem Bestand.</span>
+      </div>
+      <div class="stack" style="--stack-gap: var(--space-2)">
+        <dl class="facts">
+          <div><dt>Eltern-Bestand</dt><dd>Oberste Ebene</dd></div>
+          <div><dt>Sichtbarkeit</dt><dd>Alle Mitglieder</dd></div>
+        </dl>
+      </div>
+      <div class="row">
+        <button class="button button-primary" type="submit">Speichern</button>
+        <a class="button" href="../r4-system/archiv.html">Abbrechen</a>
+      </div>
+    </form>
+  </section>
+</main>
+</body>
+</html>

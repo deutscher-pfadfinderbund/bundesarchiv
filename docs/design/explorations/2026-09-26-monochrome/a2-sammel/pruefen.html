@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A2 Sammel · Prüfen</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a2-sammel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<!-- Consequence disclosure (design-system.md): one row per affected record, {alt} → {neu},
+     weight not color; the commit button names the whole consequence. Selection, Feld and Wert
+     ride as hidden inputs (real: sammelbearbeitung_pruefen.html). -->
+<main class="page stack" style="--stack-gap: var(--gap-block)">
+  <header class="section-head">
+    <h1>Änderung prüfen</h1>
+    <p class="section-head-lede">Neuer Standort für diese 3 Artikel: <strong>Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Box 1</strong></p>
+  </header>
+
+  <table class="affected">
+    <thead><tr><th scope="col">Artikel</th><th scope="col">Standort bisher (wird ersetzt)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="affected-record">Die Feuerrunde Heft 2<data class="affected-sig" value="BA 1588">BA 1588</data></td>
+        <td class="affected-old">Gruppen des DPB -- Zeitschriften -- Gau Wartburg -- Yesterday und</td>
+      </tr>
+      <tr>
+        <td class="affected-record">Die Feuerrunde, Heft 1/79<data class="affected-sig" value="BA 523">BA 523</data></td>
+        <td class="affected-old">Gruppen des DPB -- Zeitschriften 1 -- Gau Wartburg -- Die Feuerrunde</td>
+      </tr>
+      <tr>
+        <td class="affected-record">Wartburg-Bote, Nr. 36<data class="affected-sig" value="BA 1611">BA 1611</data></td>
+        <td class="affected-old">Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Wartburg-Bote</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <form class="cluster" action="ergebnis.html" method="get">
+    <input type="hidden" name="auswahl" value="BA 1588">
+    <input type="hidden" name="auswahl" value="BA 523">
+    <input type="hidden" name="auswahl" value="BA 1611">
+    <input type="hidden" name="feld" value="physical_location">
+    <input type="hidden" name="wert_text" value="Gruppen des DPB -- Gau Wartburg -- Zeitschrift -- Box 1">
+    <input type="hidden" name="bestaetigt" value="1">
+    <button class="button button-primary" type="submit">3 Standorte überschreiben</button>
+    <a class="button" href="liste-auswahl.html">Abbrechen</a>
+  </form>
+</main>
+</body>
+</html>

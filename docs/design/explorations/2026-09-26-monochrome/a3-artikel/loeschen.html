@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artikel löschen? — Bundesarchiv</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a3-artikel.css">
+</head>
+<body>
+<!-- top bar: r4-system/archiv.html verbatim (a form page: no header search) -->
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="bestand-neu.html">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <!-- confirm surface: the article's place, the question, the thing, the full consequence -->
+  <section class="stack column" style="--stack-gap: var(--gap-block)" aria-labelledby="h-loeschen">
+    <header class="stack" style="--stack-gap: var(--gap-head)">
+      <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Bund</a></nav>
+      <h1 id="h-loeschen">Artikel löschen?</h1>
+    </header>
+    <p><a href="artikel.html">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</a> <data value="BA 1784" style="color: var(--ink-2)">BA 1784</data></p>
+    <p>Gelöscht werden der Katalogeintrag mit allen Angaben und seine 5 Dateien. Einen Papierkorb gibt es nicht; das lässt sich nicht rückgängig machen.</p>
+    <form class="row" method="post" action="#">
+      <button class="button button-primary button-danger" type="submit">Artikel und 5 Dateien löschen</button>
+      <a class="button" href="artikel.html">Abbrechen</a>
+    </form>
+  </section>
+</main>
+</body>
+</html>

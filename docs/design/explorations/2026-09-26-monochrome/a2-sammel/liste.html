@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A2 Sammel · Liste</title>
+<link rel="stylesheet" href="../system/system.css">
+<link rel="stylesheet" href="a2-sammel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="page topbar-row">
+    <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
+    <div class="topbar-tools">
+      <details class="menu">
+        <summary>+ Neu …</summary>
+        <ul>
+          <li><a href="#">Neuer Artikel</a></li>
+          <li><a href="#">Neuer Bestand</a></li>
+        </ul>
+      </details>
+      <a href="../x3-register/door.html">Abmelden</a>
+    </div>
+  </div>
+</header>
+
+<main class="page stack">
+  <section class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-archiv">
+    <h1 class="search-sentence" id="h-archiv">
+      <span class="search-sentence-label">Suche</span>
+      <input class="search-sentence-field" type="search" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+      <span>in</span>
+      <span class="search-sentence-slots">
+        <button class="is-set" type="button">Gruppen des DPB</button>
+        <button class="is-minor" type="button">alle Jahrzehnte</button>
+        <button class="is-minor" type="button">jeder Typ</button>
+        <button class="is-more" type="button">Filter</button>
+      </span>
+      <button class="search-sentence-add" type="button">+ Filter</button>
+    </h1>
+    <form action="pruefen.html" method="get">
+    <div class="ledger">
+      <table>
+        <thead><tr><th scope="col" class="ledger-pick" aria-label="Auswahl"></th><th scope="col" class="ledger-title"><a class="ledger-sort" href="liste.html">Titel</a></th><th scope="col" class="ledger-date" aria-sort="ascending"><a class="ledger-sort" href="liste.html" aria-label="Datierung, älteste zuerst — umkehren">Datierung</a></th><th scope="col" class="ledger-type"><a class="ledger-sort" href="liste.html">Typ</a></th><th scope="col" class="ledger-sig"><a class="ledger-sort" href="liste.html">Signatur</a></th><th scope="col" class="ledger-act" aria-label="Aktionen"></th></tr></thead>
+        <tbody>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 587" aria-label="Nachrichtenblatt des Gau Ordensland, Nr. 2 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Nachrichtenblatt des Gau Ordensland, Nr. 2</a></td><td class="ledger-date"><time datetime="1959-12">1959-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 587">BA 587</data></td><td class="ledger-act"><a href="#" aria-label="Nachrichtenblatt des Gau Ordensland, Nr. 2 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1588" aria-label="Die Feuerrunde Heft 2 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Die Feuerrunde Heft 2</a></td><td class="ledger-date"><data value="1963~">1963~</data></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1588">BA 1588</data></td><td class="ledger-act"><a href="#" aria-label="Die Feuerrunde Heft 2 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 459" aria-label="Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</a></td><td class="ledger-date"><time datetime="1968-01">1968-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 459">BA 459</data></td><td class="ledger-act"><a href="#" aria-label="Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 655" aria-label="Kiek ut 1/69 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Kiek ut 1/69</a></td><td class="ledger-date"><time datetime="1969">1969</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 655">BA 655</data></td><td class="ledger-act"><a href="#" aria-label="Kiek ut 1/69 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1723" aria-label="Stamm Lützow 74 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Stamm Lützow 74</a></td><td class="ledger-date"><time datetime="1974">1974</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 1723">BA 1723</data></td><td class="ledger-act"><a href="#" aria-label="Stamm Lützow 74 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 523" aria-label="Die Feuerrunde, Heft 1/79 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Die Feuerrunde, Heft 1/79</a></td><td class="ledger-date"><time datetime="1979">1979</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 523">BA 523</data></td><td class="ledger-act"><a href="#" aria-label="Die Feuerrunde, Heft 1/79 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 814" aria-label="Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter</a></td><td class="ledger-date"><time datetime="1982-11">1982-11</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 814">BA 814</data></td><td class="ledger-act"><a href="#" aria-label="Der Salzstanz: Der Fahrtbericht einer Deutschlandwanderung von Salzgitter bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 487" aria-label="DPB Gau Rheinland: Führerbrief auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">DPB Gau Rheinland: Führerbrief</a></td><td class="ledger-date"><time datetime="1983-01">1983-01</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 487">BA 487</data></td><td class="ledger-act"><a href="#" aria-label="DPB Gau Rheinland: Führerbrief bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1611" aria-label="Wartburg-Bote, Nr. 36 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Wartburg-Bote, Nr. 36</a></td><td class="ledger-date"><time datetime="1983-12">1983-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1611">BA 1611</data></td><td class="ledger-act"><a href="#" aria-label="Wartburg-Bote, Nr. 36 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 2117" aria-label="Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85</a></td><td class="ledger-date"><time datetime="1984-11-26">1984-11-26</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 2117">BA 2117</data></td><td class="ledger-act"><a href="#" aria-label="Schill&#x27;sche Jungenschaft - Rundbrief Dezember/Januar 1984/85 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1209" aria-label="Rakete 60 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Rakete 60</a></td><td class="ledger-date"><time datetime="1985-12">1985-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1209">BA 1209</data></td><td class="ledger-act"><a href="#" aria-label="Rakete 60 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 762" aria-label="Die Kiste, Nr. 27 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Die Kiste, Nr. 27</a></td><td class="ledger-date"><time datetime="1986-02">1986-02</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 762">BA 762</data></td><td class="ledger-act"><a href="#" aria-label="Die Kiste, Nr. 27 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1216" aria-label="Rakete 67 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Rakete 67</a></td><td class="ledger-date"><time datetime="1987-09">1987-09</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1216">BA 1216</data></td><td class="ledger-act"><a href="#" aria-label="Rakete 67 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1077" aria-label="Fränkischer Rechen auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Fränkischer Rechen</a></td><td class="ledger-date"><data value="1988~">1988~</data></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1077">BA 1077</data></td><td class="ledger-act"><a href="#" aria-label="Fränkischer Rechen bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 820" aria-label="Ungarn &#x27;89 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Ungarn &#x27;89</a></td><td class="ledger-date"><time datetime="1989-06-08">1989-06-08</time></td><td class="ledger-type">Fahrtenbericht</td><td class="ledger-sig"><data value="BA 820">BA 820</data></td><td class="ledger-act"><a href="#" aria-label="Ungarn &#x27;89 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1036" aria-label="Führerbrief des Gaues Wartburg 53 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Führerbrief des Gaues Wartburg 53</a> <span class="mark">Entwurf</span><!-- mock: data.json has no drafts; marked for the mock --></td><td class="ledger-date"><time datetime="1990-07-20">1990-07-20</time></td><td class="ledger-type">Sonstiges</td><td class="ledger-sig"><data value="BA 1036">BA 1036</data></td><td class="ledger-act"><a href="#" aria-label="Führerbrief des Gaues Wartburg 53 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 52" aria-label="Wartburg-Bote, Nr. 56 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Wartburg-Bote, Nr. 56</a></td><td class="ledger-date"><time datetime="1991-05">1991-05</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 52">BA 52</data></td><td class="ledger-act"><a href="#" aria-label="Wartburg-Bote, Nr. 56 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 955" aria-label="Quwit Nr. 11 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Quwit Nr. 11</a></td><td class="ledger-date"><time datetime="1993-12">1993-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 955">BA 955</data></td><td class="ledger-act"><a href="#" aria-label="Quwit Nr. 11 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 73" aria-label="Wartburg-Bote, Nr. 77 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Wartburg-Bote, Nr. 77</a></td><td class="ledger-date"><time datetime="1998-06">1998-06</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 73">BA 73</data></td><td class="ledger-act"><a href="#" aria-label="Wartburg-Bote, Nr. 77 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 293" aria-label="Kalender 2001 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Kalender 2001</a></td><td class="ledger-date"><time datetime="2000">2000</time></td><td class="ledger-type">Kalender</td><td class="ledger-sig"><data value="BA 293">BA 293</data></td><td class="ledger-act"><a href="#" aria-label="Kalender 2001 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1551" aria-label="WIR, Dezember 2001 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">WIR, Dezember 2001</a></td><td class="ledger-date"><time datetime="2001-12">2001-12</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 1551">BA 1551</data></td><td class="ledger-act"><a href="#" aria-label="WIR, Dezember 2001 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 433" aria-label="Fränkischer Rechen: Der 30 Jährige Krieg auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Fränkischer Rechen: Der 30 Jährige Krieg</a></td><td class="ledger-date"><time datetime="2005-02">2005-02</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 433">BA 433</data></td><td class="ledger-act"><a href="#" aria-label="Fränkischer Rechen: Der 30 Jährige Krieg bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 1035" aria-label="Bundeslager 2007: Eine Fotodokumentation auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Bundeslager 2007: Eine Fotodokumentation</a></td><td class="ledger-date"><time datetime="2007">2007</time></td><td class="ledger-type">CD / DVD</td><td class="ledger-sig"><data value="BA 1035">BA 1035</data></td><td class="ledger-act"><a href="#" aria-label="Bundeslager 2007: Eine Fotodokumentation bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 20" aria-label="Der Späher: Heft 9 auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Der Späher: Heft 9</a></td><td class="ledger-date"><time datetime="2008-05">2008-05</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 20">BA 20</data></td><td class="ledger-act"><a href="#" aria-label="Der Späher: Heft 9 bearbeiten">Bearbeiten</a></td></tr>
+        <tr><td class="ledger-pick"><input type="checkbox" name="auswahl" value="BA 440" aria-label="Fränkischer Rechen: Der hohe Norden auswählen"></td><td class="ledger-title"><a href="../r4-system/artikel.html">Fränkischer Rechen: Der hohe Norden</a></td><td class="ledger-date"><time datetime="2009-10">2009-10</time></td><td class="ledger-type">Zeitschrift</td><td class="ledger-sig"><data value="BA 440">BA 440</data></td><td class="ledger-act"><a href="#" aria-label="Fränkischer Rechen: Der hohe Norden bearbeiten">Bearbeiten</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- bulkbar: hidden while nothing is selected (no-JS baseline: visible, so "Alle auf dieser Seite" stays reachable) -->
+    <div class="bulkbar" hidden aria-label="Sammelbearbeitung" role="group">
+      <p class="bulkbar-status">
+        <span role="status"></span>
+        <a href="liste-auswahl.html">Alle auf dieser Seite</a>
+      </p>
+      <div class="chooser">
+        <select name="feld" aria-label="Feld">
+          <option value="">Feld wählen</option>
+          <option>Standort</option>
+          <option>Autor</option>
+          <option>Ort</option>
+          <option>Medienart</option>
+          <option>Dokumenttyp</option>
+          <option>Quelle</option>
+          <option>Sammlungsteil</option>
+          <option>Querverweis</option>
+          <option>Besitzer</option>
+        </select>
+        <span>auf</span>
+        <input class="chooser-value" type="text" name="wert_text" placeholder="neuer Wert" aria-label="Neuer Wert">
+        <span>setzen</span>
+        <button class="button button-primary" type="submit">Änderung prüfen</button>
+      </div>
+    </div>
+    </form>
+    <nav class="pager" aria-label="Seiten">
+      <span class="pager-range"><data value="1">1–25</data> von <data value="1187">1.187</data></span>
+      <span class="pager-step" aria-disabled="true">‹ Zurück</span>
+      <a class="pager-step" href="liste.html">Weiter ›</a>
+    </nav>
+    <p style="font: var(--type-meta); color: var(--ink-2)">Mock: Die Markierung „Entwurf“ bei „Führerbrief des Gaues Wartburg 53“ zeigt den Zustand; die Daten enthalten keine Entwürfe.</p>
+  </section>
+</main>
+</body>
+</html>
