@@ -279,3 +279,7 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   clipped).
 - **Round 5b:** the "more" glyph is vertical (⋮) and stands before the buttons; a framed button is
   last, so its corner shapes the page's corner at the end edge (a draft closes with Veröffentlichen).
+- **Round 5c:** the ⋮ looked odd. "Bearbeiten" is now a split button (new system component
+  `split-button`): the action and a chevron part in one frame; the chevron (`chevron-down`, name
+  "Weitere Aktionen") opens the rare actions. The small "Entwurf" mark after the draft's title is
+  gone: it was overlooked, and the primary "Veröffentlichen" already says the record is a draft.

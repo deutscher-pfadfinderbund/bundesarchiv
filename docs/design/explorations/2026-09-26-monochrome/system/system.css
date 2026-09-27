@@ -435,6 +435,18 @@
   .button:hover, .button-primary { color: var(--ground); background: var(--ink); }
   .button-primary:hover { color: var(--ink); background: transparent; }
 
+  /* ---------- split-button — one action and its rarer siblings in one frame ----------
+     Knobs: none. Parts: a .button (the frequent action, e.g. Bearbeiten), then a button.menu-button
+     holding the chevron icon (accessible name "Weitere Aktionen"), which opens a ul.menu[popover].
+     The two share one frame: the chevron part draws no start edge, so the action's end edge is the
+     divider. Both invert on hover like a .button. */
+  .split-button { display: inline-flex; align-items: stretch; }
+  .split-button > .menu-button {
+    display: inline-grid; place-items: center; padding-inline: var(--space-2);
+    color: var(--ink); border: var(--line-width) solid var(--ink); border-inline-start-width: 0;
+  }
+  .split-button > .menu-button:hover { color: var(--ground); background: var(--ink); }
+
   /* ---------- mark — a state is words, not a box (Entwurf, später) ----------
      Knobs: none. */
   .mark {
