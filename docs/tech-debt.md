@@ -188,7 +188,9 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
   and the chip × — all now the one `.danger` context; `.facts-quiet`, the set-apart register
   label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context;
-  `.button-sso` gone (owner: the door's login is just a primary button).
+  `.button-sso` gone (owner: the door's login is just a primary button). Wave K1: `.badge.entwurf`,
+  the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the Bestand form's quiet
+  facts — now `.quiet`.
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
     the button must paint its background with `--ground`, and the hover outline needs an edge.
@@ -198,7 +200,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
     state and stays exempt.
 - **Open, app** (Wave T report, 2026-09-27; Wave T fixed `button.danger`, the Signatur tab, the
   amber ENTWURF mark and the Titelbild inversion):
-  - `.badge` (visibility badges, `#dirty-flag`) is still a box; `.badge.entwurf` a variant of it.
+  - `.badge` (the visibility badges) is still a box; it goes with the visibility redesign.
   - `.primary`: a button variant (candidate: an inverse context).
   - the record row's "Mehr …" in `workbench/artikel_bearbeiten.html` is still `<details class="menu">`
     (two menu mechanisms); its Löschen / Verwerfen carry no `.danger`.

@@ -20,7 +20,14 @@ from urllib.parse import urlencode
 import pytest
 from django.http import HttpRequest, QueryDict
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import PUB, Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import (
+    PUB,
+    Corpus,
+    client_as,
+    draft_mark,
+    make_article,
+    make_collection,
+)
 
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.domain.edtf import EdtfDate
@@ -112,7 +119,7 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
     assert "Weitere Angaben" in body  # Gruppe 7
     # the hidden expected_version rides the form
     assert f'name="expected_version" value="{corpus.version}"' in body
-    # the ENTWURF badge (draft) sits in the header
+    # the Entwurf mark (draft) sits in the header
     assert "Entwurf" in body
     # the Signatur mark reflects ref_code
     assert "F12/3" in body
@@ -336,9 +343,9 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
 # --- POST re-render fidelity: lifecycle + custom-row accumulation ------------------
 
 
-def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _EditCorpus) -> None:
+def test_published_article_invalid_post_re_render_omits_entwurf_mark(corpus: _EditCorpus) -> None:
     # fix-wave: `_post_to_form_values` hardcoded is_draft=True, so a PUBLISHED article's
-    # validation-error re-render wrongly showed the ENTWURF badge.
+    # validation-error re-render wrongly showed the Entwurf mark.
     published = "01KX7YT9E3VX0CP3A5Q49RZMWP"
     corpus.add_article(
         make_article(
@@ -359,7 +366,7 @@ def test_published_article_invalid_post_re_render_omits_entwurf_badge(corpus: _E
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body  # confirms we hit the error re-render
-    assert 'class="badge entwurf"' not in body  # no ENTWURF badge for PUBLISHED
+    assert draft_mark() not in body
 
 
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:

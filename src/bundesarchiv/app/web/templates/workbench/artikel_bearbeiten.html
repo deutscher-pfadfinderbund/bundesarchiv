@@ -29,7 +29,7 @@ outside the swap would keep a stale CAS version. A successful save gets HX-Redir
 <div id="form-region" hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
 {% comment %}The record row — the view's ONE control row and ONE action place (owner ruling 2). In
-reading order: the back affordance · the save-state output and the ENTWURF badge · then ONE
+reading order: the back affordance · the save-state output and the Entwurf mark · then ONE
 role="toolbar" holding Speichern, the lifecycle action and the overflow disclosure. A new action lands
 in that list, never as a new button position (G.9).
 
@@ -39,10 +39,10 @@ word. It now saves and transitions in one CAS write. Enter is unaffected — imp
 the FIRST submit button in tree order, which is Speichern (spec §6.2: Enter never publishes).{% endcomment %}
 <div class="recordrow">
   <a class="back" href="{% url 'workbench' %}">Zurück zur Suche</a>
-  {% include "components/badge_lifecycle.html" with draft=values.is_draft only %}
-  {% comment %}The dirty register: a NEUTRAL badge.
+  {% include "components/mark_lifecycle.html" with draft=values.is_draft only %}
+  {% comment %}The dirty register, a mark.
   Enhancement-only — the no-JS baseline simply never shows it.{% endcomment %}
-  <output id="dirty-flag" class="badge" hidden>Nicht gespeicherte Änderungen</output>
+  <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
   <div role="toolbar" aria-label="Satzaktionen">
     <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
     {% comment %}Publishing is ONE click (owner ruling 5): the over-exposure preview gate retired with
@@ -230,7 +230,7 @@ sheet is the pane.{% endcomment %}
           <span class="file">
             <span>{{ row.filename }}</span>
             {% if row.size %}<small>{{ row.size }}</small>{% endif %}
-            {% if row.is_cover %}<span class="titelbild">Titelbild</span>{% endif %}
+            {% if row.is_cover %}<span class="mark">Titelbild</span>{% endif %}
           </span>
           <label class="field">
             <span class="visually-hidden">Bildunterschrift</span>

@@ -264,8 +264,7 @@
     color: var(--faint);
   }
 
-  /* ---- badges: neutral outline by default; ENTWURF is a mark in words, never a box. Published
-     renders no badge (row 7). ---- */
+  /* ---- badge: a neutral outline (the visibility badges only) ---- */
   .badge {
     display: inline-block;
     font: var(--type-label);
@@ -274,9 +273,12 @@
     color: var(--ink-2);
     white-space: nowrap;
   }
-  .badge.entwurf {
-    padding: 0;
-    border: 0;
+
+  /* ---- mark — a state in words, never a box (Entwurf, Titelbild, the dirty register) ---- */
+  .mark {
+    font: var(--type-label);
+    color: var(--ink-2);
+    white-space: nowrap;
   }
 
   /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark
@@ -680,9 +682,9 @@
   .ledger [role="rowgroup"] .titel a:hover {
     text-decoration: underline;
   }
-  /* the ENTWURF mark rides its fact (learning G.10); flex:none keeps it visible when the title
+  /* the Entwurf mark rides its fact (learning G.10); flex:none keeps it visible when the title
      ellipsizes */
-  .ledger [role="rowgroup"] .titel .badge.entwurf {
+  .ledger [role="rowgroup"] .titel .mark {
     flex: none;
   }
   .ledger [role="rowgroup"] .datierung {

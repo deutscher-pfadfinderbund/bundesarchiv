@@ -251,7 +251,7 @@
     flex-direction: column;
     gap: calc(var(--space-1) / 2);
   }
-  .file > span {
+  .file > span:first-child {
     font: var(--type-mono);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -259,12 +259,6 @@
   }
   .file small {
     font: var(--type-mono-meta);
-    color: var(--ink-2);
-  }
-  /* the Titelbild cover mark: a state in words, never a box */
-  .file > .titelbild {
-    align-self: flex-start;
-    font: var(--type-label);
     color: var(--ink-2);
   }
   /* the row's icon toolbar carries NOTHING local — hit area, ink and hit floor all come from the

@@ -3,7 +3,7 @@
 The leak surface (spec §9): per-tier projection honesty. One template fed a `visible`-projected
 Article, so archivist-only fields (Standort/physical_location, Weitere Angaben/custom) are FLOORED
 before the template and cannot reach a member/public body even by a template mistake. These assert
-field-VALUE absence (not just a missing class), draft 404 discipline, the action row + ENTWURF badge
+field-VALUE absence (not just a missing class), draft 404 discipline, the action row + Entwurf mark
 for archivists, the EDTF human-vs-mono double render, and no amber/red on a member view.
 
 Pure request-handling against a local FS store (load + resolve + visible) — no Postgres.
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import pytest
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
@@ -198,11 +198,11 @@ def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) 
     assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
 
 
-def test_draft_is_200_with_badge_and_actions_for_archivist(corpus: _DetailArchive) -> None:
+def test_draft_is_200_with_mark_and_actions_for_archivist(corpus: _DetailArchive) -> None:
     response = client_as(Archivist()).get(f"/artikel/{corpus.draft}")
     assert response.status_code == 200
     body = response.content.decode()
-    assert "Entwurf" in body  # ENTWURF badge
+    assert draft_mark() in body
     assert "/bearbeiten" in body  # action row present
 
 
@@ -218,7 +218,7 @@ def test_member_published_view_carries_no_action_row(corpus: _DetailArchive) -> 
 def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) -> None:
     # §0/§9: a member published view carries NO draft mark or error (red) chrome.
     body = _body(Member(groups=()), corpus.pub)
-    assert 'class="badge entwurf"' not in body
+    assert draft_mark() not in body
     assert "--error" not in body
 
 

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from django.core import signing
+from django.template.loader import render_to_string
 from django.test import Client
 
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -39,6 +40,11 @@ ROOT = "ROOT"
 PUB = "01KX7YT9E3VX0CP3A5Q49RZMPB"
 PUBLISHED_ULID = "01KX7YT9E3VX0CP3A5Q49RZMWK"
 DRAFT_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
+
+
+def draft_mark() -> str:
+    """The Entwurf mark as production renders it."""
+    return render_to_string("components/mark_lifecycle.html", {"draft": True}).strip()
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

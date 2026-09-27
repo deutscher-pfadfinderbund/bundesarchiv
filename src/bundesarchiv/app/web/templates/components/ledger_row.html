@@ -36,7 +36,7 @@ revealed on pointer devices only (always present in DOM for keyboard + touch).
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </span>
   <span class="titel" role="cell">
-    <a href="{{ href }}">{{ title }}</a>{% if draft %}{% include "components/badge_lifecycle.html" with draft=True only %}{% endif %}
+    <a href="{{ href }}">{{ title }}</a>{% if draft %}{% include "components/mark_lifecycle.html" with draft=True only %}{% endif %}
   </span>
   {% if datierung %}<span class="datierung" role="cell">{{ datierung }}</span>{% endif %}
   {% if typ %}<span class="typ" role="cell">{{ typ }}</span>{% endif %}

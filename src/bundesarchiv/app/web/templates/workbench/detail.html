@@ -51,7 +51,7 @@ No JS, no HTMX — the app's purest no-JS surface (§7).
   {% endif %}
 
   <header>
-    <h1>{{ title }}{% if is_draft %} {% include "components/badge_lifecycle.html" with draft=is_draft only %}{% endif %}</h1>
+    <h1>{{ title }}{% if is_draft %} {% include "components/mark_lifecycle.html" with draft=is_draft only %}{% endif %}</h1>
     {% if datierung_prose %}<p>{{ datierung_prose }}</p>{% endif %}
   </header>
 

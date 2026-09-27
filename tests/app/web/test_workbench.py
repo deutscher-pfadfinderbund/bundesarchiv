@@ -20,7 +20,7 @@ from urllib.parse import quote
 
 import pytest
 from django.http import HttpResponse
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
 
 from bundesarchiv.app.web import browse
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
@@ -373,15 +373,15 @@ def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
         assert "Gruppe: vorstand" not in body, f"[{label}] group-name visibility string leaked"
 
 
-def test_entwurf_badge_and_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
+def test_entwurf_mark_and_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
     arch = _get(Archivist()).content.decode()
-    assert "ENTWURF" in arch or "Entwurf" in arch  # the draft badge (label text is "Entwurf")
+    assert draft_mark() in arch
     assert "Bearbeiten" in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
         assert "Bearbeiten" not in body, f"[{label}] Bearbeiten action leaked"
-        # The draft ROW is already scope-hidden; this pins the BADGE chrome is gone too.
-        assert 'class="badge entwurf"' not in body, f"[{label}] ENTWURF badge chrome leaked"
+        # The draft ROW is already scope-hidden; this pins the mark is gone too.
+        assert draft_mark() not in body, f"[{label}] Entwurf mark leaked"
 
 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------

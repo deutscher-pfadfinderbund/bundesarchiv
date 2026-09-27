@@ -271,7 +271,8 @@ line; they are split out only as swap units or single renderers (law C7).
 |---|---|---|---|
 | Action row | `.actions` | inline | `components.css` action rows |
 | Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
-| Badge | `.badge` | `components/badge_lifecycle`, `badge_visibility` | `components.css` badges |
+| Badge | `.badge` | `components/badge_visibility` | `components.css` badge |
+| Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
 | Menu | `.menu` | inline (`_header` popover; the record row's `<details>` until wave K) | `components.css` menu |
