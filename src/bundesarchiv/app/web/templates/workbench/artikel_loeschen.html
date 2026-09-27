@@ -12,7 +12,7 @@ page: one POST executes; there is no undo (no Papierkorb this version).
 {% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
 screen. Its back link keeps pointing at the ARTICLE this page is about rather than at the search —
 that is a per-screen parameter of the one partial, not a reason to hand-draw a second header.{% endcomment %}
-{% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
+{% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>{{ titel_confirm }}</h1>
@@ -21,7 +21,7 @@ that is a per-screen parameter of the one partial, not a reason to hand-draw a s
   <section class="panel" aria-labelledby="loeschen-titel">
     <header>
       <strong id="loeschen-titel">„{{ title }}“</strong>
-      {% include "components/signatur_tab.html" with ref_code=ref_code %}
+      {% include "components/signatur_tab.html" with ref_code=ref_code only %}
     </header>
     <p>
       Dieser Artikel wird unwiderruflich gelöscht.

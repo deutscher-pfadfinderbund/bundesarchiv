@@ -505,7 +505,6 @@ def _bulk_bar_context(
     page_ulids = [h.ulid for h in hits]
     on_page = set(page_ulids)
     context: dict[str, object] = {
-        "auswahl": auswahl,
         "bulk_bar": True,
         "has_auswahl": bool(auswahl),
         "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
@@ -712,7 +711,6 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     )
     return {
         "ulid": article.ulid,
-        "is_archivist": resolution.is_archivist,
         "is_draft": is_draft,
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)

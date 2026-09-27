@@ -6,7 +6,7 @@ verbatim error and the values kept. The composition is the edit form's form-shee
 neu.html): no crumbs, the article has no place until a Bestand is chosen.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt">
 <form class="form-sheet" method="post" action="{% url 'artikel-neu' %}">

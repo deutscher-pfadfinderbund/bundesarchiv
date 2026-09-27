@@ -10,7 +10,7 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">
 <script src="{% static "catalog_form.js" %}" defer></script>
 <script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 {% comment %}HTMX CSRF: hx-headers here is inherited by every hx-get/hx-post inside, so the
 enhancement POSTs clear CsrfViewMiddleware like the no-JS forms' {% templatetag openblock %} csrf_token {% templatetag closeblock %} does.
@@ -155,7 +155,7 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
         {% endfor %}
       </ul>
       {% else %}
-      {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." %}
+      {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." only %}
       {% endif %}
       <div class="upload">
         <label class="add">+ Dateien hinzufügen <input type="file" name="dateien" form="medien-upload" multiple></label>

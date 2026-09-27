@@ -199,8 +199,6 @@ def _reject(
             "auswahl": auswahl,
             "fehler": error,
             "anzahl": len(auswahl),
-            "artikel_liste": [],
-            "orphans": [],
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
             **bulk.feldwahl_context(bestand, feld=feld, wert=wert),
         },

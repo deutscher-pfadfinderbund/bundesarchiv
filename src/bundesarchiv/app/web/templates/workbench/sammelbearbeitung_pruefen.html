@@ -14,7 +14,7 @@ Hidden inputs carry auswahl[] + feld + wert into the commit hop (zero server ses
 {% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
 screen — the partial exists precisely so no screen hand-draws a reduced version of it (precedent
 rule). This one kept its own lone back link through the form wave.{% endcomment %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
   <h1>Sammelbearbeitung prüfen</h1>
@@ -76,7 +76,7 @@ rule). This one kept its own lone back link through the form wave.{% endcomment 
 
   <footer>
     <div class="actions">
-      <form method="post" action="/artikel/sammelbearbeitung">
+      <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
         {% csrf_token %}
         {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
         <input type="hidden" name="feld" value="{{ feld }}">

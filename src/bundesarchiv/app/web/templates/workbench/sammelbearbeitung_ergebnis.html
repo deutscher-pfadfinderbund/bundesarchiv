@@ -13,7 +13,7 @@ outcome, not an error. Index lag → a quiet role=status line.
 {% comment %}Chrome: the shared WORKBENCH header (workbench/_header.html), like every other archivist
 screen — the partial exists precisely so no screen hand-draws a reduced version of it (precedent
 rule). This one kept its own lone back link through the form wave.{% endcomment %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
   {% if conflict_count %}

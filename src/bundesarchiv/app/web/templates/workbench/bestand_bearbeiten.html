@@ -11,7 +11,7 @@ screen since the form wave.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Bestand bearbeiten</h1>

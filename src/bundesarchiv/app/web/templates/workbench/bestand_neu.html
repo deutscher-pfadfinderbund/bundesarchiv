@@ -10,7 +10,7 @@ Anlegen is first-in-source so Enter submits it. Chrome: the shared WORKBENCH hea
 {% endcomment %}
 {% block title %}Neuer Bestand{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with is_archivist=is_archivist zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Neuer Bestand</h1>
