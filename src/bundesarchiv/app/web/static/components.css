@@ -287,6 +287,19 @@
     color: var(--ink-3);
   }
 
+  /* ---- help — the ⓘ at the end of a hint (register row 16); it opens a .popover. Everything
+     comes from the hint it sits in, which also owns the space before it (law C4). ---- */
+  .help {
+    padding: 0;
+    font: inherit;
+    background: none;
+    color: inherit;
+    border: 0;
+  }
+  .hint > .help {
+    margin-inline-start: var(--space-2);
+  }
+
   /* ---- Signatur mark: the plain mono code wherever it appears — repetition dilutes a mark
      (G.2). ---- */
   .c-sig {
@@ -332,7 +345,8 @@
   /* every floating panel (register row 12): page surface with an edge, even when its trigger sits
      in the band */
   .facet > ul,
-  ul.menu[popover] {
+  ul.menu[popover],
+  .popover {
     /* A panel is not part of the row it hangs from, so the row's (possibly compact) knob must not
        reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom property
        that is the guaranteed-invalid value, so each consumer falls back to its OWN default and one
@@ -406,6 +420,21 @@
       inset-block-start: anchor(end);
       inset-inline: 0 anchor(end);
       justify-self: end;
+      margin: var(--space-1) 0 0;
+    }
+    /* a help popover hangs under its ⓘ, centred on it as far as the viewport allows */
+    .field {
+      anchor-scope: --help;
+    }
+    .help {
+      anchor-name: --help;
+    }
+    .popover {
+      position-anchor: --help;
+      inset: auto;
+      inset-block-start: anchor(end);
+      inset-inline: 0;
+      justify-self: anchor-center;
       margin: var(--space-1) 0 0;
     }
   }
@@ -488,6 +517,27 @@
   }
   .menu li > form {
     display: block;
+    margin: 0;
+  }
+
+  /* ---- popover — the surface a help button opens: a native [popover] holding a <dl> of
+     example · meaning. Its surface is the floating-panel rule's (register row 12); only the
+     reading width, padding and type differ. Unanchored the browser centres it. ---- */
+  .popover {
+    max-inline-size: 28rem; /* the panel's reading width — one structural size, no token fits */
+    padding: var(--space-4) var(--space-5);
+    font: var(--type-meta);
+  }
+  .popover dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-1) var(--space-5);
+    margin: 0;
+  }
+  .popover dt {
+    font: var(--type-mono);
+  }
+  .popover dd {
     margin: 0;
   }
 

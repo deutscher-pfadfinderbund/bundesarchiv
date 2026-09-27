@@ -176,7 +176,7 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; --field-display: grid; --field-label-axis: 7rem; --field-align: baseline">
     <label class="field"><span>Signatur</span><input type="text" name="ref_code" value="F12/3" class="signatur"></label>
-    <label class="field"><span>Datierung (EDTF)</span><input type="text" name="date" value="1962-07" class="kurz"></label>
+    <label class="field"><span>Datierung</span><input type="text" name="date" value="1962-07" class="kurz"></label>
     <label class="field"><span>Titel</span><input type="text" name="titel" value="Sommerfahrt 1962"></label>
   </div>
   {% endfor %}
@@ -188,7 +188,7 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="field">
-      <label for="demo-date-{{ mode }}">Datierung (EDTF)</label>
+      <label for="demo-date-{{ mode }}">Datierung</label>
       <input type="text" name="date" id="demo-date-{{ mode }}" value="19x2"
              aria-invalid="true" aria-describedby="demo-date-{{ mode }}-fehler">
       <span class="error" id="demo-date-{{ mode }}-fehler">Ungültige EDTF-Datierung.</span>

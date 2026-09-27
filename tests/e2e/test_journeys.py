@@ -18,6 +18,7 @@ from playwright.sync_api import Browser, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
 from tests.e2e._pages import (
+    OVERLAY_CENTRED_PANEL,
     OVERLAY_PANEL_OF_JS,
     OVERLAY_PANELS,
     OVERLAY_TRIGGERS,
@@ -477,7 +478,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 #: synchronous DOM work (opening forces layout before getBoundingClientRect reads it), so
 #: paying a Playwright round-trip per open/close bought nothing but wall clock.
 _OVERLAY_WALK_JS = (
-    """(triggers) => {
+    (
+        """(triggers) => {
     const panelOf = PANEL_OF;
     const facts = [];
     for (const trigger of document.querySelectorAll(triggers)) {
@@ -503,6 +505,7 @@ _OVERLAY_WALK_JS = (
         }
         facts.push({
             label: trigger.textContent.trim(),
+            centred: panel.matches(CENTRED),
             top: Math.round(r.top), triggerBottom: Math.round(edge.bottom),
             left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
             viewport: d.clientWidth,
@@ -513,7 +516,10 @@ _OVERLAY_WALK_JS = (
     }
     return facts;
 }"""
-).replace("PANEL_OF", OVERLAY_PANEL_OF_JS)
+    )
+    .replace("PANEL_OF", OVERLAY_PANEL_OF_JS)
+    .replace("CENTRED", repr(OVERLAY_CENTRED_PANEL))
+)
 
 #: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
 #: 540/680/900 straddle the header wrap and the rail's own wrapping. 1100 closes a 540px hole between
@@ -556,7 +562,9 @@ def _walk_overlay_containment(
                 where = f"{width}px · {screen.name} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")
-                if float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
+                # unanchored, a help popover is the centred native one by design (DESIGN.md, Fields)
+                centred = rect["centred"] and not anchored
+                if not centred and float(str(rect["top"])) < float(str(rect["triggerBottom"])) - 1:
                     defects.append(
                         f"{where}: panel top {rect['top']}px covers its trigger "
                         f"(bottom {rect['triggerBottom']}px)"

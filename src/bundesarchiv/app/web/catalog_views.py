@@ -631,7 +631,8 @@ class _Field:
     to fill the value cell.
 
     ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
-    archivists ever sees. Both put a marker after the label (the minority is marked).
+    archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
+    template of the popover the hint's ⓘ opens, or ``""`` for a hint without one.
 
     ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
     has no diff row.
@@ -655,6 +656,7 @@ class _Field:
     fit: str = ""
     required: bool = False
     archivist_only: bool = False
+    help: str = ""
     scanned: bool = False
     focusable: bool = False
     diff: str = ""
@@ -755,10 +757,11 @@ _FIELDS: tuple[_Field, ...] = (
     ),
     _Field(
         "date",
-        label="Datierung (EDTF)",
+        label="Datierung",
         control="text",
         section="einordnung",
-        hint="z. B. 1962, 1984/1995, 1970~ (EDTF)",
+        hint="z. B. 1962, 1984/1995, 1970~",
+        help="workbench/_hilfe_datierung.html",
         fit="kurz",
         scanned=True,
         focusable=True,
@@ -908,6 +911,7 @@ class _CardRow:
     fit: str
     required: bool
     archivist_only: bool
+    help: str
 
 
 def _card_fields(
@@ -952,6 +956,7 @@ def _card_fields(
                 fit=registered.fit,
                 required=registered.required,
                 archivist_only=registered.archivist_only,
+                help=registered.help,
             )
         )
     return {name: tuple(rows) for name, rows in sections.items()}

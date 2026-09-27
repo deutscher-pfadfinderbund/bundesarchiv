@@ -54,6 +54,10 @@ OVERLAY_PANEL_OF_JS = (
     + " : null)"
 )
 
+#: The one panel the browser CENTRES when anchor positioning is absent (the help popover, DESIGN.md
+#: Fields): the fallback-tier walker exempts it from "hangs under its trigger".
+OVERLAY_CENTRED_PANEL = ".popover"
+
 #: How a guard gets a browser onto a screen: navigate, or drive whatever affordance leads there.
 #: Every reach leaves the page fully loaded, so a caller only measures.
 Reach = Callable[[Page, str, CorpusHandles], None]

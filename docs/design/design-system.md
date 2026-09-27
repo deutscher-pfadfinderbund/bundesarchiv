@@ -273,6 +273,8 @@ line; they are split out only as swap units or single renderers (law C7).
 | Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
 | Badge | `.badge` | `components/badge_visibility` | `components.css` badge |
 | Note | `.note` | inline (`_feld`, the card's Weitere Angaben) | `components.css` note |
+| Help | `.help` | inline (`_feld`) | `components.css` help |
+| Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |

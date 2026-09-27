@@ -4,20 +4,19 @@ the value column. Params: feld — a catalog_views._CardRow, the field registry 
 value/error/focus. The card's sections loop this partial, so the registry is the only place a field
 of the record card exists.
 
-It stays a bare <label>: the card sets its row knobs on `.fach > .field`, a direct-child path (law
-C14), so a wrapper here would drop the row off its own axis. Inside a label the hint and error text
-would join the control's accessible name, so the control names itself from the label span alone
-(aria-labelledby) and takes the messages as its description.
-{% endcomment %}{% with base="feld-"|add:feld.name %}<label class="field">
-  <span id="{{ base }}-label">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</span>
+The root is the `.field` itself, never a wrapper: the card sets its row knobs on `.fach > .field`, a
+direct-child path (law C14). A div with a <label for>, because the hint's ⓘ button and its popover
+may not sit inside a label.
+{% endcomment %}{% with base="feld-"|add:feld.name %}{% with control_id=feld.element_id|default:base %}<div class="field">
+  <label id="{{ base }}-label" for="{{ control_id }}">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</label>
   {% if feld.control == "select" %}
-  <select name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <select id="{{ control_id }}" name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
     {% for value, caption in feld.options %}
     <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
     {% endfor %}
   </select>
   {% elif feld.control == "groups" %}
-  <select id="{{ feld.element_id }}" name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
+  <select id="{{ control_id }}" name="{{ feld.name }}" {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
     <option value="">{{ feld.blank }}</option>
     {% for group_label, group_options in feld.options %}
     <optgroup label="{{ group_label }}">
@@ -28,9 +27,10 @@ would join the control's accessible name, so the control names itself from the l
     {% endfor %}
   </select>
   {% else %}
-  <input type="text" name="{{ feld.name }}" value="{{ feld.value }}"{% if feld.fit %} class="{{ feld.fit }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <input type="text" id="{{ control_id }}" name="{{ feld.name }}" value="{{ feld.value }}"{% if feld.fit %} class="{{ feld.fit }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
   {% endif %}
-  {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}</span>{% endif %}
+  {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}{% if feld.help %}<button class="help" type="button" popovertarget="{{ base }}-hilfe" aria-label="Schreibweise: {{ feld.label }}">ⓘ</button>{% endif %}</span>{% endif %}
   {% if feld.error %}<span class="error" id="{{ base }}-fehler">{{ feld.error }}</span>{% endif %}
-</label>
-{% endwith %}
+  {% if feld.help %}<div class="popover" id="{{ base }}-hilfe" popover>{% include feld.help %}</div>{% endif %}
+</div>
+{% endwith %}{% endwith %}

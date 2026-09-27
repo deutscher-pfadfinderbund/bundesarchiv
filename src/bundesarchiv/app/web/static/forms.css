@@ -30,13 +30,10 @@
      ============================================================ */
   .karte {
     /* the card's API (law C3/C5), both knobs named here and consumed below:
-       --label-spalte  the shared label axis. Sized for the LONGEST label the form carries,
-                       "Datierung (EDTF)" — 16 characters of --type-label (0.85rem regular, mixed
-                       case) measure 109px, so 7rem (112px) holds it on one line.
-                       Measured in the browser, and re-measured every run by
-                       test_karte_labels_share_one_axis: a label that outgrows the axis just WRAPS to
-                       a second line, which is a defect the eye skims past (at 6rem the test reports
-                       "Datierung (EDTF): wants 109px in a 96px column").
+       --label-spalte  the shared label axis, sized for the LONGEST label the form carries on one
+                       line. Re-measured every run by test_karte_labels_share_one_axis: a label that
+                       outgrows the axis just WRAPS to a second line, which is a defect the eye skims
+                       past.
        --wert-min      14rem (224px) — the widest vocabulary Dokumenttyp caption still in full. */
     --label-spalte: 7rem;
     --wert-min: 14rem;

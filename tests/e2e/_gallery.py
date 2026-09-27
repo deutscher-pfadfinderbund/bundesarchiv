@@ -88,6 +88,11 @@ def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.click(".recordrow .menu-button")
 
 
+def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
+    page.click("#feld-date-hinweis .help")
+
+
 def _reach_edit_folded_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the folded sections OPEN (owner ruling 4): Herkunft + Zugriff unfolded, so the shot shows both
     # the value-carrying summaries and what they hide — including the exposure statement's in-card
@@ -160,6 +165,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, the record row's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
         True,
         _reach_edit_mehr_open,
+    ),
+    GalleryState(
+        "edit-datierung-help",
+        "the edit surface, the Datierung hint's ⓘ popover open (the notation list)",
+        True,
+        _reach_edit_datierung_help,
     ),
     GalleryState(
         "edit-folded-open",
