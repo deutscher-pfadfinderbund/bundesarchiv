@@ -21,7 +21,7 @@
 <main class="g">
 <h1>Mock system — gallery</h1>
 <p style="color:var(--ink-2);max-inline-size:60ch;margin-block-start:var(--space-4)">Every component of <code>system.css</code> in its states, each in an S, M and L container (dashed). Components query their container; type size follows the viewport. Data from <code>data.json</code>.</p>
-<p class="g-index"><a href="#topbar">topbar</a> <a href="#search-field">search-field</a> <a href="#search-sentence">search-sentence</a> <a href="#section-head">section-head</a> <a href="#register">register</a> <a href="#ledger">ledger</a> <a href="#pager">pager</a> <a href="#facts">facts</a> <a href="#media">media</a> <a href="#crumbs">crumbs</a> <a href="#resume">resume</a> <a href="#button">button</a> <a href="#mark">mark</a> <a href="#layouts">layouts</a></p>
+<p class="g-index"><a href="#topbar">topbar</a> <a href="#search-field">search-field</a> <a href="#search-sentence">search-sentence</a> <a href="#section-head">section-head</a> <a href="#register">register</a> <a href="#ledger">ledger</a> <a href="#pager">pager</a> <a href="#facts">facts</a> <a href="#media">media</a> <a href="#crumbs">crumbs</a> <a href="#resume">resume</a> <a href="#button">button</a> <a href="#mark">mark</a> <a href="#autocomplete">autocomplete</a> <a href="#icon">icon</a> <a href="#title-field">title-field</a> <a href="#layouts">layouts</a></p>
 <section class="g-comp" id="topbar"><h2 class="g-name">topbar</h2>
 <h3 class="g-state">start / list: wordmark · „+ Neu …“ · Abmelden</h3>
 <div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
@@ -29,13 +29,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-1">+ Neu …</button>
+        <ul class="menu" id="menu-1" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -46,13 +44,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-2">+ Neu …</button>
+        <ul class="menu" id="menu-2" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -63,13 +59,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-3">+ Neu …</button>
+        <ul class="menu" id="menu-3" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -84,13 +78,11 @@
       <form class="search-field" action="../r4-system/archiv.html" role="search">
         <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
       </form>
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-4">+ Neu …</button>
+        <ul class="menu" id="menu-4" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -104,13 +96,11 @@
       <form class="search-field" action="../r4-system/archiv.html" role="search">
         <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
       </form>
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-5">+ Neu …</button>
+        <ul class="menu" id="menu-5" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -124,13 +114,11 @@
       <form class="search-field" action="../r4-system/archiv.html" role="search">
         <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
       </form>
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-6">+ Neu …</button>
+        <ul class="menu" id="menu-6" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -142,13 +130,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu" open>
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-open-1">+ Neu …</button>
+        <ul class="menu" id="menu-open-1" popover="manual" data-g-open>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -159,13 +145,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu" open>
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-open-2">+ Neu …</button>
+        <ul class="menu" id="menu-open-2" popover="manual" data-g-open>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -176,13 +160,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu" open>
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-open-3">+ Neu …</button>
+        <ul class="menu" id="menu-open-3" popover="manual" data-g-open>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -713,6 +695,44 @@
 <p><a href="#">Führerbrief des Gaues Wartburg 53</a> <span class="mark">Entwurf</span></p><h2>Empfohlen<span class="mark">später</span></h2>
 </div>
 </section>
+<section class="g-comp" id="autocomplete"><h2 class="g-name">autocomplete</h2>
+<h3 class="g-state">type to see suggestions (↓ ↑ Enter Esc; comma and Backspace in multiple)</h3>
+<datalist id="g-dl"><option>Bundeslager 2015</option><option>Bundeszeitschrift</option><option>Foto auf Holzplatte als Wandbild</option><option>Motiv: Tony Wirtz</option><option>Meißnertag 1963</option></datalist>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<p class="g-state">single (free text allowed)</p><div class="autocomplete"><input type="text" value="Bundeszeitschrift" list="g-dl" aria-label="Einzelwert 1"></div>
+<p class="g-state">multiple (chips)</p><div class="autocomplete" data-multiple><input type="text" value="Motiv: Tony Wirtz, Foto auf Holzplatte als Wandbild" list="g-dl" placeholder="Hinzufügen …" aria-label="Mehrere 1"></div>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<p class="g-state">single (free text allowed)</p><div class="autocomplete"><input type="text" value="Bundeszeitschrift" list="g-dl" aria-label="Einzelwert 2"></div>
+<p class="g-state">multiple (chips)</p><div class="autocomplete" data-multiple><input type="text" value="Motiv: Tony Wirtz, Foto auf Holzplatte als Wandbild" list="g-dl" placeholder="Hinzufügen …" aria-label="Mehrere 2"></div>
+</div>
+</section>
+<section class="g-comp" id="icon"><h2 class="g-name">icon</h2>
+<h3 class="g-state">the set in icons.svg, default size</h3>
+<p style="display:flex;flex-wrap:wrap;gap:var(--space-6);align-items:center"><span style="display:inline-flex;gap:var(--space-2);align-items:center"><svg class="icon" aria-hidden="true"><use href="icons.svg#pencil"/></svg><code>pencil</code></span><span style="display:inline-flex;gap:var(--space-2);align-items:center"><svg class="icon" aria-hidden="true"><use href="icons.svg#panel"/></svg><code>panel</code></span><span style="display:inline-flex;gap:var(--space-2);align-items:center"><svg class="icon" aria-hidden="true"><use href="icons.svg#x"/></svg><code>x</code></span><span style="display:inline-flex;gap:var(--space-2);align-items:center"><svg class="icon" aria-hidden="true"><use href="icons.svg#arrow-up"/></svg><code>arrow-up</code></span><span style="display:inline-flex;gap:var(--space-2);align-items:center"><svg class="icon" aria-hidden="true"><use href="icons.svg#arrow-down"/></svg><code>arrow-down</code></span></p>
+</section>
+<section class="g-comp" id="title-field"><h2 class="g-name">title-field</h2>
+<h3 class="g-state">filled (hover shows the edge, focus the ring)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel">Die Kompassnadel, Nr. 20</textarea></h1>
+</div>
+<h3 class="g-state">empty — the placeholder names it (Neuer Artikel)</h3>
+<div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel"></textarea></h1>
+</div>
+<div class="g-frame" style="--g-w: 56rem"><p class="g-size">M · 56rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel"></textarea></h1>
+</div>
+<div class="g-frame" style="--g-w: 80rem"><p class="g-size">L · 80rem</p>
+<h1 class="title-field"><textarea rows="1" aria-label="Titel" placeholder="Titel"></textarea></h1>
+</div>
+</section>
 <section class="g-comp" id="layouts"><h2 class="g-name">layouts</h2>
 <h3 class="g-state">columns: trio (auto-fit, --column-min)</h3>
 <div class="g-frame" style="--g-w: 24rem"><p class="g-size">S · 24rem</p>
@@ -868,5 +888,7 @@
 </div>
 </section>
 </main>
+<script type="module" src="autocomplete.js"></script>
+<script>/* gallery only: show the open-menu state */ document.querySelectorAll("[data-g-open]").forEach(m => { const b = document.querySelector(`[popovertarget="${m.id}"]`); try { m.showPopover({ source: b }); } catch { m.showPopover(); } });</script>
 </body>
 </html>

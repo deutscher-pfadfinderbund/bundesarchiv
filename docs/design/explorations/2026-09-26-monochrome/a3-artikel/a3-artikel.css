@@ -12,10 +12,7 @@
   .plate { display: grid; grid-template-columns: repeat(var(--plate-columns, 4), minmax(0, 1fr)); gap: var(--space-3); align-content: start; }
   .plate-item {
     aspect-ratio: 1; display: flex; align-items: flex-end; padding: var(--space-2);
-    border: var(--line); color: inherit; text-decoration: none;
-    background:
-      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2)),
-      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2));
+    border: var(--line-width) solid var(--faint); color: inherit; text-decoration: none; background: var(--placeholder);
   }
   .plate-item:first-child { grid-column: 1 / -1; padding: var(--space-3); }
   .plate-caption { padding: var(--space-1); background: var(--ground); font: var(--type-label); color: var(--ink-2); }

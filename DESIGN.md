@@ -1,365 +1,409 @@
 ---
 name: Bundesarchiv
-description: The DPB archive workbench — cut paper sheets on a gray desk, marked in stamp-ink violet.
+description: The DPB archive as a well-set printed catalogue. Black ink on white paper, type carries the order.
 colors:
-  # Light-mode resolutions of the role tokens. NORMATIVE SOURCE: src/bundesarchiv/app/web/static/tokens.css
-  # (seed → ramps → roles, each role a light-dark() pair). Dark values + canonical
-  # definitions live in .impeccable/design.json colorMeta. Change colors there, never here.
-  surface: "oklch(0.98 0 300)"
-  surface-container-lowest: "oklch(0.96 0 300)"
-  surface-container-low: "oklch(0.94 0 300)"
-  surface-container-mid: "oklch(0.92 0 300)"
-  surface-container-high: "oklch(0.90 0 300)"
-  on-surface: "oklch(0.25 0 300)"
-  on-surface-variant: "oklch(0.46 0 300)"
-  primary: "oklch(0.45 0.05 300)"
-  on-primary: "oklch(0.99 0 300)"
-  primary-container: "oklch(0.92 0.022 300)"
-  on-primary-container: "oklch(0.32 0.045 300)"
-  draft: "oklch(0.90 0.10 85)"
-  on-draft: "oklch(0.42 0.11 72)"
-  error: "oklch(0.52 0.20 27)"
-  on-error: "oklch(0.99 0 300)"
-  outline: "oklch(0.50 0 300)"
-  outline-variant: "oklch(0.84 0 300)"
-  focus-ring: "oklch(0.50 0.055 300)"
+  # Light-mode values. Dark values and the light-dark() pairs live in .impeccable/design.json
+  # colorMeta. NORMATIVE SOURCE until the retoken wave: the mock system,
+  # docs/design/explorations/2026-09-26-monochrome/system/system.css (@layer tokens).
+  # After it: src/bundesarchiv/app/web/static/tokens.css. Change colors there, never here.
+  paper-white: "#ffffff"
+  print-black: "#000000"
+  secondary-ink: "#595959"
+  quiet-ink: "#767676"
+  hairline: "#dcdcdc"
+  control-edge: "#8f8f8f"
+  faint: "#d0d0d0"
+  band-black: "#000000"
+  band-ink: "#ffffff"
+  band-secondary-ink: "#b3b3b3"
+  door-gray: "#333333"
+  on-door-gray: "#ffffff"
+  correction-red: "#c4000b"
 typography:
   wordmark:
-    fontFamily: "ui-serif, Iowan Old Style, Charter, Georgia, Times New Roman, serif"
+    fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
     fontSize: "1.5rem"
     fontWeight: 600
-    lineHeight: 1.2
+    lineHeight: 1
     letterSpacing: "0.12em"
     fontFeature: "small-caps"
-  display:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
-    fontSize: "1.35rem"
-    fontWeight: 600
-    lineHeight: 1.2
   title:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
-    fontSize: "1.05rem"
-    fontWeight: 600
+    fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
+    fontSize: "3rem"
+    fontWeight: 700
+    lineHeight: 1.08
+    letterSpacing: "-0.01em"
+  heading:
+    fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
+    fontSize: "2rem"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "-0.01em"
+  subhead:
+    fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
+    fontSize: "1.35rem"
+    fontWeight: 700
+    lineHeight: 1.25
+    letterSpacing: "-0.01em"
+  entry:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "1.1rem"
+    fontWeight: 400
     lineHeight: 1.35
+  query:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 400
+    lineHeight: 1.4
   body:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "0.95rem"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
+  control:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 600
+    lineHeight: 1
   meta:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "0.85rem"
+    fontSize: "0.9rem"
     fontWeight: 400
     lineHeight: 1.4
   label:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "0.72rem"
-    fontWeight: 600
+    fontSize: "0.9rem"
+    fontWeight: 400
     lineHeight: 1.3
-    letterSpacing: "0.02em"
-  mono:
+  note:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 400
+    lineHeight: 1.3
+  data:
     fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
-    fontSize: "0.85rem"
+    fontSize: "0.9rem"
     fontWeight: 400
     lineHeight: 1.4
-  mono-meta:
-    fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
-    fontSize: "0.78rem"
-    fontWeight: 400
-    lineHeight: 1.4
+    fontFeature: "tnum"
 rounded:
-  s: "4px"
-  m: "6px"
-  bevel: "12px"
+  none: "0"
 spacing:
-  "1": "0.25rem"
-  "2": "0.5rem"
-  "3": "0.75rem"
-  "4": "1rem"
-  "5": "1.25rem"
-  "6": "1.5rem"
-  "7": "1.75rem"
-  "8": "2rem"
+  space-1: "0.25rem"
+  space-2: "0.5rem"
+  space-3: "0.75rem"
+  space-4: "1rem"
+  space-5: "1.25rem"
+  space-6: "1.5rem"
+  space-7: "1.75rem"
+  space-8: "2rem"
+  space-9: "3rem"
+  space-10: "5.5rem"
 components:
-  button-quiet:
-    backgroundColor: "{colors.surface-container-low}"
-    textColor: "{colors.on-surface}"
-    typography: "{typography.meta}"
-    rounded: "{rounded.s}"
-    padding: "0.25rem 0.75rem"
-  button-quiet-hover:
-    backgroundColor: "{colors.surface-container-high}"
   button-primary:
-    backgroundColor: "{colors.on-surface}"
-    textColor: "{colors.surface}"
-    typography: "{typography.meta}"
-    rounded: "{rounded.s}"
-    padding: "0.25rem 0.75rem"
-  button-danger:
-    backgroundColor: "{colors.error}"
-    textColor: "{colors.on-error}"
-    typography: "{typography.meta}"
-    rounded: "{rounded.s}"
-    padding: "0.25rem 0.75rem"
+    backgroundColor: "{colors.print-black}"
+    textColor: "{colors.paper-white}"
+    typography: "{typography.control}"
+    rounded: "{rounded.none}"
+    padding: "0.75rem 1.25rem"
+  button-primary-hover:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.print-black}"
+  button-secondary:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.print-black}"
+    typography: "{typography.control}"
+    rounded: "{rounded.none}"
+    padding: "0.75rem 1.25rem"
+  button-secondary-hover:
+    backgroundColor: "{colors.print-black}"
+    textColor: "{colors.paper-white}"
+  button-door:
+    backgroundColor: "{colors.door-gray}"
+    textColor: "{colors.on-door-gray}"
+    typography: "{typography.control}"
+    rounded: "{rounded.none}"
+    padding: "0.75rem 1.25rem"
+  field-input:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.print-black}"
+    typography: "{typography.body}"
+    rounded: "{rounded.none}"
+    padding: "0.5rem 0.75rem"
   chip:
-    backgroundColor: "{colors.on-surface}"
-    textColor: "{colors.surface}"
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.print-black}"
     typography: "{typography.meta}"
-    rounded: "{rounded.s}"
-    height: "2rem"
-  input:
-    backgroundColor: "{colors.surface-container-lowest}"
-    textColor: "{colors.on-surface}"
+    rounded: "{rounded.none}"
+    padding: "0 0 0 0.5rem"
+  menu:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.print-black}"
+    typography: "{typography.body}"
+    rounded: "{rounded.none}"
+    padding: "0.5rem 0"
+  topbar:
+    backgroundColor: "{colors.band-black}"
+    textColor: "{colors.band-ink}"
     typography: "{typography.meta}"
-    rounded: "{rounded.s}"
-    padding: "0.25rem 0.5rem"
-  badge:
-    textColor: "{colors.on-surface-variant}"
-    typography: "{typography.label}"
-    rounded: "{rounded.s}"
-    padding: "0.125rem 0.5rem"
-  badge-entwurf:
-    backgroundColor: "{colors.draft}"
-    textColor: "{colors.on-draft}"
-    typography: "{typography.label}"
-    rounded: "{rounded.s}"
-    padding: "0.125rem 0.5rem"
-  sig-tab:
-    backgroundColor: "{colors.surface-container-low}"
-    textColor: "{colors.primary}"
-    typography: "{typography.mono}"
-    rounded: "6px 0 0 0"
-    padding: "0.25rem 0.5rem 0.25rem 0.75rem"
+    height: "4.25rem"
+  note:
+    textColor: "{colors.quiet-ink}"
+    typography: "{typography.note}"
 ---
 
 # Design System: Bundesarchiv
 
-> Portable digest of the incumbent system. The enforceable law is
-> `docs/design/design-review-law.md` (cue register, cascade rules) with
-> `docs/design/design-system.md` (principles, construction law); the token
-> source is `tokens.css`. Where this file and those disagree, those win.
+This file is the visual digest. The binding law is `docs/design/design-system.md` (principles
+with their reasons, tokens, components) and `docs/design/design-review-law.md` (how a change is
+reviewed, which cues are licensed). The mock system that proves both lives in
+`docs/design/explorations/2026-09-26-monochrome/system/` (`system.css`, `gallery.html`,
+`icons.svg`, `autocomplete.js`).
 
 ## Overview
 
-**Creative North Star: "The Archivist's Desk"**
+**Creative North Star: "Druckschwarz"**
 
-Every screen is a scene of physical archive objects on a gray desk. A new
-element must answer "what is this on the desk?" — a cut paper sheet, a bound
-register, a drawer tab, a stamp mark. The chrome is hueless paper: pure-gray
-surfaces, hairline edges, no decoration. Color is information, applied like
-ink: the desaturated stamp violet appears only on archival marks (Signatur
-codes, dates, counts, links, focus), draft amber and error red are the only
-loud voices, and everything else signals through neutral ink inversions.
+The archive looks like a well-set printed catalogue: black ink on white paper, and nothing a
+printer would not have. Type carries the order. Alignment and space make the structure, so lines
+are rare: a hairline appears only where a row has two ends that the eye must connect, and a frame
+only where things have no natural line between them (an input's edge, a chip). There is no second
+hue, no gray fill, no shadow, no rounded corner. Red is the only colour, and it means "this is
+wrong" or "this is about to remove something".
 
-This is a weekly work tool for volunteer archivists, not a showcase: density
-is workbench-compact, keyboard flow ranks with the visual laws, and
-simplicity is an owner requirement — waves remove complexity before adding
-capability. The system is seed-parametric: one `--seed` line retints the
-whole light+dark palette for a sibling DPB service.
+It is a working tool first. Archivists, the most important users, catalogue weekly on large
+screens; members read on phones. The look serves both by being quiet: every element is priced by
+what it costs the reader against what it gives them, and anything that signals what the user
+already knows is cut. The wordmark (small-caps serif) is the one flourish and stays. Dark mode is
+tuned, not inverted: no pure black or white, and lines are quieter because bright lines smear on
+black.
+
+Rejected on purpose: beige or "warm AI" palettes, violet, gray chrome and gray fills, scout
+costume, mono capitals as a label voice, decorative lines, dashes as separators.
 
 **Key Characteristics:**
-- Hueless paper chrome (chroma-0 neutrals); hue only on archival marks
-- Flat furniture: hairline borders, exactly two shadow tokens, no elevation ramps
-- Bound-register density: ruled rows, tabular mono figures, quiet hover reveals
-- Semantic HTML styled by the cascade (`@layer`), tokens as the single visual truth
-- German UI text, system font stacks, OS-following light/dark — no toggle
+- Two inks: black for content, one secondary gray for text only.
+- Serif only for the wordmark, section headings and article titles; sans for everything else;
+  mono only for data in columns.
+- Square corners everywhere; flat surfaces; one focus ring (3px ink).
+- Lines connect a row's two ends; they never separate.
+- Red only for errors, conflicts and removing controls about to act.
+- Every element priced (cost against gain) per screen size S / M / L.
 
 ## Colors
 
-A stamp pad on gray paper: one desaturated violet ink, two fixed-hue semantic
-voices, and a pure-gray neutral ramp — nothing else.
+A monochrome palette: two inks on paper, three grays with one job each, and one red.
 
 ### Primary
-- **Stamp-Ink Violet** (`--primary`, light `oklch(0.45 0.05 300)`): the
-  archival ink. Licensed only on marks — Signatur codes, mono dates/counts,
-  links, the focus ring, title hover. Never a fill for chrome, buttons, or
-  states. Derived from the seed `oklch(0.52 0.055 300)`; chroma deliberately
-  pulled to 0.055 so it reads as ink, not paint.
-- **Violet Sheet Tint** (`--primary-container`, light `oklch(0.92 0.022 300)`):
-  the Signatur tab's paper and the whisper-tint mixed into true sheets.
-
-### Semantic
-- **Draft Amber** (`--draft`/`--on-draft`): the ENTWURF lifecycle mark — the
-  one amber in the system. Published renders nothing (absence = published).
-- **Error Red** (`--error`/`--on-error`): form validation and the one
-  `button.danger` on confirm surfaces. Both hues are fixed by design — they
-  do not retint with the seed.
+- **Print Black** (#000000): all content text, headings, the primary button's fill, the focus
+  ring, the active option in a suggestion list (inverted: black ground, white text).
 
 ### Neutral
-- **Paper grays** (`--surface` 0.98 → `--surface-container-high` 0.90, light):
-  page → panel → card → raised, all chroma 0. The hued-marks-vs-hueless-chrome
-  divide is the system's backbone.
-- **Ink grays** (`--on-surface` 0.25, `--on-surface-variant` 0.46): primary
-  and secondary text ink; `--on-surface-disabled` fades toward the surface.
-- **Hairlines** (`--outline` 0.50, `--outline-variant` 0.84): control edges
-  and the darker rules that bind the register.
+- **Paper White** (#ffffff): the page ground and every floating panel (menu, popover, suggestion
+  list), even when their button sits in the black band.
+- **Secondary Ink** (#595959, 7:1): secondary text only: labels, hints, asides, meta lines,
+  crumbs, quiet icons. Never a fill, never a line.
+- **Quiet Ink** (#767676, ≥4.5:1): the quietest text, the note beside a label or heading
+  ("intern").
+- **Hairline** (#dcdcdc, ~1.4:1): the one connecting line, drawn only between the two ends of a
+  row. Too faint to be an affordance on purpose.
+- **Control Edge** (#8f8f8f, ≥3:1): the edge of an input, a chip box, a floating panel. An
+  affordance, so it meets the 3:1 non-text contrast floor; it is not a connector.
+- **Faint** (#d0d0d0): present but inactive: disabled arrows, the placeholder cross of an item
+  without an image. Tuned brighter in dark, where the hairline would vanish.
+- **Band Black** / **Band Ink** / **Band Secondary Ink** (#000 / #fff / #b3b3b3): the top bar, an
+  inverse band on light. In dark it becomes the page with an edge.
+- **Door Gray** (#333333, text #fff): the one sanctioned gray fill, the "Anmelden mit DPB Login"
+  button on the door page (owner ruling).
+
+### Semantic
+- **Correction Red** (#c4000b light, #ff6b61 dark): field errors and conflicts (a doubled edge),
+  the conflict notice's heavy rule and heading, a removing control on hover, press and focus, the
+  committing button of a delete confirm.
 
 ### Named Rules
-**The Stamp Grammar Rule.** Seed tint appears only on archival marks.
-Selection, active, and primary states are neutral ink inversions (swap
-fg/bg), never tint fills. Draft amber and error red are the only loud colors.
+**The Two-Ink Rule.** Black carries content, one gray carries secondary text. Gray never fills a
+surface and never draws chrome.
 
-**The One-Line-Swap Rule.** A sibling service changes exactly one line — the
-seed — and inherits a coherent light+dark palette. Nothing below the ramp
-layer mixes color by hand; a hex in component CSS is a defect.
+**The Red Acts Rule.** Red appears only where something is wrong or something is about to be
+removed. Not for warnings, not for emphasis, not for decoration.
+
+**The Tuned Dark Rule.** Dark mode re-points the same roles with its own values (#0b0b0b ground,
+#f0f0f0 ink); nothing is designed dark-only, and nothing is a plain inversion.
 
 ## Typography
 
-**Display Font:** system-ui stack (working sans)
-**Body Font:** system-ui stack
-**Mono Font:** ui-monospace stack (Signaturen, Datierungen, counts — tabular)
-**Wordmark Font:** ui-serif stack, small-caps — the header's "Bundesarchiv" mark only
+**Display Font:** the system serif (ui-serif, Iowan Old Style, New York, Charter, Georgia)
+**Body Font:** the system sans (system-ui, -apple-system, Segoe UI, Roboto)
+**Data Font:** the system mono (ui-monospace, SF Mono, Menlo, Consolas), tabular figures
 
-**Character:** plain working sans everywhere, tabular mono for archival
-figures, and exactly one face with character: the Kapitälchen-serif wordmark.
-Labels read mixed case at a hair of tracking (0.02em) — the letterspaced
-uppercase label voice retired system-wide (owner 2026-08-22/28).
+**Character:** a bookish serif for rank and a neutral sans for work. The serif appears rarely,
+so each appearance means "a new section" or "this record".
 
 ### Hierarchy
-- **Wordmark** (600, 1.5rem/1.2, 0.12em tracking, small-caps serif): header mark only.
-- **Display** (600, 1.35rem/1.2): screen titles.
-- **Title** (600, 1.05rem/1.35): card and reader titles.
-- **Body** (400, 0.95rem/1.5): running text, ledger titles.
-- **Meta** (400, 0.85rem/1.4): dense controls, buttons, secondary cells.
-- **Label** (600, 0.72rem/1.3, 0.02em, mixed case): facet headings, column heads, badges.
-- **Mono / Mono-meta** (400, 0.85 / 0.78rem, tabular-nums): Signaturen, dates, counts.
+- **Wordmark** (small caps 600, 1.5rem, tracking 0.12em): the top bar's "Bundesarchiv" only.
+- **Title** (serif 700, 3rem / S 2rem, 1.08): the page h1: the article title, the start heading.
+  On the edit form the title is itself the input (see Components).
+- **Heading** (serif 700, 2rem / S 1.6rem, 1.1): section h2.
+- **Subhead** (serif 700, 1.35rem, 1.25): secondary sections (the form's sections, onward lists).
+  A title in a side column takes the heading role.
+- **Entry** (sans 400, 1.1rem, 1.35): the lead of a list row.
+- **Query** (sans 400, 1.25rem / S 1.1rem, 1.4): the search sentence and the large search field.
+- **Body** (sans 400, 1rem, 1.5): running text, inputs; prose at most 65ch.
+- **Control** (sans 600, 0.95rem, 1): buttons and pager steps.
+- **Meta** / **Label** (sans 400, 0.9rem): asides, column heads, crumbs, hints / field and fact
+  labels, mixed case.
+- **Note** (sans 400, 0.8rem, Quiet Ink): an annotation touching its label or heading.
+- **Data** (mono 400, 0.9rem, tabular): counts, dates, Signaturen, when they stand in a column.
 
 ### Named Rules
-**The One Role Rule.** Every text node maps to exactly one type role
-(`font: var(--type-*)`). An ad-hoc font-size, weight, or case in component
-CSS is the typographic raw hex. New roles enter tokens.css deliberately.
+**The Serif Rank Rule.** Serif marks rank: the wordmark, section headings, article titles.
+Lists, body, labels and buttons are sans.
+
+**The Mono Column Rule.** Mono only for values that align in a column. A single date or Signatur
+in running text or a fact list is sans.
+
+**The One Role Rule.** Every text node uses exactly one type role. An ad-hoc size or weight is a
+defect; counts never appear at display size.
 
 ## Layout
 
-The workbench composes header · filter rail · results ledger · preview pane.
-Views are self-contained work surfaces that adapt to their **container**
-(`@container`), never the viewport; compositions arrange views per available
-space. Below 1280px (80rem) the pane disappears and rows navigate to the
-detail page.
+One main column capped at 80rem (content box ~74rem), a 3rem gutter (S: 1rem). Space is the main
+structural tool: section gap 5.5rem (S: 3rem), block gap 2rem, a head sits 1rem above its content
+so it belongs to it, rows pad 0.75rem. The 4px scale (`space-1` … `space-10`) is the only source
+of distances.
 
-- **Control rows** (header, filter rail, toolbars): a row sets one
-  `--control-height` knob (2.75rem, compact 2rem) and every control on the
-  line consumes it — equal heights hold by construction.
-- **Intrinsic first:** mono columns sit at max-content over floor knobs, the
-  unbounded Titel absorbs slack and ellipsizes first; no invented
-  breakpoints. The one width query is the phone-width ~32rem container fold,
-  derived arithmetically from the track floors.
-- **Spacing:** 4px-base scale (`--space-1` … `--space-8`), workbench-compact.
-- **Stacking:** the named z-scale (overlay-panel 2 < control-row 4 < header 5
-  < banner 10); a bare z-index is a defect.
+Three sizes, judged on the container: **S** < 40rem (phone), **M** 40–80rem, **L** ≥ 80rem. Every
+component declares per size one of: full, compact, folded (behind a disclosure opened on
+purpose), absent. S is tuned for finding and viewing (one column, one task, filters folded);
+L for archivist work (side columns, a sticky form margin, bulk actions). Type size follows the
+viewport, not the container, so a heading keeps its rank in a narrow column.
+
+Destinations are few: start, one list, article, forms, door. Everything else (a Bestand, a decade,
+a search, "Meine Entwürfe") is a preset of the one list. The list's heading is a search sentence:
+"Suche [Feld] in Gruppen des DPB · alle Jahrzehnte · jeder Typ + Filter". Breadcrumbs show the
+place ("Archiv › Bund").
+
+### Named Rules
+**The Alignment-First Rule.** Structure comes from alignment and spacing. Draw a line only where
+no natural line appears.
+
+**The Two-Ended Line Rule.** A hairline ties a row's two ends so the eye does not slip. Never above
+the first or below the last row, never under headers or filter bars.
+
+**The Priced Element Rule.** Every element, and every fix, is priced (attention, size, reading)
+against its gain for these users, per size. High cost and low gain: cut.
 
 ## Elevation & Depth
 
-Flat by conviction. Resting surfaces are paper on the desk: hairline edges,
-no fills, no elevation ramps, no shadow stacks. Depth exists in exactly two
-tokens:
-
-### Shadow Vocabulary
-- **Resting contact** (`--sheet-shadow`: `0 1px 2px` low-alpha ink): true
-  sheets only — the pulled preview sheet, confirm panels, the empty state —
-  the way a sheet resting on a desk touches it.
-- **Overlay** (`--overlay-shadow`: `0 2px 8px` low-alpha ink): transient
-  floating panels only — rail dropdowns, the "+ Neu …" create menu.
+Flat. There are no shadows at rest and none in motion. Floating panels (the menu, the ⓘ popover,
+the suggestion list) are page surface with a Control Edge border, placed in the top layer by the
+native popover; the edge, not a shadow, separates them. Focus is the one depth-like cue: a 3px
+Print Black outline, offset 3px; where an underline is the field (the title field, the compact
+search), focus thickens that underline to 3px instead.
 
 ### Named Rules
-**The Furniture-vs-Sheet Rule.** Facet panels and control chrome are
-furniture: flat, hairline-edged, shadowless. Only true sheets carry the
-seed-tinted material (`--sheet`) and the contact shadow. Only transient
-overlays float.
+**The Flat Rule.** No shadow, glow, gradient or blur anywhere. Separation comes from an edge or
+from space.
 
 ## Shapes
 
-Cut paper, not pebbles: small radii (4px controls, 6px cards) and the house
-signature — the index-card **bevel cut** via native `corner-shape: bevel`
-(12px) on the leading (top-left) corner, licensed for the drawer-tab family
-only (Signatur tab, facet tab). Trapezoid double-cuts are reserved, not
-licensed. Older browsers render rounded corners instead — accepted, no
-fallback. Absence renders as a hollow slot: dashed `--outline-variant`
-border, no fill ("ohne Signatur", empty state).
+Square corners everywhere (radius 0): buttons, inputs, chips, panels, thumbnails. Lines are 1px
+(the heavy notice rule is 3px). Frames are rare and each earns its place: an input's edge, a chip,
+a floating panel, a placeholder tile. An item without an image draws a thin cross in Faint inside
+its tile. There is no bevel, no pill, no circle; the help mark is the text character ⓘ.
 
 ## Components
 
 ### Buttons
-- **Shape:** 4px radius, hairline `--outline` border, meta type.
-- **Quiet (default):** `surface-container-low` fill, hover `-high`. "Suchen",
-  toolbar actions, the "+ Neu …" disclosure summary share one declaration set.
-- **Primary:** neutral ink inversion (`on-surface` bg / `surface` text) —
-  form submits only (Anlegen, Speichern, Veröffentlichen). Not violet.
-- **Danger:** `error`/`on-error` fill — the one destructive variant, confirm
-  surfaces only.
-- **Link buttons** (`button.link`): read as inline text in stamp ink.
-
-### Chips
-- **Style:** the active-filter mark — full ink inversion, meta type, compact
-  2rem hit height from the rail's knob, labeled remove ✕ inside.
-- **State:** a chip *is* the active state; no unselected variant exists.
+- **Shape:** square (0), padding 0.75rem 1.25rem, Control type, 1px ink border.
+- **Primary:** solid Print Black, white text; hover inverts to outline. One per surface (Speichern,
+  Anlegen, Suchen).
+- **Secondary:** outline, ink text; hover fills.
+- **Door:** Door Gray fill, white text; the door page's login only.
+- **Add ("+ …"):** not a framed button: a plain meta-size text control starting with "+"
+  ("+ Angabe hinzufügen", "+ Dateien hinzufügen", the top bar's "+ Neu …"); underline on hover.
+- A `label` styled as a button (file chooser) gets the pointer cursor from the component.
 
 ### Inputs / Fields
-- **Style:** `surface-container-lowest` fill, hairline border, 4px radius;
-  labels above in label type via `.field`.
-- **Focus:** 2px `--focus-ring` outline at 2px offset (global invariant)
-  plus border deepening to `on-surface`.
-- **Error:** `.error` message node's presence turns the field border red. A
-  message never joins the control's accessible name: it is wired by
-  `aria-describedby`, and the name comes from the label text alone — an explicit
-  `<label for>` on a `div.field`, or, on the record card's bare `<label>` rows
-  (C14), `aria-labelledby` on the label span.
-- **File input stays native** (German browser renders German strings).
+- **Style:** label above in Label type, Secondary Ink; the control has a 1px Control Edge, Paper
+  White ground, 0.5rem 0.75rem padding, one height for inputs and selects.
+- **Focus:** the 3px ink ring. **Hover:** edge turns ink.
+- **Error / conflict:** `aria-invalid="true"` doubles the edge in Correction Red (border plus a
+  1px inset), with the message or "Inzwischen gespeichert: …" under the field.
+- **Markers:** "*" after a required label, in the label's own ink; the note "intern" after a field
+  or heading shown only to archivists. The minority is marked, never the rule.
+- **Hint:** one line at most, Secondary Ink; details go behind an ⓘ that opens a popover.
+- **Textarea:** at least N lines (`min-block-size` in `lh`), grows with its text where
+  `field-sizing: content` works.
+- **Title field:** the page h1 is the record's title, editable in place: no label, no frame, a
+  hairline under it on hover, a 3px underline on focus, the placeholder "Titel" while empty.
 
-### Voice patterns (precedent targets)
-- **Consequence disclosure:** per-record `{alt} → {neu}` rows (weight, not
-  color) + a commit button that relabels itself to name the full
-  consequence. Any surface overwriting or clearing data copies this grammar;
-  a bare count is not a disclosure.
-- **Conflict is not an error:** CAS/stale-selection outcomes render as quiet
-  rows with per-row onward links and one collective recovery — no red. Red
-  is reserved for the archivist's own invalid input.
+### Autocomplete (signature component)
+- **Single:** a text field that suggests from a list; free text stays allowed (Medienart,
+  Dokumenttyp, the Feld of Weitere Angaben).
+- **Multiple:** chosen values become square chips inside one field edge (a hairline frame, meta
+  type, a removing ×), then the typing input. Enter or comma adds, Backspace removes the last,
+  pasted lists split, pending text is added on leaving the field (Schlagworte, Gruppen).
+- **Suggestions:** a Paper White list with a Control Edge; the active option inverts (black
+  ground, white text).
+- Without JS it is the plain input with the native datalist; the server contract is the comma list.
 
-### Badges
-- **Default:** hairline outline, label type, transparent — quiet.
-- **ENTWURF:** the one amber mark. Boxed on reader/edit headers; in the
-  ledger it rides the Titel as a quiet unboxed amber mono mark.
+### Remove
+- One × for every removal (media rows, Weitere Angaben rows, chips): Secondary Ink at rest,
+  Correction Red on hover, press and focus. Where it deletes for good it also asks first
+  (`hx-confirm`; without JS the server's two-step).
 
-### Signatur Tab (signature component)
-The article reader header's mark: mono stamp-ink code on `primary-container`
-paper with the beveled leading corner. Everywhere else the same include
-renders as plain violet-ink mono code — repetition dilutes a mark. Absent
-`ref_code` → dashed hollow slot, "ohne Signatur".
+### Menu
+- A text button ending in "…" opens a native popover list: Paper White, Control Edge, rows of
+  links or buttons, underline on hover. Anchored under its button, right edges aligned. A
+  destructive entry ("Löschen") turns red on hover, press and focus.
 
-### Ledger (signature component)
-The results register as a bound book: hairline horizontal rules only, no
-header band, no zebra, no side chrome; the one vertical rule closes the
-Signatur column. Five subgrid tracks (bulk · SIG · Titel · Datierung · Typ ·
-toolbar). Row hover reveals the action toolbar and bulk checkboxes
-(pointer devices; touch keeps them visible); the checked checkbox is the
-selection mark. The current row carries the one fill
-(`surface-container-high`). Titel hover = link ink + underline; no
-persistent link styling.
+### Navigation
+- **Top bar:** Band Black, 4.25rem, the wordmark left; right: "+ Neu …" (archivists) and
+  "Abmelden". No account name, no browse items.
+- **Crumbs:** meta type, Secondary Ink, underlined links, "›" between steps, first step "Archiv".
+- **Search sentence:** the list's heading; set filters in ink, open ones quieter, centre dots
+  between them.
 
-### Facet Dropdowns
-Native `<details>` on the filter rail: flat hairline summary (furniture),
-dropped `<ul>` panel floating on `--overlay-shadow`, positioned against the
-control row (not the trigger; anchor positioning is a progressive
-enhancement). One open at a time; active row marked by inversion via
-`aria-current`.
+### Register and Ledger
+- **Register:** ruled rows, label left, quiet figure right; a hairline only on rows with two ends.
+- **Ledger:** the result table in hairlines; one lead per row (the title in Entry type), facts one
+  tier quieter; the sort arrow on the active column is the only sort feedback.
 
-### Pagination
-Plain prev/next links; the current page stands in tabular mono ink.
+### Record margin (form)
+- The form's margin (sticky at L): the conflict notice when there is one (a 3px red rule, a red
+  subhead, one sentence with the changed fields as links), then "Status", "Sichtbar für" (the
+  inherited option names its value; Gruppen appears only for "Bestimmte Gruppen"), Speichern with
+  "Mehr …", and the version line.
+
+### Note and Mark
+- **Note:** Note type in Quiet Ink, touching what it qualifies ("Standort intern").
+- **Mark:** a state in words, Label type, Secondary Ink ("Entwurf", "Titelbild"); never a box.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** reference role tokens only; new colors enter via the ramp layer or not at all.
-- **Do** reach for native semantic HTML first (`details`, `dialog`, `fieldset`, `output`, …); style it with the cascade in the declared `@layer` order (tokens < elements < components < compositions < modes).
-- **Do** copy the nearest approved view and change the minimum (the precedent rule); one pattern per problem.
-- **Do** let every signal carry information exactly once — no labels restating the visible, no badges for default states.
-- **Do** size controls from the row's `--control-height` knob and adapt views with container queries over intrinsic track floors.
-- **Do** trace every visible element to an archivist wish, an owner ruling, or a spec section.
+- **Do** let alignment and the space scale make the structure; draw a hairline only on a row's two
+  ends.
+- **Do** price every element and every fix per size (S / M / L); cut high cost, low gain.
+- **Do** inherit: a part sets only what differs from its context. A marker or icon inside text
+  takes the text's colour and size.
+- **Do** keep controls with their state: the result range in the pager, the sort direction in the
+  column head, the audience in "Sichtbar für".
+- **Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows),
+  drawn in Faint.
+- **Do** make every icon-only control name itself (`aria-label`); icons come from the one set.
+- **Do** use centre dots to separate items in a line.
 
 ### Don't:
-- **Don't** put a hex, ad-hoc font-size, bare px dimension, or bare z-index in component CSS — tokens are the single visual truth.
-- **Don't** use seed violet as a fill or state color; states invert neutral ink. Amber is ENTWURF's, red is validation's — do not repurpose.
-- **Don't** add shadows beyond the two tokens — no elevation ramps, no ripple, no gradients-as-lighting, no textures.
-- **Don't** extend the deprecated `c-*`/`l-*` class taxonomy; classes only where semantics cannot discriminate, named for meaning.
-- **Don't** un-hide `[hidden]` via display rules (the one sanctioned `!important` enforces it); JS reveals by removing the attribute.
-- **Don't** invent chrome "for completeness" — the system must ship complete with every Pfadfinder extension removed.
+- **Don't** add a second hue, a gray fill, gray chrome, violet, beige or any "warm" tint.
+- **Don't** use shadows, gradients, rounded corners, pills or bevels.
+- **Don't** label roles ("nur Archivare"), mark what a list title already says, or place off-topic
+  actions.
+- **Don't** signal what the user already knows (no highlight for the column they just sorted).
+- **Don't** hide a control that can become active on this page.
+- **Don't** set labels in mono capitals, and don't use mono outside columns of data.
+- **Don't** frame an add action or draw a line that separates instead of connects.
+- **Don't** show counts at display size.
+- **Don't** use dashes as separators.

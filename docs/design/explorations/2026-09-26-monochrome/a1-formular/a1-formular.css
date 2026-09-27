@@ -3,83 +3,117 @@
    knobs listed at the top of each section, tokens only. Linked after system.css. */
 @layer components {
 
-  /* ---------- field — a label over a boxed control; its hint, echo, error and conflict under it ----------
+  /* ---------- field — a label over a boxed control; its hint, error and conflict under it ----------
      Knobs: --field-type (control type, default --type-body), --field-edge (frame colour, default
      --ink-2 — the frame is the input's edge and must stay visible, see NOTES).
-     Parts: .field-label (the label line; an optional .field-aside action at its end), the control
-     (input, select or textarea, at any depth — the lead field wraps it in the page's h1),
-     .field-echo (the value read back), .field-hint, .field-error, .field-was (the stored value
-     after a conflict). A control without a visible label names itself (aria-labelledby). */
+     Parts: .field-label (the label line; a "*" = required, in the label's own voice; a system
+     .note "intern" = never shown outside the archivists; the minority is marked, never the rule), the control (input, select, textarea or an .autocomplete), .field-hint (one line at most; an optional .help at its end),
+     .field-error, .field-was (the stored value after a conflict). A control without a visible label names itself (aria-labelledby). */
   .field { display: flex; flex-direction: column; gap: var(--space-2); min-inline-size: 0; }
   .field-label {
-    display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4);
+    display: flex; align-items: baseline; gap: var(--space-2);
     font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2);
   }
   .field :is(input, select, textarea) {
     inline-size: 100%; margin: 0; padding: var(--space-2) var(--space-3);
-    font: var(--field-type, var(--type-body)); color: var(--ink); background: var(--ground);
+    font: var(--field-type, var(--type-body)); background: var(--ground);
     border: var(--line-width) solid var(--field-edge, var(--edge)); border-radius: 0;
   }
   .field :is(input:not([type="file"]), select) { min-block-size: calc(1lh + 2 * var(--space-2) + 2 * var(--line-width)); } /* select and input one height */
-  .field textarea { display: block; resize: vertical; }
-  .field h1 textarea { resize: none; field-sizing: content; } /* the lead field grows like a heading */
-  .field :is(input, select, textarea):hover { border-color: var(--ink); }
-  .field :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--error); }
-  .field ::placeholder { color: var(--ink-2); }
-  /* the native chooser stays (a German browser speaks German); its button reads as the box's action */
-  .field input[type="file"] { color: var(--ink-2); cursor: pointer; }
-  .field ::file-selector-button {
-    margin-inline-end: var(--space-4); padding: 0; font: var(--type-control); color: var(--ink);
-    background: none; border: 0; text-decoration: underline; text-underline-offset: var(--underline-offset); cursor: pointer;
+  /* a textarea is --field-lines tall at least, and grows with its text where field-sizing works */
+  .field textarea {
+    display: block; resize: vertical; field-sizing: content;
+    min-block-size: calc(var(--field-lines, 3) * 1lh + 2 * var(--space-2) + 2 * var(--line-width));
   }
-  .field-echo, .field-was { font: var(--type-meta); color: var(--ink); }
+  .field :is(input, select, textarea):hover { border-color: var(--ink); }
+  /* the error edge is doubled (border + inset): a 1px red line alone does not stand out from the gray edge */
+  .field :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--error); box-shadow: inset 0 0 0 var(--line-width) var(--error); }
+  .field-was { font: var(--type-meta); }
   .field-hint { font: var(--type-meta); color: var(--ink-2); }
   .field-error { font: var(--type-meta); color: var(--error); }
-  .field-aside { font: var(--type-meta); color: var(--ink-2); text-decoration: underline; text-underline-offset: var(--underline-offset); }
-  .field-aside:hover { color: var(--ink); }
 
   /* ---------- record-meta — the form's margin: state, one line of consequence, the actions ----------
      Knobs: none. Parts: .record-meta-state (the record's state in words), .record-meta-line (the
-     consequence: who sees it, what the next click does), an optional nested register (the fields a
-     conflict touches, each a link to its field), .record-meta-actions (Speichern first — Enter
+     consequence: what the next click does), the "Sichtbar für" field (+ .record-meta-groups, shown
+     only for "Bestimmte Gruppen"), an optional nested register (the fields a conflict touches, each a
+     link to its field), .record-meta-actions (Speichern first — Enter
      submits the first submit button, and Enter never publishes). */
   .record-meta { display: flex; flex-direction: column; gap: var(--space-2); }
-  .record-meta-state { font: var(--type-entry); color: var(--ink); }
+  .record-meta-state { font: var(--type-entry); }
   .record-meta-line { font: var(--type-meta); color: var(--ink-2); }
+  .record-meta > .field { margin-block-start: var(--space-3); }
+  @supports selector(:has(a)) { /* without :has the Gruppen field simply stays visible */
+    .record-meta-groups { display: none; }
+    .record-meta:has(option[value="groups"]:checked) .record-meta-groups { display: flex; }
+  }
+  /* a conflict outranks everything in the margin: a heavy red rule and a red heading over it */
+  .record-meta-alert {
+    display: flex; flex-direction: column; gap: var(--space-1); margin-block-end: var(--space-3);
+    padding-block-start: var(--space-3); border-block-start: var(--focus-width) solid var(--error);
+  }
+  .record-meta-alert-head { font: var(--type-subhead); color: var(--error); }
   .record-meta-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); margin-block-start: var(--space-3); }
 
   /* ---------- file-row — one medium in the Medien register ----------
      Knobs: none. Parts: .file-row-thumb (the preview; draws the placeholder cross while empty),
      .file-row-name (filename over size and marks), a nested .field (the caption),
-     .file-row-tools (↑ ↓ ×; the end rows' arrows stay visible, disabled).
+     .file-row-tools (↑ ↓ and a .remove; the end rows' arrows stay visible, drawn in the faint
+     line colour when disabled — disabled controls are exempt from contrast, and faint says "not here").
      Lines come from the register it sits in. S: caption and tools move under the name. */
   .file-row {
     display: grid; grid-template-columns: var(--space-10) minmax(0, 1fr) minmax(0, 1.3fr) auto;
     align-items: center; gap: var(--space-3) var(--space-5); padding-block: var(--pad-row);
   }
   .file-row-thumb {
-    aspect-ratio: 1; border: var(--line);
-    background:
-      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2)),
-      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2));
+    aspect-ratio: 1; border: var(--line-width) solid var(--faint); background: var(--placeholder);
   }
   .file-row-name { display: flex; flex-direction: column; gap: var(--space-1); min-inline-size: 0; overflow-wrap: anywhere; }
   .file-row-name small { font: var(--type-meta); color: var(--ink-2); }
   .file-row-tools { display: flex; gap: var(--space-1); }
-  .file-row-tools button { min-inline-size: var(--space-8); min-block-size: var(--space-8); font: var(--type-control); color: var(--ink); }
-  .file-row-tools button:hover:enabled { text-decoration: underline; }
-  .file-row-tools button:disabled { color: var(--ink-2); cursor: default; }
+  .file-row-tools :where(button) { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
+  .file-row-tools :where(button:hover:enabled) { color: var(--ink); } /* :where keeps it below .remove */
+  .file-row-tools :where(button:disabled) { color: var(--faint); cursor: default; }
   @container (width < 40rem) {
     .file-row { grid-template-columns: var(--space-9) minmax(0, 1fr); align-items: start; }
     .file-row > :nth-child(n + 3) { grid-column: 2; }
   }
 
-  /* ---------- upload — the native file chooser paired with its one action ----------
-     Knobs: none. Parts: a nested .field holding input[type=file], then a .button, then
-     .upload-hint under both. Reads as one sentence: choose files, then upload them. */
-  .upload { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3) var(--space-4); }
-  .upload > .field { flex: 1 1 var(--column-min); }
-  .upload-hint { flex-basis: 100%; font: var(--type-meta); color: var(--ink-2); }
+  /* ---------- upload — "+ Dateien hinzufügen" opens the file chooser; the chosen files upload at once ----------
+     Knobs: none. Parts: a label.add wrapping input[type=file] (kept focusable, visually hidden).
+     Upload on choose needs JS; without it the page shows the native input and a submit (NOTES). */
+  .upload { display: flex; }
+  .upload input[type="file"] { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .upload label:has(:focus-visible) { outline: var(--focus-width) solid var(--ink); outline-offset: var(--focus-width); }
+
+  /* ---------- help — the character ⓘ (U+24D8) that opens what the hint line has no room for ----------
+     Knobs: none. Parts: button.help (popovertarget names a .popover; aria-label says what it
+     explains). Click, tap and keyboard open it; hover alone never does (touch has no hover). */
+  .help { margin-inline-start: var(--space-2); } /* everything else comes from the hint it sits in */
+
+  /* ---------- popover — the surface a help or remove button opens (native [popover]) ----------
+     Knobs: none. Parts: a <dl> of example · meaning. M/L: anchored under its button; S: the centred native popover. */
+  .popover {
+    max-inline-size: min(28rem, calc(100vw - 2 * var(--gutter))); padding: var(--space-4) var(--space-5);
+    font: var(--type-meta); background: var(--ground); border: var(--line-width) solid var(--edge);
+  }
+  @supports (position-area: block-end) { @media (width >= 40rem) {
+    .popover { inset: auto; margin: var(--space-2) 0 0; position-area: block-end span-inline-end; position-try-fallbacks: flip-inline; }
+  } }
+  .popover dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-5); }
+  .popover dt { font: var(--type-data); }
+
+  /* ---------- remove — a cross; every removal in the product is this one control ----------
+     Knobs: none. Red on hover, press and focus (rule: a removing control is red while it is about to
+     act). Where it deletes for good it also asks first: hx-confirm on the button (the browser's own
+     dialog; without JS the server's two-step confirm). */
+  .remove { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
+  .remove:is(:hover, :active, :focus-visible) { color: var(--error); }
+
+
+  /* ---------- add — "+ …": adds one more row of its kind (the top bar's "+ Neu …" voice) ---------- */
+  .add { justify-self: start; align-self: start; font: var(--type-meta); cursor: pointer; } /* also a label (file chooser) */
+  .add:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+
 }
 
 @layer layouts {
@@ -106,4 +140,16 @@
     grid-template-columns: repeat(auto-fill, minmax(max(min(100%, var(--field-grid-min, var(--column-min))), calc((100% - var(--space-8)) / 2)), 1fr));
   }
   .field-grid > [data-span="all"] { grid-column: 1 / -1; }
+
+  /* pairs — one custom-bag row: Feld | Wert | remove. S: the remove moves beside Feld. */
+  .pairs {
+    display: grid; align-items: end; gap: var(--space-4) var(--space-5);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; grid-template-areas: "key value remove";
+  }
+  .pairs > :nth-child(1) { grid-area: key; }
+  .pairs > :nth-child(2) { grid-area: value; }
+  .pairs > :nth-child(3) { grid-area: remove; min-block-size: calc(1lh + 2 * var(--space-2) + 2 * var(--line-width)); } /* centred on the input it removes */
+  @container (width < 40rem) {
+    .pairs { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "key remove" "value value"; }
+  }
 }

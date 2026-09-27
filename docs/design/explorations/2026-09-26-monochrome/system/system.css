@@ -23,6 +23,8 @@
     --page-ink-2: light-dark(#595959, #a0a0a0); /* secondary text only; 7:1 on white */
     --page-rule: light-dark(#dcdcdc, #262626); /* the one line: ~1.4:1 light, ~1.35:1 dark */
     --page-edge: light-dark(#8f8f8f, #6e6e6e); /* a control's edge (input frame): an affordance, ≥3:1 — not a connector */
+    --page-ink-3: light-dark(#767676, #7c7c7c); /* the quietest text (a note like "intern"): still ≥4.5:1 */
+    --page-faint: light-dark(#d0d0d0, #555); /* present but inactive: disabled controls, placeholder drawings. Dark is tuned up: --rule would vanish on black */
     --band-ground: light-dark(#000, #0b0b0b); /* top bar: inverse band on light, page in dark */
     --band-ink: light-dark(#fff, #f0f0f0);
     --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
@@ -39,6 +41,12 @@
     --ink-2: var(--page-ink-2);
     --rule: var(--page-rule);
     --edge: var(--page-edge);
+    --ink-3: var(--page-ink-3);
+    --faint: var(--page-faint);
+    /* the placeholder cross of an item without an image — one drawing for every placeholder */
+    --placeholder:
+      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--page-faint) 50%, transparent calc(50% + var(--line-width) / 2)),
+      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--page-faint) 50%, transparent calc(50% + var(--line-width) / 2));
 
     /* Type — every text node uses exactly one role. Families: serif (wordmark, headings, list
        entries), sans (everything else), mono (data in columns). */
@@ -52,6 +60,7 @@
     --type-entry: 400 1.1rem/1.35 var(--sans); /* the lead of a list row — sans (owner: serif only for headings + titles) */
     --type-query: 400 1.25rem/1.4 var(--sans); /* search sentence, large search field */
     --type-body: 400 1rem/1.5 var(--sans);
+    --type-note: 400 0.8rem/1.3 var(--sans); /* a quiet annotation next to a label or heading */
     --type-control: 600 0.95rem/1 var(--sans); /* buttons, pager steps */
     --type-meta: 400 0.9rem/1.4 var(--sans); /* asides, column heads, crumbs, top-bar tools */
     --type-label: 400 0.9rem/1.3 var(--sans); /* fact labels, marks — sans, mixed case (owner: no mono capitals as a label voice) */
@@ -143,14 +152,16 @@
   table { inline-size: 100%; border-collapse: collapse; }
   th { font: var(--type-meta); color: var(--ink-2); text-align: start; }
   /* an input is an underline; a frame is added only where the field is the page's content */
+  /* form controls do not inherit by browser default; reset once, so parts never restate it */
+  :is(input, select, textarea, button) { font: inherit; color: inherit; letter-spacing: inherit; }
+  ::placeholder { color: var(--ink-2); opacity: 1; }
   input {
-    min-inline-size: 0; font: inherit; color: var(--ink); background: transparent;
+    min-inline-size: 0; background: transparent;
     border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0;
     padding: var(--space-1) 0;
   }
-  input::placeholder { color: var(--ink-2); }
   /* a bare button or summary is text; the .button component gives it a body */
-  :is(button, summary) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :is(button, summary) { background: none; border: 0; padding: 0; cursor: pointer; }
   summary { list-style: none; }
   summary::-webkit-details-marker { display: none; }
 }
@@ -341,10 +352,8 @@
      S: two columns, the lead full width. */
   .media { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
   .media-item {
-    aspect-ratio: 4 / 3; display: flex; align-items: flex-end; padding: var(--space-3); border: var(--line);
-    background:
-      linear-gradient(to top right, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2)),
-      linear-gradient(to top left, transparent calc(50% - var(--line-width) / 2), var(--rule) 50%, transparent calc(50% + var(--line-width) / 2));
+    aspect-ratio: 4 / 3; display: flex; align-items: flex-end; padding: var(--space-3);
+    border: var(--line-width) solid var(--faint); background: var(--placeholder);
   }
   .media-item:first-child { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
   .media-caption { padding: var(--space-1); background: var(--ground); font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); }
@@ -355,11 +364,12 @@
   }
 
   /* ---------- crumbs — the place, not the path ----------
-     Knobs: none. Each step opens the scoped list; none on start or list. */
+     Knobs: none. First step "Archiv" (the one list), then the Bestand chain; each step opens the
+     scoped list; none on start or list. Steps are links and look like links (underlined). */
   .crumbs { font: var(--type-meta); color: var(--ink-2); }
-  .crumbs a { color: inherit; text-decoration: none; }
-  .crumbs a + a::before { content: "›"; margin-inline: var(--space-2); }
-  .crumbs a:hover { color: var(--ink); text-decoration: underline; }
+  .crumbs a { color: inherit; }
+  .crumbs a + a::before { content: "›"; display: inline-block; margin-inline: var(--space-2); text-decoration: none; }
+  .crumbs a:hover { color: var(--ink); }
 
   /* ---------- resume — "Weiter bearbeiten: <Titel> · <Titel>" ----------
      Knobs: none. One quiet sentence under the search; no create action, no marks. */
@@ -371,18 +381,23 @@
   .resume a { font: var(--type-entry); color: var(--ink); text-decoration-color: var(--rule); }
   .resume a:hover { text-decoration-color: currentColor; }
 
-  /* ---------- menu — a <details> whose panel floats under its summary ----------
-     Knobs: none. The panel is always page surface, even inside the band. */
-  .menu { position: relative; }
-  .menu > summary { color: var(--ink); }
-  .menu > ul {
+  /* ---------- menu — a button that opens a list of actions (native popover) ----------
+     Knobs: none. Parts: button.menu-button (popovertarget = the list's id; its text ends in "…"),
+     ul.menu[popover] (links or buttons; .menu-destructive for an action that deletes for good).
+     The popover gives light dismiss, Esc and the top layer without JS. M/L: anchored under its
+     button, right edges aligned; without anchor positioning the browser centres it. The list is
+     always page surface, even when its button sits in the band. */
+  .menu {
     --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
-    position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--space-4)); z-index: 1;
-    min-inline-size: var(--measure-menu); padding-block: var(--space-2); list-style: none; padding-inline: 0;
-    background: var(--ground); color: var(--ink); border: var(--line);
+    min-inline-size: var(--measure-menu); margin: 0; padding: var(--space-2) 0; list-style: none;
+    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--edge);
   }
-  .menu a { display: block; padding: var(--space-2) var(--space-4); text-decoration: none; }
-  .menu a:hover { text-decoration: underline; }
+  @supports (position-area: block-end) {
+    .menu { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, flip-block; }
+  }
+  .menu :is(a, button) { display: block; inline-size: 100%; padding: var(--space-2) var(--space-4); text-align: start; text-decoration: none; }
+  .menu :is(a, button):hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+  .menu .menu-destructive:is(:hover, :active, :focus-visible) { color: var(--error); } /* deletes for good: red while about to act */
 
   /* ---------- button ----------
      Knobs: --button-pad-inline (default --space-5). Default = secondary (outline); variants on
@@ -392,6 +407,7 @@
     padding: var(--space-3) var(--button-pad-inline, var(--space-5));
     font: var(--type-control); text-decoration: none; white-space: nowrap;
     color: var(--ink); background: transparent; border: var(--line-width) solid var(--ink); border-radius: 0;
+    cursor: pointer; /* also on a label.button (file chooser), which is not a <button> */
   }
   .button:hover, .button-primary { color: var(--ground); background: var(--ink); }
   .button-primary:hover { color: var(--ink); background: transparent; }
@@ -404,6 +420,66 @@
     margin-inline-start: var(--space-2); vertical-align: var(--mark-lift); white-space: nowrap;
     font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2);
   }
+
+  /* ---------- icon — one glyph from icons.svg (<use href="…#name">) ----------
+     Knobs: --icon-size (default 1.25rem). Always aria-hidden; the owning control names itself. */
+  .icon { display: block; inline-size: var(--icon-size, 1.25rem); block-size: var(--icon-size, 1.25rem); flex: none; }
+
+  /* ---------- autocomplete — a text input that suggests from its <datalist> (autocomplete.js) ----------
+     Knobs: none. Root wraps one input with list="…". Single: a combobox, free text allowed.
+     [data-multiple]: chips inside one field edge + the typing input; a hidden input carries
+     "a, b, c". Without JS the plain input and the native datalist remain. Parts (made by the
+     script): .autocomplete-chips (li.chip: value + remove button), .autocomplete-list (the
+     listbox; the active option inverts), .autocomplete-live (announcements). */
+  .autocomplete { position: relative; }
+  .autocomplete[data-multiple][data-enhanced] {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+    min-block-size: calc(1lh + 2 * var(--space-2) + 2 * var(--line-width)); padding: var(--space-1) var(--space-2);
+    background: var(--ground); border: var(--line-width) solid var(--edge); cursor: text;
+  }
+  .autocomplete[data-multiple][data-enhanced]:hover { border-color: var(--ink); }
+  .autocomplete[data-multiple][data-enhanced]:has([aria-invalid="true"]) { border-color: var(--error); box-shadow: inset 0 0 0 var(--line-width) var(--error); }
+  .autocomplete[data-multiple][data-enhanced]:focus-within { outline: var(--focus-width) solid var(--ink); outline-offset: var(--focus-width); }
+  .autocomplete[data-multiple][data-enhanced] input {
+    flex: 1 1 8rem; inline-size: auto; min-inline-size: 8rem; min-block-size: 0; padding: var(--space-1); border: 0; outline: 0; box-shadow: none; /* the box draws edge and error, not the input */
+  }
+  .autocomplete-chips { display: contents; list-style: none; }
+  .chip {
+    display: inline-flex; align-items: center; max-inline-size: 100%; padding-inline-start: var(--space-2);
+    font: var(--type-meta); border: var(--line); overflow-wrap: anywhere; cursor: default;
+  }
+  .chip > button { --icon-size: 1rem; display: inline-grid; place-items: center; min-inline-size: 1.75rem; min-block-size: 1.75rem; color: var(--ink-2); }
+  .chip > button:is(:hover, :active, :focus-visible) { color: var(--error); } /* a cross removes: red, as .remove */
+  .autocomplete-list {
+    position: absolute; inset-inline: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 2;
+    max-block-size: 18rem; overflow-y: auto; margin: 0; padding: var(--space-1) 0; list-style: none;
+    background: var(--ground); border: var(--line-width) solid var(--edge);
+  }
+  .autocomplete-list [role="option"] { padding: var(--space-2) var(--space-3); cursor: pointer; }
+  .autocomplete-list [role="option"]:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+  .autocomplete-list [aria-selected="true"] { color: var(--ground); background: var(--ink); }
+  .autocomplete-live { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- note — a quiet annotation right after a label or heading ("intern") ----------
+     Knobs: none. Quieter than its host by size and contrast, never by a box or a far position:
+     it touches what it qualifies (a space in a heading, the label line's gap in a field). */
+  .note { font: var(--type-note); letter-spacing: normal; color: var(--ink-3); }
+
+  /* ---------- title-field — the page heading is the record's title, editable in place ----------
+     Knobs: none. Root is the h1; its one textarea names itself (aria-label) and shows the
+     placeholder while empty. No label, no frame: an edge shows under it on hover, and focus
+     thickens that edge to the focus width — the underline is the focus signal (as search-field). */
+  .title-field textarea {
+    display: block; inline-size: 100%; margin: 0; padding: 0; resize: none; field-sizing: content;
+    background: transparent;
+    border: 0; border-block-end: var(--line-width) solid transparent; border-radius: 0;
+  }
+  /* serif glyphs reach past a 1.08 line box: a hair of padding keeps them in, and where the box
+     grows with its content there is nothing to scroll, so no scrollbar */
+  .title-field textarea { padding-block: 0.06em; min-block-size: calc(1lh + 0.12em); }
+  @supports (field-sizing: content) { .title-field textarea { overflow: hidden; } }
+  .title-field textarea:hover { border-block-end-color: var(--edge); }
+  .title-field textarea:focus-visible { outline: 0; border-block-end: var(--focus-width) solid var(--ink); }
 }
 
 /* ================================================================ layouts */

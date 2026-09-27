@@ -1,8 +1,16 @@
 # Bundesarchiv design system
 
 Status: LIVE DOCUMENT (owner, 2026-07-10) — updated as design decisions land;
-no formal acceptance step. Governs all web UI from Part 4 on. Sibling DPB
-services reuse the whole system by swapping one seed line.
+no formal acceptance step. Governs all web UI from Part 4 on.
+
+**The monochrome system "Druckschwarz" (owner, 2026-09-27)** replaces the violet
+"stamp ink on paper" look. Its visual digest is `DESIGN.md` at the repo root; its
+proof is the mock system in `docs/design/explorations/2026-09-26-monochrome/system/`
+(`system.css`, `gallery.html`, `icons.svg`, `autocomplete.js`) and the archivist
+screens built on it (`a1-formular/`, `a2-sammel/`, `a3-artikel/`). Until the retoken
+wave lands, that `system.css` is the normative token source; the app's `tokens.css`
+still carries the old look and is measured against this document (rules first,
+fixes later).
 
 **Enforceable half:** `design-review-law.md` (same directory) — the review
 catechism, the cue register (the ONLY licensed visual cues, MAY-only), the
@@ -123,163 +131,136 @@ Success criterion: net-negative diff in CSS lines and unique class names
 outside the deliberately changed states, gallery renders as the verdict
 medium.
 
-## Principles
+## Method (every screen, every element)
 
-- **Roles, not colors.** Components reference role tokens (`--surface`,
-  `--on-primary`, …). Only the reference layer mixes color. A hex value in a
-  component style is a defect (convention; reviewed at the design gate).
-- **The stamp grammar** (owner, 2026-07-10) is the color-application law:
-  the seed tint appears ONLY on archival marks — Signatur codes, mono
-  counts/dates, links, the focus ring. All other chrome is neutral;
-  selection/active/primary states are neutral ink INVERSIONS (swap fg/bg),
-  never tint fills. Draft amber and error red are the only loud colors.
-  (The "papier" variant may use a whisper of seed tint as sheet MATERIAL on
-  surfaces — material, never state.)
-- **Every signal carries information, exactly once** (owner, 2026-07-10).
-  No labels restating the visible ("SIG" before a Signatur code), no badges
-  for default states, no state in titles, no filler chrome. One base
-  treatment per element class; differences only as systematic modifiers
-  (link affordance on sortable heads, one direction glyph on the active
-  sort).
-- **Archivist ergonomics rank with the visual laws** (owner, 2026-07-11).
-  This is a weekly work tool: keyboard flow matters (tab order = field
-  order, Enter submits the primary action, autofocus lands where the work
-  starts — Titel on create, Signatur after Kopieren, first error on
-  validation), serial workflows (Kopieren cataloging, bulk edit) get the
-  fewest possible round-trips, and density stays workbench-compact. A
-  design review of archivist screens judges the session, not just the
-  pixels.
-- **Contrast is a tested invariant.** Every role pair carries a minimum WCAG
-  ratio, enforced by a CI test in both modes. The test, not the stylesheet,
-  is the source of truth for the numbers (same philosophy as the SQL ≡
-  `can_view` equivalence grid).
-- **One seed per service.** The archive is violet, desaturated to ink
-  (seed chroma ~0.055; neutrals at or near zero chroma). Another DPB service
-  changes `--seed` and gets a coherent light+dark palette.
-- **Modes follow the OS.** `color-scheme: light dark` + `light-dark()` per
-  role. No toggle in v1; adding one later needs no token rework.
-- **Modern CSS floor** (owner, 2026-07-09): OKLCH relative colors and
-  `light-dark()` require ~2024+ evergreen browsers. No fallback layer.
+1. Write the screen's job first: who, what they try to achieve, what success looks like
+   (`explorations/2026-09-26-monochrome/SCREEN-JOBS.md`).
+2. Price every element: cost (attention, size, reading) against gain for those users. High cost
+   and low gain: cut. Visual weight follows gain, never build order.
+3. Price again per size (S / M / L, below). An element worth its space on a desktop can be too
+   expensive on a phone.
+4. Price the fix too. A fix is a new element or a new signal with its own cost. If the fix costs
+   more than the problem, keep the problem.
+5. Every rule states intention, gain, cost and boundary. A rule without its reason gets applied
+   where it hurts.
+
+## Principles (owner, 2026-09-26/27)
+
+| Rule | Intention | Gain | Cost | Boundary |
+| --- | --- | --- | --- | --- |
+| **Alignment gives structure** | With good spacing and alignment, content forms natural lines; the eye follows them without effort | simple on the eye, few objects | needs one strict grid and spacing scale | where no natural line appears, draw one (next rows) |
+| **A line connects or anchors** | Ties two ends of a row so the eye does not slip across a long gap | eye stays on the row | each line is an object; many add up to noise | not above the first / below the last row, not under headers or filter bars — there the edge is spacing |
+| **Frames highlight or create cohesion** | Where elements have no natural line between them, a frame gives them something that connects them | the group reads as one | a frame is the loudest line; frames where alignment already groups are noise | an input's edge, a chip, a floating panel; not for grouping things that already stand together |
+| **One lead per row; facts one tier quieter** | Rows are scanned for the title; facts are read once a title catches | calm, fast scanning | none that matters | no step-up for the sorted column (next row) |
+| **Don't signal what the user already knows** | A change in appearance says "something important happened"; the user who sorted already knows | no noise from the user's own action | — | the sort arrow on the active column is enough feedback |
+| **Mono only for data in columns** | Fixed-width digits align, rows of values scan | a typeface with one meaning | fewer tools for labels | values in running text or labels: sans |
+| **Hide a control only if it can never become active here** | A dead-looking live control costs attention | less noise | hiding a control that becomes active makes things appear and jump | paired controls whose state changes (Zurück / Weiter, the end arrows) stay visible, disabled |
+| **Controls own their state** | State far from its control forces the user to link them in their head | one fact, one place; seeing = changing | controls vary in width with their value | result range in the pager; sort direction in the column head; audience in "Sichtbar für" |
+| **Nothing loud outranks the page's main content** | Weight claims importance; the eye lands on the loudest thing first | first glance lands on the job | chrome less discoverable for first visitors | where the control is the content (start-page search) |
+| **At most three primary filters in the heading sentence** | The sentence stays one readable line; common dimensions get the fast path | short heading, one click for the common case | a second mechanism for the rest ("Filter") | swap a dimension in when usage says so; three stay three |
+| **Inherit first; a part sets only what differs** | Colour, font, line-height and letter-spacing flow from the context; a part that restates them breaks when the context changes | fewer declarations, parts that fit wherever they are placed | form controls do not inherit by browser default: the elements layer resets them once | a part sets a value only when it differs on purpose (a quieter hint, an error colour, a hover change); a marker or icon inside text never sets its own colour or size. Review: delete any declaration equal to the inherited value |
+| **Red acts** | Red is the one colour; it must keep one meaning | errors and removals are found at a glance | — | field errors, edit conflicts, a removing control on hover / press / focus, the committing delete button; never for warnings or emphasis |
+| **Mark the minority** | A marker on every field is no marker | the few special fields stand out | one legend-free convention to learn | "*" after required labels (in the label's ink); the note "intern" after archivist-only fields or sections |
+
+Standing rulings (owner, 2026-09-26/27):
+
+- **No role labels.** Nothing says "nur Archivare"; the role shows in what the page offers.
+- **No redundant marks.** A list titled "Meine Entwürfe" does not mark each item "Entwurf".
+- **No off-topic actions.** A resume list carries no create action.
+- **No mono capitals** as a label voice anywhere; column heads in sans, title case.
+- **No dashes as separators**; centre dots separate.
+- **Every signal carries information, exactly once** (owner, 2026-07-10): no labels restating the
+  visible, no badges for default states, no filler chrome.
+- **Archivist ergonomics rank with the visual laws** (owner, 2026-07-11). A weekly work tool:
+  tab order = field order, Enter submits the primary action and never publishes, autofocus lands
+  where the work starts, serial workflows (Duplizieren, bulk edit) get the fewest round-trips.
+- **Modes follow the OS.** `color-scheme: light dark` + `light-dark()` per role; no toggle in v1.
+  Dark is tuned, not inverted.
+- **Modern CSS floor** (owner, 2026-07-09): ~2024+ evergreen browsers (`light-dark()`, `:has()`,
+  popover, `lh`); progressive enhancements (`field-sizing`, anchor positioning) degrade to a
+  working default.
 - **Pfadfinder details are extensions, not structure** (owner, 2026-07-09).
-  The system must be complete and shippable with all of them removed.
 
-## Layer 1 — seed
+## Navigation architecture (owner, 2026-09-27)
 
-```css
-:root {
-  color-scheme: light dark;
-  --seed: oklch(0.55 0.13 300); /* the ONLY line a sibling service changes */
-}
-```
+Destinations are few: **start · one list · article · forms (edit, new, bulk) · door.**
 
-## Layer 2 — reference ramps
+| Rule | Intention | Gain | Cost | Boundary |
+| --- | --- | --- | --- | --- |
+| **Targets are presets of the one list** (Bestand, decade, type, search, Zuletzt hinzugefügt, Meine Entwürfe, Unsortiert) | what people pick is a scope, not a place | one pattern to learn; every preset is a URL; new "targets" cost no new screen | every preset must be expressible in the search sentence | curated content with its own text is not a preset |
+| **The start page is a composition of presets** | it decides which preset families get a compartment | simple page; cost / gain per compartment | the start page carries all browse discovery | — |
+| **Top bar: wordmark · "+ Neu …" (archivists) · Abmelden** | wordmark = home; one create entry from anywhere; logout on shared machines | nothing to decode | no visible browse item — the start page must guide | no account name, no browse items |
+| **Breadcrumbs show the place, not the path** | where the article lives; each step opens the scoped list | orientation and a way onward | — | first step "Archiv"; none on start or list (the sentence is the location); the way back to a search is browser Back |
 
-Derived from the seed with relative color syntax; nothing below this layer
-mixes color by hand.
+- The list's heading is the search sentence: "Suche [Feld] in Gruppen des DPB · alle Jahrzehnte ·
+  jeder Typ + Filter". Set filters ink, open ones quieter, centre dots between them; no chevrons,
+  no chip row. S: the field takes its own line, one filter stays, the rest fold behind "Filter".
+- Start compartments: search · "Weiter bearbeiten" (archivists, one quiet line) · Bestände ·
+  Nach Art · Zeitleiste (L) · Zuletzt hinzugefügt · later Highlights. Phone start: search and
+  "Weiter bearbeiten" only.
+- Article page: media left, facts right when a square preview exists (a PDF or scan gets its first
+  page rendered as preview); otherwise one column, no placeholder frame.
+- Edit form: sections Kerndaten → Beschreibung → Einordnung → Herkunft → Medien → Weitere
+  Angaben, all open; the title field is the page heading; state and audience ("Status", "Sichtbar
+  für") live in the form's margin next to Speichern.
 
-- **Tonal ramp**: `oklch(from var(--seed) <L> c h)` at fixed L steps.
-- **Neutral ramp**: `oklch(from var(--seed) <L> 0.012 h)` — near-gray with a
-  whisper of the seed hue, so surfaces retint with the service automatically.
+## Space budget — three sizes
 
-## Layer 3 — roles
+Sizes are container widths: **S** < 40rem (phone), **M** 40–80rem, **L** ≥ 80rem. Every component
+declares per size one of: **full**, **compact** (same job, less space), **folded** (behind one
+disclosure opened on purpose), **absent**. Archivists work mostly on L; members and link-holders
+mostly on S. L is tuned for archivist work (side columns, the sticky form margin, bulk actions);
+S for finding and viewing (one column, one primary task on the first screen, filters folded, no
+charts, no placeholder areas). Type follows the viewport, not the container, so a heading keeps
+its rank in a narrow column. A page-level arrangement whose content box never reaches 80rem asks
+the viewport (`@media`), not a container.
 
-Each role declares its light and dark value in one place:
+## Tokens
 
-```css
---surface: light-dark(
-  oklch(from var(--seed) 0.98 0.005 h),
-  oklch(from var(--seed) 0.22 0.012 h)
-);
-```
+Components consume **roles**, never values; a hex in component CSS is a defect. Roles are
+re-pointed by a surface (the top bar) for its subtree; a floating panel points them back to the
+page. Values: `DESIGN.md` frontmatter (light) and `.impeccable/design.json` (the light-dark pairs).
 
-| Role | Pairs with | Minimum contrast |
-|---|---|---|
-| `surface` | `on-surface` | 4.5:1 |
-| `surface` | `on-surface-variant` | 4.5:1 |
-| `surface-container-lowest/low/mid/high` | `on-surface` | 4.5:1 each |
-| `primary` | `on-primary` | 4.5:1 |
-| `primary-container` | `on-primary-container` | 4.5:1 |
-| `draft` (ENTWURF amber) | `on-draft` | 4.5:1 |
-| `error` | `on-error` | 4.5:1 |
-| `outline` vs adjacent surfaces | — | 3:1 |
-| `focus-ring` vs all surfaces | — | 3:1 |
+| Role | Job | Contrast floor |
+| --- | --- | --- |
+| `--ground` | page and floating panels | — |
+| `--ink` | content text, primary fill, focus ring | 4.5:1 on ground |
+| `--ink-2` | secondary text only | 4.5:1 (7:1 light) |
+| `--ink-3` | the note ("intern") | 4.5:1 |
+| `--rule` | the connecting hairline, two-ended rows only | none (decorative on purpose) |
+| `--edge` | control, chip and panel edges | 3:1 (non-text) |
+| `--faint` | disabled controls, placeholder drawings | exempt (inactive), tuned visible in dark |
+| `--band-*` | the top bar's inverse band | 4.5:1 within the band |
+| `--sso` / `--on-sso` | the door's login button only | 4.5:1 |
+| `--error` | errors, conflicts, removing controls about to act | 4.5:1 on ground |
 
-Initial L values are an implementation detail; the table's pairs and
-minimums are the contract, judged at the design gate. The four `surface-container`
-steps are the elevation ramp (page → panel → card → raised) in both modes.
+- **Type roles:** wordmark, title, heading, subhead, entry, query, body, control, meta, label,
+  note, data. Every text node maps to exactly one role; an ad-hoc size or weight is the
+  typographic raw hex. Families: system serif (wordmark, section headings, article titles),
+  system sans (everything else), system mono (data in columns).
+- **Space:** the 4px scale `--space-1` … `--space-10`, with roles `--gap-section`, `--gap-block`,
+  `--gap-head`, `--gap-page`, `--pad-row`, `--gutter`. A section gap beats every inner gap by far.
+- **Lines and sizes:** `--line-width` 1px, `--focus-width` 3px, measures (`--measure`,
+  `--measure-prose` 65ch, `--measure-title` 30ch, field and column measures).
+- **Shape:** square corners everywhere; no radius, no bevel, no shadow. `--placeholder` is the one
+  drawing for an item without an image.
+- **Icons:** one stroke set (24px grid, stroke 2, `currentColor`): `components/icon.html` in the
+  app, `system/icons.svg` in the mock, name for name.
 
-Semantic notes:
+## Component mapping
 
-- `draft` exists because lifecycle state (ENTWURF) is core archive vocabulary,
-  not a decoration. Published items carry NO lifecycle marker (absence = published,
-  since v1 lifecycle is binary); only drafts pop.
-- `error` is reserved for Part 4.7 form validation ("Inzwischen geändert",
-  field errors). Do not repurpose.
-
-## Non-color tokens
-
-- **Type roles**: `wordmark` (the header's Bundesarchiv mark ONLY — small-caps
-  system serif with `--wordmark-tracking`, the one display face with character;
-  owner-licensed 2026-08-07, exploration 05 idea (b) — paired with the fine
-  double rule under `body > header`), `display` (screen titles), `title` (card
-  titles), `body`,
-  `meta` (dense controls + secondary cells), `label` (facet headings, column
-  heads, badges — letterspaced small caps), `mono` + `mono-meta` (Signaturen,
-  Datierungen, counts — tabular). Every text node maps to exactly one role;
-  an ad-hoc font-size/weight/case in component CSS is the typographic raw
-  hex. New roles enter tokens.css deliberately, never per-component. Faces:
-  system stacks in v1; vendored OFL faces are a later, drop-in decision.
-- **Spacing**: 4px-base scale (`--space-1` … `--space-8`), density chosen for
-  a weekly work tool: compact but not cramped.
-- **Shape**: `--radius-s`, `--radius-m`, `--bevel`. Cut corners draw via
-  native `corner-shape: bevel` (the index-card cut — the one shape signature,
-  used on the Signatur tab, cards and drawer tabs); the browser owns the
-  geometry, so borders and fills follow it automatically. Older browsers
-  render rounded corners instead — accepted, no fallback (owner, 2026-07-10).
-
-## Layout (owner, 2026-07-10; rail 2026-08-07)
-
-The workbench composes header · **filter rail** · results · preview pane.
-The rail is the PRIMARY filter interaction (owner 2026-08-07, exploration
-02 verdict — the facet sidebar died with it): one horizontal row directly
-under the header holding a native `<details>` dropdown per facet group
-(the dropped panels float on the one overlay shadow, register row 12 —
-owner 2026-08-07) plus the active filters as inversion
-chips (register row 3), each with a labeled remove ✕, then the clear-all
-link and the right-aligned "N Treffer" count ending the line (law C10,
-round-2 correction 2026-08-07: status rides the occupied band — the
-status-only toolrow died; the Sammelbearbeitung disclosure sits directly
-above the ledger and collapses entirely when hidden). The rail itself sits
-bare on the desk — no background band, no bottom rule (rail-wave verdict
-2026-08-07) — and, like the header, is a CONTROL ROW: it sets the one
-`--control-height` knob every control on the line consumes (law C8; the
-compact value, tokens.css). Every filter stays a
-plain GET link; the rail lives outside `#results`, so filter clicks
-re-render it with fresh counts (same mechanism the sidebar used; the
-htmx q-swap refreshes the count out-of-band). On
-narrow viewports the rail wraps — results are never buried under stacked
-panels.
-
-The LEDGER fills the frame (dense register rows drawn as a bound
-line-table, exploration 05a: hairline horizontal rules only, no header
-band, the row-11 margin rule after the Signatur column, Datierung as a
-right-aligned figure column; SIG · Titel · Datierung · Typ · row-action
-toolbar; one label-role header treatment; no Sichtbarkeit column —
-ÖFFENTLICH renders nothing and the ENTWURF mark rides the title, owner
-2026-08-07), preview pane right. Pane state lives in the URL,
-server-rendered — zero JS required. Width is the only density input
-(2026-08-07 verdict), absorbed intrinsically (law C11, same-day round-2
-correction): the mono columns tighten to content, the Titel ellipsizes
-first, and every column stays visible down to the two-line fold under the
-phone-width ~32rem container query (C9-derived arithmetic at the query;
-kept below the narrowest pane-open container) — the last resort. Below
-1280px the pane disappears and rows navigate to the detail page (the
-canonical permalink). Cards remain for photo-heavy and member-facing
-contexts.
-
-## Component mapping (workbench)
+The mock system's components (proven in `system/gallery.html`; the a1/a2/a3 folders' own CSS holds
+proposals still waiting for a ruling): topbar, search-field, search-sentence, section-head,
+register, ledger, pager, facts, media, crumbs, resume, menu (native popover), button, mark,
+note, icon, autocomplete (single, and multiple with chips), title-field. Form parts proven in
+`a1-formular/`: field (with the "*" and "intern" markers), record margin (status, Sichtbar für,
+conflict notice, version line), file-row, upload ("+ Dateien hinzufügen"), help (ⓘ + popover),
+remove (the one ×), add ("+ …"), pairs.
 
 ### Component inventory
+
+The app's owned components today (law C1). The retoken and component waves convert them to the
+monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
 column: a compositions-layer selector may reach a root and never past it. A new component joins
@@ -318,21 +299,18 @@ line; they are split out only as swap units or single renderers (law C7).
 
 ### Roles
 
-| Element | Roles |
+| Element | Treatment |
 |---|---|
-| Page background | `surface` |
-| Header bar | `surface-container-high` |
-| Filter rail | bare on the desk (no band, no rule — rail-wave verdict 2026-08-07); dropdown summaries flat hairline buttons; dropped panels `surface-container-lowest`, hairline, floating on `--overlay-shadow` (register row 12) |
-| Active facet | inversion (`on-surface`/`surface`) — the dropdown's active row and the rail chip (register row 3) |
-| Result card | `surface-container-low`, hover `-mid` |
-| Signatur tab | `primary-container` / `on-primary-container`, `mono`, beveled leading corner; no visible microlabel (sr-only "Signatur"); absent `ref_code` → "ohne Signatur" hollow slot (dashed `outline-variant`, no fill), independent of lifecycle. The edit-form header omits the hollow slot — the Signatur input on that screen carries absence (signals-once); the hollow slot stays in the ledger and read view. |
-| Chips | inversion (`on-surface`/`surface`) — the rail's active-filter mark (register row 3), labeled remove ✕; height = the rail's `--control-height` knob (law C8), never its own |
-| Treffer count | ends the filter-rail line, right-aligned (law C10 — no status-only band): `mono-meta`, muted, `aria-live=polite`; one renderer (`workbench/_trefferzahl.html`, law C7), refreshed out-of-band on htmx swaps |
-| Header actions | QUIET (owner 2026-08-07, rail round 2 — Mock B): "Suchen" is the plain hairline button; the create actions live in the ONE "+ Neu …" disclosure (`details.menu`) — quiet hairline summary, panel floating on `--overlay-shadow` (register row 12); "Bestand bearbeiten" joins the panel only while a Bestand filter is active. `.primary` inversion survives on form submits (Anlegen, Speichern, Veröffentlichen, Änderung prüfen) |
-| ENTWURF badge | `draft` / `on-draft`; in the ledger it rides the Titel as a quiet amber mono mark (no box — owner 2026-08-07); the boxed badge remains on the reader/edit headers |
-| Visibility badge | ledger column died 2026-08-07 (quiet default — no visibility strings in the ledger); its last live usage, the publish over-exposure preview panel, died with the form wave (owner ruling 5, 2026-08-08 — one-click publish), so `components/badge_visibility.html` is now an EXHIBIT: demo-page-only, a park-or-delete verdict for the owner (catechism Q1). The exposure statement it used to accompany renders as plain text with WEIGHT emphasis instead |
-| Published lifecycle | no marker — absence = published (v1 lifecycle is binary) |
-| Focus | `focus-ring`, 2px offset outline |
+| Page and floating panels | `--ground`; panels add a 1px `--edge`, no shadow |
+| Top bar | the inverse band (`--band-*`); menus opened from it are page surface |
+| Primary action | solid `--ink`, `--ground` text; hover inverts to outline |
+| Add action ("+ …") | text in meta type, no frame; underline on hover |
+| Field | label in label type, `--ink-2`; control edge `--edge`; hover edge `--ink`; focus ring; error / conflict: doubled `--error` edge |
+| Required / archivist-only | "*" in the label's ink / the note "intern" (`--ink-3`, note type) touching the label or heading |
+| Lifecycle | "Entwurf" as a mark (words, `--ink-2`), never a box; published renders nothing |
+| Removal | the one ×: `--ink-2`, `--error` on hover / press / focus; `hx-confirm` where it deletes for good |
+| Disabled | `--faint`, still visible, not interactive |
+| Focus | 3px `--ink` outline, 3px offset; where an underline is the field, the underline thickens instead |
 
 ## Named voice patterns (extracted 2026-08-28)
 
@@ -348,19 +326,21 @@ surface with the same job copies these, not a fresh invention.
   destroys or overwrites data per-record renders this grammar; a bare count
   is not a disclosure. (The bulk-overwrite P0 wave extends this to the main
   apply path.)
-- **Conflict is not an error** (`sammelbearbeitung_ergebnis.html`): a CAS
-  race or stale-selection outcome renders as quiet register rows — no red,
+- **A bulk outcome is not an error** (`sammelbearbeitung_ergebnis.html`): a CAS
+  race or stale-selection outcome in the bulk result renders as quiet register rows — no red,
   no alert tone — each row carrying its own onward action ("Diesen Artikel
   bearbeiten"), plus one collective recovery ("Diese N erneut auswählen").
-  Red stays reserved for the archivist's own invalid input.
+- **An edit conflict is shown as invalid** (owner, 2026-09-27; supersedes the earlier
+  "conflict is not an error" for the edit form): the conflicting fields carry
+  `aria-invalid="true"` and the doubled red edge, with "Inzwischen gespeichert: …" under each;
+  the margin opens with the notice (3px red rule, red subhead, one sentence whose field names
+  are links). Not the `:invalid` pseudo-class: `setCustomValidity` would block the save that
+  resolves the conflict.
 
 ## Contrast
 
-Contrast for the pairs in the table above is judged at the design gate
-(gallery renders every state in both modes). The automated WCAG contrast
-test was removed in the 2026-08 test audit — colors are chosen once; the
-tokens file is the single place they change, and a change goes through the
-design gate anyway.
+The floors in the Tokens table are the contract, judged at the design gate on renders of every
+state in both modes. Colours are chosen once in the token layer and change nowhere else.
 
 ## Extensions (optional, non-integral)
 
@@ -370,10 +350,13 @@ touching the system: Waldläuferzeichen as state language (empty results, 404,
 geometry for micro-icons (chip ✕, markers). Implement opportunistically,
 never at the cost of the core.
 
-## Migration plan
+## Order of work (owner, 2026-09-26/27)
 
-1. `tokens.css` (all three layers). No visual change yet.
-2. Restyle the workbench stylesheet to consume roles only; parity-check
-   against the approved round-3 mock (dark) and its light-mode derivation.
-3. Every later screen (4.7 form, 4.8 collections, 4.6 detail) consumes roles
-   from day one; new colors enter via the reference layer or not at all.
+1. The rules into the law — this document, `DESIGN.md`, and the cue register of
+   `design-review-law.md`. Done 2026-09-27.
+2. Monochrome retoken of `tokens.css` + top bar + door page in the app (one writer); the design
+   lint's allowlists follow the new register in the same wave.
+3. Components per the system, one writer each (Wave C's owned-component model), each rendered in
+   the component gallery at S / M / L before a page uses it.
+4. Pages: start, list, article; each checked against its screen-job table.
+5. The edit-form recompose (`WAVE-R.local.md`), on the a1 mocks.

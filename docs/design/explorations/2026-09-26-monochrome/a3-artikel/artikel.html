@@ -17,13 +17,11 @@
       <form class="search-field" action="../r4-system/archiv.html" role="search">
         <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
       </form>
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-1">+ Neu …</button>
+        <ul class="menu" id="menu-1" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="bestand-neu.html">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -42,18 +40,16 @@
 
     <div class="stack" style="--stack-gap: var(--gap-block)">
       <header class="stack" style="--stack-gap: var(--gap-head)">
-        <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Bund</a></nav>
+        <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
         <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
         <div class="row">
           <a class="button" href="#">Bearbeiten</a>
-          <details class="menu">
-            <summary>Weitere Aktionen …</summary>
-            <ul>
+          <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
+            <ul class="menu" id="menu-2" popover>
               <li><a href="#">Kopieren</a></li>
               <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
               <li><a href="loeschen.html">Löschen</a></li>
             </ul>
-          </details>
         </div>
       </header>
 

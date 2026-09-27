@@ -58,6 +58,21 @@ of the new look is in the Django app yet.
 - Edit form: E1 order (Kerndaten → Beschreibung → Einordnung → Herkunft → Medien → Zugriff →
   Weitere Angaben), all open; the Titel field is the page heading. Brief: `WAVE-R.local.md`.
 
+## Status 2026-09-27 (day)
+
+- The owner reviewed a1 live in five rounds (rulings in `REVIEW-ARCHIVIST.md`, "Owner rulings on
+  a1, round 1–5") and approved the look: **formalized** as `DESIGN.md` (north star "Druckschwarz"),
+  `.impeccable/design.json`, the rewritten `docs/design/design-system.md` and the monochrome cue
+  register in `docs/design/design-review-law.md`. `RULES-DRAFT.md` is superseded.
+- New system parts from the review: `icons.svg` + `icon`, `autocomplete.js` + `autocomplete`,
+  `menu` as native popover, `note`, `title-field`, tokens `--ink-3`, `--faint`, `--placeholder`,
+  `--type-note`.
+- App changes merged on local main: `added_at` from legacy `pub_date` (c73185d), Schlagworte one
+  per line (3683adf). The owner re-imports.
+- Open for the owner: `role="button"` on the upload label; Status + Sichtbarkeit as one control;
+  versions screens (and restore); a2/a3 not yet reviewed live.
+- Next (owner order): retoken + top bar + door in the app.
+
 ## Status at handoff (2026-09-27, overnight)
 
 - **All archivist screens are mocked** on the system: `a1-formular/` (bearbeiten, bearbeiten-konflikt,

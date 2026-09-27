@@ -1,158 +1,426 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-28T00:00:00Z",
+  "generatedAt": "2026-09-27T13:20:31Z",
   "title": "Design System: Bundesarchiv",
   "extensions": {
     "colorMeta": {
-      "primary": {
-        "role": "primary",
-        "displayName": "Stamp-Ink Violet",
-        "canonical": "light-dark(oklch(from var(--seed) 0.45 0.05 h), oklch(from var(--seed) 0.78 c h))",
-        "tonalRamp": ["oklch(0.25 0.035 300)", "oklch(0.32 0.045 300)", "oklch(0.35 0.045 300)", "oklch(0.45 0.05 300)", "oklch(0.50 0.055 300)", "oklch(0.78 0.055 300)", "oklch(0.88 0.035 300)", "oklch(0.92 0.022 300)"]
-      },
-      "primary-container": {
-        "role": "primary",
-        "displayName": "Violet Sheet Tint",
-        "canonical": "light-dark(var(--tone-92), var(--tone-35))",
-        "tonalRamp": ["oklch(0.25 0.035 300)", "oklch(0.32 0.045 300)", "oklch(0.35 0.045 300)", "oklch(0.45 0.05 300)", "oklch(0.50 0.055 300)", "oklch(0.78 0.055 300)", "oklch(0.88 0.035 300)", "oklch(0.92 0.022 300)"]
-      },
-      "surface": {
+      "paper-white": {
         "role": "neutral",
-        "displayName": "Paper Gray",
-        "canonical": "light-dark(var(--neutral-98), var(--neutral-22))",
-        "tonalRamp": ["oklch(0.22 0 300)", "oklch(0.28 0 300)", "oklch(0.34 0 300)", "oklch(0.46 0 300)", "oklch(0.72 0 300)", "oklch(0.84 0 300)", "oklch(0.92 0 300)", "oklch(0.98 0 300)"]
+        "displayName": "Paper White",
+        "canonical": "light-dark(#fff, #0b0b0b)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
       },
-      "on-surface": {
+      "print-black": {
+        "role": "primary",
+        "displayName": "Print Black",
+        "canonical": "light-dark(#000, #f0f0f0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "secondary-ink": {
         "role": "neutral",
-        "displayName": "Ink Gray",
-        "canonical": "light-dark(var(--neutral-25), var(--neutral-93))",
-        "tonalRamp": ["oklch(0.22 0 300)", "oklch(0.25 0 300)", "oklch(0.31 0 300)", "oklch(0.46 0 300)", "oklch(0.72 0 300)", "oklch(0.84 0 300)", "oklch(0.93 0 300)", "oklch(0.99 0 300)"]
+        "displayName": "Secondary Ink",
+        "canonical": "light-dark(#595959, #a0a0a0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
       },
-      "draft": {
-        "role": "semantic",
-        "displayName": "Draft Amber",
-        "canonical": "light-dark(var(--amber-92), var(--amber-32))",
-        "tonalRamp": ["oklch(0.32 0.06 80)", "oklch(0.42 0.11 72)", "oklch(0.85 0.14 85)", "oklch(0.90 0.10 85)"]
+      "quiet-ink": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "light-dark(#767676, #7c7c7c)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
       },
-      "error": {
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "light-dark(#dcdcdc, #262626)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "control-edge": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "canonical": "light-dark(#8f8f8f, #6e6e6e)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint",
+        "canonical": "light-dark(#d0d0d0, #555)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "band-black": {
+        "role": "neutral",
+        "displayName": "Band Black",
+        "canonical": "light-dark(#000, #0b0b0b)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "band-ink": {
+        "role": "neutral",
+        "displayName": "Band Ink",
+        "canonical": "light-dark(#fff, #f0f0f0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "band-secondary-ink": {
+        "role": "neutral",
+        "displayName": "Band Secondary Ink",
+        "canonical": "light-dark(#b3b3b3, #a0a0a0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "door-gray": {
+        "role": "neutral",
+        "displayName": "Door Gray",
+        "canonical": "light-dark(#333, #474747)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "on-door-gray": {
+        "role": "neutral",
+        "displayName": "On Door Gray",
+        "canonical": "#fff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#555555",
+          "#595959",
+          "#767676",
+          "#8f8f8f",
+          "#dcdcdc",
+          "#ffffff"
+        ]
+      },
+      "correction-red": {
         "role": "semantic",
-        "displayName": "Error Red",
-        "canonical": "light-dark(var(--red-50), var(--red-75))",
-        "tonalRamp": ["oklch(0.25 0.09 25)", "oklch(0.52 0.20 27)", "oklch(0.75 0.14 25)"]
+        "displayName": "Correction Red",
+        "canonical": "light-dark(#c4000b, #ff6b61)",
+        "tonalRamp": [
+          "#5c0005",
+          "#8a0008",
+          "#c4000b",
+          "#e0453c",
+          "#ff6b61",
+          "#ff9a92",
+          "#ffc7c2",
+          "#ffe9e7"
+        ]
       }
     },
     "typographyMeta": {
-      "wordmark": { "displayName": "Wordmark", "purpose": "The header's Bundesarchiv mark only — Kapitälchen serif, the one face with character." },
-      "label": { "displayName": "Label", "purpose": "Facet headings, column heads, badges — mixed case at 0.02em tracking." },
-      "mono": { "displayName": "Mono", "purpose": "Signaturen, Datierungen, counts — tabular archival figures in stamp ink." }
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The top bar's Bundesarchiv only."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Page h1: article title, start heading; the edit form's title field."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Section h2."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Secondary sections; a title in a side column."
+      },
+      "entry": {
+        "displayName": "Entry",
+        "purpose": "The lead of a list row."
+      },
+      "query": {
+        "displayName": "Query",
+        "purpose": "The search sentence and large search field."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and inputs; prose ≤ 65ch."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons and pager steps."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Asides, column heads, crumbs, hints."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field and fact labels, marks; mixed case."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "A quiet annotation touching its label or heading ('intern')."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Counts, dates, Signaturen in columns; tabular."
+      }
     },
-    "shadows": [
-      { "name": "sheet-shadow", "value": "0 1px 2px 0 light-dark(color-mix(in oklab, var(--neutral-22) 20%, transparent), color-mix(in oklab, var(--neutral-22) 55%, transparent))", "purpose": "Resting-contact shadow: TRUE SHEETS only (preview sheet, confirm panels, empty state). The one depth cue a resting surface may carry." },
-      { "name": "overlay-shadow", "value": "0 2px 8px 0 light-dark(color-mix(in oklab, var(--neutral-22) 22%, transparent), color-mix(in oklab, var(--neutral-22) 60%, transparent))", "purpose": "Transient floating panels only: rail dropdowns, the create menu. No other shadows exist." }
+    "shadows": [],
+    "motion": [
+      {
+        "name": "motion-grow",
+        "value": "160ms ease-out",
+        "purpose": "The compact search field growing on focus; 0s under prefers-reduced-motion."
+      }
     ],
-    "motion": [],
     "breakpoints": [
-      { "name": "pane-switch", "value": "80rem viewport", "purpose": "Below this the preview pane disappears; rows navigate to the detail page." },
-      { "name": "ledger-fold", "value": "32rem container", "purpose": "Phone-width last resort: two-line fold, derived from the track floors (law C9)." }
+      {
+        "name": "S",
+        "value": "< 40rem"
+      },
+      {
+        "name": "M",
+        "value": "40rem – 80rem"
+      },
+      {
+        "name": "L",
+        "value": ">= 80rem"
+      }
     ]
   },
   "components": [
     {
-      "name": "Quiet Button",
-      "kind": "button",
-      "refersTo": "button-quiet",
-      "description": "The default action: quiet hairline furniture. Buttons, link-buttons and menu summaries share one declaration set.",
-      "html": "<button class=\"ds-btn\">Suchen</button>",
-      "css": ".ds-btn { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--surface-container-low, oklch(0.94 0 300)); color: var(--on-surface, oklch(0.25 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); cursor: pointer; white-space: nowrap; min-height: 2.75rem; } .ds-btn:hover { background: var(--surface-container-high, oklch(0.9 0 300)); } .ds-btn:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
-    },
-    {
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Form submits only (Anlegen, Speichern, Veröffentlichen): neutral ink inversion, never violet.",
+      "description": "The one committing action per surface (Speichern, Anlegen, Suchen).",
       "html": "<button class=\"ds-btn-primary\">Speichern</button>",
-      "css": ".ds-btn-primary { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--on-surface, oklch(0.25 0 300)); color: var(--surface, oklch(0.98 0 300)); border: 1px solid var(--on-surface, oklch(0.25 0 300)); border-radius: var(--radius-s, 4px); cursor: pointer; min-height: 2.75rem; } .ds-btn-primary:hover { background: color-mix(in oklab, var(--on-surface, oklch(0.25 0 300)), var(--surface, oklch(0.98 0 300)) 16%); } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
+      "css": ".ds-btn-primary { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.95rem; font-weight: 600; line-height: 1; padding: 0.75rem 1.25rem; color: #fff; background: #000; border: 1px solid #000; border-radius: 0; cursor: pointer; } .ds-btn-primary:hover { color: #000; background: transparent; } .ds-btn-primary:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
     },
     {
-      "name": "Danger Button",
+      "name": "Secondary Button",
       "kind": "button",
-      "refersTo": "button-danger",
-      "description": "The one destructive filled variant — confirm surfaces only.",
-      "html": "<button class=\"ds-btn-danger\">Endgültig löschen</button>",
-      "css": ".ds-btn-danger { display: inline-block; font: var(--type-meta, 400 0.85rem/1.4 system-ui); padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem); background: var(--error, oklch(0.52 0.2 27)); color: var(--on-error, oklch(0.99 0 300)); border: 1px solid var(--error, oklch(0.52 0.2 27)); border-radius: var(--radius-s, 4px); cursor: pointer; min-height: 2.75rem; } .ds-btn-danger:hover { background: color-mix(in oklab, var(--error, oklch(0.52 0.2 27)), var(--on-error, oklch(0.99 0 300)) 12%); } .ds-btn-danger:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; }"
+      "refersTo": "button-secondary",
+      "description": "An outline button for a second action.",
+      "html": "<button class=\"ds-btn\">Bearbeiten</button>",
+      "css": ".ds-btn { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.95rem; font-weight: 600; line-height: 1; padding: 0.75rem 1.25rem; color: #000; background: transparent; border: 1px solid #000; border-radius: 0; cursor: pointer; } .ds-btn:hover { color: #fff; background: #000; } .ds-btn:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
     },
     {
-      "name": "Filter Chip",
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field-input",
+      "description": "Label over a framed control; required '*' and the quiet note 'intern' ride the label line.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Standort <span class=\"ds-note\">intern</span></span><input value=\"Bund -- Zeitschrift -- Die Kompassnadel\"></label>",
+      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; gap: 0.5rem; } .ds-field-label { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.9rem; color: #595959; } .ds-note { font-size: 0.8rem; color: #767676; } .ds-field input { font: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; color: #000; background: #fff; border: 1px solid #8f8f8f; border-radius: 0; } .ds-field input:hover { border-color: #000; } .ds-field input:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
+    },
+    {
+      "name": "Field in conflict",
+      "kind": "input",
+      "refersTo": "field-input",
+      "description": "aria-invalid doubles the edge in Correction Red; the stored value sits under the field.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Datierung</span><input value=\"1960~\" aria-invalid=\"true\"><span class=\"ds-was\">Inzwischen gespeichert: 1960-03</span></label>",
+      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; gap: 0.5rem; } .ds-field-label { font-size: 0.9rem; color: #595959; } .ds-field input { font: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; background: #fff; border: 1px solid #c4000b; box-shadow: inset 0 0 0 1px #c4000b; border-radius: 0; } .ds-was { font-size: 0.9rem; color: #000; }"
+    },
+    {
+      "name": "Autocomplete (multiple)",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "One active filter on the rail: full ink inversion with labeled remove ✕. A chip IS the active state.",
-      "html": "<span class=\"ds-chip\"><b>Medienart</b> Foto <a href=\"#\" aria-label=\"Filter Medienart entfernen\">✕</a></span>",
-      "css": ".ds-chip { display: inline-flex; align-items: center; gap: var(--space-1, 0.25rem); min-height: 2rem; font: var(--type-meta, 400 0.85rem/1.4 system-ui); background: var(--on-surface, oklch(0.25 0 300)); color: var(--surface, oklch(0.98 0 300)); border-radius: var(--radius-s, 4px); padding-inline-start: var(--space-2, 0.5rem); } .ds-chip b { font-weight: 400; color: color-mix(in oklab, var(--surface, oklch(0.98 0 300)), var(--on-surface, oklch(0.25 0 300)) 30%); } .ds-chip > a { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; min-height: 2rem; border-radius: var(--radius-s, 4px); color: var(--surface, oklch(0.98 0 300)); text-decoration: none; }"
+      "description": "Chosen values as square chips inside one edge, then the typing input; the chip's × turns red on hover.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\">Motiv: Tony Wirtz<button aria-label=\"Motiv: Tony Wirtz entfernen\">×</button></span><span class=\"ds-chip\">Bundeszeitschrift<button aria-label=\"Bundeszeitschrift entfernen\">×</button></span><input placeholder=\"Hinzufügen …\" aria-label=\"Schlagworte\"></div>",
+      "css": ".ds-chips { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #8f8f8f; } .ds-chips:focus-within { outline: 3px solid #000; outline-offset: 3px; } .ds-chip { display: inline-flex; align-items: center; padding-left: 0.5rem; font-size: 0.9rem; border: 1px solid #dcdcdc; } .ds-chip button { font: inherit; min-width: 1.75rem; min-height: 1.75rem; color: #595959; background: none; border: 0; cursor: pointer; } .ds-chip button:hover { color: #c4000b; } .ds-chips input { font: inherit; flex: 1 1 8rem; padding: 0.25rem; border: 0; outline: 0; }"
     },
     {
-      "name": "Labeled Field",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Stacked label + input: label type above, quiet lowest-container fill. A field carrying an error/hint message is a div.field with an explicit <label for> and the message as a SIBLING node wired via aria-describedby (never inside the label — it would join the accessible name); error presence turns the border red and sets aria-invalid.",
-      "html": "<label class=\"ds-field\"><span>Titel</span><input type=\"text\" value=\"Sommerfahrt 1967\"></label>",
-      "css": ".ds-field { display: inline-flex; flex-direction: column; gap: var(--space-1, 0.25rem); color: var(--on-surface, oklch(0.25 0 300)); } .ds-field > span { font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.02em; color: var(--on-surface-variant, oklch(0.46 0 300)); } .ds-field input { font: var(--type-meta, 400 0.85rem/1.4 system-ui); color: var(--on-surface, oklch(0.25 0 300)); background: var(--surface-container-lowest, oklch(0.96 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); } .ds-field input:focus-visible { outline: 2px solid var(--focus-ring, oklch(0.5 0.055 300)); outline-offset: 2px; border-color: var(--on-surface, oklch(0.25 0 300)); }"
-    },
-    {
-      "name": "ENTWURF Badge",
-      "kind": "chip",
-      "refersTo": "badge-entwurf",
-      "description": "The one amber mark — draft lifecycle. Published renders no badge at all.",
-      "html": "<span class=\"ds-badge-entwurf\">Entwurf</span>",
-      "css": ".ds-badge-entwurf { display: inline-block; font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.02em; padding: 0.125rem var(--space-2, 0.5rem); background: var(--draft, oklch(0.9 0.1 85)); color: var(--on-draft, oklch(0.42 0.11 72)); border: 1px solid var(--on-draft, oklch(0.42 0.11 72)); border-radius: var(--radius-s, 4px); white-space: nowrap; }"
-    },
-    {
-      "name": "Signatur Tab",
-      "kind": "custom",
-      "refersTo": "sig-tab",
-      "description": "The reader header's drawer-tab: mono stamp-ink code on tinted paper with the beveled leading corner (house shape signature).",
-      "html": "<span class=\"ds-sig\"><span class=\"ds-sig-code\">F12/3-b2</span></span>",
-      "css": ".ds-sig { display: inline-flex; align-items: baseline; gap: var(--space-2, 0.5rem); font: var(--type-mono, 400 0.85rem/1.4 ui-monospace); font-variant-numeric: tabular-nums; background: var(--surface-container-low, oklch(0.94 0 300)); border: 1px solid var(--outline-variant, oklch(0.84 0 300)); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem) var(--space-1, 0.25rem) var(--space-3, 0.75rem); corner-shape: bevel; border-radius: var(--radius-m, 6px) 0 0 0; } .ds-sig-code { color: var(--primary, oklch(0.45 0.05 300)); font-weight: 600; }"
-    },
-    {
-      "name": "Facet Dropdown",
+      "name": "Menu",
       "kind": "nav",
-      "refersTo": "button-quiet",
-      "description": "Native details on the filter rail: flat hairline summary (furniture), panel floats on the overlay shadow, active row inverted.",
-      "html": "<details class=\"ds-facet\" open><summary>Medienart</summary><ul><li><a href=\"#\" aria-current=\"true\">Foto</a><span>412</span></li><li><a href=\"#\">Tonband</a><span>38</span></li></ul></details>",
-      "css": ".ds-facet { position: relative; display: inline-block; } .ds-facet > summary { display: inline-flex; align-items: center; gap: var(--space-1, 0.25rem); list-style: none; cursor: pointer; font: var(--type-label, 600 0.72rem/1.3 system-ui); letter-spacing: 0.02em; color: var(--on-surface-variant, oklch(0.46 0 300)); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); background: var(--surface, oklch(0.98 0 300)); border: 1px solid var(--outline-variant, oklch(0.84 0 300)); border-radius: var(--radius-s, 4px); min-height: 2rem; } .ds-facet > summary::after { content: '▾'; font-size: 0.85em; } .ds-facet[open] > summary { background: var(--surface-container-mid, oklch(0.92 0 300)); border-color: var(--outline, oklch(0.5 0 300)); } .ds-facet > ul { position: absolute; top: calc(100% + 0.25rem); inset-inline-start: 0; min-width: 16rem; list-style: none; margin: 0; padding: var(--space-2, 0.5rem); background: var(--surface-container-lowest, oklch(0.96 0 300)); border: 1px solid var(--outline, oklch(0.5 0 300)); border-radius: var(--radius-s, 4px); box-shadow: 0 2px 8px 0 color-mix(in oklab, oklch(0.22 0 300) 22%, transparent); z-index: 2; } .ds-facet li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2, 0.5rem); padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem); border-radius: var(--radius-s, 4px); } .ds-facet li a { font: var(--type-meta, 400 0.85rem/1.4 system-ui); color: var(--primary, oklch(0.45 0.05 300)); text-decoration: none; min-height: 2.75rem; align-content: center; } .ds-facet li a:hover { text-decoration: underline; } .ds-facet li span { font: var(--type-mono-meta, 400 0.78rem/1.4 ui-monospace); font-variant-numeric: tabular-nums; color: var(--on-surface-variant, oklch(0.46 0 300)); } .ds-facet li:has(> [aria-current]) { background: var(--on-surface, oklch(0.25 0 300)); } .ds-facet li:has(> [aria-current]) a, .ds-facet li:has(> [aria-current]) span { color: var(--surface, oklch(0.98 0 300)); font-weight: 600; }"
+      "refersTo": "menu",
+      "description": "A text button ending in '…' opens a native popover list; a destructive entry turns red on hover.",
+      "html": "<div class=\"ds-menu-demo\"><button class=\"ds-menu-button\">Mehr …</button><ul class=\"ds-menu\"><li><a href=\"#\">Zur Artikelseite</a></li><li><a href=\"#\">Duplizieren</a></li><li><a class=\"ds-danger\" href=\"#\">Löschen</a></li></ul></div>",
+      "css": ".ds-menu-demo { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; } .ds-menu-button { font: inherit; background: none; border: 0; cursor: pointer; } .ds-menu { min-width: 12rem; margin: 0; padding: 0.5rem 0; list-style: none; background: #fff; border: 1px solid #8f8f8f; } .ds-menu a { display: block; padding: 0.5rem 1rem; color: #000; text-decoration: none; } .ds-menu a:hover { text-decoration: underline; } .ds-menu .ds-danger:hover { color: #c4000b; }"
+    },
+    {
+      "name": "Top bar",
+      "kind": "nav",
+      "refersTo": "topbar",
+      "description": "Inverse band: the small-caps wordmark left; '+ Neu …' and Abmelden right.",
+      "html": "<header class=\"ds-topbar\"><a class=\"ds-mark\" href=\"#\">Bundesarchiv</a><nav><button>+ Neu …</button><a href=\"#\">Abmelden</a></nav></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; height: 4.25rem; padding: 0 1.5rem; color: #fff; background: #000; font-family: system-ui, sans-serif; font-size: 0.9rem; } .ds-mark { font: small-caps 600 1.5rem/1 ui-serif, Georgia, serif; letter-spacing: 0.12em; color: inherit; text-decoration: none; } .ds-topbar nav { display: flex; gap: 1.5rem; align-items: center; } .ds-topbar button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; } .ds-topbar nav a { color: #b3b3b3; }"
+    },
+    {
+      "name": "Register",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Ruled rows: label left, quiet figure right; a hairline only between two-ended rows.",
+      "html": "<ul class=\"ds-register\"><li><a href=\"#\">Gruppen des DPB</a><span>1.187</span></li><li><a href=\"#\">Bund</a><span>463</span></li><li><a href=\"#\">Überbündisches</a><span>211</span></li></ul>",
+      "css": ".ds-register { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; list-style: none; max-width: 24rem; } .ds-register li { display: flex; justify-content: space-between; padding: 0.75rem 0; } .ds-register li + li { border-top: 1px solid #dcdcdc; } .ds-register a { font-size: 1.1rem; color: #000; } .ds-register span { font: 0.9rem ui-monospace, Menlo, monospace; color: #595959; font-variant-numeric: tabular-nums; }"
     }
   ],
   "narrative": {
-    "northStar": "The Archivist's Desk",
-    "overview": "Every screen is a scene of physical archive objects on a gray desk. A new element must answer \"what is this on the desk?\" — a cut paper sheet, a bound register, a drawer tab, a stamp mark. The chrome is hueless paper: pure-gray surfaces, hairline edges, no decoration. Color is information, applied like ink: the desaturated stamp violet appears only on archival marks (Signatur codes, dates, counts, links, focus), draft amber and error red are the only loud voices, and everything else signals through neutral ink inversions. This is a weekly work tool for volunteer archivists, not a showcase: density is workbench-compact, keyboard flow ranks with the visual laws, and simplicity is an owner requirement — waves remove complexity before adding capability. The system is seed-parametric: one --seed line retints the whole light+dark palette for a sibling DPB service.",
+    "northStar": "Druckschwarz",
+    "overview": "The archive looks like a well-set printed catalogue: black ink on white paper, and nothing a\nprinter would not have. Type carries the order. Alignment and space make the structure, so lines\nare rare: a hairline appears only where a row has two ends that the eye must connect, and a frame\nonly where things have no natural line between them (an input's edge, a chip). There is no second\nhue, no gray fill, no shadow, no rounded corner. Red is the only colour, and it means \"this is\nwrong\" or \"this is about to remove something\".\n\nIt is a working tool first. Archivists, the most important users, catalogue weekly on large\nscreens; members read on phones. The look serves both by being quiet: every element is priced by\nwhat it costs the reader against what it gives them, and anything that signals what the user\nalready knows is cut. The wordmark (small-caps serif) is the one flourish and stays. Dark mode is\ntuned, not inverted: no pure black or white, and lines are quieter because bright lines smear on\nblack.\n\nRejected on purpose: beige or \"warm AI\" palettes, violet, gray chrome and gray fills, scout\ncostume, mono capitals as a label voice, decorative lines, dashes as separators.",
     "keyCharacteristics": [
-      "Hueless paper chrome (chroma-0 neutrals); hue only on archival marks",
-      "Flat furniture: hairline borders, exactly two shadow tokens, no elevation ramps",
-      "Bound-register density: ruled rows, tabular mono figures, quiet hover reveals",
-      "Semantic HTML styled by the cascade (@layer), tokens as the single visual truth",
-      "German UI text, system font stacks, OS-following light/dark — no toggle"
+      "Two inks: black for content, one secondary gray for text only.",
+      "Serif only for the wordmark, section headings and article titles; sans for everything else;",
+      "Square corners everywhere; flat surfaces; one focus ring (3px ink).",
+      "Lines connect a row's two ends; they never separate.",
+      "Red only for errors, conflicts and removing controls about to act.",
+      "Every element priced (cost against gain) per screen size S / M / L."
     ],
     "rules": [
-      { "name": "The Stamp Grammar Rule", "body": "Seed tint appears only on archival marks. Selection, active, and primary states are neutral ink inversions (swap fg/bg), never tint fills. Draft amber and error red are the only loud colors.", "section": "colors" },
-      { "name": "The One-Line-Swap Rule", "body": "A sibling service changes exactly one line — the seed — and inherits a coherent light+dark palette. Nothing below the ramp layer mixes color by hand; a hex in component CSS is a defect.", "section": "colors" },
-      { "name": "The One Role Rule", "body": "Every text node maps to exactly one type role (font: var(--type-*)). An ad-hoc font-size, weight, or case in component CSS is the typographic raw hex. New roles enter tokens.css deliberately.", "section": "typography" },
-      { "name": "The Furniture-vs-Sheet Rule", "body": "Facet panels and control chrome are furniture: flat, hairline-edged, shadowless. Only true sheets carry the seed-tinted material (--sheet) and the contact shadow. Only transient overlays float.", "section": "elevation" }
+      {
+        "name": "The Two-Ink Rule",
+        "body": "Black carries content, one gray carries secondary text. Gray never fills a surface and never draws chrome.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Acts Rule",
+        "body": "Red appears only where something is wrong or something is about to be removed. Not for warnings, not for emphasis, not for decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tuned Dark Rule",
+        "body": "Dark mode re-points the same roles with its own values (#0b0b0b ground, #f0f0f0 ink); nothing is designed dark-only, and nothing is a plain inversion.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Rank Rule",
+        "body": "Serif marks rank: the wordmark, section headings, article titles. Lists, body, labels and buttons are sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Column Rule",
+        "body": "Mono only for values that align in a column. A single date or Signatur in running text or a fact list is sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Role Rule",
+        "body": "Every text node uses exactly one type role. An ad-hoc size or weight is a defect; counts never appear at display size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Alignment-First Rule",
+        "body": "Structure comes from alignment and spacing. Draw a line only where no natural line appears.",
+        "section": "layout"
+      },
+      {
+        "name": "The Two-Ended Line Rule",
+        "body": "A hairline ties a row's two ends so the eye does not slip. Never above the first or below the last row, never under headers or filter bars.",
+        "section": "layout"
+      },
+      {
+        "name": "The Priced Element Rule",
+        "body": "Every element, and every fix, is priced (attention, size, reading) against its gain for these users, per size. High cost and low gain: cut.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Rule",
+        "body": "No shadow, glow, gradient or blur anywhere. Separation comes from an edge or from space.",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "Do reference role tokens only; new colors enter via the ramp layer or not at all.",
-      "Do reach for native semantic HTML first (details, dialog, fieldset, output, …); style it with the cascade in the declared @layer order (tokens < elements < components < compositions < modes).",
-      "Do copy the nearest approved view and change the minimum (the precedent rule); one pattern per problem.",
-      "Do let every signal carry information exactly once — no labels restating the visible, no badges for default states.",
-      "Do size controls from the row's --control-height knob and adapt views with container queries over intrinsic track floors.",
-      "Do trace every visible element to an archivist wish, an owner ruling, or a spec section."
+      "**Do** let alignment and the space scale make the structure; draw a hairline only on a row's two",
+      "**Do** price every element and every fix per size (S / M / L); cut high cost, low gain.",
+      "**Do** inherit: a part sets only what differs from its context. A marker or icon inside text",
+      "**Do** keep controls with their state: the result range in the pager, the sort direction in the",
+      "**Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows),",
+      "**Do** make every icon-only control name itself (`aria-label`); icons come from the one set.",
+      "**Do** use centre dots to separate items in a line."
     ],
     "donts": [
-      "Don't put a hex, ad-hoc font-size, bare px dimension, or bare z-index in component CSS — tokens are the single visual truth.",
-      "Don't use seed violet as a fill or state color; states invert neutral ink. Amber is ENTWURF's, red is validation's — do not repurpose.",
-      "Don't add shadows beyond the two tokens — no elevation ramps, no ripple, no gradients-as-lighting, no textures.",
-      "Don't extend the deprecated c-*/l-* class taxonomy; classes only where semantics cannot discriminate, named for meaning.",
-      "Don't un-hide [hidden] via display rules (the one sanctioned !important enforces it); JS reveals by removing the attribute.",
-      "Don't invent chrome \"for completeness\" — the system must ship complete with every Pfadfinder extension removed."
+      "**Don't** add a second hue, a gray fill, gray chrome, violet, beige or any \"warm\" tint.",
+      "**Don't** use shadows, gradients, rounded corners, pills or bevels.",
+      "**Don't** label roles (\"nur Archivare\"), mark what a list title already says, or place off-topic",
+      "**Don't** signal what the user already knows (no highlight for the column they just sorted).",
+      "**Don't** hide a control that can become active on this page.",
+      "**Don't** set labels in mono capitals, and don't use mono outside columns of data.",
+      "**Don't** frame an add action or draw a line that separates instead of connects.",
+      "**Don't** show counts at display size.",
+      "**Don't** use dashes as separators."
     ]
   }
 }

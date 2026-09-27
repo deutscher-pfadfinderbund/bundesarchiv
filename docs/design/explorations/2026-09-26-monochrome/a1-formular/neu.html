@@ -13,13 +13,11 @@
   <div class="page topbar-row">
     <a class="topbar-mark" href="../r4-system/start.html">Bundesarchiv</a>
     <div class="topbar-tools">
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-1">+ Neu …</button>
+        <ul class="menu" id="menu-1" popover>
           <li><a href="neu.html">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -32,10 +30,7 @@
 <form class="form-sheet" method="post" action="bearbeiten.html">
 
   <header>
-    <div class="field" style="--field-type: var(--type-title)">
-      <label class="field-label" for="f-title">Titel</label>
-      <h1><textarea id="f-title" name="title" rows="1" autofocus></textarea></h1>
-    </div>
+    <h1 class="title-field"><textarea id="f-title" name="title" rows="1" aria-label="Titel" placeholder="Titel" autofocus></textarea></h1>
   </header>
 
   <aside class="record-meta" aria-label="Status und Aktionen">
@@ -50,8 +45,8 @@
     <section aria-label="Kerndaten"><!-- one field: a section heading would cost more than it tells -->
       <div class="field-grid">
         <div class="field">
-          <label class="field-label" for="f-bestand">Bestand</label>
-          <select id="f-bestand" name="collection_id">
+          <label class="field-label" for="f-bestand">Bestand <span aria-hidden="true">*</span></label>
+          <select id="f-bestand" name="collection_id" required>
             <option value="" selected>— Bestand wählen —</option>
             <option>Bund</option>
             <option>DPB vor 1945</option>

@@ -95,10 +95,15 @@ form with the caret on the first empty field.
 
 | Addition | Kind | Job | Why no existing part fits |
 | --- | --- | --- | --- |
-| `field` (knobs `--field-type`, `--field-edge`; parts `-label`, `-aside`, `-echo`, `-hint`, `-error`, `-was`) | component | one form field: label over a boxed control, its messages under it | the system has no form control. The base `input` is an underline, which the owner rejected for forms. `facts` is read-only |
+| `field` (knobs `--field-type`, `--field-edge`; parts `-label`, `-hint`, `-error`, `-was`; the select draws its own chevron) | component | one form field: label over a boxed control, its messages under it | the system has no form control. The base `input` is an underline, which the owner rejected for forms. `facts` is read-only |
 | `record-meta` (parts `-state`, `-line`, `-actions`) | component | the form's margin: state, consequence, actions | `section-head-aside` holds one link, not a state plus actions. `resume` is a sentence of links |
 | `file-row` (parts `-thumb`, `-name`, `-tools`) | component | one medium in the Medien register | `register-row` is label plus figure. `media-item` is a gallery tile whose first child spans two cells. Lines come from `register`, so `file-row` only lays out the row |
-| `upload` (part `-hint`) | component | the native file chooser, its one action, one hint | no inline pairing exists. `search-field` is input plus button but is tuned as search |
+| `upload` | component | "+ Dateien hinzufügen" (an `add` label) over a hidden file input; files upload on choose | a file input's native button text cannot be set. Upload on choose needs JS; without JS the app shows the native input and a submit, as today |
+| `help` | component | a circled "?", one line high, that opens a `popover` with details a hint has no room for | a hint is one line by rule; `abbr` titles never open on touch or keyboard |
+| `popover` | component | the surface a `help` opens (native `[popover]`, anchored on M/L) | `menu` holds actions, not an explanation |
+| `remove` | component | the one cross for every removal; red on hover, press, focus; hx-confirm where it deletes for good | words ("Entfernen") read as a link |
+| `add` | component | "+ …" adds one more row of its kind | the top bar's "+ Neu …" is a menu, not a form action |
+| `pairs` | layout | one custom-bag row: Feld · Wert · remove | `field-grid` has no slot for a trailing control |
 | `form-sheet` | layout | lead · margin · body; margin sticky on L | `split` is media / facts by flex-basis and has no named areas or sticky side |
 | `field-grid` (knob `--field-grid-min`) | layout | aligned cells, at most two per row | `columns` uses section gaps and has no two-column cap |
 
@@ -124,9 +129,10 @@ Token check (grep for hex, raw rem/px, font shorthand outside `var()`): clean. T
 
 ## Known issues (after the one fix batch)
 
-- The disabled ↑/↓ at the ends of the Medien list are now ink-2. At that size they are hard to
-  tell apart from the enabled arrows. A clearer disabled look is needed (system pager uses ink-2
-  with a lighter weight; the arrows have no weight to drop).
+- ~~Disabled ↑/↓ hard to tell apart~~ Fixed 2026-09-27: enabled tools ink-2, disabled in the line colour.
+- Autocomplete sources: Schlagworte and Feld can suggest what the archive already uses. Gruppen
+  has no source in the app today (groups come from Keycloak tokens only): it needs one, for
+  example the groups already named on articles and Bestände plus the archivist's own groups.
 - The screenshots show the file chooser in English ("Choose Files"). The headless browser
   ignores the page locale here. A German browser shows "Dateien auswählen".
 
@@ -146,10 +152,11 @@ Token check (grep for hex, raw rem/px, font shorthand outside `var()`): clean. T
    scroll. Below L it sits under the Titel and scrolls away, so after editing Medien the
    archivist scrolls back up. Is that fine (archivists edit on large screens), or should small
    screens get a save bar that stays at the bottom (it costs about a seventh of a phone screen)?
-5. **"Ansehen" in the Mehr menu.** Leaving the form to look at the article is a common check. Is
+5. ~~**"Ansehen" in the Mehr menu.**~~ Answered 2026-09-27: renamed "Zur Artikelseite". Leaving the form to look at the article is a common check. Is
    it fine folded behind "Mehr …", or should it be a visible quiet link?
-6. **Datierung echo that says nothing new.** For a plain year ("1962") the echo repeats the input
-   word for word. Show the echo only when it differs from the input?
+6. ~~Datierung echo~~ Answered 2026-09-27: echo cut; one hint line plus a "?" popover.
 7. **Create step.** Should "Neuer Artikel" stay two fields (Titel, Bestand) and then open the full
    form, or should it be the full form from the start? The two-step flow is what the app does
    today.
+
+Chips moved into the system as `autocomplete` (2026-09-27): `system/autocomplete.js` + its CSS section.

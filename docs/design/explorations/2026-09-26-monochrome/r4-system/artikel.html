@@ -14,13 +14,11 @@
       <form class="search-field" action="archiv.html" role="search">
         <input type="search" name="q" placeholder="Suchen …" aria-label="Im Archiv suchen">
       </form>
-      <details class="menu">
-        <summary>+ Neu …</summary>
-        <ul>
+      <button class="menu-button" type="button" popovertarget="menu-1">+ Neu …</button>
+        <ul class="menu" id="menu-1" popover>
           <li><a href="#">Neuer Artikel</a></li>
           <li><a href="#">Neuer Bestand</a></li>
         </ul>
-      </details>
       <a href="../x3-register/door.html">Abmelden</a>
     </div>
   </div>
@@ -29,7 +27,7 @@
 <main class="page stack">
   <article class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-art">
     <header class="stack" style="--stack-gap: var(--gap-head)">
-      <nav class="crumbs" aria-label="Ort im Archiv"><a href="archiv.html">Bund</a></nav>
+      <nav class="crumbs" aria-label="Ort im Archiv"><a href="archiv.html">Archiv</a><a href="archiv.html">Bund</a></nav>
       <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
       <p><a class="button" href="#">Bearbeiten</a></p>
     </header>

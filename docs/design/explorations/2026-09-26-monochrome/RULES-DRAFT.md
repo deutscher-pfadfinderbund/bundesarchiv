@@ -1,5 +1,8 @@
 # Design rules — draft (2026-09-26; sizes, serif, media rules owner-answered)
 
+**Superseded 2026-09-27** by `docs/design/design-system.md` (the law), `docs/design/design-review-law.md`
+(cue register) and `DESIGN.md` (the digest). Kept as the record of how the rules came about.
+
 Base: round-2 direction A (Druckschwarz) for start and list, C (Schaufenster) for the article
 page when a square preview exists. Goal: rules strict enough that one writer can build one
 component, another one layout, and the pages come out as one piece.
@@ -35,6 +38,7 @@ rules, owned components from Wave C). These rules replace its *contents*.
 | **Controls own their state** | State far from its control forces the user to link them in their head | one fact, one place; seeing = changing | controls vary in width with their value | result count and range belong to the pager; sort direction to the column head |
 | **Nothing loud outranks the page's main content** | Weight claims importance; the eye lands on the loudest thing first | first glance lands on the job | chrome less discoverable for first visitors | where the control is the content (start-page search) |
 | **At most three primary filters in the heading sentence** | The sentence stays one readable line; common dimensions get the fast path | short heading, one click for the common case | a second, traditional mechanism for the rest; "primary" needs a real basis | swap a dimension in when usage says so; three stay three |
+| **Inherit first; a part sets only what differs** (owner, 2026-09-27) | Colour, font, line-height and letter-spacing flow from the context; a part that restates them breaks when the context changes (a hint, a band, dark mode) | fewer declarations, parts that fit wherever they are placed | form controls do not inherit by browser default: the elements layer resets them once (`font`, `color`, `letter-spacing: inherit`) | a part may set a value only when it differs from its parent on purpose (a quieter hint, an error colour, a hover change); a marker or icon inside text never sets its own colour or size. Review: delete any declaration equal to the inherited value |
 
 ### Live-review rulings (owner, 2026-09-26)
 

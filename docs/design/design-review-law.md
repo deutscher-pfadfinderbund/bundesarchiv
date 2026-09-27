@@ -71,26 +71,38 @@ use, and absence of a cue is always legal. Rows name **selectors**, not
 prose. Any distinctive cue without a row is an S2 defect; adding a cue means
 adding a row first, and rows are owner decisions.
 
+**Monochrome amendment (owner, 2026-09-27).** The register below is the "Druckschwarz" state
+(`design-system.md`, `DESIGN.md`). Rows keep their numbers; a retired row stays as a record and
+licenses nothing. The app's CSS still carries the old rows until the retoken wave, and the design
+lint's allowlists (E) follow the new rows in that wave — until then lint and law differ on
+purpose (rules first, fixes later).
+
 | # | Cue | Licensed selectors + position | Everywhere else |
 |---|-----|-------------------------------|-----------------|
-| 1 | Bevel cut | **RESERVED — no licensed context** (owner 2026-08-29, Signatur presence budget: the reader-header tab demoted to a fact row; the Signatur renders as plain violet-ink mono everywhere it appears — row 2). History: single cut, leading corner, reader-header context 2026-08-06/07. | forbidden |
-| 2 | Violet ink (`--primary`) | `.c-sig-code`; mono counts/dates; inline links (`a` in running content) | forbidden |
-| 3 | Inversion (solid fg/bg swap) | the active filter mark — the facet sidebar's active row, and the filter rail's active chip once the rail lands (rail = primary filter interaction). Ledger bulk selection is NO LONGER an inversion — the checked box is the mark, unchecked boxes reveal on row hover/focus (both owner 2026-08-07) | forbidden — especially as hover, and never as a tonal tint wash |
-| 4 | Amber (`--draft`) | the ENTWURF lifecycle badge | forbidden |
-| 5 | Red (`--error`) | errors; AND the one destructive-action button on a confirm surface (`button.danger` — owner ruling 2026-08-07: "destructive actions can be red") | forbidden — not for warnings or emphasis |
-| 6 | Dashed border | empty/hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
-| 7 | Quiet default | the published/normal state renders no badge | — |
-| 8 | Paper sheet material (owner rulings 2026-08-06/07: "paper material, but not the generic Google Material look"; "a sheet resting on a desk has a shadow — professionally, a touch of skeuomorphism") | TRUE SHEETS only — the preview pane (the pulled sheet), confirm panels, the empty state: a whisper of seed tint (`color-mix` over `--primary-container`), a hairline cut edge, and EXACTLY ONE depth cue — the RESTING-CONTACT shadow (`--sheet-shadow`: single layer, 1–2px y-offset, blur ≤ 3px, low-alpha ink derived from roles; supersedes the 2px lower edge). Facet panels are FURNITURE, not sheets — flat, hairline only (2026-08-07 role reassignment). | forbidden — and the Material float model is forbidden everywhere: no elevation shadow ramps/stacks, no ripple, no gradients-as-lighting, no textures, no rounded-pill chrome |
-| 9 | Icons (owner 2026-08-07) | ONE vendored set of hairline-stroke inline SVGs (24px grid, stroke-width 2 — matches the hairline/ink aesthetic). Licensed slots: the ledger row-action toolbar and view toolbars (`role="toolbar"`). Every icon-only control carries an accessible name. New glyphs join the one set deliberately (demo page in lockstep); no second style, no icon fonts, no ad-hoc picks. | forbidden |
-| 10 | Pane-row marker (owner 2026-08-07) | `.ledger [role="row"][aria-current]`: a quiet persistent neutral highlight (`--surface-container-high`) on the one row whose article the pane shows — deliberately NOT an inversion (a previewed row is not a selected row) | forbidden |
-| 11 | Ledger margin rule (owner endorsement of exploration 05 idea (a), 2026-08-07) | ONE vertical hairline after the Signatur column of the ledger — the bound-register margin line. | forbidden — no other vertical rules in the ledger |
-| 12 | Overlay shadow (owner 2026-08-07: the popover "should have a shadow or something to differentiate it from the background") | TRANSIENT floating panels only — the filter rail's dropdown panels AND the header's "+ Neu …" create-menu panel (`details.menu > ul` — owner 2026-08-07 rail round 2, Mock B: the panel's material role is OVERLAY, per G.17) (`--overlay-shadow`: one soft layer, larger blur than the sheet's contact shadow, low-alpha ink over roles). An overlay genuinely floats; a resting sheet does not — the two shadows stay distinct tokens. | forbidden — still no elevation ramps/stacks on resting surfaces |
-| 13 | Sortable-head sort glyph (owner mock gate 2026-08-22) | `.ledger [role="columnheader"] a` — a HOLLOW glyph at rest on every sortable head, the FILLED direction glyph on the head carrying the active sort. Selectors land with the sort wave; no sortable head exists in live markup yet. | forbidden |
+| 1 | Bevel cut | **RETIRED** (2026-09-27: square corners everywhere). History: the Signatur tab's leading cut, demoted 2026-08-29. | forbidden |
+| 2 | Violet ink | **RETIRED** (2026-09-27: no second hue). Signaturen, counts and dates render in ink; links are underlined ink. | forbidden |
+| 3 | Inversion (solid fg/bg swap) | the primary button (`.button-primary`, and every `.button` on hover); the active option of a suggestion list (`.autocomplete-list [aria-selected="true"]`) | forbidden — never a hover wash on rows, never a filter chip |
+| 4 | Amber | **RETIRED** (2026-09-27). "Entwurf" is a mark in words (`.mark`, secondary ink). | forbidden |
+| 5 | Red (`--error`) | field errors (`.field-error`); the doubled edge of `[aria-invalid="true"]` controls and of an autocomplete box holding one; the edit-conflict notice (`.record-meta-alert`: its 3px top rule and its subhead); a removing control on hover, press and focus (`.remove`, `.chip > button`, `.menu .menu-destructive`); the committing button of a delete confirm (`.button-danger`) | forbidden — not for warnings or emphasis |
+| 6 | Dashed border | empty / hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
+| 7 | Quiet default | the published / normal state renders no mark | — |
+| 8 | Paper sheet material | **RETIRED** (2026-09-27: flat — no tint, no shadow). | forbidden — no shadow, gradient, glow or texture anywhere |
+| 9 | Icons | ONE stroke set (24px grid, stroke 2, `currentColor`; app `components/icon.html`, mock `system/icons.svg`, name for name). Slots: row toolbars (`role="toolbar"`, the media row tools), the removing × (`.remove`, `.chip > button`). Every icon-only control names itself. | forbidden — no icon fonts, no second style |
+| 10 | Pane-row marker | **SUSPENDED** until the list page is recomposed (the preview pane itself is an open question; its token `--surface-container-high` has no monochrome role). | forbidden |
+| 11 | Ledger margin rule | carried: ONE vertical hairline after the Signatur column; re-decided with the list page | forbidden — no other vertical rules |
+| 12 | Floating panel edge | **AMENDED** (was the overlay shadow): transient panels are page surface with a 1px `--edge` border, in the top layer via the native popover — the menu (`ul.menu[popover]`), the help popover (`.popover`), the suggestion list (`.autocomplete-list`) | forbidden — no shadow on anything |
+| 13 | Sort glyph | the direction glyph on the sortable head carrying the active sort; on other sortable heads only on hover / focus (`.ledger-sort`) | forbidden — no step-up of the sorted column |
+| 14 | Hairline row rule | `--rule` 1px between the rows of a register or ledger that have two ends (a lead and a figure) | forbidden — never above the first or below the last row, never under headers, filter bars or section heads |
+| 15 | Heavy rule | 3px, `--error`: the top of the edit-conflict notice only (`.record-meta-alert`) | forbidden — section rules were removed (`r3-linien`) |
+| 16 | Help mark ⓘ | the character U+24D8 at the end of a field hint (`.help`), opening a `.popover` | forbidden — no "?" glyphs, no hover-only tooltips |
+| 17 | Note | `.note` (note type, `--ink-3`) touching a label or heading ("intern") | forbidden — never at a far edge, never boxed |
+| 18 | Placeholder cross | `--placeholder` in `--faint` on an item without an image (`.media-item`, `.plate-item`, `.file-row-thumb`) | forbidden — no placeholder where no medium is expected |
+| 19 | Gray fill | `--sso` on the door page's login button only | forbidden |
+| 20 | Underline | links and crumb steps at rest; text controls (menu entries, "+ …", suggestion options, field asides) on hover only | forbidden as decoration |
 
-**Reserved (recorded, NOT licensed):** a serif READING type role (`--type-reading`) for the Lesesaal member composition (owner liked exploration 04's serif reader, 2026-08-07) — licensed when that wave is approved. Also reserved: trapezoid tab — both top corners cut —
-for a future register-tab component used as **view navigation** (owner,
-2026-08-06). Gets its own row if and when that component is approved; until
-then two-cut bevels are forbidden like any unregistered cue.
+**Reserved (recorded, NOT licensed):** none open. The serif reading role reserved for the
+Lesesaal composition lapsed into the monochrome type roles (serif for headings and titles); the
+trapezoid register tab lapsed with the square-corner ruling.
 
 ## C. Cascade rules — when to use which styling
 
@@ -206,22 +218,23 @@ only it:
   law, not taste.)
 - **A redesign is a retint of `tokens.css`.** If changing the look requires
   touching component CSS, the token layer has a hole — that hole is the
-  defect, fix it there.
+  defect, fix it there. (The monochrome redesign is the test case: it needs new roles —
+  `--ink-3`, `--faint`, `--edge` — and removes others; component CSS changes only where a
+  component itself changed.)
 - **A mode is a token remap.** Light/dark exist today (`light-dark()` per
   role). A **high-contrast mode** is the planned third: a
   `@media (prefers-contrast: more)` block remapping the same roles (harder
-  ink, no sheet tint, thicker `--hairline`) — zero component changes.
+  secondary ink, a stronger edge, thicker lines) — zero component changes.
   Windows forced-colors is respected by not fighting system colors.
-- Sibling DPB services retheme by swapping the one seed line (existing law,
-  restated — same lever).
+- The seed line is gone with the violet world: the monochrome roles carry no hue. A sibling DPB
+  service that wants its own colour adds it through the role layer, never in components.
 
 ## D. One-line rulings (owner, 2026-08-06)
 
-- **Motion: licensed, desk-plane only.** Motion may explain a spatial change
-  — a sheet slides in/out on the desk plane (translate + settle), the way
-  paper moves on a desk. It need not be "realistic" paper; it must carry the
-  feeling. Never decorative or idle, never blocking, always honoring
-  `prefers-reduced-motion`. Forbidden verbs: zoom, bounce, ripple, parallax.
+- **Motion: licensed only to explain a change of size or place** (monochrome amendment,
+  2026-09-27; the desk-plane sheet motion retired with the paper material): e.g. the compact
+  search field growing on focus (`--motion-grow`). Never decorative or idle, never blocking,
+  always honoring `prefers-reduced-motion`. Forbidden verbs: zoom, bounce, ripple, parallax.
 - **Icons: permitted; text-first is the current default, not a ban**
   (owner, 2026-08-06). Adopting icons is a register decision: ONE
   consistent set, one register row naming where icons live. Binding part
@@ -240,8 +253,8 @@ The machine-checkable slice of B and C, enforced by
 
 - no raw hex in component CSS (existing law, restated);
 - no `corner-shape` outside register row 1's selectors;
-- no `--primary` / `--draft` / `--error` consumption outside rows 2/4/5's
-  licensed selectors;
+- no `--error` consumption outside row 5's licensed selectors (the check still names rows 2/4
+  until the retoken wave moves the allowlists to the monochrome register);
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
   C5);
@@ -270,9 +283,10 @@ pinned, availability tier follows consequence of failure. The test is
   `:user-invalid`.
 - **Non-functional / progressive enhancement** (absence degrades
   gracefully): **Baseline newly available** allowed. View transitions
-  (the desk-plane motion mechanism — degrades to an instant swap),
+  (degrades to an instant swap),
   `@starting-style` + `transition-behavior: allow-discrete`, `popover`
-  (as enhancement over a functional fallback), style queries,
+  (as enhancement over a functional fallback until it turns Baseline widely available in
+  October 2026; the monochrome menus rely on it from then), style queries,
   `field-sizing`, `text-wrap: balance/pretty`.
 - **Pre-Baseline decoration**: allowed ONLY where the un-supported
   rendering is automatically acceptable with zero fallback code —
@@ -629,6 +643,22 @@ refuted):**
    provable per-element (`anchor()` insets, `justify-self: anchor-center`) over
    the composite properties whose failure mode is a silent wrong position.
 
+**2026-09-27, monochrome system and the a1 review:**
+
+51. **A 1px red edge does not stand out from a gray edge.** The error edge read as "just another
+   frame" in light mode; red and gray at one pixel differ in hue more than in weight. The error
+   state doubles the edge (border plus a 1px inset shadow) so weight carries it, not hue alone.
+52. **`:where()` zeroes only what it wraps.** `.tools :where(button):hover:enabled` still counts
+   two pseudo-classes and outranked the red hover of the × it meant to stay below. Wrap the
+   whole compound (`:where(button:hover:enabled)`) when a default must lose to a component.
+53. **A part that restates an inherited value breaks in the next context.** The "*" marker and
+   the help mark carried their own colour and size; inside a hint or a quieter label they stood
+   out wrong. Rule "Inherit first" (design-system.md principles): a part sets only what differs,
+   and the elements layer resets form controls to inherit once.
+54. **A dark theme needs its own "inactive" colour.** The hairline that is right for connecting
+   rows (~1.35:1) made disabled arrows and placeholder crosses vanish on black. Present-but-
+   inactive things get `--faint`, tuned brighter in dark than the hairline.
+
 Run before returning from ANY UI wave. Ten lines distilled from the
 learnings register (section G is the archive and the reasoning; this is the
 operational form — learning G.28).
@@ -637,8 +667,8 @@ operational form — learning G.28).
    test asserts the MINIMUM count of rows the page composes, G.37), overlay
    containment AND hit-testability (G.26/G.36), header uniformity (G.1) — plus
    the design lint (E). Not "should pass": run them.
-2. **Every new surface has a material role** (desk / furniture / sheet /
-   overlay) named in the code and consistent with register row 8 (G.17).
+2. **Every new surface is page or band** and floats only as a native popover with an edge
+   (register row 12). (Monochrome amendment; the desk / furniture / sheet roles of G.17 retired.)
 3. **Every distinctive cue cites a register row** (B) — including its
    position. No row, no cue.
 4. **No invented numbers:** width queries derive from measured content and
