@@ -226,11 +226,10 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Cost class:** defect (UI); it also blocks e2e as a signal — a wave cannot tell its own
   regressions from this baseline until it is fixed.
 
-### 21. The e2e walkers hard-code what an overlay is — Speculative
-- **Indicator:** 3 places spell "overlay = `details:has(> ul)`" (Wave T, 2026-09-27): the count
-  selector, the walk JS and the control-row panel filter in `tests/e2e/`. The popover menu had to
-  be taught to all three.
-- **Sketch:** one overlay descriptor in `tests/e2e/_pages.py`; the next mechanism is one line.
+### 21. The e2e walkers hard-code what an overlay is — done
+- **Indicator:** 3 places spelled "overlay = `details:has(> ul)`" (Wave T, 2026-09-27): the count
+  selector, the walk JS and the control-row panel filter in `tests/e2e/`. 1 (Wave K1, 2026-09-27):
+  `_pages.OVERLAY_MECHANISMS`, which every walker reads; the next mechanism is one line.
 - **Also:** the design lint parses CSS that is formatted by hand (no CSS formatter); a mis-wrapped
   rule can slip past it. Watch for a second occurrence before adding a formatter.
 

@@ -17,7 +17,13 @@ import pytest
 from playwright.sync_api import Browser, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles
-from tests.e2e._pages import SCREENS, screens_for
+from tests.e2e._pages import (
+    OVERLAY_PANEL_OF_JS,
+    OVERLAY_PANELS,
+    OVERLAY_TRIGGERS,
+    SCREENS,
+    screens_for,
+)
 
 from bundesarchiv.app.web import vocab
 
@@ -163,7 +169,7 @@ def test_ledger_headers_compute_one_uniform_treatment(
 #: font beside 32px buttons with the whole suite green; bare links were missing too, and `a.back` stood
 #: 19px in the record row (under the AA floor) for the same reason.
 #: Per-instance copies of this proof are forbidden.
-_CONTROL_ROW_WALKER_JS = """() => {
+_CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
     const declaresKnob = (el) => {
         const own = getComputedStyle(el).getPropertyValue('--control-height').trim();
         if (!own) return false;  // unset, or reset to the guaranteed-invalid value
@@ -191,7 +197,7 @@ _CONTROL_ROW_WALKER_JS = """() => {
             // overlay contents). The panel is a row in its own right, so its entries are measured
             // there — counting them twice would demand that a 44px menu entry match a 32px chrome row.
             .filter((el) => {
-                const panel = el.closest('details > ul, [popover]');
+                const panel = el.closest(overlayPanels);
                 return panel === null || panel === row;
             })
             // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
@@ -246,15 +252,15 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
     each overlay is opened in turn by its trigger and the walk repeated; one at a time, because the
     rail's facet groups share a ``name`` and two can never be open together. Row indices are stable
     across the passes (same DOM), so the open pass fills in the rows the closed pass saw empty."""
-    rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
+    rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
     walked: dict[str, list[dict[str, str | int | bool]]] = {}
     for i, row in enumerate(rows):
         walked[f"{row['name']}#{i}"] = row["controls"]  # type: ignore[assignment]
-    triggers = page.locator(_OVERLAY_TRIGGERS)
+    triggers = page.locator(OVERLAY_TRIGGERS)
     for index in range(triggers.count()):
         trigger = triggers.nth(index)
         trigger.click()
-        for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS)):
+        for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)):
             if row["controls"]:
                 walked[f"{row['name']}#{i}"] = row["controls"]
         trigger.click()  # close before opening the next one
@@ -458,13 +464,6 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
-#: Every OVERLAY's trigger on the page, found generically: a native disclosure whose dropped panel
-#: is a positioned list (`details > ul` — each filter-rail facet dropdown and the record row's
-#: "Mehr …") and a popover's invoker (`[popovertarget]` — the header's "+ Neu …"). Written as a
-#: WALKER, not per instance (learning G.21/G.26): the day a new overlay is built from either
-#: pattern, this proof already covers it.
-_OVERLAY_TRIGGERS = "details:has(> ul) > summary, [popovertarget]"
-
 #: One overlay's containment facts: the panel's box against the viewport, the panel's top edge
 #: against its own trigger's bottom edge (issue #53 — the anchored tier landed both panels OVER
 #: their trigger row, and no fact here measured it), the document's own horizontal overflow while it
@@ -477,33 +476,18 @@ _OVERLAY_TRIGGERS = "details:has(> ul) > summary, [popovertarget]"
 #: Opens EVERY overlay on the page in turn (one at a time — the rail's facet groups share a `name`, so
 #: two can never be open together anyway) and returns one facts record per panel. One evaluate per
 #: (screen, width) instead of two clicks plus an evaluate per panel: the whole measurement is
-#: synchronous DOM work (setting `.open` forces layout before getBoundingClientRect reads it), so
+#: synchronous DOM work (opening forces layout before getBoundingClientRect reads it), so
 #: paying a Playwright round-trip per open/close bought nothing but wall clock.
-_OVERLAY_WALK_JS = """() => {
+_OVERLAY_WALK_JS = (
+    """(triggers) => {
+    const panelOf = PANEL_OF;
     const facts = [];
-    const overlays = [
-        ...[...document.querySelectorAll('details:has(> ul)')].map((detail) => ({
-            panel: detail.querySelector(':scope > ul'),
-            trigger: detail.querySelector(':scope > summary'),
-            open: () => {
-                const wasOpen = detail.open;
-                detail.open = true;
-                return () => { detail.open = wasOpen; };
-            },
-        })),
-        ...[...document.querySelectorAll('[popovertarget]')].map((button) => {
-            const panel = document.getElementById(button.getAttribute('popovertarget'));
-            return {panel: panel, trigger: button, open: () => {
-                panel.showPopover();
-                return () => panel.hidePopover();
-            }};
-        }),
-    ];
-    for (const overlay of overlays) {
-        const close = overlay.open();
-        const panel = overlay.panel;
+    for (const trigger of document.querySelectorAll(triggers)) {
+        const panel = panelOf(trigger);
+        const opened = !panel.checkVisibility();
+        if (opened) trigger.click();
         const r = panel.getBoundingClientRect();
-        const trigger = overlay.trigger.getBoundingClientRect();
+        const edge = trigger.getBoundingClientRect();
         const d = document.documentElement;
         const covered = [];
         for (const entry of panel.querySelectorAll('a, button, input, select')) {
@@ -520,17 +504,18 @@ _OVERLAY_WALK_JS = """() => {
             }
         }
         facts.push({
-            label: overlay.trigger.textContent.trim(),
-            top: Math.round(r.top), triggerBottom: Math.round(trigger.bottom),
+            label: trigger.textContent.trim(),
+            top: Math.round(r.top), triggerBottom: Math.round(edge.bottom),
             left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
             viewport: d.clientWidth,
             docOverflow: d.scrollWidth - d.clientWidth,
             covered: covered,
         });
-        close();
+        if (opened) trigger.click();
     }
     return facts;
 }"""
+).replace("PANEL_OF", OVERLAY_PANEL_OF_JS)
 
 #: The width range every overlay must survive. 360 is the narrowest phone, 1440 a wide desktop;
 #: 540/680/900 straddle the header wrap and the rail's own wrapping. 1100 closes a 540px hole between
@@ -557,13 +542,13 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
         if not screen.overlays:
             continue
         screen.reach(page, live_workbench, corpus)
-        found = page.locator(_OVERLAY_TRIGGERS).count()
+        found = page.locator(OVERLAY_TRIGGERS).count()
         assert found >= screen.overlays, (
             f"the overlay walker found only {found} panels on {screen.name}"
         )
         for width in _CONTAINMENT_WIDTHS:
             page.set_viewport_size({"width": width, "height": 900})
-            for rect in page.evaluate(_OVERLAY_WALK_JS):
+            for rect in page.evaluate(_OVERLAY_WALK_JS, OVERLAY_TRIGGERS):
                 where = f"{width}px · {screen.name} · {rect['label']}"
                 if rect["covered"]:
                     defects.append(f"{where}: entries painted over: {rect['covered']}")

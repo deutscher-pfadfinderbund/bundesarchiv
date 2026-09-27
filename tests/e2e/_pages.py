@@ -28,11 +28,31 @@ spot: they lived as gallery interaction states with zero assertions, and an unla
 plus an alt-less ``<img>`` planted on the confirm page passed every guard.
 """
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from playwright.sync_api import Page
 from tests.e2e._corpus import CorpusHandles
+
+#: What an OVERLAY is, once — every walker reads it: each mechanism the app drops a panel with, as
+#: (its trigger, its panel, a JS expression resolving the trigger ``t`` to its panel). The facet
+#: dropdowns are ``<details>``, the menus popovers. A new mechanism is one line here.
+OVERLAY_MECHANISMS: tuple[tuple[str, str, str], ...] = (
+    ("details:has(> ul) > summary", "details > ul", "t.parentElement.querySelector(':scope > ul')"),
+    ("[popovertarget]", "[popover]", "t.popoverTargetElement"),
+)
+OVERLAY_TRIGGERS = ", ".join(trigger for trigger, _, _ in OVERLAY_MECHANISMS)
+OVERLAY_PANELS = ", ".join(panel for _, panel, _ in OVERLAY_MECHANISMS)
+#: A JS function: an overlay trigger to its panel, whichever mechanism built it.
+OVERLAY_PANEL_OF_JS = (
+    "((t) => "
+    + " : ".join(
+        f"t.matches({json.dumps(trigger)}) ? {panel_of}"
+        for trigger, _, panel_of in OVERLAY_MECHANISMS
+    )
+    + " : null)"
+)
 
 #: How a guard gets a browser onto a screen: navigate, or drive whatever affordance leads there.
 #: Every reach leaves the page fully loaded, so a caller only measures.
