@@ -285,6 +285,10 @@
     .register:has(.register-lead) { display: grid; grid-template-columns: fit-content(var(--measure-date)) minmax(0, 1fr) max-content; column-gap: var(--space-5); } /* never wider than one full date: a range breaks after its slash (<wbr>) */
     .register:has(.register-lead) > li, .register:has(.register-lead) .register-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
   }
+  /* a lead register without figures has no lines, so space alone must group: a row's own lines sit
+     one leading apart, rows sit a clear gap apart (a wrapped title stays with its date) */
+  .register:has(.register-lead):not(:has(.register-figure)) { display: grid; row-gap: var(--space-5); }
+  .register:has(.register-lead):not(:has(.register-figure)) .register-row { padding-block: 0; }
   .register-label { flex: 1 1 auto; font: var(--register-label-type, var(--type-entry)); }
   a.register-row:hover .register-label { text-decoration: underline; }
   .register-figure { margin-inline-start: auto; min-inline-size: var(--measure-count); text-align: end; font: var(--type-meta); color: var(--ink-2); }
@@ -348,6 +352,17 @@
   .facts > div { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
   .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); }
   .facts :is(time, data) { font: inherit; } /* one value is not a column: mono only aligns columns */
+
+  /* ---------- byline — one line of facts, separated by a middle dot ----------
+     Knobs: --byline-type (default --type-body). Items are spans / <time> (self-evident values, no
+     labels: "CD / DVD · 2007 · Iserlohn · von Ring Florian Geyer") or, where a value is not
+     self-evident, <div><dt><dd> pairs in a <dl> ("Signatur BA 1035"). One line reads as one fact
+     group; the dots separate without drawing anything. */
+  .byline { display: flex; flex-wrap: wrap; align-items: baseline; margin: 0; font: var(--byline-type, var(--type-body)); }
+  .byline > * + *::before { content: "·" / ""; display: inline-block; margin-inline: var(--space-3); color: var(--ink-2); }
+  .byline :is(dt, dd) { display: inline; margin: 0; }
+  .byline dt { margin-inline-end: var(--space-2); color: var(--ink-2); }
+  .byline :is(time, data) { font: inherit; }
 
   /* ---------- media — the article's previews; the first one leads ----------
      Knobs: none. A .media-item without an image draws the placeholder cross.

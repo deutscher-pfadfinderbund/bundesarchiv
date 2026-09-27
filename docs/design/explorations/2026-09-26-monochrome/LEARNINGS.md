@@ -154,3 +154,13 @@ by one button at a time.
 empty action slot, and a lead column sized for the longest possible date pushed every title away.
 Size a column by its content (shrink the last one, cap the lead at one full date and let a range
 break), and the rules and gaps follow the content instead of the container.
+
+**29. A label is for a value that cannot speak for itself.** "2007" is a date and "Iserlohn" is a
+place; labelling them spent a column and a row each on what the reader already knew. "BA 1035" is
+not self-evident, so the management line keeps its labels. And the Signatur never was a fact about
+the article: it is how the archive finds the object, so it belongs with the archivist's tools.
+
+**30. Without lines, space is the only grouping, and it must be decisive.** When rows lost their
+rules, a wrapped title's second line sat as far from its first line as from the next row, so the
+list stopped reading as rows. The gap between rows has to be clearly larger than the gap inside a
+row; equal spacing groups nothing.

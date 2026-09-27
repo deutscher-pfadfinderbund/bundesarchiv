@@ -235,3 +235,18 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
 - **Start page:** the Zeitleiste stretches between its neighbours' first and last rows (its rows lose
   their own padding; the stretch spaces them). "Nach Art" shows as many rows as "Bestände" (top eight
   plus "Weitere Arten"), so all three columns end level.
+
+## Owner rulings, round 3 on a3 (2026-09-27, applied)
+
+- **Facts distilled:** the labelled fact list is gone from the article. The origin is one line under
+  the title with no labels, because its values are self-evident: "CD / DVD · 2007 · Iserlohn · von
+  Ring Florian Geyer" (new system component `byline`).
+- **Signatur and Standort are management info,** not facts about the article: a quiet, labelled
+  `byline` right after the archivist's actions ("Signatur BA 1035 · Standort …"), meta size.
+- **One typeface for the running text:** origin and Beschreibung share the body type.
+- **Semantic HTML:** every date is `<time datetime>`; an EDTF qualifier stays in the text
+  (`<time datetime="1963">1963~</time>`), a range is two `<time>` elements. Counts and Signaturen
+  stay `<data>`.
+- **Onward lists grouped by space:** without lines, a row's own lines sit one leading apart and rows
+  sit a clear gap apart (`--space-5`), so a wrapped title stays with its date instead of drifting
+  toward the next row.

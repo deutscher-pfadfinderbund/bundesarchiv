@@ -33,6 +33,8 @@
     <header class="stack" style="--stack-gap: var(--gap-head)">
       <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Gruppen des DPB</a></nav>
       <h1 id="h-art">Bundeslager 2007: Eine Fotodokumentation</h1>
+      <!-- origin: when, where, who — self-evident values, no labels -->
+      <p class="byline"><span>CD / DVD</span><time datetime="2007">2007</time><span>Iserlohn</span><span>von Ring Florian Geyer</span></p>
       <div class="row">
         <a class="button" href="#">Bearbeiten</a>
         <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
@@ -42,6 +44,8 @@
             <li><a class="danger" href="loeschen.html">Löschen</a></li>
           </ul>
       </div>
+      <!-- management info for archivists, not a fact about the article: quiet, labelled -->
+      <dl class="byline quiet" style="--byline-type: var(--type-meta)" aria-label="Verwaltung"><div><dt>Signatur</dt><dd><data value="BA 1035">BA 1035</data></dd></div><div><dt>Standort</dt><dd>Gruppen des DPB › Audio/Video 1</dd></div></dl>
     </header>
   <div class="split">
     <figure class="plate" style="--plate-lead-ratio: 16 / 9" aria-label="Medien">
@@ -53,14 +57,6 @@
 
       <!-- Beschreibung: mock text — absent = nothing rendered -->
       <p class="prose">DVD mit Bildern und kurzen Filmen vom Bundeslager 2007, zusammengestellt vom Ring Florian Geyer.</p>
-      <dl class="facts">
-        <div><dt>Datierung</dt><dd><time datetime="2007">2007</time></dd></div>
-        <div><dt>Ort</dt><dd>Iserlohn</dd></div>
-        <div><dt>Urheber</dt><dd>Ring Florian Geyer</dd></div>
-        <div><dt>Typ</dt><dd>CD / DVD</dd></div>
-        <div class="quiet"><dt>Standort</dt><dd>Gruppen des DPB › Audio/Video 1</dd></div>
-        <div class="quiet"><dt>Signatur</dt><dd><data value="BA 1035">BA 1035</data></dd></div>
-      </dl>
     </div>
   </div>
   </article>
@@ -72,8 +68,8 @@
       </header>
       <ul class="register">
         <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1959-12">1959-12</time></span><span class="register-label">Nachrichtenblatt des Gau Ordensland, Nr. 2</span></a></li>
-        <li><a class="register-row" href="#"><span class="register-lead"><data value="1963~">1963~</data></span><span class="register-label">Die Feuerrunde Heft 2</span></a></li>
-        <li><a class="register-row" href="#"><span class="register-lead"><data value="1984-11-26/1995-03-14">1984-11-26/<wbr>1995-03-14</data></span><span class="register-label">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1963">1963~</time></span><span class="register-label">Die Feuerrunde Heft 2</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1984-11-26">1984-11-26</time>/<wbr><time datetime="1995-03-14">1995-03-14</time></span><span class="register-label">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</span></a></li>
       </ul>
     </section>
     <section aria-labelledby="h-mehr-zeit">

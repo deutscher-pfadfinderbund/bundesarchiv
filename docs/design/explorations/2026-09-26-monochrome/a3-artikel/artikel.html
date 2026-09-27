@@ -33,6 +33,8 @@
     <header class="stack" style="--stack-gap: var(--gap-head)">
       <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
       <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
+      <!-- origin: when, where, who — self-evident values, no labels -->
+      <p class="byline"><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span></p>
       <div class="row">
         <a class="button" href="#">Bearbeiten</a>
         <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
@@ -42,6 +44,8 @@
             <li><a class="danger" href="loeschen.html">Löschen</a></li>
           </ul>
       </div>
+      <!-- management info for archivists, not a fact about the article: quiet, labelled -->
+      <dl class="byline quiet" style="--byline-type: var(--type-meta)" aria-label="Verwaltung"><div><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div><div><dt>Standort</dt><dd>Bund › Alben</dd></div></dl>
     </header>
   <div class="split">
     <div class="plate" aria-label="Medien">
@@ -58,14 +62,6 @@
       <!-- Beschreibung: mock text — absent = nothing rendered -->
 
       <p class="prose">Album mit Abzügen vom Austausch zwischen spanischen und deutschen Gruppen, vom ersten Treffen auf dem Hohen Meißner bis zu den Fahrten nach Cuenca und Madrid.</p>
-      <dl class="facts">
-        <div><dt>Datierung</dt><dd><time datetime="1967">1967</time></dd></div>
-        <div><dt>Ort</dt><dd>Hoher Meißner, Cuenca, Madrid</dd></div>
-        <div><dt>Urheber</dt><dd>mo</dd></div>
-        <div><dt>Typ</dt><dd>Foto(s)</dd></div>
-        <div class="quiet"><dt>Standort</dt><dd>Bund › Alben</dd></div>
-        <div class="quiet"><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div>
-      </dl>
     </div>
   </div>
   </article>
@@ -76,8 +72,8 @@
         <h2 id="h-mehr-best">Mehr aus diesem Bestand</h2><a class="section-head-aside" href="../r4-system/archiv.html">Bund · alle ›</a>
       </header>
       <ul class="register">
-        <li><a class="register-row" href="#"><span class="register-lead"><data value="1960~">1960~</data></span><span class="register-label">Die Kompassnadel, Nr. 20</span></a></li>
-        <li><a class="register-row" href="#"><span class="register-lead"><data value="1984-11-26/1995-03-14">1984-11-26/<wbr>1995-03-14</data></span><span class="register-label">Das Gesetz</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1960">1960~</time></span><span class="register-label">Die Kompassnadel, Nr. 20</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1984-11-26">1984-11-26</time>/<wbr><time datetime="1995-03-14">1995-03-14</time></span><span class="register-label">Das Gesetz</span></a></li>
         <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1977">1977</time></span><span class="register-label">Bundeslager 1977 Hemer / Westfalen</span></a></li>
       </ul>
     </section>
