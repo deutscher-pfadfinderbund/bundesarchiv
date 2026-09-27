@@ -19,6 +19,7 @@
   .ledger thead .ledger-pick input { inset-block-start: 0.15em; } /* the head row has no top padding */
   /* ledger-digital — which files a record has ("PDF", "2 Fotos"); empty = none. Short, quiet, like Typ. */
   .ledger-digital { white-space: nowrap; font: var(--type-meta); color: var(--ink-2); }
+  @container (width < 40rem) { .ledger-digital { grid-row: 3; grid-column: 2; text-align: end; } } /* S: on the Signatur line, at its end */
   .ledger-edit { margin-inline-start: var(--space-4); font: var(--type-meta); color: var(--ink-2); }
   .ledger-edit:hover { color: var(--ink); }
   @media (hover: hover) {

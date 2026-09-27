@@ -341,3 +341,16 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   and a secondary filter. "+ Filter" opens the secondary filters as a check list (Digital (mit
   Dateien), Entwürfe); a set one joins the search sentence as a set slot. The column is also in
   "Spalten …". In the archive 842 of 2,506 records have files.
+
+## The list with real data — critique pass before the owner's round (2026-09-28, applied)
+
+The one list was filled with the real archive (mock server, `/liste`: 2,506 records, 25 per page,
+Bestand / decade / type slots as working menus with counts, "+ Filter" with Digital and Entwürfe,
+sorting by Titel, Datierung, Signatur). A critique pass against `LEARNINGS.md` found and fixed:
+- a slot's menu carried the slots' separator dot (the menu is no slot);
+- a menu took the search sentence's large type (a menu now has its own voice, body type);
+- a set filter shown as a link was underlined while the button slots were not;
+- on S the sentence shrank to "[field] in": the first slot (Bestand) now always stays, "Filter"
+  folds the rest;
+- on S the Digital value took a line of its own; it now ends the Signatur line;
+- counts in menus lacked the thousands dot.

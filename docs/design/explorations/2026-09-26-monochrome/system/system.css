@@ -246,13 +246,15 @@
   }
   .search-sentence-field { flex: 1 1 var(--measure-query-min); max-inline-size: var(--measure-query); }
   .search-sentence-slots { display: inline-flex; flex-wrap: wrap; align-items: baseline; }
-  .search-sentence-slots > * + *::before { content: "·"; display: inline-block; margin-inline: var(--space-3) var(--space-2); color: var(--ink-2); }
-  .search-sentence button:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
+  .search-sentence-slots > :not(.menu) + :not(.menu)::before, .search-sentence-slots > .menu + :not(.menu)::before { content: "·"; display: inline-block; margin-inline: var(--space-3) var(--space-2); color: var(--ink-2); }
+  .search-sentence-slots > :first-child::before { content: none; } /* a slot opens its own menu; the menu is no slot and carries no dot */
+  .search-sentence :is(button, a) { text-decoration: none; }
+  .search-sentence :is(button, a):hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
   .search-sentence .is-set { color: var(--ink); }
   .search-sentence .is-more { display: none; }
   .search-sentence-add { margin-inline-start: var(--space-3); }
   @container (width < 40rem) {
-    .search-sentence-label, .search-sentence .is-minor, .search-sentence-add { display: none; }
+    .search-sentence-label, .search-sentence .is-minor:not(.search-sentence-slots > :first-child), .search-sentence-add { display: none; } /* the first slot (Bestand) always stays */
     .search-sentence-field { flex-basis: 100%; max-inline-size: none; }
     .search-sentence .is-more { display: inline; }
   }
@@ -425,7 +427,7 @@
      always page surface, even when its button sits in the band. */
   .menu {
     --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
-    min-inline-size: var(--measure-menu); margin: 0; padding: var(--space-2) 0; list-style: none;
+    min-inline-size: var(--measure-menu); margin: 0; padding: var(--space-2) 0; list-style: none; font: var(--type-body); letter-spacing: normal; /* its own voice, whatever opened it */
     background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--ink); /* a floating panel is never quieter than the control that opened it */
   }
   @supports (position-area: block-end) {
