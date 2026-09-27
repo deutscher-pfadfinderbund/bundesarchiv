@@ -103,11 +103,11 @@
   .popover dt { font: var(--type-data); }
 
   /* ---------- remove — a cross; every removal in the product is this one control ----------
-     Knobs: none. Red on hover, press and focus (rule: a removing control is red while it is about to
-     act). Where it deletes for good it also asks first: hx-confirm on the button (the browser's own
-     dialog; without JS the server's two-step confirm). */
+     Knobs: none. Colour-blind: on hover, press and focus it draws in --ink; the .danger context
+     turns that red where the removal is for good. Where it deletes for good it also asks first:
+     hx-confirm (the browser's own dialog; without JS the server's two-step confirm). */
   .remove { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
-  .remove:is(:hover, :active, :focus-visible) { color: var(--error); }
+  .remove:is(:hover, :active, :focus-visible) { color: var(--ink); }
 
 
   /* ---------- add — "+ …": adds one more row of its kind (the top bar's "+ Neu …" voice) ---------- */

@@ -83,7 +83,7 @@ purpose (rules first, fixes later).
 | 2 | Violet ink | **RETIRED** (2026-09-27: no second hue). Signaturen, counts and dates render in ink; links are underlined ink. | forbidden |
 | 3 | Inversion (solid fg/bg swap) | the primary button (`.button-primary`, and every `.button` on hover); the active option of a suggestion list (`.autocomplete-list [aria-selected="true"]`) | forbidden — never a hover wash on rows, never a filter chip |
 | 4 | Amber | **RETIRED** (2026-09-27). "Entwurf" is a mark in words (`.mark`, secondary ink). | forbidden |
-| 5 | Red (`--error`) | field errors (`.field-error`); the doubled edge of `[aria-invalid="true"]` controls and of an autocomplete box holding one; the edit-conflict notice (`.record-meta-alert`: its 3px top rule and its subhead); a removing control on hover, press and focus (`.remove`, `.chip > button`, `.menu .menu-destructive`); the committing button of a delete confirm (`.button-danger`) | forbidden — not for warnings or emphasis |
+| 5 | Red (`--error`) | field errors (`.field-error`); the doubled edge of `[aria-invalid="true"]` controls and of an autocomplete box holding one; the edit-conflict notice (`.record-meta-alert`: its 3px top rule and its subhead); whatever carries the `.danger` context, on hover, press and focus (the × of `.remove` and of a chip, the menu's "Löschen", the delete confirm's button) | forbidden — not for warnings or emphasis |
 | 6 | Dashed border | empty / hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published / normal state renders no mark | — |
 | 8 | Paper sheet material | **RETIRED** (2026-09-27: flat — no tint, no shadow). | forbidden — no shadow, gradient, glow or texture anywhere |
@@ -114,7 +114,11 @@ trapezoid register tab lapsed with the square-corner ruling.
    "Component architecture rulings"; the roots: `design-system.md`,
    "Component inventory"). Inside a component, elements first still holds.
 2. **Context over variants.** A component adapts to where it sits (ancestor
-   scope, `@container`), never via variant modifier classes. **State
+   scope, `@container`), never via variant modifier classes. A context may sit on
+   the element itself: `.danger` re-points `--ink` to `--error` and sets no property,
+   so `.button`, `.remove` and a menu entry turn red without knowing it
+   (2026-09-27). The test: a context re-points roles or knobs and works on any
+   component; a variant sets one component's own properties (`.button-danger`). **State
    modifiers are exempt**: a class encoding runtime state (`--aktiv`) is
    legal — but prefer styling on `aria-current`/`aria-selected`/`[hidden]`
    where the attribute exists, so state and styling cannot drift apart.

@@ -34,10 +34,6 @@
   .field-hint { font: var(--type-meta); color: var(--ink-2); }
   .field-error { font: var(--type-meta); color: var(--error); }
 
-  /* ---------- button-danger — variant of the system button ----------
-     Knobs: none. Worn together with .button-primary; only on a confirm surface's committing
-     button (the one sanctioned red). It re-points the button's ink to --error. */
-  .button-danger { --ink: var(--error); }
 }
 
 @layer layouts {

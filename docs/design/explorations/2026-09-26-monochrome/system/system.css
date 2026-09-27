@@ -383,7 +383,7 @@
 
   /* ---------- menu — a button that opens a list of actions (native popover) ----------
      Knobs: none. Parts: button.menu-button (popovertarget = the list's id; its text ends in "…"),
-     ul.menu[popover] (links or buttons; .menu-destructive for an action that deletes for good).
+     ul.menu[popover] (links or buttons; an entry that deletes for good carries the .danger context).
      The popover gives light dismiss, Esc and the top layer without JS. M/L: anchored under its
      button, right edges aligned; without anchor positioning the browser centres it. The list is
      always page surface, even when its button sits in the band. */
@@ -395,9 +395,8 @@
   @supports (position-area: block-end) {
     .menu { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-start; position-try-fallbacks: flip-inline, flip-block; }
   }
-  .menu :is(a, button) { display: block; inline-size: 100%; padding: var(--space-2) var(--space-4); text-align: start; text-decoration: none; }
+  .menu :is(a, button) { display: block; inline-size: 100%; padding: var(--space-2) var(--space-4); text-align: start; text-decoration: none; color: var(--ink); } /* bound to the role, so a context (.danger) can re-point it */
   .menu :is(a, button):hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
-  .menu .menu-destructive:is(:hover, :active, :focus-visible) { color: var(--error); } /* deletes for good: red while about to act */
 
   /* ---------- button ----------
      Knobs: --button-pad-inline (default --space-5). Default = secondary (outline); variants on
@@ -449,7 +448,7 @@
     font: var(--type-meta); border: var(--line); overflow-wrap: anywhere; cursor: default;
   }
   .chip > button { --icon-size: 1rem; display: inline-grid; place-items: center; min-inline-size: 1.75rem; min-block-size: 1.75rem; color: var(--ink-2); }
-  .chip > button:is(:hover, :active, :focus-visible) { color: var(--error); } /* a cross removes: red, as .remove */
+  .chip > button:is(:hover, :active, :focus-visible) { color: var(--ink); } /* the script adds .danger: the ink turns red */
   .autocomplete-list {
     position: absolute; inset-inline: 0; inset-block-start: calc(100% + var(--space-1)); z-index: 2;
     max-block-size: 18rem; overflow-y: auto; margin: 0; padding: var(--space-1) 0; list-style: none;
@@ -459,6 +458,14 @@
   .autocomplete-list [role="option"]:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
   .autocomplete-list [aria-selected="true"] { color: var(--ground); background: var(--ink); }
   .autocomplete-live { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- danger — a context, not a variant (law C2) ----------
+     An action that deletes for good. It re-points --ink to --error while the action is about to
+     act (hover, press, focus); whatever the element draws with --ink (text, border, fill) turns
+     red. It sets no property itself, so it composes with any component: .button, .remove, a menu
+     entry, a link. It reaches only what READS --ink: `color: inherit` inherits the parent's resolved
+     colour, not the role, so a part that should answer a context binds itself to var(--ink). Knobs: none. */
+  .danger:is(:hover, :active, :focus-visible) { --ink: var(--error); }
 
   /* ---------- note — a quiet annotation right after a label or heading ("intern") ----------
      Knobs: none. Quieter than its host by size and contrast, never by a box or a far position:

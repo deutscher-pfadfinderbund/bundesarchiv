@@ -350,14 +350,20 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
 - Without JS it is the plain input with the native datalist; the server contract is the comma list.
 
 ### Remove
-- One × for every removal (media rows, Weitere Angaben rows, chips): Secondary Ink at rest,
-  Correction Red on hover, press and focus. Where it deletes for good it also asks first
-  (`hx-confirm`; without JS the server's two-step).
+- One × for every removal (media rows, Weitere Angaben rows, chips): Secondary Ink at rest, ink
+  on hover. It carries the **danger** context, so that ink turns Correction Red on hover, press and
+  focus. Where it deletes for good it also asks first (`hx-confirm`; without JS the server's
+  two-step).
 
 ### Menu
 - A text button ending in "…" opens a native popover list: Paper White, Control Edge, rows of
   links or buttons, underline on hover. Anchored under its button, right edges aligned. A
-  destructive entry ("Löschen") turns red on hover, press and focus.
+  destructive entry ("Löschen") carries the danger context.
+
+### Danger (a context, not a variant)
+- `.danger` on any action that deletes for good re-points the ink to Correction Red while it is
+  about to act (hover, press, focus). It sets no property itself, so a button, a ×, a menu entry or
+  a link turns red without a variant of its own. There is no danger button.
 
 ### Navigation
 - **Top bar:** Band Black, 4.25rem, the wordmark left; right: "+ Neu …" (archivists) and

@@ -181,6 +181,30 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Evidence:** `catalog_views._audience_label:556`, `collection_views._sichtbarkeit_label:230`.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
+### 20. Variants in disguise (law C2) — Strong
+- **Indicator:** 8 open occurrences (2026-09-27): 6 in the monochrome mock system, 2 known in the app.
+- **The pattern:** a modifier class that sets a component's own properties (`.button-danger`) instead
+  of a context that re-points roles or knobs and works on any component (`.danger` re-points
+  `--ink`). Fixed 2026-09-27: `.button-danger`, `.menu-destructive`, the red built into `.remove`
+  and the chip × — all now the one `.danger` context.
+- **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
+  - `.facts-quiet`, `.register-apart .register-label`, and the `--section-head-ink` /
+    `--register-ink` knobs set per use: one hand-rolled "quiet" each. Candidate: a `.quiet` context
+    re-pointing `--ink` to `--ink-2`.
+  - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
+    the button must paint its background with `--ground`, and the hover outline needs an edge.
+  - `.button-sso`: a one-off variant for the door's login. Candidate: a knob or the door context.
+  - `.facts-wide` vs the field grid's `[data-span="all"]`: two mechanisms for one job (span a row).
+  - search sentence `.is-minor` (encodes "folds on S"; structure can say it: every slot after the
+    first) and `.is-more` (a different element, so a part: `.search-sentence-more`). `.is-set` is
+    state and stays exempt.
+- **Open, app:** the Signatur tab and the ledger's ENTWURF mark (Wave C escalations); both retire
+  with the monochrome system (register rows 1 and 4).
+- **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
+  selector on a non-root class that sets a non-custom property on a component root.
+- **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
+  part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
+
 ## Tests
 
 ### 12. Pre-existing e2e failures on main — done

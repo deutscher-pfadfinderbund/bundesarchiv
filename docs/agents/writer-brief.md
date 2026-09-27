@@ -71,6 +71,15 @@ sees it, so run `ruff format` on it. A harness that needs no pytest fixture
 (a Pillow gallery diff) lives outside the tree instead. Verify the dump is
 deterministic (two identical pre-runs), then delete the harness.
 
+## UI: contexts, not variants
+
+Before adding a modifier class to a component (`.button-danger`, `.facts-quiet`), ask whether it
+is a context: something that only re-points role tokens or knobs and would work on any component
+(`.danger` re-points `--ink`). If yes, write it as that context; if it sets the component's own
+properties, it is a variant and law C2 forbids it. A context reaches only parts that read the role
+(`color: var(--ink)`), not parts that inherit a resolved colour. Known open cases: `docs/tech-debt.md`
+#20.
+
 ## An unexpected red is a STOP, not a patch site
 
 A gate, a test or a rule that breaks unexpectedly stops the line. Investigate how

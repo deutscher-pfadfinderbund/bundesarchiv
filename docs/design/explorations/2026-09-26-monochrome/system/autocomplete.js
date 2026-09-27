@@ -78,6 +78,7 @@ function enhance(root) {
       li.append(v);
       const x = document.createElement("button");
       x.type = "button";
+      x.className = "danger"; // a cross removes: red while about to act (system: danger)
       x.setAttribute("aria-label", `${v} entfernen`);
       x.innerHTML = `<svg class="icon" aria-hidden="true"><use href="${ICONS}#x"/></svg>`;
       x.addEventListener("click", () => removeAt(i));
