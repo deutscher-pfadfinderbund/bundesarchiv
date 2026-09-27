@@ -4,8 +4,9 @@ Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
-- the fail-closed publish affordance: no exposure, no Veröffentlichen. There is no lifecycle route
-  left to cover: the Status rides the edit form's own CAS write (tests/app/web/test_catalog_edit.py).
+- the fail-closed publish affordance: no exposure, no Veröffentlichen.
+- ``/artikel/<ulid>/veroeffentlichen`` POST — publish a draft from the article page (a3 round 7):
+  CAS on the page's version, the same fail-closed gate as the edit form's Status.
 - the archivist action row on the detail stub (absent for non-archivists).
 
 SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
@@ -13,6 +14,9 @@ BOTH methods → 404 for Member/Public/anon, and the deny tests assert the SIDE 
 did not happen (nothing created / article still exists / lifecycle unchanged / no widget content).
 The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
 """
+
+from dataclasses import replace
+from typing import Any
 
 import pytest
 from tests.app.web._asserts import assert_denied
@@ -28,6 +32,7 @@ from tests.app.web._fixtures import (
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.errors import NotFound
+from bundesarchiv.persistence.repository import Stored
 
 
 def _other_ulids(corpus: Corpus) -> set[str]:
@@ -221,6 +226,129 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
     assert (stored.title, stored.lifecycle) == ("Nur gespeichert", lifecycle)
 
 
+# --- Veröffentlichen from the article page (a3 round 7) ------------------------------
+
+
+def _veroeffentlichen(
+    corpus: Corpus, ulid: str, viewer: Viewer | None = None, version: int | None = None
+) -> Any:
+    if version is None:
+        version = corpus.articles.load(ulid).version
+    return client_as(viewer or Archivist("anna")).post(
+        f"/artikel/{ulid}/veroeffentlichen", {"expected_version": str(version)}
+    )
+
+
+def test_veroeffentlichen_publishes_the_draft_and_returns_to_its_page(corpus: Corpus) -> None:
+    before = corpus.articles.load(DRAFT_ULID)
+    response = _veroeffentlichen(corpus, DRAFT_ULID)
+    assert response.status_code == 302
+    assert response["Location"] == f"/artikel/{DRAFT_ULID}"
+    after = corpus.articles.load(DRAFT_ULID)
+    assert after.article == replace(before.article, lifecycle=Lifecycle.PUBLISHED)
+    assert after.change is not None and after.change.by == "anna"
+
+
+def _assert_refused(corpus: Corpus, ulid: str, version: int | None = None) -> None:
+    """A refused publish writes nothing and sends the archivist back to the page as it stands."""
+    before = corpus.articles.load(ulid)
+    response = _veroeffentlichen(corpus, ulid, version=version)
+    assert response.status_code == 302
+    assert response["Location"] == f"/artikel/{ulid}"
+    assert corpus.articles.load(ulid) == before
+
+
+def test_veroeffentlichen_on_a_stale_page_writes_nothing(corpus: Corpus) -> None:
+    _assert_refused(corpus, DRAFT_ULID, version=corpus.articles.load(DRAFT_ULID).version - 1)
+
+
+def test_veroeffentlichen_refuses_a_record_changed_while_it_publishes(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The page's version matches the first load; a concurrent save lands before the write service
+    # loads again. What would be published is no longer what the archivist confirmed.
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    real_load = ArticleRepository.load
+    loads = 0
+
+    def load_with_a_concurrent_save(self: ArticleRepository, ulid: str) -> Stored:
+        nonlocal loads
+        loads += 1
+        if loads == 2:
+            stored = real_load(self, ulid)
+            audience = Audience(AudienceTier.GROUPS, ("vorstand",))
+            self.save(replace(stored.article, audience=audience), stored.version, changed_by="bert")
+        return real_load(self, ulid)
+
+    version = corpus.articles.load(DRAFT_ULID).version
+    monkeypatch.setattr(ArticleRepository, "load", load_with_a_concurrent_save)
+    response = _veroeffentlichen(corpus, DRAFT_ULID, version=version)
+    monkeypatch.undo()
+    after = corpus.articles.load(DRAFT_ULID)
+    assert response.status_code == 302
+    assert after.article.lifecycle is Lifecycle.DRAFT
+    assert after.change is not None and after.change.by == "bert"  # only the concurrent save
+
+
+def test_veroeffentlichen_refuses_an_unresolvable_bestand_chain(corpus: Corpus) -> None:
+    _assert_refused(corpus, _article_whose_bestand_chain_is_broken(corpus))
+
+
+def test_veroeffentlichen_leaves_a_published_record_alone(corpus: Corpus) -> None:
+    _assert_refused(corpus, PUBLISHED_ULID)
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+def test_veroeffentlichen_denied_publishes_nothing(corpus: Corpus, viewer: Viewer) -> None:
+    before = corpus.articles.load(DRAFT_ULID)
+    assert_denied(_veroeffentlichen(corpus, DRAFT_ULID, viewer=viewer))
+    assert corpus.articles.load(DRAFT_ULID) == before
+
+
+def test_veroeffentlichen_get_is_404(corpus: Corpus) -> None:
+    before = corpus.articles.load(DRAFT_ULID)
+    assert_denied(client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/veroeffentlichen"))
+    assert corpus.articles.load(DRAFT_ULID) == before
+
+
+def test_veroeffentlichen_with_index_lag_says_so(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ADR 0014: publishing is a visibility change; a lagging index must be said, not swallowed.
+    from bundesarchiv.app import articles
+
+    monkeypatch.setattr(
+        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
+    )
+    response = _veroeffentlichen(corpus, DRAFT_ULID)
+    assert response.status_code == 200
+    assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
+    assert corpus.articles.load(DRAFT_ULID).article.lifecycle is Lifecycle.PUBLISHED
+
+
+def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}").content.decode()
+    assert 'popovertarget="veroeffentlichen"' in body
+    assert f'action="/artikel/{DRAFT_ULID}/veroeffentlichen"' in body
+    version = corpus.articles.load(DRAFT_ULID).version
+    assert f'name="expected_version" value="{version}"' in body
+    assert "Nach dem Veröffentlichen ist dieser Artikel öffentlich." in body  # PUB is public
+    # the statement follows the record's own audience, not a fixed wording
+    articles = corpus.articles
+    stored = articles.load(DRAFT_ULID)
+    members = replace(stored.article, audience=Audience(AudienceTier.MEMBERS))
+    articles.save(members, stored.version, changed_by="tester")
+    body = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}").content.decode()
+    assert "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel." in body
+
+
+def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/artikel/{PUBLISHED_ULID}").content.decode()
+    assert "veroeffentlichen" not in body
+    assert "Nach dem Veröffentlichen" not in body
+
+
 # --- malformed / absent ulid across every new route --------------------------------
 
 
@@ -230,6 +358,8 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
         "/artikel/not-a-ulid/kopieren",
         "/artikel/not-a-ulid/loeschen",
         "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/loeschen",  # well-formed but absent
+        "/artikel/not-a-ulid/veroeffentlichen",
+        "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/veroeffentlichen",
     ],
 )
 def test_malformed_or_absent_ulid_is_404(corpus: Corpus, path: str) -> None:

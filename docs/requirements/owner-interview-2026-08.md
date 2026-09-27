@@ -266,6 +266,10 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
      (folding may never hide data).
   5. **The exposure statement is permanently on screen; publishing is one
      click.** The separate over-exposure preview gate retires.
+     (Superseded in part 2026-09-27: the article page publishes through a
+     confirmation that states who will see the record, and saving is no
+     longer the only way to publish — a3 round 7 in
+     `docs/design/explorations/2026-09-26-monochrome/REVIEW-ARCHIVIST.md`.)
   6. **Media row actions become icons** — arrow-up and arrow-down join the ONE
      vendored icon set (register row 9); the three text links per row die.
   7. **Keep the NATIVE file input.** A German browser renders German strings;

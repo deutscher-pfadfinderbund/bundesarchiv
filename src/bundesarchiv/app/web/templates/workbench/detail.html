@@ -16,8 +16,6 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       <div class="record-head">
         <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
         {% if is_archivist %}
-        {% comment %}Both lifecycle actions link to the edit surface, where the transition rides its
-        CAS write (owner 2026-08-08: saving is publishing).{% endcomment %}
         <div class="actions">
           <div class="split-button">
             <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
@@ -28,7 +26,14 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
               <li><a class="danger" href="{% url 'artikel-loeschen' ulid %}">Löschen</a></li>
             </ul>
           </div>
-          {% if is_draft %}<a class="button primary" href="{% url 'artikel-bearbeiten' ulid %}">Veröffentlichen</a>{% endif %}
+          {% if is_draft %}
+          <button class="primary" type="button" popovertarget="veroeffentlichen">Veröffentlichen</button>
+          <form class="toolpanel" id="veroeffentlichen" popover method="post" action="{% url 'artikel-veroeffentlichen' ulid %}">
+            <p>{{ publish_statement }}</p>
+            <button class="primary" type="submit">Jetzt veröffentlichen</button>
+            {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
+          </form>
+          {% endif %}
         </div>
         {% endif %}
       </div>

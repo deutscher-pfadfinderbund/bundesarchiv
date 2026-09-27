@@ -93,6 +93,11 @@ def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) ->
     page.click(".split-button .menu-button")
 
 
+def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
+    page.click('button:has-text("Veröffentlichen")')
+
+
 def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
     page.click("#feld-date-hinweis .help")
@@ -192,6 +197,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the article page, the split button's menu open (Duplizieren, zurückziehen, Löschen)",
         True,
         _reach_detail_aktionen_open,
+    ),
+    GalleryState(
+        "detail-veroeffentlichen-open",
+        "the article page, a draft's Veröffentlichen confirmation open (who will see it)",
+        True,
+        _reach_detail_veroeffentlichen_open,
     ),
     GalleryState(
         "edit-datierung-help",

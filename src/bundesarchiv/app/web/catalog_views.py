@@ -942,6 +942,54 @@ def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
     ]
 
 
+# --- /artikel/<ulid>/veroeffentlichen — publish from the article page (a3 round 7) ---
+
+
+class _PublishRefused(Exception):
+    """The record handed to the publish transform is not the draft the archivist confirmed, or its
+    Bestand chain does not resolve: nothing is written."""
+
+
+def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/veroeffentlichen`` — the article page's confirmation publishes the
+    draft. Archivist-only, POST-only, else the plain 404. CAS on the page's ``expected_version``;
+    the gate is the edit form's (no resolvable chain, no publishing), checked against the record
+    actually written. A refusal writes nothing and returns to the page as it now stands."""
+    gated = _load_gated(request, ulid)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    archive, stored, archivist = gated
+    page = reverse("artikel-detail", args=[ulid])
+    if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
+        return _redirect(request, page)
+    bestand = BestandChooser.of(archive)
+
+    def publish(article: Article) -> Article:
+        if (
+            article != stored.article
+            or article.lifecycle is not Lifecycle.DRAFT
+            or bestand.chain_of(article.collection_id) is None
+        ):
+            raise _PublishRefused
+        return replace(article, lifecycle=Lifecycle.PUBLISHED)
+
+    try:
+        outcome = article_services.update_article(
+            archive, ulid, publish, changed_by=archivist.username, retries=0
+        )
+    except _PublishRefused:
+        return _redirect(request, page)
+    match outcome:
+        case Missing():
+            return _not_found()
+        case Conflicted():
+            return _redirect(request, page)
+        case Updated(article=article, version=version, index_updated=False):
+            return EditSurface.of(article, version, bestand).render(request, overlay=IndexLag())
+        case Updated():
+            return _redirect(request, page)
+
+
 # --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
 
 

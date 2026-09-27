@@ -1243,7 +1243,29 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     )  # → workbench
 
 
-# --- publish: one click --------------------------------------------------------------
+# --- publish -------------------------------------------------------------------------
+
+
+def test_publish_from_the_article_page_confirms_first(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    # a3 round 7: Veröffentlichen opens a confirmation saying who will see the record; Esc cancels,
+    # Jetzt veröffentlichen publishes and lands on the published page.
+    _create_draft(page, live_workbench, "E2E Vom Artikel veröffentlicht")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    panel = page.locator("#veroeffentlichen")
+    expect(panel).to_be_hidden()
+    page.click('button:has-text("Veröffentlichen")')
+    expect(panel).to_contain_text("Nach dem Veröffentlichen ist dieser Artikel öffentlich.")
+    page.keyboard.press("Escape")
+    expect(panel).to_be_hidden()
+    page.click('button:has-text("Veröffentlichen")')
+    page.click('button:has-text("Jetzt veröffentlichen")')
+    page.wait_for_load_state("networkidle")
+    expect(page.get_by_role("button", name="Veröffentlichen", exact=True)).to_have_count(0)
+    expect(page.get_by_text("Als Entwurf zurückziehen")).to_be_attached()
 
 
 def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: str) -> None:

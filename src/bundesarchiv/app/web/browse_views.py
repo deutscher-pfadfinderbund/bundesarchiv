@@ -37,6 +37,7 @@ from bundesarchiv.app.web.article_auth import (
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
+from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
@@ -701,6 +702,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     placeholders. The crumbs run root→leaf; tags + crumbs link back into the workbench facets (the
     archive's browsing loop)."""
     article = resolution.article
+    is_draft = article.lifecycle is Lifecycle.DRAFT
     media = _detail_media(article)
     tags = tuple(
         _DetailTag(
@@ -711,7 +713,14 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     return {
         "ulid": article.ulid,
         "is_archivist": resolution.is_archivist,
-        "is_draft": article.lifecycle is Lifecycle.DRAFT,
+        "is_draft": is_draft,
+        "version": resolution.version,
+        # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
+        "publish_statement": (
+            vocab.publish_statement(preview(article, resolution.chain))
+            if resolution.is_archivist and is_draft
+            else ""
+        ),
         "title": article.title,
         "ref_code": article.ref_code or "",
         "datierung": vocab.datierung_parts(article.date),

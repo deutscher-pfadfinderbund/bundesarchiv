@@ -93,22 +93,28 @@ is binary.
 ```mermaid
 flowchart TD
     EDIT["Edit surface (draft)"] -->|"Status: Veröffentlicht, Speichern\n(the edit form's own POST + CAS)"| READ["Read view, published"]
-    DET["Detail (draft)"] -->|"Veröffentlichen"| EDIT
+    DET["Detail (draft)"] -->|"Veröffentlichen → confirmation\n→ Jetzt veröffentlichen (artikel-veroeffentlichen, CAS)"| READ
     READ -->|"Als Entwurf zurückziehen"| EDIT
 ```
 
-The Status is one select in the edit form's margin, and Speichern applies it in
-the form's single CAS-guarded write (owner decision 2026-08-08: saving is
-publishing; a1 round 4: one place for the state). Enter submits Speichern, so it
-publishes exactly when the archivist set Veröffentlicht. The detail reader LINKS
-to that form for either direction. There is no separate lifecycle route.
+Two ways publish a draft. The edit form's margin has a Status select, and
+Speichern applies it in the form's single CAS-guarded write (a1 round 4). Enter
+submits Speichern, so it publishes exactly when the archivist set
+Veröffentlicht. The article page has its own route (owner, 2026-09-27, a3 round
+7 in `explorations/2026-09-26-monochrome/REVIEW-ARCHIVIST.md`):
+"Veröffentlichen" opens a confirmation that says who will see the record, and
+"Jetzt veröffentlichen" posts to `artikel-veroeffentlichen` with the page's
+version. A stale page or a record that is no longer a draft writes nothing and
+returns to the page. Withdrawing still goes through the edit form.
 
-Draft → published is the one gated transition: when the exposure cannot be
-COMPUTED (an unresolvable Bestand chain) the select offers no Veröffentlicht, and
-the server refuses it with a German error on Bestand — the fail-closed branch the
-retired preview gate owned.
+Draft → published is the one gated transition, on both paths, and the gate is
+one decision: `BestandChooser.chain_of(...) is None`. When the Bestand chain
+does not resolve, the select offers no Veröffentlicht and the server refuses it
+with a German error on Bestand; the article-page route refuses it inside its
+write, against the record actually written.
 
 Journeys: `test_publish_by_status_saves_the_form`,
+`test_publish_from_the_article_page_confirms_first`,
 `test_edit_and_save_redirects_to_read_view` (Enter).
 
 ## 4. Delete

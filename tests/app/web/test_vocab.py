@@ -193,3 +193,38 @@ def test_exposure_label_names_the_widest_rung(
 ) -> None:
     result = VisibilityPreview(public, members, groups, frozenset())
     assert vocab.exposure_label(result) == expected
+
+
+@pytest.mark.parametrize(
+    ("public", "members", "groups", "expected"),
+    [
+        (True, True, (), "Nach dem Veröffentlichen ist dieser Artikel öffentlich."),
+        (False, True, (), "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel."),
+        (
+            False,
+            False,
+            ("vorstand",),
+            "Nach dem Veröffentlichen sehen nur Mitglieder der Gruppe vorstand diesen Artikel.",
+        ),
+        (
+            False,
+            False,
+            ("vorstand", "kasse"),
+            (
+                "Nach dem Veröffentlichen sehen nur Mitglieder der Gruppen vorstand, kasse diesen "
+                "Artikel."
+            ),
+        ),
+        (
+            False,
+            False,
+            (),
+            "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Artikel.",
+        ),
+    ],
+)
+def test_publish_statement_says_who_will_see_the_record(
+    public: bool, members: bool, groups: tuple[str, ...], expected: str
+) -> None:
+    result = VisibilityPreview(public, members, groups, frozenset())
+    assert vocab.publish_statement(result) == expected

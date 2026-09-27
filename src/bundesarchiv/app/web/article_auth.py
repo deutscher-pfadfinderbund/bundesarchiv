@@ -22,7 +22,7 @@ from bundesarchiv.domain.access import visible
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, Collection, Ulid
+from bundesarchiv.domain.models import Article, Collection, Ulid, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -43,12 +43,13 @@ def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
 class DetailResolution:
     """One resolution of the full-Article render path: the ``visible``-projected Article (for the
     template), its owning Collection ``chain`` (leaf-first, for the 4.6 Bestand breadcrumb — names are
-    member-safe), and ``is_archivist`` (the presentation gate for the action row + ENTWURF badge).
-    One store load."""
+    member-safe), ``is_archivist`` (the presentation gate for the archivist's tools) and the stored
+    ``version`` the tools' CAS writes expect. One store load."""
 
     article: Article
     chain: ResolvedChain
     is_archivist: bool
+    version: Version
 
 
 def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution | None:
@@ -79,6 +80,7 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
         article=projected,
         chain=chain,
         is_archivist=isinstance(viewer, Archivist),
+        version=loaded.version,
     )
 
 

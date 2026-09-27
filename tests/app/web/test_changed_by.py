@@ -70,6 +70,12 @@ def _copy(client: Client, corpus: Corpus) -> Change | None:
     return corpus.articles.load(_ulid_in(response["Location"])).change
 
 
+def _publish(client: Client, corpus: Corpus) -> Change | None:
+    version = corpus.articles.load(DRAFT_ULID).version
+    client.post(f"/artikel/{DRAFT_ULID}/veroeffentlichen", {"expected_version": str(version)})
+    return corpus.articles.load(DRAFT_ULID).change
+
+
 def _upload(client: Client, corpus: Corpus) -> Change | None:
     upload = SimpleUploadedFile("scan.pdf", b"%PDF-1.4", content_type="application/pdf")
     client.post(f"/artikel/{DRAFT_ULID}/medien/hochladen", {"dateien": upload})
@@ -110,7 +116,9 @@ def _rename_bestand(client: Client, corpus: Corpus) -> Change | None:
     return corpus.collections.load(PUB).change
 
 
-@pytest.mark.parametrize("write", [_create, _edit, _copy, _upload, _reorder, _remove, _bulk])
+@pytest.mark.parametrize(
+    "write", [_create, _edit, _copy, _publish, _upload, _reorder, _remove, _bulk]
+)
 def test_the_version_an_article_route_writes_names_the_signed_in_archivist(
     corpus: Corpus, write: Callable[[Client, Corpus], Change | None]
 ) -> None:

@@ -23,6 +23,7 @@ from bundesarchiv.app.web.catalog_views import (
     article_medien_entfernen,
     article_medien_hochladen,
     article_medien_verschieben,
+    article_publish,
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
@@ -55,6 +56,7 @@ urlpatterns = [
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
+    path("artikel/<str:ulid>/veroeffentlichen", article_publish, name="artikel-veroeffentlichen"),
     path(
         "artikel/<str:ulid>/medien/verschieben",
         article_medien_verschieben,

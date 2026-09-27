@@ -55,9 +55,9 @@ OVERLAY_PANEL_OF_JS = (
 )
 
 #: The panels the browser CENTRES when anchor positioning is absent (the help popover, DESIGN.md
-#: Fields; the popover menus, components.css "menu"): the fallback-tier walker exempts them from
+#: Fields; the popover menus and tool panels, components.css "menu" / "toolpanel"): the fallback-tier walker exempts them from
 #: "hangs under its trigger". The anchored tier still holds them to it.
-OVERLAY_CENTRED_PANEL = ".popover, ul.menu[popover]"
+OVERLAY_CENTRED_PANEL = ".popover, ul.menu[popover], .toolpanel"
 
 #: How a guard gets a browser onto a screen: navigate, or drive whatever affordance leads there.
 #: Every reach leaves the page fully loaded, so a caller only measures.
@@ -123,7 +123,7 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
 #: header, hence one overlay (the "+ Neu …" create menu) at minimum; the filtered workbench adds
 #: one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article
-#: page its split button's menu.
+#: page its split button's menu (a draft's also its Veröffentlichen confirmation).
 SCREENS: tuple[Screen, ...] = (
     Screen(
         "workbench-empty",
@@ -250,7 +250,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/artikel/{c.draft_ulid}"),
         "artikel-detail",
-        overlays=2,
+        overlays=3,
         control_rows=("header", "div.actions"),
     ),
     Screen(

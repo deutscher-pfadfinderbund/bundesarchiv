@@ -125,11 +125,14 @@ Binding constraints regardless of prototype outcome:
   form wave (owner ruling 5, 2026-08-08) its output is the PERMANENT exposure
   statement on the edit surface and publishing is one click — the separate
   `artikel-vorschau` route, its panel and its `geprueft` confirm checkbox are
-  gone. Collection move still REQUIRES an over-exposure preview before commit
+  gone. (Since 2026-09-27, a3 round 7, the article page also publishes, through
+  a confirmation stating who will see the record — `artikel-veroeffentlichen`.)
+  Collection move still REQUIRES an over-exposure preview before commit
   (roadmap, subtree scope). The widget is **Archivist-only** (`preview()`
   surfaces group names by design and bypasses the lifecycle gate), so its only
-  barrier is the route gate of whatever page shows it — the edit route for the
-  statement, and the move endpoint later; both join the 4.10 leak suite —
+  barrier is the gate of whatever page shows it — the edit route for the
+  statement, the article page's archivist tools on a draft (a draft 404s for
+  everyone else), and the move endpoint later; all join the 4.10 leak suite —
   Member/Public hitting them → 404, never widget content.
 - Collection deletion blocked while descendants/articles exist (ADR 0014).
 - German UI language per CONTEXT.md glossary, plain and modern. (REVERSED

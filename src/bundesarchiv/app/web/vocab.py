@@ -168,6 +168,22 @@ def exposure_label(result: VisibilityPreview) -> str:
     return "Niemand (kein Bestand-Zugriff)"
 
 
+def publish_statement(result: VisibilityPreview) -> str:
+    """The Veröffentlichen confirmation (a3 round 7): who sees the record once published, from the
+    same ``preview()`` as ``exposure_label``."""
+    if result.public:
+        return "Nach dem Veröffentlichen ist dieser Artikel öffentlich."
+    if result.groups:
+        gruppe = "Gruppe" if len(result.groups) == 1 else "Gruppen"
+        return (
+            f"Nach dem Veröffentlichen sehen nur Mitglieder der {gruppe} "
+            f"{', '.join(result.groups)} diesen Artikel."
+        )
+    if result.members:
+        return "Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel."
+    return "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Artikel."
+
+
 def groups_label(groups: tuple[str, ...]) -> str:
     """The GROUPS-rung caption: ``Gruppe: <name>, <name>``. The one place the group list is joined."""
     return "Gruppe: " + ", ".join(groups)

@@ -233,6 +233,10 @@ def _p_loeschen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
 
 
+def _p_veroeffentlichen(c: _MatrixCorpus) -> str:
+    return f"/artikel/{c.article_ulid}/veroeffentlichen"
+
+
 def _p_medien_verschieben(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/verschieben"
 
@@ -343,6 +347,13 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # confirmed delete → 302 to /
         post_data={"bestaetigt": "1"},
+    ),
+    "artikel-veroeffentlichen": Route(
+        build_path=_p_veroeffentlichen,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,  # GET disallowed
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=REDIRECT,  # the corpus article is published: refused, back to its page
     ),
     "artikel-medien-verschieben": Route(
         build_path=_p_medien_verschieben,
