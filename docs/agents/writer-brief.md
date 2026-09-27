@@ -223,3 +223,8 @@ server PID) as your final message — the hand-back to whoever dispatched you �
 BEFORE going idle; a reviewer or writer that idles without reporting has failed
 the handoff. State outcomes honestly: if a test failed, say so with the output;
 if a step was skipped, say that.
+
+Include **Found, not fixed**: every improvement you saw outside your fence (a variant in disguise,
+a restated value, a dead rule, a missing component), with file and symbol. Inside your fence you
+fix it; outside you only report it — the coordinator files it into `docs/tech-debt.md` or the next
+brief.
