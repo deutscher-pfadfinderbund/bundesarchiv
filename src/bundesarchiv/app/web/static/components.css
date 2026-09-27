@@ -321,33 +321,37 @@
   .facet[open] > summary {
     border-color: var(--ink);
   }
-  /* the dropped panel (register row 12), shared by both native dropdowns. It positions
-     against its CONTROL ROW, never its trigger (law C12) — that is what makes containment
-     STRUCTURAL: the row spans the viewport minus its padding, so a panel pinned to one of the row's
-     inline edges and capped at 100% of it is on-viewport at every width. A trigger's own viewport
-     offset is not expressible in Baseline CSS, so trigger-pinning protects one edge only and both
-     panels escaped at real widths. Which EDGE a panel pins to stays per component (below); the row
-     is whatever positioned ancestor it sits in (layouts.css marks the header and the rail). */
-  :is(.facet, details.menu) > ul {
-    /* A dropped panel is not part of the row it hangs from, so the row's (possibly compact) knob
-       must not reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom
-       property that is the guaranteed-invalid value, so each consumer falls back to its OWN default
-       and one knob resolves to two things (learning G.38). */
+  /* every floating panel (register row 12): page surface with an edge, even when its trigger sits
+     in the band */
+  :is(.facet, details.menu) > ul,
+  ul.menu[popover] {
+    /* A panel is not part of the row it hangs from, so the row's (possibly compact) knob must not
+       reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom property
+       that is the guaranteed-invalid value, so each consumer falls back to its OWN default and one
+       knob resolves to two things (learning G.38). */
     --control-height: var(--touch-target);
-    /* a floating panel is page surface, even when its trigger sits in the band */
     --ground: var(--page-ground);
     --ink: var(--page-ink);
     --ink-2: var(--page-ink-2);
-    position: absolute;
-    top: calc(100% + var(--space-1));
-    max-width: 100%; /* the containment half of the rule above — never wider than the row */
-    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
     list-style: none;
-    margin: 0;
     padding: var(--space-2);
     background: var(--ground);
     color: var(--ink);
     border: var(--line-width) solid var(--edge);
+  }
+  /* A native dropdown's panel positions against its CONTROL ROW, never its trigger (law C12) —
+     that is what makes containment STRUCTURAL: the row spans the viewport minus its padding, so a
+     panel pinned to one of the row's inline edges and capped at 100% of it is on-viewport at every
+     width. A trigger's own viewport offset is not expressible in Baseline CSS, so trigger-pinning
+     protects one edge only and both panels escaped at real widths. Which EDGE a panel pins to
+     stays per component (below); the row is whatever positioned ancestor it sits in (layouts.css
+     marks the rail and the record row). */
+  :is(.facet, details.menu) > ul {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    max-width: 100%; /* the containment half of the rule above — never wider than the row */
+    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    margin: 0;
   }
   .facet > ul {
     /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
@@ -376,6 +380,21 @@
       inset-inline: 0;
       justify-self: anchor-center;
       margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
+    }
+    /* the popover menu lives in the top layer, so no row contains it: the viewport is its
+       containing block. Under its button, right edges aligned; a panel that would overflow shifts
+       back inside the viewport (default overflow alignment). Without anchor positioning the
+       browser centres it (UA margin: auto). */
+    .menu-button {
+      anchor-name: --menu-button;
+    }
+    ul.menu[popover] {
+      position-anchor: --menu-button;
+      inset: auto;
+      inset-block-start: anchor(end);
+      inset-inline: 0 anchor(end);
+      justify-self: end;
+      margin: var(--space-1) 0 0;
     }
   }
 
@@ -426,25 +445,34 @@
     font-weight: 600;
   }
 
-  /* ---- header create menu: the ONE "+ Neu …" disclosure (owner 2026-08-07, Mock B). Its whole
-     button treatment comes from the shared button rule in the elements layer; only the disclosure
-     mechanics are local. No positioning — the panel positions against the HEADER row. ---- */
-  .menu {
-    display: inline-block; /* shrink to the summary, so the disclosure is button-sized — not a
-       stretched block box (matters outside the header's flex row, e.g. the demo columns) */
+  /* ---- menu: a button that opens a list of actions. The header's "+ Neu …" is a native popover
+     (button.menu-button + ul.menu[popover]); the record row's "Mehr …" is still a <details>, its
+     summary drawn by the shared button rule in the elements layer and its panel positioned by the
+     shared dropped-panel rule above, against the record row. ---- */
+  details.menu {
+    display: inline-block; /* shrink to the summary, so the disclosure is button-sized */
   }
-  .menu > summary {
+  details.menu > summary {
     display: inline-flex; /* centers the label inside the row's --control-height (C8) */
     align-items: center;
     list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
   }
-  /* panel box: the shared overlay-panel rule above (row 12); only anchoring + width are local */
-  .menu > ul {
-    /* the header row's TRAILING edge: the create disclosure ends the header, so at every width
-       where the row does not wrap the panel lands exactly under it — and when the row DOES wrap
-       (the menu drops to the next line, at the row's start) the panel stays on-viewport instead
-       of running off the left edge at left:-89px */
-    inset-inline-end: 0;
+  details.menu > ul {
+    inset-inline-end: 0; /* the record row's trailing edge: the menu ends the row */
+  }
+  /* "+ Neu …" is an add control: text, not a framed button (DESIGN.md "Add"). Its ink binds to
+     the role, because the elements layer's button hover would otherwise invert it. */
+  .menu-button {
+    padding-inline: 0;
+    background: none;
+    color: var(--ink);
+    border: 0;
+    text-underline-offset: var(--underline-offset);
+  }
+  .menu-button:hover {
+    text-decoration: underline;
+  }
+  :is(details.menu > ul, ul.menu[popover]) {
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers

@@ -191,7 +191,7 @@ _CONTROL_ROW_WALKER_JS = """() => {
             // overlay contents). The panel is a row in its own right, so its entries are measured
             // there — counting them twice would demand that a 44px menu entry match a 32px chrome row.
             .filter((el) => {
-                const panel = el.closest('details > ul');
+                const panel = el.closest('details > ul, [popover]');
                 return panel === null || panel === row;
             })
             // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
@@ -242,22 +242,22 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
     carries the row's position and the name stays a readable PREFIX (callers match on it).
 
     A dropped overlay panel is a control row too (it declares the knob), but its entries are only
-    MEASURABLE while it is open — a closed <details> keeps them out of checkVisibility. So each overlay
-    is opened in turn and the walk repeated; one at a time, because the rail's facet groups share a
-    ``name`` and two can never be open together. Row indices are stable across the passes (same DOM), so
-    the open pass fills in the rows the closed pass saw empty."""
+    MEASURABLE while it is open — a closed <details> or popover keeps them out of checkVisibility. So
+    each overlay is opened in turn by its trigger and the walk repeated; one at a time, because the
+    rail's facet groups share a ``name`` and two can never be open together. Row indices are stable
+    across the passes (same DOM), so the open pass fills in the rows the closed pass saw empty."""
     rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS)
     walked: dict[str, list[dict[str, str | int | bool]]] = {}
     for i, row in enumerate(rows):
         walked[f"{row['name']}#{i}"] = row["controls"]  # type: ignore[assignment]
-    overlays = page.locator(_OVERLAY_SELECTOR)
-    for index in range(overlays.count()):
-        summary = overlays.nth(index).locator("summary")
-        summary.click()
+    triggers = page.locator(_OVERLAY_TRIGGERS)
+    for index in range(triggers.count()):
+        trigger = triggers.nth(index)
+        trigger.click()
         for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS)):
             if row["controls"]:
                 walked[f"{row['name']}#{i}"] = row["controls"]
-        summary.click()  # close before opening the next one
+        trigger.click()  # close before opening the next one
     return walked
 
 
@@ -438,7 +438,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
     rail = next(n for n in filtered if "filterrail" in n)
-    assert len(filtered[header]) >= 2  # the Suchen button + the "+ Neu …" summary
+    assert len(filtered[header]) >= 2  # the Suchen button + the "+ Neu …" button
     assert any(c["chip"] for c in filtered[rail])  # the active-filter chip is present
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
     assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
@@ -458,11 +458,12 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
-#: Every OVERLAY on the page, found generically: a native disclosure whose dropped panel is a
-#: positioned list (`details > ul` — the header's "+ Neu …" create menu and each filter-rail facet
-#: dropdown today). Written as a WALKER, not per instance (learning G.21/G.26): the day a new
-#: overlay is built from the same pattern, this proof already covers it.
-_OVERLAY_SELECTOR = "details:has(> ul)"
+#: Every OVERLAY's trigger on the page, found generically: a native disclosure whose dropped panel
+#: is a positioned list (`details > ul` — each filter-rail facet dropdown and the record row's
+#: "Mehr …") and a popover's invoker (`[popovertarget]` — the header's "+ Neu …"). Written as a
+#: WALKER, not per instance (learning G.21/G.26): the day a new overlay is built from either
+#: pattern, this proof already covers it.
+_OVERLAY_TRIGGERS = "details:has(> ul) > summary, [popovertarget]"
 
 #: One overlay's containment facts: the panel's box against the viewport, the panel's top edge
 #: against its own trigger's bottom edge (issue #53 — the anchored tier landed both panels OVER
@@ -480,13 +481,29 @@ _OVERLAY_SELECTOR = "details:has(> ul)"
 #: paying a Playwright round-trip per open/close bought nothing but wall clock.
 _OVERLAY_WALK_JS = """() => {
     const facts = [];
-    const details = [...document.querySelectorAll('details:has(> ul)')];
-    for (const detail of details) {
-        const wasOpen = detail.open;
-        detail.open = true;
-        const panel = detail.querySelector(':scope > ul');
+    const overlays = [
+        ...[...document.querySelectorAll('details:has(> ul)')].map((detail) => ({
+            panel: detail.querySelector(':scope > ul'),
+            trigger: detail.querySelector(':scope > summary'),
+            open: () => {
+                const wasOpen = detail.open;
+                detail.open = true;
+                return () => { detail.open = wasOpen; };
+            },
+        })),
+        ...[...document.querySelectorAll('[popovertarget]')].map((button) => {
+            const panel = document.getElementById(button.getAttribute('popovertarget'));
+            return {panel: panel, trigger: button, open: () => {
+                panel.showPopover();
+                return () => panel.hidePopover();
+            }};
+        }),
+    ];
+    for (const overlay of overlays) {
+        const close = overlay.open();
+        const panel = overlay.panel;
         const r = panel.getBoundingClientRect();
-        const trigger = detail.querySelector(':scope > summary').getBoundingClientRect();
+        const trigger = overlay.trigger.getBoundingClientRect();
         const d = document.documentElement;
         const covered = [];
         for (const entry of panel.querySelectorAll('a, button, input, select')) {
@@ -503,14 +520,14 @@ _OVERLAY_WALK_JS = """() => {
             }
         }
         facts.push({
-            label: detail.querySelector('summary').textContent.trim(),
+            label: overlay.trigger.textContent.trim(),
             top: Math.round(r.top), triggerBottom: Math.round(trigger.bottom),
             left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width),
             viewport: d.clientWidth,
             docOverflow: d.scrollWidth - d.clientWidth,
             covered: covered,
         });
-        detail.open = wasOpen;
+        close();
     }
     return facts;
 }"""
@@ -540,7 +557,7 @@ def _walk_overlay_containment(page: Page, live_workbench: str, corpus: CorpusHan
         if not screen.overlays:
             continue
         screen.reach(page, live_workbench, corpus)
-        found = page.locator(_OVERLAY_SELECTOR).count()
+        found = page.locator(_OVERLAY_TRIGGERS).count()
         assert found >= screen.overlays, (
             f"the overlay walker found only {found} panels on {screen.name}"
         )
@@ -603,13 +620,13 @@ def test_overlays_stay_inside_the_viewport(
     ]
     page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
     page.goto(live_workbench + "/")
-    page.locator("details.menu summary").click()
-    assert (
-        page.evaluate(
-            "() => getComputedStyle(document.querySelector('details.menu > ul')).positionAnchor"
-        )
-        != "--dropdown"
-    ), "the enhancement is still live — the fallback tier would go unproven"
+    anchors = page.evaluate(
+        "() => ['.facet > ul', 'ul.menu[popover]'].map("
+        "(s) => getComputedStyle(document.querySelector(s)).positionAnchor)"
+    )
+    assert not {"--dropdown", "--menu-button"} & set(anchors), (
+        f"the enhancement is still live — the fallback tier would go unproven: {anchors}"
+    )
     defects += [
         f"[fallback] {d}" for d in _walk_overlay_containment(page, live_workbench, e2e_corpus)
     ]
@@ -632,7 +649,7 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
         ("Neuer Bestand", "/bestand/neu"),
     ):
         page.goto(live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
-        page.click("header details.menu > summary")
+        page.click("header .menu-button")
         page.get_by_role("link", name=entry).click(timeout=5000)
         page.wait_for_url(f"**{destination}")
 
@@ -971,11 +988,11 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "+ Neu …" create
-    # disclosure — Mock B, owner 2026-08-07).
+    # menu — Mock B, owner 2026-08-07).
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
-    expect(public_page.locator("details.menu")).to_have_count(0)
+    expect(public_page.locator(".menu-button")).to_have_count(0)
 
 
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
@@ -1024,10 +1041,10 @@ def test_create_bestand_then_file_an_article_under_it(
     page = archivist_page
     # "+ Neu …" → Neuer Bestand → fill Name → Anlegen → LAND on the create-article form
     # (create→catalog is one flow), the new Bestand pre-selected + a success hinweis. File the
-    # first article under it. The create actions live in the header's ONE quiet disclosure
-    # (Mock B, owner 2026-08-07) — a native <details>, opened by a plain click.
+    # first article under it. The create actions live in the header's ONE menu (Mock B, owner
+    # 2026-08-07) — a native popover, opened by a plain click.
     page.goto(live_workbench + "/")
-    page.click("details.menu > summary")
+    page.click(".menu-button")
     page.get_by_role("link", name="Neuer Bestand").click()
     page.wait_for_url("**/bestand/neu")
     page.fill('input[name="name"]', "Plakate")

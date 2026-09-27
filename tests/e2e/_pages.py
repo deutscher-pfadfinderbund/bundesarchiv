@@ -96,7 +96,7 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
-#: header, hence one overlay (the "+ Neu …" create disclosure) at minimum; the filtered workbench adds
+#: header, hence one overlay (the "+ Neu …" create menu) at minimum; the filtered workbench adds
 #: one dropdown per filter-rail facet group, and the edit surface adds the record row's "Mehr …".
 SCREENS: tuple[Screen, ...] = (
     Screen(

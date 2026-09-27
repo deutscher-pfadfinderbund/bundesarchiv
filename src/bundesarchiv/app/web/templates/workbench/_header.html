@@ -11,7 +11,7 @@ Params (all optional — an empty value simply renders less):
                     the current scope instead of dropping it (GH #21); empty elsewhere
   is_signed_in    — gates Abmelden: the sign-out belongs to whoever holds a cookie, Member included
                     (ADR 0018 — shared workstations, and a Member's cookie is the longer-lived one)
-  is_archivist    — gates the "+ Neu …" create disclosure (archivist chrome). It comes from the VIEW,
+  is_archivist    — gates the "+ Neu …" create menu (archivist chrome). It comes from the VIEW,
                     resolved from viewer_of (viewers.render_screen stamps every screen's context) —
                     never asserted as `is_archivist=True` at an include site. Whether archivist chrome
                     renders is an authorization-shaped fact, and the leak matrix asserts route gates,
@@ -29,7 +29,7 @@ Params (all optional — an empty value simply renders less):
 
 The wordmark itself lives in base.html (always present, always links home). The header is the page's
 one CONTROL ROW at the top (layouts.css sets its --control-height knob) — the search input, Suchen
-and the "+ Neu …" summary all consume it, so their heights hold by construction (law C8).
+and the "+ Neu …" button all consume it, so their heights hold by construction (law C8).
 
 The form is PLAIN HTML on purpose, and that is what makes it work identically on every screen: a GET
 navigation to the workbench, with JS and without. It used to carry hx-get + hx-target="#results",
@@ -44,19 +44,16 @@ form below degrades to the plain navigation everywhere else without knowing anyt
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}<button type="submit">Suchen</button>
 </form>
-{% comment %}ONE quiet "+ Neu …" disclosure (owner 2026-08-07, rail round 2 — Mock B: the two
-create buttons died; the search submit went quiet with them). The panel's list is the header's
-create SLOT (learning G.9): a new create action lands in this list, never as a new header
-button. Native <details> — no JS; plain details close behavior is owner-accepted.{% endcomment %}
+{% comment %}ONE "+ Neu …" menu (owner 2026-08-07, Mock B). The list is the header's create SLOT
+(learning G.9): a new create action lands in this list, never as a new header button. A native
+popover: light dismiss, Esc and the top layer without JS.{% endcomment %}
 {% if is_archivist %}
-<details class="menu">
-  <summary>+ Neu …</summary>
-  <ul>
-    <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
-    <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
-    {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
-  </ul>
-</details>
+<button class="menu-button" type="button" popovertarget="neu-menu">+ Neu …</button>
+<ul class="menu" id="neu-menu" popover>
+  <li><a href="{% url 'artikel-neu' %}">Neuer Artikel</a></li>
+  <li><a href="{% url 'bestand-neu' %}">Neuer Bestand</a></li>
+  {% if aktiver_bestand %}<li><a href="{% url 'bestand-bearbeiten' aktiver_bestand %}">Bestand bearbeiten</a></li>{% endif %}
+</ul>
 {% endif %}
 {% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
 {% comment %}Abmelden — for whoever is SIGNED IN, not for archivists: a Member's cookie is the

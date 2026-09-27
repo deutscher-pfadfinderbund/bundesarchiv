@@ -66,10 +66,10 @@ def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the header's "+ Neu …" create disclosure open (Mock B, owner 2026-08-07) — the floating
+    # the header's "+ Neu …" create menu open (Mock B, owner 2026-08-07) — the floating
     # overlay panel with Neuer Artikel / Neuer Bestand
     page.goto(f"{base}/", wait_until="networkidle")
-    page.click("details.menu > summary")
+    page.click(".menu-button")
 
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -129,7 +129,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "header-neu-open",
-        "workbench, header '+ Neu …' create disclosure open (Mock B overlay panel)",
+        "workbench, header '+ Neu …' create menu open (Mock B popover)",
         True,
         _reach_header_neu_open,
     ),
