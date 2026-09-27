@@ -31,12 +31,25 @@
   <!-- direction C: a square preview exists, so media left, title + facts right; S: media first -->
   <article class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-art">
     <header class="stack" style="--stack-gap: var(--gap-head)">
-      <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
+      <!-- the place and the archivist's tools share the first line: tools at the end edge, out of the reading path -->
+      <div class="record-head">
+        <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
+        <div class="record-tools">
+          <a class="button" href="#">Bearbeiten</a>
+          <button class="menu-button" type="button" popovertarget="menu-2" aria-label="Weitere Aktionen"><svg class="icon" aria-hidden="true"><use href="../system/icons.svg#more"/></svg></button>
+          <ul class="menu" id="menu-2" popover>
+          <li><a href="#">Duplizieren</a></li>
+          <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
+          <li><a class="danger" href="loeschen.html">Löschen</a></li>
+          </ul>
+        </div>
+      </div>
       <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
-      <!-- origin: when, where, who — self-evident values, no labels -->
-      <p class="byline"><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span></p>
+      <!-- origin: the Signatur first, then what, when, where, who — self-evident, no labels; Standort (archivists) keeps its label -->
+      <p class="byline"><data value="BA 1784">BA 1784</data><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span><span class="quiet">Standort Bund › Alben</span></p>
+      <!-- Beschreibung under its title: the lede of the record; absent = nothing rendered -->
+      <p class="prose">Album mit Abzügen vom Austausch zwischen spanischen und deutschen Gruppen, vom ersten Treffen auf dem Hohen Meißner bis zu den Fahrten nach Cuenca und Madrid.</p>
     </header>
-  <div class="split">
     <div class="plate" aria-label="Medien">
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 1</b>Platzhalter: quadratische Vorschau</span></a>
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 2</b></span></a>
@@ -44,25 +57,6 @@
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 4</b></span></a>
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 5</b></span></a>
     </div>
-
-    <div class="stack" style="--stack-gap: var(--gap-block)">
-
-
-      <!-- Beschreibung: mock text — absent = nothing rendered -->
-
-      <p class="prose">Album mit Abzügen vom Austausch zwischen spanischen und deutschen Gruppen, vom ersten Treffen auf dem Hohen Meißner bis zu den Fahrten nach Cuenca und Madrid.</p>
-      <!-- the archivist block: management info and tools after the content they manage, one quiet voice -->
-      <footer class="stack" style="--stack-gap: var(--space-2)" aria-label="Verwaltung">
-        <dl class="byline quiet" style="--byline-type: var(--type-meta)"><div><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div><div><dt>Standort</dt><dd>Bund › Alben</dd></div></dl>
-        <p class="byline" style="--byline-type: var(--type-meta)"><a href="#">Bearbeiten</a><button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button></p>
-        <ul class="menu" id="menu-2" popover>
-          <li><a href="#">Kopieren</a></li>
-          <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
-          <li><a class="danger" href="loeschen.html">Löschen</a></li>
-        </ul>
-      </footer>
-    </div>
-  </div>
   </article>
 
   <div class="columns">

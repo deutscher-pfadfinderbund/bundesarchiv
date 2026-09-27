@@ -358,8 +358,15 @@
      labels: "CD / DVD · 2007 · Iserlohn · von Ring Florian Geyer") or, where a value is not
      self-evident, <div><dt><dd> pairs in a <dl> ("Signatur BA 1035"). One line reads as one fact
      group; the dots separate without drawing anything. */
-  .byline { display: flex; flex-wrap: wrap; align-items: baseline; margin: 0; font: var(--byline-type, var(--type-body)); }
-  .byline > * + *::before { content: "·" / ""; display: inline-block; margin-inline: var(--space-3); color: var(--ink-2); }
+  /* every item carries its dot in a fixed slot before it; the line is shifted one slot left and
+     clipped there, so the dot of whatever item starts a line (the first, or one that wrapped) is
+     cut off: no line ever begins with a dot */
+  .byline {
+    --byline-sep: 1.6em;
+    display: flex; flex-wrap: wrap; align-items: baseline; margin: 0; font: var(--byline-type, var(--type-body));
+    margin-inline-start: calc(-1 * var(--byline-sep)); clip-path: inset(0 0 0 var(--byline-sep));
+  }
+  .byline > *::before { content: "·" / ""; display: inline-block; inline-size: var(--byline-sep); text-align: center; color: var(--ink-2); }
   .byline :is(dt, dd) { display: inline; margin: 0; }
   .byline dt { margin-inline-end: var(--space-2); color: var(--ink-2); }
   .byline :is(time, data) { font: inherit; }

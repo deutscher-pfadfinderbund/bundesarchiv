@@ -260,3 +260,20 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
 - **The archivist block** closes the text column, after the content it manages, in one quiet meta
   voice: the draft's audience line, "Signatur … · Standort …", then "Bearbeiten · Weitere Aktionen …"
   (text, no framed button; editing is not the page's primary task — reading is).
+
+## Owner rulings, round 5 on a3 (2026-09-27, applied)
+
+- **The archivist block at the end of the text column had no structure and was hard to find.** The
+  tools now share the record's first line with the crumbs, at the end edge (`record-head`):
+  "Bearbeiten" as a button, then one "more" icon button (new sprite glyph `more`, accessible name
+  "Weitere Aktionen") for the rare actions — all of them archivists' only (Duplizieren, Als Entwurf
+  zurückziehen, Löschen). A draft adds "Veröffentlichen" (primary) first.
+- **The Signatur leads the origin line, without a label:** "BA 1784 · Foto(s) · 1967 · … · von mo".
+  Standort (archivists) closes the line, quiet, with its label; a draft adds "nach Veröffentlichung
+  sichtbar für …" there too.
+- **The Beschreibung anchors to its title:** it follows the origin line as the record's lede, at
+  reading measure. The media come after it at full width: the lead image takes half, the further
+  sheets fill a two-by-two grid beside it (`plate` knobs `--plate-lead-span`, `--plate-lead-rows`);
+  a video lead spans the full width.
+- **Byline wrapping:** no line starts with a dot (the separator slot of a line's first item is
+  clipped).

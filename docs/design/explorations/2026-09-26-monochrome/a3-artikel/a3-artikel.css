@@ -6,8 +6,11 @@
 @layer components {
 
   /* ---------- plate — the article's square lead preview, further sheets beneath ----------
-     Knobs: --plate-columns (thumbnail columns, default 4), --plate-lead-ratio (the lead's aspect,
-     default square; a video lead is 16 / 9).
+     Knobs: --plate-columns (default 4), --plate-lead-span (columns the lead spans, default 2),
+     --plate-lead-rows (rows it spans, default 2), --plate-lead-ratio (default square; a video lead
+     is 16 / 9, spans every column and one row). The lead takes half the width and the further
+     sheets fill a two-by-two grid beside it, then continue in rows beneath: the full width is used,
+     nothing floats beside an empty half.
      The lead spans every column and is square (RULES §6, direction C); the other sheets are
      square thumbnails in one row. An item without an image draws the placeholder cross. */
   .plate { display: grid; grid-template-columns: repeat(var(--plate-columns, 4), minmax(0, 1fr)); gap: var(--space-3); align-content: start; margin: 0; }
@@ -15,7 +18,7 @@
     aspect-ratio: 1; display: flex; align-items: flex-end; padding: var(--space-2);
     border: var(--line-width) solid var(--faint); color: inherit; text-decoration: none; background: var(--placeholder);
   }
-  .plate-item:first-child { grid-column: 1 / -1; padding: var(--space-3); aspect-ratio: var(--plate-lead-ratio, 1); }
+  .plate-item:first-child { grid-column: span var(--plate-lead-span, 2); grid-row: span var(--plate-lead-rows, 2); padding: var(--space-3); aspect-ratio: var(--plate-lead-ratio, 1); }
   .plate > video.plate-item:first-child { inline-size: 100%; padding: 0; border: 0; background: var(--band-ground); } /* the player is its own surface */
   /* plate-file — the lead medium's name, kind and size, right under it (one fact: this file) */
   .plate-file { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-block-start: calc(var(--space-2) - var(--space-3)); font: var(--type-meta); color: var(--ink-2); }
@@ -54,4 +57,16 @@
 @layer components {
   /* prose — running text of a record (Beschreibung), at reading measure */
   .prose { font: var(--type-body); max-inline-size: var(--measure-prose); margin-block: var(--gap-head) var(--gap-block); }
+}
+
+@layer components {
+  /* record-head — the record's first line: crumbs (the place) at the start, the archivist's tools at
+     the end edge, out of the reading path. Knobs: none. */
+  .record-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-6); }
+
+  /* record-tools — Bearbeiten (a button), then the rare actions behind one "more" icon button (all of
+     them are archivists' only); a draft adds Veröffentlichen first. Knobs: none. */
+  .record-tools { display: flex; align-items: center; gap: var(--space-2); }
+  .record-tools > .menu-button { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
+  .record-tools > .menu-button:hover { color: var(--ink); }
 }

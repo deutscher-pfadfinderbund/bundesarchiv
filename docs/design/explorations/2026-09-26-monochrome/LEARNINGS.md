@@ -169,3 +169,9 @@ row; equal spacing groups nothing.
 management line, an action row), but together they stacked five type voices under one title and
 put the archivist's tools before the content. Price an area as a whole: at most three voices, and
 the page's primary task (reading) decides what comes first; tools for a minority close the column.
+
+**32. Quiet is not the same as findable.** Moving the tools to the end of the text column made the
+title area calm, but tools that live nowhere a user looks for tools are lost. The record's own
+first line, at the end edge, is where tools are expected; a small icon for the rare, archivist-only
+actions keeps them there without weight. And a text needs an anchor: the Beschreibung floating
+beside the plate belonged to nothing until it followed its title.
