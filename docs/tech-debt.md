@@ -190,7 +190,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   label and the `--section-head-ink` / `--register-ink` knobs — all now the one `.quiet` context;
   `.button-sso` gone (owner: the door's login is just a primary button). Wave K1: `.badge.entwurf`,
   the boxed `#dirty-flag` and the Titelbild rule — now the one `.mark`; the Bestand form's quiet
-  facts — now `.quiet`.
+  facts — now `.quiet`; the record row's `<details class="menu">` — now the one popover menu, its
+  Löschen / Verwerfen under `.danger`.
 - **Open, mock system** (`docs/design/explorations/2026-09-26-monochrome/system/system.css`):
   - `.button-primary`: a variant. Candidate: an inverse context (swap `--ground` / `--ink`); cost:
     the button must paint its background with `--ground`, and the hover outline needs an edge.
@@ -202,8 +203,6 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   amber ENTWURF mark and the Titelbild inversion):
   - `.badge` (the visibility badges) is still a box; it goes with the visibility redesign.
   - `.primary`: a button variant (candidate: an inverse context).
-  - the record row's "Mehr …" in `workbench/artikel_bearbeiten.html` is still `<details class="menu">`
-    (two menu mechanisms); its Löschen / Verwerfen carry no `.danger`.
   - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
   - lines row 14 forbids: the ledger's covering rules, its header underline, `.diff th`; the dashed
     `.column dd` decoration (row 6 licenses dashes only for hollow slots).

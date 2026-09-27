@@ -314,11 +314,9 @@
     /* a CONTROL ROW (law C8), from #form-region's knob above — the same value --pane-top derives
        from, so the row's height and the sheet's clearance cannot disagree */
     --control-height: var(--recordrow-control);
-    /* sticky ALSO makes this the containing block for the panel its overflow disclosure drops
-       (law C12), so containment holds by construction here too */
     position: sticky;
     top: 0;
-    z-index: var(--z-control-row); /* above the sticky pane sheet and its own dropped panel — the row is chrome (the scale + why: tokens.css) */
+    z-index: var(--z-control-row); /* above the sticky pane sheet — the row is chrome (the scale + why: tokens.css) */
     display: flex;
     flex-wrap: wrap;
     align-items: center;

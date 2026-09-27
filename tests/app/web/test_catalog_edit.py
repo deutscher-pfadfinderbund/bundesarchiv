@@ -436,9 +436,7 @@ class _FoldScanner(HTMLParser):
     contained field names, plus the name of the ONE field carrying ``autofocus``. A real parser rather
     than a regex, because "contained" is a nesting question.
 
-    Scoped to ``.karte`` STRUCTURALLY. The record row's "Mehr …" overflow is a ``<details>`` too, and
-    it used to be excluded by the accident of holding no input — which is the same accident that hid
-    field-less CARD folds from the guard below. Hidden inputs are still skipped: they are plumbing
+    Scoped to ``.karte`` STRUCTURALLY: a ``<details>`` outside the card is not a fold. Hidden inputs are still skipped: they are plumbing
     (CSRF, expected_version, the media hashes), not fields the archivist fills."""
 
     def __init__(self) -> None:

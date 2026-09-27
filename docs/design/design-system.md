@@ -275,7 +275,7 @@ line; they are split out only as swap units or single renderers (law C7).
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
-| Menu | `.menu` | inline (`_header` popover; the record row's `<details>` until wave K) | `components.css` menu |
+| Menu | `.menu` | inline (`_header` and the record row, both popovers) | `components.css` menu |
 | Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |

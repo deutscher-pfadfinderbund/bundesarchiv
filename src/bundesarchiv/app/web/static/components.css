@@ -35,19 +35,17 @@
     text-underline-offset: var(--underline-offset);
   }
 
-  /* disclosure headings (facet groups, the custom bag) share the one label treatment; zero
-     specificity and first, so the button set below claims the "Mehr …" summary */
+  /* disclosure headings (facet groups, the custom bag) share the one label treatment */
   :where(summary) {
     cursor: pointer;
     font: var(--type-label);
     color: var(--ink-2);
   }
 
-  /* The record row's "Mehr …" summary JOINS this rule so it cannot drift from its buttons (G.22):
-     one declaration set, not two that agree. Default = outline; .primary = inversion (register row
-     3), and every button inverts under the pointer. Declared in :where() (law C13) so .primary,
-     button.link and every component outrank it without a contest. */
-  :where(button, a.button, details.menu > summary) {
+  /* Default = outline; .primary = inversion (register row 3), and every button inverts under the
+     pointer. Declared in :where() (law C13) so .primary, button.link and every component outrank it
+     without a contest. */
+  :where(button, a.button) {
     display: inline-block;
     /* a <button> centers its content natively; the min-height knob (below) stretches an
        inline-block a.button PAST its line box, so the shared set centers explicitly —
@@ -62,7 +60,7 @@
     text-decoration: none;
     white-space: nowrap;
   }
-  :where(button, a.button, details.menu > summary):hover,
+  :where(button, a.button):hover,
   :where(button, a.button).primary {
     background: var(--ink);
     color: var(--ground);
@@ -325,7 +323,7 @@
   }
   /* every floating panel (register row 12): page surface with an edge, even when its trigger sits
      in the band */
-  :is(.facet, details.menu) > ul,
+  .facet > ul,
   ul.menu[popover] {
     /* A panel is not part of the row it hangs from, so the row's (possibly compact) knob must not
        reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom property
@@ -348,7 +346,7 @@
      protects one edge only and both panels escaped at real widths. Which EDGE a panel pins to
      stays per component (below); the row is whatever positioned ancestor it sits in (layouts.css
      marks the rail and the record row). */
-  :is(.facet, details.menu) > ul {
+  .facet > ul {
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
@@ -371,12 +369,11 @@
      one condition falsified, so the FALLBACK tier gets its own computed proof. */
   @supports (anchor-name: --anchor-probe) and (inset-block-start: anchor(end)) and
     (justify-self: anchor-center) {
-    .facet,
-    details.menu {
+    .facet {
       anchor-name: --dropdown;
       anchor-scope: --dropdown;
     }
-    :is(.facet, details.menu) > ul {
+    .facet > ul {
       position-anchor: --dropdown;
       inset-block-start: anchor(end); /* replaces the row-edge `top` calc above */
       inset-inline: 0;
@@ -386,7 +383,12 @@
     /* the popover menu lives in the top layer, so no row contains it: the viewport is its
        containing block. Under its button, right edges aligned; a panel that would overflow shifts
        back inside the viewport (default overflow alignment). Without anchor positioning the
-       browser centres it (UA margin: auto). */
+       browser centres it (UA margin: auto). The scope keeps each list on its own button when a
+       page holds two menus: named containers, never an unqualified :has() (layouts.css
+       #form-region); a menu outside them fails the e2e "panel under its own trigger" fact. */
+    :is(body > header, [role="toolbar"]) {
+      anchor-scope: --menu-button;
+    }
     .menu-button {
       anchor-name: --menu-button;
     }
@@ -447,23 +449,10 @@
     font-weight: 600;
   }
 
-  /* ---- menu: a button that opens a list of actions. The header's "+ Neu …" is a native popover
-     (button.menu-button + ul.menu[popover]); the record row's "Mehr …" is still a <details>, its
-     summary drawn by the shared button rule in the elements layer and its panel positioned by the
-     shared dropped-panel rule above, against the record row. ---- */
-  details.menu {
-    display: inline-block; /* shrink to the summary, so the disclosure is button-sized */
-  }
-  details.menu > summary {
-    display: inline-flex; /* centers the label inside the row's --control-height (C8) */
-    align-items: center;
-    list-style: none; /* the label's own "…" is the disclosure mark, not the UA triangle */
-  }
-  details.menu > ul {
-    inset-inline-end: 0; /* the record row's trailing edge: the menu ends the row */
-  }
-  /* "+ Neu …" is an add control: text, not a framed button (DESIGN.md "Add"). Its ink binds to
-     the role, because the elements layer's button hover would otherwise invert it. */
+  /* ---- menu: a button that opens a list of actions, a native popover (button.menu-button +
+     ul.menu[popover]) — the header's "+ Neu …" and the record row's "Mehr …". ---- */
+  /* the button is text, not a framed button (DESIGN.md "Menu"). Its ink binds to the role,
+     because the elements layer's button hover would otherwise invert it. */
   .menu-button {
     padding-inline: 0;
     background: none;
@@ -474,7 +463,7 @@
   .menu-button:hover {
     text-decoration: underline;
   }
-  :is(details.menu > ul, ul.menu[popover]) {
+  ul.menu[popover] {
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
@@ -487,6 +476,7 @@
     text-align: start;
     padding: var(--space-1) var(--space-2);
     white-space: nowrap;
+    color: var(--ink); /* bound to the role, so a context (.danger) can re-point it */
   }
   .menu li > form {
     display: block;

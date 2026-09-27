@@ -84,7 +84,7 @@
        --z-control-row    a STICKY control row (the edit surface's record row)
        --z-header         the page header — above every control row (learning G.36)
        --z-banner         the viewport-fixed failure banner: above everything
-     The header's popover menu sits in the top layer and needs no value. A new layer joins this
+     A popover (the menus) sits in the top layer and needs no value. A new layer joins this
      scale. */
   --z-overlay-panel: 2;
   --z-control-row: 4;

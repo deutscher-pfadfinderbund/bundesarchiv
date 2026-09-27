@@ -30,7 +30,7 @@ outside the swap would keep a stale CAS version. A successful save gets HX-Redir
 
 {% comment %}The record row — the view's ONE control row and ONE action place (owner ruling 2). In
 reading order: the back affordance · the save-state output and the Entwurf mark · then ONE
-role="toolbar" holding Speichern, the lifecycle action and the overflow disclosure. A new action lands
+role="toolbar" holding Speichern, the lifecycle action and the overflow menu. A new action lands
 in that list, never as a new button position (G.9).
 
 The LIFECYCLE action is a submit button of #bearbeiten-form (owner decision 2026-08-08): a lifecycle
@@ -61,24 +61,21 @@ the FIRST submit button in tree order, which is Speichern (spec §6.2: Enter nev
     <button type="submit" form="bearbeiten-form"
             name="lebenszyklus" value="zurueckziehen">Als Entwurf zurückziehen</button>
     {% endif %}
-    {% comment %}The overflow: the row's rare actions, in the same native <details> as the header's
-    "+ Neu …" — so its panel positions against THIS control row (law C12).{% endcomment %}
-    <details class="menu">
-      <summary>Mehr …</summary>
-      <ul>
-        <li><a href="{% url 'artikel-detail' values.ulid %}">Ansehen</a></li>
-        <li>
-          <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
-            {% csrf_token %}
-            <button class="link" type="submit">Kopieren</button>
-          </form>
-        </li>
-        <li><a href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
-        {% comment %}Verwerfen is drafts-only and routes through the same confirm page: the
-        destructive idiom lives on its own page, never inline (spec §7).{% endcomment %}
-        {% if values.is_draft %}<li><a href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
-      </ul>
-    </details>
+    {% comment %}The overflow: the row's rare actions, the same popover menu as the header's "+ Neu …".{% endcomment %}
+    <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
+    <ul class="menu" id="mehr-menu" popover>
+      <li><a href="{% url 'artikel-detail' values.ulid %}">Ansehen</a></li>
+      <li>
+        <form method="post" action="{% url 'artikel-kopieren' values.ulid %}">
+          {% csrf_token %}
+          <button class="link" type="submit">Kopieren</button>
+        </form>
+      </li>
+      <li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
+      {% comment %}Verwerfen is drafts-only and routes through the same confirm page: the
+      destructive idiom lives on its own page, never inline (spec §7).{% endcomment %}
+      {% if values.is_draft %}<li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
+    </ul>
   </div>
 </div>
 
