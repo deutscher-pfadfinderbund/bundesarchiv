@@ -7,17 +7,16 @@ and enforces:
 
 1. no raw colors (hex/rgb/hsl/oklch literals) outside ``tokens.css`` — components consume roles
    only (themability law: component CSS is mode- and theme-blind);
-2. ``corner-shape`` only inside register row 1's licensed selector (``.c-sig`` — the sole bevel
-   carrier since the 2026-08-07 register amendment);
-3. ``--primary`` / ``--draft`` / ``--error`` consumed only inside rows 2/4/5's licensed selector
-   families (allowlisted below — extending an allowlist means citing a register row);
+2. square corners: no ``corner-shape`` anywhere, and ``border-radius`` only as the reset ``0``
+   (register row 1 retired);
+3. ``--error`` consumed only inside register row 5's licensed selectors (allowlisted below —
+   extending the allowlist means citing the register row);
 4. no ``margin`` on component root selectors (law C4 — compositions own the between);
 5. bare px/rem literals outside ``tokens.css`` flagged, except (a) a custom-property DEFINITION
    (naming the dimension IS the C3/C5 mechanism) or (b) a line carrying a comment naming why no
    token fits;
-6. ``box-shadow`` appears only as consumption of the two licensed shadow tokens —
-   ``var(--sheet-shadow)`` (register row 8: the resting-contact cue) and ``var(--overlay-shadow)``
-   (row 12: transient floating panels); Material elevation ramps are forbidden;
+6. no ``box-shadow`` at all (register rows 8 and 12: flat; a floating panel is ground with an
+   edge);
 7. no compositions-layer selector continues past a component root (law C1/C14 — owned components).
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
@@ -36,31 +35,14 @@ STATIC = Path(__file__).resolve().parents[3] / "src" / "bundesarchiv" / "app" / 
 #: Every prod stylesheet; tokens.css is the ONLY file allowed to write color literals.
 STYLESHEETS = ("tokens.css", "components.css", "layouts.css", "forms.css", "detail.css")
 
-#: Register row 1 — the bevel cut's one licensed selector (2026-08-07 amendment: `.c-facet-tab`
-#: no longer exists in live markup and lost its license).
-ROW1_BEVEL = ("c-sig",)
-
-#: Row 2 — violet ink: the Signatur code, mono counts/dates, inline links, plus the roles that
-#: legitimately embed primary at the token layer. Selector substrings that license var(--primary).
-PRIMARY_LICENSED = (
-    ".c-sig-code",  # the Signatur code (row 2, named)
-    ".signatur",  # the Signatur input (row 2: the Signatur code; _FIELDS.fit)
-    "a",  # inline links (row 2, named)
-    ".datierung",  # ledger mono date cells (row 2: mono dates)
-    "dd.mono",  # detail record-card mono machine values (row 2: mono dates)
-    ".filmstrip h2 span",  # the mono Blatt count (row 2: mono counts)
-    ".pane .meta",  # the pane's mono meta line (row 2: mono dates) — named hook, law C1
-    ".file > span",  # media register filename — the mono data mark (row 2)
-    "button.link",  # link-styled buttons — inline interactive text (row 2)
-    ".echo",  # EDTF echo may carry one violet fragment (spec §0)
+#: Register row 5 — red. Selectors that license var(--error), each matched as a whole class
+#: (`.error` does not license `.error-banner`).
+ERROR_LICENSED = (
+    ".error",  # a field error: its message, and via :has() its edge (the register's `.field-error`)
+    ".konflikt",  # the edit-conflict notice (the register's `.record-meta-alert`)
+    ".danger",  # the context on every action that deletes for good
+    ".error-banner",  # the failed-request message: an error
 )
-
-#: Row 4 — amber: the ENTWURF lifecycle badge ONLY.
-DRAFT_LICENSED = (".badge.entwurf",)
-
-#: Row 5 — red: errors (field errors via .error/.field, the CAS konflikt panel, the failure
-#: banner, the destructive confirm button — forms spec §7's one filled variant).
-ERROR_LICENSED = (".error", ".field:has(.error)", ".konflikt", ".danger", "button.danger")
 
 Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned line, lineno, comment)
 #: One at-rule opener: (selector stack including it, the raw condition, lineno, has-comment). Kept
@@ -348,70 +330,43 @@ def test_no_raw_colors_outside_tokens() -> None:
     )
 
 
-#: The two licensed shadow tokens, as the EXACT declarations component CSS may write: the
-#: resting-contact sheet shadow (register row 8) and the transient overlay shadow (row 12 —
-#: the filter rail's dropdown panels). Strict string equality keeps this mutation-proof: any
-#: literal shadow value, second layer, or unlisted token is an offender.
-_LICENSED_SHADOWS = ("box-shadow: var(--sheet-shadow);", "box-shadow: var(--overlay-shadow);")
+def test_no_box_shadow() -> None:
+    offenders = [
+        f"{name}:{lineno}: {sel} -> {raw.strip()}"
+        for name, decls in _all_declarations().items()
+        for sel, prop, raw, lineno, _comment in decls
+        if prop == "box-shadow"
+    ]
+    assert not offenders, "box-shadow (register rows 8/12: flat):\n" + "\n".join(offenders)
 
 
-def test_box_shadow_only_the_licensed_shadow_tokens() -> None:
-    # Rows 8 + 12: component CSS may consume the two shadow tokens and nothing else — no literal
-    # shadow values, no elevation stacks (the Material float model is forbidden everywhere).
-    # tokens.css is exempt — it DEFINES the tokens.
-    offenders = []
-    for name, decls in _all_declarations().items():
-        if name == "tokens.css":
-            continue
-        for sel, prop, raw, lineno, _comment in decls:
-            if prop == "box-shadow" and raw.strip() not in _LICENSED_SHADOWS:
-                offenders.append(f"{name}:{lineno}: {sel} -> {raw.strip()}")
-    assert not offenders, "box-shadow outside the licensed tokens (rows 8/12):\n" + "\n".join(
-        offenders
-    )
-
-
-def test_corner_shape_only_on_register_row_1_selectors() -> None:
-    offenders = []
-    for name, decls in _all_declarations().items():
-        for sel, prop, raw, lineno, _comment in decls:
-            if prop == "corner-shape" and not any(f".{lic}" in sel for lic in ROW1_BEVEL):
-                offenders.append(f"{name}:{lineno}: {sel} -> {raw.strip()}")
-    assert not offenders, "corner-shape outside register row 1's selectors:\n" + "\n".join(
+def test_square_corners() -> None:
+    offenders = [
+        f"{name}:{lineno}: {sel} -> {raw.strip()}"
+        for name, decls in _all_declarations().items()
+        for sel, prop, raw, lineno, _comment in decls
+        if prop == "corner-shape"
+        or (prop == "border-radius" and raw.strip() != "border-radius: 0;")
+    ]
+    assert not offenders, "a corner that is not square (register row 1 retired):\n" + "\n".join(
         offenders
     )
 
 
 def _licensed(selector: str, allowlist: tuple[str, ...]) -> bool:
-    """An entry is a selector substring; one that starts with an element name (`a`, `dd.mono`)
-    matches only as that element, never inside a class name (`.facts`)."""
-    return any(
-        re.search(rf"(?<![-\w.#]){re.escape(lic)}(?![-\w])", selector)
-        if lic[0].isalpha()
-        else lic in selector
-        for lic in allowlist
-    )
+    """An entry matches as a whole: never as the prefix of a longer class (`.error-banner`)."""
+    return any(re.search(rf"{re.escape(lic)}(?![-\w])", selector) for lic in allowlist)
 
 
-def test_loud_roles_only_in_licensed_selectors() -> None:
-    offenders = []
-    for name, decls in _all_declarations().items():
-        if name == "tokens.css":
-            continue  # the token layer derives roles from roles by definition
-        for sel, _prop, raw, lineno, _comment in decls:
-            if "var(--primary)" in raw and not _licensed(sel, PRIMARY_LICENSED):
-                offenders.append(f"{name}:{lineno} [row 2] {sel}: {raw.strip()}")
-            if re.search(r"var\(--(?:draft|on-draft)\)", raw) and not _licensed(
-                sel, DRAFT_LICENSED
-            ):
-                offenders.append(f"{name}:{lineno} [row 4] {sel}: {raw.strip()}")
-            if re.search(r"var\(--(?:error|on-error)\)", raw) and not _licensed(
-                sel, ERROR_LICENSED
-            ):
-                offenders.append(f"{name}:{lineno} [row 5] {sel}: {raw.strip()}")
-    assert not offenders, "loud role consumed outside its register row's selectors:\n" + "\n".join(
-        offenders
-    )
+def test_error_only_in_licensed_selectors() -> None:
+    offenders = [
+        f"{name}:{lineno} {sel}: {raw.strip()}"
+        for name, decls in _all_declarations().items()
+        if name != "tokens.css"  # the token layer defines the role
+        for sel, _prop, raw, lineno, _comment in decls
+        if "var(--error)" in raw and not _licensed(sel, ERROR_LICENSED)
+    ]
+    assert not offenders, "--error outside register row 5's selectors:\n" + "\n".join(offenders)
 
 
 def test_no_margin_on_component_roots() -> None:
@@ -436,7 +391,7 @@ _PX_REM = re.compile(r"\b(?:0*[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b")
 
 
 def test_bare_dimension_literals_are_named_or_commented() -> None:
-    # Law C5: --space-*/--touch-target/--touch-target-compact/--hairline/--state-border are the
+    # Law C5: --space-*/--touch-target/--touch-target-compact/--line-width/--state-border are the
     # value sources. A bare px/rem literal outside tokens.css needs either a naming custom
     # property (--foo: 3rem — the C3 component-API mechanism) or a same-line comment saying why
     # no token fits.
