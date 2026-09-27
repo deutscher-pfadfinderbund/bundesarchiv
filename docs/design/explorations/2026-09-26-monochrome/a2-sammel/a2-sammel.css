@@ -47,24 +47,10 @@
   .toolbar-view { margin-inline-start: auto; }
   @container (width < 40rem) { .toolbar { display: none; } }
 
-  /* ---------- toolpanel — one tool's own small form, opened from the toolbar ----------
-     Knobs: none. The menu's surface and placement (page ground, the edge, anchored under its
-     button), holding labelled controls stacked, then the tool's one action. Light dismiss and Esc
-     come with the popover; the action submits the list's form to the check page. */
-  .toolpanel {
-    --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
-    inline-size: var(--measure-query); margin: 0; padding: var(--space-5);
-    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--ink);
-  }
+  .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
   @supports (position-area: block-end) {
-    .toolpanel { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-end; position-try-fallbacks: flip-inline, flip-block; }
     .toolpanel:has(> .toolpanel-checks) { position-area: block-end span-inline-start; } /* the view tool sits at the end edge: its panel ends there too */
   }
-  .toolpanel > * + * { margin-block-start: var(--space-5); }
-  .toolpanel label { display: block; margin-block-end: var(--space-2); font: var(--type-label); color: var(--ink-2); }
-  .toolpanel :is(select, input[type="text"]) { inline-size: 100%; }
-  .toolpanel select { font: inherit; color: var(--ink); background: var(--ground); border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0; }
-  .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
   .toolpanel-checks { list-style: none; padding: 0; margin: 0; }
   .toolpanel-checks label { display: flex; align-items: baseline; gap: var(--space-3); margin: 0; padding-block: var(--space-1); font: var(--type-body); color: var(--ink); }
   .toolpanel-checks input { accent-color: var(--ink); }

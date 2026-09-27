@@ -31,9 +31,8 @@
     --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
     --error: light-dark(#c4000b, #ff6b61);
     /* Buttons. Light inverts (a solid black primary, a black hover fill); dark never fills with ink:
-       a bright block glares on black. There a primary is set apart by its full-ink edge against the
-       secondary's quieter edge, and hover lifts to a dim ground. */
-    --button-edge: light-dark(#000, #6e6e6e);
+       a bright block glares on black, so there primary and secondary are both outlined in ink (one
+       look for now, owner 2026-09-27) and hover lifts to a dim ground. */
     --button-fill: light-dark(#000, transparent);
     --button-fill-ink: light-dark(#fff, #f0f0f0);
     --button-hover: light-dark(#000, #262626);
@@ -439,13 +438,32 @@
     display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
     padding: var(--space-3) var(--button-pad-inline, var(--space-5));
     font: var(--type-control); text-decoration: none; white-space: nowrap;
-    color: var(--ink); background: transparent; border: var(--line-width) solid var(--button-edge); border-radius: 0;
+    color: var(--ink); background: transparent; border: var(--line-width) solid var(--ink); border-radius: 0;
     cursor: pointer; /* also on a label.button (file chooser), which is not a <button> */
   }
   .button:hover { color: var(--button-hover-ink); background: var(--button-hover); }
   .button-primary { color: var(--button-fill-ink); background: var(--button-fill); border-color: var(--ink); }
   .button-primary:hover { color: var(--ink); background: var(--button-primary-hover); }
 
+  /* ---------- toolpanel — one action's own small panel, opened by its button ----------
+     Knobs: none. The menu's surface and placement (page ground, the ink edge, anchored under its
+     button, start edges aligned, flipping to the end edge when there is no room), holding a sentence or labelled
+     controls stacked, then its one action: a list tool (a2), a confirmation (a3 Veröffentlichen).
+     Light dismiss and Esc come with the popover and are the way to cancel. */
+  .toolpanel {
+    --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
+    inline-size: var(--measure-query); margin: 0; padding: var(--space-5);
+    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--ink);
+  }
+  @supports (position-area: block-end) {
+    .toolpanel { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-end; position-try-fallbacks: flip-inline, flip-block; }
+    .toolpanel:has(> .toolpanel-checks) { position-area: block-end span-inline-start; } /* the view tool sits at the end edge: its panel ends there too */
+  }
+  .toolpanel > * + * { margin-block-start: var(--space-5); }
+  .toolpanel label { display: block; margin-block-end: var(--space-2); font: var(--type-label); color: var(--ink-2); }
+  .toolpanel :is(select, input[type="text"]) { inline-size: 100%; }
+  .toolpanel select { font: inherit; color: var(--ink); background: var(--ground); border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0; }
+  .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
   /* ---------- split-button — one action and its rarer siblings in one frame ----------
      Knobs: none. Parts: a .button (the frequent action, e.g. Bearbeiten), then a button.menu-button
      holding the chevron icon (accessible name "Weitere Aktionen"), which opens a ul.menu[popover].
@@ -454,7 +472,7 @@
   .split-button { display: inline-flex; align-items: stretch; }
   .split-button > .menu-button {
     display: inline-grid; place-items: center; padding-inline: var(--space-2);
-    color: var(--ink); border: var(--line-width) solid var(--button-edge); border-inline-start-width: 0;
+    color: var(--ink); border: var(--line-width) solid var(--ink); border-inline-start-width: 0;
   }
   .split-button > .menu-button:hover { color: var(--button-hover-ink); background: var(--button-hover); }
 

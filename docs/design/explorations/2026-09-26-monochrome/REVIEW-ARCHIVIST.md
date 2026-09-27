@@ -296,3 +296,14 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
 - **Abmelden is an icon** (`log-out` glyph, named "Abmelden" by the link and its title): rare, so it
   gives up its word. Alternative left open: a menu under the signed-in name, if identity on screen is
   wanted later.
+
+## Owner rulings, round 7 (2026-09-27, applied)
+
+- **The origin line has one text colour:** Standort is no longer quiet.
+- **"nach Veröffentlichung sichtbar für …" left the line:** it was clunky there. "Veröffentlichen" now
+  opens a confirmation (a `toolpanel` popover): "Nach dem Veröffentlichen sehen alle Mitglieder diesen
+  Artikel." and the button "Jetzt veröffentlichen". Light dismiss or Esc cancels. `toolpanel` moved
+  into the system (a2's list tools and a3's confirmation share it; start-aligned under its button,
+  flipping at the edge; the column chooser stays end-aligned).
+- **Dark mode buttons:** the secondary uses the primary's full-ink edge, one look for now, until a
+  better way to tell them apart in dark is found (`--button-edge` removed).

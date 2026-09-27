@@ -43,12 +43,17 @@
               <li><a class="danger" href="loeschen.html">Löschen</a></li>
             </ul>
           </div>
-          <a class="button button-primary" href="#">Veröffentlichen</a>
+          <button class="button button-primary" type="button" popovertarget="p-publish">Veröffentlichen</button>
+          <!-- the confirmation says what publishing does: who will see the record -->
+          <form class="toolpanel" id="p-publish" popover method="post" action="#">
+            <p>Nach dem Veröffentlichen sehen alle Mitglieder diesen Artikel.</p>
+            <button class="button button-primary" type="submit">Jetzt veröffentlichen</button>
+          </form>
         </div>
       </div>
       <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971</h1>
-      <!-- origin: the Signatur first, then what, when, where, who — self-evident, no labels; Standort (archivists) keeps its label -->
-      <p class="byline"><data value="BA 1784">BA 1784</data><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span><span class="quiet">Standort Bund › Alben</span><span class="quiet">nach Veröffentlichung sichtbar für Alle Mitglieder</span></p>
+      <!-- origin: the Signatur first, then what, when, where, who — self-evident, no labels; Standort (archivists) keeps its label; one text colour -->
+      <p class="byline"><data value="BA 1784">BA 1784</data><span>Foto(s)</span><time datetime="1967">1967</time><span>Hoher Meißner, Cuenca, Madrid</span><span>von mo</span><span>Standort Bund › Alben</span></p>
       <!-- Beschreibung under its title: the lede of the record; absent = nothing rendered -->
       <p class="prose">Album mit Abzügen vom Austausch zwischen spanischen und deutschen Gruppen, vom ersten Treffen auf dem Hohen Meißner bis zu den Fahrten nach Cuenca und Madrid.</p>
     </header>
