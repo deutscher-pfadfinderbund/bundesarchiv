@@ -144,3 +144,13 @@ the archivist enters by ticking a box. The list already has a row whose job paus
 the column heads. Swapping them for the toolbar costs no space, keeps every row in place, and puts
 the tool where the eye already is. Step two (the field sentence) opens on purpose, so only it may
 grow the row.
+
+**27. A tool area holds tools, not a sentence.** The field sentence ("[Feld] auf [Wert] setzen") was
+right for one action and wrong for a place that will hold delete, move, publish and more: every new
+tool would have rewritten the sentence. A row of named tools, each opening its own small panel, grows
+by one button at a time.
+
+**28. Lines and columns end where the content ends.** Row rules ran on past the last column into an
+empty action slot, and a lead column sized for the longest possible date pushed every title away.
+Size a column by its content (shrink the last one, cap the lead at one full date and let a range
+break), and the rules and gaps follow the content instead of the container.

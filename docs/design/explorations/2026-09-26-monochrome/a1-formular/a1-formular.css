@@ -59,23 +59,28 @@
      .file-row-name (filename over size and marks), a nested .field (the caption),
      .file-row-tools (↑ ↓ and a .remove; the end rows' arrows stay visible, drawn in the faint
      line colour when disabled — disabled controls are exempt from contrast, and faint says "not here").
-     Lines come from the register it sits in. S: caption and tools move under the name. */
+     The name and its caption are one fact (this file), so they stack in one column next to the
+     preview; the tools follow the caption field, level with its input. The body column stops at
+     the query measure, so nothing floats to the far edge. Lines come from the register it sits
+     in. S: preview smaller, the tools under the caption. */
   .file-row {
-    display: grid; grid-template-columns: var(--space-10) minmax(0, 1fr) minmax(0, 1.3fr) auto;
-    align-items: center; gap: var(--space-3) var(--space-5); padding-block: var(--pad-row);
+    display: grid; grid-template-columns: var(--measure-thumb) minmax(0, var(--measure-query)) auto;
+    grid-template-rows: auto auto 1fr; align-items: start; gap: var(--space-2) var(--space-5); padding-block: var(--pad-row);
   }
   .file-row-thumb {
-    aspect-ratio: 1; border: var(--line-width) solid var(--faint); background: var(--placeholder);
+    grid-row: 1 / -1; aspect-ratio: 1; border: var(--line-width) solid var(--faint); background: var(--placeholder);
   }
-  .file-row-name { display: flex; flex-direction: column; gap: var(--space-1); min-inline-size: 0; overflow-wrap: anywhere; }
+  .file-row > .field { grid-column: 2; }
+  .file-row-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); min-inline-size: 0; overflow-wrap: anywhere; }
   .file-row-name small { font: var(--type-meta); color: var(--ink-2); }
-  .file-row-tools { display: flex; gap: var(--space-1); }
+  .file-row-tools { grid-column: 3; grid-row: 2; align-self: end; /* level with the caption input */ display: flex; gap: var(--space-1); }
   .file-row-tools :where(button) { display: inline-grid; place-items: center; min-inline-size: var(--space-8); min-block-size: var(--space-8); color: var(--ink-2); }
   .file-row-tools :where(button:hover:enabled) { color: var(--ink); } /* :where keeps it below .remove */
   .file-row-tools :where(button:disabled) { color: var(--faint); cursor: default; }
   @container (width < 40rem) {
-    .file-row { grid-template-columns: var(--space-9) minmax(0, 1fr); align-items: start; }
-    .file-row > :nth-child(n + 3) { grid-column: 2; }
+    .file-row { grid-template-columns: var(--space-10) minmax(0, 1fr); grid-template-rows: auto; }
+    .file-row-thumb { grid-row: 1 / span 3; }
+    .file-row-tools { grid-column: 2; grid-row: auto; }
   }
 
   /* ---------- upload — "+ Dateien hinzufügen" opens the file chooser; the chosen files upload at once ----------

@@ -4,9 +4,11 @@
 
 @layer components {
 
-  /* ---------- ledger-pick / ledger-act — the archivist's two ledger cells ----------
+  /* ---------- ledger-pick / ledger-edit — the archivist's two ledger parts ----------
      Knobs: none. .ledger-pick hangs the selection box in the page gutter, so the titles keep
-     their line with the search sentence; .ledger-act is the row-end action slot ("Bearbeiten").
+     their line with the search sentence (the head's box selects the page); .ledger-edit
+     ("Bearbeiten") follows the title in its cell — at the row's far end it floated loose and
+     stretched the rules past the last column.
      Pointer devices: both show on row hover or focus; once one row is picked, every box shows
      (the archivist chose to select). Touch: always shown. S: absent (bulk work is L/M). */
   .ledger :is(th, td).ledger-pick { position: relative; inline-size: 0; padding: 0; }
@@ -14,45 +16,58 @@
     position: absolute; inset-inline-end: var(--space-4); inset-block-start: calc(var(--pad-row) + var(--space-1));
     inline-size: var(--space-4); block-size: var(--space-4); margin: 0; accent-color: var(--ink);
   }
-  .ledger-act { inline-size: 0; white-space: nowrap; font: var(--type-meta); }
-  .ledger-act a { color: var(--ink-2); }
-  .ledger-act a:hover { color: var(--ink); }
+  .ledger thead .ledger-pick input { inset-block-start: 0.15em; } /* the head row has no top padding */
+  .ledger-edit { margin-inline-start: var(--space-4); font: var(--type-meta); color: var(--ink-2); }
+  .ledger-edit:hover { color: var(--ink); }
   @media (hover: hover) {
-    .ledger :is(.ledger-pick input, .ledger-act a) { opacity: 0; }
-    .ledger tr:is(:hover, :focus-within) :is(.ledger-pick input, .ledger-act a),
+    .ledger :is(.ledger-pick input, .ledger-edit) { opacity: 0; }
+    .ledger tr:is(:hover, :focus-within) :is(.ledger-pick input, .ledger-edit),
     .ledger-pick input:checked,
     .ledger:has(.ledger-pick :checked) .ledger-pick input { opacity: 1; }
   }
   @container (width < 40rem) {
-    .ledger :is(.ledger-pick, .ledger-act) { display: none; }
+    .ledger :is(.ledger-pick, .ledger-edit) { display: none; }
   }
 
-  /* ---------- bulkbar — the archivist toolbar: the ledger's head row, while a row is picked ----------
-     Knobs: none. Lives in the ledger's thead as a second row (.ledger-bulk) next to the column
-     heads (.ledger-heads). While no row is picked it is absent; once one is, it takes the column
-     heads' place: same spot, same one-line height, so no row moves under the pointer (CSS :has,
-     no JS). It sticks to the viewport top while the list scrolls. It reads as one line from the
-     left: the pick column's box (selects the page), the count, "Auswahl aufheben", then the one
-     action "Feld ändern …" right after them — never pushed to the far edge, where it would float
-     loose. "Feld ändern …" is a disclosure: it opens the chooser sentence in its place, in the same
-     row. Step two is opened on purpose, so only then may the row grow. S: absent (bulk is L/M). */
-  .ledger-bulk { display: none; }
-  .ledger:has(tbody .ledger-pick :checked) .ledger-bulk { display: table-row; }
-  .ledger:has(tbody .ledger-pick :checked) .ledger-heads { display: none; }
-  .ledger .ledger-bulk > th, .ledger .ledger-bulk > th.ledger-pick { position: sticky; inset-block-start: 0; z-index: 1; background: var(--ground); padding-block-start: var(--space-3); }
-  .ledger-bulk .ledger-pick input { inset-block-start: calc(50% - var(--space-3) / 2); translate: 0 -50%; } /* centred on the row's line, which grows in step two */
-  .bulkbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-8); color: var(--ink); }
-  .bulkbar-status { display: flex; flex-wrap: wrap; align-items: baseline; }
-  .bulkbar-status > * + *::before { content: "·" / ""; display: inline-block; margin-inline: var(--space-3); color: var(--ink-2); }
-  .bulkbar-status a { color: var(--ink-2); }
-  .bulkbar-status a:hover { color: var(--ink); }
-  .bulkbar-act > summary::after { content: " …"; }
-  .bulkbar-act > summary:hover { text-decoration: underline; text-underline-offset: var(--underline-offset); }
-  .bulkbar-act[open] { flex: 1 1 auto; } /* the value field may grow; the sentence still starts right after the status */
-  .bulkbar-act[open] > summary { display: none; }
-  @container (width < 40rem) {
-    .ledger:has(tbody .ledger-pick :checked) .ledger-bulk { display: none; }
+  /* ---------- toolbar — the archivist's tools over the ledger ----------
+     Knobs: none. One row right above the column heads, always in the same place, so nothing
+     moves when rows are picked. It holds tools, not a sentence: each tool is a button that opens
+     its own small panel (.toolpanel, a native popover) or a menu, so a new tool (Löschen,
+     Verschieben, Veröffentlichen …) is one more button or one more menu entry, never a new layout.
+     Progressive: at rest only the view tool "Spalten …" shows, at the ledger's end edge above its
+     last column; once a row is picked (CSS :has, no JS), .toolbar-selection appears at the start:
+     the count, "Auswahl aufheben", then the selection's tools. S: absent (bulk work is L/M). */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-6); min-block-size: var(--control-height, 2.5rem); font: var(--type-meta); }
+  .toolbar-selection { display: none; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-6); }
+  .toolbar:has(~ .ledger tbody .ledger-pick :checked) .toolbar-selection { display: flex; }
+  .toolbar-selection > [role="status"] { color: var(--ink); }
+  .toolbar-selection > a { color: var(--ink-2); }
+  .toolbar-selection > a:hover { color: var(--ink); }
+  .toolbar .menu-button { font: var(--type-control); }
+  .toolbar-view { margin-inline-start: auto; }
+  @container (width < 40rem) { .toolbar { display: none; } }
+
+  /* ---------- toolpanel — one tool's own small form, opened from the toolbar ----------
+     Knobs: none. The menu's surface and placement (page ground, the edge, anchored under its
+     button), holding labelled controls stacked, then the tool's one action. Light dismiss and Esc
+     come with the popover; the action submits the list's form to the check page. */
+  .toolpanel {
+    --ground: var(--page-ground); --ink: var(--page-ink); --ink-2: var(--page-ink-2);
+    inline-size: var(--measure-query); margin: 0; padding: var(--space-5);
+    background: var(--ground); color: var(--ink); border: var(--line-width) solid var(--edge);
   }
+  @supports (position-area: block-end) {
+    .toolpanel { inset: auto; margin-block-start: var(--space-2); position-area: block-end span-inline-end; position-try-fallbacks: flip-inline, flip-block; }
+    .toolpanel:has(> .toolpanel-checks) { position-area: block-end span-inline-start; } /* the view tool sits at the end edge: its panel ends there too */
+  }
+  .toolpanel > * + * { margin-block-start: var(--space-5); }
+  .toolpanel label { display: block; margin-block-end: var(--space-2); font: var(--type-label); color: var(--ink-2); }
+  .toolpanel :is(select, input[type="text"]) { inline-size: 100%; }
+  .toolpanel select { font: inherit; color: var(--ink); background: var(--ground); border: 0; border-block-end: var(--line-width) solid var(--ink); border-radius: 0; padding: var(--space-1) 0; }
+  .toolpanel:has(> .toolpanel-checks) { inline-size: auto; min-inline-size: var(--measure-menu); } /* a check list is as wide as its longest entry */
+  .toolpanel-checks { list-style: none; padding: 0; margin: 0; }
+  .toolpanel-checks label { display: flex; align-items: baseline; gap: var(--space-3); margin: 0; padding-block: var(--space-1); font: var(--type-body); color: var(--ink); }
+  .toolpanel-checks input { accent-color: var(--ink); }
 
   /* ---------- chooser — "[Feld] auf [Wert] setzen  Änderung prüfen" ----------
      Knobs: none. The Feld chooser as one sentence in body type: a select, the value field, the

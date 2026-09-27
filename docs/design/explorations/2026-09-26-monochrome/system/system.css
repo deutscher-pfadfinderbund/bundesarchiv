@@ -110,6 +110,7 @@
     --measure-decade: 10ch; /* "Unbekannt" */
     --measure-count: 5ch; /* "1.187" */
     --measure-type: 9rem;
+    --measure-thumb: 8rem; /* a medium's preview in a form row */
     --column-min: 18rem;
     --topbar-height: 4.25rem;
     --motion-grow: 160ms ease-out;
@@ -272,11 +273,18 @@
      too: it also carries .quiet).
      S: a lead row puts lead + figure on the first line, the label under it. */
   .register { list-style: none; padding: 0; }
-  .register:not(:has(.register-bar)) > li:not(.register-apart) + li:not(.register-apart):has(:is(.register-figure, .register-lead)) { border-block-start: var(--line); } /* a line connects two ends; a one-ended row gets none */
+  .register:not(:has(.register-bar)) > li:not(.register-apart) + li:not(.register-apart):has(.register-figure) { border-block-start: var(--line); } /* a line connects two far ends (label … figure); a lead touches its label, so a lead row needs none */
   .register:has(.register-bar) > li, .register > .register-apart { border-block-start: 0; }
   .register > .register-apart { margin-block-start: var(--space-4); }
   .register-row { display: flex; align-items: baseline; gap: var(--space-4); padding-block: var(--pad-row); color: inherit; text-decoration: none; }
   .register-lead { flex: 0 0 var(--register-lead, var(--measure-date)); font: var(--type-data); } /* ch counts in the data face */
+  /* M/L: a lead register is a grid, so the lead column is as wide as the longest lead in THIS list
+     (an EDTF range like 1984-11-26/1995-03-14 widens only its own list) and each label starts right
+     after it */
+  @container (width >= 40rem) {
+    .register:has(.register-lead) { display: grid; grid-template-columns: fit-content(var(--measure-date)) minmax(0, 1fr) max-content; column-gap: var(--space-5); } /* never wider than one full date: a range breaks after its slash (<wbr>) */
+    .register:has(.register-lead) > li, .register:has(.register-lead) .register-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
+  }
   .register-label { flex: 1 1 auto; font: var(--register-label-type, var(--type-entry)); }
   a.register-row:hover .register-label { text-decoration: underline; }
   .register-figure { margin-inline-start: auto; min-inline-size: var(--measure-count); text-align: end; font: var(--type-meta); color: var(--ink-2); }
@@ -298,7 +306,7 @@
      S: each row becomes title line · date + type line · Signatur line. */
   .ledger th { padding: 0 var(--space-5) var(--space-3) 0; }
   .ledger td { padding: var(--pad-row) var(--space-5) var(--pad-row) 0; vertical-align: baseline; }
-  .ledger :is(th, td):last-child { padding-inline-end: 0; }
+  .ledger :is(th, td):last-child { padding-inline-end: 0; inline-size: 1%; white-space: nowrap; } /* the last column shrinks to its content, so the row lines end where the content ends */
   .ledger tbody tr + tr td { border-block-start: var(--line); }
   .ledger-title a { text-decoration: none; }
   .ledger-title a:hover { text-decoration: underline; }
@@ -332,17 +340,14 @@
   .pager-step[aria-disabled] { font: var(--type-meta); color: var(--ink-2); }
 
   /* ---------- facts — the article's definition list ----------
-     Knobs: none. Label over value, so no lines. .facts-wide spans two columns; a fact one tier
-     quieter (Standort, Signatur) carries .quiet. S: two columns. */
-  .facts { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--space-8); }
-  .facts > div { padding-block: var(--space-3) var(--space-4); }
-  .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); margin-block-end: var(--space-2); }
-  .facts-wide { grid-column: span 2; }
+     Knobs: none. One line per fact: the label, then its value. The label column is as wide as
+     the longest label, so every value sits right next to its label and all values share one
+     edge (alignment, no lines). A fact one tier quieter (Standort, Signatur) carries .quiet.
+     Label over value cost a row each and spread six facts over a quarter screen. */
+  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-5); align-items: baseline; }
+  .facts > div { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
+  .facts dt { font: var(--type-label); letter-spacing: var(--tracking-label); text-transform: var(--label-case); color: var(--ink-2); }
   .facts :is(time, data) { font: inherit; } /* one value is not a column: mono only aligns columns */
-  @container (width < 40rem) {
-    .facts { grid-template-columns: repeat(2, 1fr); }
-    .facts-wide { grid-column: 1 / -1; }
-  }
 
   /* ---------- media — the article's previews; the first one leads ----------
      Knobs: none. A .media-item without an image draws the placeholder cross.
@@ -502,6 +507,13 @@
   /* columns — pair or trio as one auto-fitting grid; a column is never narrower than
      --column-min, and the gap between columns is a section gap, so they read as blocks */
   .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-min)), 1fr)); gap: var(--gap-section); }
+  /* side by side, a dense bar register (Zeitleiste) spans the same height as its neighbours'
+     lists: first row level with their first row, last row level with their last */
+  .columns > section { display: flex; flex-direction: column; }
+  .columns > section > .register:has(.register-bar) { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
+  .columns > section > .register:has(.register-bar) .register-row { padding-block: 0; } /* the space between rows comes from the stretch */
+  .columns > section > .register:has(.register-bar) > li:first-child .register-row { padding-block-start: var(--pad-row); }
+  .columns > section > .register:has(.register-bar) > li:last-child .register-row { padding-block-end: var(--pad-row); }
 
   /* split — media | facts side by side while both fit --column-min, else stacked, media first */
   .split { display: flex; flex-wrap: wrap; gap: var(--gap-block) var(--gap-section); }

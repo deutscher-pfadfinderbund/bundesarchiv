@@ -29,7 +29,25 @@
 
 <main class="page stack">
   <!-- direction C: a square preview exists, so media left, title + facts right; S: media first -->
-  <article class="split" aria-labelledby="h-art">
+  <article class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-art">
+    <header class="stack" style="--stack-gap: var(--gap-head)">
+      <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
+      <!-- mock: BA 1784 is published in data.json; shown here as an Entwurf -->
+      <div class="section-head">
+        <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971<span class="mark">Entwurf</span></h1>
+        <p class="section-head-lede">Nach Veröffentlichung sichtbar für: Alle Mitglieder.</p>
+      </div>
+      <div class="row">
+        <a class="button" href="#">Bearbeiten</a>
+        <a class="button" href="#">Veröffentlichen</a>
+        <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
+          <ul class="menu" id="menu-2" popover>
+            <li><a href="#">Kopieren</a></li>
+            <li><a class="danger" href="loeschen.html">Löschen</a></li>
+          </ul>
+      </div>
+    </header>
+  <div class="split">
     <div class="plate" aria-label="Medien">
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 1</b>Platzhalter: quadratische Vorschau</span></a>
       <a class="plate-item" href="#"><span class="plate-caption"><b>Seite 2</b></span></a>
@@ -39,23 +57,6 @@
     </div>
 
     <div class="stack" style="--stack-gap: var(--gap-block)">
-      <header class="stack" style="--stack-gap: var(--gap-head)">
-        <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Bund</a></nav>
-        <!-- mock: BA 1784 is published in data.json; shown here as an Entwurf -->
-        <div class="section-head">
-          <h1 id="h-art">Fotoalbum: Spanisch-deutscher-Jugendaustausch 1967-1971<span class="mark">Entwurf</span></h1>
-          <p class="section-head-lede">Nach Veröffentlichung sichtbar für: Alle Mitglieder.</p>
-        </div>
-        <div class="row">
-          <a class="button" href="#">Bearbeiten</a>
-          <a class="button" href="#">Veröffentlichen</a>
-          <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
-            <ul class="menu" id="menu-2" popover>
-              <li><a href="#">Kopieren</a></li>
-              <li><a class="danger" href="loeschen.html">Löschen</a></li>
-            </ul>
-        </div>
-      </header>
 
 
       <!-- Beschreibung: mock text — absent = nothing rendered -->
@@ -70,6 +71,7 @@
         <div class="quiet"><dt>Signatur</dt><dd><data value="BA 1784">BA 1784</data></dd></div>
       </dl>
     </div>
+  </div>
   </article>
 
   <div class="columns">
@@ -79,7 +81,7 @@
       </header>
       <ul class="register">
         <li><a class="register-row" href="#"><span class="register-lead"><data value="1960~">1960~</data></span><span class="register-label">Die Kompassnadel, Nr. 20</span></a></li>
-        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1964-11">1964-11</time></span><span class="register-label">Das Gesetz</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><data value="1984-11-26/1995-03-14">1984-11-26/<wbr>1995-03-14</data></span><span class="register-label">Das Gesetz</span></a></li>
         <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1977">1977</time></span><span class="register-label">Bundeslager 1977 Hemer / Westfalen</span></a></li>
       </ul>
     </section>

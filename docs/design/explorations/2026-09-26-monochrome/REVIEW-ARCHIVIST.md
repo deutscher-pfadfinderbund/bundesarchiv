@@ -211,3 +211,27 @@ what I left for the owner. Pages: `http://127.0.0.1:8765/<folder>/<page>.html`.
   "Auswahl aufheben", then "Feld ändern …" right after them. "Feld ändern …" opens the chooser
   sentence in place (`details`). The row sticks to the top while the list scrolls. New state page
   `liste-feld.html` (step two). Cost: the sort heads are gone while rows are picked.
+
+## Owner rulings, round 2 on a1 / a2 / a3 + start (2026-09-27, applied)
+
+- **a1 media row:** the file name and its caption belong together. They now stack in one column next
+  to a larger preview (`--measure-thumb`, 8rem); name and size share one line; the tools sit level
+  with the caption input, right after it (the body column stops at the query measure).
+- **a3 article:** crumbs and title sit at the page's start edge, above plate and text (inline-start,
+  block-start). Facts are one line each ("Datierung 1967"), the label column as wide as the longest
+  label: six facts take six lines, not a quarter screen.
+- **Onward lists (lead + label):** the lead column is as wide as the longest lead in that list, capped
+  at one full date; an EDTF range breaks after its slash (`<wbr>`), tested with
+  `1984-11-26/1995-03-14`. Lead and label touch, so these rows have no rules. System rule: a register
+  line connects a label to a far figure; a lead row gets none.
+- **a2 list:** the last column shrinks to its content, so the row rules end where the content ends;
+  "Bearbeiten" follows the title in its cell (hover) instead of a row-end column.
+- **a2 toolbar:** no sentence form. One tool row over the column heads, always in place: at rest only
+  "Spalten …" (the column chooser, a check list), at the end edge; once rows are picked the start
+  shows "3 ausgewählt · Auswahl aufheben" and the tools "Feld ändern …", "Verschieben …", "Mehr …"
+  (Veröffentlichen, Als Entwurf zurückziehen, Löschen …). Each tool opens its own anchored popover
+  panel (`toolpanel`) or a menu; a new tool is one button or one menu entry. The column heads (and
+  sorting) stay while rows are picked. Only "Feld ändern …" exists in the app today.
+- **Start page:** the Zeitleiste stretches between its neighbours' first and last rows (its rows lose
+  their own padding; the stretch spaces them). "Nach Art" shows as many rows as "Bestände" (top eight
+  plus "Weitere Arten"), so all three columns end level.

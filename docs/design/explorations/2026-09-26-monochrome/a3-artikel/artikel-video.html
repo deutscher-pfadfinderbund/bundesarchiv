@@ -29,26 +29,27 @@
 <main class="page stack">
   <!-- the medium is a video: it leads on the plate like every article's media, as the native
        player (16:9, not the square preview); its name, kind and size sit right under it -->
-  <article class="split" aria-labelledby="h-art">
+  <article class="stack" style="--stack-gap: var(--gap-block)" aria-labelledby="h-art">
+    <header class="stack" style="--stack-gap: var(--gap-head)">
+      <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Gruppen des DPB</a></nav>
+      <h1 id="h-art">Bundeslager 2007: Eine Fotodokumentation</h1>
+      <div class="row">
+        <a class="button" href="#">Bearbeiten</a>
+        <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
+          <ul class="menu" id="menu-2" popover>
+            <li><a href="#">Kopieren</a></li>
+            <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
+            <li><a class="danger" href="loeschen.html">Löschen</a></li>
+          </ul>
+      </div>
+    </header>
+  <div class="split">
     <figure class="plate" style="--plate-lead-ratio: 16 / 9" aria-label="Medien">
       <video class="plate-item" controls preload="none" aria-label="bundeslager-2007.mp4"></video>
       <figcaption class="plate-file"><span>bundeslager-2007.mp4</span><span>Video, 1,2 GB</span><a href="#">Herunterladen</a></figcaption>
     </figure>
 
     <div class="stack" style="--stack-gap: var(--gap-block)">
-      <header class="stack" style="--stack-gap: var(--gap-head)">
-        <nav class="crumbs" aria-label="Ort im Archiv"><a href="../r4-system/archiv.html">Archiv</a><a href="../r4-system/archiv.html">Gruppen des DPB</a></nav>
-        <h1 id="h-art">Bundeslager 2007: Eine Fotodokumentation</h1>
-        <div class="row">
-          <a class="button" href="#">Bearbeiten</a>
-          <button class="menu-button" type="button" popovertarget="menu-2">Weitere Aktionen …</button>
-            <ul class="menu" id="menu-2" popover>
-              <li><a href="#">Kopieren</a></li>
-              <li><a href="artikel-entwurf.html">Als Entwurf zurückziehen</a></li>
-              <li><a class="danger" href="loeschen.html">Löschen</a></li>
-            </ul>
-        </div>
-      </header>
 
       <!-- Beschreibung: mock text — absent = nothing rendered -->
       <p class="prose">DVD mit Bildern und kurzen Filmen vom Bundeslager 2007, zusammengestellt vom Ring Florian Geyer.</p>
@@ -61,6 +62,7 @@
         <div class="quiet"><dt>Signatur</dt><dd><data value="BA 1035">BA 1035</data></dd></div>
       </dl>
     </div>
+  </div>
   </article>
 
   <div class="columns">
@@ -71,7 +73,7 @@
       <ul class="register">
         <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1959-12">1959-12</time></span><span class="register-label">Nachrichtenblatt des Gau Ordensland, Nr. 2</span></a></li>
         <li><a class="register-row" href="#"><span class="register-lead"><data value="1963~">1963~</data></span><span class="register-label">Die Feuerrunde Heft 2</span></a></li>
-        <li><a class="register-row" href="#"><span class="register-lead"><time datetime="1968-01">1968-01</time></span><span class="register-label">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</span></a></li>
+        <li><a class="register-row" href="#"><span class="register-lead"><data value="1984-11-26/1995-03-14">1984-11-26/<wbr>1995-03-14</data></span><span class="register-label">Nibelungenschwert: Nachrichtenblatt des Stammes Nibelungen, Heft 24</span></a></li>
       </ul>
     </section>
     <section aria-labelledby="h-mehr-zeit">
