@@ -22,15 +22,10 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
 <div id="form-region" hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <main id="inhalt" class="form-sheet">
 
-  {% with titel=card_fields.lead.0 %}
   <header>
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-    <label id="feld-title-label" class="visually-hidden" for="feld-title">{{ titel.label }}</label>
-    <h1 class="title-field"><textarea id="feld-title" name="title" form="bearbeiten-form" rows="1" placeholder="{{ titel.label }}" {% include "workbench/_feld_aria.html" with feld=titel base="feld-title" %}{% if titel.autofocus %} autofocus{% endif %}>{{ titel.value }}</textarea></h1>
-    {% include "workbench/_feld_gespeichert.html" with feld=titel base="feld-title" %}
-    {% if titel.error %}<span class="error" id="feld-title-fehler">{{ titel.error }}</span>{% endif %}
+    {% include "workbench/_feld_titel.html" with feld=card_fields.lead.0 form="bearbeiten-form" only %}
   </header>
-  {% endwith %}
 
   {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
   the form's FIRST submit button in tree order, so implicit submission (Enter) fires it; it applies
@@ -86,7 +81,7 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
     {% with feld=card_fields.beschreibung.0 base="feld-body" %}
     <section aria-labelledby="feld-body-label">
       <header class="section-head"><h2 id="feld-body-label">{{ feld.label }}</h2></header>
-      <div class="field"><textarea id="feld-body" name="body" rows="6" {% include "workbench/_feld_aria.html" %}>{{ feld.value }}</textarea>
+      <div class="field"><textarea id="{{ feld.control_id }}" name="{{ feld.name }}" rows="6" {% include "workbench/_feld_aria.html" %}>{{ feld.value }}</textarea>
         {% include "workbench/_feld_gespeichert.html" %}</div>
     </section>
     {% endwith %}

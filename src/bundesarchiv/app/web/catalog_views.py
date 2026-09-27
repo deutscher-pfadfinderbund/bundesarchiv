@@ -152,12 +152,16 @@ def _create_context(
     """The create form's template context: preserved values, the Bestand options, field errors, and
     the server-computed autofocus target (Titel unless it already has a value). ``angelegt`` is the
     just-created Bestand's name for the success hinweis (empty on the plain create step)."""
+    autofocus = "collection_id" if title and "title" not in errors else "title"
+    lead = _card_fields(
+        {"title": title}, bestand, errors=errors, autofocus=autofocus, only=("lead",)
+    )
     return {
-        "title": title,
+        "titel": lead["lead"][0],
         "collection_id": collection_id,
         "collection_options": bestand.options(),
         "errors": errors,
-        "autofocus": "collection_id" if title and "title" not in errors else "title",
+        "autofocus": autofocus,
         "angelegt": angelegt,
     }
 
@@ -878,8 +882,10 @@ def _card_fields(
     conflicts: Mapping[str, str] | None = None,
     sichtbarkeit_options: _Options = vocab.SICHTBARKEIT_OPTIONS,
     lifecycle_options: _Options = _LIFECYCLE_OPTIONS,
+    only: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[_CardRow, ...]]:
     """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
+    ``only`` limits it to those sections (the create step renders the lead alone).
 
     Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
     focuses nothing rather than nothing-visible."""
@@ -894,7 +900,7 @@ def _card_fields(
     conflicts = conflicts or {}
     sections: dict[str, list[_CardRow]] = {}
     for registered in _FIELDS:
-        if not registered.control:
+        if not registered.control or (only is not None and registered.section not in only):
             continue
         value = str(values.get(registered.name) or "")
         hx = registered.hx
