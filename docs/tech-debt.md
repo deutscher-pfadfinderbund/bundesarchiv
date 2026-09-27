@@ -152,11 +152,10 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Implementation patterns
 
-### 19. Compositions style inside components — in progress (Wave R)
+### 19. Compositions style inside components — done
 - **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
-  over WAVE-C); 1 wrapper-sensitive knob site left: `.fach > .field`
-- **Evidence:** the card sets its row knobs ON the field, not on `.fach` (they would reach the caption
-  and custom-bag fields), so a wrapper drops them; the card's look is an owner question for Wave R
+  over WAVE-C); 0 wrapper-sensitive knob sites (Wave R U1 cut the record card's `.fach > .field`; the
+  form-sheet sets `--field-font` on its own root)
 - **Deletion test:** pages set knobs only; a wrapper or a new field changes no composition CSS
 
 ### 14. `catalog_views.py` is the wave's dumping ground — Strong (pointer entry)
@@ -211,8 +210,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   - Wave K1 found, outside its fence: the detail page's `<small>Nur intern</small>` (the note
     "intern" instead); the list page's chip and facet ✕ are text glyphs, not the remove control;
     `components/empty_state.html` draws a dashed frame (row 6); the create step marks no required
-    field; the Datierung parse error is English; the gallery state `_reach_edit_folded_open`
-    renders Herkunft closed.
+    field; the Datierung parse error is English. (`_reach_edit_folded_open` went with the folds,
+    Wave R U1.)
 - **Sketch:** fix each in the component wave that converts its component; a lint candidate: a
   selector on a non-root class that sets a non-custom property on a component root.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
