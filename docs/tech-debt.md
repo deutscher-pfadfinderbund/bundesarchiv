@@ -203,7 +203,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   - `.badge` (the visibility badges) is still a box; it goes with the visibility redesign.
   - `.primary`: a button variant (candidate: an inverse context).
   - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
-  - lines row 14 forbids: the ledger's covering rules, its header underline, `.diff th`; the dashed
+  - lines row 14 forbids: the ledger's covering rules, its header underline; the dashed
     `.column dd` decoration (row 6 licenses dashes only for hollow slots).
   - `.c-sig--leer` prints "—" as a placeholder (no dashes).
   - `.pane > div` framed while the pane question is suspended (row 10).

@@ -111,6 +111,25 @@ def _reach_edit_weitere_angaben(page: Page, base: str, corpus: CorpusHandles) ->
     page.fill('#custom-bag input[name="custom_value"]', "1293")
 
 
+def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # "Inzwischen geändert": a second tab saves the record unchanged (a version bump only, so every
+    # other state keeps its content), then this tab's typed edits lose the CAS race
+    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    other = page.context.new_page()
+    try:
+        other.goto(page.url, wait_until="networkidle")
+        other.click('button:has-text("Speichern")')
+        other.wait_for_url(lambda url: "/bearbeiten" not in url)
+    finally:
+        other.close()
+    page.fill('input[name="date"]', "1962~")
+    page.fill('textarea[name="body"]', "Fahrtenbericht mit Liedern.")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_selector(".record-meta-alert")
+    # the fills scrolled the page, and the sticky margin would be shot mid-page
+    page.evaluate("window.scrollTo(0, 0)")
+
+
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
     # message, which must show exactly one "Neuer Wert" widget
@@ -174,6 +193,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface rejected: a Gruppen error in the margin",
         True,
         _reach_edit_rejected,
+    ),
+    GalleryState(
+        "edit-conflict",
+        "the edit surface after a lost CAS race: the notice in the margin, each changed field marked",
+        True,
+        _reach_edit_conflict,
     ),
     GalleryState(
         "edit-weitere-angaben",

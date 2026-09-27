@@ -299,14 +299,13 @@ def _named_custom_row(post: QueryDict) -> int:
 
 @dataclass(frozen=True, slots=True)
 class _ConflictRow:
-    """One row of the neutral CAS diff table (spec §6.1): the German field label + the archivist's
-    submitted value + the winner's stored value. ``is_sig`` marks the Signatur row so the template
-    renders both cells as ``.c-sig`` marks."""
+    """One field a CAS conflict touches (spec §6.1): its name, its German label, the id of its
+    control (the notice links there) and the winner's stored value as the diff spells it."""
 
+    name: str
     label: str
-    mine: str
-    theirs: str
-    is_sig: bool
+    target: str
+    stored: str
 
 
 # --- THE EDIT SURFACE --------------------------------------------------------------
@@ -325,7 +324,7 @@ class NoOverlay:
 class Conflict:
     """State G (spec §6.1): a concurrent save won while the archivist was typing. The WINNER is the
     surface's own stored Article — a surface is always built from the saved record — so only the
-    submitted one rides here, and the neutral diff cannot compare against the wrong pair."""
+    submitted one rides here, and the diff cannot compare against the wrong pair."""
 
     submitted: Article
 
@@ -430,7 +429,9 @@ class EditSurface:
     ) -> HttpResponseBase:
         """THE render of the edit form. ``autofocus`` is the field to focus, ``""`` for none."""
         errors = errors or {}
-        conflict = overlay if isinstance(overlay, Conflict) else None
+        conflict_rows = (
+            _conflict_rows(overlay.submitted, self.stored) if isinstance(overlay, Conflict) else []
+        )
         inherited = _exposure_audience(replace(self.stored, audience=None), self.bestand)
         confirm = overlay.content_hash if isinstance(overlay, RemoveConfirm) else ""
         return render_screen(
@@ -448,6 +449,7 @@ class EditSurface:
                     self.bestand,
                     errors=errors,
                     autofocus=autofocus,
+                    conflicts={row.name: row.stored for row in conflict_rows},
                     sichtbarkeit_options=_sichtbarkeit_options(inherited),
                     lifecycle_options=(
                         _LIFECYCLE_OPTIONS[1:]
@@ -457,10 +459,8 @@ class EditSurface:
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
                 "crumbs": _crumbs(self.stored, self.bestand),
-                "conflict": conflict is not None,
-                "conflict_rows": (
-                    _conflict_rows(conflict.submitted, self.stored) if conflict else ()
-                ),
+                "conflict": isinstance(overlay, Conflict),
+                "conflict_rows": conflict_rows,
                 "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
                 "index_lag": _INDEX_LAG_HINWEIS if isinstance(overlay, IndexLag) else "",
             },
@@ -657,8 +657,8 @@ class _Field:
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
     template of the popover the hint's ⓘ opens, or ``""`` for a hint without one.
 
-    ``diff`` is the German label the CAS conflict table prints for the field, or ``""`` when the field
-    has no diff row.
+    ``diff`` is the German label the CAS conflict notice names the field by, or ``""`` when a
+    conflict never marks it.
 
     ``seed``/``shown`` are the two renderings of the field's value, reached through ``value_of`` and
     ``diff_of``; both default to the Article attribute of the same name, so only a field that does not
@@ -692,6 +692,11 @@ class _Field:
         if self.seed is not None:
             return self.seed(article)
         return str(getattr(article, self.name) or "")
+
+    @property
+    def control_id(self) -> str:
+        """The id of the field's control: ``element_id`` where it declares one."""
+        return self.element_id or f"feld-{self.name}"
 
     def diff_of(self, article: Article) -> str:
         """The field's value as the CAS diff prints it — ``shown`` where the form's own spelling is
@@ -886,15 +891,18 @@ type _Options = tuple[tuple[str, str], ...] | tuple[tuple[str, tuple[tuple[str, 
 @dataclass(frozen=True, slots=True)
 class _CardRow:
     """One field of the form, ready to render: the registry's declaration joined to THIS render's
-    value, error and focus. ``workbench/_feld.html`` prints it and nothing else, so a field is on the
-    form exactly when the registry says so."""
+    value, error, conflict and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
+    is on the form exactly when the registry says so. ``was`` is the winner's stored value when a
+    CAS conflict touches the field, else ``None``."""
 
     name: str
     label: str
     control: str
+    control_id: str
     value: str
     hint: str
     error: str
+    was: str | None
     autofocus: bool
     options: _Options
     blank: str
@@ -912,6 +920,7 @@ def _card_fields(
     *,
     errors: catalog.FormErrors,
     autofocus: str,
+    conflicts: Mapping[str, str] | None = None,
     sichtbarkeit_options: _Options = _SICHTBARKEIT_OPTIONS,
     lifecycle_options: _Options = _LIFECYCLE_OPTIONS,
 ) -> dict[str, tuple[_CardRow, ...]]:
@@ -927,10 +936,11 @@ def _card_fields(
         "lifecycle_options": lifecycle_options,
     }
     ulid = str(values.get("ulid") or "")
+    conflicts = conflicts or {}
     sections: dict[str, list[_CardRow]] = {}
     for registered in _FIELDS:
-        if registered.control in ("", "textarea"):
-            continue  # no control, or the prose area the Beschreibung section renders itself
+        if not registered.control:
+            continue
         value = str(values.get(registered.name) or "")
         hx = registered.hx
         if registered.hx_get:
@@ -940,9 +950,11 @@ def _card_fields(
                 name=registered.name,
                 label=registered.label,
                 control=registered.control,
+                control_id=registered.control_id,
                 value=value,
                 hint=registered.hint,
                 error=errors.get(registered.name, ""),
+                was=conflicts.get(registered.name),
                 autofocus=registered.focusable and registered.name == autofocus,
                 options=option_lists.get(registered.options, ()),
                 blank=registered.blank,
@@ -961,25 +973,19 @@ def _card_fields(
 
 
 def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
-    """The neutral CAS diff (spec §6.1): one row per CHANGED field, submitted against the winner's
-    stored Article. The rows are the registry's fields carrying a diff label, in the form's own order,
-    each spelled by the field's own renderer; the Signatur row is flagged so the template renders both
-    cells as ``.c-sig`` marks."""
-    rows: list[_ConflictRow] = []
-    for registered in _FIELDS:
-        if not registered.diff:
-            continue
-        mine_str, theirs_str = registered.diff_of(mine), registered.diff_of(theirs)
-        if mine_str != theirs_str:
-            rows.append(
-                _ConflictRow(
-                    label=registered.diff,
-                    mine=mine_str,
-                    theirs=theirs_str,
-                    is_sig=registered.name == "ref_code",
-                )
-            )
-    return rows
+    """The CAS diff (spec §6.1): one row per CHANGED field, submitted against the winner's stored
+    Article — the registry's fields carrying a diff label, in the form's own order, each spelled by
+    the field's own renderer."""
+    return [
+        _ConflictRow(
+            name=registered.name,
+            label=registered.diff,
+            target=registered.control_id,
+            stored=registered.diff_of(theirs),
+        )
+        for registered in _FIELDS
+        if registered.diff and registered.diff_of(mine) != registered.diff_of(theirs)
+    ]
 
 
 # --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------

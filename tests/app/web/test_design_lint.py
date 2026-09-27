@@ -40,7 +40,9 @@ STYLESHEETS = ("tokens.css", "components.css", "layouts.css", "forms.css", "deta
 ERROR_LICENSED = (
     ".error",  # a field error's message (the register's `.field-error`)
     '[aria-invalid="true"]',  # the doubled edge of an invalid control
-    ".konflikt",  # the edit-conflict notice (the register's `.record-meta-alert`)
+    ".konflikt",  # the Bestand form's conflict panel
+    ".record-meta-alert",  # the article form's conflict notice: its heavy rule...
+    ".record-meta-alert-head",  # ...and its subhead
     ".danger",  # the context on every action that deletes for good
     ".error-banner",  # the failed-request message: an error
 )

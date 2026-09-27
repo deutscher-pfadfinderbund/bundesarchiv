@@ -294,8 +294,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
 | Field | `.field` | `workbench/_feld` + standalone forms | `components.css` field |
-| Panel | `.panel` | inline (confirm pages, CAS conflict) | `forms.css` panel |
-| Field diff | `.diff` | inline (CAS conflict) | `forms.css` panel |
+| Panel | `.panel` | inline (confirm pages, the Bestand form's CAS conflict) | `forms.css` panel |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Sammelbearbeitung | `.bulk` | `workbench/_sammelleiste` | `layouts.css` Sammelbearbeitung |
 | Filter rail | `.filterrail` | `workbench/_filterrail` | `layouts.css` filter rail |

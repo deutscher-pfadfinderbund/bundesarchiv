@@ -4,7 +4,7 @@ GET seeds the form from the stored Article; POST parses + saves under CAS (ADR 0
 read view. Both methods are archivist-gated to a 404 for Member / Public / anonymous, and for a
 malformed or absent ulid (existence-hiding). Validation re-renders
 state F (verbatim error, preserved values). A raced concurrent save re-renders state G — the
-"Inzwischen geändert" panel — with the loser's input preserved and a refreshed ``expected_version``.
+"Inzwischen geändert" notice — with the loser's input preserved and a refreshed ``expected_version``.
 The whole write path is REAL (repository + README + CAS); only the index + queue seams are stubbed
 (see ``conftest.py``).
 """
@@ -244,11 +244,14 @@ def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpu
     )
     assert loser.status_code == 200
     body = loser.content.decode()
-    assert "Inzwischen geändert" in body  # the conflict panel heading
-    assert "Verlierer" in body  # the loser's just-typed title is preserved
+    assert "Inzwischen geändert" in body  # the notice's heading
+    assert ">Verlierer</textarea>" in body  # the loser's just-typed title is preserved
     assert 'value="Meine Eingabe"' in body  # and their other input
-    # the diff lists the changed Titel field (winner's value vs mine)
-    assert "Gewinner" in body
+    # each differing field is invalid and described by what is stored now, "(leer)" for nothing
+    conflict = _conflict(body)
+    assert conflict.links == [("Titel", "feld-title"), ("Autor", "feld-creator")]
+    assert conflict.stored_value("feld-title") == "Inzwischen gespeichert: Gewinner"
+    assert conflict.stored_value("feld-creator") == "Inzwischen gespeichert: (leer)"
     # the store is at the WINNER's value + version (no last-writer-wins)
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"
@@ -456,7 +459,7 @@ def _autofocused(body: str) -> str:
 #
 # Dropping `scanned=True`, dropping
 # `focusable=True`, or deleting a whole `_Field` row left the fast suite AND the e2e suite green.
-# The consequential column is `diff`: `_conflict_rows` derives the CAS "Inzwischen geändert" table
+# The consequential column is `diff`: `_conflict_rows` derives the CAS "Inzwischen geändert" notice
 # from it, so a dropped `diff=` means a racing archivist is silently not told that field changed under
 # them — loss-adjacent, on the surface tests/CLAUDE.md calls load-bearing. Each guard below joins the
 # registry to the REAL render or the real behaviour, never to a second hand-written list.
@@ -568,14 +571,12 @@ def test_the_cas_diff_spells_the_rung_and_the_state_in_german() -> None:
         make_article(_ULID, audience=Audience(AudienceTier.PUBLIC)),
         make_article(_ULID, audience=Audience(AudienceTier.MEMBERS)),
     )
-    assert [(r.label, r.mine, r.theirs) for r in audience] == [
-        ("Sichtbarkeit", "Öffentlich", "Alle Mitglieder")
-    ]
+    assert [(r.label, r.stored) for r in audience] == [("Sichtbarkeit", "Alle Mitglieder")]
     state = _conflict_rows(
         make_article(_ULID, lifecycle=Lifecycle.DRAFT),
         make_article(_ULID, lifecycle=Lifecycle.PUBLISHED),
     )
-    assert [(r.label, r.mine, r.theirs) for r in state] == [("Status", "Entwurf", "Veröffentlicht")]
+    assert [(r.label, r.stored) for r in state] == [("Status", "Veröffentlicht")]
 
 
 def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> None:
@@ -646,7 +647,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     assert scanner.names == refused
 
 
-#: Every row the CAS "Inzwischen geändert" table shows when all of them changed, in the order it shows
+#: Every field the CAS "Inzwischen geändert" notice names when all of them changed, in the order it shows
 #: them — the archivist's contract on the loss-adjacent surface, so it is pinned VERBATIM rather than
 #: derived from the registry it guards (an expectation read off `_FIELDS` moves with a dropped `diff=`
 #: and asserts nothing: dropping `diff="Ort"` was green against it).
@@ -668,10 +669,10 @@ _CAS_DIFF_ROWS = (
 
 
 def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpus) -> None:
-    # `diff` drives the "Inzwischen geändert" table, and a dropped label means a racing archivist is
-    # silently not told that field changed under them. Force a conflict in which EVERY diffable field
-    # differs and compare the table against the pinned row list — so a dropped `diff=`, a reordered
-    # registry and a label the table cannot render all fail here.
+    # `diff` drives the "Inzwischen geändert" notice and the line under each field, and a dropped
+    # label means a racing archivist is silently not told that field changed under them. Force a
+    # conflict in which EVERY diffable field differs and compare the notice's links against the pinned
+    # list — so a dropped `diff=`, a reordered registry and a field the notice cannot point at fail.
     archivist = client_as(Archivist())
     changed = {
         "title": "Anderer Titel",
@@ -697,46 +698,74 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
         _valid_post(corpus, lifecycle="published"),
     )
     assert loser.status_code == 200
-    rows = _diff_labels(loser.content.decode())
-    assert rows == list(_CAS_DIFF_ROWS), f"the CAS diff listed {rows}, not {list(_CAS_DIFF_ROWS)}"
+    conflict = _conflict(loser.content.decode())
+    labels = [label for label, _ in conflict.links]
+    assert labels == list(_CAS_DIFF_ROWS), f"the notice listed {labels}, not {list(_CAS_DIFF_ROWS)}"
+    for label, target in conflict.links:
+        assert conflict.stored_value(target).startswith("Inzwischen gespeichert: "), label
 
 
-class _DiffLabelScanner(HTMLParser):
-    """The first ``<td>`` of every row of the conflict panel's diff table — the German field labels, in
-    render order (the registry's own field order, which the table must not reshuffle)."""
+_VOID = frozenset({"area", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source"})
+
+
+class _ConflictScanner(HTMLParser):
+    """The conflict notice's links (label, target id), and every element by id with its attributes
+    and text — enough to follow a link to its control and the control to its descriptions."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.labels: list[str] = []
-        self._in_diff = False
-        self._cell = 0
-        self._capture = False
+        self.links: list[tuple[str, str]] = []
+        self.attrs: dict[str, dict[str, str | None]] = {}
+        self.text: dict[str, str] = {}
+        self._open: list[str | None] = []
+        self._alert_depth: int | None = None
+        self._href: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if "diff" in (values.get("class") or "").split():
-            self._in_diff = True
-        elif tag == "tr" and self._in_diff:
-            self._cell = 0
-        elif tag == "td" and self._in_diff:
-            self._cell += 1
-            self._capture = self._cell == 1
+        if element_id := values.get("id"):
+            self.attrs[element_id] = values
+            self.text.setdefault(element_id, "")
+        if self._alert_depth is not None and tag == "a":
+            self._href = (values.get("href") or "").removeprefix("#")
+        if tag in _VOID:
+            return
+        if values.get("role") == "alert":
+            self._alert_depth = len(self._open)
+        self._open.append(values.get("id"))
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "td":
-            self._capture = False
-        elif tag == "div" and self._in_diff:
-            self._in_diff = False
+        if tag in _VOID or not self._open:
+            return
+        self._open.pop()
+        if self._alert_depth is not None and len(self._open) == self._alert_depth:
+            self._alert_depth = None
 
     def handle_data(self, data: str) -> None:
-        if self._capture and data.strip():
-            self.labels.append(data.strip())
+        for element_id in filter(None, self._open):
+            self.text[element_id] += data
+        if self._href is not None and data.strip():
+            self.links.append((data.strip(), self._href))
+            self._href = None
+
+    def stored_value(self, control_id: str) -> str:
+        """The "Inzwischen gespeichert" line of an INVALID control, found via aria-describedby."""
+        control = self.attrs[control_id]
+        assert control.get("aria-invalid") == "true", f"{control_id} is not marked invalid"
+        described = (control.get("aria-describedby") or "").split()
+        lines = [
+            " ".join(self.text[i].split())
+            for i in described
+            if self.text.get(i, "").strip().startswith("Inzwischen gespeichert")
+        ]
+        assert len(lines) == 1, f"{control_id} is described by {described}"
+        return lines[0]
 
 
-def _diff_labels(body: str) -> list[str]:
-    scanner = _DiffLabelScanner()
+def _conflict(body: str) -> _ConflictScanner:
+    scanner = _ConflictScanner()
     scanner.feed(body)
-    return scanner.labels
+    return scanner
 
 
 def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:

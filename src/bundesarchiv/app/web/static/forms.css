@@ -78,8 +78,8 @@
     color: var(--ink-2);
   }
 
-  /* ---- panel: flat, framed by an edge. `.konflikt` is the CAS case: red LEFT border + error
-     heading only, never a flood fill — the diff stays neutral. ---- */
+  /* ---- panel: flat, framed by an edge. `.konflikt` is the Bestand form's CAS case: red LEFT
+     border + error heading only, never a flood fill. ---- */
   .panel {
     padding: var(--space-4);
     border: var(--line-width) solid var(--edge);
@@ -118,35 +118,6 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
-  /* the neutral field diff: changed values in mono, scrolling in its own box */
-  .diff {
-    overflow-x: auto;
-  }
-  .diff table {
-    width: 100%;
-    border-collapse: collapse;
-    font: var(--type-meta);
-  }
-  .diff th {
-    text-align: left;
-    font: var(--type-label);
-    color: var(--ink-2);
-    padding: var(--space-1) var(--space-3) var(--space-1) 0;
-    border-bottom: var(--line-width) solid var(--rule);
-  }
-  .diff td {
-    padding: var(--space-2) var(--space-3) var(--space-2) 0;
-    border-bottom: var(--line-width) solid var(--rule);
-    vertical-align: top;
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  .diff td:first-child {
-    font: var(--type-meta);
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-
   /* the saved-count line on the bulk result page */
   .count {
     font: var(--type-mono);

@@ -184,12 +184,22 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank</code>
 
-<h2>Record margin — state, audience, actions (the edit form)</h2>
+<h2>Record margin — conflict, Status, audience, actions (the edit form)</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <aside class="record-meta" aria-label="Status und Aktionen">
-      <p class="record-meta-state">{% include "components/mark_lifecycle.html" with draft=True only %}</p>
+      <div class="record-meta-alert" role="alert">
+        <p class="record-meta-alert-head">Inzwischen geändert</p>
+        <p class="record-meta-line">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Prüfe <a href="#demo-date-conflict-{{ mode }}">Datierung</a> und speichere erneut.</p>
+      </div>
+      <div class="field">
+        <label for="demo-status-{{ mode }}">Status</label>
+        <select id="demo-status-{{ mode }}" name="lifecycle">
+          <option value="published">Veröffentlicht</option>
+          <option value="draft" selected>Entwurf (nur Archivare)</option>
+        </select>
+      </div>
       <div class="field">
         <label for="demo-sicht-{{ mode }}">Sichtbar für</label>
         <select id="demo-sicht-{{ mode }}" name="sichtbarkeit">
@@ -209,7 +219,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">aside.record-meta: .record-meta-state · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
+<code class="doc">aside.record-meta: .record-meta-alert (role="alert": the heavy red rule, a red subhead, a .record-meta-line naming the changed fields as links) · the Status select · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
 
 <h2>Field with validation error</h2>
 <div class="probe">
@@ -221,10 +231,16 @@ components; this storyboard updates in lockstep with them.
              aria-invalid="true" aria-describedby="demo-date-{{ mode }}-fehler">
       <span class="error" id="demo-date-{{ mode }}-fehler">Ungültige EDTF-Datierung.</span>
     </div>
+    <div class="field">
+      <label for="demo-date-conflict-{{ mode }}">Datierung</label>
+      <input type="text" name="date" id="demo-date-conflict-{{ mode }}" value="1960~"
+             aria-invalid="true" aria-describedby="demo-date-conflict-{{ mode }}-gespeichert">
+      <span class="was" id="demo-date-conflict-{{ mode }}-gespeichert">Inzwischen gespeichert: 1960-03</span>
+    </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. aria-invalid doubles the red edge (border plus a 1px inset)</code>
+<code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. aria-invalid doubles the red edge (border plus a 1px inset). An edit conflict marks the field the same way, with .was ("Inzwischen gespeichert: …") as its description</code>
 
 <h2>Mark — lifecycle</h2>
 <div class="probe">

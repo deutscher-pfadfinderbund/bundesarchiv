@@ -122,6 +122,10 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
+  /* the stored value under a field an edit conflict touches: in ink, it is what to decide on */
+  .was {
+    font: var(--type-meta);
+  }
 }
 
 /* ============================================================
@@ -439,14 +443,15 @@
     font: var(--section-head-type, var(--type-title));
   }
 
-  /* ---- record-meta — the form's margin: the record's state, its audience, then the actions.
-     Parts: .record-meta-state (the state in words), .record-meta-actions (Speichern first). ---- */
+  /* ---- record-meta — the form's margin: the conflict notice, the record's Status and audience,
+     then the actions. Parts: .record-meta-alert (+ -head), .record-meta-line (a quiet sentence),
+     .record-meta-actions (Speichern first). ---- */
   .record-meta {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
   }
-  .record-meta > p {
+  .record-meta p {
     margin: 0;
   }
   /* Gruppen means something only at the GROUPS rung; without :has it simply stays visible */
@@ -454,6 +459,22 @@
     .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
       --field-display: none;
     }
+  }
+  /* a conflict outranks everything in the margin: the heavy rule and a red subhead (rows 5, 15) */
+  .record-meta-alert {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-block-start: var(--space-3);
+    border-block-start: var(--state-border) solid var(--error);
+  }
+  .record-meta-alert-head {
+    font: var(--type-subhead);
+    color: var(--error);
+  }
+  .record-meta-line {
+    font: var(--type-meta);
+    color: var(--ink-2);
   }
   .record-meta-actions {
     /* a CONTROL ROW (law C8): Speichern and "Mehr …" share one height */

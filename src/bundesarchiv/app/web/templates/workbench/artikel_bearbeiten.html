@@ -27,6 +27,7 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
     <label id="feld-title-label" class="visually-hidden" for="feld-title">{{ titel.label }}</label>
     <h1 class="title-field"><textarea id="feld-title" name="title" form="bearbeiten-form" rows="1" placeholder="{{ titel.label }}" {% include "workbench/_feld_aria.html" with feld=titel base="feld-title" %}{% if titel.autofocus %} autofocus{% endif %}>{{ titel.value }}</textarea></h1>
+    {% include "workbench/_feld_gespeichert.html" with feld=titel base="feld-title" %}
     {% if titel.error %}<span class="error" id="feld-title-fehler">{{ titel.error }}</span>{% endif %}
   </header>
   {% endwith %}
@@ -35,34 +36,13 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
   the form's FIRST submit button in tree order, so implicit submission (Enter) fires it; it applies
   the Status (a1 round 4). The publish refusal is the server's (catalog_views._handle_edit_post).{% endcomment %}
   <aside class="record-meta" aria-label="Status und Aktionen">
-    <p class="record-meta-state"><output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output></p>
     {% if conflict %}
-    <section class="panel konflikt" aria-labelledby="konflikt-titel">
-      <h2 id="konflikt-titel">Inzwischen geändert</h2>
-      <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Bitte prüfen und erneut speichern.</p>
-      {% if conflict_rows %}
-      <div class="diff">
-        <table>
-          <thead><tr><th>Feld</th><th>Deine Eingabe</th><th>Inzwischen gespeichert</th></tr></thead>
-          <tbody>
-            {% for row in conflict_rows %}
-            <tr>
-              <td>{{ row.label }}</td>
-              {% if row.is_sig %}
-              <td>{% include "components/signatur_tab.html" with ref_code=row.mine %}</td>
-              <td>{% include "components/signatur_tab.html" with ref_code=row.theirs %}</td>
-              {% else %}
-              <td>{{ row.mine }}</td>
-              <td>{{ row.theirs }}</td>
-              {% endif %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% endif %}
-    </section>
+    <div class="record-meta-alert" role="alert">
+      <p class="record-meta-alert-head">Inzwischen geändert</p>
+      <p class="record-meta-line">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. {% if conflict_rows %}Prüfe {% for row in conflict_rows %}{% if not forloop.first %}{% if forloop.last %} und {% else %}, {% endif %}{% endif %}<a href="#{{ row.target }}">{{ row.label }}</a>{% endfor %} und speichere erneut.{% else %}Bitte prüfen und erneut speichern.{% endif %}</p>
+    </div>
     {% endif %}
+    <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
     {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
     {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
@@ -103,10 +83,13 @@ version. A successful save gets HX-Redirect instead.{% endcomment %}
     </section>
 
     {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
-    <section aria-labelledby="feld-beschreibung">
-      <header class="section-head"><h2 id="feld-beschreibung">Beschreibung</h2></header>
-      <div class="field"><textarea name="body" rows="6" aria-labelledby="feld-beschreibung">{{ values.body }}</textarea></div>
+    {% with feld=card_fields.beschreibung.0 base="feld-body" %}
+    <section aria-labelledby="feld-body-label">
+      <header class="section-head"><h2 id="feld-body-label">{{ feld.label }}</h2></header>
+      <div class="field"><textarea id="feld-body" name="body" rows="6" {% include "workbench/_feld_aria.html" %}>{{ feld.value }}</textarea>
+        {% include "workbench/_feld_gespeichert.html" %}</div>
     </section>
+    {% endwith %}
 
     <section aria-labelledby="h-einordnung">
       <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
