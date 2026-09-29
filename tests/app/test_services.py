@@ -15,16 +15,15 @@ from datetime import UTC, datetime
 
 import pytest
 
-from bundesarchiv.app import (
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.articles import (
     copy_article,
     create_article,
-    create_collection,
     hard_delete_article,
     save_article,
-    save_collection,
+    update_article,
 )
-from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.articles import update_article
+from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (

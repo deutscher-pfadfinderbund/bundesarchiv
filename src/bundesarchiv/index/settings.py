@@ -74,8 +74,7 @@ INSTALLED_APPS = [
     "procrastinate.contrib.django",  # Postgres-table-only worker queue (ADR 0014, Part 4.2)
     "bundesarchiv.index",
     # The application-service shell — installed so Procrastinate autodiscovers its ``tasks.py`` and
-    # Django discovers the ``ensure_index_current`` command. Its ``__init__`` resolves the service
-    # functions lazily (PEP 562), so app-``populate()`` never imports the ORM model early.
+    # Django discovers the ``ensure_index_current`` command.
     "bundesarchiv.app",
 ]
 

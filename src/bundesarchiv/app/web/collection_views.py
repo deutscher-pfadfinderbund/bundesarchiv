@@ -22,8 +22,8 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
-from bundesarchiv.app import create_collection, save_collection
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
