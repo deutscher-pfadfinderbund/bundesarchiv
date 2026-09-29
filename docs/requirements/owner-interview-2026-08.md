@@ -792,3 +792,16 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   viewer); no grid of small page tiles, no embedded viewer.
 - **The Beschreibung is Markdown, rendered on the server.** The page receives finished HTML from
   the backend (sanitized: no raw HTML from the README passes through), never a client-side renderer.
+
+## Rulings of 2026-09-29 (the list)
+
+- **Order:** the list first, the new start page in its own wave after it; the card view waits for
+  the owner's review of its proposal.
+- **Preview pane ("Vorschau"):** an extra, shown only where there is room next to the list — never
+  a column that squeezes the list. Its design comes from mocks first; until then the list does not
+  change it.
+- **Column chooser ("Spalten …"):** Datierung, Typ, Digital, Signatur and Bestand for now; Urheber,
+  Ort and Standort later.
+- **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
+  selection). A persistent preference, such as the chosen columns, lives in a cookie per person,
+  so a shared link never carries it.
