@@ -245,19 +245,19 @@
      control keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6).
      Declared in :where() per law C13, so every per-site delta outranks it in this same layer. */
   :where(
-      [role="toolbar"] > :is(a:not(.button), button.link),
-      .pane header > a,
-      .abmelden > button,
-      .chip > a
-    ) {
+    [role="toolbar"] > :is(a:not(.button), button.link),
+    .pane header > a,
+    .abmelden > button,
+    .chip > a
+  ) {
     color: var(--ink-2);
   }
   :is(
-      [role="toolbar"] > :is(a:not(.button), button.link),
-      .pane header > a,
-      .abmelden > button,
-      .chip > a
-    ):hover:not(:disabled) {
+    [role="toolbar"] > :is(a:not(.button), button.link),
+    .pane header > a,
+    .abmelden > button,
+    .chip > a
+  ):hover:not(:disabled) {
     color: var(--ink);
     text-decoration: none;
   }
@@ -614,7 +614,8 @@
      position-try — learning G.50.
      `--anchor-probe` is also the e2e hook: the containment walker serves this stylesheet with that
      one condition falsified, so the FALLBACK tier gets its own computed proof. */
-  @supports (anchor-name: --anchor-probe) and (inset-block-start: anchor(end)) and
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
     (justify-self: anchor-center) {
     .facet {
       anchor-name: --dropdown;
@@ -901,7 +902,7 @@
       [datum] minmax(var(--datum-floor), max-content) [typ] minmax(var(--typ-floor), max-content)
       [aktion] max-content;
     display: grid;
-    grid-template-columns: var(--lead, ) var(--cols);
+    grid-template-columns: var(--lead,) var(--cols);
     /* the book's covers: top + bottom rules only — a bound page has no side chrome */
     border-block: var(--line-width) solid var(--rule);
     /* The last-resort scroll box (ledger.html's contract: the page body never scrolls sideways).

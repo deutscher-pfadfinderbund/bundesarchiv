@@ -492,9 +492,9 @@
     display: grid;
     --field-grid-min: 18rem; /* the narrowest cell: the mock's --column-min */
     grid-template-columns: repeat(
-      auto-fill,
-      minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
-    );
+        auto-fill,
+        minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
+      );
     align-items: start;
     gap: var(--space-6) var(--space-8);
   }
