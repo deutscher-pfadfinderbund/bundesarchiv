@@ -38,6 +38,7 @@
   /* the filter set is grouped in the DOM because it is the unit an htmx q-swap refreshes
      out-of-band — never because it is a box, hence display: contents */
   .filterrail > .filterset {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   /* the clear-all link ("Alle Filter entfernen", owner 2026-08-07 rail round 2): a quiet text
@@ -78,6 +79,7 @@
     align-items: baseline;
     gap: var(--space-2) var(--space-4);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
   details.bulk a {
     font: var(--type-meta);
   }
@@ -143,6 +145,7 @@
   }
   /* the ✕ close: hit area and ink come from the shared icon-control rule. The one local delta is
      alignment — an icon-only flex item has no text baseline to share with the header. */
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
   .pane header > a {
     align-self: flex-start;
   }
@@ -201,6 +204,7 @@
     background: var(--error);
     color: var(--ground);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the banner is never inside a pane */
   .error-banner p {
     margin: 0;
   }
@@ -393,6 +397,7 @@
     margin: var(--space-6) auto;
     padding: 0 var(--space-4);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the dev stub holds no .column */
   .stub h1 {
     font: var(--type-display);
     margin: 0 0 var(--space-3);
@@ -461,6 +466,7 @@
   }
   /* the form takes part in submission, not in layout: its sections are the body's stack items */
   .form-sheet > div > form {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   .form-sheet > div section {

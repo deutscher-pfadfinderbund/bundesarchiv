@@ -102,6 +102,7 @@
   /* Checkboxes/radios keep their native rendering, but on role ink: a retint must be able to
      reach every visible color. */
   input:is([type="checkbox"], [type="radio"]) {
+    /* biome-ignore lint/nursery/useBaseline: decoration (law F); without it, the browser's default control color */
     accent-color: var(--ink);
   }
   /* Knob: --field-font — the control type, set on an ancestor and inherited, so every STATE rule
@@ -232,6 +233,7 @@
   .pane header > a,
   .abmelden > button,
   .remove,
+  /* biome-ignore lint/style/noDescendingSpecificity: one selector list, one declaration block */
   .chip > a {
     display: inline-flex;
     align-items: center;
@@ -379,6 +381,7 @@
   [data-upload-on-choose] .upload button {
     display: none;
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: on the hidden input the sr-only margin is meant to win */
   .upload input[type="file"] {
     margin-inline-start: var(--space-2);
   }
@@ -419,7 +422,9 @@
     /* the glyphs reach past a tight line box: a hair of padding keeps them in */
     padding: 0.06em 0;
     min-height: calc(1lh + 0.12em);
+    /* biome-ignore lint/nursery/useBaseline: decoration (law F); without it, a resize handle */
     resize: none;
+    /* biome-ignore lint/nursery/useBaseline: limited-availability enhancement with an @supports fallback (law F) */
     field-sizing: content;
     font: inherit;
     background: transparent;
@@ -909,6 +914,7 @@
   }
   /* the rowgroup keeps its ARIA role but leaves the box tree, so rows subgrid onto the tracks */
   .ledger [role="rowgroup"] {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   /* only what header AND body rows share; each flavor declares its own block padding below */
@@ -930,6 +936,7 @@
   }
   /* body rows: the toolbar already gives the row its height, so less block padding keeps the
      register compact. Hover carries no fill — the title's underline is the affordance. */
+  /* biome-ignore lint/style/noDescendingSpecificity: sets nothing the adjacent-row rule sets */
   .ledger [role="rowgroup"] [role="row"] {
     padding-block: var(--space-1);
   }
@@ -1138,6 +1145,7 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: never the ledger header's span */
   .pager > span {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
@@ -1184,6 +1192,7 @@
      regression class — a fixed-position element whose display rule overrode [hidden] and
      intercepted clicks. JS reveals by REMOVING the attribute, so enhancement still works. */
   [hidden] {
+    /* biome-ignore lint/complexity/noImportantStyles: the deliberate @layer override (law F) */
     display: none !important;
   }
 }

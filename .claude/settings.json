@@ -13,14 +13,27 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.css|*.js|*.json|*.jsonc) ;; *) exit 0 ;; esac; cd \"$(dirname \"$f\")\" && cd \"$(git rev-parse --show-toplevel)\" || exit 0; if ! biome --version >/dev/null 2>&1; then echo 'biome not installed (mise install); lint skipped' >&2; exit 0; fi; out=$(biome lint --error-on-warnings --no-errors-on-unmatched --colors=off \"$f\" 2>&1) || { echo \"$out\" >&2; exit 2; }",
+            "timeout": 30,
+            "statusMessage": "biome lint (edited file)"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "jq -e '.stop_hook_active' >/dev/null && exit 0; cd \"$(git rev-parse --show-toplevel)\" && uv run ruff format --quiet src tests; uv run pyrefly check src tests --summary=none --output-format=min-text >&2 || exit 2",
+            "command": "jq -e '.stop_hook_active' >/dev/null && exit 0; cd \"$(git rev-parse --show-toplevel)\" && uv run ruff format --quiet src tests; uv run pyrefly check src tests --summary=none --output-format=min-text >&2 || exit 2; if biome --version >/dev/null 2>&1; then biome lint --error-on-warnings --colors=off >&2 || exit 2; else echo 'biome not installed (mise install); lint skipped' >&2; fi",
             "timeout": 60,
-            "statusMessage": "ruff format + pyrefly type check"
+            "statusMessage": "ruff format + pyrefly type check + biome lint"
           }
         ]
       }
