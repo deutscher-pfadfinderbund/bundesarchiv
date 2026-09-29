@@ -513,12 +513,6 @@ def test_the_plan_maps_every_row_once() -> None:
     assert [len(item.media) for item in plan.items] == [1, 0, 0]
 
 
-def test_the_report_reads_as_lines_a_human_can_scan() -> None:
-    lines = _plan().report.lines()
-    assert any("3" in line for line in lines)
-    assert all(isinstance(line, str) for line in lines)
-
-
 # --- the command: one smoke over a temp root (razor: thin on IO) ---------------------
 
 

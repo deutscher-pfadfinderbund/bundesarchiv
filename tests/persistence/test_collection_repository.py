@@ -14,7 +14,7 @@ from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository, StoredCollection
-from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
+from bundesarchiv.persistence.errors import Conflict, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -79,8 +79,6 @@ def test_version_increments_across_saves(repo: CollectionRepository) -> None:
 def test_unversioned_readme_loads_as_zero_then_saves_cleanly(repo: CollectionRepository) -> None:
     # Migration (ADR 0013): a README written before versioning has no `version:` key.
     # It must load as version 0, and a save at expected_version=0 must write version 1.
-    if not hasattr(repo._store, "_blobs"):
-        return  # only pokeable on the in-memory store
     repo._store.write_atomic("collections/01J0/README.md", b"---\nulid: 01J0\nname: Old\n---\n")
     loaded = repo.load("01J0")
     assert loaded.version == 0
@@ -123,17 +121,6 @@ def test_keys_for_marks_a_readme_that_does_not_decode(
     ]
 
 
-def test_readme_carries_marker(repo: CollectionRepository) -> None:
-    repo.save(_collection(), expected_version=0, changed_by="tester")
-    # Peek at the raw store via the internal reference (memory only — localfs is opaque).
-    # This test is only valuable for the memory store; skip gracefully for others.
-    if not hasattr(repo._store, "_blobs"):
-        return
-    raw = repo._store.read("collections/01J0/README.md").decode("utf-8")
-    assert raw.startswith("<!-- Managed by bundesarchiv")
-    assert "Fotos" in raw
-
-
 def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepository) -> None:
     collection = Collection(ulid="01J0", name="Root")
     repo.save(collection, expected_version=0, changed_by="tester")
@@ -141,15 +128,6 @@ def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepo
     assert loaded.collection == collection
     assert loaded.collection.parent_id is None
     assert loaded.collection.audience is None
-
-
-def test_load_of_a_corrupt_readme_surfaces_archive_error(repo: CollectionRepository) -> None:
-    # Corrupt README must surface as ArchiveError across the seam.
-    if not hasattr(repo._store, "_blobs"):
-        return  # only testable on the in-memory store
-    repo._store.write_atomic("collections/bad/README.md", b"---\ntags: [unclosed\n---\nbody")
-    with pytest.raises(ArchiveError):
-        repo.load("bad")
 
 
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
@@ -191,7 +169,6 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     assert winners[0] == 2  # winner wrote v1 -> v2
     assert repo.load("01J0").version == 2
     # And the README front matter really carries v2.
-    if hasattr(repo._store, "_blobs"):
-        raw = repo._store.read("collections/01J0/README.md").decode("utf-8")
-        _decoded, stored_version, _ = collection_readme.decode_collection(raw, ulid="01J0")
-        assert stored_version == 2
+    raw = repo._store.read(readme_key("collections/01J0")).decode("utf-8")
+    _decoded, stored_version, _ = collection_readme.decode_collection(raw, ulid="01J0")
+    assert stored_version == 2

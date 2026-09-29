@@ -1,7 +1,7 @@
 """Static-assets wiring regressions (ADR 0016): the prod/dev staticfiles storage split.
 
 Prod (this gate) uses manifest storage — hashed names, fail-loud {% static %}; dev overrides to the
-plain backend. See ``settings_dev`` for the rebind-not-mutate trap the third test guards.
+plain backend. See ``settings_dev`` for the rebind-not-mutate trap the rebind test guards.
 """
 
 from pathlib import Path
@@ -32,10 +32,6 @@ _KNOWN_ASSETS = frozenset(
         "tokens.css",
     }
 )
-
-
-def test_prod_uses_manifest_storage() -> None:
-    assert prod_settings.STORAGES["staticfiles"]["BACKEND"] == _MANIFEST
 
 
 def test_dev_uses_non_manifest_storage() -> None:

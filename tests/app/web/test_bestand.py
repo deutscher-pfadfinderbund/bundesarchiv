@@ -2,8 +2,8 @@
 
 Pure: the chooser is driven by a plain loader here, exactly as the views drive it with the
 archive's ``load_all``. What is pinned is what used to be spelled several ways — the ONE option
-ordering, the two role placeholders (verbatim user contract), the ONE rejection string, and the
-fail-closed membership rule that gives an unknown ulid the same answer as an empty value.
+ordering, the two role placeholders (verbatim user contract), and the fail-closed membership rule
+that gives an unknown ulid the same answer as an empty value.
 """
 
 import pytest
@@ -66,10 +66,6 @@ def test_accepts_a_saved_bestand_and_ignores_surrounding_whitespace() -> None:
 )
 def test_empty_malformed_and_unknown_are_the_same_refusal(raw: str) -> None:
     assert not _chooser(*_LOAD_ORDER).accepts(raw)
-
-
-def test_error_is_the_one_rejection_string() -> None:
-    assert _chooser().error() == "Bitte einen Bestand wählen."
 
 
 # --- resolving names ---------------------------------------------------------------

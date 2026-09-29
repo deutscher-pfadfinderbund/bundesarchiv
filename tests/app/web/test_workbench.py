@@ -15,8 +15,9 @@ transaction: the rollback IS the index isolation.
 import io
 import re
 from collections.abc import Callable
+from html import unescape
 from typing import cast
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote
 
 import pytest
 from django.http import HttpResponse
@@ -545,12 +546,20 @@ def test_garbage_params_yield_200_defaults(indexed_corpus: Corpus) -> None:
 # --- pagination -------------------------------------------------------------------
 
 
-def test_pagination_second_page_via_seite(indexed_corpus: Corpus) -> None:
-    # page_size is 50 by default; force a tiny page via the URL is not supported, so assert the
-    # pager is absent for a small corpus and page 1 is honest. (Pagination link algebra is unit-
-    # tested in test_browse_links; here we pin that seite is honored without crashing.)
-    response = _get(Archivist(), "seite=2")
-    assert response.status_code == 200
+def test_pagination_second_page_via_seite(
+    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
+    ulids = list(indexed_corpus.articles.list_ulids())
+
+    def rows(query: str) -> set[str]:
+        body = _get(Archivist(), query).content.decode()
+        return {ulid for ulid in ulids if f'href="/artikel/{ulid}"' in body}
+
+    first, second = rows("seite=1"), rows("seite=2")
+    assert first
+    assert second
+    assert not first & second
 
 
 # --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----
@@ -663,15 +672,6 @@ def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corp
     assert "q=Vorschau" in close_href and "medienart=Foto" in close_href
 
 
-def test_pane_open_marks_the_vorschau_state(indexed_corpus: Corpus) -> None:
-    # Opening the pane puts the body in the vorschau state (the pane frame column is CSS-driven off
-    # this body class ≥1280px; the ledger re-densifies by itself — it is a size container).
-    body = _get(Public(), f"artikel={PANE_PUB_ULID}").content.decode()
-    assert '<body class="workbench vorschau">' in body
-    closed = _get(Public()).content.decode()
-    assert '<body class="workbench">' in closed
-
-
 # --- bulk edit: selection column + bar (Sammelbearbeitung, spec §2) ----------------
 
 
@@ -721,10 +721,16 @@ def test_bulk_bar_shows_with_selection_and_count(indexed_corpus: Corpus) -> None
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
-def test_selection_survives_pagination_links(indexed_corpus: Corpus) -> None:
+def test_selection_survives_pagination_links(
+    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # the next/prev pagination links carry the ?auswahl= selection (no-JS persistence)
-    body = _get(Archivist(), f"auswahl={PANE_PUB_ULID}&seite=1").content.decode()
-    assert f"auswahl={PANE_PUB_ULID}" in body
+    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
+    body = _get(Archivist(), f"auswahl={PANE_PUB_ULID}&seite=2").content.decode()
+    pager = body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
+    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', pager)]
+    assert [q.get("seite") for q in queries] == [["1"], ["3"]]
+    assert [q.get("auswahl") for q in queries] == [[PANE_PUB_ULID]] * 2
 
 
 def test_non_archivist_auswahl_param_is_ignored(indexed_corpus: Corpus) -> None:

@@ -186,6 +186,17 @@ def indexed_corpus[T](
         ArticleIndex.objects.all().delete()
 
 
+def index_beside_corpus(root: Collection, *articles: Article) -> None:
+    """Index ``articles`` (all under ``root``) one by one, in the given order, next to an already
+    indexed corpus — no rebuild wipe. Call inside a test's transaction so the rows roll back."""
+    store = InMemoryObjectStore()
+    CollectionRepository(store).save(root, 0, changed_by="tester")
+    repo = ArticleRepository(store)
+    for article in articles:
+        repo.save(article, 0, changed_by="tester")
+        indexer.index_article(store, article.ulid)
+
+
 def _articles() -> tuple[Article, ...]:
     """The 12 corpus articles. German text is chosen so ADR-0011 stemming/umlaut behaviour is
     exercisable (Häuser/Haus, Bäume, Fahrten, Lieder), spanning media/document types, tags,

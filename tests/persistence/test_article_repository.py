@@ -75,13 +75,6 @@ def test_stale_expected_version_raises_conflict(repo: ArticleRepository) -> None
     )  # correct version wins
 
 
-def test_readme_carries_marker_and_is_the_commit_point(repo: ArticleRepository) -> None:
-    repo.save(_article(), expected_version=0, changed_by="tester")
-    raw = repo._store.read("articles/01J0/README.md").decode("utf-8")
-    assert raw.startswith("<!-- Managed by bundesarchiv")
-    assert "Zeltlager 1955" in raw
-
-
 def test_list_ulids_returns_articles_not_media_or_history(repo: ArticleRepository) -> None:
     repo.save(_article("01A"), expected_version=0, changed_by="tester")
     repo.save(_article("01A", title="revised"), expected_version=1, changed_by="tester")
@@ -349,14 +342,6 @@ def _files(root: Path) -> dict[Path, bytes]:
 
 def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> None:
     repo.hard_delete("never-existed")  # must not raise
-
-
-def test_load_of_a_corrupt_readme_surfaces_archive_error(repo: ArticleRepository) -> None:
-    # Integration: a damaged README must reach the caller as ArchiveError (the codec's
-    # detailed corrupt-input cases are covered directly in test_readme.py).
-    repo._store.write_atomic("articles/bad/README.md", b"---\ntags: [unclosed\n---\nbody")
-    with pytest.raises(ArchiveError):
-        repo.load("bad")
 
 
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(

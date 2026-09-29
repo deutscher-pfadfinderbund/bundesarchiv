@@ -5,27 +5,9 @@ from pathlib import Path
 from django.test import override_settings
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.domain.models import Article, Collection
-from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.domain.models import Article
 
 ULID = "01KX7YT9E3VX0CP3A5Q49RZMWK"
-
-
-def test_of_wires_both_repositories_over_the_given_store() -> None:
-    store = InMemoryObjectStore()
-    archive = Archive.of(store)
-
-    archive.collections.save(
-        Collection(ulid="ROOT", name="Wurzel", parent_id=None), 0, changed_by="tester"
-    )
-    archive.articles.save(
-        Article(ulid=ULID, title="Sommerfahrt", collection_id="ROOT"), 0, changed_by="tester"
-    )
-
-    assert CollectionRepository(store).load("ROOT").collection.name == "Wurzel"
-    assert ArticleRepository(store).load(ULID).article.title == "Sommerfahrt"
 
 
 def test_canonical_resolves_the_configured_root_at_every_call(tmp_path: Path) -> None:

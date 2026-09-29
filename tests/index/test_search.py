@@ -23,8 +23,9 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import SearchFilters, SearchPage, search
+from bundesarchiv.index.query import _MAX_PAGE_SIZE, SearchFilters, SearchPage, search
 
 
 @pytest.fixture(scope="module")
@@ -96,31 +97,10 @@ def test_archivist_sees_everything_including_draft_and_orphan(corpus: None) -> N
 
 
 @pytest.mark.django_db
-def test_text_stems_singular_to_plural(corpus: None) -> None:
-    """A singular query finds a plural in a title (german_stem): 'Lied' -> 'Lieder'."""
-    page = search(PUBLIC, text="Lied")
-    assert "ART_PUBLAGER" in _ulids(page)  # "... Lieder ..."
-
-
-@pytest.mark.django_db
 def test_text_is_umlaut_insensitive(corpus: None) -> None:
     """Umlaut-less typing finds an umlaut document (unaccent): 'Baume' -> 'Bäume'."""
     page = search(PUBLIC, text="Baume")
     assert "ART_PUBHAUS" in _ulids(page)  # "Bäume vor dem Haus"
-
-
-@pytest.mark.django_db
-def test_prefix_matching_recovers_compound_head(corpus: None) -> None:
-    """ADR-0011 prefix mitigation (:* on the trailing lexeme): a compound HEAD matches the whole
-    compound. 'Lager' alone (no decomposition) reaches 'Bundeslager Lieder und Häuser'."""
-    assert "ART_PUBLAGER" in _ulids(search(PUBLIC, text="Lager"))
-
-
-@pytest.mark.django_db
-def test_prefix_matching_matches_partial_word_start(corpus: None) -> None:
-    """The brief's pinned case: 'Fahrt' matches a 'Fahrten' title via the :* prefix (a query
-    'Fahrt' would match 'Fahrtenbericht' too — the recall the missing decomposition would give)."""
-    assert "ART_PUBFOTO" in _ulids(search(PUBLIC, text="Fahrt"))  # "... der Fahrten"
 
 
 @pytest.mark.django_db
@@ -132,24 +112,14 @@ def test_all_stopword_query_does_not_crash(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_text_ranks_and_scopes(corpus: None) -> None:
-    """'Fahrten' matches several public docs; a plain member sees member ones too."""
-    public_hits = _ulids(search(PUBLIC, text="Fahrten"))
-    member_hits = _ulids(search(PLAIN_MEMBER, text="Fahrten"))
-    assert "ART_PUBFOTO" in public_hits  # "... der Fahrten"
-    assert "ART_MEMNOTIZ" not in public_hits  # member-only, invisible to public
-    assert "ART_MEMNOTIZ" in member_hits
-
-
-# ===========================================================================
-# Archivist dual-vector text (isolation itself is proven in test_leaks).
-# ===========================================================================
-
-
-@pytest.mark.django_db
-def test_archivist_general_text_still_matches_general_vector(corpus: None) -> None:
-    """The Archivist's dual-vector search still matches ordinary (general) text."""
-    assert "ART_PUBLAGER" in _ulids(search(ARCHIVIST, text="Bundeslager"))
+def test_text_ranks_the_best_match_first_within_scope(corpus: None) -> None:
+    """'Fahrten' is in PUBFOTO's title and tag but only in PUBKARTE's tag, so PUBFOTO ranks
+    first; the member-only MEMNOTIZ matches too, but only for a Member."""
+    assert [h.ulid for h in search(PUBLIC, text="Fahrten").hits] == [
+        "ART_PUBFOTO",
+        "ART_PUBKARTE",
+    ]
+    assert "ART_MEMNOTIZ" in _ulids(search(PLAIN_MEMBER, text="Fahrten"))
 
 
 # ===========================================================================
@@ -180,11 +150,21 @@ def test_collection_filter_mid_includes_descendants(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_collection_filter_root_is_whole_tree_but_still_scoped(corpus: None) -> None:
-    """ROOT subtree = every article with a resolved chain, still viewer-scoped."""
-    page = search(VORSTAND_MEMBER, filters=SearchFilters(collection="ROOT"))
-    # Vorstand sees 10 total; ORPHAN (dangling, no ancestors) is NOT under ROOT subtree.
-    assert "ART_ORPHAN" not in _ulids(page)
-    assert page.total == 10
+    """ROOT's subtree is exactly the viewer's visible rows under ROOT: a visible row in another
+    tree stays out, and so do the rows under ROOT the viewer cannot see."""
+    fixtures.index_beside_corpus(
+        Collection(ulid="ANDERE", name="Anderer Baum", parent_id=None),
+        Article(
+            ulid="ART_ANDERE",
+            title="Anderswo",
+            collection_id="ANDERE",
+            lifecycle=Lifecycle.PUBLISHED,
+        ),
+    )
+    page = search(VORSTAND_MEMBER, filters=SearchFilters(collection="ROOT"), page_size=200)
+    assert _ulids(page) == {
+        ulid for ulid, who in fixtures.EXPECTED_VISIBILITY.items() if "vorstand" in who
+    }
 
 
 # ===========================================================================
@@ -271,10 +251,19 @@ def test_sort_ref_code_numeric_and_locale_aware(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_sort_date_ascending_nulls_last(corpus: None) -> None:
-    """date sort is date_earliest ascending; PUBKARTE(1958) first among public."""
-    page = search(PUBLIC, sort="date", page_size=200)
-    dates = [h.ulid for h in page.hits]
-    assert dates[0] == "ART_PUBKARTE"  # 1958, earliest public
+    fixtures.index_beside_corpus(
+        Collection(ulid="OHNE", name="Ohne Datum", parent_id=None),
+        Article(
+            ulid="ART_UNDATED",
+            title="Undatiert",
+            collection_id="OHNE",
+            lifecycle=Lifecycle.PUBLISHED,
+            audience=Audience(AudienceTier.PUBLIC),
+        ),
+    )
+    ulids = [h.ulid for h in search(PUBLIC, sort="date", page_size=200).hits]
+    assert ulids[0] == "ART_PUBKARTE"  # 1958, earliest public
+    assert ulids[-1] == "ART_UNDATED"
 
 
 # ===========================================================================
@@ -292,14 +281,6 @@ def test_facet_keys_are_exactly_the_five(corpus: None) -> None:
         "tags",
         "decades",
     }
-
-
-@pytest.mark.django_db
-def test_facet_media_type_counts_public(corpus: None) -> None:
-    page = search(PUBLIC)
-    media = _facet_map(page, "media_type")
-    # Public docs: 3 Foto, 1 Karte, 1 Plakat.
-    assert media == {"Foto": 3, "Karte": 1, "Plakat": 1}
 
 
 @pytest.mark.django_db
@@ -368,21 +349,35 @@ def test_pagination_past_end_is_empty(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_page_size_is_capped(corpus: None) -> None:
-    """An absurd page_size is capped at the documented maximum, not honored verbatim."""
+    """An absurd page_size is capped at the maximum, not honored verbatim."""
+    fixtures.index_beside_corpus(
+        Collection(ulid="VIELE", name="Viele", parent_id=None),
+        *(
+            Article(ulid=f"ART_VIELE_{n:03}", title="Viele", collection_id="VIELE")
+            for n in range(_MAX_PAGE_SIZE + 1)
+        ),
+    )
     page = search(ARCHIVIST, page_size=100_000)
-    assert len(page.hits) <= 200  # the cap
+    assert page.total > _MAX_PAGE_SIZE
+    assert len(page.hits) == _MAX_PAGE_SIZE
 
 
 # ===========================================================================
-# Empty-text browse + no-filter defaults.
+# Empty-text browse.
 # ===========================================================================
 
 
 @pytest.mark.django_db
-def test_empty_text_browses_everything_in_scope(corpus: None) -> None:
-    """text=None is a browse: the whole scoped set, deterministically ordered."""
-    page = search(PLAIN_MEMBER)
-    assert page.total == 8
-    # Deterministic order: two identical calls return the same sequence.
-    again = search(PLAIN_MEMBER)
-    assert [h.ulid for h in page.hits] == [h.ulid for h in again.hits]
+def test_empty_text_browse_is_in_ulid_order(corpus: None) -> None:
+    """A browse has no rank, so it orders by ulid — whatever order the rows were indexed in."""
+    fixtures.index_beside_corpus(
+        Collection(ulid="SPAET", name="Spät indexiert", parent_id=None),
+        Article(
+            ulid="ART_0B", title="Zweiter", collection_id="SPAET", lifecycle=Lifecycle.PUBLISHED
+        ),
+        Article(
+            ulid="ART_0A", title="Erster", collection_id="SPAET", lifecycle=Lifecycle.PUBLISHED
+        ),
+    )
+    ulids = [h.ulid for h in search(PLAIN_MEMBER, page_size=200).hits]
+    assert ulids == sorted(ulids)

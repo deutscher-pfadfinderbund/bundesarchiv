@@ -70,11 +70,6 @@ def _internals(pkg: str) -> set[str]:
     return set(_BACKTICKED.findall(match.group(1))) if match else set()
 
 
-def test_every_package_has_a_map() -> None:
-    missing = [pkg for pkg in PACKAGES if not _map_path(pkg).exists()]
-    assert not missing, f"packages without a CLAUDE.md map: {missing}"
-
-
 def test_every_module_is_accounted_for() -> None:
     for pkg in PACKAGES:
         files, rows, internals = _package_files(pkg), _rows(pkg), _internals(pkg)

@@ -56,11 +56,6 @@ def create(request: pytest.FixtureRequest) -> Create:
     return lambda store, key, data: store.create(key, data)
 
 
-def test_write_then_read_round_trip(store: ObjectStore) -> None:
-    store.write_atomic("art/1/README.md", b"hello")
-    assert store.read("art/1/README.md") == b"hello"
-
-
 def test_read_missing_raises_not_found(store: ObjectStore) -> None:
     with pytest.raises(NotFound):
         store.read("does/not/exist")

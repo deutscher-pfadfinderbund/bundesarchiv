@@ -202,14 +202,17 @@ def test_the_push_job_pushes_the_saved_record_and_notes_it(
     assert PostgresPushRecord().held([readme]).keys() == {readme}
 
 
-def test_mirror_push_task_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No mirror configured -> the job returns without touching anything (never raises)."""
+def test_mirror_push_task_is_noop_when_mirror_unset(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No mirror configured -> the job returns for a saved Article without touching anything: no
+    remote, no push record (this test has no database)."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    monkeypatch.setattr(tasks_mod, "canonical_store", InMemoryObjectStore)
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
     monkeypatch.setattr(tasks_mod, "mirror_store", lambda: None)
 
-    tasks_mod.mirror_push.func(ulid="01A")  # must not raise
+    tasks_mod.mirror_push.func(ulid="01FOTO")
 
 
 @pytest.mark.django_db

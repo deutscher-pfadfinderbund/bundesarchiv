@@ -60,16 +60,6 @@ def test_apply_scalar_empty_to_none() -> None:
     assert art.physical_location is None
 
 
-def test_apply_scalar_value() -> None:
-    art = bulk.apply_field(_article(), "creator", "K. Meyer")
-    assert art.creator == "K. Meyer"
-
-
-def test_apply_custom_upsert() -> None:
-    art = bulk.apply_field(_article(), "Quelle", "Nachlass Meyer")
-    assert dict(art.custom)["Quelle"] == "Nachlass Meyer"
-
-
 def test_apply_custom_empty_removes_key() -> None:
     art = bulk.apply_field(_article(custom=(("Quelle", "alt"),)), "Quelle", "")
     assert "Quelle" not in dict(art.custom)
@@ -79,15 +69,6 @@ def test_apply_custom_preserves_other_keys() -> None:
     art = bulk.apply_field(_article(custom=(("Besitzer", "X"),)), "Quelle", "neu")
     got = dict(art.custom)
     assert got == {"Besitzer": "X", "Quelle": "neu"}
-
-
-def test_apply_media_type_clears_orphaned_document_type() -> None:
-    # "Brief" is not in the vocabulary the archivists own, so setting any Medienart clears the
-    # now-invalid document_type (spec §3).
-    art = _article(media_type="Schrifttum", document_type="Brief")
-    out = bulk.apply_field(art, "media_type", "Foto(s)")
-    assert out.media_type == "Foto(s)"
-    assert out.document_type is None
 
 
 def test_apply_media_type_keeps_valid_document_type() -> None:

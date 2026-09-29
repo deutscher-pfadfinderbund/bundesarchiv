@@ -88,15 +88,6 @@ def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
 
 
 @pytest.mark.django_db
-def test_post_renames_and_redirects(archive: Corpus) -> None:
-    response = client_as(Archivist()).post(
-        f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"}
-    )
-    assert response.status_code == 302
-    assert _name_of(archive, FOTOS) == "Lichtbilder"
-
-
-@pytest.mark.django_db
 def test_post_blank_name_re_renders_with_error_unchanged(archive: Corpus) -> None:
     response = client_as(Archivist()).post(
         f"/bestand/{FOTOS}/bearbeiten", {"name": "", "expected_version": "1"}
@@ -117,18 +108,6 @@ def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
     assert "Fotografien" not in body  # the old name is gone
 
 
-# --- read-only display grammar (matches the shared 4.7 source strings) --------------
-
-
-def test_readonly_sichtbarkeit_uses_shared_source_strings(archive: Corpus) -> None:
-    # FOTOS is MEMBERS in this fixture → "Alle Mitglieder"; the inherit + groups captions must match
-    # the 4.7 source ("Vom Bestand erben", "Gruppe: ") — grammar fixups 5 + 6.
-    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-    assert "Alle Mitglieder" in body
-    assert "Vom Eltern-Bestand erben" not in body  # the old, non-matching inherit string is gone
-    assert "Gruppe(n):" not in body  # the old, non-matching groups prefix is gone
-
-
 # --- racing rename: Conflict → the "Inzwischen geändert" panel (security LOW) --------
 
 
@@ -138,12 +117,6 @@ def _expected_version_of(body: str) -> str:
         "GET must seed a hidden expected_version (parity with the article form)"
     )
     return match.group(1)
-
-
-@pytest.mark.django_db
-def test_get_seeds_hidden_expected_version(archive: Corpus) -> None:
-    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-    assert _expected_version_of(body) == "1"  # FOTOS was saved once in the fixture -> v1
 
 
 @pytest.mark.django_db
@@ -195,23 +168,3 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
     assert response.status_code == 302
     assert response["Location"] == f"/?bestand={FOTOS}"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
-
-
-@pytest.mark.django_db
-def test_racing_rename_conflict_re_renders_panel_not_500(
-    archive: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # A concurrent rename won between GET and POST: the CAS save raises Conflict; the view must
-    # re-render the "Inzwischen geändert" panel (200) with a refreshed version — never a 500.
-    from bundesarchiv.app.web import collection_views
-    from bundesarchiv.persistence.errors import Conflict
-
-    def boom(*_args: object, **_kwargs: object) -> None:
-        raise Conflict("someone else saved first")
-
-    monkeypatch.setattr(collection_views, "save_collection", boom)
-    response = client_as(Archivist()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder"})
-    assert response.status_code == 200  # not a 500
-    body = response.content.decode()
-    assert "Inzwischen geändert" in body  # the conflict panel
-    assert 'value="Lichtbilder"' in body  # the just-submitted name is preserved

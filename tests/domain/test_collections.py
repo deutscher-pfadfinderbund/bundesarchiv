@@ -73,11 +73,3 @@ def test_resolved_chain_rejects_a_chain_not_terminated_at_a_root() -> None:
     leaf = Collection("leaf", "Fotos", parent_id="mid")
     with pytest.raises(MisresolvedChain):
         ResolvedChain((leaf,))
-
-
-def test_resolved_chain_accepts_a_valid_parent_linked_root_terminated_chain() -> None:
-    root = Collection("root", "Archiv", parent_id=None)
-    leaf = Collection("leaf", "Fotos", parent_id="root")
-    chain = ResolvedChain((leaf, root))
-    assert chain.collections == (leaf, root)
-    assert chain.leaf is leaf

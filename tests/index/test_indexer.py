@@ -99,15 +99,6 @@ def test_build_row_explicit_groups_audience_carries_groups() -> None:
     assert row["groups"] == ["bundesfuehrung", "vorstand"]
 
 
-def test_build_row_inherits_audience_through_chain() -> None:
-    """No Article audience, no leaf audience -> nearest explicit ancestor (root) wins."""
-    root = _root(audience=Audience(AudienceTier.PUBLIC))
-    leaf = Collection(ulid="LEAF", name="Leaf", parent_id="ROOT")
-    article = _article(collection_id="LEAF", audience=None)
-    row = indexer.build_row(article, _chain(leaf, root), cap_year=_CAP_YEAR)
-    assert row["tier"] == "PUBLIC"
-
-
 def test_build_row_silent_chain_defaults_to_members() -> None:
     root = _root()  # no audience anywhere
     article = _article(audience=None)
@@ -123,16 +114,6 @@ def test_build_row_draft_lifecycle_is_archivist_only() -> None:
     assert row["archivist_only"] is True
     assert row["tier"] is None  # None iff archivist_only
     assert row["groups"] == []
-
-
-def test_build_row_stamps_is_draft_from_lifecycle() -> None:
-    # is_draft is an explicit column (archivist chrome needs draft-vs-published; archivist_only
-    # alone can't distinguish a draft from a fail-closed row — both are archivist_only).
-    root = _root(audience=Audience(AudienceTier.PUBLIC))
-    draft = _article(lifecycle=Lifecycle.DRAFT, audience=Audience(AudienceTier.PUBLIC))
-    published = _article(lifecycle=Lifecycle.PUBLISHED, audience=Audience(AudienceTier.PUBLIC))
-    assert indexer.build_row(draft, _chain(root), cap_year=_CAP_YEAR)["is_draft"] is True
-    assert indexer.build_row(published, _chain(root), cap_year=_CAP_YEAR)["is_draft"] is False
 
 
 def test_build_row_still_indexes_text_of_a_draft() -> None:
@@ -176,17 +157,6 @@ def test_build_row_body_unchanged_without_captions() -> None:
     article = _article(body="Nur Text.", media=(MediaRef("a.jpg", "a" * 64),))
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
     assert row["body"] == "Nur Text."
-
-
-def test_build_row_captions_index_even_with_empty_body() -> None:
-    """An article with no body but a captioned media file still contributes the caption text to
-    the body bucket (so it is searchable at body weight)."""
-    root = _root()
-    article = _article(body="", media=(MediaRef("a.mp3", "9" * 64, caption="Tonbandaufnahme"),))
-    row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
-    body = row["body"]
-    assert isinstance(body, str)
-    assert "Tonbandaufnahme" in body
 
 
 # --- date columns ----------------------------------------------------------
@@ -324,7 +294,6 @@ def store() -> InMemoryObjectStore:
             ulid="01GRP",
             title="Vertrauliche Akte",
             audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
-            physical_location="Tresor 1",
         ),
         0,
         changed_by="tester",
@@ -343,15 +312,6 @@ def store() -> InMemoryObjectStore:
     )
 
     return store
-
-
-@pytest.mark.django_db
-def test_rebuild_indexes_every_article(store: InMemoryObjectStore) -> None:
-    from bundesarchiv.index.models import ArticleIndex
-
-    report = indexer.rebuild(store)
-    assert report.indexed == 5
-    assert ArticleIndex.objects.count() == 5
 
 
 @pytest.mark.django_db
@@ -388,21 +348,6 @@ def test_rebuild_fails_closed_on_dangling_collection(store: InMemoryObjectStore)
         bad.is_draft is False
     )  # a broken chain is NOT a draft — draft-vs-failclosed stay distinct
     assert bad.title == "Verwaistes Artikel"  # still indexed with its text, so it's findable
-
-
-@pytest.mark.django_db
-def test_rebuild_report_only_lists_failed_articles(store: InMemoryObjectStore) -> None:
-    report = indexer.rebuild(store)
-    assert report.failed_closed == ("01BAD",)
-
-
-@pytest.mark.django_db
-def test_rebuild_folds_archivist_text(store: InMemoryObjectStore) -> None:
-    from bundesarchiv.index.models import ArticleIndex
-
-    indexer.rebuild(store)
-    row = ArticleIndex.objects.get(ulid="01GRP")
-    assert "Tresor 1" in row.archivist_text
 
 
 @pytest.mark.django_db

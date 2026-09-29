@@ -388,12 +388,6 @@ def test_detail_action_row_absent_for_non_archivist(corpus: Corpus) -> None:
     assert "/loeschen" not in body
 
 
-def test_detail_action_row_draft_shows_veroeffentlichen(corpus: Corpus) -> None:
-    body = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}").content.decode()
-    assert "Veröffentlichen" in body
-    assert "Als Entwurf zurückziehen" not in body
-
-
 # --- template-comment hygiene (a multi-line {# #} leaks — same rule as the workbench) ----------
 
 

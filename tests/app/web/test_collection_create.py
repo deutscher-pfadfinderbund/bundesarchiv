@@ -150,7 +150,7 @@ def test_post_groups_without_gruppen_re_renders_with_error(corpus: Corpus) -> No
         {"name": "Leer", "parent_id": "", "sichtbarkeit": "groups", "gruppen": ""},
     )
     assert response.status_code == 200
-    assert "Gruppe" in response.content.decode()  # a groups-required error
+    assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
     assert {c.ulid for c in corpus.collections.load_all()} == before
 
 

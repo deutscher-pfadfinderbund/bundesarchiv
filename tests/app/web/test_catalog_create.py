@@ -13,7 +13,7 @@ import pytest
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_collection
 
-from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
@@ -73,6 +73,7 @@ def test_create_post_creates_draft_and_redirects_to_edit(empty_archive: Corpus) 
     stored = empty_archive.articles.load(ulids[0])
     assert stored.article.title == "Wanderfahrt 1962"
     assert stored.article.collection_id == "PUB"
+    assert stored.article.lifecycle is Lifecycle.DRAFT
 
 
 def test_create_post_missing_title_re_renders_state_b(empty_archive: Corpus) -> None:

@@ -68,7 +68,7 @@ def store() -> InMemoryObjectStore:
 
 
 # ---------------------------------------------------------------------------
-# index_article — new / changed / deleted / broken-chain / idempotent
+# index_article — new / changed / deleted / broken-chain
 # ---------------------------------------------------------------------------
 
 
@@ -152,16 +152,6 @@ def test_index_article_broken_chain_writes_fail_closed_row(store: InMemoryObject
     assert list(row.collection_ancestors) == []
 
 
-@pytest.mark.django_db
-def test_index_article_is_idempotent(store: InMemoryObjectStore) -> None:
-    """Running twice with no canonical change yields the same single row."""
-    from bundesarchiv.index.models import ArticleIndex
-
-    indexer.index_article(store, "01FOTO")
-    indexer.index_article(store, "01FOTO")
-    assert ArticleIndex.objects.filter(ulid="01FOTO").count() == 1
-
-
 # ---------------------------------------------------------------------------
 # index_subtree — descendants re-scoped, non-descendants untouched
 # ---------------------------------------------------------------------------
@@ -170,7 +160,8 @@ def test_index_article_is_idempotent(store: InMemoryObjectStore) -> None:
 @pytest.mark.django_db
 def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) -> None:
     """Narrowing FOTOS to MEMBERS then index_subtree(FOTOS) re-scopes FOTOS + AKTEN
-    (descendants) but leaves ROOT's own article untouched (not a descendant of FOTOS)."""
+    (descendants) but leaves ROOT's own article untouched (not a descendant of FOTOS): its
+    canonical title changed too, and the index still carries the old one."""
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.rebuild(store)  # baseline: everything indexed (allowed: setup, not the assertion)
@@ -191,13 +182,17 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
         changed_by="tester",
     )
 
+    articles = ArticleRepository(store)
+    root_article = articles.load("01ROOT")
+    articles.save(
+        _article("ROOT", "01ROOT", title="Neuer Titel"), root_article.version, changed_by="tester"
+    )
+
     indexer.index_subtree(store, "FOTOS")
 
-    # Descendants re-scoped to MEMBERS.
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "MEMBERS"
     assert ArticleIndex.objects.get(ulid="01AKTE").tier == "MEMBERS"
-    # Non-descendant untouched.
-    assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
+    assert ArticleIndex.objects.get(ulid="01ROOT").title == "Wurzelartikel"
 
 
 @pytest.mark.django_db

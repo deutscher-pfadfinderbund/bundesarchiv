@@ -13,6 +13,7 @@ import pytest
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import DRAFT_ULID, PUB, Corpus, client_as
 
+from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
@@ -32,7 +33,10 @@ def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpu
         f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=gibtsnicht"
     )
     assert response.status_code == 200
-    assert "kein Dokumenttyp" in response.content.decode()
+    body = response.content.decode()
+    assert "kein Dokumenttyp" in body
+    every_type = {t for types in vocab.MEDIENART_DOKUMENTTYP.values() for t in types}
+    assert not {t for t in every_type if f'value="{t}"' in body}
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
@@ -86,13 +90,6 @@ def test_htmx_save_success_sends_hx_redirect(corpus: Corpus) -> None:
     )
     assert response.status_code == 204
     assert response["HX-Redirect"] == f"/artikel/{DRAFT_ULID}"
-
-
-def test_no_js_save_success_still_302(corpus: Corpus) -> None:
-    # The no-JS baseline is unchanged: a plain POST (no HX-Request) still 302s.
-    response = client_as(Archivist()).post(f"/artikel/{DRAFT_ULID}/bearbeiten", _save_post(corpus))
-    assert response.status_code == 302
-    assert response["Location"] == f"/artikel/{DRAFT_ULID}"
 
 
 # --- state H: index-lag hinweis on the save path -----------------------------------

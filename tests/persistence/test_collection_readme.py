@@ -71,29 +71,6 @@ def test_encode_starts_with_marker_then_fence() -> None:
     assert "\n---\n" in text
 
 
-def test_absent_version_backfills_to_zero() -> None:
-    # A pre-versioning README (written before Part 4.1) has no `version:` key. It must
-    # load as version 0 so its first versioned save writes version 1 (ADR 0013 migration).
-    _decoded, version, _ = collection_readme.decode_collection(
-        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
-    )
-    assert version == 0
-
-
-def test_absent_parent_id_decodes_to_none() -> None:
-    decoded, _version, _ = collection_readme.decode_collection(
-        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
-    )
-    assert decoded.parent_id is None
-
-
-def test_absent_audience_key_decodes_to_inherit() -> None:
-    decoded, _version, _ = collection_readme.decode_collection(
-        "---\nulid: 01J0\nname: Root\n---\n", ulid="01J0"
-    )
-    assert decoded.audience is None
-
-
 def test_empty_audience_mapping_decodes_to_inherit() -> None:
     decoded, _version, _ = collection_readme.decode_collection(
         "---\nulid: 01J0\nname: Root\naudience: {}\n---\n", ulid="01J0"
@@ -147,11 +124,6 @@ def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> 
 def test_the_change_record_round_trips() -> None:
     text = collection_readme.encode_collection(_collection(), 2, _CHANGE)
     assert collection_readme.decode_collection(text, ulid="01J0")[2] == _CHANGE
-
-
-def test_a_readme_written_before_the_change_record_loads_without_one() -> None:
-    text = "---\nulid: 01J0\nname: Fotos\nversion: 2\n---\n"
-    assert collection_readme.decode_collection(text, ulid="01J0")[2] is None
 
 
 def test_a_corrupt_change_record_surfaces_as_archive_error() -> None:

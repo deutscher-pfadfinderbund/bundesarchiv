@@ -11,7 +11,7 @@ Structure:
 - The per-tier grid: original + thumb URLs against [Public, Member(wrong group), Member(right
   group), Archivist] -> 200 iff ``can_view`` says so, everything else 404.
 - A 404 for each of five distinct denial/absence reasons.
-- Authz-before-existence: the blob lookup at the seam is never reached for a forbidden article.
+- Authz-before-existence: a forbidden request is denied before any blob or thumbnail probe.
 - X-Accel mode and dev-streaming mode.
 - The thumbnail job (JPEG/PNG generate, text no-op, idempotent, output location).
 """
@@ -19,6 +19,7 @@ Structure:
 import io
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import cast
 
 import pytest
 from django.test import override_settings
@@ -26,10 +27,12 @@ from PIL import Image
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
+from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
 # Media serving is pure request handling against a local FS store — no Postgres.
@@ -207,33 +210,62 @@ def test_thumbnail_per_tier_grid(
 def test_404_across_all_deny_reasons(corpus: _TierCorpus) -> None:
     good_hash = corpus.hash_by_tier["members"]
     real_ulid = corpus.ulid_by_tier["members"]
-    responses = {}
-    # (a) nonexistent ulid (well-formed but no such article)
-    responses["nonexistent_ulid"] = client_as(Archivist()).get(
-        f"/media/01BX5ZZKBKACTAV9WEVGEMMVRZ/{good_hash}"
-    )
-    # (b) real-but-forbidden article (members-only, Public viewer)
-    responses["forbidden"] = client_as(Public()).get(corpus.url("members"))
-    # (c) valid article + wrong hash (a hash that belongs to a DIFFERENT article)
-    responses["wrong_hash"] = client_as(Archivist()).get(
-        f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
-    )
-    # (d) malformed ulid
-    responses["malformed_ulid"] = client_as(Archivist()).get(f"/media/not-a-ulid/{good_hash}")
-    # (e) missing thumbnail on a permitted article (never generated)
-    responses["missing_thumb"] = client_as(Archivist()).get(corpus.url("members", thumb=True))
-    statuses = {name: r.status_code for name, r in responses.items()}
-    assert set(statuses.values()) == {404}, statuses
+    responses = {
+        "nonexistent_ulid": client_as(Archivist()).get(
+            f"/media/01BX5ZZKBKACTAV9WEVGEMMVRZ/{good_hash}"
+        ),
+        "forbidden": client_as(Public()).get(corpus.url("members")),
+        # a hash that belongs to a DIFFERENT article
+        "wrong_hash": client_as(Archivist()).get(
+            f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
+        ),
+        "malformed_ulid": client_as(Archivist()).get(f"/media/not-a-ulid/{good_hash}"),
+        "missing_thumb": client_as(Archivist()).get(corpus.url("members", thumb=True)),
+    }
+    for reason, response in responses.items():
+        assert_denied(response, reason)
 
 
 # --- authz-before-existence -------------------------------------------------------
 
 
+class _KeyRecordingStore:
+    """Wraps the corpus store and records the key of every call, so a test can see whether a
+    blob was probed."""
+
+    def __init__(self, inner: ObjectStore) -> None:
+        self._inner = inner
+        self.keys: list[str] = []
+
+    def __getattr__(self, name: str) -> Callable[..., object]:
+        method = getattr(self._inner, name)
+
+        def recorded(key: str = "", *args: object, **kwargs: object) -> object:
+            self.keys.append(key)
+            return method(key, *args, **kwargs)
+
+        return recorded
+
+
+class _WatchedRoot:
+    """A thumbnail root that records each time a path is built from it."""
+
+    def __init__(self, root: Path) -> None:
+        self._root = root
+        self.touched = 0
+
+    def __fspath__(self) -> str:
+        self.touched += 1
+        return str(self._root)
+
+
 def test_authz_denies_before_any_blob_lookup(
     corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Monkeypatch the seam (the genuine boundary that touches the blob) with a recorder. A FORBIDDEN
-    # request must NEVER reach it — authorization denies before existence is probed.
+    store = _KeyRecordingStore(corpus.store)
+    monkeypatch.setattr(
+        Archive, "canonical", classmethod(lambda _: Archive.of(cast("ObjectStore", store)))
+    )
     reached: list[str] = []
 
     def recorder(*args: object, **kwargs: object) -> object:
@@ -243,12 +275,16 @@ def test_authz_denies_before_any_blob_lookup(
     monkeypatch.setattr("bundesarchiv.app.web.media.media_response", recorder)
     response = client_as(Public()).get(corpus.url("members"))
     assert_denied(response)
-    assert reached == [], "the seam (blob lookup) was reached for a forbidden article"
+    assert reached == [], "the seam was reached for a forbidden article"
+    assert store.keys, "the recording store saw no call; the article was never loaded through it"
+    assert corpus.blob_key("members") not in store.keys, "the blob was probed before the deny"
 
 
 def test_authz_denies_before_lookup_for_thumbnail(
     corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    corpus.generate_thumbnails()
+    root = _WatchedRoot(corpus.thumbnail_root)
     reached: list[str] = []
 
     def recorder(*args: object, **kwargs: object) -> object:
@@ -256,9 +292,11 @@ def test_authz_denies_before_lookup_for_thumbnail(
         raise AssertionError("thumbnail lookup reached for a forbidden request")
 
     monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
-    response = client_as(Public()).get(corpus.url("members", thumb=True))
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=root):
+        response = client_as(Public()).get(corpus.url("members", thumb=True))
     assert_denied(response)
     assert reached == []
+    assert root.touched == 0, "the thumbnail cache was probed before the deny"
 
 
 # --- X-Accel mode -----------------------------------------------------------------

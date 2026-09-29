@@ -22,13 +22,6 @@ def test_non_groups_tier_rejects_named_groups(tier: AudienceTier) -> None:
         Audience(tier, ("geheim",))
 
 
-def test_valid_audiences_construct() -> None:
-    assert Audience().tier is AudienceTier.MEMBERS  # default rung, no groups
-    Audience(AudienceTier.PUBLIC)
-    Audience(AudienceTier.GROUPS, ("bundesfuehrung",))
-    Audience(AudienceTier.GROUPS, ("bundesfuehrung", "landesfuehrung"))
-
-
 def test_groups_is_normalized_to_a_tuple() -> None:
     # A frozen, hashable value object must not store a list (unhashable, and unequal to its
     # tuple twin) even when built from one via dynamic/untyped input.
@@ -61,7 +54,10 @@ def _article(**custom_pairs: object) -> Article:
 def test_custom_fields_are_sorted_and_deduped() -> None:
     # Order-independent + canonical: sorted by key, last value wins on a duplicate key.
     article = Article(
-        ulid="01J0", title="t", collection_id="c", custom=(("zeta", "1"), ("alpha", "2"))
+        ulid="01J0",
+        title="t",
+        collection_id="c",
+        custom=(("zeta", "1"), ("alpha", "old"), ("alpha", "2")),
     )
     assert article.custom == (("alpha", "2"), ("zeta", "1"))
 

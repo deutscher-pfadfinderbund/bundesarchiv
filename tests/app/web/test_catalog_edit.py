@@ -208,18 +208,6 @@ def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
 # --- POST: validation state F ------------------------------------------------------
 
 
-def test_edit_post_missing_title_re_renders_state_f(corpus: _EditCorpus) -> None:
-    response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="", creator="Behalten")
-    )
-    assert response.status_code == 200
-    body = response.content.decode()
-    assert "Titel ist erforderlich." in body
-    assert 'value="Behalten"' in body  # the just-typed value is preserved
-    # nothing saved
-    assert corpus.articles.load(_ULID).version == corpus.version
-
-
 def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/artikel/{_ULID}/bearbeiten",

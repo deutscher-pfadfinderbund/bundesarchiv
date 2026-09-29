@@ -405,31 +405,16 @@ def test_caption_saved_via_edit_form_round_trips(corpus: _MediaCorpus) -> None:
     ]
 
 
-def test_edit_save_preserves_media_when_no_caption_change(corpus: _MediaCorpus) -> None:
-    # A plain metadata save (no caption fields touched) must NOT wipe the media tuple.
-    client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
-        {
-            "title": "Neuer Titel",
-            "collection_id": "PUB",
-            "media_type": "Foto(s)",
-            "expected_version": str(corpus.version),
-            f"caption[{corpus.ref_a.content_hash}]": "Titelbild",
-            f"caption[{corpus.ref_b.content_hash}]": "",
-        },
-    )
-    assert len(corpus.media()) == 2  # media survived the metadata save
-
-
 # --- the register renders the cover stamp + zero-state -----------------------------
 
 
 def test_edit_form_renders_media_register_with_cover_stamp(corpus: _MediaCorpus) -> None:
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    assert 'class="file-row"' in body
-    assert "Titelbild" in body  # the cover stamp label
-    assert "cover.jpg" in body  # the filename
     assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL
+    # the stamp is a text node; ref_a's caption "Titelbild" is only an input value
+    cover_row, rest = body.split("cover.jpg", 1)[1].split("zweite.jpg", 1)
+    assert ">Titelbild<" in cover_row
+    assert ">Titelbild<" not in rest
 
 
 # --- values-preserved-verbatim: error/conflict re-renders keep typed captions ------

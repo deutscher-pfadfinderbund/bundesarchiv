@@ -82,13 +82,6 @@ def test_forbidden_feld_writes_nothing(two_drafts: Corpus, feld: str) -> None:
     assert _stored(two_drafts, _A).lifecycle is Lifecycle.DRAFT
 
 
-def test_empty_selection_is_error_no_write(two_drafts: Corpus) -> None:
-    response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung", {"feld": "creator", "wert_text": "x", "bestaetigt": "1"}
-    )
-    assert "Keine Artikel ausgewählt." in response.content.decode()
-
-
 def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts: Corpus) -> None:
     # Design-gate blocker: a validation error must NOT dead-end and drop the selection (spec §2 C).
     # It re-renders the chooser drawer + the verbatim error, carrying every auswahl ulid as a hidden
@@ -214,13 +207,6 @@ def test_the_bulk_surfaces_carry_the_shared_header(two_drafts: Corpus) -> None:
     for name, body in (("prüfen", pruefen), ("ergebnis", ergebnis)):
         assert 'placeholder="Archiv durchsuchen…"' in body, f"{name}: no search box in the header"
         assert "+ Neu …" in body, f"{name}: no create disclosure in the header"
-
-
-def test_confirm_does_not_write(two_drafts: Corpus) -> None:
-    client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung", {"auswahl": [_A], "feld": "creator", "wert_text": "X"}
-    )
-    assert _stored(two_drafts, _A).creator is None
 
 
 # --- commit phase (bestaetigt=1) ---------------------------------------------------

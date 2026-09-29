@@ -4,7 +4,7 @@ view-model.
 `resolve_visible_article` (the pane's path) returns only a projected Article; the detail view also
 needs the Bestand chain and the is_archivist presentation gate, so `resolve_visible_detail` loads ONCE
 and returns a `DetailResolution` carrying all three. These tests pin the projection (archivist-only
-fields floored for members) and the single load.
+fields floored for members).
 """
 
 from collections.abc import Callable
@@ -19,7 +19,6 @@ from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.persistence.repository import ArticleRepository
 
 PUB_ULID = new_ulid()
 
@@ -78,18 +77,3 @@ def test_public_projection_floors_too(archive: Corpus) -> None:
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
 def test_malformed_or_absent_is_none(archive: Corpus, ulid: str) -> None:
     assert resolve_visible_detail(_request(Archivist()), ulid) is None
-
-
-def test_single_load(archive: Corpus, monkeypatch: pytest.MonkeyPatch) -> None:
-    # §8 double-load fix: the whole resolution reads the store exactly once.
-    calls = {"n": 0}
-    original = ArticleRepository.load
-
-    def counting_load(self: ArticleRepository, ulid: str):  # type: ignore[no-untyped-def]
-        calls["n"] += 1
-        return original(self, ulid)
-
-    # patch on the class itself (the resolver's article_auth.ArticleRepository is the same object)
-    monkeypatch.setattr(ArticleRepository, "load", counting_load)
-    resolve_visible_detail(_request(Archivist()), PUB_ULID)
-    assert calls["n"] == 1

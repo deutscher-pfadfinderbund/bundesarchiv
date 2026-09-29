@@ -59,15 +59,6 @@ def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
     assert decoded == article
 
 
-def test_absent_audience_key_decodes_to_inherit() -> None:
-    # A README that never had an audience key (e.g. older / hand-written) is inherit,
-    # not an explicit Members rung — explicit Members must stay distinguishable.
-    decoded, _, _ = readme.decode(
-        "x", "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
-    )
-    assert decoded.audience is None
-
-
 def test_empty_audience_mapping_decodes_to_inherit() -> None:
     # A content-less `audience: {}` names no rung, so it is inherit (None) — same as an
     # absent key — not a surprising explicit Members rung that would block a wider ancestor.
@@ -95,14 +86,6 @@ def test_encode_starts_with_marker_then_fence() -> None:
     text = readme.encode(_article(), 1, _CHANGE)
     assert text.startswith("<!-- Managed by bundesarchiv")
     assert "\n---\n" in text
-
-
-def test_decode_without_marker_still_parses() -> None:
-    decoded, version, _ = readme.decode(
-        "x", "---\nulid: x\nversion: 2\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
-    )
-    assert decoded.title == "t"
-    assert version == 2
 
 
 @pytest.mark.parametrize(
@@ -270,15 +253,6 @@ def test_date_creator_subject_place_round_trip() -> None:
     assert decoded == article
 
 
-def test_absent_date_creator_subject_place_decode_to_none() -> None:
-    # A README that omits the three keys must produce None (not a default, not a KeyError).
-    text = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n---\nbody"
-    decoded, _, _ = readme.decode("x", text)
-    assert decoded.date is None
-    assert decoded.creator is None
-    assert decoded.subject_place is None
-
-
 def test_none_date_creator_subject_place_omitted_from_wire() -> None:
     article = _article(date=None, creator=None, subject_place=None)
     text = readme.encode(article, 1, _CHANGE)
@@ -311,16 +285,6 @@ def test_media_caption_round_trips() -> None:
     assert decoded.media[0].caption == "Seite A — Bericht"
     assert decoded.media[1].caption is None
     assert decoded == article
-
-
-def test_absent_media_caption_decodes_to_none() -> None:
-    # A media entry with no caption key decodes to caption=None (old READMEs have no caption keys).
-    text = (
-        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"
-        "media:\n- filename: a.jpg\n  content_hash: abc\n---\nbody"
-    )
-    decoded, _, _ = readme.decode("x", text)
-    assert decoded.media[0].caption is None
 
 
 def test_uncaptioned_media_omits_caption_key_from_wire() -> None:

@@ -12,6 +12,7 @@ Pure request-handling against a local FS store (load + resolve + visible) — no
 import io
 from collections.abc import Callable
 from dataclasses import dataclass
+from html.parser import HTMLParser
 
 import pytest
 from tests.app.web._asserts import assert_denied
@@ -31,6 +32,7 @@ DRAFT = new_ulid()
 MARKUP = new_ulid()
 
 _STANDORT = "Magazin 3, Regal 7"
+_CUSTOM_KEY = "Bearbeitung"
 _CUSTOM_VALUE = "Restaurierung 1998"
 
 
@@ -87,7 +89,7 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
             creator="K. Meyer",
             subject_place="Harz",
             physical_location=_STANDORT,
-            custom=(("Bearbeitung", _CUSTOM_VALUE),),
+            custom=((_CUSTOM_KEY, _CUSTOM_VALUE),),
             media=(
                 MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
                 MediaRef(second.filename, second.content_hash, caption="Gruppenbild"),
@@ -166,20 +168,33 @@ def test_archivist_sees_archivist_only_field_values(corpus: _DetailArchive) -> N
     assert "Standort" in body
 
 
+def _texts(viewer: Viewer, ulid: str) -> set[str]:
+    """The page's visible text nodes, whitespace-normalized."""
+    parser = _TextNodes()
+    parser.feed(_body(viewer, ulid))
+    return parser.texts
+
+
+class _TextNodes(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.texts: set[str] = set()
+
+    def handle_data(self, data: str) -> None:
+        if text := " ".join(data.split()):
+            self.texts.add(text)
+
+
 def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     corpus: _DetailArchive,
 ) -> None:
-    # guards against a NEW archivist-only field silently reaching members: the two renders must
-    # differ ONLY by the archivist-only values + the archivist chrome (the tools).
-    member = _body(Member(groups=()), corpus.pub)
-    archivist = _body(Archivist(), corpus.pub)
-    # both carry the shared reading structure
-    for shared in ("Sommerfahrt 1962", "1962-07", "F12", "K. Meyer", "Erste Zeile."):
-        assert shared in member
-        assert shared in archivist
-    # the archivist-only VALUES appear only for the archivist
-    assert _STANDORT in archivist and _STANDORT not in member
-    assert _CUSTOM_VALUE in archivist and _CUSTOM_VALUE not in member
+    """Beyond the archivist's tools, which a record without archivist-only values shows too, the
+    two renders differ only by the floored fields: nothing else is gated in the template."""
+    member = _texts(Member(groups=()), corpus.pub)
+    archivist = _texts(Archivist(), corpus.pub)
+    tools = _texts(Archivist(), corpus.markup) - _texts(Member(groups=()), corpus.markup)
+    assert member <= archivist
+    assert archivist - member - tools == {"Standort", _STANDORT, _CUSTOM_KEY, _CUSTOM_VALUE}
 
 
 # --- draft visibility (archivist-only, §9) ----------------------------------------

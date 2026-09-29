@@ -4,24 +4,13 @@ from datetime import UTC, datetime
 
 import pytest
 
-from bundesarchiv.domain.identity import create_article, is_valid_ulid, new_ulid, slugify
+from bundesarchiv.domain.identity import create_article, is_valid_ulid, slugify
 from bundesarchiv.domain.models import Lifecycle
-
-
-def test_new_ulid_is_a_valid_unique_26_char_ulid() -> None:
-    a, b = new_ulid(), new_ulid()
-    assert len(a) == 26
-    assert is_valid_ulid(a)
-    assert a != b  # minted fresh each call
 
 
 @pytest.mark.parametrize("value", ["", "not-a-ulid", "01J0", "z" * 26, "01KW2SAZ9BAFT2PABHSGPR2KJ"])
 def test_is_valid_ulid_rejects_malformed(value: str) -> None:
     assert is_valid_ulid(value) is False
-
-
-def test_is_valid_ulid_accepts_a_minted_one() -> None:
-    assert is_valid_ulid(new_ulid()) is True
 
 
 def test_is_valid_ulid_is_total_on_non_str() -> None:
