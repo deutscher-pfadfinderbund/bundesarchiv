@@ -25,6 +25,8 @@ single source of what each runs.
 log (`mise run gate > gate.log 2>&1; echo "exit $?" >> gate.log`) and wait on the log with a
 background `until grep -q '^exit ' gate.log; do sleep 20; done` loop; foreground `sleep` is
 blocked.
+The background task itself always reports exit 0 (the trailing `echo` succeeds); the real result
+is the `exit N` line in the log.
 
 In an isolated worktree, compound shell commands that contain git (a heredoc commit message,
 `cmd; git …`) are refused. Write the message to a file and commit with `git commit -F <file>`.

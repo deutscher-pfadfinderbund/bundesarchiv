@@ -9,7 +9,7 @@ description = "Fast commit check (no Postgres)"
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
-  "uv run pyrefly check src tests",
+  "uv run pyrefly check src tests --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run pytest -m \"not requires_pg\"",
 ]
@@ -20,7 +20,7 @@ depends = ["pg:wait"]
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
-  "uv run pyrefly check src tests",
+  "uv run pyrefly check src tests --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run mypy",
   "uv run pytest",

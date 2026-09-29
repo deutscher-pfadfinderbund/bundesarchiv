@@ -60,6 +60,30 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.requires_pg)
 
 
+_DESELECTED_PG = pytest.StashKey[int]()
+
+
+def pytest_deselected(items: list[pytest.Item]) -> None:
+    if items:
+        stash = items[0].config.stash
+        stash[_DESELECTED_PG] = stash.get(_DESELECTED_PG, 0) + sum(map(_runs_under_test_db, items))
+
+
+def _runs_under_test_db(item: pytest.Item) -> bool:
+    return item.get_closest_marker("requires_pg") is not None and not any(
+        item.get_closest_marker(name) for name in ("e2e", "gallery")
+    )
+
+
+def pytest_terminal_summary(
+    terminalreporter: pytest.TerminalReporter, config: pytest.Config
+) -> None:
+    if count := config.stash.get(_DESELECTED_PG, 0):
+        terminalreporter.write_line(
+            f"{count} Postgres-backed tests not run: mise run test:db runs them"
+        )
+
+
 @pytest.fixture(scope="session")
 def _pg_guard() -> None:
     """Fail (never skip) with an actionable hint when Postgres is unreachable.
