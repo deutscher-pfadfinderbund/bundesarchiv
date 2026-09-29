@@ -71,6 +71,8 @@ Consequences:
 - ADR 0018's **guest-password path becomes capability links**: the link's
   token mints the Viewer cookie directly (revocation = revoke token) instead
   of a shared password prompt. Amend the ADR.
+  (Superseded 2026-09-29 (owner): the Viewer cookie was removed; capability links
+  choose their session mechanism when built — issue #58.)
 - Promote Keycloak group mapping from "unused for now" (ADR 0018) to
   **required soon** — today OIDC members get `groups=()` and could never see
   GROUPS-tier articles.
@@ -608,6 +610,8 @@ Consequences:
 - ADR 0018 kept the signed cookie, but on its own merits (no parallel identity
   system, nothing to store or clean up) — the "Postgres is disposable" reason it
   gave is struck.
+  (Superseded 2026-09-29 (owner): the Viewer cookie was removed; capability links
+  choose their session mechanism when built — issue #58.)
 - Any future admin table (audit trail, capability tokens) is allowed to live in
   Postgres and needs a backup story of its own; it does not have to be
   reconstructible from the files.
