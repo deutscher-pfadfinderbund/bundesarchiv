@@ -2,10 +2,11 @@
 
 **Status.** Built 2026-08-30: OIDC login that minted one signed Viewer cookie.
 Reworked 2026-09-26 (owner): an OIDC login keeps Keycloak's tokens in the
-browser and the server refreshes them; built 2026-09-26. The second
-login path is **capability links** (designed, deferred); they supersede the
-app-local guest passwords this ADR first specified (owner, 2026-08). The file
-name keeps the old title for link stability.
+browser and the server refreshes them; built 2026-09-26. The signed Viewer
+cookie was removed 2026-09-29 (owner). The second login path is **capability
+links** (deferred, issue #58); they supersede the app-local guest passwords
+this ADR first specified (owner, 2026-08) and choose their session mechanism
+when built. The file name keeps the old title for link stability.
 
 ## Context
 
@@ -48,8 +49,7 @@ realm** (authorization-code flow, confidential client `bundesarchiv`,
 - **A login lasts 30 days without use**, for Members and Archivists alike
   (owner, 2026-09-26). The limit is the realm's offline session idle (30 days,
   no maximum, on 2026-09-26), not a cookie lifetime of ours.
-- Capability links (deferred) keep the signed Viewer cookie, keyed by
-  `BUNDESARCHIV_VIEWER_SIGNING_KEY`. So does the transient `state`/`nonce`
+- `BUNDESARCHIV_VIEWER_SIGNING_KEY` signs the transient `state`/`nonce`
   cookie across the login redirect.
 
 Why the server refreshes and not the browser:
@@ -199,8 +199,8 @@ change.
 - **mozilla-django-oidc / django-allauth**: require `contrib.auth` and
   SessionMiddleware, a parallel identity system this app does not have.
 - **oauth2-proxy in front of the app**: authorizes on trusted-header contracts
-  (a misconfiguration foot-gun) and mixes poorly with the link-minted cookie
-  path.
+  (a misconfiguration foot-gun) and would have to let capability links past
+  it.
 - **Guest accounts inside Keycloak**: brute-force lockout locks out a whole
   group, and a cross-site auto-login link cannot carry a password safely.
 - **Sessions in Postgres**: a second identity system alongside `Viewer`. Not an
@@ -208,7 +208,8 @@ change.
 
 ## Deferred (deliberately, with the door open)
 
-Capability links (an HMAC-signed short-expiry link that mints the Viewer
-cookie, per the 2026-08 access-model ruling); kiosk mode; per-item links; a
+Capability links (issue #58: an HMAC-signed short-expiry link that lands the
+reader in content with no prompt, per the 2026-08 access-model ruling; the
+session mechanism is chosen when built); kiosk mode; per-item links; a
 true internet-public tier for curated exhibitions (the dormant `PUBLIC`
 audience rung stays reserved for it).
