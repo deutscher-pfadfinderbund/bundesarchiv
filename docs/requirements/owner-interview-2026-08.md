@@ -808,6 +808,10 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   forms go, what is written, what is denied, which data reaches the page). Copy and look are
   judged by the owner on the gallery and the live pages. The earlier rule that "verbatim German UI
   strings are the user contract" was an agent's, not the owner's, and is withdrawn.
+
+## Ruling of 2026-09-30 (the list, continued)
+
+- The "Spalten …" panel's submit reads **"Fertig"**.
 - **Column chooser ("Spalten …"):** Datierung, Typ, Digital, Signatur and Bestand for now; Urheber,
   Ort and Standort later.
 - **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
