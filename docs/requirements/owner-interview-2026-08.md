@@ -798,8 +798,9 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 - **Order:** the list first, the new start page in its own wave after it; the card view waits for
   the owner's review of its proposal.
 - **Preview pane ("Vorschau"):** an extra, shown only where there is room next to the list — never
-  a column that squeezes the list. Its design comes from mocks first; until then the list does not
-  change it.
+  a column that squeezes the list. Its design comes from mocks first. Paused on 2026-09-30: the list
+  shows no "Vorschau" control (no toolbar button, no row link); the existing pane stays reachable
+  only through its address. The mocks are shelved on branch `shelf/vorschau`.
 - **Column chooser ("Spalten …"):** Datierung, Typ, Digital, Signatur and Bestand for now; Urheber,
   Ort and Standort later.
 - **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
