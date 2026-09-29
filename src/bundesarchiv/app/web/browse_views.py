@@ -21,7 +21,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from django.http import HttpRequest, HttpResponse
+from django.conf import settings
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 from django.urls import reverse
@@ -102,6 +103,31 @@ def workbench(request: HttpRequest) -> HttpResponse:
         context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render_screen(request, "workbench/workbench.html", context)
+
+
+def choose_columns(request: HttpRequest) -> HttpResponseBase:
+    """``POST /spalten`` — the "Spalten …" choice, kept in a cookie for whoever made it (ruling
+    2026-09-29), then back to the SAME list (PRG), which works without JS. The way back is always the
+    workbench path with the posted query after it, so no posted value can point it off the site;
+    the cookie holds registry keys only (``ledger.cookie_value``). Any other method is the plain
+    404."""
+    if request.method != "POST":
+        return _not_found()
+    # the fixed path is the guard: whatever was posted can only ever be this list's query
+    back = request.POST.get("zurueck", "")
+    response = HttpResponseRedirect(
+        f"{reverse('workbench')}?{back}" if back else reverse("workbench")
+    )
+    response.set_cookie(
+        ledger.COOKIE,
+        ledger.cookie_value(request.POST.getlist("spalte")),
+        max_age=ledger.COOKIE_MAX_AGE,
+        httponly=True,
+        # https-only wherever the CSRF cookie is: dev's plain http cannot carry a Secure cookie
+        secure=settings.CSRF_COOKIE_SECURE,
+        samesite="Lax",
+    )
+    return response
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,7 +330,7 @@ def _results_context(
         "clear_filters_query": browse.clear_filters_query(params),
         "ledger": ledger.build(
             page.hits,
-            columns=ledger.DEFAULT_COLUMNS,
+            columns=ledger.chosen(request.COOKIES.get(ledger.COOKIE)),
             parsed=parsed,
             params=params,
             auswahl=auswahl,
@@ -313,6 +339,8 @@ def _results_context(
             bestand=bestand,
         ),
         "pager": _pager(parsed, page, params, auswahl) if total else None,
+        # "Spalten …" returns to this very list, pane and selection included
+        "spalten_zurueck": request.GET.urlencode(),
         "total": vocab.count(total),
         # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
         # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create

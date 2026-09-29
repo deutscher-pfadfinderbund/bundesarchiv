@@ -58,6 +58,27 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     assert "schlagwort=sommer" in page.url
 
 
+def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
+    no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # "Spalten …" (ruling 2026-09-29): without JS, a native popover and a POST that keeps the choice
+    # in a cookie and redirects back to the SAME list (PRG) — query, pane and selection intact — so
+    # the next visit still shows it. The address never carries it.
+    page = no_js_archivist_page
+    query = f"schlagwort=sommer&sortierung=-datierung&auswahl={e2e_corpus.published_ulid}"
+    page.goto(f"{live_workbench}/?{query}")
+    page.get_by_role("button", name="Spalten …").click()
+    panel = page.locator("#spalten")
+    panel.get_by_role("checkbox", name="Bestand").check()
+    panel.get_by_role("checkbox", name="Signatur").uncheck()
+    panel.locator("button[type=submit]").click()
+    page.wait_for_url(lambda url: parse_qs(urlparse(url).query) == parse_qs(query))
+    expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
+    expect(page.locator(".ledger th.signatur")).to_have_count(0)
+    page.goto(live_workbench + "/")
+    expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
+
+
 #: Counts htmx's errors AND every request htmx starts. The REQUEST counter is what makes the
 #: assertion an assertion rather than a sleep: "not attached here" means htmx started nothing at all.
 _COUNT_HTMX_JS = """() => {
@@ -187,6 +208,8 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
         + (el.className && typeof el.className === 'string'
             ? '.' + el.className.trim().split(/\\s+/).join('.') : '')
         + (el.matches('[role=toolbar]') ? '[toolbar]' : ''));
+    const target = (el) => (el.matches('input[type=checkbox], input[type=radio]')
+        && el.closest('label')) || el;
     return rows.map((row) => ({
         name: name(row),
         knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
@@ -225,8 +248,10 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
                     // text link, deliberately not a chip" (owner, rail round 2). Two named
                     // selectors, not a category — anything else IS compared.
                     text: el.matches('.wordmark, .filterset > a'),
-                    height: el.offsetHeight,
-                    width: el.offsetWidth,
+                    // a checkbox or radio inside its <label> is hit anywhere on the label, so the
+                    // label is its target (WCAG 2.5.8); the native box alone stays 13px
+                    height: target(el).offsetHeight,
+                    width: target(el).offsetWidth,
                     // FACE and WEIGHT are separate, because their exemptions are (see above).
                     face: [s.fontSize, s.fontFamily, s.textTransform, s.letterSpacing].join('|'),
                     weight: s.fontWeight,
@@ -321,8 +346,8 @@ def test_control_rows_compute_one_height_source(
     # PUBLISHED record carries media, so the media register's icon toolbar — the form wave's new
     # control row — was composed on a screen this walk never visited (G.21 applied to page coverage).
     #
-    # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, each
-    # ledger row's action toolbar, the dropped overlay panels' entries, the edit form's action row
+    # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, the
+    # list's tool row, the dropped overlay panels' entries, the edit form's action row
     # (Speichern, the lifecycle action and "Mehr …" must
     # compute one height) and the media register's row toolbars. Each screen NAMES the row prefixes it
     # must compose, so a silent no-find can never pass as a green walk.
@@ -891,7 +916,8 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     public_page.goto(live_workbench + "/")
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
-    expect(public_page.locator(".menu-button")).to_have_count(0)
+    expect(public_page.get_by_role("button", name="+ Neu …")).to_have_count(0)
+    expect(public_page.locator('input[name="auswahl"]')).to_have_count(0)
 
 
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:

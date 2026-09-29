@@ -835,6 +835,27 @@
   .toolpanel > * + * {
     margin-block-start: var(--space-5);
   }
+  /* a check list (the ledger's "Spalten …") is as wide as its longest entry */
+  .toolpanel:has(> ul) {
+    inline-size: auto;
+    min-inline-size: 12rem; /* the panel's reading width — one structural size, no token fits */
+  }
+  .toolpanel > ul {
+    padding: 0;
+    list-style: none;
+  }
+  /* an entry is the panel's hit height (its checkbox consumes the panel's --control-height) in the
+     panel entries' type, like a menu entry */
+  .toolpanel > ul label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font: var(--type-meta);
+  }
+  /* the checkbox's UA margin would stand the entry taller than the panel's other controls (C8) */
+  .toolpanel > ul label > input {
+    margin-block: 0;
+  }
 
   /* ---- filter chip: one ACTIVE filter on the rail, a square chip in a control edge (never an
      inversion — register row 3). HEIGHT is the rail's knob (law C8); the rail sets it to the

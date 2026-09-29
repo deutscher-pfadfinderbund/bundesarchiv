@@ -1,0 +1,17 @@
+{% comment %}
+The list's tool row over the column heads (a2 rounds 2 and 11): at rest only the view tool
+"Spalten …" at the end edge. Its panel is its own form: a POST that keeps the choice in a cookie and
+returns to this very list (browse_views.choose_columns), so it works without JS. The row stands
+outside the bulk form, because forms cannot nest.
+Params: choices — ledger.Ledger.choices; zurueck — this list's query.
+{% endcomment %}
+<div role="toolbar" aria-label="Werkzeuge">
+  <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>
+  <form class="toolpanel" id="spalten" popover method="post" action="{% url 'spalten' %}">
+    <ul>
+      {% for choice in choices %}<li><label><input type="checkbox" name="spalte" value="{{ choice.key }}"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
+    </ul>
+    <button class="primary" type="submit">Fertig</button>
+    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ zurueck }}">
+  </form>
+</div>

@@ -121,8 +121,8 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
-#: header, hence one overlay (the "+ Neu …" create menu) at minimum; the filtered workbench adds
-#: one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article
+#: header, hence one overlay (the "+ Neu …" create menu) at minimum; a list with hits adds its
+#: "Spalten …" panel, the filtered workbench one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article
 #: page its split button's menu (a draft's also its Veröffentlichen confirmation).
 SCREENS: tuple[Screen, ...] = (
     Screen(
@@ -140,8 +140,8 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _at("/"),
         "workbench",
-        overlays=1,
-        control_rows=("header",),
+        overlays=2,
+        control_rows=("header", "div[toolbar]"),
     ),
     Screen(
         "workbench-filtered",
@@ -149,7 +149,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _at("/?schlagwort=sommer"),
         "workbench",
-        overlays=2,
+        overlays=3,
         control_rows=("header", "nav.filterrail"),
     ),
     Screen(
@@ -158,8 +158,17 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _at("/?schlagwort=sommer&medienart=Foto(s)"),
         "workbench",
-        overlays=4,
+        overlays=5,
         control_rows=("header", "nav.filterrail"),
+    ),
+    Screen(
+        "workbench-typ",
+        "workbench, a type filter set: the Typ column steps back (a2 round 11)",
+        True,
+        _at("/?dokumenttyp=Zeitschrift"),
+        "workbench",
+        overlays=3,
+        control_rows=("header", "nav.filterrail", "div[toolbar]"),
     ),
     Screen(
         "workbench-pane",
@@ -167,8 +176,8 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/?artikel={c.published_ulid}"),
         "workbench",
-        overlays=1,
-        control_rows=("header",),
+        overlays=2,
+        control_rows=("header", "div[toolbar]"),
     ),
     Screen(
         "workbench-bulk-url",
@@ -176,10 +185,17 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/?auswahl={c.published_ulid}&auswahl={c.second_ulid}"),
         "workbench",
-        overlays=1,
+        overlays=2,
         control_rows=("header",),
     ),
-    Screen("workbench-public", "workbench as a public visitor", False, _at("/"), "workbench"),
+    Screen(
+        "workbench-public",
+        "workbench as a public visitor",
+        False,
+        _at("/"),
+        "workbench",
+        overlays=1,
+    ),
     Screen(
         "create-form",
         "the create step",
@@ -295,7 +311,7 @@ SCREENS: tuple[Screen, ...] = (
 #: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
 #: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
 #: screens share one route.
-SCREEN_COUNT = 20
+SCREEN_COUNT = 21
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:

@@ -310,6 +310,10 @@
     grid-column: main;
     min-width: 0;
   }
+  /* the list's tool row: its view tool "Spalten …" at the end edge (a2 round 11) */
+  .frame main > [role="toolbar"] {
+    justify-content: flex-end;
+  }
   /* HTMX in-flight: a static opacity dim, no motion */
   #results.htmx-request {
     opacity: 0.6;

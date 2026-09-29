@@ -70,7 +70,7 @@ def test_no_screen_names_a_route_the_urlconf_lacks() -> None:
 
 def test_the_inventory_has_not_shrunk() -> None:
     # The count pin. The route join above cannot see a shrink, because several screens share one route
-    # (seven on `workbench`, four on `artikel-detail`, two on `artikel-bearbeiten`) — so deleting one
+    # (eight on `workbench`, four on `artikel-detail`, two on `artikel-bearbeiten`) — so deleting one
     # of them leaves the join green while four walkers quietly stop covering it.
     assert len(SCREENS) == SCREEN_COUNT, (
         f"the inventory holds {len(SCREENS)} screens, pinned at {SCREEN_COUNT}. Adding one? Raise the"

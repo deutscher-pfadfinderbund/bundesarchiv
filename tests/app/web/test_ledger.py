@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
+from itertools import combinations
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -107,3 +108,35 @@ def test_a_sortable_head_links_to_its_next_sort_state(
         [next_sortierung] if next_sortierung else None
     )
     assert head.sort == aria_sort
+
+
+# --- the chosen columns, kept in a cookie (ruling 2026-09-29) ---------------------------
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        tuple(c.key for c in picked)
+        for n in range(len(ledger.COLUMNS) + 1)
+        for picked in combinations(ledger.COLUMNS, n)
+    ],
+)
+def test_every_choice_of_columns_round_trips_through_the_cookie(keys: tuple[str, ...]) -> None:
+    assert [c.key for c in ledger.chosen(ledger.cookie_value(keys))] == list(keys)
+
+
+def test_the_cookie_holds_only_known_columns() -> None:
+    # the delimiter inside one posted key, the empty-choice token, unicode, percent, whitespace
+    posted = ["datierung", "typ.bestand", ledger.cookie_value(()), "Bestand", "digitäl", "%2E"]
+    assert ledger.cookie_value([*posted, " signatur", "signatur "]) == ledger.cookie_value(
+        ["datierung"]
+    )
+
+
+@pytest.mark.parametrize("raw", [None, "", "garbage", ".", "..", "ä", "%2E", " datierung "])
+def test_an_unknown_empty_or_garbage_cookie_falls_back_to_the_default(raw: str | None) -> None:
+    assert ledger.chosen(raw) == ledger.DEFAULT_COLUMNS
+
+
+def test_a_cookie_with_one_unknown_column_keeps_the_known_ones() -> None:
+    assert [c.key for c in ledger.chosen("bestand.gone")] == ["bestand"]

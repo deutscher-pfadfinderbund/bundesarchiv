@@ -11,7 +11,7 @@ viewer-scoped by ``search``; the archivist's chrome (the Entwurf mark, Bearbeite
 is a presentation gate on ``is_archivist``.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from django.urls import reverse
@@ -47,6 +47,29 @@ COLUMNS: tuple[Column, ...] = (
 
 #: The columns a ledger shows until its viewer chooses (the a2 mock's set).
 DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "bestand")
+
+#: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
+#: URL (ruling 2026-09-29). It holds registry keys only, joined by ``_SEP``; ``_NONE`` is the choice
+#: of no column at all, which an empty value could not tell apart from no choice.
+COOKIE = "spalten"
+COOKIE_MAX_AGE = 365 * 24 * 60 * 60
+_SEP = "."
+_NONE = "-"
+
+
+def cookie_value(keys: Iterable[str]) -> str:
+    """The cookie value for the posted column keys: the known ones, in registry order."""
+    wanted = frozenset(keys)
+    return _SEP.join(c.key for c in COLUMNS if c.key in wanted) or _NONE
+
+
+def chosen(raw: str | None) -> tuple[Column, ...]:
+    """The columns a cookie value chose, in registry order. An unknown key is dropped; a value
+    naming no known column (absent, empty, garbage) is the default set, never an error."""
+    if raw == _NONE:
+        return ()
+    keys = frozenset((raw or "").split(_SEP))
+    return tuple(c for c in COLUMNS if c.key in keys) or DEFAULT_COLUMNS
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,11 +109,22 @@ class Row:
 
 
 @dataclass(frozen=True, slots=True)
+class Choice:
+    """One entry of the "Spalten …" check list."""
+
+    key: str
+    label: str
+    chosen: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Ledger:
-    """The result table: the heads (Titel first) and one row per hit, cells in head order."""
+    """The result table: the heads (Titel first), one row per hit with cells in head order, and
+    the column choices the "Spalten …" panel offers."""
 
     heads: tuple[Head, ...]
     rows: tuple[Row, ...]
+    choices: tuple[Choice, ...]
 
 
 def build(
@@ -117,7 +151,7 @@ def build(
     # Crockford base32, so the one per-row pair needs no encoding.
     state = browse.pane_query_prefix(params, auswahl)
     prefix = f"{state}&" if state else ""
-    chosen = frozenset(auswahl) if is_archivist else frozenset()
+    selection = frozenset(auswahl) if is_archivist else frozenset()
     mark_drafts = is_archivist and not parsed.filters.drafts_only
     rows = tuple(
         Row(
@@ -130,12 +164,13 @@ def build(
             ),
             vorschau_href=f"?{prefix}{PANE_PARAM}={hit.ulid}",
             selected=hit.ulid == selected_ulid,
-            gewaehlt=hit.ulid in chosen,
+            gewaehlt=hit.ulid in selection,
             cells=tuple(_cell(c, hit, bestand, params) for c in shown),
         )
         for hit in hits
     )
-    return Ledger(heads=heads, rows=rows)
+    choices = tuple(Choice(c.key, c.label, c in columns) for c in COLUMNS)
+    return Ledger(heads=heads, rows=rows, choices=choices)
 
 
 def _filtered(column: Column, params: Mapping[str, str]) -> bool:

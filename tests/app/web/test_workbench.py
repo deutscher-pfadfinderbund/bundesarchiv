@@ -23,7 +23,7 @@ import pytest
 from django.http import HttpResponse
 from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
 
-from bundesarchiv.app.web import browse
+from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
@@ -589,6 +589,32 @@ def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) ->
     body = _get(Archivist()).content.decode()
     assert f'<data value="{total}">{total}</data> Artikel</span></p>' in body
     assert 'aria-label="Seiten"' not in body
+
+
+def _heads(body: str) -> list[str]:
+    return re.findall(r'<th scope="col" class="([a-z]+)"', body)
+
+
+def test_the_ledger_prints_the_columns_its_viewers_cookie_chose(indexed_corpus: Corpus) -> None:
+    # The "Spalten …" choice is a per-person cookie (ruling 2026-09-29): it reaches the ledger, and
+    # the Bestand column names the record's own Bestand — for a member too, whose rows it scopes.
+    client = client_as(Member(groups=()))
+    client.cookies[ledger.COOKIE] = ledger.cookie_value(["bestand", "datierung"])
+    body = client.get("/").content.decode()
+    assert _heads(body) == ["titel", "datierung", "bestand"]
+    assert '<td class="bestand">Fotografien</td>' in body
+    assert '<td class="bestand">Aktenbestand</td>' in body
+
+
+@pytest.mark.parametrize("raw", ["", "gibt.es.nicht", "\u00e4", ledger.cookie_value(())])
+def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
+    indexed_corpus: Corpus, raw: str
+) -> None:
+    client = client_as(Public())
+    client.cookies[ledger.COOKIE] = raw
+    body = client.get("/").content.decode()
+    expected = [] if raw == ledger.cookie_value(()) else [c.key for c in ledger.DEFAULT_COLUMNS]
+    assert _heads(body) == ["titel", *expected]
 
 
 # --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----

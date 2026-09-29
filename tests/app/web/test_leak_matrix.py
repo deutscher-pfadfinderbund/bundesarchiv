@@ -189,6 +189,10 @@ def _p_root(_c: _MatrixCorpus) -> str:
     return "/"
 
 
+def _p_spalten(_c: _MatrixCorpus) -> str:
+    return "/spalten"
+
+
 def _p_login(_c: _MatrixCorpus) -> str:
     return "/login"
 
@@ -276,6 +280,15 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=OK,
         post_arch=OK,
         stub_search=True,
+    ),
+    # The "Spalten …" choice: a viewer's own preference, kept in a cookie — every tier may make it
+    # (302 back to the list), and GET is the plain 404. It reads and writes no record.
+    "spalten": Route(
+        build_path=_p_spalten,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,
+        post_nonarch=REDIRECT,
+        post_arch=REDIRECT,
     ),
     # The login surface (ADR 0018) with NO realm configured — the deploy-misconfiguration case, which
     # is what these settings are. ``/login`` and the callback fall closed to the shared 404 (no

@@ -72,6 +72,12 @@ def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> Non
     page.click(".menu-button")
 
 
+def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the list's "Spalten …" check list open (ruling 2026-09-29: five columns, kept in a cookie)
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.get_by_role("button", name="Spalten …").click()
+
+
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
     # the collapsed cold state is its own gallery state (workbench-bulk-cold)
@@ -169,6 +175,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench, header '+ Neu …' create menu open (Mock B popover)",
         True,
         _reach_header_neu_open,
+    ),
+    GalleryState(
+        "workbench-spalten-open",
+        "workbench, the 'Spalten …' check list open at the tool row's end edge",
+        True,
+        _reach_spalten_open,
     ),
     GalleryState(
         "workbench-bulk-cold",

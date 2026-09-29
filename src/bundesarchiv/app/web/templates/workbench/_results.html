@@ -22,6 +22,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter / "
       hx-include="[role=search] input" hx-push-url="true"
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% if page.hits %}
+  {% include "workbench/_werkzeuge.html" with choices=ledger.choices zurueck=spalten_zurueck %}
   {% if is_archivist %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
         hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
