@@ -1,0 +1,32 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "src/bundesarchiv/app/web/static/**",
+      "!src/bundesarchiv/app/web/static/**/*.min.js",
+      ".claude/settings.json",
+      "biome.jsonc"
+    ]
+  },
+  // ruff's line length; two-space indent as the files were written
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      // Biome parses every .js as a module; the static scripts load as classic <script> tags.
+      "suspicious": { "noRedundantUseStrict": "off", "noVar": "error" },
+      "style": {
+        "useBlockStatements": "error",
+        "useExplicitLengthCheck": "error",
+        "useGlobalThis": "error",
+        "useNumberNamespace": "error"
+      },
+      "nursery": {
+        "useBaseline": { "level": "error", "options": { "available": "newly" } }
+      }
+    }
+  }
+}

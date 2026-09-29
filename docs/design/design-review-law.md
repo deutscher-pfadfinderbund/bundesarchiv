@@ -285,15 +285,21 @@ pinned, availability tier follows consequence of failure. The test is
 **Availability tiers:**
 - **Functional** (absence breaks the task): **Baseline widely available**
   only. Today that includes `@layer`, `:has()`, container (size) queries,
-  `<dialog>`, `<details>`, `light-dark()`, `color-mix()`/oklch, nesting,
+  `<dialog>`, `<details>`, `light-dark()` (newly available until it turns
+  widely available, about 2026-11), `color-mix()`/oklch, nesting,
   `:user-invalid`.
+  `display: contents` is allowed for layout (owner, 2026-09-29): the layout
+  works in every engine; its "limited" status comes only from old a11y bugs.
 - **Non-functional / progressive enhancement** (absence degrades
   gracefully): **Baseline newly available** allowed. View transitions
   (degrades to an instant swap),
   `@starting-style` + `transition-behavior: allow-discrete`, `popover`
   (as enhancement over a functional fallback until it turns Baseline widely available in
   October 2026; the monochrome menus rely on it from then), style queries,
-  `field-sizing`, `text-wrap: balance/pretty`.
+  `text-wrap: balance/pretty`.
+- **Limited-availability enhancement**: allowed when an `@supports` fallback
+  keeps the task working (owner, 2026-09-29) — `field-sizing` (without it the
+  field keeps its fixed height and scrolls).
 - **Pre-Baseline decoration**: allowed ONLY where the un-supported
   rendering is automatically acceptable with zero fallback code —
   the `corner-shape` precedent (older browsers draw rounded corners,

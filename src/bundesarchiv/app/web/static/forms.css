@@ -58,6 +58,7 @@
     align-items: center;
     gap: var(--space-3);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the earlier rule sets only --control-height */
   .column footer .actions {
     margin-left: auto;
   }

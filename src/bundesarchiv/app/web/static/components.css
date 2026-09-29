@@ -102,6 +102,7 @@
   /* Checkboxes/radios keep their native rendering, but on role ink: a retint must be able to
      reach every visible color. */
   input:is([type="checkbox"], [type="radio"]) {
+    /* biome-ignore lint/nursery/useBaseline: decoration (law F); without it, the browser's default control color */
     accent-color: var(--ink);
   }
   /* Knob: --field-font — the control type, set on an ancestor and inherited, so every STATE rule
@@ -232,6 +233,7 @@
   .pane header > a,
   .abmelden > button,
   .remove,
+  /* biome-ignore lint/style/noDescendingSpecificity: one selector list, one declaration block */
   .chip > a {
     display: inline-flex;
     align-items: center;
@@ -243,19 +245,19 @@
      control keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6).
      Declared in :where() per law C13, so every per-site delta outranks it in this same layer. */
   :where(
-      [role="toolbar"] > :is(a:not(.button), button.link),
-      .pane header > a,
-      .abmelden > button,
-      .chip > a
-    ) {
+    [role="toolbar"] > :is(a:not(.button), button.link),
+    .pane header > a,
+    .abmelden > button,
+    .chip > a
+  ) {
     color: var(--ink-2);
   }
   :is(
-      [role="toolbar"] > :is(a:not(.button), button.link),
-      .pane header > a,
-      .abmelden > button,
-      .chip > a
-    ):hover:not(:disabled) {
+    [role="toolbar"] > :is(a:not(.button), button.link),
+    .pane header > a,
+    .abmelden > button,
+    .chip > a
+  ):hover:not(:disabled) {
     color: var(--ink);
     text-decoration: none;
   }
@@ -348,7 +350,7 @@
     grid-row: 2;
     align-self: end;
   }
-  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .file-row {
       --file-row-thumb: 5.5rem; /* the mock's --space-10 */
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
@@ -379,6 +381,7 @@
   [data-upload-on-choose] .upload button {
     display: none;
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: on the hidden input the sr-only margin is meant to win */
   .upload input[type="file"] {
     margin-inline-start: var(--space-2);
   }
@@ -419,7 +422,9 @@
     /* the glyphs reach past a tight line box: a hair of padding keeps them in */
     padding: 0.06em 0;
     min-height: calc(1lh + 0.12em);
+    /* biome-ignore lint/nursery/useBaseline: decoration (law F); without it, a resize handle */
     resize: none;
+    /* biome-ignore lint/nursery/useBaseline: limited-availability enhancement with an @supports fallback (law F) */
     field-sizing: content;
     font: inherit;
     background: transparent;
@@ -593,7 +598,8 @@
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
-    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    z-index: var(--z-overlay-panel);
     margin: 0;
     /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
     inset-inline-start: 0;
@@ -608,7 +614,8 @@
      position-try — learning G.50.
      `--anchor-probe` is also the e2e hook: the containment walker serves this stylesheet with that
      one condition falsified, so the FALLBACK tier gets its own computed proof. */
-  @supports (anchor-name: --anchor-probe) and (inset-block-start: anchor(end)) and
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
     (justify-self: anchor-center) {
     .facet {
       anchor-name: --dropdown;
@@ -895,7 +902,7 @@
       [datum] minmax(var(--datum-floor), max-content) [typ] minmax(var(--typ-floor), max-content)
       [aktion] max-content;
     display: grid;
-    grid-template-columns: var(--lead, ) var(--cols);
+    grid-template-columns: var(--lead,) var(--cols);
     /* the book's covers: top + bottom rules only — a bound page has no side chrome */
     border-block: var(--line-width) solid var(--rule);
     /* The last-resort scroll box (ledger.html's contract: the page body never scrolls sideways).
@@ -909,6 +916,7 @@
   }
   /* the rowgroup keeps its ARIA role but leaves the box tree, so rows subgrid onto the tracks */
   .ledger [role="rowgroup"] {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   /* only what header AND body rows share; each flavor declares its own block padding below */
@@ -930,6 +938,7 @@
   }
   /* body rows: the toolbar already gives the row its height, so less block padding keeps the
      register compact. Hover carries no fill — the title's underline is the affordance. */
+  /* biome-ignore lint/style/noDescendingSpecificity: sets nothing the adjacent-row rule sets */
   .ledger [role="rowgroup"] [role="row"] {
     padding-block: var(--space-1);
   }
@@ -1069,7 +1078,9 @@
      (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
      ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
      (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
-  @container (max-width: 32rem) { /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the e2e proof); no token names a content minimum */
+  /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the
+     e2e proof) */
+  @container (max-width: 32rem) /* no token names a content minimum */ {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
     }
@@ -1138,6 +1149,7 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: never the ledger header's span */
   .pager > span {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
@@ -1184,6 +1196,7 @@
      regression class — a fixed-position element whose display rule overrode [hidden] and
      intercepted clicks. JS reveals by REMOVING the attribute, so enhancement still works. */
   [hidden] {
+    /* biome-ignore lint/complexity/noImportantStyles: the deliberate @layer override (law F) */
     display: none !important;
   }
 }

@@ -1,0 +1,3 @@
+# Mechanical reformats; GitHub skips these in blame (locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# style(static): format the stylesheets with Biome
+a80c21708eb5b3c35d9b696df8faf4ee16fd08ce

@@ -38,6 +38,7 @@
   /* the filter set is grouped in the DOM because it is the unit an htmx q-swap refreshes
      out-of-band — never because it is a box, hence display: contents */
   .filterrail > .filterset {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   /* the clear-all link ("Alle Filter entfernen", owner 2026-08-07 rail round 2): a quiet text
@@ -78,6 +79,7 @@
     align-items: baseline;
     gap: var(--space-2) var(--space-4);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
   details.bulk a {
     font: var(--type-meta);
   }
@@ -143,6 +145,7 @@
   }
   /* the ✕ close: hit area and ink come from the shared icon-control rule. The one local delta is
      alignment — an icon-only flex item has no text baseline to share with the header. */
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
   .pane header > a {
     align-self: flex-start;
   }
@@ -201,6 +204,7 @@
     background: var(--error);
     color: var(--ground);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the banner is never inside a pane */
   .error-banner p {
     margin: 0;
   }
@@ -393,6 +397,7 @@
     margin: var(--space-6) auto;
     padding: 0 var(--space-4);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the dev stub holds no .column */
   .stub h1 {
     font: var(--type-display);
     margin: 0 0 var(--space-3);
@@ -412,7 +417,7 @@
      switch — pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem
      > 32rem (the sidebar's death only WIDENED the margin). Both sides must share the rem unit or
      a non-default root font size silently breaks the margin. */
-  @media (min-width: 80rem) { /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */
+  @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {
     body.vorschau .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
@@ -461,6 +466,7 @@
   }
   /* the form takes part in submission, not in layout: its sections are the body's stack items */
   .form-sheet > div > form {
+    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
   .form-sheet > div section {
@@ -468,7 +474,7 @@
     flex-direction: column;
     gap: var(--space-4);
   }
-  @media (width >= 80rem) { /* space budget L (design-system.md): the margin takes a side column */
+  @media (width >= 80rem) /* space budget L (design-system.md): the margin takes a side column */ {
     .form-sheet {
       grid-template-columns: minmax(0, 1fr) 18rem; /* the margin column: the mock's --column-min */
       grid-template-areas: "lead meta" "body meta";
@@ -486,9 +492,9 @@
     display: grid;
     --field-grid-min: 18rem; /* the narrowest cell: the mock's --column-min */
     grid-template-columns: repeat(
-      auto-fill,
-      minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
-    );
+        auto-fill,
+        minmax(max(min(100%, var(--field-grid-min)), calc((100% - var(--space-8)) / 2)), 1fr)
+      );
     align-items: start;
     gap: var(--space-6) var(--space-8);
   }
@@ -514,7 +520,7 @@
     grid-area: 2 / 3;
     align-self: center;
   }
-  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .pairs {
       grid-template-columns: minmax(0, 1fr) auto;
     }

@@ -11,100 +11,100 @@
 @layer tokens, elements, components, compositions, modes;
 
 @layer tokens {
+  :root {
+    color-scheme: light dark;
 
-:root {
-  color-scheme: light dark;
-
-  /* Values — light-dark(light, dark). Dark is tuned, not inverted: no pure black or white, and
+    /* Values — light-dark(light, dark). Dark is tuned, not inverted: no pure black or white, and
      the rule is quieter than in light, because bright lines smear on black. */
-  --page-ground: light-dark(#fff, #0b0b0b);
-  --page-ink: light-dark(#000, #f0f0f0);
-  --page-ink-2: light-dark(#595959, #a0a0a0);
-  --page-ink-3: light-dark(#767676, #7c7c7c);
-  --page-rule: light-dark(#dcdcdc, #262626);
-  --page-edge: light-dark(#8f8f8f, #6e6e6e);
-  --page-faint: light-dark(#d0d0d0, #555); /* dark tuned up: --rule would vanish on black */
-  --band-ground: light-dark(#000, #0b0b0b); /* the header: an inverse band on light, page in dark */
-  --band-ink: light-dark(#fff, #f0f0f0);
-  --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
-  --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
-  --error: light-dark(#c4000b, #ff6b61);
-  --page-lift: #262626; /* dark only: the dim ground a button's hover lifts to (light inverts) */
+    --page-ground: light-dark(#fff, #0b0b0b);
+    --page-ink: light-dark(#000, #f0f0f0);
+    --page-ink-2: light-dark(#595959, #a0a0a0);
+    --page-ink-3: light-dark(#767676, #7c7c7c);
+    --page-rule: light-dark(#dcdcdc, #262626);
+    --page-edge: light-dark(#8f8f8f, #6e6e6e);
+    --page-faint: light-dark(#d0d0d0, #555); /* dark tuned up: --rule would vanish on black */
+    /* the header: an inverse band on light, page in dark */
+    --band-ground: light-dark(#000, #0b0b0b);
+    --band-ink: light-dark(#fff, #f0f0f0);
+    --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
+    --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
+    --error: light-dark(#c4000b, #ff6b61);
+    --page-lift: #262626; /* dark only: the dim ground a button's hover lifts to (light inverts) */
 
-  /* Roles — what components consume. A surface (the header band) re-points them for its subtree;
+    /* Roles — what components consume. A surface (the header band) re-points them for its subtree;
      a floating panel points them back to the page. */
-  --ground: var(--page-ground);
-  --ink: var(--page-ink);
-  --ink-2: var(--page-ink-2);
-  --ink-3: var(--page-ink-3);
-  --rule: var(--page-rule);
-  --edge: var(--page-edge);
-  --faint: var(--page-faint);
+    --ground: var(--page-ground);
+    --ink: var(--page-ink);
+    --ink-2: var(--page-ink-2);
+    --ink-3: var(--page-ink-3);
+    --rule: var(--page-rule);
+    --edge: var(--page-edge);
+    --faint: var(--page-faint);
 
-  /* Type roles (system stacks). Usage: `font: var(--type-title);`. A component sets a type ROLE
+    /* Type roles (system stacks). Usage: `font: var(--type-title);`. A component sets a type ROLE
      and nothing else — an ad-hoc font-size/weight is the typography equivalent of a raw hex. */
-  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
-  --type-wordmark: small-caps 600 1.5rem/1.2 var(--font-wordmark);
-  --wordmark-tracking: 0.12em;
-  --type-display: 600 1.35rem/1.2 var(--font-display);
-  --type-title: 600 1.05rem/1.35 var(--font-display);
-  --type-body: 400 0.95rem/1.5 var(--font-body);
-  --type-meta: 400 0.85rem/1.4 var(--font-body);
-  --type-label: 400 0.85rem/1.3 var(--font-body); /* mixed case, no tracking: the meta size, as in DESIGN.md */
-  --type-mono: 400 0.85rem/1.4 var(--font-mono);
-  --type-mono-meta: 400 0.78rem/1.4 var(--font-mono);
-  --type-note: 400 0.8rem/1.3 var(--font-body);
-  /* DESIGN.md Typography: serif marks rank. Title = the page h1 (the article title), Subhead = the
+    --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+    --type-wordmark: small-caps 600 1.5rem / 1.2 var(--font-wordmark);
+    --wordmark-tracking: 0.12em;
+    --type-display: 600 1.35rem / 1.2 var(--font-display);
+    --type-title: 600 1.05rem / 1.35 var(--font-display);
+    --type-body: 400 0.95rem / 1.5 var(--font-body);
+    --type-meta: 400 0.85rem / 1.4 var(--font-body);
+    /* mixed case, no tracking: the meta size, as in DESIGN.md */
+    --type-label: 400 0.85rem / 1.3 var(--font-body);
+    --type-mono: 400 0.85rem / 1.4 var(--font-mono);
+    --type-mono-meta: 400 0.78rem / 1.4 var(--font-mono);
+    --type-note: 400 0.8rem / 1.3 var(--font-body);
+    /* DESIGN.md Typography: serif marks rank. Title = the page h1 (the article title), Subhead = the
      form's sections. Named apart from --type-title, the app's sans title role. */
-  --font-serif: ui-serif, "Iowan Old Style", "New York", Charter, Georgia, serif;
-  --type-page-title: 700 3rem/1.08 var(--font-serif);
-  --type-subhead: 700 1.35rem/1.25 var(--font-serif);
-  --underline-offset: 0.2em;
+    --font-serif: ui-serif, "Iowan Old Style", "New York", Charter, Georgia, serif;
+    --type-page-title: 700 3rem / 1.08 var(--font-serif);
+    --type-subhead: 700 1.35rem / 1.25 var(--font-serif);
+    --underline-offset: 0.2em;
 
-  /* Spacing: 4px-base scale — compact but not cramped (a weekly work tool). */
-  --space-1: 0.25rem; /*  4px */
-  --space-2: 0.5rem; /*  8px */
-  --space-3: 0.75rem; /* 12px */
-  --space-4: 1rem; /* 16px */
-  --space-5: 1.25rem; /* 20px */
-  --space-6: 1.5rem; /* 24px */
-  --space-7: 1.75rem; /* 28px */
-  --space-8: 2rem; /* 32px */
+    /* Spacing: 4px-base scale — compact but not cramped (a weekly work tool). */
+    --space-1: 0.25rem; /*  4px */
+    --space-2: 0.5rem; /*  8px */
+    --space-3: 0.75rem; /* 12px */
+    --space-4: 1rem; /* 16px */
+    --space-5: 1.25rem; /* 20px */
+    --space-6: 1.5rem; /* 24px */
+    --space-7: 1.75rem; /* 28px */
+    --space-8: 2rem; /* 32px */
 
-  /* Named non-spacing dimensions (design-review-law.md C5). Square corners everywhere: there is
+    /* Named non-spacing dimensions (design-review-law.md C5). Square corners everywhere: there is
      no radius token. */
-  --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
+    --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
      the value each [role=toolbar] row sets as its --control-height (law C8) */
-  --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
+    --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
      round 2): the filter-rail chips + their ✕ ONLY; still ≥ the WCAG 2.2 AA 24px floor. It is
      also the VALUE the header and the rail set as their --control-height row knob. */
-  --line-width: 1px; /* every line; a contrast mode may thicken it globally */
-  --focus-width: 3px; /* the focus ring: width and offset */
-  --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
-  --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
-  --gutter: 3rem;
-  --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
+    --line-width: 1px; /* every line; a contrast mode may thicken it globally */
+    --focus-width: 3px; /* the focus ring: width and offset */
+    --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
+    --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
+    --gutter: 3rem;
+    --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
 
-  /* THE STACKING MODEL (C5 one level down), lowest first:
+    /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
        --z-overlay-panel  a dropped overlay panel — above the sticky sheet it may overlap
        --z-header         the page header — above every control row (learning G.36)
        --z-banner         the viewport-fixed failure banner: above everything
      A popover (the menus) sits in the top layer and needs no value. A new layer joins this
      scale. */
-  --z-overlay-panel: 2;
-  --z-header: 5;
-  --z-banner: 10;
-}
-/* S (DESIGN.md): the Title and the gutter step down; they follow the viewport, not a container */
-@media (width < 40rem) {
-  :root {
-    --type-page-title: 700 2rem/1.08 var(--font-serif);
-    --gutter: var(--space-4);
+    --z-overlay-panel: 2;
+    --z-header: 5;
+    --z-banner: 10;
   }
-}
-
+  /* S (DESIGN.md): the Title and the gutter step down; they follow the viewport, not a container */
+  @media (width < 40rem) {
+    :root {
+      --type-page-title: 700 2rem / 1.08 var(--font-serif);
+      --gutter: var(--space-4);
+    }
+  }
 } /* @layer tokens */

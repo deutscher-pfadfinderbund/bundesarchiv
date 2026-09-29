@@ -15,7 +15,7 @@
 // (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
 // blacklist defect. Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
 // separately) handles the dependent-Dokumenttyp swap.
-(function () {
+(() => {
   "use strict";
 
   // Re-init on load AND after any htmx swap: the live search swaps #results (replacing the form +
@@ -31,20 +31,22 @@
   }
 
   function init() {
-    var form = resultsForm();
-    if (!form || form.dataset.bulkBound === "1") return;
+    const form = resultsForm();
+    if (!form || form.dataset.bulkBound === "1") {
+      return;
+    }
     form.dataset.bulkBound = "1";
     wire(form);
   }
 
   function wire(form) {
-    var rowBoxes = function () {
-      return Array.prototype.slice.call(form.querySelectorAll('input[name="auswahl"]'));
-    };
+    const rowBoxes = () => Array.from(form.querySelectorAll('input[name="auswahl"]'));
 
     // 1. Live count + selection-carrying links on every tick/untick.
-    form.addEventListener("change", function (event) {
-      if (event.target.name !== "auswahl") return;
+    form.addEventListener("change", (event) => {
+      if (event.target.name !== "auswahl") {
+        return;
+      }
       updateCount();
       rewriteSelectionLinks();
     });
@@ -62,16 +64,14 @@
     // enhancement may only hide what it accounts for (learning G.25) — counting the boxes alone
     // hid a live cross-page selection and stranded the archivist on page 2.
     function updateCount() {
-      var zahl = form.querySelector("[data-bulk-zahl]");
-      var bulk = form.querySelector("details.bulk");
-      var offPage = bulk ? parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
-      var n =
-        offPage +
-        rowBoxes().filter(function (b) {
-          return b.checked;
-        }).length;
-      zahl.textContent = n > 0 ? n + " ausgewählt" : "";
-      if (bulk) bulk.hidden = n === 0;
+      const zahl = form.querySelector("[data-bulk-zahl]");
+      const bulk = form.querySelector("details.bulk");
+      const offPage = bulk ? Number.parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
+      const n = offPage + rowBoxes().filter((b) => b.checked).length;
+      zahl.textContent = n > 0 ? `${n} ausgewählt` : "";
+      if (bulk) {
+        bulk.hidden = n === 0;
+      }
     }
 
     // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
@@ -80,26 +80,20 @@
     // page's ulids from ?auswahl= (fresh unticks stick), keep the rest (other pages' selections),
     // append the added set. "Auswahl aufheben" is NEVER rewritten — its purpose is clearing.
     function rewriteSelectionLinks() {
-      var boxes = rowBoxes();
-      var pageUlids = boxes.map(function (b) {
-        return b.value;
-      });
-      var checked = boxes
-        .filter(function (b) {
-          return b.checked;
-        })
-        .map(function (b) {
-          return b.value;
-        });
-      var results = form.closest("#results") || document;
-      var pagers = results.querySelectorAll('.pager a[rel="prev"], .pager a[rel="next"]');
-      Array.prototype.forEach.call(pagers, function (link) {
+      const boxes = rowBoxes();
+      const pageUlids = boxes.map((b) => b.value);
+      const checked = boxes.filter((b) => b.checked).map((b) => b.value);
+      const results = form.closest("#results") || document;
+      const pagers = results.querySelectorAll('.pager a[rel="prev"], .pager a[rel="next"]');
+      Array.prototype.forEach.call(pagers, (link) => {
         rewriteAuswahl(link, pageUlids, checked);
       });
       // "Alle auf dieser Seite" re-adds the FULL page set (checked ⊆ page, which the union
       // absorbs), so it keeps meaning "current selection ∪ this page" — never shrunk.
-      var alleLink = form.querySelector("[data-bulk-alle]");
-      if (alleLink) rewriteAuswahl(alleLink, pageUlids, pageUlids);
+      const alleLink = form.querySelector("[data-bulk-alle]");
+      if (alleLink) {
+        rewriteAuswahl(alleLink, pageUlids, pageUlids);
+      }
     }
 
     // Rewrite ONLY the auswahl params of one link, from its own href: every non-auswahl param
@@ -107,15 +101,13 @@
     // server parses both spellings identically), the auswahl list becomes
     // (href's list − this page's ulids) + add.
     function rewriteAuswahl(link, pageUlids, add) {
-      var url = new URL(link.getAttribute("href"), window.location.href);
-      var kept = url.searchParams.getAll("auswahl").filter(function (u) {
-        return pageUlids.indexOf(u) === -1;
-      });
+      const url = new URL(link.getAttribute("href"), globalThis.location.href);
+      const kept = url.searchParams.getAll("auswahl").filter((u) => pageUlids.indexOf(u) === -1);
       url.searchParams.delete("auswahl");
-      kept.concat(add).forEach(function (u) {
+      kept.concat(add).forEach((u) => {
         url.searchParams.append("auswahl", u);
       });
-      link.setAttribute("href", "?" + url.searchParams.toString());
+      link.setAttribute("href", `?${url.searchParams.toString()}`);
     }
 
     // Fold once at wire time too: back/forward navigation restores checkbox state without firing
