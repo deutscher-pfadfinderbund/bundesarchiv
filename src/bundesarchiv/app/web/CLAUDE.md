@@ -2,9 +2,8 @@
 
 Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another
 way. Deny is a plain 404 revealing and changing nothing (`assert_denied` is the test contract).
-Verbatim German UI strings are user contract (`tests/CLAUDE.md`). Every route is enumerated by the
-leak matrix (`tests/app/web/test_leak_matrix.py`) — a new route must join its contract table. UI is
-German, code identifiers English (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly two form
+Every route is enumerated by the leak matrix (`tests/app/web/test_leak_matrix.py`) — a new route
+must join its contract table. UI is German, code identifiers English (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly two form
 sites here (`catalog.py`, `collection_views.py`), both re-displaying the winner; every non-form
 mutation goes through `app.articles.update_article` and matches on its outcome union instead.
 The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and

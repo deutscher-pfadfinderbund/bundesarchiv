@@ -19,12 +19,15 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
   behavior.
 - **Byte-identical response comparisons** — the byte-identical-404 law was
   relaxed (2026-08); see the deny contract below.
-- **Markup minutiae** (CSS classes, glyphs, htmx attributes, copy strings) —
-  the design gate (gallery + e2e) is the instrument for that. Exceptions:
-  verbatim German UI/error strings ARE the user contract — assert those; and a
-  derivation gate that parses a rendered attribute back out to compare against
-  its source of truth (e.g. `data-bulk-wert` vs `bulk.FIELDS`) is the
-  assert-derived-values law at work, not markup pinning.
+- **UI copy and markup** (German strings, CSS classes, glyphs, htmx attributes,
+  element structure) — owner ruling 2026-09-30. Tests assert behaviour: which
+  records a viewer gets, where a link or form goes and with which state, what is
+  written, what is denied, which data values reach the page. Copy and look are
+  the owner's to judge on the gallery and the live pages. A test that fails only
+  because copy or markup changed is deleted or rewritten to the behaviour under
+  it, never updated to the new string. Exception: a derivation gate that parses a
+  rendered attribute back out to compare against its source of truth (e.g.
+  `data-bulk-wert` vs `bulk.FIELDS`) asserts derived values, not markup.
 - **Hand-rolled DB gating** (a connection probe, a `skipif`, a manual
   `requires_pg`) — `tests/conftest.py` derives the marker from each test's
   fixture closure. Mark by hand only for DB use that closure cannot see.

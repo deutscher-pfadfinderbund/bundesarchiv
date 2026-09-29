@@ -801,6 +801,13 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
   a column that squeezes the list. Its design comes from mocks first. Paused on 2026-09-30: the list
   shows no "Vorschau" control (no toolbar button, no row link); the existing pane stays reachable
   only through its address. The mocks are shelved on branch `shelf/vorschau`.
+
+## Ruling of 2026-09-30 (tests)
+
+- **Tests do not pin UI copy or markup.** They assert behaviour (which records, where links and
+  forms go, what is written, what is denied, which data reaches the page). Copy and look are
+  judged by the owner on the gallery and the live pages. The earlier rule that "verbatim German UI
+  strings are the user contract" was an agent's, not the owner's, and is withdrawn.
 - **Column chooser ("Spalten …"):** Datierung, Typ, Digital, Signatur and Bestand for now; Urheber,
   Ort and Standort later.
 - **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
