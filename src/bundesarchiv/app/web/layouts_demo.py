@@ -1,40 +1,25 @@
-"""Dev-only layout demo pages (``/_dev/layouts/<name>/``).
+"""Dev-only layout demo page (``/_dev/layouts/split-narrow/``).
 
 Referenced ONLY from ``dev_urls`` (the same discipline as the component library and the viewer
 switcher): production settings never mount this, so it is unreachable in prod by absence of a code
-path, not by a flag. Each page renders a FULL archivist-workbench layout composed from the REAL
+path, not by a flag. It renders a FULL archivist-workbench layout composed from the REAL
 partials (components/facet_group, components/ledger, workbench/_pane) over static German demo
 context defined here — no store, no index, no viewer; lockstep with the live app by construction.
-The layouts iterate the PAGE FRAME (header + filter rail + ledger + preview pane).
+The layout iterates the PAGE FRAME (header + filter rail + ledger + preview pane).
 
-ONE layout, whitelisted (unknown name → 404, never a path interpolation):
-- ``split-narrow`` — the filter rail spans the top (facet dropdowns + active chips; the sidebar
-                     died with the rail, owner 2026-08-07); when the preview pane is open the
-                     ledger re-densifies by itself (it is a size container).
+``split-narrow``: the filter rail spans the top (facet dropdowns + active chips; the sidebar died
+with the rail, owner 2026-08-07); when the preview pane is open the ledger re-densifies by itself
+(it is a size container).
 
 Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
 (default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
 and returns the ledger to full/no-pane — the layout css owns that, the view does not branch on width.
 
-The layout css is a dev experiment, so it is served by a dev-only whitelisted static route
-(``/_dev/static/layouts.css``), never mounted in prod. Page chrome is English (development-facing);
-the content inside the atoms is German product UI copy.
+Page chrome is English (development-facing); the content inside the atoms is German product UI copy.
 """
 
 from django.http import HttpRequest, HttpResponse
-from django.http.response import HttpResponseBase
 from django.shortcuts import render
-
-from bundesarchiv.app.web.browse_views import _serve_static
-
-#: The layout whitelist: name → human label. An entry here is the ONLY way a layout becomes
-#: routable. Unknown name → 404. One layout after the owner's review (split-rail rejected).
-LAYOUTS: dict[str, str] = {
-    "split-narrow": "Split narrow (ledger sheds columns as its container narrows)",
-}
-
-#: The dev-only layout stylesheet (served by the whitelisted dev static route below).
-LAYOUT_STYLESHEET = "layouts.css"
 
 #: The known demo set plus extra plausible rows so the ledger scrolls. Each dict carries a
 #: ledger_row's params. Two drafts demonstrate the sig/lifecycle decoupling: one WITH a ref_code
@@ -254,21 +239,16 @@ _PREVIEW = {
 }
 
 
-def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
-    """GET ``/_dev/layouts/<name>/`` — a full workbench layout demo. Unknown name → 404 (whitelist,
-    never a path interpolation). ``?vorschau=1`` opens the preview pane; anything else closes it.
-    Never mounted in production."""
-    if name not in LAYOUTS:
-        return HttpResponse(b"Unknown layout", status=404, content_type="text/plain")
+def layout_demo(request: HttpRequest) -> HttpResponse:
+    """GET ``/_dev/layouts/split-narrow/`` — the full workbench layout demo. ``?vorschau=1`` opens
+    the preview pane; anything else closes it. Never mounted in production."""
     vorschau = request.GET.get("vorschau") == "1"
     # The two state-switch links keep every other param; here the only state is vorschau.
     return render(
         request,
         "layouts_demo.html",
         {
-            "layout_name": name,
             "vorschau": vorschau,
-            "stylesheet": f"/_dev/layouts/static/{LAYOUT_STYLESHEET}",
             "ledger_rows": _LEDGER_ROWS,
             "ledger_columns": _LEDGER_COLUMNS,
             "facet_groups": _FACET_GROUPS,
@@ -279,12 +259,3 @@ def layout_demo(request: HttpRequest, name: str) -> HttpResponse:
             "preview": _PREVIEW,
         },
     )
-
-
-def serve_layout_stylesheet(request: HttpRequest, filename: str) -> HttpResponseBase:
-    """``GET /_dev/static/<filename>`` for the layout stylesheet — a dev-only whitelisted route.
-    The layout css is a design experiment; it never gets a production static route. Anything but the
-    one whitelisted filename → 404, so this can never serve arbitrary static files."""
-    if filename != LAYOUT_STYLESHEET:
-        return HttpResponse(b"Unknown stylesheet", status=404, content_type="text/plain")
-    return _serve_static(filename, "text/css")

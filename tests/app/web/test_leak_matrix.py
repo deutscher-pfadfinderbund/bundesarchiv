@@ -593,7 +593,6 @@ _DEV_ONLY_PATHS = (
     "/_dev/viewer/",
     "/_dev/components/",
     "/_dev/layouts/split-narrow/",
-    "/_dev/layouts/static/layouts.css",
 )
 
 
@@ -601,8 +600,7 @@ _DEV_ONLY_PATHS = (
 def test_dev_routes_absent_from_prod_urlconf(path: str) -> None:
     """Every dev-only route resolves under the DEV urlconf but is a ``Resolver404`` under the PROD
     urlconf — dev is gated by ABSENCE of the urlconf, not by a runtime flag, so a production process
-    (which points ROOT_URLCONF at ``...urls``) can never reach the switcher, the demo pages, or the
-    dev stylesheet servers."""
+    (which points ROOT_URLCONF at ``...urls``) can never reach the switcher or the demo pages."""
     resolve(path, urlconf=_DEV_URLCONF)  # present in dev — raises here if the assumption is wrong
     with pytest.raises(Resolver404):
         resolve(path, urlconf=_PROD_URLCONF)

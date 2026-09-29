@@ -1,6 +1,6 @@
 {% load static %}
 {% comment %}
-Dev-only layout demo (/_dev/layouts/<name>/, layouts_demo.py): the workbench composition built from
+Dev-only layout demo (/_dev/layouts/split-narrow/, layouts_demo.py): the workbench composition built from
 the real partials over static German demo context. English dev chrome. ?vorschau=0|1 switches the
 pane column.
 {% endcomment %}<!doctype html>
@@ -8,10 +8,10 @@ pane column.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Layout demo: {{ layout_name }} — dev</title>
+  <title>Layout demo: split-narrow — dev</title>
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
-  <link rel="stylesheet" href="{{ stylesheet }}">
+  <link rel="stylesheet" href="{% static "layouts.css" %}">
   <style>
     /* dev chrome only (English, development-facing) — role tokens, no raw colors */
     .devbar {
@@ -44,7 +44,7 @@ pane column.
 
 {% comment %} English dev chrome: pane-state toggle + back to the component library. {% endcomment %}
 <nav class="devbar" aria-label="Dev navigation">
-  <b>{{ layout_name }}</b>
+  <b>split-narrow</b>
   <a href="?vorschau=0"{% if not vorschau %} aria-current="page"{% endif %}>Vorschau zu</a>
   <a href="?vorschau=1"{% if vorschau %} aria-current="page"{% endif %}>Vorschau auf</a>
   <span>·</span>
@@ -54,7 +54,7 @@ pane column.
 {% comment %} The wordmark is local: on the live screens base.html draws it, here it links back into
 the demo. {% endcomment %}
 <header>
-  <a class="wordmark" href="{% url 'dev-layout' layout_name %}">Bundesarchiv</a>
+  <a class="wordmark" href="{% url 'dev-layout' %}">Bundesarchiv</a>
   {% include "workbench/_header.html" with is_archivist=True is_signed_in=True %}
 </header>
 

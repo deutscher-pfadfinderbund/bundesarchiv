@@ -59,8 +59,7 @@ the BREACH caveat).
   non-manifest backend so `runserver` needs no `collectstatic`, which trades
   dev-side fail-loud for zero-friction iteration. The parity the ADR defends —
   *WhiteNoise* serving in dev, not nginx — holds (WhiteNoise is in the dev
-  middleware too). Dev-only variant stylesheets stay on their `/_dev/` routes
-  outside the manifest.
+  middleware too).
 - **Only hashed names are collected** (`WHITENOISE_KEEP_ONLY_HASHED_FILES`), which
   closes the one hole in that fail-loud: `{% static %}` raises for a missing file,
   but a *hardcoded* `/static/tokens.css` never calls the tag, and by default
@@ -68,7 +67,6 @@ the BREACH caveat).
   as if nothing were wrong. Without those copies such a reference 404s in prod,
   and `STATIC_ROOT` holds one file per asset instead of two — each with gzip and
   brotli variants. Dev is unaffected (non-manifest backend; `runserver` serves
-  from the finders), as are the `/_dev/static/` stylesheets, which read the
-  source static dir rather than `STATIC_ROOT`.
+  from the finders).
 - `collectstatic` becomes a deploy step (and a session fixture in the test
   gate, so the manifest exists for `{% static %}` and WhiteNoise to resolve).

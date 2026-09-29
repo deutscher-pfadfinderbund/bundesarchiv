@@ -19,10 +19,9 @@ Article, so archivist-only fields are floored before render — no member/archiv
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from urllib.parse import urlencode
 
-from django.http import FileResponse, HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
 from django.urls import reverse
@@ -42,9 +41,6 @@ from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.query import FacetCount, SearchHit, search
-
-#: The web package's static/ dir — prod serves it via WhiteNoise (ADR 0016); this path is dev-only.
-_STATIC_DIR = Path(__file__).parent / "static"
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
@@ -734,11 +730,3 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "standort": article.physical_location or "",
         "custom": article.custom,
     }
-
-
-def _serve_static(filename: str, content_type: str) -> HttpResponseBase:
-    """One file from the web package's ``static/`` dir — dev-only (``/_dev/static/*``), same-origin."""
-    path = _STATIC_DIR / filename
-    if not path.is_file():
-        return _not_found()
-    return FileResponse(path.open("rb"), content_type=content_type)
