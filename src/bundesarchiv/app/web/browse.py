@@ -11,9 +11,9 @@ Two halves:
 - ``parse_query`` — strict-but-total: every field parses to its typed value or falls to that field's
   default (garbage never raises, never 500s — plan §4.5). Text comes from ``q``; the rest build a
   ``SearchFilters`` + sort + page.
-- The link helpers (``with_param`` / ``without_param`` / ``page_query``) — pure query-string
-  algebra the templates emit for facet clicks, rail chip removal and pagination. Adding or removing a
-  facet resets ``seite`` (the result set changed, so the old page number is stale).
+- The link helpers (``with_param`` / ``without_param`` / ``page_query_with_auswahl``) — pure
+  query-string algebra the templates emit for facet clicks, rail chip removal and pagination. Adding
+  or removing a facet resets ``seite`` (the result set changed, so the old page number is stale).
 
 No visibility logic lives here (that is ``search`` / ``can_view``); this module only shuffles
 strings between the URL and ``SearchFilters``.
@@ -235,14 +235,6 @@ def clear_filters_query(params: Mapping[str, str]) -> str:
     return urlencode(updated)
 
 
-def page_query(params: Mapping[str, str], page: int) -> str:
-    """The query string for the current state at ``page`` (pagination). Preserves every filter,
-    text and sort; only ``seite`` moves — URL-as-state, back-button-honest, no infinite scroll."""
-    updated = _clean(params)
-    updated[PARAM_PAGE] = str(page)
-    return urlencode(updated)
-
-
 #: The bulk-edit selection param. Multi-valued (one per selected ulid); preserved across pagination
 #: so a no-JS selection survives page moves (spec §2/§3). NOT a search param — stripped from facet/
 #: sort links elsewhere, threaded only through the pagination + select-page links below.
@@ -251,7 +243,8 @@ PARAM_AUSWAHL = "auswahl"
 
 def page_query_with_auswahl(params: Mapping[str, str], auswahl: Sequence[str], page: int) -> str:
     """The pagination query string at ``page`` PLUS the multi-valued ``auswahl`` selection (spec §2).
-    Like ``page_query`` but re-attaches every selected ulid (``doseq``) so paging never drops the
+    Preserves every filter, text and sort; only ``seite`` moves — URL-as-state, back-button-honest,
+    no infinite scroll. Re-attaches every selected ulid (``doseq``) so paging never drops the
     selection. An empty selection omits the param entirely."""
     pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
     pairs = [(k, v) for k, v in pairs if k != PARAM_PAGE]

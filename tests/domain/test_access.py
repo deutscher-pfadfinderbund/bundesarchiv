@@ -131,7 +131,6 @@ def test_preview_surfaces_inherited_group_names() -> None:
     assert p.public is False
     assert p.members is False
     assert p.groups == ("vorstand", "stamm-koeln")
-    assert p.visible_fields != frozenset()  # group members still see the non-floored fields
 
 
 def test_can_view_denies_everyone_on_a_chain_resolved_for_a_different_article() -> None:
@@ -229,20 +228,14 @@ def test_preview_surfaces_the_named_groups_for_a_groups_article() -> None:
     assert p.groups == ("vorstand", "stamm-koeln")
 
 
-def test_preview_visible_fields_exclude_the_archivist_only_fields() -> None:
-    p = preview(_physical_article(), _chain())
-    assert p.visible_fields == {f.name for f in fields(Article)} - ARCHIVIST_ONLY_FIELDS
-
-
 def test_preview_denies_all_on_a_chain_resolved_for_a_different_article() -> None:
-    # Unresolvable binding -> nobody sees it, no fields shown (preview inherits can_view's deny).
+    # Unresolvable binding -> nobody sees it (preview inherits can_view's deny).
     article = _article(audience=Audience(AudienceTier.PUBLIC))
     wrong_chain = ResolvedChain((Collection(ulid="c-other", name="c-other"),))
     p = preview(article, wrong_chain)
     assert p.public is False
     assert p.members is False
     assert p.groups == ()
-    assert p.visible_fields == frozenset()
 
 
 # --- Single-source safety net -----------------------------------------------------------------

@@ -191,7 +191,7 @@ def test_human_size_is_german(byte_size: int | None, expected: str) -> None:
 def test_exposure_label_names_the_widest_rung(
     public: bool, members: bool, groups: tuple[str, ...], expected: str
 ) -> None:
-    result = VisibilityPreview(public, members, groups, frozenset())
+    result = VisibilityPreview(public, members, groups)
     assert vocab.exposure_label(result) == expected
 
 
@@ -226,5 +226,5 @@ def test_exposure_label_names_the_widest_rung(
 def test_publish_statement_says_who_will_see_the_record(
     public: bool, members: bool, groups: tuple[str, ...], expected: str
 ) -> None:
-    result = VisibilityPreview(public, members, groups, frozenset())
+    result = VisibilityPreview(public, members, groups)
     assert vocab.publish_statement(result) == expected

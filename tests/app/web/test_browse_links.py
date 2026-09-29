@@ -9,7 +9,6 @@ filter rail / pagination / sort control emit, and pin the round-trip: a param se
 from bundesarchiv.app.web.browse import (
     clear_filters_query,
     has_next_page,
-    page_query,
     pane_query_prefix,
     parse_query,
     with_param,
@@ -55,14 +54,6 @@ def test_add_then_parse_round_trips() -> None:
     parsed = parse_query(_params(q))
     assert parsed.text == "Fahrt"
     assert parsed.filters.tag == "fahrten"
-
-
-def test_page_query_sets_seite_preserving_the_rest() -> None:
-    q = page_query({"q": "Lager", "medienart": "Foto"}, 2)
-    params = _params(q)
-    assert params["seite"] == "2"
-    assert params["q"] == "Lager"
-    assert params["medienart"] == "Foto"
 
 
 # --- clear-all (clear_filters_query) -----------------------------------------------

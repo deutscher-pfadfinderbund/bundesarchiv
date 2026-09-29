@@ -20,13 +20,8 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 # Fields only an Archivist may see, floored from any non-Archivist projection regardless of
 # whether the Viewer can otherwise view the Article. Add provenance/notes fields here as the
-# model grows — projection and the visibility preview both read this one set.
+# model grows — projection reads this one set.
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
-
-# The fields a non-Archivist viewer who can view the Article sees — every field but the floored.
-_NON_ARCHIVIST_VISIBLE_FIELDS: frozenset[str] = (
-    frozenset(f.name for f in fields(Article)) - ARCHIVIST_ONLY_FIELDS
-)
 
 # Fail loudly at import if the set names a field Article doesn't have — `project` floors exactly
 # this set, so a typo or stale name must not silently floor nothing (a leak).
@@ -117,18 +112,17 @@ def visible(viewer: Viewer, article: Article, chain: ResolvedChain) -> Article |
 
 @dataclass(frozen=True, slots=True)
 class VisibilityPreview:
-    """ "If published now, who sees this and which fields" — the ADR 0001 anti-over-exposure
-    summary. `members` is a *plain* Member (no groups); `groups` names the groups that would
-    see a GROUPS-rung Article (so the Archivist isn't misled by `members=False`)."""
+    """ "If published now, who sees this" — the ADR 0001 anti-over-exposure summary. `members` is
+    a *plain* Member (no groups); `groups` names the groups that would see a GROUPS-rung Article
+    (so the Archivist isn't misled by `members=False`)."""
 
     public: bool
     members: bool
     groups: tuple[str, ...]
-    visible_fields: frozenset[str]
 
 
 def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
-    """If `article` were published now, who would see it and which fields it would expose.
+    """If `article` were published now, who would see it.
 
     Bypasses the Lifecycle gate by previewing a published projection (ADR 0001's publish-time
     warning), and routes who-sees through `can_view` — it never re-derives visibility, so it
@@ -137,13 +131,8 @@ def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
     published = replace(article, lifecycle=Lifecycle.PUBLISHED)
     public = can_view(Public(), published, chain)
     members = can_view(Member(), published, chain)
-    groups = _would_be_groups(published, chain)
-    visible_to_someone = public or members or bool(groups)
     return VisibilityPreview(
-        public=public,
-        members=members,
-        groups=groups,
-        visible_fields=_NON_ARCHIVIST_VISIBLE_FIELDS if visible_to_someone else frozenset(),
+        public=public, members=members, groups=_would_be_groups(published, chain)
     )
 
 
