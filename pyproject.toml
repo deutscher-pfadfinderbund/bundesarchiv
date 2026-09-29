@@ -44,7 +44,7 @@ typeCheckingMode = "standard"
 
 # Second opinion to mypy, at zero errors: a false positive gets a per-file toggle, not an inline ignore.
 [tool.pyrefly]
-project-includes = ["src", "tests"]
+project-includes = ["src", "tests", "scripts"]
 # Repo root first, so `tests.*` resolves as under mypy's explicit_package_bases.
 search-path = [".", "src"]
 errors = { deprecated = "error" }
@@ -84,7 +84,7 @@ extend-select = [
 
 [tool.mypy]
 strict = true
-files = ["src", "tests", "manage.py"]
+files = ["src", "tests", "scripts", "manage.py"]
 plugins = ["mypy_django_plugin.main"]
 # Same-named test files (two conftest.py) stay distinct. Keep tests off mypy_path, or they get a
 # second module name ("source file found twice").

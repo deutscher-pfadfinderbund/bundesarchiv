@@ -25,7 +25,7 @@ repos:
       - id: pyrefly
         name: pyrefly
         # Explicit paths: bare `pyrefly check` resolves zero files in .claude/worktrees/.
-        entry: uv run pyrefly check src tests
+        entry: uv run pyrefly check src tests scripts
         language: system
         pass_filenames: false
       - id: biome

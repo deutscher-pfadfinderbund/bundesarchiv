@@ -39,7 +39,7 @@ Browser-suite runtimes (mise buffers pytest's progress line — a silent minute 
 Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.
 
 pyrefly is a second opinion on mypy under a zero-error policy; both are part of
-the gate. Every invocation is `uv run pyrefly check src tests` — bare
+the gate. Every invocation is `uv run pyrefly check src tests scripts` — bare
 `pyrefly check` resolves zero files in a worktree.
 
 A raw `uv run pytest -m requires_pg` drags in the browser suites: a command-line

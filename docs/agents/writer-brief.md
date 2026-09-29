@@ -33,7 +33,7 @@ In an isolated worktree, compound shell commands that contain git (a heredoc com
 ruff's RUF001/RUF002 reject confusable characters (en dash, bullet) that German legacy text
 needs: write them as `"\N{EN DASH}"` / `"\N{BULLET}"` in code.
 
-pyrefly is always invoked as `uv run pyrefly check src tests`; a bare
+pyrefly is always invoked as `uv run pyrefly check src tests scripts`; a bare
 `pyrefly check` resolves zero files in a worktree and passes vacuously.
 
 The commit-stage hook runs uv-lock, ruff and pyrefly; the push-stage hook runs
