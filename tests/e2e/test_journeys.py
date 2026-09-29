@@ -657,31 +657,34 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
         page.wait_for_url(f"**{destination}")
 
 
-def test_treffer_count_rides_the_rail_and_stays_live(
+def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Law C10 (owner round-2 correction 2026-08-07): the "N Treffer" count rides the filter
-    # rail's line — the occupied band — and the status-only toolrow is gone. The rail lives
-    # OUTSIDE the #results swap target, so the htmx type-to-search swap must refresh the count
-    # out-of-band: type a narrowing q and watch the RAIL's count change without navigation.
+    # a2 round 10: the result count lives in the pager's range; a one-page list shows it alone. The
+    # type-to-search swap replaces the pager with #results, and an aria-live element inserted with
+    # its content is not announced — so the announcement lives in a node OUTSIDE the swap target
+    # (#trefferzahl), refreshed out-of-band. It is silent on a full page load: nothing changed.
     page = archivist_page
     page.goto(live_workbench + "/")
-    count = page.locator(".filterrail #trefferzahl")
-    expect(count).to_have_text("4 Treffer")  # the canonical corpus, archivist-scoped
-    # The live region's NODE must survive the swap or the polite announcement dies silently (an
-    # aria-live element inserted together with its content is not announced). Stamp the node with
-    # an expando — a property, so no server render can reproduce it — and look for it afterwards.
+    expect(page.locator(".pager")).to_have_text("4 Artikel")  # the canonical corpus, one page
+    count = page.locator("#trefferzahl")
+    expect(count).to_have_text("")
+    # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
+    # the node with an expando — a property, so no server render can reproduce it — and look for it
+    # afterwards.
     page.evaluate("() => { document.querySelector('#trefferzahl').__probe = 'same-node'; }")
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
+    expect(page.locator(".pager")).to_have_text("1 Artikel")
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
     assert page.evaluate("() => document.querySelector('#trefferzahl').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"
     )
-    # zero hits: the rail still renders, the count stays on its line (the rail is the one place)
+    # zero hits: the empty state says so, and there is no range to show
     page.goto(live_workbench + "/?q=zzzznomatch")
-    expect(page.locator(".filterrail #trefferzahl")).to_have_text("0 Treffer")
+    expect(page.get_by_text("Keine Treffer")).to_be_visible()
+    expect(page.locator(".pager")).to_have_count(0)
 
 
 def test_rail_links_keep_the_typed_q_after_a_live_swap(
@@ -1333,10 +1336,8 @@ def test_bulk_enhancement_survives_a_history_restore(
     # region it swaps), which the restore replaces, so the new #results must be processed (H.8/G.25).
     page.locator('input[name="q"]').press_sequentially("Herbstlager")
     page.wait_for_url("**q=Herbstlager**")
-    expect(page.locator(".ledger #trefferzahl")).to_have_count(
-        0
-    )  # the count rides the rail, not here
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
+    # the swap announced its count through the node outside #results
     expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
     # htmx 4 re-runs the <script>s of swapped content; a restore swaps the body, so a script there
     # would start a second htmx (and every later Back would restore twice)

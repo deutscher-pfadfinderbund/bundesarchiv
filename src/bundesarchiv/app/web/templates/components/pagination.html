@@ -1,13 +1,17 @@
 {% comment %}
-Prev/next pagination. Params: current_page; has_prev/has_next; prev_query/next_query (GET query
-strings — URL-as-state, plain links). Renders nothing on a single page. On the workbench,
-catalog_bulk.js (GH #22) rewrites ONLY the ?auswahl= params of the rel=prev/next links so an
-unsubmitted bulk selection survives paging; the rest of each href keeps its server-built value.
+The pager — the result range between its steps, one group at the end edge (a2 round 10). Param:
+pager — browse_views._Pager, or nothing on a zero-hit page (the empty state speaks there). A step
+that cannot move yet stays, disabled: it becomes active on this list. A one-page list shows only its
+count and, with no steps, is no navigation (round 9). On the workbench, catalog_bulk.js (GH #22)
+rewrites ONLY the ?auswahl= params of the rel=prev/next links, so an unsubmitted bulk selection
+survives paging.
 {% endcomment %}
-{% if has_prev or has_next %}
+{% if pager.stepped %}
 <nav class="pager" aria-label="Seiten">
-  {% if has_prev %}<a href="?{{ prev_query }}" rel="prev">← Zurück</a>{% endif %}
-  <span>Seite {{ current_page }}</span>
-  {% if has_next %}<a href="?{{ next_query }}" rel="next">Weiter →</a>{% endif %}
+  {% if pager.prev_query is not None %}<a href="?{{ pager.prev_query }}" rel="prev">‹ Zurück</a>{% else %}<a role="link" aria-disabled="true">‹ Zurück</a>{% endif %}
+  <span>{% if pager.shown %}<data value="{{ pager.first }}">{{ pager.shown }}</data> von {% endif %}<data value="{{ pager.total }}">{{ pager.total_label }}</data></span>
+  {% if pager.next_query is not None %}<a href="?{{ pager.next_query }}" rel="next">Weiter ›</a>{% else %}<a role="link" aria-disabled="true">Weiter ›</a>{% endif %}
 </nav>
+{% elif pager %}
+<p class="pager"><span><data value="{{ pager.total }}">{{ pager.total_label }}</data> {{ pager.noun }}</span></p>
 {% endif %}

@@ -160,8 +160,13 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
             "facet_groups": _FACET_GROUPS,
             "filter_chips": _FILTER_CHIPS,
             "clear_filters_query": _CLEAR_FILTERS_QUERY,
-            # the rail renders the hit count at its line end (law C10 — the toolrow died)
-            "total": len(_HITS),
+            # the pager holds the count; a one-page list shows it alone (a2 rounds 9 and 10)
+            "pager": {
+                "stepped": False,
+                "total": len(_HITS),
+                "total_label": str(len(_HITS)),
+                "noun": "Artikel",
+            },
             "preview": _PREVIEW,
         },
     )

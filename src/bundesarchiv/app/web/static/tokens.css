@@ -64,6 +64,7 @@
     --type-page-title: 700 3rem / 1.08 var(--font-serif);
     --type-subhead: 700 1.35rem / 1.25 var(--font-serif);
     --type-entry: 400 1.1rem / 1.35 var(--font-body); /* the lead of a list row */
+    --type-control: 600 0.95rem / 1 var(--font-body); /* the pager's steps */
     --underline-offset: 0.2em;
 
     /* Spacing: 4px-base scale — compact but not cramped (a weekly work tool). */

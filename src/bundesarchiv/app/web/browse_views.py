@@ -288,7 +288,6 @@ def _results_context(
         if k not in (ledger.PANE_PARAM, browse.PARAM_AUSWAHL)
     }
     total = page.total
-    size = len(page.hits)
     bestand = BestandChooser.of(Archive.canonical())
     context: dict[str, object] = {
         "text": parsed.text or "",
@@ -313,14 +312,8 @@ def _results_context(
             selected_ulid=selected_ulid,
             bestand=bestand,
         ),
-        "current_page": parsed.page,
-        "has_next": browse.has_next_page(
-            page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
-        ),
-        "has_prev": parsed.page > 1,
-        "next_query": browse.page_query_with_auswahl(params, auswahl, parsed.page + 1),
-        "prev_query": browse.page_query_with_auswahl(params, auswahl, parsed.page - 1),
-        "total": total,
+        "pager": _pager(parsed, page, params, auswahl) if total else None,
+        "total": vocab.count(total),
         # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
         # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
         # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
@@ -329,6 +322,49 @@ def _results_context(
     if is_archivist:
         context.update(_bulk_bar_context(params, page, auswahl, bestand))
     return context
+
+
+@dataclass(frozen=True, slots=True)
+class _Pager:
+    """The pager (a2 rounds 9 and 10): the range between the two steps on a list of several pages,
+    where a step that cannot move yet is disabled (``None``); a one-page list shows only its count
+    and its ``noun``. ``shown`` is the range on this page from ``first``, empty past the last
+    page."""
+
+    stepped: bool
+    prev_query: str | None
+    next_query: str | None
+    first: int
+    shown: str
+    total: int
+    total_label: str
+    noun: str
+
+
+def _pager(
+    parsed: browse.ParsedQuery, page: SearchPage, params: Mapping[str, str], auswahl: list[str]
+) -> _Pager:
+    """The pager's steps carry the selection (``auswahl``), so paging never drops it."""
+    n, hits = parsed.page, len(page.hits)
+    first = (n - 1) * browse.PAGE_SIZE + 1
+    has_prev = n > 1
+    has_next = browse.has_next_page(
+        page=n, page_size=browse.PAGE_SIZE, hits_on_page=hits, total=page.total
+    )
+    shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
+    noun = "Artikel"
+    if parsed.filters.drafts_only:
+        noun = "Entwurf" if page.total == 1 else "Entwürfe"
+    return _Pager(
+        stepped=has_prev or has_next,
+        prev_query=browse.page_query_with_auswahl(params, auswahl, n - 1) if has_prev else None,
+        next_query=browse.page_query_with_auswahl(params, auswahl, n + 1) if has_next else None,
+        first=first,
+        shown=shown,
+        total=page.total,
+        total_label=vocab.count(page.total),
+        noun=noun,
+    )
 
 
 def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:

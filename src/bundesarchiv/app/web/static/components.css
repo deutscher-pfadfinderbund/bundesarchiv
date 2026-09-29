@@ -1040,20 +1040,32 @@
     }
   }
 
-  /* ---- pagination: plain prev/next links, the mono current-page stand ---- */
+  /* ---- pager: the result range between its steps, one group at the end edge (a2 round 10). A
+     step that cannot move yet stays, in Faint (DESIGN.md), and in the same type so nothing moves
+     when it becomes active. ---- */
   .pager {
     display: flex;
-    gap: var(--space-4);
-    align-items: center;
-    justify-content: center;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: var(--space-2) var(--space-5);
     font: var(--type-meta);
     color: var(--ink-2);
   }
-  /* biome-ignore lint/style/noDescendingSpecificity: never the ledger header's span */
-  .pager > span {
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink); /* the current-page stand = data */
+  .pager data {
+    color: var(--ink);
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never a ledger cell's link */
+  .pager > a {
+    font: var(--type-control);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .pager > a[href]:hover {
+    text-decoration: underline;
+  }
+  .pager > a[aria-disabled] {
+    color: var(--faint);
   }
 
   /* ---- honest empty state: a hollow slot (row 6) ---- */

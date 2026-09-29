@@ -1,5 +1,7 @@
 {% comment %}
-The one renderer of the hit count (law C7). With oob, the HX-Request render swaps the text into the
-rail's #trefferzahl by innerHTML, so the aria-live node survives and announces.
+The hit count's announcement: the pager shows the count (a2 round 10), this node only announces it
+after a type-to-search swap. It lives outside #results, so the HX-Request render swaps the text in
+by innerHTML (oob) and the aria-live node survives and speaks. A full page load has nothing to
+announce, so it stays empty.
 {% endcomment %}
-<p id="trefferzahl" aria-live="polite"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>{{ total }} Treffer</p>
+<p id="trefferzahl" class="visually-hidden" aria-live="polite"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>{% if oob %}{{ total }} Treffer{% endif %}</p>

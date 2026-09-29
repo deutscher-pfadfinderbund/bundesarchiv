@@ -99,6 +99,25 @@ def _demo_ledger() -> ledger.Ledger:
     )
 
 
+#: Pager samples, keyed like browse_views._Pager: page 2 of many, page 1 of many, one page.
+_PAGERS = tuple(
+    {
+        "stepped": nxt is not None,
+        "prev_query": prev,
+        "next_query": nxt,
+        "first": first,
+        "shown": shown,
+        "total": total,
+        "total_label": label,
+        "noun": "Artikel",
+    }
+    for prev, nxt, first, shown, total, label in (
+        ("seite=1", "seite=3", 51, "51\N{EN DASH}100", 2506, "2.506"),
+        (None, "seite=2", 1, "1\N{EN DASH}50", 2506, "2.506"),
+        (None, None, 1, "1\N{EN DASH}4", 4, "4"),
+    )
+)
+
 #: Token swatches: (background role, text role) pairs, then the line roles.
 _SWATCH_PAIRS = (
     ("ground", "ink"),
@@ -127,5 +146,6 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "swatch_pairs": _SWATCH_PAIRS,
             "swatch_lines": _SWATCH_LINES,
             "ledger": _demo_ledger(),
+            "pagers": _PAGERS,
         },
     )

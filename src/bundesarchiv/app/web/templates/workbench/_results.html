@@ -9,8 +9,8 @@ POSTs to /artikel/sammelbearbeitung. The selection survives paging: the view bak
 unsubmitted ticks into the same links. Without JS a fresh tick needs a submit first.
 {% endcomment %}
 {% comment %}The filter rail sits outside this swap target, so an HX-Request render (oob) sends its
-two parts as top-level out-of-band fragments BEFORE #results: the filter set whole, the count into
-its surviving aria-live node.
+two parts as top-level out-of-band fragments BEFORE #results: the filter set whole, the new count
+into its surviving aria-live node (the pager shows it; the node announces it).
 {% endcomment %}
 {% if oob %}{% include "workbench/_filterset.html" with facet_groups=facet_groups filter_chips=filter_chips clear_filters_query=clear_filters_query oob=True only %}
 {% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
@@ -48,5 +48,5 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter / "
   {% endif %}
   {% endif %}
 
-  {% include "components/pagination.html" with current_page=current_page has_prev=has_prev has_next=has_next prev_query=prev_query next_query=next_query only %}
+  {% include "components/pagination.html" with pager=pager only %}
 </main>

@@ -427,7 +427,7 @@ def test_active_filter_renders_rail_chip_with_labeled_remove(indexed_corpus: Cor
     # row), but the chip derives from the URL state — the empty state says "Entferne einzelne
     # Filter", so the removal affordance must survive exactly there.
     empty = _get(Public(), "medienart=Mikrofilm").content.decode()
-    assert "0 Treffer" in empty
+    assert "Keine Treffer" in empty
     assert 'aria-label="Filter entfernen: Mikrofilm"' in empty
 
 
@@ -514,7 +514,7 @@ def test_round_trip_q_and_bestand_both_filter_results(indexed_corpus: Corpus) ->
     # narrows by both together (not just markup) — proves the request the completed form emits
     # actually works. "Fahrt" matches only FOTOS-collection articles; AKTEN has none.
     empty = _get(Public(), "q=Fahrt&bestand=AKTEN").content.decode()
-    assert "0 Treffer" in empty
+    assert "Keine Treffer" in empty
     both = _get(Public(), "q=Fahrt&bestand=FOTOS").content.decode()
     assert "Fahrtenbericht" in both
 
@@ -560,6 +560,35 @@ def test_pagination_second_page_via_seite(
     assert first
     assert second
     assert not first & second
+
+
+def _pager(body: str) -> str:
+    return body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
+
+
+_ZURUECK = "\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} Zurück"
+_WEITER = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
+
+
+def test_the_pager_holds_the_range_between_its_steps(
+    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a2 round 10: the count lives in the range, between the two steps. On page 1 Zurück stays,
+    # disabled: it becomes active one click later (LEARNINGS lesson 9).
+    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
+    total = len(list(indexed_corpus.articles.list_ulids()))  # the archivist sees every record
+    pager = _pager(_get(Archivist()).content.decode())
+    assert f'1\N{EN DASH}2</data> von <data value="{total}">{total}</data>' in pager
+    assert f'<a role="link" aria-disabled="true">{_ZURUECK}</a>' in pager
+    assert re.search(rf'<a href="\?[^"]*seite=2[^"]*" rel="next">{_WEITER}</a>', pager)
+
+
+def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
+    # a2 round 9: neither step can become active on a one-page list, so neither shows.
+    total = len(list(indexed_corpus.articles.list_ulids()))
+    body = _get(Archivist()).content.decode()
+    assert f'<data value="{total}">{total}</data> Artikel</span></p>' in body
+    assert 'aria-label="Seiten"' not in body
 
 
 # --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----

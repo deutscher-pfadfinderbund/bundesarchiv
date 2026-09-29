@@ -426,11 +426,11 @@ list anchored to its own button. {% endcomment %}
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/pagination.html" with current_page=2 has_prev=True has_next=True prev_query="seite=1" next_query="seite=3" only %}
+    {% for pager in pagers %}{% include "components/pagination.html" with pager=pager only %}{% endfor %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/pagination.html · current_page=… has_prev/has_next=… prev_query/next_query=…</code>
+<code class="doc">components/pagination.html · pager=browse_views._Pager — page 2 of many: the range between the steps (a2 round 10); page 1: Zurück stays, disabled in Faint; one page: the count alone, no steps (round 9)</code>
 
 <h2>Empty state</h2>
 <div class="probe">

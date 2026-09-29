@@ -30,7 +30,7 @@
     padding: var(--space-4) var(--space-4) var(--space-2);
   }
   /* its text occupants take the row's line box (the compositions' row-occupant rule, law C8) */
-  :is(.filterrail, .filterrail > .filterset) > :is(a, p) {
+  :is(.filterrail, .filterrail > .filterset) > a {
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);
@@ -45,14 +45,6 @@
      link ending the chip row, deliberately not a chip */
   .filterrail > .filterset > a {
     font: var(--type-meta);
-  }
-  /* the count ENDS the rail line (law C10: status text rides an occupied band). Demoted status
-     styling (G.4). Styled by its PLACE, never by its aria-live attribute. */
-  .filterrail > p {
-    margin: 0 0 0 auto;
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
   }
 
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
