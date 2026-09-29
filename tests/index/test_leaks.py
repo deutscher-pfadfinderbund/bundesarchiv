@@ -37,6 +37,7 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
 from bundesarchiv.domain.viewer import Member, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder, search
@@ -465,6 +466,26 @@ def test_group_names_on_a_members_hits_are_only_groups_they_hold(corpus: None) -
     ):
         for hit in _hits(viewer):
             assert hit.tier != "GROUPS", f"[{label}] a GROUPS row leaked to a non-holder"
+
+
+@pytest.mark.django_db
+def test_a_member_never_learns_another_groups_name(corpus: None) -> None:
+    """A member of one group gets a row shared by two groups, but never the other group's name."""
+    fixtures.index_beside_corpus(
+        Collection(ulid="ZWEI", name="Zwei Gruppen", parent_id=None),
+        Article(
+            ulid="ART_ZWEI",
+            title="Geteilt",
+            collection_id="ZWEI",
+            lifecycle=Lifecycle.PUBLISHED,
+            audience=Audience(AudienceTier.GROUPS, ("gruppe-a", "gruppe-b")),
+        ),
+    )
+    held = ("gruppe-a",)
+    hit = next(h for h in _hits(Member(held)) if h.ulid == "ART_ZWEI")
+    assert set(hit.groups) <= set(held)
+    archivist_hit = next(h for h in _hits(ARCHIVIST) if h.ulid == "ART_ZWEI")
+    assert set(archivist_hit.groups) == {"gruppe-a", "gruppe-b"}
 
 
 @pytest.mark.django_db

@@ -41,7 +41,7 @@ from bundesarchiv.index.scope import _viewer_scope
 # The FTS config both the generated columns and the query parser use (ADR 0011). websearch is the
 # query parser (``websearch_to_tsquery``): quoted phrases, ``-`` negation, bare AND. Part 4 adds the
 # ADR-0011 recall mitigation: prefix (``:*``) matching on the trailing lexeme (``_prefix_tsquery``),
-# which lifts the corpus spot-check from 9/12 to 12/12 (a compound head like ``Lager`` then matches
+# which lifts the corpus spot-check from 9/12 to 12/12 (a leading part like ``Bundes`` then matches
 # ``Bundeslager``). No ``ts_headline`` in v1.
 _CONFIG = "bundesarchiv_german"
 
@@ -89,13 +89,13 @@ class SearchHit:
     ENTWURF badge). No ``physical_location`` / ``custom`` / ``archivist_text`` (the floored fields)
     ever appear here.
 
-    ``is_draft`` / ``tier`` / ``groups`` carry NO cross-tier leak by construction: ``_viewer_scope``
-    already restricts the returned rows to those the viewer may see, so a row's ``groups`` are only
-    ever groups a viewer in that GROUPS rung holds (public/members rows carry ``groups=()``), never
-    another tier's names; ``is_draft`` rows (archivist_only) are never returned to a non-archivist at
-    all. The human-German SICHTBARKEIT string is rendered in the view/template from this structured
-    data, and the TEMPLATE additionally gates it to the archivist — this dataclass only carries the
-    facts, it never decides visibility."""
+    ``is_draft`` / ``tier`` / ``groups`` carry NO cross-tier leak: ``_viewer_scope`` restricts the
+    returned rows to those the viewer may see, and ``groups`` is cut to the groups the viewer holds
+    (all of them for the Archivist; public/members rows carry ``groups=()``), so a member never
+    learns another group's name; ``is_draft`` rows (archivist_only) are never returned to a
+    non-archivist at all. The human-German SICHTBARKEIT string is rendered in the view/template from
+    this structured data, and the TEMPLATE additionally gates it to the archivist — this dataclass
+    only carries the facts, it never decides visibility."""
 
     ulid: str
     title: str
@@ -202,7 +202,7 @@ def _search_query(text: str | None) -> SearchQuery | None:
     string is treated as no text — an all-match browse, not an empty query.
 
     ADR-0011 recall mitigation: the query is prefix-augmented — the trailing lexeme is given the
-    ``:*`` prefix form so a compound head (``Lager``) matches the whole compound (``Bundeslager``),
+    ``:*`` prefix form so a leading part (``Bundes``) matches the whole compound (``Bundeslager``),
     recovering the recall the missing German decomposition would otherwise lose. See
     ``_PrefixWebSearchQuery``.
     """
@@ -371,9 +371,19 @@ def _page_of_hits(
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
-    # ``groups`` comes back as a list from the ArrayField; SearchHit is frozen/hashable, so coerce
-    # to a tuple. Every other column maps 1:1.
-    return tuple(SearchHit(**{**row, "groups": tuple(row["groups"])}) for row in rows)
+    # ``groups`` is cut to what this viewer may learn; every other column maps 1:1.
+    return tuple(
+        SearchHit(**{**row, "groups": _visible_groups(viewer, row["groups"])}) for row in rows
+    )
+
+
+def _visible_groups(viewer: Viewer, groups: list[str]) -> tuple[str, ...]:
+    """The row's group names this viewer may learn: all of them for the Archivist, otherwise only
+    the groups the viewer holds (a row shared by two groups must not name the other one)."""
+    if isinstance(viewer, Archivist):
+        return tuple(groups)
+    held = viewer.groups if isinstance(viewer, Member) else ()
+    return tuple(g for g in groups if g in held)
 
 
 def _ordered(
