@@ -35,6 +35,8 @@ The architect thinks in modules and interfaces; writers implement one module eac
   words (an env example said "signs the Viewer cookie"), and tests that re-derive a value a
   new owner function now builds.
 - Worktree writers: an `isolation: worktree` agent's worktree starts from the remote-tracking base, not local `main`. While local `main` is ahead of origin, the brief must say "fast-forward your branch to local `main` (`<hash>`) first" and name that hash.
+- Writers share one scratchpad: require task-prefixed log names (`wf-e2e.log`, not `e2e.log`); a
+  stale generic log carrying `exit 0` from another agent nearly passed as a result.
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
 - The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
 - Ask for **DX feedback (top 3) upfront** in the final report — it is the brief-quality feedback loop.
