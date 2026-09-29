@@ -29,6 +29,7 @@ Runs against the shared corpus (``tests/index/fixtures.py``), indexed ONCE per m
 from collections.abc import Iterator
 
 import pytest
+from tests._articles import make_article
 from tests.index import fixtures
 from tests.index.fixtures import (
     ARCHIVIST,
@@ -473,10 +474,10 @@ def test_a_member_never_learns_another_groups_name(corpus: None) -> None:
     """A member of one group gets a row shared by two groups, but never the other group's name."""
     fixtures.index_beside_corpus(
         Collection(ulid="ZWEI", name="Zwei Gruppen", parent_id=None),
-        fixtures.published_article(
+        make_article(
             "ART_ZWEI",
-            "Geteilt",
-            "ZWEI",
+            title="Geteilt",
+            collection_id="ZWEI",
             audience=Audience(AudienceTier.GROUPS, ("gruppe-a", "gruppe-b")),
         ),
     )

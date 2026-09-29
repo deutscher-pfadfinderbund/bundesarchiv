@@ -23,7 +23,6 @@ are the module-level singletons below.
 import io
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
-from typing import Any
 
 import pytest
 
@@ -186,21 +185,6 @@ def indexed_corpus[T](
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         yield build()
         ArticleIndex.objects.all().delete()
-
-
-def published_article(
-    ulid: str,
-    title: str,
-    collection_id: str,
-    *,
-    lifecycle: Lifecycle = Lifecycle.PUBLISHED,
-    **overrides: Any,
-) -> Article:
-    """An Article its audience can see. ``Article`` itself defaults to DRAFT (archivist-only), so
-    a row meant for other viewers would silently vanish from their results."""
-    return Article(
-        ulid=ulid, title=title, collection_id=collection_id, lifecycle=lifecycle, **overrides
-    )
 
 
 def index_beside_corpus(root: Collection, *articles: Article) -> None:

@@ -11,12 +11,13 @@ another file's expectations. Such a test builds its own content with ``make_corp
 """
 
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
-from typing import Any
 
 from django.core import signing
 from django.template.loader import render_to_string
 from django.test import Client
+from tests import _articles
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
@@ -69,24 +70,9 @@ def make_collection(
     return Collection(ulid, name, parent_id, audience)
 
 
-def make_article(
-    ulid: Ulid,
-    *,
-    collection_id: Ulid = PUB,
-    lifecycle: Lifecycle = Lifecycle.PUBLISHED,
-    title: str = "Testartikel",
-    **overrides: Any,
-) -> Article:
-    """An Article filed in PUB — pass only what the test asserts about. ``ulid`` stays explicit:
-    tests address records by ulid, and the views reject anything that is not a real ULID
-    (``is_valid_ulid``), so a literal like ``"A1"`` would 404 instead of failing loudly."""
-    return Article(
-        ulid=ulid,
-        title=title,
-        collection_id=collection_id,
-        lifecycle=lifecycle,
-        **overrides,
-    )
+# ``ulid`` stays explicit: the views reject anything that is not a real ULID (``is_valid_ulid``),
+# so a literal like ``"A1"`` would 404 instead of failing loudly.
+make_article = partial(_articles.make_article, collection_id=PUB)
 
 
 class KeyRecordingStore:
