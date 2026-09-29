@@ -38,8 +38,8 @@ from tests.index.fixtures import (
 )
 
 from bundesarchiv.domain.viewer import Member, Viewer
-from bundesarchiv.index import indexer, search
-from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder
+from bundesarchiv.index import indexer
+from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder, search
 
 # The non-Archivist tiers, labelled — every leak channel is asserted for each so a regression names
 # the tier. The Archivist is asserted separately (it is the only viewer these channels open TO).

@@ -48,8 +48,8 @@ from bundesarchiv.domain.models import (
     Ulid,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.index import indexer, search
-from bundesarchiv.index.query import SearchFilters
+from bundesarchiv.index import indexer
+from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository

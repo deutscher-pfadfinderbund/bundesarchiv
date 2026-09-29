@@ -41,8 +41,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index import search
-from bundesarchiv.index.query import FacetCount, SearchHit
+from bundesarchiv.index.query import FacetCount, SearchHit, search
 
 #: The web package's static/ dir — prod serves it via WhiteNoise (ADR 0016); this path is dev-only.
 _STATIC_DIR = Path(__file__).parent / "static"

@@ -26,7 +26,8 @@ from bundesarchiv.domain.models import (
     Lifecycle,
 )
 from bundesarchiv.domain.viewer import Member, Public, Viewer
-from bundesarchiv.index import indexer, search
+from bundesarchiv.index import indexer
+from bundesarchiv.index.query import search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository

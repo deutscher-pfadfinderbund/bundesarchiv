@@ -23,8 +23,8 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
-from bundesarchiv.index import indexer, search
-from bundesarchiv.index.query import SearchFilters, SearchPage
+from bundesarchiv.index import indexer
+from bundesarchiv.index.query import SearchFilters, SearchPage, search
 
 
 @pytest.fixture(scope="module")
