@@ -243,10 +243,9 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 CI runs under 60s with no caching machinery (owner ruling); keep it that way.
 
-### 22. Parallel worktrees share one test database — Instance
+### 22. Parallel worktrees share one test database — done
 - **Indicator:** 1 collision (2026-09-28): a gate in one worktree failed 1743 setups with
   `DROP DATABASE "test_bundesarchiv"` refused while another worktree's gate held the database.
-- **Cause:** every worktree's Postgres-backed suite uses the same test database name.
-- **Sketch:** derive the test database name from the worktree (for example a suffix from the
-  checkout path) in the test settings, so parallel gates never share one; until then, run gates
-  one at a time.
+  0 (2026-09-30): two worktrees ran `mise run test:db` at once, both green.
+- **Cause:** every worktree's Postgres-backed suite used the same test database name.
+- **Fix:** `tests/conftest.py` suffixes the test database with the checkout's directory name.

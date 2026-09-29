@@ -25,6 +25,8 @@ the same guarded ``django_db_setup``.
 """
 
 import os
+import re
+from pathlib import Path
 
 import pytest
 
@@ -73,6 +75,23 @@ def _pg_guard() -> None:
             pass
     except psycopg.OperationalError as exc:
         pytest.fail(f"cannot reach Postgres: {exc}\n\n{_UNREACHABLE_HINT}", pytrace=False)
+
+
+def _checkout_suffix(checkout: Path) -> str:
+    """The checkout's directory name as a Postgres identifier fragment; empty when nothing is left."""
+    return re.sub(r"[^a-z0-9_]+", "_", checkout.name.lower()).strip("_")
+
+
+@pytest.fixture(scope="session")
+def django_db_modify_db_settings(django_db_modify_db_settings: None) -> None:
+    """One test database per checkout, so Postgres-backed runs in two worktrees never collide."""
+    from django.db import connection
+
+    suffix = _checkout_suffix(Path(__file__).resolve().parents[1])
+    if suffix:
+        db = connection.settings_dict
+        # 63 bytes: Postgres truncates longer identifiers.
+        db["TEST"]["NAME"] = f"test_{db['NAME']}_{suffix}"[:63]
 
 
 @pytest.fixture(scope="session")

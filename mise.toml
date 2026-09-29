@@ -57,8 +57,8 @@ exit 1
 description = "Dev server on :8000"
 run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"
 
-# Test suites. The DB-backed ones share a single test database — run them sequentially,
-# never in parallel.
+# Test suites. The DB-backed ones share one test database per checkout (tests/conftest.py) — within
+# a checkout run them sequentially, never in parallel.
 
 [tasks.test]
 description = "Full default pytest run (needs Postgres)"
