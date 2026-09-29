@@ -356,3 +356,17 @@ def test_visible_floors_exactly_the_archivist_only_fields_for_a_member() -> None
         f.name for f in fields(article) if getattr(article, f.name) != getattr(got, f.name)
     }
     assert differing == ARCHIVIST_ONLY_FIELDS
+
+
+# Every Article field a member may see, listed by hand on purpose: a new field must be classified
+# here or in ARCHIVIST_ONLY_FIELDS before it ships, or it reaches members unfloored by default.
+_MEMBER_VISIBLE_FIELDS = frozenset(
+    {
+        "added_at", "audience", "body", "collection_id", "creator", "date", "document_type",
+        "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "title", "ulid",
+    }
+)  # fmt: skip
+
+
+def test_every_article_field_is_classified_member_visible_or_archivist_only() -> None:
+    assert {f.name for f in fields(Article)} - ARCHIVIST_ONLY_FIELDS == _MEMBER_VISIBLE_FIELDS
