@@ -35,19 +35,6 @@ from django.db import models
 from django.db.models import F, Func
 from django.db.models.indexes import Index
 
-from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
-
-# The archivist-only text sources this index folds into ``archivist_text`` (indexer, Task 7).
-# ``media`` carries no indexable text, so it is not here; the guard below forces this partition
-# to track the domain floor. If ARCHIVIST_ONLY_FIELDS ever grows a new text-bearing field, this
-# assert fails at import until the indexer (and this set) are updated — a fail-closed drift trip,
-# not a silent under-index. Lives next to the ``archivist_text`` column, its natural home; Task 7
-# imports the constant from here.
-_ARCHIVIST_TEXT_SOURCES: frozenset[str] = frozenset({"physical_location", "custom"})
-assert _ARCHIVIST_TEXT_SOURCES == ARCHIVIST_ONLY_FIELDS, (  # noqa: S101 — import-time drift trip
-    "index archivist partition drifted from domain floor"
-)
-
 # The source columns each wrapper reads, in call order. These MUST match the argument order of
 # the SQL functions created in migration 0001 — the migration and this model are one contract.
 _GENERAL_TSV_ARGS = (
@@ -90,8 +77,8 @@ class ArticleIndex(models.Model):
     media_type = models.TextField(null=True)
     document_type = models.TextField(null=True)
     tags = ArrayField(models.TextField(), default=list)
-    # physical_location + custom values, folded by the indexer (Task 7). The drift guard above
-    # pins these sources to the domain's ARCHIVIST_ONLY_FIELDS floor.
+    # The archivist-only fields' text, folded by the indexer; its drift check pins the sources to
+    # the domain's ARCHIVIST_ONLY_FIELDS floor.
     archivist_text = models.TextField(blank=True, default="")
     date_edtf = models.TextField(null=True)
     date_earliest = models.DateField(null=True)

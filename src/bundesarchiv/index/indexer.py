@@ -36,11 +36,12 @@ from dataclasses import dataclass
 
 from django.db import connection, transaction
 
+from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
-from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES, ArticleIndex
+from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound
@@ -71,15 +72,13 @@ def _take_writer_lock() -> None:
         cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_INDEX_WRITER_LOCK_KEY])
 
 
-# The exact Article fields ``_archivist_text`` folds — its own declaration of what it reads. The
-# assert below ties this to the domain floor ``_ARCHIVIST_TEXT_SOURCES`` (itself pinned to
-# ``ARCHIVIST_ONLY_FIELDS`` at the model's import). If the floor grows a text-bearing field, or
-# the builder starts reading one outside the floor, these diverge and the module fails to import
-# — a fail-closed drift trip, never a silent under- or over-index.
+# The exact Article fields ``_archivist_text`` folds — its own declaration of what it reads. If the
+# domain floor grows a field, or the builder starts reading one outside it, the module fails to
+# import: a fail-closed drift trip, never a silent under- or over-index. A raise, not an assert:
+# `python -O` must not strip it.
 _BUILDER_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
-assert _BUILDER_FIELDS == _ARCHIVIST_TEXT_SOURCES, (  # noqa: S101 — import-time drift trip
-    "archivist_text builder drifted from the domain floor"
-)
+if _BUILDER_FIELDS != ARCHIVIST_ONLY_FIELDS:
+    raise RuntimeError("archivist_text builder drifted from the domain floor")
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +95,7 @@ def _archivist_text(article: Article) -> str:
     """Fold the archivist-only text sources (``_BUILDER_FIELDS``) into one blank-joined string:
     the physical location and the custom-metadata VALUES only. Custom KEYS are structure, not
     prose, so they are not indexed. Member-visible fields (title/body/creator/…) never appear
-    here — the module-level assert pins this to exactly the domain floor."""
+    here — the module-level check pins this to exactly the domain floor."""
     custom_values = [value for _key, value in article.custom]
     return " ".join([article.physical_location or "", *custom_values]).strip()
 

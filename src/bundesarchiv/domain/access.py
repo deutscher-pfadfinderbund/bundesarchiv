@@ -24,11 +24,10 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
 
 # Fail loudly at import if the set names a field Article doesn't have — `project` floors exactly
-# this set, so a typo or stale name must not silently floor nothing (a leak).
-assert {f.name for f in fields(Article)} >= ARCHIVIST_ONLY_FIELDS, (  # noqa: S101 — import-time drift trip
-    f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: "
-    f"{ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}}"
-)
+# this set, so a typo or stale name must not silently floor nothing (a leak). A raise, not an
+# assert: `python -O` must not strip a leak guard.
+if _unknown := ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}:
+    raise RuntimeError(f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: {_unknown}")
 
 
 def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:

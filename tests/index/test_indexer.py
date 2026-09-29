@@ -19,7 +19,6 @@ import datetime
 
 import pytest
 
-from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -32,7 +31,6 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
-from bundesarchiv.index.models import _ARCHIVIST_TEXT_SOURCES
 from bundesarchiv.index.query import search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -459,9 +457,7 @@ def test_the_added_sort_is_newest_first_unknown_last_ulid_breaking_ties() -> Non
 
 
 def test_archivist_text_builder_tracks_the_domain_floor() -> None:
-    """A field outside ``_ARCHIVIST_TEXT_SOURCES`` must never reach archivist_text. This pins
-    the builder to the same floor the index model asserts against at import."""
-    assert _ARCHIVIST_TEXT_SOURCES == ARCHIVIST_ONLY_FIELDS
+    """A member-visible field never reaches archivist_text; a floor field does."""
     # A field NOT in the floor (creator is member-visible) never appears in archivist_text.
     root = _root()
     article = _article(creator="Nicht Geheim", physical_location="Regal 9")
