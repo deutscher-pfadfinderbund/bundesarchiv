@@ -27,6 +27,7 @@ the same guarded ``django_db_setup``.
 import os
 import re
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -126,3 +127,20 @@ def django_db_setup(_pg_guard: None, django_db_setup: None) -> None:
     fixture. ``_pg_guard`` is listed first so it is instantiated first — every ``db``/``django_db``
     test therefore hits the probe before test-DB creation can raise a raw connection error.
     """
+
+
+class _MissingVariable(str):
+    def __mod__(self, name: object) -> str:
+        raise NameError(f"template variable missing: {name}")
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Every suite renders templates strictly: a missing ``{{ var }}`` raises, naming it.
+
+    Prod and dev keep Django's lenient empty string. A value that is optional by design says so
+    with ``{% firstof var %}``; a ``|default`` filter does not escape this, ``{% if %}`` does.
+    """
+    from django.conf import settings
+
+    options = cast("dict[str, object]", settings.TEMPLATES[0]["OPTIONS"])
+    options["string_if_invalid"] = _MissingVariable("%s")
