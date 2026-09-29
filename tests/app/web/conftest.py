@@ -21,10 +21,14 @@ from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from itertools import count
 from pathlib import Path
+from typing import cast
 
 import pytest
 from django.test import override_settings
-from tests.app.web._fixtures import Corpus, settings_for, standard_corpus
+from tests.app.web._fixtures import Corpus, KeyRecordingStore, settings_for, standard_corpus
+
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.persistence.objectstore import ObjectStore
 
 
 @pytest.fixture
@@ -49,6 +53,17 @@ def make_corpus(tmp_path: Path) -> Iterator[Callable[[], Corpus]]:
             return built
 
         yield build
+
+
+@pytest.fixture
+def recording_store(monkeypatch: pytest.MonkeyPatch) -> KeyRecordingStore:
+    """Every view's ``Archive.canonical`` goes through a recorder over the real LocalFs store of
+    whichever corpus is live, so a deny test can assert no blob was probed."""
+    store = KeyRecordingStore(Archive.canonical)
+    monkeypatch.setattr(
+        Archive, "canonical", classmethod(lambda _: Archive.of(cast("ObjectStore", store)))
+    )
+    return store
 
 
 @pytest.fixture(scope="session", autouse=True)

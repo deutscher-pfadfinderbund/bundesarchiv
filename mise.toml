@@ -21,6 +21,10 @@ run = [
   "uv run pytest",
 ]
 
+[tasks.mutate]
+description = "Mutation proof: -- FILE OLD NEW PYTEST_ARGS (always restores FILE)"
+run = "uv run python scripts/mutate.py"
+
 [tasks.pg]
 description = "Start the dev Postgres (Apple container CLI, host port 5434)"
 run = "container system start && container start bundesarchiv-pg"

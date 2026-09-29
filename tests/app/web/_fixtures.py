@@ -10,6 +10,7 @@ count, a listing or a facet total reads the whole store, so one added record sil
 another file's expectations. Such a test builds its own content with ``make_corpus``.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from django.core import signing
 from django.template.loader import render_to_string
 from django.test import Client
 
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.models import (
     Article,
@@ -85,6 +87,25 @@ def make_article(
         lifecycle=lifecycle,
         **overrides,
     )
+
+
+class KeyRecordingStore:
+    """The canonical store, resolved per call as production resolves it, recording the key of
+    every port call — so a test sees whether a blob was probed. See the ``recording_store``
+    fixture."""
+
+    def __init__(self, canonical: Callable[[], Archive]) -> None:
+        self._canonical = canonical
+        self.keys: list[str] = []
+
+    def __getattr__(self, name: str) -> Callable[..., object]:
+        method = getattr(self._canonical().store, name)
+
+        def recorded(key: str = "", *args: object, **kwargs: object) -> object:
+            self.keys.append(key)
+            return method(key, *args, **kwargs)
+
+        return recorded
 
 
 class Corpus:

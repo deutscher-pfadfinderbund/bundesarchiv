@@ -49,6 +49,7 @@ Write the failing test first, watch it fail for the right reason, then make it
 pass (`superpowers:test-driven-development` / the `tdd` skill). Prove a
 security/gate test is non-vacuous by MUTATION: neuter the guard, watch the test
 go red, restore. A gate that never bit is not a gate.
+`mise run mutate -- FILE OLD NEW NODE_IDS` does all three and always restores FILE.
 
 Restore a mutation by re-editing the exact lines (or commit before mutating) —
 never `git checkout <file>`: it wipes every uncommitted change in that file. Run

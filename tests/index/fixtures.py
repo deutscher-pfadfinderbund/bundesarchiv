@@ -23,6 +23,7 @@ are the module-level singletons below.
 import io
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
+from typing import Any
 
 import pytest
 
@@ -177,13 +178,29 @@ def indexed_corpus[T](
     (``test_schema`` was green only by alphabetical luck before this existed). Every module-scoped
     corpus fixture must ``yield from`` this helper; none may add its own wipe. Deliberately NOT an
     autouse conftest fixture: that would have to touch the DB after EVERY module in this directory,
-    so this directory's no-DB tests would need Postgres too.
+    so this directory's no-DB tests would need Postgres too. A test that needs one more row
+    beside the corpus adds it with ``index_beside_corpus``.
     """
     from bundesarchiv.index.models import ArticleIndex
 
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         yield build()
         ArticleIndex.objects.all().delete()
+
+
+def published_article(
+    ulid: str,
+    title: str,
+    collection_id: str,
+    *,
+    lifecycle: Lifecycle = Lifecycle.PUBLISHED,
+    **overrides: Any,
+) -> Article:
+    """An Article its audience can see. ``Article`` itself defaults to DRAFT (archivist-only), so
+    a row meant for other viewers would silently vanish from their results."""
+    return Article(
+        ulid=ulid, title=title, collection_id=collection_id, lifecycle=lifecycle, **overrides
+    )
 
 
 def index_beside_corpus(root: Collection, *articles: Article) -> None:

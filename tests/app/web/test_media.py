@@ -19,20 +19,24 @@ Structure:
 import io
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import cast
 
 import pytest
 from django.test import override_settings
 from PIL import Image
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import (
+    Corpus,
+    KeyRecordingStore,
+    client_as,
+    make_article,
+    make_collection,
+)
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
-from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
 # Media serving is pure request handling against a local FS store — no Postgres.
@@ -229,24 +233,6 @@ def test_404_across_all_deny_reasons(corpus: _TierCorpus) -> None:
 # --- authz-before-existence -------------------------------------------------------
 
 
-class _KeyRecordingStore:
-    """Wraps the corpus store and records the key of every call, so a test can see whether a
-    blob was probed."""
-
-    def __init__(self, inner: ObjectStore) -> None:
-        self._inner = inner
-        self.keys: list[str] = []
-
-    def __getattr__(self, name: str) -> Callable[..., object]:
-        method = getattr(self._inner, name)
-
-        def recorded(key: str = "", *args: object, **kwargs: object) -> object:
-            self.keys.append(key)
-            return method(key, *args, **kwargs)
-
-        return recorded
-
-
 class _WatchedRoot:
     """A thumbnail root that records each time a path is built from it."""
 
@@ -260,12 +246,8 @@ class _WatchedRoot:
 
 
 def test_authz_denies_before_any_blob_lookup(
-    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
+    corpus: _TierCorpus, recording_store: KeyRecordingStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    store = _KeyRecordingStore(corpus.store)
-    monkeypatch.setattr(
-        Archive, "canonical", classmethod(lambda _: Archive.of(cast("ObjectStore", store)))
-    )
     reached: list[str] = []
 
     def recorder(*args: object, **kwargs: object) -> object:
@@ -276,8 +258,8 @@ def test_authz_denies_before_any_blob_lookup(
     response = client_as(Public()).get(corpus.url("members"))
     assert_denied(response)
     assert reached == [], "the seam was reached for a forbidden article"
-    assert store.keys, "the recording store saw no call; the article was never loaded through it"
-    assert corpus.blob_key("members") not in store.keys, "the blob was probed before the deny"
+    assert recording_store.keys, "the recording store saw no call; the article was never loaded"
+    assert corpus.blob_key("members") not in recording_store.keys, "the blob was probed first"
 
 
 def test_authz_denies_before_lookup_for_thumbnail(
@@ -341,7 +323,6 @@ def test_x_accel_mode_forbidden_is_404_with_no_redirect(corpus: _TierCorpus) -> 
 def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -> None:
     # A MediaRef filename is user-controlled (upload). The seam must encode it safely so a
     # quote/CRLF in the name cannot break out of Content-Disposition into an injected header.
-    from bundesarchiv.app.archive import Archive
     from bundesarchiv.app.web.media import media_response
     from bundesarchiv.domain.models import Article, MediaRef
 

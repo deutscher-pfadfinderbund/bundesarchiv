@@ -23,7 +23,7 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import _MAX_PAGE_SIZE, SearchFilters, SearchPage, search
 
@@ -154,12 +154,7 @@ def test_collection_filter_root_is_whole_tree_but_still_scoped(corpus: None) -> 
     tree stays out, and so do the rows under ROOT the viewer cannot see."""
     fixtures.index_beside_corpus(
         Collection(ulid="ANDERE", name="Anderer Baum", parent_id=None),
-        Article(
-            ulid="ART_ANDERE",
-            title="Anderswo",
-            collection_id="ANDERE",
-            lifecycle=Lifecycle.PUBLISHED,
-        ),
+        fixtures.published_article("ART_ANDERE", "Anderswo", "ANDERE"),
     )
     page = search(VORSTAND_MEMBER, filters=SearchFilters(collection="ROOT"), page_size=200)
     assert _ulids(page) == {
@@ -253,12 +248,8 @@ def test_sort_ref_code_numeric_and_locale_aware(corpus: None) -> None:
 def test_sort_date_ascending_nulls_last(corpus: None) -> None:
     fixtures.index_beside_corpus(
         Collection(ulid="OHNE", name="Ohne Datum", parent_id=None),
-        Article(
-            ulid="ART_UNDATED",
-            title="Undatiert",
-            collection_id="OHNE",
-            lifecycle=Lifecycle.PUBLISHED,
-            audience=Audience(AudienceTier.PUBLIC),
+        fixtures.published_article(
+            "ART_UNDATED", "Undatiert", "OHNE", audience=Audience(AudienceTier.PUBLIC)
         ),
     )
     ulids = [h.ulid for h in search(PUBLIC, sort="date", page_size=200).hits]
@@ -372,12 +363,8 @@ def test_empty_text_browse_is_in_ulid_order(corpus: None) -> None:
     """A browse has no rank, so it orders by ulid — whatever order the rows were indexed in."""
     fixtures.index_beside_corpus(
         Collection(ulid="SPAET", name="Spät indexiert", parent_id=None),
-        Article(
-            ulid="ART_0B", title="Zweiter", collection_id="SPAET", lifecycle=Lifecycle.PUBLISHED
-        ),
-        Article(
-            ulid="ART_0A", title="Erster", collection_id="SPAET", lifecycle=Lifecycle.PUBLISHED
-        ),
+        fixtures.published_article("ART_0B", "Zweiter", "SPAET"),
+        fixtures.published_article("ART_0A", "Erster", "SPAET"),
     )
     ulids = [h.ulid for h in search(PLAIN_MEMBER, page_size=200).hits]
     assert ulids == sorted(ulids)

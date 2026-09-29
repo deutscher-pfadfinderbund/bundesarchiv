@@ -37,7 +37,7 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Member, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder, search
@@ -473,11 +473,10 @@ def test_a_member_never_learns_another_groups_name(corpus: None) -> None:
     """A member of one group gets a row shared by two groups, but never the other group's name."""
     fixtures.index_beside_corpus(
         Collection(ulid="ZWEI", name="Zwei Gruppen", parent_id=None),
-        Article(
-            ulid="ART_ZWEI",
-            title="Geteilt",
-            collection_id="ZWEI",
-            lifecycle=Lifecycle.PUBLISHED,
+        fixtures.published_article(
+            "ART_ZWEI",
+            "Geteilt",
+            "ZWEI",
             audience=Audience(AudienceTier.GROUPS, ("gruppe-a", "gruppe-b")),
         ),
     )
