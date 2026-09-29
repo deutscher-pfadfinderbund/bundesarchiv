@@ -1,4 +1,6 @@
-"""Shared Postgres gating for every DB-touching suite (``tests/index/``, ``tests/app/``).
+"""Suite-wide test setup: Postgres gating for every DB-touching suite (``tests/index/``,
+``tests/app/``), one test database per checkout, and strict templates (a missing ``{{ var }}``
+raises).
 
 Design constraints (Task 4 / 4.2 brief):
 

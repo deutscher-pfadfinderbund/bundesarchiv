@@ -35,6 +35,12 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
   the layer closest to the user (the `de_numeric` collation was once pinned in
   four files).
 
+## Strict templates
+
+Under every suite a missing `{{ var }}` raises, naming the variable (`tests/conftest.py`), and so
+does a filter on it, `|default` included. A value that is optional by design uses
+`{% firstof var %}` or `{% if var %}`; everything else is passed explicitly.
+
 ## The deny contract
 
 A deny/absence/malformed-param on a prod route is `assert_denied` from
