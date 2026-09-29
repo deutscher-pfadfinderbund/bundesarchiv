@@ -1,4 +1,5 @@
-/* a2-sammel — the preview pane ("Vorschau"), three variants (NOTES-VORSCHAU.md). Owner ruling
+/* a2-sammel — the preview pane ("Vorschau"), three variants (NOTES-VORSCHAU.md); owner chose
+   "spalte" 2026-09-29, "zeile" is kept for later, "rand" is dropped. Owner ruling
    2026-09-29: the pane is an extra, shown only where there is room next to the list — never a
    column that squeezes the list. Loaded after system.css and a2-sammel.css, into their layers.
    The variant is body[data-variante="spalte" | "rand" | "zeile"]; vorschau.js fills the pane. */
@@ -70,17 +71,19 @@
 }
 
 @layer layouts {
-  /* ---------- variant "spalte": a mode the archivist switches on ----------
-     "Vorschau" in the tool row, next to "Spalten …", only where the viewport leaves a column of
-     at least 22rem beside the page (≥ 105rem, ~1680 px). On: the page moves to the start edge
-     (the list keeps its full measure), the pane takes the rest of the width up to 40rem, under the
-     band, as tall as the viewport. The choice is a preference (a cookie, ruling 2026-09-29). */
-  @media (width >= 105rem) {
+  /* ---------- variant "spalte": the chosen one (owner 2026-09-29) ----------
+     "Vorschau" in the tool row, next to "Spalten …". While a record is open the page moves to the
+     start edge and, where the viewport is narrower than list + pane, the list narrows down to a
+     floor (60rem with its gutter, all five columns still readable); the pane takes the rest, 22rem
+     to 40rem, under the band, as tall as the viewport. On close the page is centred again, as
+     before. Below the floor (< 85rem, ~1360 px) there is no pane and no "Vorschau". */
+  body[data-variante="spalte"] { --preview-size: clamp(22rem, 100vw - var(--measure) - var(--gutter), 40rem); }
+  @media (width >= 85rem) {
     body[data-variante="spalte"] .toolbar-preview { display: inline; }
-    body[data-variante="spalte"][data-offen] .page { margin-inline: 0; }
+    body[data-variante="spalte"][data-offen] .page { margin-inline: 0; max-inline-size: min(var(--measure), 100vw - var(--preview-size) - var(--gutter)); }
     body[data-variante="spalte"] .preview {
       position: fixed; inset-block: calc(var(--topbar-height) + var(--gap-page)) var(--gutter);
-      inset-inline-start: var(--measure); inline-size: min(40rem, 100vw - var(--measure) - var(--gutter));
+      inset-inline-start: min(var(--measure), 100vw - var(--preview-size) - var(--gutter)); inline-size: var(--preview-size);
     }
   }
 

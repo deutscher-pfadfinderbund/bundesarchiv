@@ -21,10 +21,10 @@ itself. That breaks the ruling.
 | | Spalte (mode) | Rand (margin) | Zeile (unfold) |
 | --- | --- | --- | --- |
 | Where | a column right of the page; the page moves to the start edge | the free margin right of the centred page | a band under the row, across the ledger |
-| Shown from | ≥ 105rem (~1680 px); pane 22–40rem | ≥ 124rem (~1980 px); pane 20–28rem | every size from M |
+| Shown from | ≥ 85rem (~1360 px), the list narrowing to a 60rem floor; pane 22–40rem | ≥ 124rem (~1980 px); pane 20–28rem | every size from M |
 | How it opens | "Vorschau" in the tool row, next to "Spalten …" (a preference, kept in a cookie) | a row's "Vorschau" (hover), or a click on the row | a row's "Vorschau", or a click on the row |
 | Next record | ↑ ↓ | ↑ ↓ | ↑ ↓ (the band moves) |
-| Cost | the list moves to the start edge once, when the mode is switched on | none; but at 1920 px there is no room, so most screens never show it | rows below move down; repeats Signatur, Typ and Datierung from the row |
+| Cost | the list moves to the start edge (and narrows on smaller screens) while a record is open | none; but at 1920 px there is no room, so most screens never show it | rows below move down; repeats Signatur, Typ and Datierung from the row |
 | Gain | the largest preview (PDF page ~37rem tall at 1920 px); the list stays put while stepping | zero layout change | works on laptops (1440 px), where neither side variant fits |
 
 Recommendation: **Spalte.** It is the only one that shows a scan large enough to judge on a common
@@ -48,11 +48,11 @@ archivists mostly work on laptops, but then the pane is no longer "an extra next
 - Without JS: the row's "Vorschau" link is a plain GET (`?artikel=<ulid>`, as today), and the
   server renders the pane. The arrow keys are an enhancement.
 
-## Open questions for the owner
+## Owner rulings (2026-09-29)
 
-1. Which variant: Spalte (recommended), Rand, or Zeile?
-2. Spalte: should the page stay at the start edge while the mode is on, even when the pane is
-   closed? The mock moves it only while a record is open.
-3. The Bestand fact repeats a Bestand the search sentence already filters by. Drop it in that case?
-4. Should members get the pane too? Their job is browsing, not checking, and the title already opens
-   the article.
+1. **Spalte.** Zeile is kept for later; Rand is dropped.
+2. The list moves to the start edge only while a record is open, and narrows down to a floor
+   (60rem with its gutter) where the viewport is narrower than list + pane. On close it is centred
+   again. So the pane also appears on laptops: from ~1360 px (85rem). Applied in the mock.
+3. The pane keeps the Bestand line, even when the search already filters by that Bestand.
+4. Every viewer gets the pane, not only archivists.
