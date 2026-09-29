@@ -80,7 +80,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 # Keep ruff's defaults (E4/E7/E9, F); EXTEND with import-sort + modernization/idiom rules.
-extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET"]
+extend-select = [
+    "I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET", "BLE", "DTZ", "PGH", "S",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Django migration classes own `dependencies`/`operations` as bare class attributes (the
@@ -90,6 +92,8 @@ extend-select = ["I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH
 # tests pin as ValueError, not the argument-type situation TRY004 targets.
 "src/bundesarchiv/persistence/readme.py" = ["TRY004"]
 "src/bundesarchiv/persistence/collection_readme.py" = ["TRY004"]
+# Tests assert, and their keys and passwords are fixtures.
+"tests/**" = ["S101", "S105", "S106"]
 
 [tool.mypy]
 strict = true

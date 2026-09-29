@@ -44,7 +44,7 @@ from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 # not a silent under-index. Lives next to the ``archivist_text`` column, its natural home; Task 7
 # imports the constant from here.
 _ARCHIVIST_TEXT_SOURCES: frozenset[str] = frozenset({"physical_location", "custom"})
-assert _ARCHIVIST_TEXT_SOURCES == ARCHIVIST_ONLY_FIELDS, (
+assert _ARCHIVIST_TEXT_SOURCES == ARCHIVIST_ONLY_FIELDS, (  # noqa: S101 — import-time drift trip
     "index archivist partition drifted from domain floor"
 )
 

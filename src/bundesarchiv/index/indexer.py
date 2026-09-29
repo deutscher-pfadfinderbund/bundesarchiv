@@ -77,7 +77,7 @@ def _take_writer_lock() -> None:
 # the builder starts reading one outside the floor, these diverge and the module fails to import
 # — a fail-closed drift trip, never a silent under- or over-index.
 _BUILDER_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
-assert _BUILDER_FIELDS == _ARCHIVIST_TEXT_SOURCES, (
+assert _BUILDER_FIELDS == _ARCHIVIST_TEXT_SOURCES, (  # noqa: S101 — import-time drift trip
     "archivist_text builder drifted from the domain floor"
 )
 

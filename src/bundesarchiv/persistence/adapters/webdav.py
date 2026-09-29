@@ -256,7 +256,7 @@ def _retrying[T](attempt: Callable[[], T], delays: tuple[float, ...] | None = No
         try:
             return attempt()
         except Busy, _ParentNotVisible:
-            time.sleep(delay * random.uniform(0.5, 1.5))  # jitter: contenders spread out
+            time.sleep(delay * random.uniform(0.5, 1.5))  # noqa: S311 — jitter, not a secret
     return attempt()
 
 
@@ -302,7 +302,8 @@ def _iter_chunks(stream: BinaryIO) -> Iterator[bytes]:
 
 def _parse_multistatus(body: bytes) -> Iterator[_Resource]:
     try:
-        root = ElementTree.fromstring(body)
+        # Expat >= 2.6 closes entity bombs and large-token DoS; etree resolves no external entities.
+        root = ElementTree.fromstring(body)  # noqa: S314
     except ElementTree.ParseError as exc:
         # A malformed multistatus body is a misbehaving mirror — ArchiveError, not a raw
         # xml.etree.ParseError escaping past the port.

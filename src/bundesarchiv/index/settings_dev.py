@@ -51,5 +51,5 @@ STORAGES = {
 # plain http, so a Secure CSRF cookie would simply never come back.
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
-SECRET_KEY = "dev-secret-key-not-a-secret"
+SECRET_KEY = "dev-secret-key-not-a-secret"  # noqa: S105 — dev-only, prod never imports this
 CSRF_COOKIE_SECURE = False

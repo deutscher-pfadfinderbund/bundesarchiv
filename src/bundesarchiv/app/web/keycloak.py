@@ -313,7 +313,10 @@ def _revoke(refresh_token: str) -> None:
         _call(
             client,
             lambda c: c.revoke_token(
-                endpoint, token=refresh_token, token_type_hint="refresh_token", timeout=_TIMEOUT
+                endpoint,
+                token=refresh_token,
+                token_type_hint="refresh_token",  # noqa: S106 — an OAuth parameter name, not a secret
+                timeout=_TIMEOUT,
             ),
         )
 
