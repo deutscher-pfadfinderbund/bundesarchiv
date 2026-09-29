@@ -24,7 +24,7 @@
 | --- | --- |
 | Inner loop | `mise run test:nodb` (~5s, no container), or path-scoped `uv run pytest tests/<suite>/...` |
 | One suite | `mise run test:domain` / `test:persistence` / `test:index` / `test:app` |
-| Before a commit | `mise run check` — ruff, format, pyrefly, no-DB tests. The pre-commit hook runs the same class of checks. |
+| Before a commit | `mise run check` — ruff, format, pyrefly, Biome (static CSS/JS: lint + format), no-DB tests. The pre-commit hook runs the same class of checks. |
 | Change touches index, search or schema (`src/bundesarchiv/index/`, migrations, search-relevant persistence) | `mise run gate` — the full gate, mypy and every suite included |
 | Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
 | Postgres-backed tests only | `mise run test:db` |

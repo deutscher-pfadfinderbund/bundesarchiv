@@ -10,7 +10,7 @@ run = [
   "uv run ruff check",
   "uv run ruff format --check .",
   "uv run pyrefly check src tests",
-  "biome lint --error-on-warnings",
+  "biome check --error-on-warnings",
   "uv run pytest -m \"not requires_pg\"",
 ]
 
@@ -21,7 +21,7 @@ run = [
   "uv run ruff check",
   "uv run ruff format --check .",
   "uv run pyrefly check src tests",
-  "biome lint --error-on-warnings",
+  "biome check --error-on-warnings",
   "uv run mypy",
   "uv run pytest",
 ]

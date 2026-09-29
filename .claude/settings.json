@@ -31,9 +31,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -e '.stop_hook_active' >/dev/null && exit 0; cd \"$(git rev-parse --show-toplevel)\" && uv run ruff format --quiet src tests; uv run pyrefly check src tests --summary=none --output-format=min-text >&2 || exit 2; if biome --version >/dev/null 2>&1; then biome lint --error-on-warnings --colors=off >&2 || exit 2; else echo 'biome not installed (mise install); lint skipped' >&2; fi",
+            "command": "jq -e '.stop_hook_active' >/dev/null && exit 0; cd \"$(git rev-parse --show-toplevel)\" && uv run ruff format --quiet src tests; uv run pyrefly check src tests --summary=none --output-format=min-text >&2 || exit 2; if biome --version >/dev/null 2>&1; then biome format --write >/dev/null 2>&1; biome lint --error-on-warnings --colors=off >&2 || exit 2; else echo 'biome not installed (mise install); check skipped' >&2; fi",
             "timeout": 60,
-            "statusMessage": "ruff format + pyrefly type check + biome lint"
+            "statusMessage": "ruff format + pyrefly type check + biome format + lint"
           }
         ]
       }

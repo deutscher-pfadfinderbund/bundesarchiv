@@ -29,12 +29,12 @@ repos:
         language: system
         pass_filenames: false
       - id: biome
-        name: biome lint
-        # Lint only, scope in biome.jsonc; mise exec because the version is pinned in mise.toml.
-        entry: mise exec -- biome lint --error-on-warnings
+        name: biome check
+        # Lint + format check, scope in biome.jsonc; mise exec because mise.toml pins the version.
+        entry: mise exec -- biome check --error-on-warnings
         language: system
         pass_filenames: false
-        files: ^(biome\.jsonc|src/bundesarchiv/app/web/static/.*)$
+        files: ^(biome\.jsonc|\.claude/settings\.json|src/bundesarchiv/app/web/static/.*)$
       - id: gate
         name: gate
         entry: mise run gate
