@@ -27,6 +27,7 @@ scope predicate is therefore always applied by Django as a real ``WHERE`` on eve
 import datetime
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from enum import StrEnum
 from typing import Any, Literal, assert_never
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVectorField
@@ -57,6 +58,16 @@ _DE_NUMERIC = "de_numeric"
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
 
 
+class FileKind(StrEnum):
+    """The closed set of kinds a record's files are counted by, in the order a summary lists them."""
+
+    IMAGE = "image"
+    PDF = "pdf"
+    VIDEO = "video"
+    AUDIO = "audio"
+    OTHER = "other"
+
+
 @dataclass(frozen=True, slots=True)
 class SearchFilters:
     """Facet/filter selection. All optional; ``None`` means "no constraint on this dimension".
@@ -70,6 +81,9 @@ class SearchFilters:
     NULL exclusion, and mutually exclusive with a date range in practice (a dateless row can never
     overlap a window): if ``dateless`` and a range are both given, the two ``date_earliest`` clauses
     (IS NULL vs IS NOT NULL) conjoin to the empty set — the honest, non-crashing outcome.
+
+    ``has_files`` keeps rows with at least one file (the fact ``SearchHit.file_counts`` reports);
+    ``drafts_only`` keeps drafts, so it narrows a non-Archivist's scope to nothing.
     """
 
     collection: Ulid | None = None
@@ -80,6 +94,8 @@ class SearchFilters:
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None
     dateless: bool = False
+    has_files: bool = False
+    drafts_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +122,9 @@ class SearchHit:
     is_draft: bool
     tier: str | None  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff an archivist-only row
     groups: tuple[str, ...]
+    collection_id: Ulid  # the Bestand the Article sits in; names no Bestand on a fail-closed row
+    # (kind, count) in FileKind order, zero kinds left out; () = no files.
+    file_counts: tuple[tuple[FileKind, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +167,8 @@ _HIT_COLUMNS = (
     "is_draft",
     "tier",
     "groups",
+    "collection_id",
+    "file_counts",
 )
 
 
@@ -310,6 +331,10 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
         # uses to EXCLUDE dateless rows — here we SELECT them. Applied over the already-scoped set,
         # so the scope WHERE rides along (no visibility re-derivation).
         qs = qs.filter(date_earliest__isnull=True)
+    if f.has_files:
+        qs = qs.exclude(file_counts={})
+    if f.drafts_only:
+        qs = qs.filter(is_draft=True)
     return _apply_date_range(qs, f.date_from, f.date_to)
 
 
@@ -371,10 +396,22 @@ def _page_of_hits(
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
-    # ``groups`` is cut to what this viewer may learn; every other column maps 1:1.
+    # ``groups`` is cut to what this viewer may learn; every other column but ``file_counts`` maps 1:1.
     return tuple(
-        SearchHit(**{**row, "groups": _visible_groups(viewer, row["groups"])}) for row in rows
+        SearchHit(
+            **{
+                **row,
+                "groups": _visible_groups(viewer, row["groups"]),
+                "file_counts": _in_kind_order(row["file_counts"]),
+            }
+        )
+        for row in rows
     )
+
+
+def _in_kind_order(counts: Mapping[str, int]) -> tuple[tuple[FileKind, int], ...]:
+    """The stored ``file_counts`` as a hit carries them: (kind, count) in ``FileKind`` order."""
+    return tuple((kind, counts[kind]) for kind in FileKind if kind in counts)
 
 
 def _visible_groups(viewer: Viewer, groups: list[str]) -> tuple[str, ...]:

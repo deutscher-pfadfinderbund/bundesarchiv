@@ -6,7 +6,7 @@ queries over it. The public interface is deliberately tiny:
 
 - ``indexer.rebuild(store)`` — wipe and rebuild the index from README files.
 - ``query.search(viewer, ...)`` — viewer-scoped, field-floor-aware query.
-- ``query.SearchPage`` / ``SearchHit`` / ``SearchFilters`` — the frozen result/query types.
+- ``query.SearchPage`` / ``SearchHit`` / ``SearchFilters`` / ``FileKind`` — the result/query types.
 
 This ``__init__`` imports nothing: both submodules pull in the ``ArticleIndex`` ORM model,
 which cannot load before Django's app registry is ready.

@@ -90,13 +90,15 @@ class ArticleIndex(models.Model):
     archivist_only = models.BooleanField()
     tier = models.TextField(null=True)  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff archivist_only
     groups = ArrayField(models.TextField(), default=list)
-    # Lifecycle marker for archivist chrome (the ENTWURF badge). Distinct from archivist_only: a
-    # DRAFT and a fail-closed row are BOTH archivist_only, but only a draft is is_draft — the badge
-    # must not label a broken-chain row "ENTWURF". Not a scope column: visibility is decided by
-    # archivist_only/tier/groups alone; this only drives display for the archivist who already sees
-    # the row. Members/public never receive archivist_only rows, so is_draft never reaches them.
+    # Lifecycle marker for archivist chrome (the ENTWURF badge, the drafts filter). Distinct from
+    # archivist_only: a DRAFT and a fail-closed row are BOTH archivist_only, but only a draft is
+    # is_draft — the badge must not label a broken-chain row "ENTWURF". Not a scope column:
+    # visibility is decided by archivist_only/tier/groups alone; this only narrows or labels rows
+    # the archivist already sees. Members/public never receive archivist_only rows.
     is_draft = models.BooleanField(default=False)
     added_at = models.DateTimeField(null=True)  # the date added; None = unknown
+    # {FileKind value: count} of the Article's media, zero kinds absent; {} = no files.
+    file_counts = models.JSONField(default=dict)
     # bump when the FTS config changes (indexer.CONFIG_VERSION) to trigger a rebuild
     config_version = models.IntegerField()
 

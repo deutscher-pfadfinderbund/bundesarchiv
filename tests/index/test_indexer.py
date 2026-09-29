@@ -16,6 +16,7 @@ viewer-visibility meets SQL; equivalence to ``domain.access.can_view`` is pinned
 """
 
 import datetime
+import io
 
 import pytest
 
@@ -31,7 +32,7 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import search
+from bundesarchiv.index.query import FileKind, SearchFilters, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -157,6 +158,22 @@ def test_build_row_body_unchanged_without_captions() -> None:
     article = _article(body="Nur Text.", media=(MediaRef("a.jpg", "a" * 64),))
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
     assert row["body"] == "Nur Text."
+
+
+def test_build_row_counts_files_per_kind_by_mime_else_extension() -> None:
+    article = _article(
+        media=(
+            MediaRef("scan.pdf", "1" * 64, media_type="application/pdf"),
+            MediaRef("a.JPG", "2" * 64),
+            MediaRef("b.pdf", "3" * 64, media_type="image/png"),
+            MediaRef("film.mp4", "4" * 64),
+            MediaRef("ton.wav", "5" * 64, media_type="audio/x-wav"),
+            MediaRef("paket.zip", "6" * 64, media_type="application/zip"),
+            MediaRef("ohne-endung", "7" * 64),
+        ),
+    )
+    row = indexer.build_row(article, _chain(_root()), cap_year=_CAP_YEAR)
+    assert row["file_counts"] == {"pdf": 1, "image": 2, "video": 1, "audio": 1, "other": 2}
 
 
 # --- date columns ----------------------------------------------------------
@@ -394,6 +411,27 @@ def test_the_added_sort_is_newest_first_unknown_last_ulid_breaking_ties() -> Non
 
     hits = search(Archivist(), sort="added").hits
     assert [hit.ulid for hit in hits] == ["01A", "01D", "01B", "01C"]
+
+
+@pytest.mark.django_db
+def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -> None:
+    store = InMemoryObjectStore()
+    CollectionRepository(store).save(_root(), 0, changed_by="tester")
+    articles = ArticleRepository(store)
+    media = tuple(
+        articles.add_media("01MIX", name, io.BytesIO(name.encode()), media_type=mime)
+        for name, mime in (("brief.pdf", "application/pdf"), ("a.jpg", None), ("b.jpg", None))
+    )
+    articles.save(_article(ulid="01MIX", media=media), 0, changed_by="tester")
+    articles.save(_article(ulid="01NIX"), 0, changed_by="tester")
+    indexer.rebuild(store)
+
+    hits = {hit.ulid: hit for hit in search(Archivist()).hits}
+    assert hits["01MIX"].file_counts == ((FileKind.IMAGE, 2), (FileKind.PDF, 1))
+    assert hits["01NIX"].file_counts == ()
+    assert hits["01MIX"].collection_id == "ROOT"
+    with_files = search(Archivist(), filters=SearchFilters(has_files=True)).hits
+    assert [hit.ulid for hit in with_files] == ["01MIX"]
 
 
 # ===========================================================================

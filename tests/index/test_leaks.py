@@ -163,6 +163,7 @@ def test_draft_invisible_via_filters_to_non_archivists(corpus: None) -> None:
             SearchFilters(collection="ROOT"),
             SearchFilters(document_type="Chronik"),
             SearchFilters(tag="entwurf"),
+            SearchFilters(has_files=True),  # the draft has a file
         ):
             assert _DRAFT_ULID not in _ulids(viewer, filters=f, page_size=200), (
                 f"[{label}] draft leaked via filter {f}"
@@ -198,6 +199,16 @@ def test_draft_visible_to_archivist_through_paths(corpus: None) -> None:
     assert _DRAFT_ULID in _ulids(ARCHIVIST, text="Entwurf")
     assert _DRAFT_ULID in _ulids(ARCHIVIST, filters=SearchFilters(tag="entwurf"), page_size=200)
     assert "entwurf" in _facet_values(ARCHIVIST, "tags")
+    # The fail-closed ART_ORPHAN is archivist-only too, but no draft.
+    assert _ulids(ARCHIVIST, filters=SearchFilters(drafts_only=True)) == {_DRAFT_ULID}
+
+
+@pytest.mark.django_db
+def test_the_drafts_filter_answers_a_non_archivist_with_an_empty_page(corpus: None) -> None:
+    for label, viewer in _NON_ARCHIVIST_TIERS:
+        page = search(viewer, filters=SearchFilters(drafts_only=True))
+        assert (page.hits, page.total, page.dateless_count) == ((), 0, 0), f"[{label}]"
+        assert not any(page.facets.values()), f"[{label}] a facet counted under drafts only"
 
 
 def label_in(label: str, who: frozenset[str]) -> bool:
@@ -521,6 +532,8 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "is_draft",
         "tier",
         "groups",
+        "collection_id",
+        "file_counts",
     }
     for floored in (
         "physical_location",

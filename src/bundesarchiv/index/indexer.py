@@ -32,6 +32,8 @@ One lock, one rule, no lost updates between index writers. Canonical-file writer
 ADR 0013's ``WRITER_LOCK``, not this lock.
 """
 
+import mimetypes
+from collections import Counter
 from dataclasses import dataclass
 
 from django.db import connection, transaction
@@ -40,8 +42,9 @@ from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
-from bundesarchiv.domain.models import Article, Collection, Lifecycle, Ulid
+from bundesarchiv.domain.models import Article, Collection, Lifecycle, MediaRef, Ulid
 from bundesarchiv.index.models import ArticleIndex
+from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.errors import NotFound
@@ -55,7 +58,8 @@ from bundesarchiv.persistence.repository import ArticleRepository
 #   v2: media captions join the body-weight bucket (ADR 0015).
 #   v3: is_draft column added (archivist chrome — ENTWURF badge).
 #   v4: added_at column added (the "added" sort).
-CONFIG_VERSION = 4
+#   v5: file_counts column added (the Digital column and the has-files filter).
+CONFIG_VERSION = 5
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -125,6 +129,26 @@ def _body_text(article: Article) -> str:
     return " ".join([article.body, *captions]).strip()
 
 
+# The stdlib's built-in table only, never the host's mime.types: a rebuild on any machine yields the
+# same kinds.
+_MIME_TABLE = mimetypes.MimeTypes()
+_KIND_BY_MAJOR = {"image": FileKind.IMAGE, "video": FileKind.VIDEO, "audio": FileKind.AUDIO}
+
+
+def _file_kind(ref: MediaRef) -> FileKind:
+    """The kind of one file: its MIME type when recorded, else the one its name's extension
+    implies; anything unrecognised is ``OTHER``."""
+    mime = (ref.media_type or _MIME_TABLE.guess_file_type(ref.filename)[0] or "").lower()
+    if mime == "application/pdf":
+        return FileKind.PDF
+    return _KIND_BY_MAJOR.get(mime.partition("/")[0], FileKind.OTHER)
+
+
+def _file_counts(article: Article) -> dict[str, int]:
+    """The ``file_counts`` column: how many of the Article's files are of each kind."""
+    return dict(Counter(_file_kind(ref).value for ref in article.media))
+
+
 def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:
     """Every non-scope column: identity, member-visible text, folded archivist_text, dates, and
     the Collection ancestry. Shared by ``build_row`` and the fail-closed path (which supplies an
@@ -141,9 +165,10 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         "document_type": article.document_type,
         "tags": list(article.tags),
         "archivist_text": _archivist_text(article),
-        # Lifecycle marker for archivist chrome only (the ENTWURF badge); NOT a scope column.
+        # Lifecycle marker (the ENTWURF badge, the drafts filter); NOT a scope column.
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
         "added_at": article.added_at,
+        "file_counts": _file_counts(article),
         "date_edtf": article.date.value if article.date is not None else None,
         "date_earliest": earliest,
         "date_latest": latest,
