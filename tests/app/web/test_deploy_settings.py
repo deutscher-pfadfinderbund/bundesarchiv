@@ -75,13 +75,9 @@ def test_the_token_cookie_middleware_wraps_everything_that_resolves_the_viewer()
     every middleware that calls ``viewer_of`` (ADR 0018). Missing, a refreshed login never reaches
     the browser and a dead refresh cookie is never cleared."""
     token = "bundesarchiv.app.web.viewers.TokenCookieMiddleware"
-    later = (
-        "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
-        "bundesarchiv.app.web.dev.DevViewerMiddleware",
-    )
+    gate = "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware"
     for stack in (prod_settings.MIDDLEWARE, settings_dev.MIDDLEWARE):
-        assert token in stack
-        assert all(stack.index(token) < stack.index(name) for name in later if name in stack)
+        assert stack.index(token) < stack.index(gate)
 
 
 def test_security_middleware_leads_both_middleware_stacks() -> None:

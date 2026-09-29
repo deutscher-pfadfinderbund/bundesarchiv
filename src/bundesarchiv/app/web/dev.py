@@ -1,17 +1,14 @@
-"""Dev-only viewer switcher — middleware + switcher view (Part 4.4).
+"""Dev-only viewer switcher view (Part 4.4).
 
-This module is referenced ONLY from ``settings_dev`` (its ``MIDDLEWARE`` and ``dev_urls``). Under
-production settings it is never added to ``MIDDLEWARE`` and its route never appears in the URLconf,
-so the switcher is UNREACHABLE in production by absence of code paths — not by a runtime flag that
-could be flipped on. The cookie it sets is signed with the dedicated dev key (see ``viewers``),
-worthless against any production deployment.
+This module is referenced ONLY from ``dev_urls``. Under production settings its route never appears
+in the URLconf, so the switcher is UNREACHABLE in production by absence of code paths — not by a
+runtime flag that could be flipped on. The cookie it sets is signed with the dedicated dev key (see
+``viewers``), worthless against any production deployment.
 
-The middleware resolves ``viewer_of(request)`` once and attaches it to ``request.viewer`` for the
-views below it. The switcher view (GET) shows a dead-simple German form to pick a viewer; (POST)
-sets the signed cookie and redirects back to itself.
+The switcher view (GET) shows a dead-simple German form to pick a viewer; (POST) sets the signed
+cookie and redirects back to itself.
 """
 
-from collections.abc import Callable
 from html import escape
 
 from django.http import (
@@ -43,21 +40,6 @@ def favicon(request: HttpRequest) -> HttpResponse:
     automatic ``/favicon.ico`` probe surfaces as a 500. Answering the route here returns the honest
     404 directly, never entering the debug handler — no asset, prod behavior unchanged."""
     return HttpResponseNotFound()
-
-
-class DevViewerMiddleware:
-    """Attach the request's ``Viewer`` (from the signed dev cookie) to ``request.viewer``.
-
-    Dev-only: installed solely by ``settings_dev.MIDDLEWARE``. Views/templates read
-    ``request.viewer``; Part 5 swaps the underlying ``viewer_of`` for the OIDC adapter and this
-    middleware keeps working unchanged."""
-
-    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
-        self.get_response = get_response
-
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        request.viewer = viewer_of(request)  # type: ignore[attr-defined]
-        return self.get_response(request)
 
 
 def _viewer_from_post(request: HttpRequest) -> Viewer:

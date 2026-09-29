@@ -4,9 +4,9 @@ Two seams:
 
 - The switcher round-trip UNDER dev settings: POST a viewer choice -> a signed cookie is set ->
   the next request's ``viewer_of`` returns that viewer. Exercised through Django's test ``Client``
-  with the dev URLconf + middleware active (the real request path, not mocks).
-- Prod-safety: under the PRODUCTION settings module the ``DevViewerMiddleware`` is absent from
-  ``MIDDLEWARE`` and the switcher route does not resolve — the dev mechanism is unreachable in prod
+  with the dev URLconf + CSRF middleware active (the real request path, not mocks).
+- Prod-safety: under the PRODUCTION settings module the dev signing key is absent and the switcher
+  route does not resolve — the dev mechanism is unreachable in prod
   by absence of code paths, not by a flag.
 """
 
@@ -29,11 +29,7 @@ _SWITCHER_PATH = "/_dev/viewer/"
 
 _DEV = {
     "ROOT_URLCONF": "bundesarchiv.app.web.dev_urls",
-    # Mirror the real settings_dev MIDDLEWARE: CSRF first (the Part 4.7 fix wave), then the dev viewer.
-    "MIDDLEWARE": [
-        "django.middleware.csrf.CsrfViewMiddleware",
-        "bundesarchiv.app.web.dev.DevViewerMiddleware",
-    ],
+    "MIDDLEWARE": ["django.middleware.csrf.CsrfViewMiddleware"],
     "DEV_VIEWER_SIGNING_KEY": "test-dev-viewer-key",
 }
 
@@ -95,11 +91,6 @@ def test_the_switcher_shows_the_active_archivists_name() -> None:
 # --- prod-safety: the dev mechanism is unreachable under production settings -----------------
 
 
-def test_prod_settings_have_no_dev_middleware() -> None:
-    prod = importlib.import_module("bundesarchiv.index.settings")
-    assert "bundesarchiv.app.web.dev.DevViewerMiddleware" not in getattr(prod, "MIDDLEWARE", [])
-
-
 def test_prod_settings_define_no_dev_signing_key() -> None:
     prod = importlib.import_module("bundesarchiv.index.settings")
     assert not hasattr(prod, "DEV_VIEWER_SIGNING_KEY")
@@ -143,7 +134,7 @@ def test_switcher_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
 @pytest.mark.requires_pg
 def test_prod_process_boots_clean_under_prod_settings() -> None:
     # The strongest, realest prod-safety proof: a fresh process runs ``manage.py check`` under the
-    # PRODUCTION settings module (no SECRET_KEY, no MIDDLEWARE, no ROOT_URLCONF) and passes. If prod
+    # PRODUCTION settings module (no SECRET_KEY, no dev signing key) and passes. If prod
     # settings had grown any dev-viewer coupling (a middleware/URLconf referencing dev code that
     # needs the dev key), this real boot would surface it — mocks cannot.
     env = dict(os.environ)

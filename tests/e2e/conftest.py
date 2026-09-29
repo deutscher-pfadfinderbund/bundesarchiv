@@ -4,9 +4,8 @@ Every journey drives the REAL app end to end in a browser — no view-function s
 services. The stack:
 
 - ``live_server`` (pytest-django) serves the app in a thread. It is pointed at ``settings_dev`` (dev
-  urlconf + DevViewerMiddleware + the dev signing key) via ``override_settings`` per test, so the
-  archivist cookie the browser carries is honoured exactly as in dev; the canonical store is a fresh
-  temp dir per test.
+  urlconf + the dev signing key) via ``override_settings`` per test, so the archivist cookie the
+  browser carries is honoured exactly as in dev; the canonical store is a fresh temp dir per test.
 - A canonical corpus is built + committed per test (the live server reads committed rows; pytest-
   django TRUNCATEs the index between tests, so a once-per-session corpus would vanish), indexed so
   ``search`` sees it. A fresh store per test also isolates the mutating journeys from the read-only.

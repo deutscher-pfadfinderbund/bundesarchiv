@@ -225,10 +225,7 @@ def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
     client = client_as(Member(groups=("vorstand",)), enforce_csrf=True)
     with override_settings(
         ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
-        MIDDLEWARE=[
-            "django.middleware.csrf.CsrfViewMiddleware",
-            "bundesarchiv.app.web.dev.DevViewerMiddleware",
-        ],
+        MIDDLEWARE=["django.middleware.csrf.CsrfViewMiddleware"],
     ):
         client.get("/_dev/viewer/")  # DB-free; renders a form → sets the csrf cookie
         token = client.cookies["csrftoken"].value

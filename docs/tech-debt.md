@@ -169,8 +169,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 ### 15. Archivist route gate spelled many ways — Speculative
 - **Indicator:** 8 hand-written `request.method != …` re-checks in `app/web` (2026-09-02)
 - **Evidence:** `_load_gated` omits method checking, so callers re-append it. Related: `viewer_of`
-  resolves up to 4× per request while the attach-once `request.viewer` pattern
-  (`dev.DevViewerMiddleware`) sits unused in production.
+  resolves up to 4× per request.
 - **Cost class:** tidiness, not safety — `test_leak_matrix._CONTRACT` exhaustiveness already makes a
   forgotten gate loud.
 - **Sketch:** an `@archivist_route(method=…, needs_article=True)` decorator seam.

@@ -1,13 +1,11 @@
 """Development settings — production settings plus the dev-viewer mechanism (Part 4.4).
 
-Production runs on ``bundesarchiv.index.settings``, which stays HTTP-agnostic (no MIDDLEWARE, no
-ROOT_URLCONF) and NEVER imports this module. This module imports everything from prod settings and
-adds ONLY what the dev-viewer switcher needs:
+Production runs on ``bundesarchiv.index.settings``, which NEVER imports this module. This module
+imports everything from prod settings and adds ONLY what the dev-viewer switcher needs:
 
 - ``DEV_VIEWER_SIGNING_KEY`` — a DEDICATED dev-only signing key, deliberately NOT ``SECRET_KEY``.
   ``viewer_of`` signs/verifies the dev cookie with this key alone, so a dev cookie is worthless
   against any production deployment (which defines no such key and thus falls closed to Public).
-- ``DevViewerMiddleware`` in ``MIDDLEWARE`` — attaches ``request.viewer``. Absent from prod.
 - ``ROOT_URLCONF`` -> ``dev_urls`` — exposes the switcher route. Absent from prod.
 
 Because these live only here and prod never imports this module, the switcher is unreachable in
@@ -34,21 +32,7 @@ DEV_VIEWER_SIGNING_KEY = os.environ.get(
 # omission (settings.py).
 ANONYMOUS_GATE_ENABLED = False
 
-# The dev switcher's URLconf and the middleware that reads the signed cookie into ``request.viewer``.
 ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
-
-# Prod's CSRF protection (see settings.py) PLUS the dev-viewer middleware. CSRF runs first so the
-# write forms are protected in dev exactly as in prod (the dev switcher + every {% csrf_token %} form
-# carry the token); DevViewerMiddleware then attaches request.viewer for the views below.
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "bundesarchiv.app.web.viewers.TokenCookieMiddleware",  # outside everything that calls viewer_of
-    "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",  # inert here: the flag is off
-    "bundesarchiv.app.web.dev.DevViewerMiddleware",
-]
 
 # Dev uses the NON-manifest staticfiles backend so ``runserver`` (whose StaticFilesHandler serves
 # /static/ from the finders) needs no ``collectstatic`` and {% static %} yields plain unhashed URLs.
