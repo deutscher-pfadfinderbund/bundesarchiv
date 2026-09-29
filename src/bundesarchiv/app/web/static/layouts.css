@@ -417,7 +417,7 @@
      switch — pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem
      > 32rem (the sidebar's death only WIDENED the margin). Both sides must share the rem unit or
      a non-default root font size silently breaks the margin. */
-  @media (min-width: 80rem) { /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */
+  @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {
     body.vorschau .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
@@ -474,7 +474,7 @@
     flex-direction: column;
     gap: var(--space-4);
   }
-  @media (width >= 80rem) { /* space budget L (design-system.md): the margin takes a side column */
+  @media (width >= 80rem) /* space budget L (design-system.md): the margin takes a side column */ {
     .form-sheet {
       grid-template-columns: minmax(0, 1fr) 18rem; /* the margin column: the mock's --column-min */
       grid-template-areas: "lead meta" "body meta";
@@ -520,7 +520,7 @@
     grid-area: 2 / 3;
     align-self: center;
   }
-  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .pairs {
       grid-template-columns: minmax(0, 1fr) auto;
     }

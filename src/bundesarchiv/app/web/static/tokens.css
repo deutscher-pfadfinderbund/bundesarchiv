@@ -24,7 +24,8 @@
   --page-rule: light-dark(#dcdcdc, #262626);
   --page-edge: light-dark(#8f8f8f, #6e6e6e);
   --page-faint: light-dark(#d0d0d0, #555); /* dark tuned up: --rule would vanish on black */
-  --band-ground: light-dark(#000, #0b0b0b); /* the header: an inverse band on light, page in dark */
+  /* the header: an inverse band on light, page in dark */
+  --band-ground: light-dark(#000, #0b0b0b);
   --band-ink: light-dark(#fff, #f0f0f0);
   --band-ink-2: light-dark(#b3b3b3, #a0a0a0);
   --band-edge: light-dark(transparent, #262626); /* the band needs an edge only on black */
@@ -53,7 +54,8 @@
   --type-title: 600 1.05rem/1.35 var(--font-display);
   --type-body: 400 0.95rem/1.5 var(--font-body);
   --type-meta: 400 0.85rem/1.4 var(--font-body);
-  --type-label: 400 0.85rem/1.3 var(--font-body); /* mixed case, no tracking: the meta size, as in DESIGN.md */
+  /* mixed case, no tracking: the meta size, as in DESIGN.md */
+  --type-label: 400 0.85rem/1.3 var(--font-body);
   --type-mono: 400 0.85rem/1.4 var(--font-mono);
   --type-mono-meta: 400 0.78rem/1.4 var(--font-mono);
   --type-note: 400 0.8rem/1.3 var(--font-body);

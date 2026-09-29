@@ -350,7 +350,7 @@
     grid-row: 2;
     align-self: end;
   }
-  @container (width < 40rem) { /* S (DESIGN.md space budget); no token names a container width */
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .file-row {
       --file-row-thumb: 5.5rem; /* the mock's --space-10 */
       grid-template-columns: var(--file-row-thumb) minmax(0, 1fr);
@@ -598,7 +598,8 @@
     position: absolute;
     top: calc(100% + var(--space-1));
     max-width: 100%; /* the containment half of the rule above — never wider than the row */
-    z-index: var(--z-overlay-panel); /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
+    z-index: var(--z-overlay-panel);
     margin: 0;
     /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
     inset-inline-start: 0;
@@ -1076,7 +1077,9 @@
      (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
      ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
      (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
-  @container (max-width: 32rem) { /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the e2e proof); no token names a content minimum */
+  /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the
+     e2e proof) */
+  @container (max-width: 32rem) /* no token names a content minimum */ {
     .ledger > [role="table"] {
       grid-template-columns: 1fr;
     }
