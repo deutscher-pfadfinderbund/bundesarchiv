@@ -1,7 +1,7 @@
 """Thumbnail generation (Part 4.3) — a LOCAL derived cache, keyed by content-hash.
 
 A thumbnail is a downscaled WebP preview of an image file. It is a DERIVED CACHE, not archive
-truth: keyed purely by the file's content-hash (``THUMBNAIL_ROOT/<hash>.webp``), regenerable from
+truth: keyed purely by the file's content-hash (``thumbnail_path``), regenerable from
 canonical at any time, NOT stored in the ObjectStore, NOT canonical, NOT mirrored, NOT backed up,
 and freely prunable (README runbook). Identical bytes always yield the identical thumbnail, so the
 cache key is the content-hash alone, whichever Article or file name the bytes sit under.
@@ -11,7 +11,7 @@ re-derives at execution, reading the file through that Article's media entry (AD
 files (PDF, text, …) are a no-op: only the corpus image types (JPEG/PNG/TIFF — evaluated against
 Pillow 12.x) thumbnail.
 
-Idempotent: re-running overwrites the same ``<hash>.webp`` with identical bytes.
+Idempotent: re-running overwrites the same file with identical bytes.
 """
 
 import io
@@ -30,13 +30,18 @@ from bundesarchiv.persistence.repository import ArticleRepository
 _LONGEST_SIDE = 480
 
 
+def thumbnail_path(thumbnail_root: Path, content_hash: str) -> Path:
+    """The cache file for one blob's thumbnail: the job writes it, the web layer serves it."""
+    return thumbnail_root / f"{content_hash}.webp"
+
+
 def generate_thumbnail(
     store: ObjectStore, ulid: Ulid, content_hash: str, thumbnail_root: Path
 ) -> bool:
     """Derive a longest-side ~480px WebP thumbnail for the media file with ``content_hash`` on
-    Article ``ulid`` and write it to ``thumbnail_root/<content_hash>.webp``. Returns True if a
-    thumbnail was written, False if it was a no-op (no such Article, no such file on it, or the file
-    is not a decodable image — PDF/text/etc.).
+    Article ``ulid`` and write it to its ``thumbnail_path`` under ``thumbnail_root``. Returns True
+    if a thumbnail was written, False if it was a no-op (no such Article, no such file on it, or the
+    file is not a decodable image — PDF/text/etc.).
 
     Idempotent (overwrites with identical bytes); re-derives from canonical every time (reference
     semantics). Never raises for a non-image file — a corrupt or non-image file is a silent no-op so
@@ -53,7 +58,7 @@ def generate_thumbnail(
         return False  # the Article or its file is gone from canonical → nothing to derive
     if webp is None:
         return False  # not a decodable image (PDF, text, video, corrupt) → no-op, by design
-    destination = thumbnail_root / f"{content_hash}.webp"
+    destination = thumbnail_path(thumbnail_root, content_hash)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(webp)
     return True

@@ -395,7 +395,7 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
     _saved(articles, "A1", png, jpg)
     for ref in (png, jpg):
         assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is True
-        out = thumbs / f"{ref.content_hash}.webp"
+        out = thumbnails.thumbnail_path(thumbs, ref.content_hash)
         assert out.is_file()
         with Image.open(out) as im:
             assert im.format == "WEBP"
@@ -413,7 +413,7 @@ def test_thumbnail_job_noops_for_text_file(tmp_path: Path) -> None:
     )
     _saved(articles, "A1", ref)
     assert thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs) is False
-    assert not (thumbs / f"{ref.content_hash}.webp").exists()
+    assert not thumbnails.thumbnail_path(thumbs, ref.content_hash).exists()
 
 
 def test_thumbnail_job_noops_for_a_file_not_on_the_article(tmp_path: Path) -> None:
@@ -436,7 +436,7 @@ def test_thumbnail_job_is_idempotent(tmp_path: Path) -> None:
     ref = articles.add_media("A1", "a.png", io.BytesIO(_png_bytes()), media_type="image/png")
     _saved(articles, "A1", ref)
     thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
-    first = (thumbs / f"{ref.content_hash}.webp").read_bytes()
+    first = thumbnails.thumbnail_path(thumbs, ref.content_hash).read_bytes()
     thumbnails.generate_thumbnail(store, "A1", ref.content_hash, thumbs)
-    second = (thumbs / f"{ref.content_hash}.webp").read_bytes()
+    second = thumbnails.thumbnail_path(thumbs, ref.content_hash).read_bytes()
     assert first == second

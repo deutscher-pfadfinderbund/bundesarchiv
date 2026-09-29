@@ -13,6 +13,7 @@ from django.test import override_settings
 from PIL import Image
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.domain.models import (
     Article,
     Audience,
@@ -146,7 +147,7 @@ def test_generate_thumbnail_task_derives_from_canonical(
     thumbs = tmp_path / "thumbs"
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         tasks_mod.generate_thumbnail.func(ulid="A1", content_hash=ref.content_hash)
-    out = thumbs / f"{ref.content_hash}.webp"
+    out = thumbnail_path(thumbs, ref.content_hash)
     assert out.is_file()
     with Image.open(out) as im:
         assert im.format == "WEBP"

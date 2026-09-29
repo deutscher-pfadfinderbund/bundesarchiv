@@ -22,6 +22,7 @@ from PIL import Image
 from bundesarchiv.app import legacy
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.management.commands.import_legacy import CHANGED_BY
+from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Lifecycle
 
@@ -647,7 +648,7 @@ def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
             if (article := archive.articles.load(u).article).title == "Mit Bild"
         )
     hash_ = image.media[0].content_hash
-    assert (tmp_path / "thumbnails" / f"{hash_}.webp").is_file()
+    assert thumbnail_path(tmp_path / "thumbnails", hash_).is_file()
     assert "Vorschaubilder erzeugt: 1" in out  # the PDF is no image and stays a no-op
 
 
