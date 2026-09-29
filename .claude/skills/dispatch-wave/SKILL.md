@@ -29,6 +29,11 @@ The architect thinks in modules and interfaces; writers implement one module eac
   verify a guard is load-bearing before pinning a contract on it: the CSRF header it asked to
   protect was redundant (every form carries the body token).
 - Explicit **scope fence** + stop conditions ("if this cascades past ~N files, stop and report"). Include: "needing anything outside your fence = STOP and report; that report is a success outcome." A fence names its files **plus their necessary call sites** — an interface change drags its callers, and a fence that pretends otherwise forces the writer to judge instead of read. A brief that DELETES a symbol also fences "everything that greps for it" (prose references included), or the deletion leaves dangling names by construction.
+- A deletion brief also says: collapse what the deletion makes redundant (a settings list left
+  identical to prod's), and re-check every claim the touched docstrings make (one cited a test
+  that never existed). Its fence also covers prose that states the removed mechanism in other
+  words (an env example said "signs the Viewer cookie"), and tests that re-derive a value a
+  new owner function now builds.
 - Worktree writers: an `isolation: worktree` agent's worktree starts from the remote-tracking base, not local `main`. While local `main` is ahead of origin, the brief must say "fast-forward your branch to local `main` (`<hash>`) first" and name that hash.
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
 - The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
