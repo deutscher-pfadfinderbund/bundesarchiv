@@ -75,6 +75,8 @@ sits inside the razor as loss-critical, not as codec-mechanics.
   builders first; wire something bespoke only when the standard shape genuinely
   does not fit. That shape is frozen — a test asserting a global count or
   listing builds its own content with `make_corpus`.
+  Articles for any suite come from `tests/_articles.py::make_article` (PUBLISHED by default);
+  the web suite's `make_article` is that builder with the public Bestand filled in.
 - `e2e/` — real-browser journeys + the state gallery (both deselected from the
   default run); each journey walks a loss/leak spine or pins a named regression.
   `test_a11y.py` is the axe-core WCAG 2.2 AA pass over the journey pages
