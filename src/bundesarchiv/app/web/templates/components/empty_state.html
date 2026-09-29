@@ -4,6 +4,6 @@ div is an empty extension slot (spec "Extensions").
 {% endcomment %}
 <div class="empty-state">
   <div class="zeichen" aria-hidden="true"></div>
-  <p>{{ title|default:"Keine Treffer" }}</p>
+  <p>{% firstof title "Keine Treffer" %}</p>
   {% if hint %}<p>{{ hint }}</p>{% endif %}
 </div>

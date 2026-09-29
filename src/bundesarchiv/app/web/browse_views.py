@@ -128,6 +128,7 @@ class _FacetGroup:
 
     heading: str
     items: tuple[_FacetItem, ...]
+    open: bool = False
 
 
 @dataclass(frozen=True, slots=True)

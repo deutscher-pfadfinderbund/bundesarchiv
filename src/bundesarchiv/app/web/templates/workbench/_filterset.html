@@ -7,8 +7,6 @@ query's. The count stays outside so its aria-live node survives; the div is disp
 (layouts.css), a swap handle that costs no box.
 {% endcomment %}
 <div class="filterset" id="filterset"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>
-  {% comment %} open is unset on the workbench (dropdowns start closed); the layout demo seeds one
-  group open. {% endcomment %}
   {% for group in facet_groups %}
   {% include "components/facet_group.html" with heading=group.heading items=group.items open=group.open group="filter" only %}
   {% endfor %}

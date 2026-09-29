@@ -22,7 +22,7 @@ screen without #results.
 {% endcomment %}
 {% if not ohne_suche %}
 <form role="search" method="get" action="{% url 'workbench' %}">
-  <input type="search" name="q" value="{{ text }}" placeholder="Archiv durchsuchen…" aria-label="Suche">
+  <input type="search" name="q" value="{% firstof text %}" placeholder="Archiv durchsuchen…" aria-label="Suche">
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}<button type="submit">Suchen</button>
 </form>
