@@ -412,12 +412,15 @@
      the frame grows its pane track and the pane shows. The complement is the DEFAULTS above, so the
      condition is read once instead of negated by hand (learning G.44).
      ============================================================ */
-  /* REM, not px: the ledger's last-resort fold is a 32rem CONTAINER query (components.css) whose
-     "never folds while the pane is open" guarantee (decision 1) is an inequality against this
-     switch — pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem
-     > 32rem (the sidebar's death only WIDENED the margin). Both sides must share the rem unit or
-     a non-default root font size silently breaks the margin. */
+  /* REM, not px: the ledger's S form is a 40rem CONTAINER query (components.css) whose "never
+     folds while the pane is open" guarantee (decision 1) is an inequality against this switch —
+     pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem > 40rem.
+     Both sides must share the rem unit or a non-default root font size silently breaks the
+     margin. The same room lets the ledger's rows offer their pane link (--pane-link). */
   @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {
+    .frame {
+      --pane-link: inline;
+    }
     body.vorschau .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }

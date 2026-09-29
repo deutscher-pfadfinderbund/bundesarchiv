@@ -1,35 +1,23 @@
 {% comment %}
-Ledger — the results register, the same component in the full column and beside the open pane.
-Params:
-- rows    — dicts carrying ledger_row's params
-- columns — column headers {label, key, sortable, [query, active, order]}; a sortable head links to
-            its NEXT sort state (asc→desc→default, computed in the view), the active one shows ▲/▼
-- bulk    — adds the leading selection-checkbox track
-
-Width is the only density input (law C11): the mono columns tighten to content and the Titel
-ellipsizes first, so every column stays visible down to the ~32rem container fold. The root div is
-the size container; the inner grid scrolls in its own box, so the page never scrolls sideways
-(learning G.24, components.css).
+Ledger — the result table. Params:
+- ledger — a ledger.Ledger: its heads (Titel first; a sortable head links to its NEXT sort state,
+           the active one carries aria-sort) and its rows
+- bulk   — adds the leading selection-checkbox column
+The root is the size container and the last-resort scroll box: the page body never scrolls
+sideways (learning G.24, components.css).
 {% endcomment %}
-<div class="ledger{% if bulk %} bulk{% endif %}">
-  <div role="table" aria-label="Trefferliste">
-    <div role="row">
-      {% if bulk %}
-      <span class="auswahl" role="columnheader"><span class="visually-hidden">Auswahl</span></span>
-      {% endif %}
-      {% comment %} aria-sort is constrained to the valid tokens only — an active column emits
-      ascending/descending strictly; a non-active/non-sortable column omits it (= "none"). {% endcomment %}
-      {% for col in columns %}
-      <span class="{{ col.key }}" role="columnheader"{% if col.active %}{% if col.order == "desc" %} aria-sort="descending"{% else %} aria-sort="ascending"{% endif %}{% endif %}>
-        {% if col.sortable %}<a href="?{{ col.query }}">{{ col.label }}{% if col.active %}<span aria-hidden="true">{% if col.order == "desc" %}▼{% else %}▲{% endif %}</span>{% endif %}</a>{% else %}{{ col.label }}{% endif %}
-      </span>
+<div class="ledger">
+  <table>
+    <thead>
+      <tr>
+        {% if bulk %}<th scope="col" class="auswahl"><span class="visually-hidden">Auswahl</span></th>{% endif %}
+        {% for head in ledger.heads %}<th scope="col" class="{{ head.key }}"{% if head.sort %} aria-sort="{{ head.sort }}"{% endif %}>{% if head.query is not None %}<a href="?{{ head.query }}">{{ head.label }}</a>{% else %}{{ head.label }}{% endif %}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in ledger.rows %}
+      {% include "components/ledger_row.html" with row=row bulk=bulk only %}
       {% endfor %}
-      <span class="aktion" role="columnheader"><span class="visually-hidden">Aktionen</span></span>
-    </div>
-    <div role="rowgroup">
-      {% for row in rows %}
-      {% include "components/ledger_row.html" with title=row.title href=row.href ulid=row.ulid ref_code=row.ref_code datierung=row.datierung typ=row.typ draft=row.draft bearbeiten_href=row.bearbeiten_href vorschau_href=row.vorschau_href selected=row.selected bulk=bulk gewaehlt=row.gewaehlt only %}
-      {% endfor %}
-    </div>
-  </div>
+    </tbody>
+  </table>
 </div>

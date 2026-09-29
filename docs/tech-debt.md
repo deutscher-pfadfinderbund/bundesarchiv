@@ -98,8 +98,10 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Residue:** two placeholders survive by design — `options()` refuses its empty value,
   `parent_options()` accepts it (a top-level Bestand has no parent).
 
-### 8. Trefferliste — name the results view-model — Worth exploring
-- **Indicator:** ~20-key untyped dict; 6 `type: ignore` in `browse_views.py` (2026-09-02)
+### 8. Trefferliste — name the results view-model — in progress (Wave LIST)
+- **Indicator:** ~20-key untyped dict; 6 `type: ignore` in `browse_views.py` (2026-09-02). Wave LIST:
+  the `type: ignore`s are gone (`page: SearchPage`) and the ledger's rows and columns are typed
+  (`ledger.py`); the rest of `_results_context` is still a dict.
 - **Evidence:** `_results_context` + seven pure helpers inside the route; `page: object` although
   `SearchPage` is public. ~25 of ~60 workbench tests are pure link-algebra assertions each paying
   Postgres + corpus + rebuild + HTTP + HTML grep.
@@ -203,8 +205,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   - `.primary`: a button variant (candidate: an inverse context). Owner 2026-09-27: settle it in the
     list-page wave, together with the facet inversion below.
   - `.facet li:has(> [aria-current])`: an inversion register row 3 does not license.
-  - lines row 14 forbids: the ledger's covering rules, its header underline; the dashed
-    `.column dd` decoration (row 6 licenses dashes only for hollow slots).
+  - lines row 14 forbids: the dashed `.column dd` decoration (row 6 licenses dashes only for hollow
+    slots). (The ledger's covering rules and header underline went with the list wave, 2026-09-29.)
   - `.pane > div` framed while the pane question is suspended (row 10).
   - Wave K1 found, outside its fence: the detail page's `<small>Nur intern</small>` (the note
     "intern" instead); the list page's chip and facet ✕ are text glyphs, not the remove control;

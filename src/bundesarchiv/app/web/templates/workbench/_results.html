@@ -29,10 +29,10 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter / "
     {% if bulk_bar %}
     {% include "workbench/_sammelleiste.html" %}
     {% endif %}
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=True only %}
+    {% include "components/ledger.html" with ledger=ledger bulk=True only %}
   </form>
   {% else %}
-  {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns bulk=False only %}
+  {% include "components/ledger.html" with ledger=ledger bulk=False only %}
   {% endif %}
   {% else %}
   {% comment %}Zero hits with a Bestand as the only filter: that Bestand's own empty state, with an

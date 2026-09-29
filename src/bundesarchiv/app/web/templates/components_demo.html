@@ -89,15 +89,15 @@ components; this storyboard updates in lockstep with them.
       outline-offset: var(--focus-width);
     }
     .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
-    /* squeezes the mark below a CEILING code (8 chars, no spaces — owner 2026-08-07) so the
-       ellipsis the ledger's sig floor relies on is shown on a realistic value, not a fiction */
+    /* squeezes the mark below a CEILING code (8 chars, no spaces — owner 2026-08-07) so its
+       ellipsis is shown on a realistic value, not a fiction */
     .sig-narrow { max-width: 3.5rem; }
     /* density probes: the ledger is a size container — constraining its box IS the demo.
        .probe-stack stacks the two modes so a wide sample keeps a wide container. */
     .probe-stack { grid-template-columns: 1fr; }
-    .probe-mid { max-width: 56rem; }   /* mid width: Titel elastic, mono columns content-tight */
-    .probe-low { max-width: 34rem; }   /* just above the fold: Titel at its 6rem floor, ellipsis */
-    .probe-narrow { max-width: 30rem; } /* the fold (≤32rem, C9-derived) */
+    .probe-mid { max-width: 56rem; }   /* mid width: the Titel wraps, the facts keep their line */
+    .probe-low { max-width: 42rem; }   /* just above S: the word cells end in … */
+    .probe-narrow { max-width: 30rem; } /* S (< 40rem): the title over one line of facts */
     @media (max-width: 640px) {
       .probe { grid-template-columns: 1fr; }
       body { padding: var(--space-4); }
@@ -389,38 +389,38 @@ list anchored to its own button. {% endcomment %}
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
+    {% include "components/ledger.html" with ledger=ledger bulk=False only %}
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/ledger.html · rows=[…] columns=[…] — Sig · Titel · Datierung · Typ · row-action toolbar (no Sichtbarkeit column); sortable heads cycle asc→desc→default; Typ is a plain head; the toolbar (pencil=Bearbeiten, panel=Vorschau) reveals on row hover/focus on pointer devices; the draft row's Entwurf mark rides its title (a mark in words)</code>
+<code class="doc">components/ledger.html · ledger=ledger.build(…) bulk=… — Titel · Datierung · Typ · Digital · Signatur (ledger.COLUMNS; Bestand on choice); sortable heads cycle asc→desc→default; a Typ sets its filter; Bearbeiten and Vorschau follow the title and show with their row on pointer devices; the draft row's Entwurf mark rides its title</code>
 
-<h2>Ledger — narrow container (intrinsic tightening, THE width behavior)</h2>
+<h2>Ledger — narrow container (intrinsic tightening)</h2>
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="probe-mid">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
+      {% include "components/ledger.html" with ledger=ledger bulk=False only %}
     </div>
     <div class="probe-low" style="margin-top: var(--space-3)">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
+      {% include "components/ledger.html" with ledger=ledger bulk=False only %}
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">width is the only density input (owner verdict 2026-08-07), absorbed INTRINSICALLY (law C11 — the invented 60/52rem drop steps died): mono columns sit at max-content, the Titel takes all slack and ellipsizes first down to its 6rem floor, so every column stays visible above the fold — no drop thresholds, no param, no viewport query</code>
+<code class="doc">width is the only density input, absorbed intrinsically (law C11): the Titel takes the slack and wraps; every other cell keeps one line and a word cell (Typ, Bestand) ends in … at --measure-word; the last column shrinks to its content (round 2)</code>
 
-<h2>Ledger — phone-width container (the two-line fold, last resort)</h2>
+<h2>Ledger — S container (the title over one line of facts)</h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="probe-narrow">
-      {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
+      {% include "components/ledger.html" with ledger=ledger bulk=False only %}
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">under the phone-width ~32rem container query the register folds to two-line rows — the last resort, the only place row anatomy changes (the threshold sits below the narrowest pane-open container, so opening the pane never folds)</code>
+<code class="doc">below 40rem (S, the space budget) the heads go and each row is its title over one line of its facts, "1962 · Fahrtenbericht · 2 Fotos · F12" in sans (round 10); a dot only between two present values; the tools and the selection are absent</code>
 
 <h2>Pagination</h2>
 <div class="probe">

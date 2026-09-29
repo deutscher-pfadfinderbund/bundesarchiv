@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier
+from bundesarchiv.index.query import FileKind
 
 #: The Medienarten, verbatim and in the legacy archive's order — the words its catalogers used.
 MEDIENARTEN: tuple[str, ...] = (
@@ -242,6 +243,29 @@ def datierung_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
 def _html_date(token: str) -> str:
     core = token.rstrip("?~%")
     return core if _HTML_DATE.fullmatch(core) else ""
+
+
+#: Each file kind as the Digital column spells it: (one, several). One file carries no number.
+_FILE_WORDS: dict[FileKind, tuple[str, str]] = {
+    FileKind.IMAGE: ("Foto", "Fotos"),
+    FileKind.PDF: ("PDF", "PDF"),
+    FileKind.VIDEO: ("Video", "Videos"),
+    FileKind.AUDIO: ("Audio", "Audios"),
+    FileKind.OTHER: ("Datei", "Dateien"),
+}
+
+
+def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
+    """What files a record has, as the Digital column says it ("Foto, PDF", "2 Fotos"). ``()`` →
+    empty. ``counts`` is ``SearchHit.file_counts``: kinds in summary order, zero kinds left out."""
+    return ", ".join(
+        _FILE_WORDS[kind][0] if n == 1 else f"{n} {_FILE_WORDS[kind][1]}" for kind, n in counts
+    )
+
+
+def count(number: int) -> str:
+    """A count in German spelling, thousands grouped by a dot ("2.506")."""
+    return f"{number:,}".replace(",", ".")
 
 
 def human_size(byte_size: int | None) -> str:

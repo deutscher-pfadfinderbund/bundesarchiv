@@ -21,149 +21,47 @@ Page chrome is English (development-facing); the content inside the atoms is Ger
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-#: The known demo set plus extra plausible rows so the ledger scrolls. Each dict carries a
-#: ledger_row's params. Two drafts demonstrate the sig/lifecycle decoupling: one WITH a ref_code
-#: (code shows; ENTWURF is the only lifecycle signal) and one WITHOUT (hollow "ohne Signatur" slot).
-#: The sample Signaturen obey the domain fact (owner 2026-08-07): no spaces, 8 characters is the
-#: practical ceiling — the Kassenbuch row sits AT that ceiling so the storyboard shows the widest
-#: real code beside the short ones.
-_ROW_CONTENT: tuple[dict[str, object], ...] = (
-    {
-        "title": "Sommerfahrt 1962",
-        "href": "?artikel=sommerfahrt-1962",
-        "ref_code": "F12",
-        "datierung": "1962",
-        "typ": "Foto",
-        "draft": False,
-    },
-    {
-        "title": "Jahresbericht 1974",
-        "href": "?artikel=jahresbericht-1974",
-        "ref_code": "B3",
-        "datierung": "1974",
-        "typ": "Bericht",
-        "draft": False,
-    },
-    {
-        "title": "Vorstandsprotokoll März 1980",
-        "href": "?artikel=vorstandsprotokoll-1980-03",
-        "ref_code": "V7",
-        "datierung": "1980-03",
-        "typ": "Protokoll",
-        "draft": False,
-    },
-    {
-        # Draft WITH a Signatur: the ENTWURF badge is the only lifecycle signal; the sig shows.
-        "title": "Lagerchronik",
-        "href": "?artikel=lagerchronik",
-        "ref_code": "C5",
-        "datierung": "1984",
-        "typ": "Chronik",
-        "draft": True,
-    },
-    {
-        "title": "Winterlager 1958",
-        "href": "?artikel=winterlager-1958",
-        "ref_code": "F4",
-        "datierung": "1958",
-        "typ": "Foto",
-        "draft": False,
-    },
-    {
-        "title": "Kassenbuch 1965-1969",
-        "href": "?artikel=kassenbuch-1965-69",
-        "ref_code": "K2/65-69",
-        "datierung": "1965/1969",
-        "typ": "Buch",
-        "draft": False,
-    },
-    {
-        "title": "Fahrtenbericht Norwegen 1971",
-        "href": "?artikel=norwegen-1971",
-        "ref_code": "B9",
-        "datierung": "1971",
-        "typ": "Bericht",
-        "draft": False,
-    },
-    {
-        "title": "Liederbuch (2. Auflage)",
-        "href": "?artikel=liederbuch-2",
-        "ref_code": "D1",
-        "datierung": "1969",
-        "typ": "Druck",
-        "draft": False,
-    },
-    {
-        "title": "Gruppenfoto Pfingsten 1983",
-        "href": "?artikel=pfingsten-1983",
-        "ref_code": "F21",
-        "datierung": "1983-05",
-        "typ": "Foto",
-        "draft": False,
-    },
-    {
-        "title": "Satzung des Trägervereins",
-        "href": "?artikel=satzung",
-        "ref_code": "A1",
-        "datierung": "1955",
-        "typ": "Urkunde",
-        "draft": False,
-    },
-    {
-        # Draft WITHOUT a Signatur: the hollow slot means "ohne Signatur" (ref_code absent), a
-        # separate axis from the ENTWURF lifecycle badge.
-        "title": "Festschrift 60 Jahre",
-        "href": "?artikel=festschrift-60",
-        "ref_code": "",
-        "datierung": "",
-        "typ": "Druck",
-        "draft": True,
-    },
-    {
-        "title": "Rundbrief Herbst 1977",
-        "href": "?artikel=rundbrief-1977-h",
-        "ref_code": "R6",
-        "datierung": "1977-10",
-        "typ": "Rundbrief",
-        "draft": False,
-    },
+from bundesarchiv.app.web import browse, ledger
+from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.index.query import FileKind, SearchHit
+
+#: The known demo set plus extra plausible rows so the ledger scrolls, printed through the REAL
+#: ``ledger.build``. Two drafts: one with a Signatur, one without (lifecycle and Signatur are two
+#: axes). The Kassenbuch Signatur sits at the domain ceiling (owner 2026-08-07: no spaces, 8
+#: characters).
+_ROWS: tuple[tuple[str, str, str, str, bool, tuple[tuple[FileKind, int], ...]], ...] = (
+    ("Sommerfahrt 1962", "F12", "1962", "Fahrtenbericht", False, ((FileKind.IMAGE, 2),)),
+    ("Jahresbericht 1974", "B3", "1974", "Chronik / Dokumentation", False, ()),
+    ("Vorstandsprotokoll März 1980", "V7", "1980-03", "Protokoll", False, ((FileKind.PDF, 1),)),
+    ("Lagerchronik", "C5", "1984", "Lagerheft", True, ()),
+    ("Winterlager 1958", "F4", "1958", "Fahrtenbericht", False, ((FileKind.IMAGE, 1),)),
+    ("Kassenbuch 1965-1969", "K2/65-69", "1965/1969", "Sonstiges", False, ()),
+    ("Fahrtenbericht Norwegen 1971", "B9", "1971", "Fahrtenbericht", False, ()),
+    ("Liederbuch (2. Auflage)", "D1", "1969", "Liederbuch", False, ((FileKind.PDF, 1),)),
+    ("Gruppenfoto Pfingsten 1983", "F21", "1983-05", "Sonstiges", False, ((FileKind.IMAGE, 1),)),
+    ("Satzung des Trägervereins", "A1", "1955", "Ordnung", False, ()),
+    ("Festschrift 60 Jahre", "", "", "Sonstiges", True, ()),
+)
+_HITS = tuple(
+    SearchHit(
+        ulid=f"01KDEML0000000000000000{n:03d}",
+        title=title,
+        ref_code=ref or None,
+        date_edtf=date or None,
+        media_type=None,
+        document_type=typ or None,
+        is_draft=draft,
+        tier="PUBLIC",
+        groups=(),
+        collection_id="",
+        file_counts=files,
+    )
+    for n, (title, ref, date, typ, draft, files) in enumerate(_ROWS)
 )
 
-#: Every demo row shares the same action hrefs (the row toolbar's two icon links) — spliced
-#: once here, so the content dicts above stay content-only.
-_LEDGER_ROWS: tuple[dict[str, object], ...] = tuple(
-    {**row, "bearbeiten_href": "#demo-edit", "vorschau_href": "?vorschau=1"} for row in _ROW_CONTENT
-)
+#: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
+_LEDGER_QUERY = {"sortierung": "signatur"}
 
-#: Sortable column headers for the ledger: (label, key matching the cell modifier, query stub,
-#: active, order). Signatur is the active ascending sort in the demo.
-_LEDGER_COLUMNS: tuple[dict[str, object], ...] = (
-    {
-        "label": "Sig",
-        "key": "sig",
-        "sortable": True,
-        "query": "sort=signatur",
-        "active": True,
-        "order": "asc",
-    },
-    {
-        "label": "Titel",
-        "key": "titel",
-        "sortable": True,
-        "query": "sort=titel",
-        "active": False,
-        "order": "asc",
-    },
-    {
-        "label": "Datierung",
-        "key": "datierung",
-        "sortable": True,
-        "query": "sort=datierung",
-        "active": False,
-        "order": "asc",
-    },
-    {"label": "Typ", "key": "typ", "sortable": False},  # Typ is not a sortable index column
-)
 
 #: Filter-rail facet groups; items match facet_group.html's contract (label, count, query,
 #: active). ``open`` seeds each <details> dropdown's initial state — ONE group is served open so
@@ -249,13 +147,21 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
         "layouts_demo.html",
         {
             "vorschau": vorschau,
-            "ledger_rows": _LEDGER_ROWS,
-            "ledger_columns": _LEDGER_COLUMNS,
+            "ledger": ledger.build(
+                _HITS,
+                columns=ledger.DEFAULT_COLUMNS,
+                parsed=browse.parse_query(_LEDGER_QUERY),
+                params=_LEDGER_QUERY,
+                auswahl=(),
+                is_archivist=True,
+                selected_ulid=None,
+                bestand=BestandChooser(lambda: ()),
+            ),
             "facet_groups": _FACET_GROUPS,
             "filter_chips": _FILTER_CHIPS,
             "clear_filters_query": _CLEAR_FILTERS_QUERY,
             # the rail renders the hit count at its line end (law C10 — the toolrow died)
-            "total": len(_LEDGER_ROWS),
+            "total": len(_HITS),
             "preview": _PREVIEW,
         },
     )

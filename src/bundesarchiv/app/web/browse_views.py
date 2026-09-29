@@ -27,7 +27,7 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web import browse, bulk, vocab
+from bundesarchiv.app.web import browse, bulk, ledger, vocab
 from bundesarchiv.app.web.article_auth import (
     DetailResolution,
     resolve_visible_article,
@@ -40,11 +40,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.query import FacetCount, SearchHit, search
-
-#: The preview-pane selection param. NOT a search param — it is stripped from every search link so
-#: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
-_PANE_PARAM = "artikel"
+from bundesarchiv.index.query import FacetCount, SearchPage, search
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -212,7 +208,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     (``resolve_visible_article`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
     all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
     existence oracle). An absent ``artikel`` param is simply no pane."""
-    ulid = request.GET.get(_PANE_PARAM)
+    ulid = request.GET.get(ledger.PANE_PARAM)
     if not ulid:
         return None
     article = resolve_visible_article(request, ulid)
@@ -225,7 +221,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
     # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
     # query (a bare "?" would). artikel is pane state, not search state.
-    close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
+    close_params = {k: v for k, v in request.GET.dict().items() if k != ledger.PANE_PARAM}
     close_query = urlencode(close_params)
     return _Pane(
         ulid=article.ulid,
@@ -250,123 +246,6 @@ _FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("decades", browse.PARAM_DECADE, "Jahrzehnte"),
 )
 
-# The ledger's column headers: (German label, css-modifier key, sortierung label or None). SIG /
-# TITEL / DATIERUNG are sortable (their sortierung label is a key in browse._SORT_BY_LABEL minus
-# relevanz, which has no column). TYP is NOT a sortable index column, so it is a plain header (None).
-# The action gutter is added by the ledger component. This IS the whole column anatomy (owner
-# 2026-08-07): the SICHTBARKEIT column died — visibility strings render nowhere in the ledger, and
-# the ENTWURF deviation rides with the title. Presentation only — sort is browse.
-_LEDGER_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
-    ("Sig", "sig", "signatur"),
-    ("Titel", "titel", "titel"),
-    ("Datierung", "datierung", "datierung"),
-    ("Typ", "typ", None),
-)
-
-
-def _ledger_row(
-    hit: SearchHit,
-    *,
-    is_archivist: bool,
-    selected_ulid: str | None,
-    vorschau_prefix: str,
-    auswahl: frozenset[str],
-) -> dict[str, object]:
-    """One ledger row view-model from a SearchHit — a plain dict the ledger component prints (no
-    logic in the template). The ENTWURF flag + Bearbeiten href + bulk checkbox are archivist
-    chrome: left EMPTY/False for non-archivists here (and the ledger component renders no control
-    without them), so nothing rides in the DOM for them. ``selected_ulid`` marks the row shown in
-    the pane; ``auswahl`` is the bulk selection as a set (this row's checkbox is checked + the row
-    inverts when its ulid is in it). ``vorschau_prefix`` is the row-invariant encoded pane-link
-    prefix (``browse.pane_query_prefix`` — search state + the whole selection), computed once per
-    page; only the trailing ``artikel=<ulid>`` differs per row."""
-    return {
-        "title": hit.title,
-        # ONE-CLICK ENTRY (owner 2026-08-07): the Titel IS the canonical detail navigation — no
-        # pane interception; the way back to the search is browser Back.
-        "href": reverse("artikel-detail", args=[hit.ulid]),
-        "ulid": hit.ulid,
-        "ref_code": hit.ref_code or "",
-        "datierung": hit.date_edtf or "",
-        "typ": hit.document_type or "",
-        "draft": hit.is_draft if is_archivist else False,
-        "bearbeiten_href": reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else "",
-        # The explicit pane affordance for EVERY viewer (the pane itself re-authorizes
-        # fail-closed): a plain GET link, keeping search + selection state. ULIDs are
-        # Crockford base32, so the one per-row pair needs no encoding.
-        "vorschau_href": (
-            f"?{vorschau_prefix}&{_PANE_PARAM}={hit.ulid}"
-            if vorschau_prefix
-            else f"?{_PANE_PARAM}={hit.ulid}"
-        ),
-        "selected": hit.ulid == selected_ulid,
-        "gewaehlt": is_archivist and hit.ulid in auswahl,
-    }
-
-
-def _ledger_rows(
-    page: object,
-    *,
-    is_archivist: bool,
-    selected_ulid: str | None,
-    vorschau_prefix: str,
-    auswahl: frozenset[str],
-) -> tuple[dict[str, object], ...]:
-    """The ledger row view-models for the page's SearchHits. The title link points at the
-    canonical detail route ``/artikel/<ulid>`` (plain navigation, works with no JS on every
-    viewport); the pane opens via each row's explicit Vorschau link. No visibility logic — that
-    already happened in ``search``; the archivist chrome is a presentation gate off
-    ``is_archivist``."""
-    hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
-    return tuple(
-        _ledger_row(
-            hit,
-            is_archivist=is_archivist,
-            selected_ulid=selected_ulid,
-            vorschau_prefix=vorschau_prefix,
-            auswahl=auswahl,
-        )
-        for hit in hits
-    )
-
-
-def _ledger_columns(
-    active_label: str, descending: bool, params: dict[str, str]
-) -> tuple[dict[str, object], ...]:
-    """The ledger's column headers. SIG / TITEL / DATIERUNG are the sort control (the select is gone):
-    clicking cycles asc → desc → default. The link a header points at is its NEXT state:
-      inactive        -> ?sortierung=<label>        (ascending)
-      active ascending -> ?sortierung=-<label>       (descending)
-      active descending -> clear sortierung          (back to default / Relevanz)
-    The active column shows ▲ (asc) or ▼ (desc). TYP is not a sortable index column, so it is a plain
-    header (sortable False, no query). Every header keeps its label-role treatment; presentation
-    only — the sort itself is browse/search. The browse link algebra preserves other params + resets
-    the page."""
-    cols: list[dict[str, object]] = []
-    for label, key, sort_key in _LEDGER_COLUMNS:
-        if sort_key is None:  # TYP — plain, non-sortable header
-            cols.append({"label": label, "key": key, "sortable": False})
-            continue
-        active = active_label == sort_key
-        if not active:
-            query = browse.with_param(params, browse.PARAM_SORT, sort_key)  # -> ascending
-        elif not descending:
-            query = browse.with_param(params, browse.PARAM_SORT, f"-{sort_key}")  # -> descending
-        else:
-            query = browse.without_param(params, browse.PARAM_SORT)  # -> default (clear)
-        cols.append(
-            {
-                "label": label,
-                "key": key,
-                "sortable": True,
-                "query": query,
-                "active": active,
-                "order": "desc" if (active and descending) else "asc",
-            }
-        )
-    return tuple(cols)
-
-
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
 #: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the rail's
 #: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
@@ -386,7 +265,7 @@ def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
 def _results_context(
     request: HttpRequest,
     parsed: browse.ParsedQuery,
-    page: object,
+    page: SearchPage,
     *,
     is_archivist: bool,
     selected_ulid: str | None,
@@ -404,10 +283,12 @@ def _results_context(
     "Alle auf dieser Seite" link appends this page's ulids — both via the auswahl-preserving
     helpers. Pane selection is tracked separately via ``selected_ulid``."""
     params = {
-        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
+        k: v
+        for k, v in request.GET.dict().items()
+        if k not in (ledger.PANE_PARAM, browse.PARAM_AUSWAHL)
     }
-    total: int = page.total  # type: ignore[attr-defined]
-    size = len(page.hits)  # type: ignore[attr-defined]
+    total = page.total
+    size = len(page.hits)
     bestand = BestandChooser.of(Archive.canonical())
     context: dict[str, object] = {
         "text": parsed.text or "",
@@ -422,15 +303,16 @@ def _results_context(
         # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
         # drops every filter param, keeps q + sort. The template renders it only alongside chips.
         "clear_filters_query": browse.clear_filters_query(params),
-        "ledger_rows": _ledger_rows(
-            page,
+        "ledger": ledger.build(
+            page.hits,
+            columns=ledger.DEFAULT_COLUMNS,
+            parsed=parsed,
+            params=params,
+            auswahl=auswahl,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            # both row-invariant: encoded once here, not once per row
-            vorschau_prefix=browse.pane_query_prefix(params, auswahl),
-            auswahl=frozenset(auswahl),
+            bestand=bestand,
         ),
-        "ledger_columns": _ledger_columns(_sort_label(parsed.sort), parsed.descending, params),
         "current_page": parsed.page,
         "has_next": browse.has_next_page(
             page=parsed.page, page_size=browse.PAGE_SIZE, hits_on_page=size, total=total
@@ -468,7 +350,7 @@ def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
 
 def _bulk_bar_context(
     params: dict[str, str],
-    page: object,
+    page: SearchPage,
     auswahl: list[str],
     bestand: BestandChooser,
 ) -> dict[str, object]:
@@ -492,7 +374,7 @@ def _bulk_bar_context(
     Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
     the whole results block on ``page.hits``, so this returns the off flag defensively for that case.
     """
-    hits: tuple[SearchHit, ...] = page.hits  # type: ignore[attr-defined]
+    hits = page.hits
     if not hits:
         return {"bulk_bar": False}
     page_ulids = [h.ulid for h in hits]
@@ -515,13 +397,13 @@ def _bulk_bar_context(
 def _facet_groups(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
-    page: object,
+    page: SearchPage,
     bestand: BestandChooser,
 ) -> tuple[_FacetGroup, ...]:
     """Build every rail facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
     collection group resolves ULID facet values to Collection names (via ``bestand``, the shared
     per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
-    facets = page.facets  # type: ignore[attr-defined]
+    facets = page.facets
     groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()), bestand)]
     groups += [
         _FacetGroup(heading, _facet_items(params, param, facets.get(key, ())))
@@ -572,7 +454,9 @@ def _collection_group(
     )
 
 
-def _datum_group(params: dict[str, str], parsed: browse.ParsedQuery, page: object) -> _FacetGroup:
+def _datum_group(
+    params: dict[str, str], parsed: browse.ParsedQuery, page: SearchPage
+) -> _FacetGroup:
     """The DATUM group: the "Ohne Datum" toggle PLUS any active von/bis range, each as a removable
     row (the chips row died — active date filters are removed here, like every other facet).
 
@@ -592,7 +476,7 @@ def _datum_group(params: dict[str, str], parsed: browse.ParsedQuery, page: objec
                     query=browse.without_param(params, param),
                 )
             )
-    count: int = page.dateless_count  # type: ignore[attr-defined]
+    count = page.dateless_count
     active = parsed.filters.dateless
     if count > 0 or active:
         query = (
@@ -602,16 +486,6 @@ def _datum_group(params: dict[str, str], parsed: browse.ParsedQuery, page: objec
         )
         items.append(_FacetItem(label="Ohne Datum", count=count, active=active, query=query))
     return _FacetGroup("Datum", tuple(items))
-
-
-def _sort_label(sort: str) -> str:
-    """The German sort label for the active ``SortOrder`` — the inverse of ``browse._SORT_BY_LABEL``.
-    Feeds ``_ledger_columns`` active-column detection (the sort <select> is gone; the column headers
-    are the sort control): a header is active when its ``sort_key`` equals this label. Falls to
-    "relevanz" (the default, which has no sortable column)."""
-    return next(
-        (label for label, order in browse._SORT_BY_LABEL.items() if order == sort), "relevanz"
-    )
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:

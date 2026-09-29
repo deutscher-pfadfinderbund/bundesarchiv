@@ -19,4 +19,4 @@ the `update-module-map` skill.
 `archive.py`, `articles.py`, `collections.py`, `legacy.py`, `mirror.py`, `push_record.py`, `tasks.py`, `thumbnails.py`, `reindex.py`, `result.py` · rows + law: `src/bundesarchiv/app/CLAUDE.md`
 
 ## app/web — Django+HTMX surface: views, auth seam, form parsing, media serving
-`viewers.py`, `auth_views.py`, `keycloak.py`, `oidc.py`, `anonymous_gate.py`, `article_auth.py`, `browse.py`, `browse_views.py`, `catalog.py`, `catalog_views.py`, `collection_views.py`, `bulk.py`, `bulk_views.py`, `media.py`, `media_views.py`, `vocab.py`, `bestand.py` · rows + law: `src/bundesarchiv/app/web/CLAUDE.md`
+`viewers.py`, `auth_views.py`, `keycloak.py`, `oidc.py`, `anonymous_gate.py`, `article_auth.py`, `browse.py`, `browse_views.py`, `ledger.py`, `catalog.py`, `catalog_views.py`, `collection_views.py`, `bulk.py`, `bulk_views.py`, `media.py`, `media_views.py`, `vocab.py`, `bestand.py` · rows + law: `src/bundesarchiv/app/web/CLAUDE.md`

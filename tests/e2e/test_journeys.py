@@ -10,6 +10,7 @@ loop · Löschen confirm · one-click publish · bulk select→confirm→partial
 """
 
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -47,7 +48,7 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
     # the pane opens via the row's explicit Vorschau action (one-click model: the Titel itself
     # navigates to the detail page; the pane is never a toll gate) and keeps the search state
-    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    page.get_by_role("link", name="Vorschau: Sommerfahrt 1962").click()
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
     assert "schlagwort=sommer" in page.url and "artikel=" in page.url  # URL-borne pane state
@@ -138,20 +139,18 @@ def test_the_edit_forms_small_swap_lands_its_own_partial(
 def test_ledger_headers_compute_one_uniform_treatment(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Learning G.1: a comment is not a proof; the computed style is. Every [role=columnheader]
-    # AND every anchor inside one must compute the SAME font treatment (the label role) — the
-    # sortable-head link may differ only by affordance, never by typography.
+    # Learning G.1: a comment is not a proof; the computed style is. Every column head AND every
+    # anchor inside one must compute the SAME font treatment (the label role) — the sortable-head
+    # link may differ only by affordance, never by typography.
     archivist_page.goto(live_workbench + "/")
     treatments: list[str] = archivist_page.evaluate(
-        """() => Array.from(document.querySelectorAll(
-               '.ledger [role=columnheader], .ledger [role=columnheader] a'
-           )).map((el) => {
+        """() => Array.from(document.querySelectorAll('.ledger th, .ledger th a')).map((el) => {
                const s = getComputedStyle(el);
                return [s.fontSize, s.fontWeight, s.fontFamily, s.textTransform,
                        s.letterSpacing, s.color].join('|');
            })"""
     )
-    assert len(treatments) >= 5  # four column heads + at least one sortable-head anchor
+    assert len(treatments) >= 6  # five column heads + at least one sortable-head anchor
     assert len(set(treatments)) == 1, f"non-uniform header treatments: {sorted(set(treatments))}"
 
 
@@ -204,8 +203,8 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
             // rendered only — checkVisibility, not offsetParent: a CLOSED <details> keeps its
             // contents in the box tree (Chromium renders ::details-content with
             // content-visibility:hidden), so offsetParent still resolves for a panel item that is
-            // not on screen. Opacity is deliberately NOT considered: the ledger's row-action icons
-            // rest at opacity 0 and are still controls of their row.
+            // not on screen. Opacity is deliberately NOT considered: a control resting at
+            // opacity 0 until its row is hovered is still a control of its row.
             .filter((el) => el.checkVisibility({
                 checkVisibilityCSS: true, contentVisibilityAuto: true}))
             .map((el) => {
@@ -243,10 +242,10 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
     The caller has already reached the screen (``screen.reach``), because two of them are POST-only and
     a URL cannot describe them.
 
-    The index suffix is load-bearing, not decoration. The name alone is not unique — every ledger row's
-    action toolbar is a bare ``<span role=toolbar>`` and names itself ``span[toolbar]`` — so keying by
-    it collapsed 50 rows into one dict entry and the walker silently proved ONE toolbar instead of all
-    of them. A guard that narrows itself and still reports green is the most dangerous kind, so the key
+    The index suffix is load-bearing, not decoration. The name alone is not unique — every media row's
+    toolbar names itself ``span.file-row-tools[toolbar]``, and the ledger's former row toolbars did the
+    same — so keying by it collapsed 50 rows into one dict entry and the walker silently proved ONE
+    toolbar instead of all of them. A guard that narrows itself and still reports green is the most dangerous kind, so the key
     carries the row's position and the name stays a readable PREFIX (callers match on it).
 
     A dropped overlay panel is a control row too (it declares the knob), but its entries are only
@@ -438,11 +437,10 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 ) -> None:
     # The walk above asserts uniformity; this asserts it is not walking an empty page. The row KINDS
     # the app composes, each on the screen that has the most of them: the header's control cluster, the
-    # rail's chips, one row toolbar per ledger row (the keying regression hid exactly here — every one
-    # of them names itself "span[toolbar]", so keying rows by name collapsed 50 rows into one entry and
-    # the walk proved a SINGLE toolbar while reporting green, G.37), the dropped panels' entries, and
-    # the edit form's action row plus the media register's per-row toolbars on the published edit
-    # surface.
+    # rail's chips, the dropped panels' entries, and the edit form's action row plus the media
+    # register's per-row toolbars on the published edit surface (every one of those names itself
+    # "span.file-row-tools[toolbar]" — keying rows by name once collapsed 50 such rows into one entry
+    # and the walk proved a SINGLE toolbar while reporting green, G.37).
     page = archivist_page
     page.goto(live_workbench + "/?schlagwort=sommer")
     filtered = _walk_control_rows(page)
@@ -452,11 +450,6 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     assert any(c["chip"] for c in filtered[rail])  # the active-filter chip is present
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
     assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
-
-    page.goto(live_workbench + "/")
-    ledger = _walk_control_rows(page)
-    toolbars = [n for n in ledger if "[toolbar]" in n]
-    assert len(toolbars) >= 4, f"the walker sees only {toolbars} — one per ledger row is required"
 
     page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
     edit = _walk_control_rows(page)
@@ -725,10 +718,9 @@ def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: 
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
     page.goto(live_workbench + "/")
-    page.get_by_role("link", name="Vorschau", exact=True).first.click()
+    page.get_by_role("link", name=re.compile(r"^Vorschau: ")).first.click()
     expect(page.locator(".pane")).to_be_visible()
-    header_row = page.locator('.ledger [role="table"] > [role="row"]')
-    expect(header_row).to_be_visible()  # the fold's signature is a hidden header row
+    expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 
 
 #: The stress content for the intrinsic-sizing proofs, sized by what each field can ACTUALLY carry
@@ -784,50 +776,10 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
         indexer.rebuild(store)
 
 
-#: The ledger's content minimum (law C9's arithmetic, computed live): every SHRINKABLE track at its
-#: CSS floor — read from the ``--*-floor`` knobs on the grid itself, so the proof can never drift
-#: from the stylesheet the way a hard-coded ``6 * 16`` did — plus the rigid tracks at their measured
-#: content width, the Signatur column's margin-rule chrome, the row gaps and the row padding.
-#: Mirrors the derivation comment next to the fold query in components.css.
-_LEDGER_MINIMUM_JS = """() => {
-    const table = document.querySelector('.ledger [role=table]');
-    const s = getComputedStyle(table);
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const floor = (name) => {
-        const raw = s.getPropertyValue('--' + name + '-floor').trim();
-        if (!raw.endsWith('rem')) throw new Error('no --' + name + '-floor knob: ' + raw);
-        return parseFloat(raw) * rem;
-    };
-    const measure = (el) => {
-        const r = document.createRange();
-        r.selectNodeContents(el);
-        return r.getBoundingClientRect().width;
-    };
-    const colMin = (cls) => {
-        const cells = [
-            ...table.querySelectorAll('[role=rowgroup] .' + cls),
-            ...[...table.querySelectorAll(':scope > [role=row] .' + cls)].filter(
-                (h) => !h.querySelector('.visually-hidden')),
-        ];
-        return Math.max(0, ...cells.map(measure));
-    };
-    const row = table.querySelector('[role=rowgroup] [role=row]');
-    const rs = getComputedStyle(row);
-    const sig = table.querySelector('[role=rowgroup] .sig');
-    const sigChrome = parseFloat(getComputedStyle(sig).paddingInlineEnd)
-        + parseFloat(getComputedStyle(sig).borderInlineEndWidth);
-    const cols = [colMin('auswahl'), floor('sig') + sigChrome, floor('titel'),
-                  floor('datum'), floor('typ'), colMin('aktion')];
-    return Math.round(cols.reduce((a, b) => a + b, 0)
-        + parseFloat(rs.columnGap) * (cols.length - 1)
-        + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight));
-}"""
-
-#: The [role=table]'s OWN horizontal overflow. It is the last-resort scroll box, so it CAN scroll —
-#: but a scrolling register hides columns, which is exactly what law C11 forbids above the fold, so
-#: above the fold this must stay zero.
-_TABLE_OVERFLOW_JS = """() => {
-    const t = document.querySelector('.ledger [role=table]');
+#: The ledger's OWN horizontal overflow. It is the last-resort scroll box, so it CAN scroll — but a
+#: scrolling ledger hides columns, which is exactly what law C11 forbids, so this must stay zero.
+_LEDGER_OVERFLOW_JS = """() => {
+    const t = document.querySelector('.ledger');
     return t.scrollWidth - t.clientWidth;
 }"""
 
@@ -848,7 +800,7 @@ def _sideways_scroll_defects(
     """The standing contract, ONE walker for every surface that has to keep it: the PAGE BODY never
     scrolls sideways, at each (width, url) in ``cases``. Both long-content proofs need it — the record
     card's was a clone of the ledger's tail, driven by the same seed — so the walk lives once and each
-    caller passes its own ``extra`` probe (the ledger's own scroll box and its Titel ellipsis) to run
+    caller passes its own ``extra`` probe (the ledger's own scroll box and its wrapping Titel) to run
     inside the same navigation rather than paying for a second pass."""
     defects: list[str] = []
     for width, url in cases:
@@ -862,61 +814,48 @@ def _sideways_scroll_defects(
     return defects
 
 
-#: Is the long TITEL actually ELLIPSIZED at this width? Its rendered box vs the width its text wants
-#: (Range-measured). The Titel is the elastic track and the archive's one unbounded field, so it is
-#: the column that must give space back — if it never tightens, nothing does, and the .titel
-#: ellipsis is dead styling (catechism Q6). The seeded long row is the only Titel over 60 characters,
-#: so it is found by length rather than by a duplicated literal.
-_LONG_TITEL_JS = """() => {
-    const link = [...document.querySelectorAll('.ledger [role=rowgroup] .titel a')]
+#: Does the long TITEL give its width back? It is the elastic column and the archive's one unbounded
+#: field, and every other cell keeps its line (round 10) — so it WRAPS: its link spans more than one
+#: line box. If it never wraps, the facts cannot keep their line and the table overflows instead.
+#: The seeded long row is the only Titel over 60 characters, so it is found by length rather than by
+#: a duplicated literal.
+_LONG_TITEL_LINES_JS = """() => {
+    const link = [...document.querySelectorAll('.ledger td.titel > a:first-child')]
         .find((e) => e.textContent.trim().length > 60);
     if (!link) throw new Error('the long-Titel row is not on this page');
-    const r = document.createRange();
-    r.selectNodeContents(link);
-    return {box: link.getBoundingClientRect().width, text: r.getBoundingClientRect().width};
+    return link.getClientRects().length;
 }"""
 
 
-def test_ledger_columns_stay_visible_by_intrinsic_sizing(
+def test_ledger_absorbs_long_content_without_hiding_a_value(
     archivist_page: Page,
     live_workbench: str,
     e2e_corpus: CorpusHandles,
     _e2e_root: Path,
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
-    # Law C11 (intrinsic first, owner 2026-08-07): the ledger has NO column-drop thresholds —
-    # the mono columns tighten to content and the Titel ellipsizes first, so Datierung AND Typ
-    # stay visible from desktop down to the ~32rem fold. G.23's red case pinned computed: the
-    # old invented 60/52rem thresholds hid both columns at a 680px viewport with room to spare.
-    # G.24's red case pinned the opposite escape: with long content the bare max-content tracks
-    # could not shrink at all, so the ledger pushed the whole PAGE BODY into horizontal scroll from
-    # 800px down. Hence the long-content seed — the short demo corpus made this proof pass
-    # vacuously. WHAT is long here follows the domain (owner, 2026-08-07): a Signatur has no spaces
-    # and tops out around 8 characters, and Typ comes from the vocabulary — the TITEL is the one
-    # genuinely unbounded field, so it carries the pressure and it is the column that must yield.
+    # Law C11 (intrinsic first): the ledger drops no column. The Titel wraps, every other cell keeps
+    # its line and a word cell ends in "…" (round 10). G.24's red case stays pinned: long content must
+    # never push the PAGE BODY into sideways scroll. Hence the long-content seed — the short demo
+    # corpus made this proof pass vacuously. WHAT is long follows the domain (owner, 2026-08-07): a
+    # Signatur has no spaces and tops out around 8 characters, and Typ comes from the vocabulary —
+    # the TITEL is the one genuinely unbounded field, so it carries the pressure.
     _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
     for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(live_workbench + path)
-        for col in ("sig", "titel", "datierung", "typ"):
-            expect(page.locator(f'.ledger [role="rowgroup"] .{col}').first).to_be_visible()
-        overflow: int = page.evaluate(_TABLE_OVERFLOW_JS)
-        assert overflow <= 1, f"ledger overflows its container at viewport {width}px: {overflow}px"
+        for col in ("titel", "datierung", "typ", "digital", "signatur"):
+            expect(page.locator(f".ledger td.{col}").first).to_be_visible()
 
-    # ledger.html's contract at EVERY width above the fold, pane open and closed: the page body
-    # never scrolls sideways, the [role=table] absorbs the long row without a scrollbar of its own
-    # (a scrolling table hides columns, which is exactly what C11 forbids), and the long Titel gives
-    # its space back by ELLIPSIZING (proof the tracks are shrinkable and the .titel ellipsis is live
-    # styling, not dead — Q6).
     def ledger_probes(current: Page) -> list[str]:
         found: list[str] = []
-        table: int = current.evaluate(_TABLE_OVERFLOW_JS)
-        if table > 1:
-            found.append(f"the ledger overflows its own box by {table}px")
-        titel: dict[str, float] = current.evaluate(_LONG_TITEL_JS)
-        if titel["box"] >= titel["text"] - 1:
-            found.append(f"the long Titel never tightened {titel}")
+        overflow: int = current.evaluate(_LEDGER_OVERFLOW_JS)
+        if overflow > 1:
+            found.append(f"the ledger overflows its own box by {overflow}px")
+        lines: int = current.evaluate(_LONG_TITEL_LINES_JS)
+        if lines < 2:
+            found.append(f"the long Titel never wrapped ({lines} line box)")
         return found
 
     defects = _sideways_scroll_defects(
@@ -932,18 +871,14 @@ def test_ledger_columns_stay_visible_by_intrinsic_sizing(
     assert not defects, "the ledger does not absorb long content intrinsically:\n" + "\n".join(
         defects
     )
-    # The fold below 32rem stays the ONE modal width change (C11-licensed) and hides content
-    # only out of necessity (C9): the fully-tightened one-line anatomy exceeds the fold container.
-    page.set_viewport_size({"width": 1280, "height": 900})
-    page.goto(live_workbench + "/")
-    minimum: int = page.evaluate(_LEDGER_MINIMUM_JS)  # measured while all columns render
+    # S (the space budget's container size): the heads go and each row is its title over one line
+    # of its facts. The fold is a form, not a drop: it hides no value (G.33).
     page.set_viewport_size({"width": 500, "height": 900})
     page.goto(live_workbench + "/")
-    expect(page.locator('.ledger [role="table"] > [role="row"]')).to_be_hidden()  # fold active
-    container: int = page.evaluate("() => document.querySelector('.ledger').clientWidth")
-    assert minimum > container, (
-        f"the fold engaged although the four-column anatomy ({minimum}px) fits {container}px"
-    )
+    expect(page.locator(".ledger thead")).to_be_hidden()
+    long_row = page.locator(".ledger tbody tr", has_text=_CEILING_REF_CODE)
+    for col in ("datierung", "typ", "signatur"):
+        expect(long_row.locator(f"td.{col}")).to_be_visible()
 
 
 def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> None:
@@ -977,7 +912,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     # a member/public visitor: the Titel click IS the navigation to the Lesesaal detail read view
     # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
     page.goto(live_workbench + "/")
-    page.locator(".ledger .titel a", has_text="Sommerfahrt 1962").click()
+    page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
     page.wait_for_url("**/artikel/**")
     # the reading structure: title, the origin line (Signatur, date), the cover Platte
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")

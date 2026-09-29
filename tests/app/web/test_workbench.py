@@ -573,9 +573,8 @@ def test_titel_navigates_and_vorschau_link_opens_pane(indexed_corpus: Corpus) ->
     body = _get(Public()).content.decode()
     assert f'href="/artikel/{PANE_PUB_ULID}"' in body  # the Titel's detail navigation
     assert "data-artikel" not in body  # the JS upgrade hook died with ledger_pane.js
-    # the href value and the accessible name, pinned separately (no attribute-order pin)
     assert f'href="?artikel={PANE_PUB_ULID}"' in body
-    assert 'aria-label="Vorschau"' in body
+    assert ">Vorschau<" in body
 
 
 def test_vorschau_link_preserves_search_state(indexed_corpus: Corpus) -> None:
@@ -590,16 +589,16 @@ def test_vorschau_link_preserves_search_state(indexed_corpus: Corpus) -> None:
     assert pairs[-1] == f"artikel={PANE_PUB_ULID}"
 
 
-def test_row_toolbar_bearbeiten_is_archivist_chrome(indexed_corpus: Corpus) -> None:
-    # The row toolbar's Bearbeiten (pencil → the edit form) is archivist-only; the Vorschau
-    # affordance exists for every viewer (the pane itself re-authorizes fail-closed).
+def test_row_bearbeiten_is_archivist_chrome(indexed_corpus: Corpus) -> None:
+    # The row's Bearbeiten (→ the edit form) is archivist-only; the Vorschau affordance exists for
+    # every viewer (the pane itself re-authorizes fail-closed).
     arch = _get(Archivist()).content.decode()
     assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten"' in arch
-    assert 'aria-label="Bearbeiten"' in arch
+    assert ">Bearbeiten<" in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
-        assert 'aria-label="Bearbeiten"' not in body, f"[{label}] Bearbeiten control leaked"
-        assert 'aria-label="Vorschau"' in body, f"[{label}] Vorschau affordance missing"
+        assert ">Bearbeiten<" not in body, f"[{label}] Bearbeiten control leaked"
+        assert ">Vorschau<" in body, f"[{label}] Vorschau affordance missing"
 
 
 # --- preview pane (?artikel): fail-closed, leak-safe ----------------
@@ -613,7 +612,7 @@ def test_pane_opens_for_a_viewable_article(indexed_corpus: Corpus) -> None:
     assert "Vorschau Sommerfahrt" in body
     assert "Titelaufnahme der Fahrt" in body  # the media caption
     assert "Öffnen" in body
-    assert '<div role="row" aria-current="true">' in body  # the selected row is marked
+    assert '<tr aria-current="true">' in body  # the selected row is marked
 
 
 def test_pane_absent_or_malformed_artikel_renders_no_pane(indexed_corpus: Corpus) -> None:
@@ -677,14 +676,12 @@ def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corp
 
 def test_archivist_sees_bulk_checkbox_column(indexed_corpus: Corpus) -> None:
     body = _get(Archivist()).content.decode()
-    assert 'class="ledger bulk"' in body
     assert 'name="auswahl"' in body  # row checkboxes
     assert '<span class="visually-hidden">Auswahl</span>' in body  # the sr-only column header
 
 
 def test_public_never_gets_bulk_column(indexed_corpus: Corpus) -> None:
     body = _get(Public()).content.decode()
-    assert 'class="ledger bulk"' not in body
     assert 'name="auswahl"' not in body
     assert "Sammelbearbeitung" not in body
 

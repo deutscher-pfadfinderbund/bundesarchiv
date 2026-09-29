@@ -108,6 +108,12 @@ def _parse_sort(raw: str | None) -> tuple[SortOrder, bool]:
     return sort, descending
 
 
+def sort_label(sort: SortOrder) -> str:
+    """The German ``sortierung`` label of a ``SortOrder`` — the inverse of the parse; an order
+    the URL cannot carry reads as the default."""
+    return next((label for label, order in _SORT_BY_LABEL.items() if order == sort), "relevanz")
+
+
 def parse_query(params: Mapping[str, str]) -> ParsedQuery:
     """Parse the raw GET params into a ``ParsedQuery``. Total: every malformed field falls to its
     own default, so a hand-edited / garbage URL yields a sane all-defaults search, never a 500."""

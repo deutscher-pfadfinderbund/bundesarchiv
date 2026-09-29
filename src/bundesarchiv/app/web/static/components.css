@@ -860,282 +860,182 @@
     color: var(--ink-2);
   }
 
-  /* ---- ledger: the results register as a bound REGISTER BOOK (owner 2026-08-07, exploration 05a):
-     hairline horizontal rules only, no filled band, no zebra, no side chrome; the Signatur column
-     closes on the ONE licensed vertical margin rule (register row 11). The root is a SIZE CONTAINER,
-     so the register adapts to its column (law C2), not the viewport. Anatomy, five tracks for every
-     viewer: [bulk] SIG · TITEL (fills) · DATIERUNG · TYP · row toolbar; all rows subgrid onto them.
-     Adaptation is INTRINSIC (law C11): the mono columns sit at max-content, the Titel takes the slack
-     and gives it back first, so every column stays visible above the fold. The two-line fold below
-     is the phone-width LAST RESORT and the one modal width change. ---- */
+  /* ---- ledger: the result table in hairlines (DESIGN.md "Register and Ledger"). One lead per
+     row, the Titel; every other cell one tier quieter, on one line, ending in "…" when it does not
+     fit (round 10). A rule runs only between rows (register row 14). The last column shrinks to its
+     content, so the rules end where the content ends (round 2). The root is a size container and
+     the last-resort scroll box: the page body never scrolls sideways (learning G.24). ---- */
   .ledger {
     container-type: inline-size;
-  }
-  .ledger > [role="table"] {
-    /* The SHRINKABLE track floors (law C3: the grid's own knobs, consumed by --cols AND by the
-       fold's row template below, so one-line and folded anatomy can never derive different
-       minima). Every floor is the narrowest width at which its column still carries its fact,
-       and each is a structural dimension with no fitting token (law C5):
-         --sig-floor    5rem    — a Signatur at the DOMAIN CEILING still reads in full: no spaces,
-                                  8 characters (owner 2026-08-07), measured 65px in the mono face
-                                  plus 13px margin-rule chrome = 78px. A code beyond that ceiling
-                                  ("they could get longer, but I don't expect them to") gives its
-                                  extra width back through .c-sig-code's ellipsis rather than
-                                  widening the register.
-         --titel-floor  6rem    — the elastic track: takes all slack, gives it back FIRST. The
-                                  Titel is the one UNBOUNDED field (free text), so it is where
-                                  long content is actually absorbed.
-         --datum-floor  5.25rem — the "Datierung" header label (~76px with its sort glyph) stays intact
-         --typ-floor    3rem    — the "Typ" header label plus reading room
-       minmax(floor, max-content), never a bare max-content track: that has a max-content BASE size
-       and can never shrink, so long content pushed the page body into horizontal scroll and the
-       cells' ellipsis was dead styling (learning G.24). */
-    --sig-floor: 5rem;
-    --titel-floor: 6rem;
-    --datum-floor: 5.25rem;
-    --typ-floor: 3rem;
-    /* the shared column tracks (law C3/C5); --lead is the optional bulk-checkbox track, prepended
-       via the empty-fallback idiom. Tracks carry LINE NAMES and every cell is placed on its own
-       (below), so a row with an absent value keeps every other cell in its column instead of
-       auto-flowing leftward. */
-    --cols: [sig] minmax(var(--sig-floor), max-content) [titel] minmax(var(--titel-floor), 1fr)
-      [datum] minmax(var(--datum-floor), max-content) [typ] minmax(var(--typ-floor), max-content)
-      [aktion] max-content;
-    display: grid;
-    grid-template-columns: var(--lead,) var(--cols);
-    /* the book's covers: top + bottom rules only — a bound page has no side chrome */
-    border-block: var(--line-width) solid var(--rule);
-    /* The last-resort scroll box (ledger.html's contract: the page body never scrolls sideways).
-       `position: relative` makes this the containing block for the sr-only column labels, so they
-       are clipped BY the scroller instead of extending the document's scrollable area. */
+    /* the containing block of the sr-only texts, so the scroll box clips them */
     position: relative;
     overflow-x: auto;
   }
-  .ledger.bulk > [role="table"] {
-    --lead: [auswahl] min-content;
+  .ledger > table {
+    width: 100%;
+    border-collapse: collapse;
   }
-  /* the rowgroup keeps its ARIA role but leaves the box tree, so rows subgrid onto the tracks */
-  .ledger [role="rowgroup"] {
-    /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
-    display: contents;
+  .ledger th {
+    padding: 0 var(--space-5) var(--space-3) 0;
+    font: var(--type-label);
+    color: var(--ink-2);
+    text-align: start;
+    white-space: nowrap;
   }
-  /* only what header AND body rows share; each flavor declares its own block padding below */
-  .ledger [role="row"] {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    align-items: center;
-    gap: var(--space-3);
-    padding-inline: var(--space-3);
+  .ledger td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    vertical-align: baseline;
   }
-  /* the header row is the [role=table]'s direct child; body rows live in the rowgroup */
-  .ledger [role="table"] > [role="row"] {
-    border-bottom: var(--line-width) solid var(--rule);
-    padding-block: var(--space-2);
+  .ledger tbody tr + tr td {
+    border-block-start: var(--line-width) solid var(--rule);
   }
-  .ledger [role="rowgroup"] [role="row"] + [role="row"] {
-    border-top: var(--line-width) solid var(--rule);
+  /* the sort lives on the head (register row 13): the active direction shows; another sortable
+     head shows its ↕ on hover or focus */
+  .ledger th > a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    text-decoration: none;
   }
-  /* body rows: the toolbar already gives the row its height, so less block padding keeps the
-     register compact. Hover carries no fill — the title's underline is the affordance. */
-  /* biome-ignore lint/style/noDescendingSpecificity: sets nothing the adjacent-row rule sets */
-  .ledger [role="rowgroup"] [role="row"] {
-    padding-block: var(--space-1);
+  .ledger th > a::after {
+    content: "↕" / "";
+    opacity: 0;
   }
-  /* bulk selection (owner 2026-08-07): the CHECKED BOX IS the mark — no inversion bar. Unchecked
-     boxes reveal on row hover/focus, the same gesture that surfaces the row toolbar. Gated on
-     `hover: hover` so touch keeps them visible. */
+  .ledger th > a:is(:hover, :focus-visible)::after {
+    opacity: 1;
+  }
+  .ledger th[aria-sort="ascending"] > a::after {
+    content: "↑" / "";
+    opacity: 1;
+  }
+  .ledger th[aria-sort="descending"] > a::after {
+    content: "↓" / "";
+    opacity: 1;
+  }
+
+  .ledger td.titel > a:first-child {
+    font: var(--type-entry);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .ledger td.titel > a:first-child:hover {
+    text-decoration: underline;
+  }
+  /* the row's tools follow the title in its cell (round 2) */
+  .ledger td.titel > a ~ a {
+    margin-inline-start: var(--space-4);
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  .ledger td.titel > a ~ a:hover {
+    color: var(--ink);
+  }
+  /* the pane link, the one link here that stays on this list, shows only where the frame has room
+     for the pane (the pane switch sets --pane-link, layouts.css): elsewhere it would open nothing */
+  .ledger td.titel > a[href^="?"] {
+    display: var(--pane-link, none);
+  }
+
+  .ledger td:not(.titel, .auswahl) {
+    font: var(--type-meta);
+    color: var(--ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* mono aligns a column of values (DESIGN.md "The Mono Column Rule"); their ch counts in it */
+  .ledger td:is(.datierung, .signatur) {
+    font: var(--type-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  /* the column sizes, in :where() so the fold at S outranks them (law C13) */
+  .ledger :where(td.datierung) {
+    width: var(--measure-date);
+  }
+  .ledger :where(td.signatur) {
+    width: var(--measure-sig);
+  }
+  .ledger :where(td.typ, td.bestand) {
+    max-width: var(--measure-word);
+  }
+  .ledger :where(th, td):where(.auswahl, :last-child) {
+    width: 1%;
+  }
+  .ledger :is(th, td):last-child {
+    padding-inline-end: 0;
+  }
+  /* a cell that sets its filter reads like the others until hovered (round 11); the link is the
+     ellipsizing box, so the cell never clips its focus ring */
+  .ledger td:not(.titel):has(> a) {
+    overflow: visible;
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never the Titel cell's links */
+  .ledger td:not(.titel) > a {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never the Titel cell's links */
+  .ledger td:not(.titel) > a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+
+  /* pointer devices: the tools and the unticked boxes show with their row, on hover or focus;
+     touch keeps them shown */
   @media (hover: hover) {
-    .ledger [role="rowgroup"] .auswahl input:not(:checked) {
+    .ledger :is(td.titel > a ~ a, td.auswahl input:not(:checked)) {
       opacity: 0;
     }
-    .ledger [role="rowgroup"] [role="row"]:is(:hover, :focus-within) .auswahl input {
+    .ledger tr:is(:hover, :focus-within) :is(td.titel > a ~ a, td.auswahl input) {
       opacity: 1;
     }
   }
 
-  .ledger :is([role="cell"], [role="columnheader"]) {
-    min-width: 0;
-  }
-  /* header cells: ONE treatment for every column head; a sortable head's link inherits it and
-     differs only by the link affordance — proven computed, not claimed here (learning G.1). */
-  .ledger [role="columnheader"] {
-    font: var(--type-label);
-    color: var(--ink-2);
-  }
-  .ledger [role="columnheader"] a {
-    display: inline-flex;
-    align-items: baseline;
-    gap: calc(var(--space-1) / 2);
-    text-decoration: none;
-  }
-  .ledger [role="columnheader"] a:hover {
-    color: var(--ink);
-  }
-  .ledger [role="columnheader"] a > span {
-    font-size: 0.85em; /* the direction glyph rides the label's own size — relative by nature */
-  }
-
-  /* headers AND cells share the named lines: an absent cell leaves a hole, never drift */
-  .ledger .auswahl {
-    grid-column: auswahl;
-  }
-  .ledger .sig {
-    grid-column: sig;
-    /* register row 11: the ONE vertical hairline in the ledger, closing the Signatur column */
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-    border-inline-end: var(--line-width) solid var(--rule);
-    padding-inline-end: var(--space-3);
-  }
-  .ledger .titel {
-    grid-column: titel;
-  }
-  .ledger .datierung {
-    grid-column: datum;
-    text-align: right; /* the Datierung reads as a right-aligned figure column (05a) */
-  }
-  .ledger .typ {
-    grid-column: typ;
-  }
-  .ledger .aktion {
-    grid-column: aktion;
-  }
-
-  /* body-cell typography, scoped to the ROWGROUP: header cells carry the same column classes, so
-     an unscoped `.ledger .titel a` beat the header rule by order and split the computed styles. */
-  .ledger [role="rowgroup"] .auswahl {
-    display: inline-flex;
-    align-items: center;
-  }
-  .ledger [role="rowgroup"] .titel {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-  .ledger [role="rowgroup"] .titel a {
-    font: var(--type-body);
-    text-decoration: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  /* hover states the affordance (owner 2026-08-07): the title is the row's navigation */
-  .ledger [role="rowgroup"] .titel a:hover {
-    text-decoration: underline;
-  }
-  /* the Entwurf mark rides its fact (learning G.10); flex:none keeps it visible when the title
-     ellipsizes */
-  .ledger [role="rowgroup"] .titel .mark {
-    flex: none;
-  }
-  .ledger [role="rowgroup"] .datierung {
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  .ledger [role="rowgroup"] .typ {
-    font: var(--type-meta);
-    color: var(--ink-2);
-  }
-  /* the mono columns give space back the way the Titel does: without the ellipsis a tightened
-     track merely CLIPS the value instead of saying so */
-  .ledger [role="rowgroup"] :is(.datierung, .typ) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  /* the row-action toolbar (G.9): hit area and ink come from the shared icon-control rule above */
-  .ledger [role="rowgroup"] .aktion [role="toolbar"] {
-    justify-content: flex-end;
-  }
-  /* quiet until the row is hovered / focused — POINTER devices only (touch keeps them visible) */
-  @media (hover: hover) {
-    .ledger [role="rowgroup"] .aktion {
-      --toolbar-opacity: 0;
-    }
-    .ledger [role="row"]:is(:hover, :focus-within) .aktion {
-      --toolbar-opacity: 1;
-    }
-  }
-
-  /* the ONE width query in the ledger (law C11 — intrinsic first: above this threshold the grid
-     itself absorbs every variation, so there are no drop steps). The LAST RESORT at phone-width
-     containers: the two-line fold — header hidden, SIG + Titel over Datierung · Typ; the bulk
-     checkbox keeps its own leading area (empty track when absent). The "·" separator prints only
-     BETWEEN two present values (adjacent-sibling rule), so absence dangles nothing. The 32rem
-     threshold DERIVES from the one-line anatomy's content minimum (law C9; measured live
-     2026-08-07, re-derived 2026-08-07 from the track FLOORS after G.24 — the e2e
-     test_ledger_columns_stay_visible_by_intrinsic_sizing reads the same knobs and re-measures it
-     every run): every shrinkable track at its floor plus the rigid ones at content width —
-     checkbox 13 + Signatur floor 80 (--sig-floor 5rem — the 8-character ceiling code in full,
-     owner 2026-08-07) + 13 margin-rule chrome + Titel floor 96 (6rem) + Datierung floor 84
-     (5.25rem — its header label) + Typ floor 48 (3rem) + toolbar 96
-     (two --touch-target icons + gap) + 5 gaps × 12 + row padding 24 ≈ 514px ≈ 32rem — below that
-     even the FULLY TIGHTENED one-line row cannot fit, so hiding (the fold) is necessary, never
-     premature. The threshold also sits BELOW the narrowest pane-open container — the pane switch
-     (layouts.css) is an 80rem viewport query (pane ≤26rem + gap + frame padding leaves main
-     ≥ ~51rem), both sides sharing the rem unit, so row anatomy never changes with pane state
-     (decision 1) at any root font size — only a genuinely phone-narrow container may fold. */
-  /* the fold threshold — DERIVED per C9 from the track floors above (re-measured every run by the
-     e2e proof) */
-  @container (max-width: 32rem) /* no token names a content minimum */ {
-    .ledger > [role="table"] {
-      grid-template-columns: 1fr;
-    }
-    .ledger [role="table"] > [role="row"] {
+  /* S: the heads go, and a row is its title over one line of its facts, "1866-11-20 · Lagerheft ·
+     PDF · BA 1842", in sans: one line is no column (round 10). The tools and the selection are
+     absent (bulk work is L/M). A dot prints only between two present values. */
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
+    .ledger thead {
       display: none;
     }
-    .ledger [role="rowgroup"] [role="row"] {
-      /* the two-line card's own tracks, on the SAME floor knobs as the one-line anatomy (G.24:
-         a bare max-content track cannot shrink, and the fold is exactly where space is
-         scarcest — long content overflowed the card at phone widths) */
-      grid-template-columns:
-        min-content minmax(var(--sig-floor), max-content)
-        minmax(var(--datum-floor), max-content) minmax(0, 1fr);
-      grid-template-areas:
-        "auswahl sig titel titel"
-        "auswahl sig datum typ";
-      align-items: start;
-      column-gap: var(--space-3);
-      row-gap: calc(var(--space-1) / 2);
+    .ledger :is(table, tbody) {
+      display: block;
     }
-    /* cell rules ride the same rowgroup scope as the base typography, so the fold's overrides
-       (font step-down, grid areas) win inside its range */
-    .ledger [role="rowgroup"] .auswahl {
-      grid-area: auswahl;
-      align-self: center;
-    }
-    .ledger [role="rowgroup"] .sig {
-      grid-area: sig;
-      align-self: center;
-      /* the fold is a two-line card, not table anatomy — the margin rule (row 11) rests */
-      border-inline-end: none;
-      padding-inline-end: 0;
-    }
-    .ledger [role="rowgroup"] .titel {
-      grid-area: titel;
-      align-self: center;
+    .ledger tr {
+      display: flex;
       flex-wrap: wrap;
+      align-items: baseline;
+      padding-block: var(--space-3);
     }
-    .ledger [role="rowgroup"] .titel a {
-      white-space: normal;
+    .ledger tbody tr + tr {
+      border-block-start: var(--line-width) solid var(--rule);
     }
-    .ledger [role="rowgroup"] .datierung {
-      grid-area: datum;
-      font: var(--type-mono-meta);
+    .ledger tbody tr td,
+    .ledger tbody tr + tr td {
+      width: auto;
+      max-width: none;
+      padding: 0;
+      border: 0;
     }
-    .ledger [role="rowgroup"] .typ {
-      grid-area: typ;
-      font: var(--type-mono-meta);
+    .ledger td.titel {
+      flex-basis: 100%;
+      padding-block-end: var(--space-1);
     }
-    .ledger [role="rowgroup"] .datierung + .typ::before {
-      content: "· ";
+    .ledger td:not(.titel, .auswahl) {
+      flex: 0 1 auto;
+      min-width: 0;
+      font: var(--type-meta);
     }
-    /* the action gutter collapses — the Titel already navigates, and the pane is
-       viewport-hidden at these widths anyway */
-    .ledger [role="rowgroup"] .aktion {
+    .ledger td:not(.titel) > a {
+      display: inline;
+    }
+    .ledger td:not(.titel, .auswahl):not(:empty) ~ td:not(:empty)::before {
+      content: "·" / "";
+      margin-inline: var(--space-2);
+    }
+    .ledger :is(td.auswahl, td.titel > a ~ a) {
       display: none;
     }
   }

@@ -141,7 +141,7 @@ SCREENS: tuple[Screen, ...] = (
         _at("/"),
         "workbench",
         overlays=1,
-        control_rows=("header", "span[toolbar]"),
+        control_rows=("header",),
     ),
     Screen(
         "workbench-filtered",
@@ -168,7 +168,7 @@ SCREENS: tuple[Screen, ...] = (
         _goto(lambda c: f"/?artikel={c.published_ulid}"),
         "workbench",
         overlays=1,
-        control_rows=("header", "span[toolbar]"),
+        control_rows=("header",),
     ),
     Screen(
         "workbench-bulk-url",

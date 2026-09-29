@@ -15,6 +15,7 @@ import pytest
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.index.query import FileKind
 
 #: The Medienart ``narrowed_vocabulary`` narrows, and the single Dokumenttyp it leaves it.
 _NARROWED_MEDIENART = "Foto(s)"
@@ -174,6 +175,30 @@ def test_datierung_parts_of_no_date_are_empty() -> None:
 )
 def test_human_size_is_german(byte_size: int | None, expected: str) -> None:
     assert vocab.human_size(byte_size) == expected
+
+
+@pytest.mark.parametrize(
+    ("counts", "expected"),
+    [
+        ((), ""),
+        (((FileKind.IMAGE, 1),), "Foto"),
+        (((FileKind.IMAGE, 2),), "2 Fotos"),
+        (((FileKind.PDF, 1),), "PDF"),
+        (((FileKind.IMAGE, 1), (FileKind.PDF, 1)), "Foto, PDF"),
+        (((FileKind.IMAGE, 3), (FileKind.PDF, 2), (FileKind.OTHER, 1)), "3 Fotos, 2 PDF, Datei"),
+    ],
+)
+def test_file_summary_names_what_a_record_has(
+    counts: tuple[tuple[FileKind, int], ...], expected: str
+) -> None:
+    assert vocab.file_summary(counts) == expected
+
+
+@pytest.mark.parametrize(
+    ("number", "expected"), [(0, "0"), (999, "999"), (2506, "2.506"), (1234567, "1.234.567")]
+)
+def test_count_groups_thousands_with_a_dot(number: int, expected: str) -> None:
+    assert vocab.count(number) == expected
 
 
 # --- the exposure statement ---------------------------------------------------------

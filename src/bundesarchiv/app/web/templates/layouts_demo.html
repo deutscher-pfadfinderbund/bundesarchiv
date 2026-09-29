@@ -66,7 +66,7 @@ filter_chips); one group is served open to exhibit the dropped overlay panel. {%
 
   {% comment %} Main column: the ledger (the hit count rides the rail, law C10). {% endcomment %}
   <main>
-    {% include "components/ledger.html" with rows=ledger_rows columns=ledger_columns only %}
+    {% include "components/ledger.html" with ledger=ledger bulk=False only %}
   </main>
 
   {% if vorschau %}{% include "workbench/_pane.html" with pane=preview only %}{% endif %}

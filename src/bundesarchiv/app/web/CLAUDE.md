@@ -19,6 +19,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_article`, `resolve_visible_detail` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
 - `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — workbench + detail routes: search, browse, read · interface: `workbench`, `article_detail`, `bestand_crumbs` · tests: `tests/app/web/test_workbench.py`
+- `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `Ledger` · tests: `tests/app/web/test_ledger.py`
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `save_catalog_form`, `apply_captions` · tests: `tests/app/web/test_catalog_form.py`
 - `catalog_views.py` — cataloging routes + the `_FIELDS` record card on ONE `EditSurface` render · interface: `article_create`, `article_edit`, `article_copy`, `article_delete` · tests: `tests/app/web/test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`

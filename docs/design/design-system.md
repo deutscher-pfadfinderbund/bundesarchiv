@@ -115,6 +115,10 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    is now INTRINSIC: mono columns sit at max-content, the Titel absorbs
    slack and ellipsizes first, every column stays visible above the fold;
    the ~32rem fold threshold carries its C9 content arithmetic.
+   *Addendum (list wave, 2026-09-29, a2 rounds 2 and 10):* the Titel wraps
+   instead of ellipsizing; every other cell keeps its one line and ends in
+   "…"; the fold is the ledger's S form at the space budget's 40rem, the
+   title over one line of its facts, and it hides no value.
 6. **Tests move in the same wave, and e2e is mandatory.** Some unit/e2e
    selectors grip `c-*`/`l-*` names (`c-badge--entwurf`,
    `c-artikel-aktionen`, `l-zurueck`, …) — migrate them with the markup.
