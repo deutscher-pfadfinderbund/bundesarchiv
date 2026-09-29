@@ -31,65 +31,52 @@ dev = [
     "wsgidav>=4.3.4",
     "cheroot>=11.1.2",
     "types-pyyaml>=6.0.12.20260518",
-    # E2E journey suite + state gallery (Part #26). Dev-only, browser-driven; the ``e2e`` marker
-    # keeps these out of the fast gate (they need a live server + the cached chromium-1228 browser).
     "pytest-playwright>=0.5",
     "pyrefly>=1.1.1",
 ]
 
-# Editor/LSP type checking only — mypy (strict, django plugin) is the gate. Pyright has no django
-# plugin, so if ORM/settings false positives ever appear here, prefer downgrading this to "basic"
-# over sprinkling ignores.
+# Editor LSP only; mypy is the gate.
 [tool.pyright]
 include = ["src", "tests"]
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
 
-# Fast fail-fast type check (pre-commit first hook, ~0.2s) — a SECOND opinion, not the gate:
-# mypy (strict, django plugin) stays canonical. Noise policy: pyrefly must stay at ZERO errors;
-# false positives get a targeted per-path error toggle below, never inline ignore litter.
+# Second opinion to mypy, at zero errors: a false positive gets a per-file toggle, not an inline ignore.
 [tool.pyrefly]
 project-includes = ["src", "tests"]
-# Repo root first so `tests.*` resolves the same way mypy's explicit_package_bases does.
+# Repo root first, so `tests.*` resolves as under mypy's explicit_package_bases.
 search-path = [".", "src"]
+errors = { deprecated = "error" }
 
 [[tool.pyrefly.sub-config]]
-# Row-dict → dataclass constructors (`SearchHit(**{**row, ...})`): pyrefly can't narrow the
-# heterogeneous dict; mypy+pyright accept it. Silence this one code for this one file.
+# `SearchHit(**{**row, ...})`: pyrefly can't narrow the heterogeneous row dict.
 matches = "src/bundesarchiv/index/query.py"
 errors = { bad-argument-type = false }
 
 [[tool.pyrefly.sub-config]]
-# authlib's `OAuth2Client` (`authlib.integrations.httpx_client`) inherits from `httpx2.Client`,
-# and the library ships no types — pyrefly resolves only authlib's own base and reports httpx2's
-# `close()` as missing. mypy (with the authlib override below) and the runtime both disagree.
-matches = "src/bundesarchiv/app/web/keycloak.py"
-errors = { missing-attribute = false }
+# authlib ships no types; keycloak.py is the seam that types its answers.
+matches = "**/*keycloak*.py"
+errors = { untyped-import = false }
 
 [[tool.pyrefly.sub-config]]
-# procrastinate's `Task[..., Concatenate[int, Args]]` ParamSpec generics — pyrefly can't unify
-# the defer-call signature mypy accepts via the library's own stubs.
+# procrastinate's `Concatenate[int, Args]` defer signature: pyrefly can't unify it.
 matches = "src/bundesarchiv/app/tasks.py"
 errors = { bad-argument-type = false }
 
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
-# target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
-# Keep ruff's defaults (E4/E7/E9, F); EXTEND with import-sort + modernization/idiom rules.
 extend-select = [
     "I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET", "BLE", "DTZ", "PGH", "S",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Django migration classes own `dependencies`/`operations` as bare class attributes (the
-# framework mutates them); RUF012 (ClassVar) does not apply and 0002 is auto-generated.
+# Django owns the migrations' mutable class attributes.
 "**/migrations/*.py" = ["RUF012"]
-# The README codecs reject corrupt canonical file CONTENT — a value/decode contract the persistence
-# tests pin as ValueError, not the argument-type situation TRY004 targets.
+# The README codecs reject corrupt file content with ValueError, a pinned contract.
 "src/bundesarchiv/persistence/readme.py" = ["TRY004"]
 "src/bundesarchiv/persistence/collection_readme.py" = ["TRY004"]
 # Tests assert, and their keys and passwords are fixtures.
@@ -99,47 +86,24 @@ extend-select = [
 strict = true
 files = ["src", "tests", "manage.py"]
 plugins = ["mypy_django_plugin.main"]
-# Multiple conftest.py / test modules share basenames across tests/ subdirs; explicit package
-# bases derive each module's name from its path relative to the repo root (the implicit base), so
-# same-named files (e.g. two conftest.py) stay distinct and by-name imports like
-# ``tests.index.fixtures`` resolve to ONE canonical module. mypy_path is src-only: adding tests
-# here would give tests/ files a second name (``index.fixtures``) and collide with the repo-root
-# one ("source file found twice").
+# Same-named test files (two conftest.py) stay distinct. Keep tests off mypy_path, or they get a
+# second module name ("source file found twice").
 explicit_package_bases = true
 mypy_path = ["src"]
 
-# django-stubs needs to know which settings to load to type the ORM. The index is the
-# only place Django lives; this is type-checking config, not a runtime default.
 [tool.django-stubs]
 django_settings_module = "bundesarchiv.index.settings"
 
-# Test-only WebDAV server libs ship no type stubs; they are exercised through the
-# typed WebDavObjectStore + httpx2, not depended on for types.
+# No types shipped: authlib (typed at the keycloak.py seam) and the test WebDAV server.
 [[tool.mypy.overrides]]
-module = ["wsgidav.*", "cheroot.*"]
-ignore_missing_imports = true
-
-# authlib ships no type stubs. It is reached from ONE module (app/web/keycloak.py), whose whole job
-# is to turn the library's answers into a typed `Mapping | None` — nothing above that seam sees an
-# authlib type.
-[[tool.mypy.overrides]]
-module = ["authlib.*"]
+module = ["authlib.*", "wsgidav.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# pytest-django needs DJANGO_SETTINGS_MODULE at plugin-configure time (before conftests are
-# imported) to run django.setup(). Setting it here does NOT force a database on the pure
-# suites: django.setup() is cheap and DB-free; pytest-django only creates the test database
-# when a test actually uses the `db`/`django_db` fixture. tests/domain and tests/persistence
-# use neither, so they still run with no Postgres. The guarded `django_db_setup` in
-# tests/conftest.py fails (never skips) when Postgres is unreachable.
+# Needed before conftests load. It creates no database: only `django_db` tests touch Postgres.
 DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings"
-# The E2E journey suite + state gallery (tests/e2e/, Part #26) drive a real browser against a live
-# server — slow and heavyweight, so both are EXCLUDED from the default run (the fast gate +
-# pre-commit) by their markers. Run them explicitly through `mise run test:e2e` (the journeys) or
-# `mise run test:gallery` (render the state gallery) — those tasks also install the chromium build
-# the current Playwright wants. All other suites are unaffected.
+# Browser suites run only through `mise run test:e2e` / `test:gallery`.
 markers = [
     "e2e: browser-driven end-to-end journey (excluded from the default run; -m e2e to run)",
     "gallery: renders the canonical-state screenshot gallery (excluded from the default run; -m gallery to run)",

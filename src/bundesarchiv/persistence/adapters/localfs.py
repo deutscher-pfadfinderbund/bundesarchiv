@@ -19,7 +19,7 @@ import os
 import shutil
 import stat
 import uuid
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO
@@ -49,7 +49,7 @@ class LocalFsObjectStore:
         return self._root.joinpath(*key.split("/"))
 
     @contextmanager
-    def _backend(self, key: str) -> Iterator[None]:
+    def _backend(self, key: str) -> Generator[None]:
         """The single seam every filesystem operation passes through, so no raw
         `OSError` ever crosses the port (the local-FS analogue of WebDav's
         `_request`). A path that names no blob — missing (`FileNotFoundError`) or a
