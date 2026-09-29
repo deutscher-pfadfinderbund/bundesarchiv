@@ -29,15 +29,14 @@ from bundesarchiv.app.web.keycloak import authorization_url, fetch_tokens, logou
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import (
     REFRESH_COOKIE,
-    VIEWER_COOKIE,
     delete_token_cookies,
     set_token_cookies,
 )
 
 #: The short-lived cookie carrying one login's ``state``/``nonce``/``next`` across the redirect to
 #: Keycloak and back. Signed with the viewer key under its OWN salt; it is transient by design and
-#: the callback drops it, so one cookie serves exactly one login. ``__Host-`` for the same reason as
-#: the Viewer cookie (``viewers.VIEWER_COOKIE``): no sibling host may shadow it.
+#: the callback drops it, so one cookie serves exactly one login. ``__Host-`` because Keycloak lives
+#: on a sibling host, and no sibling host may shadow it.
 STATE_COOKIE = "__Host-oidc_state"
 
 _STATE_SALT = "oidc-state"
@@ -170,7 +169,6 @@ def logout(request: HttpRequest) -> HttpResponse:
     )
     response = HttpResponseRedirect(url or _DEFAULT_NEXT)
     delete_token_cookies(response)
-    response.delete_cookie(VIEWER_COOKIE)
     return response
 
 

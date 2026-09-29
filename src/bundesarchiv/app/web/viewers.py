@@ -1,21 +1,17 @@
 """``viewer_of(request) -> Viewer`` — THE request→Viewer trust boundary (Part 4.4).
 
 ONE function the whole web layer calls to answer *who is asking* (domain ``Viewer``: Archivist |
-Member(groups) | Public). THREE adapters answer it; the UI code above never knows which one spoke:
+Member(groups) | Public). TWO adapters answer it; the UI code above never knows which one spoke:
 
 - an OIDC login's token cookies (ADR 0018): Keycloak's access token, checked on every request and
   refreshed server-side through ``TokenCookieMiddleware`` when it has expired;
-- a minted Viewer cookie (``mint_viewer_cookie``, the capability-link seam), keyed by
-  ``VIEWER_SIGNING_KEY``;
 - the cookie the dev-only switcher sets (``dev`` module), keyed by ``DEV_VIEWER_SIGNING_KEY``,
-  which only ``settings_dev`` defines.
+  which only ``settings_dev`` defines — never the production ``SECRET_KEY``, so a leaked dev
+  cookie is worthless against a deployment.
 
-Neither key is ever the production ``SECRET_KEY``: a leaked dev cookie is worthless against a
-deployment, and each seam falls closed wherever its key is absent.
-
-Fail-closed everywhere: no cookie, no key configured, a tampered/expired signature, a superseded
-format version, or a payload that does not parse to a known viewer shape ALL resolve to
-``Public()``. A bad cookie is never an error — only ever an anonymous viewer.
+Fail-closed everywhere: no cookie, no key configured, a tampered/expired signature, or a payload
+that does not parse to a known viewer shape ALL resolve to ``Public()``. A bad cookie is never an
+error — only ever an anonymous viewer.
 """
 
 import logging
@@ -40,15 +36,12 @@ _DEV_VIEWER_SALT = "dev-viewer"
 #: How long a dev-viewer cookie stays valid (12h — a working day; expired ones fall back to Public).
 _DEV_VIEWER_MAX_AGE = 12 * 60 * 60
 
-#: Name of the signed cookie a production OIDC login mints and this seam reads. The ``__Host-``
-#: prefix is a browser-enforced lock, and this deployment needs it: Keycloak lives on a sibling host
-#: of the same registrable domain, and any such host could otherwise set a ``Domain=``-scoped cookie
-#: of this name that shadows ours — an unclearable login loop. The dev cookie above carries no
-#: prefix on purpose: ``__Host-`` requires Secure, which dev's plain http cannot satisfy.
-VIEWER_COOKIE = "__Host-viewer"
-
 #: The two cookies an OIDC login leaves the browser holding (ADR 0018): Keycloak's access token and
-#: its offline refresh token. ``__Host-`` for the reason ``VIEWER_COOKIE`` gives.
+#: its offline refresh token. The ``__Host-`` prefix is a browser-enforced lock, and this deployment
+#: needs it: Keycloak lives on a sibling host of the same registrable domain, and any such host could
+#: otherwise set a ``Domain=``-scoped cookie of this name that shadows ours — an unclearable login
+#: loop. The dev cookie above carries no prefix on purpose: ``__Host-`` requires Secure, which dev's
+#: plain http cannot satisfy.
 ACCESS_COOKIE = "__Host-access"
 REFRESH_COOKIE = "__Host-refresh"
 
@@ -65,20 +58,6 @@ _REFRESHED_ATTR = "_bundesarchiv_refreshed"
 
 _log = logging.getLogger(__name__)
 
-#: Signer salt for the production cookie — its own namespace, never the dev cookie's.
-_VIEWER_SALT = "viewer"
-
-#: Format version carried in the cookie payload. Bumping it invalidates every outstanding minted
-#: Viewer cookie at once — the capability-link seam's emergency lever; OIDC logins are revoked in
-#: Keycloak (ADR 0018). ``v3``: the OIDC callback stopped minting this cookie.
-_VIEWER_FORMAT_VERSION = "v3"
-
-#: Per-tier lifetimes of a MINTED Viewer cookie (the capability-link seam); OIDC logins follow the
-#: realm's offline session instead (ADR 0018). Enforced on read, not only offered to the browser.
-#: The member window is also the OUTER bound — no viewer cookie verifies beyond it.
-_ARCHIVIST_MAX_AGE = 48 * 60 * 60
-_MEMBER_MAX_AGE = 30 * 24 * 60 * 60
-
 #: Where ``viewer_of`` parks the request's resolved Viewer. Namespaced: ``HttpRequest`` is Django's
 #: and any attribute on it is shared with middleware nobody here controls.
 _VIEWER_CACHE_ATTR = "_bundesarchiv_viewer"
@@ -93,39 +72,6 @@ def _dev_signer() -> signing.TimestampSigner | None:
     if not key:
         return None
     return signing.TimestampSigner(key=key, salt=_DEV_VIEWER_SALT)
-
-
-def _viewer_signer() -> signing.TimestampSigner | None:
-    """The production viewer signer, keyed by ``settings.VIEWER_SIGNING_KEY`` — or ``None`` when the
-    deploy supplied no key. Passing ``key`` explicitly keeps Django from falling back to
-    ``SECRET_KEY``, so this cookie is signed and verified ONLY with its dedicated key."""
-    key = settings.VIEWER_SIGNING_KEY
-    if not key:
-        return None
-    return signing.TimestampSigner(key=key, salt=_VIEWER_SALT)
-
-
-def _max_age(viewer: Viewer) -> int:
-    return _ARCHIVIST_MAX_AGE if isinstance(viewer, Archivist) else _MEMBER_MAX_AGE
-
-
-def mint_viewer_cookie(viewer: Viewer, response: HttpResponse) -> bool:
-    """Set the signed production Viewer cookie for ``viewer`` on ``response``, for the tier's own
-    lifetime. Returns ``False`` having set NOTHING when no ``VIEWER_SIGNING_KEY`` is configured —
-    the caller must then deny rather than hand out an identity nobody can verify."""
-    signer = _viewer_signer()
-    if signer is None:
-        return False
-    payload = signer.sign(f"{_VIEWER_FORMAT_VERSION}:{encode_viewer(viewer)}")
-    response.set_cookie(
-        VIEWER_COOKIE,
-        payload,
-        max_age=_max_age(viewer),
-        httponly=True,
-        secure=True,
-        samesite="Lax",
-    )
-    return True
 
 
 def encode_viewer(viewer: Viewer) -> str:
@@ -169,22 +115,6 @@ def _unsign(signer: signing.TimestampSigner, raw: str | None, max_age: int) -> s
         return signer.unsign(raw, max_age=max_age)
     except signing.BadSignature:
         return None
-
-
-def _minted_viewer(request: HttpRequest) -> Viewer | None:
-    """The viewer of the production cookie, or ``None`` when there is no verified one to read."""
-    signer = _viewer_signer()
-    if signer is None:
-        return None
-    raw = request.COOKIES.get(VIEWER_COOKIE)
-    version, _, encoded = (_unsign(signer, raw, _MEMBER_MAX_AGE) or "").partition(":")
-    if version != _VIEWER_FORMAT_VERSION:
-        return None
-    viewer = _parse_viewer(encoded)
-    if viewer is None:
-        return None
-    # The window above is only the outer bound; each tier's cookie dies on its own.
-    return viewer if _unsign(signer, raw, _max_age(viewer)) is not None else None
 
 
 def _switched_viewer(request: HttpRequest) -> Viewer | None:
@@ -256,20 +186,18 @@ class TokenCookieMiddleware:
 
 def viewer_of(request: HttpRequest) -> Viewer:
     """Resolve the request's ``Viewer`` — the single web-layer trust boundary. An OIDC login's token
-    cookies answer first, then a minted Viewer cookie, then the dev switcher, which only ever
-    answers where a dev key is configured. Every failure mode of every adapter falls closed to
+    cookies answer first, then the dev switcher, which only ever answers where a dev key is
+    configured. Every failure mode of every adapter falls closed to
     ``Public()``; a bad cookie never raises.
 
     Resolved once per request and cached on the request: the four call sites (gate, view, article
     authorization, ``render_screen``) then cannot answer *who is asking* differently, and the
     token is checked — and at most refreshed — once instead of once each. Sound because cookie state
-    cannot change mid-request — mint and clear happen on the response."""
+    cannot change mid-request — set and clear happen on the response."""
     cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
     if cached is not None:
         return cached
-    viewer = (
-        _token_viewer(request) or _minted_viewer(request) or _switched_viewer(request) or Public()
-    )
+    viewer = _token_viewer(request) or _switched_viewer(request) or Public()
     setattr(request, _VIEWER_CACHE_ATTR, viewer)
     return viewer
 

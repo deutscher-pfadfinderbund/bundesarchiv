@@ -103,6 +103,8 @@ def test_a_refresh_renews_the_viewer_and_both_cookies(
         morsel = response.cookies[name]
         assert morsel["httponly"] and morsel["secure"] and morsel["samesite"] == "Lax"
         assert morsel["max-age"] == 30 * 24 * 60 * 60
+        # __Host-: no sibling host on the registrable domain (Keycloak's lives on one) can shadow it.
+        assert name.startswith("__Host-") and morsel["path"] == "/" and not morsel["domain"]
 
 
 def test_a_failed_refresh_is_public_and_drops_both_cookies(realm: _Realm) -> None:

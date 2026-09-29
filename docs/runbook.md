@@ -125,11 +125,12 @@ changed FTS config version, and an empty index is not stale.
    directory and the cluster lives in an anonymous volume nobody backs up.
 2. The login walk, once per realm change: "Smoke test: one real login per realm
    change" below.
-3. Range requests through nginx, on a large PDF. Copy the `__Host-viewer`
-   cookie out of a logged-in browser:
+3. Range requests through nginx, on a large PDF. Copy the `__Host-access`
+   and `__Host-refresh` cookies out of a logged-in browser (the refresh cookie
+   covers an access token that expires mid-test):
 
    ```sh
-   curl -r 0-99 -I -H 'Cookie: __Host-viewer=<value>' \
+   curl -r 0-99 -I -H 'Cookie: __Host-access=<a>; __Host-refresh=<r>' \
      https://archiv.deutscher-pfadfinderbund.de/media/<article-ulid>/<content-hash>
    ```
 
@@ -152,8 +153,8 @@ deploy authenticates nobody — it never falls open.
 **Serve over HTTPS.** The cookies are `Secure`. Over plain http the login
 appears to succeed and the very next request is anonymous again.
 
-- `BUNDESARCHIV_VIEWER_SIGNING_KEY` — signs the transient login cookie (and,
-  later, the capability-link Viewer cookie). Generate one per deployment:
+- `BUNDESARCHIV_VIEWER_SIGNING_KEY` — signs the transient login cookie.
+  Generate one per deployment:
   `python -c "import secrets; print(secrets.token_urlsafe(64))"`. Never
   `SECRET_KEY`, never the dev key. **Rotation = replace it and restart.** It
   does not sign anybody out of an OIDC login.

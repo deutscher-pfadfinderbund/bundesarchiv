@@ -20,7 +20,7 @@ from tests.app.web._fixtures import Corpus
 from bundesarchiv.app.web import auth_views, viewers
 from bundesarchiv.app.web.auth_views import STATE_COOKIE, safe_next
 from bundesarchiv.app.web.keycloak import Tokens
-from bundesarchiv.app.web.viewers import ACCESS_COOKIE, REFRESH_COOKIE, VIEWER_COOKIE
+from bundesarchiv.app.web.viewers import ACCESS_COOKIE, REFRESH_COOKIE
 
 _KEY = "test-viewer-signing-key"
 
@@ -140,7 +140,7 @@ def test_the_callback_replays_the_nonce_the_authorize_request_carried(
     assert keycloak.seen["redirect_uri"] == "http://testserver/oidc/callback"
 
 
-def test_the_callback_leaves_both_token_cookies_and_no_viewer_cookie(
+def test_the_callback_leaves_both_token_cookies(
     keycloak: _FakeKeycloak,
 ) -> None:
     keycloak.tokens = _MEMBER_TOKENS
@@ -149,7 +149,6 @@ def test_the_callback_leaves_both_token_cookies_and_no_viewer_cookie(
     _callback(client, code="c", state=keycloak.seen["state"])
     assert client.cookies[ACCESS_COOKIE].value == "access-member"
     assert client.cookies[REFRESH_COOKIE].value == "refresh-member"
-    assert VIEWER_COOKIE not in client.cookies
     assert client.get("/artikel/neu").status_code == 404  # a Member, not an Archivist
 
 

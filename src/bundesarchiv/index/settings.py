@@ -120,7 +120,7 @@ MIDDLEWARE = [
 # in two cookies; the server stores none — no Django sessions, no contrib.auth. Every value arrives
 # from the deploy environment and every one of them is OPTIONAL HERE ON PURPOSE: absent settings must
 # fall closed (nobody can log in, every token check fails -> Public). VIEWER_SIGNING_KEY signs the
-# transient login cookie and the (deferred) capability-link Viewer cookie.
+# transient login cookie.
 VIEWER_SIGNING_KEY = os.environ.get("BUNDESARCHIV_VIEWER_SIGNING_KEY") or None
 OIDC_ISSUER = os.environ.get("BUNDESARCHIV_OIDC_ISSUER") or None
 OIDC_CLIENT_ID = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_ID") or None
