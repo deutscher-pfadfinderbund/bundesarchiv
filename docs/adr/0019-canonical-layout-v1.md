@@ -2,7 +2,7 @@
 
 Status: Proposed (2026-09-24). Amends ADR 0005 (history, `changes/`, `.snapshots/`),
 ADR 0006 (media keys; its ULID-only folders stand), ADR 0013 (media exemption, secondary
-history) and ADR 0015 (media layout). ADR 0018 carries `changed_by` in the viewer cookie.
+history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archivist's Keycloak username.
 
 > **Amended 2026-09-27:** the README front matter gains an optional `added_at` (ISO 8601, UTC,
 > whole seconds): when the record entered the archive (*Hinzugefügt am*). The legacy import fills

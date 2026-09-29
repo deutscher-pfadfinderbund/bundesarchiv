@@ -177,7 +177,7 @@ def indexed_corpus[T](
     (``test_schema`` was green only by alphabetical luck before this existed). Every module-scoped
     corpus fixture must ``yield from`` this helper; none may add its own wipe. Deliberately NOT an
     autouse conftest fixture: that would have to touch the DB after EVERY module in this directory,
-    breaking the documented guarantee that the pure architecture checks run without Postgres.
+    so this directory's no-DB tests would need Postgres too.
     """
     from bundesarchiv.index.models import ArticleIndex
 

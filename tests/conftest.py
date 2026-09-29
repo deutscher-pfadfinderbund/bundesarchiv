@@ -21,7 +21,7 @@ Design constraints (Task 4 / 4.2 brief):
   marker explicitly.
 
 This lives at the repo-test root so BOTH the index adapter tests and the app-service tests inherit
-the same guarded ``django_db_setup``; the pure architecture checks still run without Postgres.
+the same guarded ``django_db_setup``.
 """
 
 import os

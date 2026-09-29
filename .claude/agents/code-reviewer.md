@@ -148,7 +148,7 @@ if form.is_valid():                   # Good
 ## Review Process
 
 1. **Run checks**: `uv run ruff check .` for linting
-2. **Type check**: `uv run pyright` for type errors
+2. **Type check**: `uv run pyrefly check src tests` and `uv run mypy` for type errors
 3. **Analyze diff**: `git diff` for all changes
 4. **Logic review**: Read line by line, trace execution paths
 5. **Apply checklist**: Python, Django, testing, security

@@ -6,11 +6,8 @@ canonical repo write (CAS, ADR 0013) THEN the synchronous index update (ADR 0014
 ``SaveResult`` whose ``index_updated`` flag lets the view show the ADR-mandated specific warning
 when the index update failed but the canonical write stood.
 
-It IS an installed Django app (so Procrastinate autodiscovers ``tasks.py`` and Django discovers the
-``ensure_index_current`` management command), so this ``__init__`` imports nothing: the services
-pull in the ``ArticleIndex`` ORM model, which cannot load at app-``populate()`` time. Import them
-from their submodules (``articles``, ``collections``, ``result``).
-
-Kept deliberately small (YAGNI): only the write paths Parts 4.5-4.8 will demonstrably use —
-save/create/delete Article, save Collection.
+It IS an installed Django app (so Procrastinate autodiscovers ``tasks.py`` and Django discovers
+its management commands), so this ``__init__`` imports nothing: the services pull in the
+``ArticleIndex`` ORM model, which cannot load at app-``populate()`` time. Import them from their
+submodules (``articles``, ``collections``, ``result``).
 """
