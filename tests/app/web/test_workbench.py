@@ -17,7 +17,7 @@ import re
 from collections.abc import Callable
 from html import unescape
 from typing import cast
-from urllib.parse import parse_qs, quote
+from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from django.http import HttpResponse
@@ -617,43 +617,29 @@ def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
     assert _heads(body) == ["titel", *expected]
 
 
-# --- one-click entry: Titel = detail navigation; the pane opens via the Vorschau action -----
+# --- one-click entry: the Titel navigates; the paused pane has no way in from the list -------
 
 
-def test_titel_navigates_and_vorschau_link_opens_pane(indexed_corpus: Corpus) -> None:
-    # ONE-CLICK ENTRY (owner 2026-08-07): the Titel link is plain navigation to the canonical
-    # detail route — no pane interception, no data-artikel JS hook. The pane opens via the
-    # explicit per-row Vorschau action: a plain GET link to ?artikel=<ulid> (URL-borne pane
-    # state; the no-JS baseline IS this link).
-    body = _get(Public()).content.decode()
-    assert f'href="/artikel/{PANE_PUB_ULID}"' in body  # the Titel's detail navigation
-    assert "data-artikel" not in body  # the JS upgrade hook died with ledger_pane.js
-    assert f'href="?artikel={PANE_PUB_ULID}"' in body
-    assert ">Vorschau<" in body
-
-
-def test_vorschau_link_preserves_search_state(indexed_corpus: Corpus) -> None:
-    # The Vorschau link carries the CURRENT search (q + facets), so opening the pane never drops
-    # the filter scope; artikel rides last. The contract is "all pairs present, artikel last" —
-    # NOT one exact param ordering (a Mapping-iteration change is no behavior change).
-    body = _get(Public(), "q=Vorschau&medienart=Foto").content.decode()
-    match = re.search(rf'href="\?([^"]*artikel={PANE_PUB_ULID})"', body)
-    assert match, "no Vorschau link found"
-    pairs = match.group(1).replace("&amp;", "&").split("&")
-    assert "q=Vorschau" in pairs and "medienart=Foto" in pairs
-    assert pairs[-1] == f"artikel={PANE_PUB_ULID}"
+@pytest.mark.parametrize("viewer", [Public(), Archivist()], ids=["public", "archivist"])
+def test_titel_navigates_and_no_list_link_opens_the_pane(
+    indexed_corpus: Corpus, viewer: Viewer
+) -> None:
+    # The Titel is plain navigation to the detail route (owner 2026-08-07). The preview is paused
+    # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets artikel.
+    body = _get(viewer).content.decode()
+    hrefs = [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
+    assert f"/artikel/{PANE_PUB_ULID}" in hrefs
+    assert [h for h in hrefs if "artikel" in parse_qs(urlparse(h).query)] == []
 
 
 def test_row_bearbeiten_is_archivist_chrome(indexed_corpus: Corpus) -> None:
-    # The row's Bearbeiten (→ the edit form) is archivist-only; the Vorschau affordance exists for
-    # every viewer (the pane itself re-authorizes fail-closed).
+    # The row's Bearbeiten (→ the edit form) is archivist-only.
     arch = _get(Archivist()).content.decode()
     assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten"' in arch
     assert ">Bearbeiten<" in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
         assert ">Bearbeiten<" not in body, f"[{label}] Bearbeiten control leaked"
-        assert ">Vorschau<" in body, f"[{label}] Vorschau affordance missing"
 
 
 # --- preview pane (?artikel): fail-closed, leak-safe ----------------

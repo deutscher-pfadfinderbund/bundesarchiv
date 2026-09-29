@@ -9,7 +9,6 @@ filter rail / pagination / sort control emit, and pin the round-trip: a param se
 from bundesarchiv.app.web.browse import (
     clear_filters_query,
     has_next_page,
-    pane_query_prefix,
     parse_query,
     with_param,
     without_param,
@@ -88,25 +87,6 @@ def test_clear_filters_empty_when_only_filters_active() -> None:
 
 def test_clear_filters_drops_blank_values_like_every_link_helper() -> None:
     assert clear_filters_query({"q": "Fahrt", "medienart": ""}) == "q=Fahrt"
-
-
-# --- pane-link prefix (pane_query_prefix) -----------------------------------------
-# The row-invariant half of every Vorschau link: search state (blanks dropped, same _clean rule
-# as every sibling helper) + the multi-valued auswahl selection. Rows append artikel=<ulid>.
-
-
-def test_pane_query_prefix_carries_state_and_selection() -> None:
-    q = pane_query_prefix({"q": "Lager", "medienart": "Foto"}, ["01A", "01B"])
-    assert q == "q=Lager&medienart=Foto&auswahl=01A&auswahl=01B"
-
-
-def test_pane_query_prefix_drops_blank_params() -> None:
-    assert pane_query_prefix({"q": "", "medienart": "Foto"}, []) == "medienart=Foto"
-
-
-def test_pane_query_prefix_empty_when_stateless() -> None:
-    # No search, no selection: the row link is just ?artikel=<ulid> — no dangling separator.
-    assert pane_query_prefix({}, []) == ""
 
 
 # --- pagination boundary (has_next_page) ------------------------------------------

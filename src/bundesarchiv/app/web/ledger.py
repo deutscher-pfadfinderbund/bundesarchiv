@@ -20,9 +20,6 @@ from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.index.query import SearchHit
 
-#: The preview-pane selection param. NOT search state: every search link drops it.
-PANE_PARAM = "artikel"
-
 
 @dataclass(frozen=True, slots=True)
 class Column:
@@ -102,7 +99,6 @@ class Row:
     href: str
     draft: bool
     bearbeiten_href: str
-    vorschau_href: str
     selected: bool
     gewaehlt: bool
     cells: tuple[Cell, ...]
@@ -147,10 +143,6 @@ def build(
         _head("titel", "Titel", "titel", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
-    # row-invariant: the pane link's search state + selection, encoded once per page. ULIDs are
-    # Crockford base32, so the one per-row pair needs no encoding.
-    state = browse.pane_query_prefix(params, auswahl)
-    prefix = f"{state}&" if state else ""
     selection = frozenset(auswahl) if is_archivist else frozenset()
     mark_drafts = is_archivist and not parsed.filters.drafts_only
     rows = tuple(
@@ -162,7 +154,6 @@ def build(
             bearbeiten_href=(
                 reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else ""
             ),
-            vorschau_href=f"?{prefix}{PANE_PARAM}={hit.ulid}",
             selected=hit.ulid == selected_ulid,
             gewaehlt=hit.ulid in selection,
             cells=tuple(_cell(c, hit, bestand, params) for c in shown),

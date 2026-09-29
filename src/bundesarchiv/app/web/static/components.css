@@ -951,11 +951,6 @@
   .ledger td.titel > a ~ a:hover {
     color: var(--ink);
   }
-  /* the pane link, the one link here that stays on this list, shows only where the frame has room
-     for the pane (the pane switch sets --pane-link, layouts.css): elsewhere it would open nothing */
-  .ledger td.titel > a[href^="?"] {
-    display: var(--pane-link, none);
-  }
 
   .ledger td:not(.titel, .auswahl) {
     font: var(--type-meta);

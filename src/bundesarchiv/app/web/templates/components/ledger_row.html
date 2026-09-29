@@ -1,11 +1,11 @@
 {% comment %}
 One ledger row. Params: row — a ledger.Row; bulk — the selection checkbox.
-The Titel cell holds the title link, the Entwurf mark (learning G.10), then the row's tools in words:
-Bearbeiten (archivists) and Vorschau, each named for its row. Every other cell is one fact, printed
-without surrounding whitespace so an absent value is :empty.
+The Titel cell holds the title link, the Entwurf mark (learning G.10), then the row's tool in words:
+Bearbeiten (archivists), named for its row. Every other cell is one fact, printed without surrounding
+whitespace so an absent value is :empty.
 {% endcomment %}
 <tr{% if row.selected %} aria-current="true"{% endif %}>
   {% if bulk %}<td class="auswahl"><input type="checkbox" name="auswahl" value="{{ row.ulid }}"{% if row.gewaehlt %} checked{% endif %} aria-label="{{ row.title }} auswählen"></td>{% endif %}
-  <td class="titel"><a href="{{ row.href }}">{{ row.title }}</a>{% if row.draft %} {% include "components/mark_lifecycle.html" with draft=True only %}{% endif %}{% if row.bearbeiten_href %} <a href="{{ row.bearbeiten_href }}" aria-label="Bearbeiten: {{ row.title }}">Bearbeiten</a>{% endif %} <a href="{{ row.vorschau_href }}" aria-label="Vorschau: {{ row.title }}">Vorschau</a></td>
+  <td class="titel"><a href="{{ row.href }}">{{ row.title }}</a>{% if row.draft %} {% include "components/mark_lifecycle.html" with draft=True only %}{% endif %}{% if row.bearbeiten_href %} <a href="{{ row.bearbeiten_href }}" aria-label="Bearbeiten: {{ row.title }}">Bearbeiten</a>{% endif %}</td>
   {% for cell in row.cells %}<td class="{{ cell.key }}">{% if cell.query %}<a href="?{{ cell.query }}">{{ cell.text }}</a>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}
 </tr>

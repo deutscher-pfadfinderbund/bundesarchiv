@@ -10,7 +10,6 @@ loop · Löschen confirm · one-click publish · bulk select→confirm→partial
 """
 
 import json
-import re
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -36,7 +35,9 @@ pytestmark = pytest.mark.e2e
 # --- search + filter + pane --------------------------------------------------------
 
 
-def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) -> None:
+def test_search_filter_and_open_pane(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
     page = archivist_page
     page.goto(live_workbench + "/")
     # the ledger shows the corpus
@@ -46,12 +47,10 @@ def test_search_filter_and_open_pane(archivist_page: Page, live_workbench: str) 
     page.goto(live_workbench + "/?schlagwort=sommer")
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
-    # the pane opens via the row's explicit Vorschau action (one-click model: the Titel itself
-    # navigates to the detail page; the pane is never a toll gate) and keeps the search state
-    page.get_by_role("link", name="Vorschau: Sommerfahrt 1962").click()
+    # the preview is paused (owner 2026-09-30): only its address opens the pane, beside the search
+    page.goto(live_workbench + f"/?schlagwort=sommer&artikel={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
-    assert "schlagwort=sommer" in page.url and "artikel=" in page.url  # URL-borne pane state
     # ✕ closes the pane and keeps the filter
     page.get_by_label("Vorschau schließen").click()
     expect(page.locator(".pane")).not_to_be_visible()
@@ -738,15 +737,16 @@ def test_rail_links_keep_the_typed_q_after_a_live_swap(
         assert "q=Sommerfahrt" in page.url, f"'{remove}' destroyed the search: {page.url}"
 
 
-def test_pane_open_never_folds_the_ledger(archivist_page: Page, live_workbench: str) -> None:
+def test_pane_open_never_folds_the_ledger(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
     # Decision 1 (owner 2026-08-07), proven computed (learning G.1): at the NARROWEST viewport
     # that still shows the pane (the 80rem switch = 1280px at default root font), the pane-open
     # ledger keeps its one-line row anatomy — the header row stays visible (the phone fold is
     # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
-    page.goto(live_workbench + "/")
-    page.get_by_role("link", name=re.compile(r"^Vorschau: ")).first.click()
+    page.goto(live_workbench + f"/?artikel={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 

@@ -43,6 +43,10 @@ from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.query import FacetCount, SearchPage, search
 
+#: The preview-pane selection param. NOT a search param — it is stripped from every search link so
+#: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
+_PANE_PARAM = "artikel"
+
 
 def workbench(request: HttpRequest) -> HttpResponse:
     """``GET /`` — the workbench: search field, filter rail, results, "Neuer Artikel" button.
@@ -234,7 +238,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     (``resolve_visible_article`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
     all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
     existence oracle). An absent ``artikel`` param is simply no pane."""
-    ulid = request.GET.get(ledger.PANE_PARAM)
+    ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
     article = resolve_visible_article(request, ulid)
@@ -247,7 +251,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
     # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
     # query (a bare "?" would). artikel is pane state, not search state.
-    close_params = {k: v for k, v in request.GET.dict().items() if k != ledger.PANE_PARAM}
+    close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
     return _Pane(
         ulid=article.ulid,
@@ -309,9 +313,7 @@ def _results_context(
     "Alle auf dieser Seite" link appends this page's ulids — both via the auswahl-preserving
     helpers. Pane selection is tracked separately via ``selected_ulid``."""
     params = {
-        k: v
-        for k, v in request.GET.dict().items()
-        if k not in (ledger.PANE_PARAM, browse.PARAM_AUSWAHL)
+        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
     }
     total = page.total
     bestand = BestandChooser.of(Archive.canonical())

@@ -412,11 +412,8 @@
      folds while the pane is open" guarantee (decision 1) is an inequality against this switch —
      pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem > 40rem.
      Both sides must share the rem unit or a non-default root font size silently breaks the
-     margin. The same room lets the ledger's rows offer their pane link (--pane-link). */
+     margin. */
   @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {
-    .frame {
-      --pane-link: inline;
-    }
     body.vorschau .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }

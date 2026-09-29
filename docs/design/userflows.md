@@ -29,9 +29,9 @@ lives in the URL — every state below is a bookmarkable GET. Filtering is
 the FILTER RAIL under the header (owner 2026-08-07, primary filter
 interaction): facet dropdowns + removable active-filter chips, every one a
 plain GET link. One-click entry (owner 2026-08-07): the Titel click IS the
-detail navigation on every viewport; the pane is the explicit per-row
-Vorschau action (a plain GET link — no JS interception), never a toll gate
-on the primary loop.
+detail navigation on every viewport. The preview is paused (owner
+2026-09-30): the list shows no Vorschau control, and the pane opens only from
+its address (`?artikel=<ulid>`).
 
 ```mermaid
 flowchart TD
@@ -40,7 +40,7 @@ flowchart TD
     WB -->|"chip ✕ (filter removed)"| WB
     WB -->|"pagination (?seite=)"| WB
     WB -->|"Titel click"| DET["Detail (artikel-detail)"]
-    WB -->|"row Vorschau (?artikel=<ulid>)\npane visible ≥1280px"| PANE["Workbench + preview pane\n(workbench)"]
+    WB -.->|"address only (?artikel=<ulid>)\npane visible ≥1280px"| PANE["Workbench + preview pane\n(workbench)"]
     WB -->|"row Bearbeiten (pencil, archivist)"| EDIT["Edit form (artikel-bearbeiten)"]
     PANE -->|"Öffnen"| DET
     PANE -->|"Bearbeiten"| EDIT
