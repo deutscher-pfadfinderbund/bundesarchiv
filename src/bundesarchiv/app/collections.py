@@ -10,6 +10,8 @@ a reference subtree-reindex job, and returns ``index_updated=False``.
 monkeypatchable in tests.
 """
 
+import contextlib
+
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
@@ -71,10 +73,8 @@ def _enqueue_mirror(ulid: str) -> None:
     """Enqueue the push of the Collection to the system of record (ADR 0020), AFTER the canonical
     write. Any failure is swallowed: the write stood, and the daily reconcile pushes what a lost job
     would have. A no-op when no system of record is configured."""
-    try:
+    with contextlib.suppress(Exception):
         enqueue_mirror_push(ulid)
-    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile pushes it
-        return
 
 
 def _sync_index_subtree(archive: Archive, collection_ulid: str) -> bool:
@@ -89,8 +89,7 @@ def _sync_index_subtree(archive: Archive, collection_ulid: str) -> bool:
 
 
 def _enqueue_reindex_subtree(collection_ulid: str) -> None:
-    """Enqueue a subtree reindex retry, swallowing failure — the periodic full rebuild heals it."""
-    try:
+    """Enqueue a subtree reindex retry, swallowing failure (ADR 0014 fail-open): the periodic full
+    rebuild heals it."""
+    with contextlib.suppress(Exception):
         enqueue_reindex_subtree(collection_ulid)
-    except Exception:  # noqa: BLE001 — ADR 0014 fail-open seam
-        return

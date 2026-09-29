@@ -18,6 +18,7 @@ load-mutate-save cycle, and retries onto the winner — the internal-mutation pa
 the transform re-applies to whatever it is handed.
 """
 
+import contextlib
 from collections.abc import Callable
 
 from bundesarchiv.app.archive import Archive
@@ -194,12 +195,10 @@ def _enqueue_thumbnails(article: Article) -> None:
     and out-of-band: the thumbnail is a prunable derived cache, so a failure to enqueue never affects
     the canonical write. Content-hash-keyed and idempotent, so re-saving an Article that keeps its
     media just re-enqueues harmlessly (write-once files → identical thumbnails)."""
-    try:
+    with contextlib.suppress(Exception):
         for ref in article.media:
             if _is_image(ref):
                 enqueue_generate_thumbnail(article.ulid, ref.content_hash)
-    except Exception:  # noqa: BLE001 — queue down -> no thumbnail until the next save enqueues it
-        return
 
 
 def _is_image(ref: MediaRef) -> bool:
@@ -216,10 +215,8 @@ def _enqueue_mirror(enqueue: Callable[[Ulid], None], ulid: Ulid) -> None:
     canonical write. Any failure is swallowed: the write stood, and the daily reconcile pushes what
     a lost push would have and reports what a lost delete left there. A no-op when no system of
     record is configured (the enqueue wrapper checks)."""
-    try:
+    with contextlib.suppress(Exception):
         enqueue(ulid)
-    except Exception:  # noqa: BLE001 — queue down / mirror misconfigured -> the reconcile covers it
-        return
 
 
 def _sync_index(archive: Archive, ulid: Ulid) -> bool:
@@ -235,8 +232,7 @@ def _sync_index(archive: Archive, ulid: Ulid) -> bool:
 
 
 def _enqueue_reindex(ulid: Ulid) -> None:
-    """Enqueue a reindex retry, swallowing failure — the periodic full rebuild heals the lag."""
-    try:
+    """Enqueue a reindex retry, swallowing failure (ADR 0014 fail-open): the periodic full rebuild
+    heals the lag."""
+    with contextlib.suppress(Exception):
         enqueue_reindex_article(ulid)
-    except Exception:  # noqa: BLE001 — ADR 0014 fail-open seam
-        return
