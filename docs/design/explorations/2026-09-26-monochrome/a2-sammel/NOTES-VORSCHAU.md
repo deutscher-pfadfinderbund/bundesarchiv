@@ -22,7 +22,7 @@ itself. That breaks the ruling.
 | --- | --- | --- | --- |
 | Where | a column right of the page; the page moves to the start edge | the free margin right of the centred page | a band under the row, across the ledger |
 | Shown from | ≥ 85rem (~1360 px), the list narrowing to a 60rem floor; pane 22–40rem | ≥ 124rem (~1980 px); pane 20–28rem | every size from M |
-| How it opens | "Vorschau" in the tool row, next to "Spalten …" (a preference, kept in a cookie) | a row's "Vorschau" (hover), or a click on the row | a row's "Vorschau", or a click on the row |
+| How it opens | "Vorschau" in the tool row, next to "Spalten …" (opens the first record), a row's "Vorschau", or a click on the row | a row's "Vorschau" (hover), or a click on the row | a row's "Vorschau", or a click on the row |
 | Next record | ↑ ↓ | ↑ ↓ | ↑ ↓ (the band moves) |
 | Cost | the list moves to the start edge (and narrows on smaller screens) while a record is open | none; but at 1920 px there is no room, so most screens never show it | rows below move down; repeats Signatur, Typ and Datierung from the row |
 | Gain | the largest preview (PDF page ~37rem tall at 1920 px); the list stays put while stepping | zero layout change | works on laptops (1440 px), where neither side variant fits |
