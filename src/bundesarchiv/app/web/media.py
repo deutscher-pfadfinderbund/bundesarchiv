@@ -42,6 +42,10 @@ _IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 #: the sandbox runs no script in it and gives it an opaque origin.
 _SANDBOX_CSP = "sandbox"
 
+#: A page on a sibling DPB host is same-site, so its image requests carry the token cookies; this
+#: keeps it from learning whether its visitor may see a record, or an image's size.
+_SAME_ORIGIN_ONLY = "same-origin"
+
 
 def media_response(
     archive: Archive, article: Article, media_ref: MediaRef, request: HttpRequest
@@ -109,6 +113,7 @@ def _stamped(response: HttpResponseBase) -> HttpResponseBase:
     path cannot silently miss the policy."""
     response["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
     response["Content-Security-Policy"] = _SANDBOX_CSP
+    response["Cross-Origin-Resource-Policy"] = _SAME_ORIGIN_ONLY
     return response
 
 

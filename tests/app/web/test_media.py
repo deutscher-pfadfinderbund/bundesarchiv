@@ -405,13 +405,26 @@ def test_permitted_thumbnail_runs_no_script(corpus: _TierCorpus) -> None:
     assert response["Content-Security-Policy"] == "sandbox"
 
 
+@pytest.mark.parametrize("thumb", [False, True], ids=["original", "thumbnail"])
+def test_permitted_media_is_not_readable_by_another_site(corpus: _TierCorpus, thumb: bool) -> None:
+    # A page on a sibling DPB host is same-site, so its image requests carry the token cookies.
+    corpus.generate_thumbnails()
+    response = client_as(Public()).get(corpus.url("public", thumb=thumb))
+    assert response.status_code == 200
+    assert response["Cross-Origin-Resource-Policy"] == "same-origin"
+
+
 def test_the_media_sidecar_sandboxes_what_it_serves() -> None:
-    # On an X-Accel redirect nginx drops the app's CSP and nosniff headers, so the sidecar's
-    # internal location must add both itself.
+    # On an X-Accel redirect nginx drops the app's CSP, nosniff and CORP headers, so the sidecar's
+    # internal location must add them itself, and must not replace the app's Cache-Control.
     conf = (Path(__file__).parents[3] / "deploy/nginx/nginx.conf").read_text()
-    media_location = conf.split("location /_media/", 1)[1].split("}", 1)[0]
+    media_location = conf.split("alias /canonical/", 1)[1].split("}", 1)[0]
     assert 'add_header Content-Security-Policy "sandbox" always;' in media_location
     assert 'add_header X-Content-Type-Options "nosniff" always;' in media_location
+    assert 'add_header Cross-Origin-Resource-Policy "same-origin" always;' in media_location
+    assert "disable_symlinks on;" in media_location
+    assert "expires" not in media_location
+    assert "Cache-Control" not in media_location
 
 
 def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
