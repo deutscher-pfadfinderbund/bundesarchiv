@@ -22,6 +22,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A sanctioned pixel change inside a pixel-neutral wave moves the baseline: name the new baseline dir for every later slice.
 - A brief that cuts an **import cycle** lists the whole chain it has to cut, traced in the code (Wave
   REST simplify: moving `FormPanel` alone left the cycle; the field registry had to move too).
+- A finding about **browser behaviour names the platform where it fails** (a focus bug that only Safari shows passed every Chromium pin until the journey reproduced Safari's path). A fix that adds native `required` or other validation lists the tests and gallery states that submit empty fields.
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.

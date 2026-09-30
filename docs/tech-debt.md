@@ -255,6 +255,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   end with all of them.
 - **Also missing:** a before/after mode (render a git ref into a directory and pixel-diff it). A
   "pixel-neutral" proof now costs a stash, two renders and a hand-written Pillow diff (~4 min).
+- **Also:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
 ## Process law
 
