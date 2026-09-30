@@ -74,7 +74,6 @@ urlpatterns = [
         article_medien_hochladen,
         name="artikel-medien-hochladen",
     ),
-    # English: nginx's auth_request asks it before an upload's body (deploy/nginx/nginx.conf).
     path("upload-gate/<str:ulid>", upload_gate, name="upload-gate"),
     path("artikel/<str:ulid>/dokumenttypen", article_dokumenttypen, name="artikel-dokumenttypen"),
     path("artikel/<str:ulid>", article_detail, name="artikel-detail"),
