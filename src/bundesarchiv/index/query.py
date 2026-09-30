@@ -57,6 +57,9 @@ _DE_NUMERIC = "de_numeric"
 
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
 
+type Facet = Literal["collection", "tags", "decades", "media_type", "document_type"]
+_ALL_FACETS: tuple[Facet, ...] = ("collection", "tags", "decades", "media_type", "document_type")
+
 
 class FileKind(StrEnum):
     """The closed set of kinds a record's files are counted by, in the order a summary lists them."""
@@ -191,6 +194,7 @@ def search(
     descending: bool = False,
     page: int = 1,
     page_size: int = 50,
+    facets: tuple[Facet, ...] = _ALL_FACETS,
 ) -> SearchPage:
     """Viewer-scoped search over the derived index.
 
@@ -199,7 +203,8 @@ def search(
     filtered queryset. Returns frozen dataclasses only; no QuerySet or model instance escapes.
 
     ``descending`` reverses a COLUMN sort's primary key (the workbench header cycle asc→desc); it is
-    a no-op for ``relevance`` (always best-first).
+    a no-op for ``relevance`` (always best-first). ``facets`` names the facets to compute; the
+    page's ``facets`` mapping holds exactly those.
     """
     filters = filters or SearchFilters()
     query = _search_query(text)
@@ -220,9 +225,12 @@ def search(
         page=page,
         page_size=page_size,
     )
-    facets = _facets(matched, filters)
-    dateless_count = _dateless_count(matched, filters)
-    return SearchPage(hits=hits, total=total, facets=facets, dateless_count=dateless_count)
+    return SearchPage(
+        hits=hits,
+        total=total,
+        facets=_facets(matched, filters, facets),
+        dateless_count=_dateless_count(matched, filters),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -517,19 +525,21 @@ _ARRAY_FACETS: tuple[tuple[str, str], ...] = (
 
 
 def _facets(
-    matched: QuerySet[ArticleIndex], filters: SearchFilters
+    matched: QuerySet[ArticleIndex], filters: SearchFilters, wanted: tuple[str, ...]
 ) -> Mapping[str, tuple[FacetCount, ...]]:
-    """All five facets. ``matched`` is the scoped + text-matched queryset (facets DO reflect the
+    """The ``wanted`` facets. ``matched`` is the scoped + text-matched queryset (facets DO reflect the
     text search and every filter EXCEPT the facet's own dimension). Each facet re-applies the
     other filters via ``_apply_filters`` over a per-facet copy of ``filters`` with its own
     dimension cleared, so the scope predicate rides along on every aggregate query."""
     scalar = {
         key: _scalar_facet(matched, column=column, filters=_without(filters, key))
         for key, column in _SCALAR_FACETS
+        if key in wanted
     }
     array = {
         key: _array_facet(matched, column=column, filters=_without(filters, key))
         for key, column in _ARRAY_FACETS
+        if key in wanted
     }
     return scalar | array
 

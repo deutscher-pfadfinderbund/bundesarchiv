@@ -404,6 +404,11 @@ def _sentence_queries(viewer: Viewer, query: str = "") -> list[dict[str, list[st
     return [parse_qs(unescape(href)) for href in re.findall(r'href="\?([^"]*)"', form_html)]
 
 
+def test_the_list_computes_only_the_facets_its_sentence_shows(indexed_corpus: Corpus) -> None:
+    page = client_as(Archivist()).get("/").context["page"]
+    assert set(page.facets) == {"collection", "decades", "document_type"}
+
+
 def test_the_slots_offer_the_bestand_decade_type_and_dateless_values(
     indexed_corpus: Corpus,
 ) -> None:

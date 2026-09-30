@@ -26,7 +26,7 @@ from tests.index.fixtures import (
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import _MAX_PAGE_SIZE, SearchFilters, SearchPage, search
+from bundesarchiv.index.query import _MAX_PAGE_SIZE, Facet, SearchFilters, SearchPage, search
 
 
 @pytest.fixture(scope="module")
@@ -276,6 +276,20 @@ def test_facet_keys_are_exactly_the_five(corpus: None) -> None:
         "tags",
         "decades",
     }
+
+
+@pytest.mark.django_db
+def test_a_facet_subset_leaves_the_rest_of_the_page_as_it_was(corpus: None) -> None:
+    wanted: tuple[Facet, ...] = ("collection", "decades", "document_type")
+    filters = SearchFilters(media_type="Foto")
+    full = search(PUBLIC, filters=filters)
+    part = search(PUBLIC, filters=filters, facets=wanted)
+    assert part.facets == {key: full.facets[key] for key in wanted}
+    assert (part.hits, part.total, part.dateless_count) == (
+        full.hits,
+        full.total,
+        full.dateless_count,
+    )
 
 
 @pytest.mark.django_db

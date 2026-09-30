@@ -72,6 +72,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         descending=parsed.descending,
         page=parsed.page,
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
+        facets=("collection", "decades", "document_type"),  # the sentence's three slots
     )
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
