@@ -12,9 +12,11 @@ empties to ``None`` (``ref_code``, ``media_type``, ``document_type``, ``physical
 stays a ``str``; inheriting Sichtbarkeit yields ``audience=None``.
 """
 
+from datetime import UTC, datetime
+
 from bundesarchiv.app.web import catalog
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.domain.models import AudienceTier, Collection
+from bundesarchiv.domain.models import AudienceTier, Change, Collection
 
 
 def _post(**overrides: object) -> dict[str, list[str]]:
@@ -50,7 +52,7 @@ _BESTAND = BestandChooser(
 
 def _parse(post: dict[str, list[str]]) -> catalog.ParseResult:
     return catalog.parse_edit_form(
-        post, ulid="01ARTICLEULID0000000000000", bestand=_BESTAND, added_at=None
+        post, ulid="01ARTICLEULID0000000000000", bestand=_BESTAND, added_at=None, deleted=None
     )
 
 
@@ -64,6 +66,14 @@ def test_minimal_valid_form_builds_an_article() -> None:
     assert result.article.title == "Wanderfahrt 1962"
     assert result.article.collection_id == "COLL1"
     assert result.article.ulid == "01ARTICLEULID0000000000000"
+
+
+def test_an_edit_keeps_the_papierkorb_mark() -> None:
+    mark = Change(at=datetime(2026, 9, 30, 12, 0, tzinfo=UTC), by="bert")
+    result = catalog.parse_edit_form(
+        _post(), ulid="01ARTICLEULID0000000000000", bestand=_BESTAND, added_at=None, deleted=mark
+    )
+    assert result.article is not None and result.article.deleted == mark
 
 
 def test_a_line_break_in_the_titel_becomes_one_space() -> None:

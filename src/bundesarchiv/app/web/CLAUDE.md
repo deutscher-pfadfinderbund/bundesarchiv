@@ -3,8 +3,8 @@
 Law: `viewer_of(request)` is THE request→Viewer trust boundary — no view resolves identity another
 way. Deny is a plain 404 revealing and changing nothing (`assert_denied` is the test contract).
 Every route is enumerated by the leak matrix (`tests/app/web/test_leak_matrix.py`) — a new route
-must join its contract table. UI is German, code identifiers English (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly three form
-sites here (`catalog.py`, `collection_views.py`, the delete confirm), each re-displaying the winner; every non-form
+must join its contract table. UI is German, code identifiers English (`CONTEXT.md`). ADR 0013's `Conflict` is caught at exactly four form
+sites here (`catalog.py`, `collection_views.py`, the delete confirm, restore), each re-displaying the winner; every non-form
 mutation goes through `app.articles.update_article` and matches on its outcome union instead.
 The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and
 parameterised by a closed overlay union — a new panel joins that union, never a second context build.
@@ -23,7 +23,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `save_catalog_form`, `apply_captions` · tests: `tests/app/web/test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
-- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete` · tests: `tests/app/web/test_catalog_*.py`
+- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_for_good`/`_restore` · tests: `tests/app/web/test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
 - `bulk.py` — bulk-edit core: allowlist, Feld-chooser context, per-article CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `feldwahl_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`

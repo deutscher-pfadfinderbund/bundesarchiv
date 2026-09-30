@@ -115,7 +115,9 @@ class _MatrixCorpus:
             audience=Audience(AudienceTier.PUBLIC),
             media=(marked_ref,),
         )
-        self.base.articles.mark_deleted(marked, self.base.add_article(marked), by="tester")
+        self.marked_version = self.base.articles.mark_deleted(
+            marked, self.base.add_article(marked), by="tester"
+        )
         self.marked_hash = marked_ref.content_hash
 
     def generate_thumbnail(self, ulid: str, content_hash: str) -> None:
@@ -252,6 +254,14 @@ def _p_loeschen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
 
 
+def _p_endgueltig_loeschen(c: _MatrixCorpus) -> str:
+    return f"/artikel/{c.marked_ulid}/endgueltig-loeschen"
+
+
+def _p_wiederherstellen(c: _MatrixCorpus) -> str:
+    return f"/artikel/{c.marked_ulid}/wiederherstellen"
+
+
 def _p_veroeffentlichen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/veroeffentlichen"
 
@@ -380,6 +390,22 @@ _CONTRACT: dict[str, Route] = {
         post_arch=REDIRECT,  # confirmed delete → 302 to /
         post_data=None,  # filled at probe time (the confirm's version) — see _POST_DATA_BUILDERS
     ),
+    # The Papierkorb's two routes, probed on the marked article (ADR 0022); an unmarked one is
+    # refused to the Archivist too — see test_a_papierkorb_route_refuses_an_unmarked_article.
+    "artikel-endgueltig-loeschen": Route(
+        build_path=_p_endgueltig_loeschen,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,  # GET = confirm page
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=REDIRECT,  # deleted for good → 302 to /
+    ),
+    "artikel-wiederherstellen": Route(
+        build_path=_p_wiederherstellen,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=FOUR_OH_FOUR,  # GET disallowed
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=REDIRECT,  # restored → 302 to its page
+    ),
     "artikel-veroeffentlichen": Route(
         build_path=_p_veroeffentlichen,
         get_nonarch=FOUR_OH_FOUR,
@@ -478,6 +504,10 @@ def _loeschen_post_data(c: _MatrixCorpus) -> dict[str, object]:
     return {"expected_version": str(c.article_version)}
 
 
+def _marked_post_data(c: _MatrixCorpus) -> dict[str, object]:
+    return {"expected_version": str(c.marked_version)}
+
+
 def _empty_search_page() -> object:
     """An empty ``SearchPage`` for the workbench stub: no hits, no facets — enough for the template to
     render the (empty) ledger for any tier so the matrix can assert the route's status DB-free."""
@@ -524,6 +554,8 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 _POST_DATA_BUILDERS = {
     "artikel-sammelbearbeitung": _sammel_post_data,
     "artikel-loeschen": _loeschen_post_data,
+    "artikel-endgueltig-loeschen": _marked_post_data,
+    "artikel-wiederherstellen": _marked_post_data,
 }
 
 
@@ -583,6 +615,109 @@ def test_a_marked_article_answers_the_archivist_alone(
         assert response.status_code == OK, f"{name} of a marked article as the archivist"
     else:
         assert_denied(response, f"{name} of a marked article as {tier}")
+
+
+#: Every other Article route refuses a marked Article to the Archivist too (ADR 0022: restore it
+#: first), writing nothing. Each probe is one that answers something other than the 404 without
+#: the refusal, so it bites.
+_MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, object]]]] = {
+    "artikel-bearbeiten": ("POST", "/artikel/{}/bearbeiten", _marked_post_data),
+    "artikel-kopieren": ("POST", "/artikel/{}/kopieren", lambda _c: {}),
+    "artikel-loeschen": ("POST", "/artikel/{}/loeschen", _marked_post_data),
+    "artikel-veroeffentlichen": ("POST", "/artikel/{}/veroeffentlichen", lambda _c: {}),
+    "artikel-medien-verschieben": (
+        "POST",
+        "/artikel/{}/medien/verschieben",
+        lambda c: {"hash": c.marked_hash, "richtung": "runter"},
+    ),
+    "artikel-medien-entfernen": (
+        "POST",
+        "/artikel/{}/medien/entfernen",
+        lambda c: {"entfernen": c.marked_hash},
+    ),
+    "artikel-medien-hochladen": ("POST", "/artikel/{}/medien/hochladen", lambda _c: {}),
+    "upload-gate": ("GET", "/upload-gate/{}", lambda _c: {}),
+    "artikel-dokumenttypen": ("GET", "/artikel/{}/dokumenttypen", lambda _c: {}),
+}
+
+
+def _unchanged(c: _MatrixCorpus) -> tuple[object, ...]:
+    """What a refused write must leave as it was: every Article, and the marked one's version."""
+    return tuple(c.base.articles.list_ulids()), c.base.articles.load(c.marked_ulid).version
+
+
+@pytest.mark.parametrize("name", _MARKED_REFUSED)
+def test_a_marked_article_refuses_every_other_route(
+    matrix_corpus: _MatrixCorpus, name: str
+) -> None:
+    method, path, data = _MARKED_REFUSED[name]
+    path = path.format(matrix_corpus.marked_ulid)
+    assert resolve(path).url_name == name
+    before = _unchanged(matrix_corpus)
+    client = client_as(Archivist())
+    headers = {"Sec-Fetch-Site": "same-origin"}
+    response = (
+        client.post(path, data(matrix_corpus), headers=headers)
+        if method == "POST"
+        else client.get(path, headers=headers)
+    )
+    assert_denied(response, f"{method} {name} on a marked article")
+    assert _unchanged(matrix_corpus) == before
+
+
+@pytest.mark.parametrize("name", ["artikel-endgueltig-loeschen", "artikel-wiederherstellen"])
+def test_a_papierkorb_route_refuses_an_unmarked_article(
+    matrix_corpus: _MatrixCorpus, name: str
+) -> None:
+    ulid = matrix_corpus.article_ulid
+    before = matrix_corpus.base.articles.load(ulid)
+    path = _CONTRACT[name].build_path(matrix_corpus).replace(matrix_corpus.marked_ulid, ulid)
+    client = client_as(Archivist())
+    assert_denied(client.get(path), f"GET {name} on an unmarked article")
+    response = client.post(path, {"expected_version": str(before.version)})
+    assert_denied(response, f"POST {name} on an unmarked article")
+    assert matrix_corpus.base.articles.load(ulid) == before
+
+
+@pytest.mark.parametrize("bestaetigt", ["", "1"])
+def test_bulk_edit_leaves_a_marked_article_out(
+    matrix_corpus: _MatrixCorpus, bestaetigt: str
+) -> None:
+    """The check page does not list it and the commit does not write it: bucketed like an absent
+    Article, so nothing says why."""
+    before = _unchanged(matrix_corpus)
+    response = client_as(Archivist()).post(
+        "/artikel/sammelbearbeitung",
+        {
+            **_sammel_post_data(matrix_corpus),
+            "auswahl": [matrix_corpus.marked_ulid],
+            "bestaetigt": bestaetigt,
+        },
+    )
+    assert response.status_code == OK
+    if bestaetigt:
+        assert (response.context["saved"], response.context["missing_count"]) == (0, 1)
+    else:
+        assert response.context["auswahl"] == []
+    assert _unchanged(matrix_corpus) == before
+
+
+def test_every_article_route_has_a_papierkorb_contract() -> None:
+    """A new route under an Article's ulid must say what it does with a marked one."""
+    article_routes = {
+        p.name
+        for p in get_resolver(_PROD_URLCONF).url_patterns
+        if isinstance(p, URLPattern)
+        and "<str:ulid>" in str(p.pattern)
+        and not str(p.pattern).startswith("bestand/")
+    }
+    covered = {
+        *_MARKED_PATHS,
+        *_MARKED_REFUSED,
+        "artikel-endgueltig-loeschen",
+        "artikel-wiederherstellen",
+    }
+    assert article_routes == covered
 
 
 # --- the anonymous gate: the same walk with production's gate turned on ---------------------------

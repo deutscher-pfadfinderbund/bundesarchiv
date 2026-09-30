@@ -102,6 +102,19 @@ def _bulk(client: Client, corpus: Corpus) -> Change | None:
     return corpus.articles.load(DRAFT_ULID).change
 
 
+def _delete(client: Client, corpus: Corpus) -> Change | None:
+    version = corpus.articles.load(DRAFT_ULID).version
+    client.post(f"/artikel/{DRAFT_ULID}/loeschen", {"expected_version": str(version)})
+    return corpus.articles.load(DRAFT_ULID).change
+
+
+def _restore(client: Client, corpus: Corpus) -> Change | None:
+    stored = corpus.articles.load(DRAFT_ULID)
+    version = corpus.articles.mark_deleted(stored.article, stored.version, by="tester")
+    client.post(f"/artikel/{DRAFT_ULID}/wiederherstellen", {"expected_version": str(version)})
+    return corpus.articles.load(DRAFT_ULID).change
+
+
 def _create_bestand(client: Client, corpus: Corpus) -> Change | None:
     response = client.post("/bestand/neu", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""})
     [ulid] = parse_qs(urlparse(response["Location"]).query)["bestand"]
@@ -117,7 +130,8 @@ def _rename_bestand(client: Client, corpus: Corpus) -> Change | None:
 
 
 @pytest.mark.parametrize(
-    "write", [_create, _edit, _copy, _publish, _upload, _reorder, _remove, _bulk]
+    "write",
+    [_create, _edit, _copy, _publish, _upload, _reorder, _remove, _bulk, _delete, _restore],
 )
 def test_the_version_an_article_route_writes_names_the_signed_in_archivist(
     corpus: Corpus, write: Callable[[Client, Corpus], Change | None]

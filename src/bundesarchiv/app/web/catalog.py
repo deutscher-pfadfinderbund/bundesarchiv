@@ -12,9 +12,9 @@ Conflict-catch site (ADR 0013) is a thin shell:
   the retrying ``update_article``), and on ``Conflict`` re-loads the winner and returns a
   ``ConflictOutcome`` carrying the current version + winner article so the view re-renders the
   "Inzwischen geändert" panel with the archivist's just-submitted values preserved and a refreshed
-  ``expected_version``. If that re-load instead finds the article gone (a stale save racing a hard
-  delete, not a concurrent edit), it returns ``DeletedOutcome`` so the view collapses to the
-  plain 404 instead of a 500.
+  ``expected_version``. If that re-load instead finds the article gone or in the Papierkorb (a
+  stale save racing a delete, not a concurrent edit), it returns ``DeletedOutcome`` so the view
+  collapses to the plain 404 instead of a 500.
 
 The Django coupling is a single ``getlist`` helper so the parser can be driven by a plain dict in
 tests and a ``QueryDict`` in the view without knowing which it holds.
@@ -36,6 +36,7 @@ from bundesarchiv.domain.models import (
     Article,
     Audience,
     AudienceTier,
+    Change,
     Lifecycle,
     MediaRef,
     Ulid,
@@ -118,6 +119,7 @@ def parse_edit_form(
     current_media: tuple[MediaRef, ...] = (),
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     added_at: datetime | None,
+    deleted: Change | None,
 ) -> ParseResult:
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
     error map. Total: malformed input never raises, it becomes a field error. ``bestand`` is the
@@ -131,8 +133,8 @@ def parse_edit_form(
     lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing
     from the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08).
     This layer stays pure either way: it never decides the transition, it only records the state it
-    was handed. ``added_at`` is
-    the stored date added, carried through like the ulid: no edit changes it."""
+    was handed. ``added_at`` (the stored date added) and ``deleted`` (the Papierkorb mark, ADR 0022)
+    are carried through like the ulid: no edit changes them."""
     errors: FormErrors = {}
     expected_version = parse_version(_get(post, "expected_version"))
 
@@ -192,6 +194,7 @@ def parse_edit_form(
         subject_place=_none_if_blank(_get(post, "subject_place")),
         custom=custom,
         added_at=added_at,
+        deleted=deleted,
     )
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
@@ -304,8 +307,8 @@ class ConflictOutcome:
 
 @dataclass(frozen=True, slots=True)
 class DeletedOutcome:
-    """The article was hard-deleted between the view's initial load and this save — a stale save
-    racing a deletion, not a concurrent edit. The view collapses this to the plain 404
+    """The article was deleted (for good, or into the Papierkorb) between the view's initial load and
+    this save — a stale save racing a deletion, not a concurrent edit. The view collapses this to the plain 404
     (existence-hiding)."""
 
 
@@ -320,7 +323,7 @@ def save_catalog_form(
     re-loads the winner at its current version and returns a ``ConflictOutcome`` carrying both the
     winner and the archivist's submitted article, so the view preserves the just-typed values and
     refreshes ``expected_version`` to the current version (the next Speichern then wins). If that
-    re-load instead finds the article hard-deleted (the Conflict was a deletion, not a concurrent
+    re-load instead finds the article deleted (the Conflict was a deletion, not a concurrent
     edit), returns ``DeletedOutcome`` so the view 404s instead of letting the load failure propagate."""
     try:
         result = articles.save_article(archive, article, expected_version, changed_by=changed_by)
@@ -329,6 +332,8 @@ def save_catalog_form(
             stored = archive.articles.load(article.ulid)
         except ArchiveError:
             return DeletedOutcome()
+        if stored.article.deleted is not None:
+            return DeletedOutcome()  # the winner put it in the Papierkorb (ADR 0022)
         return ConflictOutcome(
             winner=stored.article, current_version=stored.version, submitted=article
         )

@@ -45,6 +45,7 @@ PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
 SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
 CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # sorts last in browse order (ulid), so it renders last
+MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or search shows it
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
@@ -63,6 +64,7 @@ class CorpusHandles:
     published_ulid: str
     second_ulid: str
     renamable_ulid: str
+    marked_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -180,6 +182,18 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         changed_by="tester",
     )
 
+    winterlager = Article(
+        ulid=MARKED_ULID,
+        title="Winterlager 1961",
+        collection_id="FOTOS",
+        lifecycle=Lifecycle.PUBLISHED,
+        ref_code="F11",
+        media_type="Foto(s)",
+    )
+    articles.mark_deleted(
+        winterlager, articles.save(winterlager, 0, changed_by="tester"), by="tester"
+    )
+
     indexer.rebuild(store)
     if thumbnail_root is not None:
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
@@ -191,4 +205,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         published_ulid=PUBLISHED_ULID,
         second_ulid=SECOND_ULID,
         renamable_ulid=RENAMABLE_ULID,
+        marked_ulid=MARKED_ULID,
     )

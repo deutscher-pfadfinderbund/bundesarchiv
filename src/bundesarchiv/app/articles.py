@@ -20,6 +20,7 @@ the transform re-applies to whatever it is handed.
 
 import contextlib
 from collections.abc import Callable
+from dataclasses import replace
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import (
@@ -79,7 +80,8 @@ def update_article(
     """Load the Article, apply ``mutate``, and ``save_article`` at the version just loaded, re-loading
     and re-applying on ``Conflict`` up to ``retries`` times (``retries + 1`` attempts). Returns
     ``Updated`` with the saved Article, ``Conflicted`` if every attempt lost, ``Missing`` if the
-    Article is absent — at the start, or hard-deleted underneath a retry.
+    Article is absent or in the Papierkorb (ADR 0022: restore it first) — at the start, or
+    underneath a retry.
 
     FORBIDDEN for form saves (ADR 0013): a form carries values the archivist typed against a
     now-stale Article, so a retry would silently overwrite the concurrent edit — the one unforgivable
@@ -92,6 +94,8 @@ def update_article(
         try:
             stored = archive.articles.load(ulid)
         except ArchiveError:
+            return Missing()
+        if stored.article.deleted is not None:
             return Missing()
         mutated = mutate(stored.article)
         try:
@@ -175,6 +179,28 @@ def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResu
         creator=source.creator,
         subject_place=source.subject_place,
         custom=source.custom,
+    )
+
+
+def delete_article(
+    archive: Archive, article: Article, expected_version: Version, *, changed_by: str
+) -> SaveResult:
+    """Put ``article``, as stored at ``expected_version``, in the Papierkorb (ADR 0022): a save whose
+    change record is the mark, reindexed and pushed like ``save_article``. A stale version raises
+    ``Conflict`` before anything is written or indexed."""
+    new_version = archive.articles.mark_deleted(article, expected_version, by=changed_by)
+    index_updated = _sync_index(archive, article.ulid)
+    _enqueue_mirror(enqueue_mirror_push, article.ulid)
+    return SaveResult(version=new_version, index_updated=index_updated)
+
+
+def restore_article(
+    archive: Archive, article: Article, expected_version: Version, *, changed_by: str
+) -> SaveResult:
+    """Take ``article``, as stored at ``expected_version``, out of the Papierkorb (ADR 0022): a
+    ``save_article`` without the mark."""
+    return save_article(
+        archive, replace(article, deleted=None), expected_version, changed_by=changed_by
     )
 
 

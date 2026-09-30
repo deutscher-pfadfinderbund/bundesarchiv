@@ -3,7 +3,9 @@
 Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
-- ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — hard-delete, 302 to workbench.
+- ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — into the Papierkorb, 302 to the
+  workbench; ``/endgueltig-loeschen`` the same for a marked record, deleting it for good;
+  ``/wiederherstellen`` POST takes it out again (ADR 0022).
 - the fail-closed publish affordance: no exposure, no Veröffentlichen.
 - ``/artikel/<ulid>/veroeffentlichen`` POST — publish a draft from the article page (a3 round 7):
   CAS on the page's version, the same fail-closed gate as the edit form's Status.
@@ -30,10 +32,19 @@ from tests.app.web._fixtures import (
     page_forms,
 )
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
+from bundesarchiv.domain.models import Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.repository import Stored
+
+
+def _mark(corpus: Corpus, ulid: str) -> None:
+    stored = corpus.articles.load(ulid)
+    corpus.articles.mark_deleted(stored.article, stored.version, by="bert")
+
+
+def _mark_of(corpus: Corpus, ulid: str) -> Change | None:
+    return corpus.articles.load(ulid).article.deleted
 
 
 def _other_ulids(corpus: Corpus) -> set[str]:
@@ -102,8 +113,7 @@ def test_the_confirm_page_deletes_and_returns_to_the_workbench(corpus: Corpus) -
     response = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert response.status_code == 302
     assert response["Location"] == "/"
-    with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+    assert _mark_of(corpus, PUBLISHED_ULID) is not None
 
 
 def test_a_confirm_older_than_the_record_deletes_nothing_and_asks_again(corpus: Corpus) -> None:
@@ -118,9 +128,9 @@ def test_a_confirm_older_than_the_record_deletes_nothing_and_asks_again(corpus: 
     refused = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert refused.status_code == 200
     assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    assert _mark_of(corpus, PUBLISHED_ULID) is None
     assert _submit_delete_form(client, refused.content.decode(), PUBLISHED_ULID).status_code == 302
-    with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+    assert _mark_of(corpus, PUBLISHED_ULID) is not None
 
 
 def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Corpus) -> None:
@@ -139,8 +149,7 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
     [(action, fields)] = _delete_forms(refused.content.decode(), PUBLISHED_ULID)
     done = client.post(action, fields, headers={"HX-Request": "true"})
     assert done["HX-Redirect"] == "/"
-    with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+    assert _mark_of(corpus, PUBLISHED_ULID) is not None
 
 
 def test_a_save_landing_while_the_delete_runs_survives(
@@ -163,7 +172,8 @@ def test_a_save_landing_while_the_delete_runs_survives(
     monkeypatch.setattr(ArticleRepository, "load", load_then_a_concurrent_save)
     refused = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert refused.status_code == 200
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    survivor = corpus.articles.load(PUBLISHED_ULID).article
+    assert (survivor.title, survivor.deleted) == ("Inzwischen", None)
 
 
 def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> None:
@@ -172,8 +182,7 @@ def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> N
     [(action, fields)] = _delete_forms(body, DRAFT_ULID)
     assert fields["expected_version"] == str(corpus.articles.load(DRAFT_ULID).version)
     assert client.post(action, fields).status_code == 302
-    with pytest.raises(NotFound):
-        corpus.articles.load(DRAFT_ULID)
+    assert _mark_of(corpus, DRAFT_ULID) is not None
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
@@ -181,8 +190,126 @@ def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> N
 def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: str) -> None:
     response = getattr(client_as(viewer), method)(f"/artikel/{PUBLISHED_ULID}/loeschen")
     assert_denied(response)
-    # the article still exists (the deny prevented the delete)
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Sommerfahrt 1962"
+    assert _mark_of(corpus, PUBLISHED_ULID) is None  # the deny prevented the delete
+
+
+# --- Endgültig löschen -------------------------------------------------------------
+
+
+def _for_good_forms(body: str, ulid: str) -> list[tuple[str, dict[str, str]]]:
+    return [f for f in page_forms(body) if f[0].startswith(f"/artikel/{ulid}/endgueltig-loeschen")]
+
+
+def test_endgueltig_loeschen_deletes_a_marked_record_for_good(corpus: Corpus) -> None:
+    _mark(corpus, PUBLISHED_ULID)
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    [(action, fields)] = _for_good_forms(body, PUBLISHED_ULID)
+    response = client.post(action, fields)
+    assert (response.status_code, response["Location"]) == (302, "/")
+    with pytest.raises(NotFound):
+        corpus.articles.load(PUBLISHED_ULID)
+
+
+def test_an_endgueltig_confirm_older_than_the_record_deletes_nothing_and_asks_again(
+    corpus: Corpus,
+) -> None:
+    _mark(corpus, PUBLISHED_ULID)
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    stored = corpus.articles.load(PUBLISHED_ULID)
+    corpus.articles.save(
+        replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
+    )
+    [(action, fields)] = _for_good_forms(body, PUBLISHED_ULID)
+    refused = client.post(action, fields)
+    assert refused.status_code == 200
+    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    [(action, fields)] = _for_good_forms(refused.content.decode(), PUBLISHED_ULID)
+    assert client.post(action, fields).status_code == 302
+    with pytest.raises(NotFound):
+        corpus.articles.load(PUBLISHED_ULID)
+
+
+def test_a_restore_landing_while_endgueltig_runs_survives(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The gate saw the record in the Papierkorb; a restore landing after that load is never
+    deleted for good (ADR 0013, 0022)."""
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    _mark(corpus, PUBLISHED_ULID)
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    real_load = ArticleRepository.load
+
+    def load_then_a_restore(self: ArticleRepository, ulid: str) -> Stored:
+        monkeypatch.setattr(ArticleRepository, "load", real_load)
+        loaded = real_load(self, ulid)
+        self.save(replace(loaded.article, deleted=None), loaded.version, changed_by="bert")
+        return loaded
+
+    monkeypatch.setattr(ArticleRepository, "load", load_then_a_restore)
+    [(action, fields)] = _for_good_forms(body, PUBLISHED_ULID)
+    assert_denied(client.post(action, fields))  # no longer marked: the re-load refuses
+    assert _mark_of(corpus, PUBLISHED_ULID) is None
+
+
+# --- Wiederherstellen --------------------------------------------------------------
+
+
+def _restore(client: Any, ulid: str, version: int) -> Any:
+    return client.post(f"/artikel/{ulid}/wiederherstellen", {"expected_version": str(version)})
+
+
+def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus) -> None:
+    _mark(corpus, PUBLISHED_ULID)
+    before = corpus.articles.load(PUBLISHED_ULID)
+    response = _restore(client_as(Archivist()), PUBLISHED_ULID, before.version)
+    assert (response.status_code, response["Location"]) == (302, f"/artikel/{PUBLISHED_ULID}")
+    assert corpus.articles.load(PUBLISHED_ULID).article == replace(before.article, deleted=None)
+
+
+def test_wiederherstellen_on_a_stale_page_restores_nothing(corpus: Corpus) -> None:
+    _mark(corpus, PUBLISHED_ULID)
+    before = corpus.articles.load(PUBLISHED_ULID)
+    assert _restore(client_as(Archivist()), PUBLISHED_ULID, before.version - 1).status_code == 302
+    assert corpus.articles.load(PUBLISHED_ULID) == before
+
+
+def test_a_save_landing_while_the_restore_runs_survives(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    _mark(corpus, PUBLISHED_ULID)
+    version = corpus.articles.load(PUBLISHED_ULID).version
+    real_load = ArticleRepository.load
+
+    def load_then_a_concurrent_save(self: ArticleRepository, ulid: str) -> Stored:
+        monkeypatch.setattr(ArticleRepository, "load", real_load)
+        loaded = real_load(self, ulid)
+        self.save(replace(loaded.article, title="Inzwischen"), loaded.version, changed_by="bert")
+        return loaded
+
+    monkeypatch.setattr(ArticleRepository, "load", load_then_a_concurrent_save)
+    assert _restore(client_as(Archivist()), PUBLISHED_ULID, version).status_code == 302
+    survivor = corpus.articles.load(PUBLISHED_ULID).article
+    assert survivor.title == "Inzwischen" and survivor.deleted is not None
+
+
+@pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
+@pytest.mark.parametrize("route", ["endgueltig-loeschen", "wiederherstellen"])
+def test_the_papierkorb_routes_deny_and_change_nothing(
+    corpus: Corpus, viewer: Viewer, route: str
+) -> None:
+    _mark(corpus, PUBLISHED_ULID)
+    before = corpus.articles.load(PUBLISHED_ULID)
+    client = client_as(viewer)
+    path = f"/artikel/{PUBLISHED_ULID}/{route}"
+    assert_denied(client.get(path))
+    assert_denied(client.post(path, {"expected_version": str(before.version)}))
+    assert corpus.articles.load(PUBLISHED_ULID) == before
 
 
 # --- fail-closed: no exposure, no publish affordance (learning G.34) ---------------
@@ -464,8 +591,8 @@ def test_destructive_post_without_csrf_token_is_403(corpus: Corpus) -> None:
     # A cross-site destructive POST with no CSRF token must be rejected (CsrfViewMiddleware active).
     response = client_as(Archivist(), enforce_csrf=True).post(f"/artikel/{PUBLISHED_ULID}/loeschen")
     assert response.status_code == 403
-    # the article is untouched — the forged POST was rejected before hard_delete ran
-    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Sommerfahrt 1962"
+    # the article is untouched — the forged POST was rejected before the delete ran
+    assert _mark_of(corpus, PUBLISHED_ULID) is None
 
 
 def test_destructive_post_with_csrf_token_works(corpus: Corpus) -> None:
@@ -473,6 +600,5 @@ def test_destructive_post_with_csrf_token_works(corpus: Corpus) -> None:
     client = client_as(Archivist(), enforce_csrf=True)
     body = client.get(f"/artikel/{PUBLISHED_ULID}/loeschen").content.decode()  # seeds the cookie
     response = _submit_delete_form(client, body, PUBLISHED_ULID)
-    assert response.status_code == 302  # accepted → hard-deleted → redirect
-    with pytest.raises(NotFound):
-        corpus.articles.load(PUBLISHED_ULID)
+    assert response.status_code == 302  # accepted → in the Papierkorb → redirect
+    assert _mark_of(corpus, PUBLISHED_ULID) is not None

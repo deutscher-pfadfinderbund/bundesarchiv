@@ -207,12 +207,15 @@ def _orphans(articles: list[Article], feld: str, wert: str) -> list[Article]:
 
 def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
     """Load every present article for ``ulids`` (read-only, for the confirm list + orphan/pair
-    checks). An absent/unreadable ulid is silently skipped — it will bucket ``missing`` on commit."""
+    checks). An absent/unreadable ulid, or one in the Papierkorb (ADR 0022), is silently skipped —
+    it will bucket ``missing`` on commit."""
     repo = archive.articles
     out: list[Article] = []
     for ulid in ulids:
         try:
-            out.append(repo.load(ulid).article)
+            article = repo.load(ulid).article
         except ArchiveError:
             continue
+        if article.deleted is None:
+            out.append(article)
     return out

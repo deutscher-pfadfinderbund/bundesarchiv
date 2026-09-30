@@ -266,11 +266,13 @@ def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _EditCorp
 # --- POST: stale save against a hard-deleted article -------------------------------
 
 
+@pytest.mark.parametrize("for_good", [True, False])
 def test_stale_save_against_deleted_article_is_404(
-    corpus: _EditCorpus, monkeypatch: pytest.MonkeyPatch
+    corpus: _EditCorpus, monkeypatch: pytest.MonkeyPatch, for_good: bool
 ) -> None:
-    # Hard-deleted, media and all, between the gate's load and this POST's save: the save refuses
-    # as stale before it checks media, and the re-load's NotFound is the plain 404, never a 500.
+    # Deleted, for good (media and all) or into the Papierkorb, between the gate's load and this
+    # POST's save: the save refuses as stale before it checks media, and the re-load is the plain
+    # 404 — never a 500, and never the conflict panel over a marked record (ADR 0022).
     from bundesarchiv.app.web import catalog_views
 
     stored = corpus.articles.load(_ULID)
@@ -283,7 +285,11 @@ def test_stale_save_against_deleted_article_is_404(
 
     def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object, object] | None:
         gated = real_gated(request, ulid)
-        corpus.articles.hard_delete(_ULID, corpus.articles.load(_ULID).version)
+        now = corpus.articles.load(_ULID)
+        if for_good:
+            corpus.articles.hard_delete(_ULID, now.version)
+        else:
+            corpus.articles.mark_deleted(now.article, now.version, by="bert")
         return gated
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
@@ -626,7 +632,11 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
         if registered.control
         and registered.name
         in catalog.parse_edit_form(
-            {**_valid_post(corpus), registered.name: ""}, ulid=_ULID, bestand=chooser, added_at=None
+            {**_valid_post(corpus), registered.name: ""},
+            ulid=_ULID,
+            bestand=chooser,
+            added_at=None,
+            deleted=None,
         ).errors
     }
     assert refused, "no field is refused blank — the guard proves nothing"

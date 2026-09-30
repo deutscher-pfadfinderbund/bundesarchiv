@@ -10,7 +10,7 @@ through the retrying `update_article` (which owns the load-mutate-save cycle for
 Every write service takes `changed_by`, who is acting; the version it writes records it (ADR 0019).
 
 - `archive.py` — the one construction site for the canonical store + its repositories · interface: `Archive` (`.canonical()`, `.of()`, `.articles`, `.collections`, `.store`) · tests: `tests/app/test_archive.py`
-- `articles.py` — Article write services: the canonical-then-index shell · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `hard_delete_article` · tests: `tests/app/test_services.py`
+- `articles.py` — Article writes: canonical, then index · interface: `save_article`, `update_article`, `create_article`, `copy_article`, `delete_`/`restore_`/`hard_delete_article` · tests: `tests/app/test_services.py`
 - `collections.py` — Collection write service: canonical-then-subtree-index shell · interface: `create_collection`, `save_collection` · tests: `tests/app/test_services.py`
 - `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
 - `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`

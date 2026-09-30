@@ -20,6 +20,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 ``urls.py`` so the literal path wins.
 """
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import BinaryIO, cast
@@ -67,20 +68,30 @@ from bundesarchiv.persistence.repository import Stored, cleaned_name
 _EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
 
 
-def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archivist] | None:
+def _load_gated(
+    request: HttpRequest, ulid: str, *, marked: bool = False
+) -> tuple[Archive, Stored, Archivist] | None:
     """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
     in-view, and load the Article — returning ``(archive, stored, archivist)`` ONLY if all pass,
     else ``None`` (the caller maps ``None`` to the plain 404). A non-archivist, a malformed
     ulid, and an absent/unreadable article all collapse to the SAME ``None`` (existence-hiding,
-    spec §8)."""
+    spec §8). So does an Article on the wrong side of the Papierkorb: ``marked`` routes take only a
+    marked one, every other route only an unmarked one (ADR 0022)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None
     archive = Archive.canonical()
+    stored = _load(archive, ulid, marked=marked)
+    return None if stored is None else (archive, stored, archivist)
+
+
+def _load(archive: Archive, ulid: Ulid, *, marked: bool) -> Stored | None:
+    """The Article, or ``None`` when it is absent, unreadable or not on the ``marked`` side."""
     try:
-        return archive, archive.articles.load(ulid), archivist
+        stored = archive.articles.load(ulid)
     except ArchiveError:
         return None
+    return stored if (stored.article.deleted is not None) == marked else None
 
 
 # --- /artikel/neu — the create step (Slice A) --------------------------------------
@@ -224,6 +235,7 @@ def _handle_edit_post(
         current_media=current.media,
         lifecycle=lifecycle,
         added_at=current.added_at,
+        deleted=current.deleted,
     )
     if (
         result.article is not None
@@ -626,30 +638,61 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
 
-# --- /artikel/<ulid>/loeschen — delete confirm + execute (Slice C, spec §7) --------
+# --- /artikel/<ulid>/loeschen, /endgueltig-loeschen, /wiederherstellen (ADR 0022) ---
 
 
 def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /artikel/<ulid>/loeschen`` — the delete confirm page (GET) and its execution
-    (POST). Archivist-only; a non-archivist / malformed / absent ulid gets the plain 404, both
-    methods. GET names the record and what goes with it; POST hard-deletes against the confirm's
-    ``expected_version`` and 302s to the workbench. A confirm older than the record deletes nothing
-    and asks again, naming the record as it now stands."""
-    gated = _load_gated(request, ulid)
+    (POST), which puts the Article in the Papierkorb (ADR 0022). Archivist-only; a non-archivist /
+    malformed / absent / already marked ulid gets the plain 404, both methods."""
+    return _confirmed_delete(
+        request,
+        ulid,
+        marked=False,
+        delete=lambda archive, stored, by: article_services.delete_article(
+            archive, stored.article, stored.version, changed_by=by
+        ),
+    )
+
+
+def article_delete_for_good(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET/POST /artikel/<ulid>/endgueltig-loeschen`` — the same confirm for an Article in the
+    Papierkorb, whose POST hard-deletes it (ADR 0020, 0022). Any other ulid gets the plain 404."""
+    return _confirmed_delete(
+        request,
+        ulid,
+        marked=True,
+        delete=lambda archive, stored, _by: article_services.hard_delete_article(
+            archive, stored.article.ulid, stored.version
+        ),
+    )
+
+
+def _confirmed_delete(
+    request: HttpRequest,
+    ulid: str,
+    *,
+    marked: bool,
+    delete: Callable[[Archive, Stored, str], object],
+) -> HttpResponseBase:
+    """The delete confirm both deletes share: GET names the record and what goes with it; POST
+    deletes against the confirm's ``expected_version`` and 302s to the workbench. A confirm older
+    than the record deletes nothing and asks again, naming the record as it now stands."""
+    gated = _load_gated(request, ulid, marked=marked)
     if gated is None:
         return _not_found()
-    archive, stored, _ = gated
+    archive, stored, archivist = gated
     veraltet = ""
     if request.method == "POST":
-        expected = catalog.parse_version(request.POST.get("expected_version", ""))
-        try:
-            article_services.hard_delete_article(archive, ulid, expected)
-            return redirect_to(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
-        except errors.Conflict:
-            try:
-                stored = archive.articles.load(ulid)
-            except ArchiveError:
-                return _not_found()
+        # The gate's load is what was checked, so it must be the version the CAS bets on.
+        if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
+            with contextlib.suppress(errors.Conflict):
+                delete(archive, stored, archivist.username)
+                return redirect_to(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+        reloaded = _load(archive, ulid, marked=marked)
+        if reloaded is None:
+            return _not_found()
+        stored = reloaded
         veraltet = _LOESCHEN_VERALTET
     confirm = vocab.delete_confirm(len(stored.article.media))
     bestand = BestandChooser.of(archive)
@@ -680,6 +723,24 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 #: Why a delete asked again: the record was saved after its confirm was shown.
 _LOESCHEN_VERALTET = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
+
+
+def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``POST /artikel/<ulid>/wiederherstellen`` — take an Article out of the Papierkorb (ADR 0022)
+    against the page's ``expected_version``, then return to its page. Archivist-only, POST-only, a
+    marked Article only; else the plain 404. A stale version restores nothing and returns too."""
+    gated = _load_gated(request, ulid, marked=True)
+    if gated is None or request.method != "POST":
+        return _not_found()
+    archive, stored, archivist = gated
+    page = reverse("artikel-detail", args=[ulid])
+    if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
+        # a save landing since the gate's load restores nothing; the page shows the record as it is
+        with contextlib.suppress(errors.Conflict):
+            article_services.restore_article(
+                archive, stored.article, stored.version, changed_by=archivist.username
+            )
+    return redirect_to(request, page)
 
 
 # --- who would see it once published (G.34) ----------------------------------------

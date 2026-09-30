@@ -77,6 +77,8 @@ Measured on 2026-09-24, full results in [`docs/nextcloud-webdav-notes.md`](../ne
   - new media files
   Write-once keys that already exist there are skipped.
 - **Hard delete is final for the app** (owner, 2026-09-24).
+  > **Amended 2026-10-01 (ADR 0022):** "Löschen" puts the Article in the Papierkorb; the hard
+  > delete below is reachable only as the Papierkorb's "Endgültig löschen".
   - The VPS removes the Article's folder. There is no local `.trash/` any more.
   - Nextcloud gets the delete as well. Nextcloud's own trash bin catches it, under the
     retention its admin sets. The app keeps no copy and no control, or it would not be a

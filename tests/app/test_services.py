@@ -24,7 +24,9 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.articles import (
     copy_article,
     create_article,
+    delete_article,
     hard_delete_article,
+    restore_article,
     save_article,
     update_article,
 )
@@ -38,7 +40,7 @@ from bundesarchiv.domain.models import (
     Collection,
     Lifecycle,
 )
-from bundesarchiv.domain.viewer import Member, Public
+from bundesarchiv.domain.viewer import Archivist, Member, Public
 from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import StoredCollection
@@ -231,6 +233,54 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
     outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
 
     assert isinstance(outcome, Missing)
+
+
+def test_update_article_leaves_an_article_in_the_papierkorb_alone(archive: Archive) -> None:
+    """ADR 0022: restore it first. Every internal mutation — publish, media, bulk — routes here."""
+    stored = archive.articles.load("01FOTO")
+    archive.articles.mark_deleted(stored.article, stored.version, by="bert")
+    before = archive.articles.load("01FOTO")
+
+    outcome = update_article(
+        archive, "01FOTO", lambda a: replace(a, title="Nie gespeichert"), changed_by="tester"
+    )
+
+    assert (outcome, archive.articles.load("01FOTO")) == (Missing(), before)
+
+
+# ---------------------------------------------------------------------------
+# delete_article / restore_article — the Papierkorb (ADR 0022)
+# ---------------------------------------------------------------------------
+
+
+def _archivist_titles(*, deleted: bool) -> set[str]:
+    page = search(Archivist(), filters=SearchFilters(deleted=deleted), page_size=200)
+    return {hit.title for hit in page.hits}
+
+
+@pytest.mark.django_db
+def test_delete_and_restore_move_the_article_between_the_list_and_the_papierkorb(
+    archive: Archive,
+) -> None:
+    stored = archive.articles.load("01FOTO")
+    save_article(archive, stored.article, stored.version, changed_by="tester")
+    assert _archivist_titles(deleted=False) == {"Öffentliches Foto"}
+
+    stored = archive.articles.load("01FOTO")
+    deleted = delete_article(archive, stored.article, stored.version, changed_by="bert")
+    assert deleted.index_updated
+    assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
+        set(),
+        {"Öffentliches Foto"},
+    )
+
+    marked = archive.articles.load("01FOTO").article
+    restored = restore_article(archive, marked, deleted.version, changed_by="anna")
+    assert restored.index_updated
+    assert (_archivist_titles(deleted=False), _archivist_titles(deleted=True)) == (
+        {"Öffentliches Foto"},
+        set(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -715,6 +765,21 @@ def test_save_article_enqueues_one_push_of_the_article(
 
     stored = archive.articles.load("01FOTO")
     save_article(archive, stored.article, stored.version, changed_by="tester")
+
+    assert pushed == ["01FOTO"]
+
+
+@pytest.mark.django_db
+def test_delete_article_enqueues_one_push_of_the_mark(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import bundesarchiv.app.articles as articles_mod
+
+    pushed: list[str] = []
+    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
+
+    stored = archive.articles.load("01FOTO")
+    delete_article(archive, stored.article, stored.version, changed_by="tester")
 
     assert pushed == ["01FOTO"]
 

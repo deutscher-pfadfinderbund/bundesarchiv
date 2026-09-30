@@ -273,6 +273,14 @@ SCREENS: tuple[Screen, ...] = (
         overlays=1,
     ),
     Screen(
+        "delete-for-good-confirm",
+        "delete for good, confirm page (a record in the Papierkorb)",
+        True,
+        _goto(lambda c: f"/artikel/{c.marked_ulid}/endgueltig-loeschen"),
+        "artikel-endgueltig-loeschen",
+        overlays=1,
+    ),
+    Screen(
         "detail-archivist-draft",
         "the article page, a draft as an archivist (Veröffentlichen; Standort, Weitere Angaben)",
         True,
