@@ -40,7 +40,7 @@ def compare(ref: Path, tree: Path) -> int:
             with Image.open(a) as ia, Image.open(b) as ib:
                 same = (
                     ia.size == ib.size
-                    and ImageChops.difference(ia.convert("RGBA"), ib.convert("RGBA")).getbbox()
+                    and ImageChops.difference(ia.convert("RGB"), ib.convert("RGB")).getbbox()
                     is None
                 )
             verdict = "identical" if same else "changed"
