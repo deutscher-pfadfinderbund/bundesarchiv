@@ -13,7 +13,7 @@ Verified against the Django 6.0 release notes + topic docs (2026-06). Adopt thes
 ## Web / UI (Part 4)
 
 - **Template partials** are in core now (`{% partialdef %}` / `{% partial %}`, plus `template_name#partial_name`) — the idiomatic way to return the *same* fragment for an HTMX swap and a full-page render. Do **not** use the third-party `django-template-partials`.
-- **Content-Security-Policy is built in** (`ContentSecurityPolicyMiddleware`, `SECURE_CSP`, per-request nonces via `{{ csp_nonce }}` / `{% csp_nonce_attr %}`). Plan HTMX inline scripts around `CSP.NONCE` from day one; HTML + header must be same-request (not cached).
+- **Content-Security-Policy is built in** (`ContentSecurityPolicyMiddleware`, `SECURE_CSP`, per-request nonces via `{{ csp_nonce }}` / `{% csp_nonce_attr %}`). The app sets it in `SECURE_CSP` (ADR 0017) and has no inline scripts or styles, so it needs no nonce; if one ever appears, use `CSP.NONCE` (HTML + header must be same-request, not cached).
 - Pagination: the `querystring` tag (auto `?`, merges/overrides params) + `forloop.length` — handy for faceted-filter links.
 
 ## Search (Part 3)
