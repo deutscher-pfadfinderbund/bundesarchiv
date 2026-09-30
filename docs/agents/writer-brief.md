@@ -69,7 +69,9 @@ Ceremony follows the testing razor. Mutation proofs: for leak, deny, data-loss a
 paths, and for gates. A render diff: only for a refactor you claim is neutral. A screenshot
 harness: only when the brief asks for renders before the finisher. Copy, CSS and layout changes
 need `check` and, once per wave, the finisher's gallery and e2e — not per-commit proofs.
-`mise run mutate -- FILE OLD NEW NODE_IDS` does all three and always restores FILE.
+`mise run mutate -- FILE OLD NEW NODE_IDS` does all three and always restores FILE. For an e2e node add `-m e2e`
+(addopts deselects it otherwise), and pass node ids as separate literal arguments (zsh does not
+word-split a `$VAR`).
 
 Restore a mutation by re-editing the exact lines (or commit before mutating) —
 never `git checkout <file>`: it wipes every uncommitted change in that file. Run
