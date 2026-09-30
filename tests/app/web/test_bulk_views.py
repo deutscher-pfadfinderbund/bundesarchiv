@@ -10,12 +10,14 @@ only index + queue seams are stubbed (conftest.py).
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
+from html import unescape
 
 import pytest
+from django.urls import reverse
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
 
-from bundesarchiv.app.web import bulk
+from bundesarchiv.app.web import browse, bulk
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -173,6 +175,18 @@ def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
 
 
 # --- confirm phase (no bestaetigt) -------------------------------------------------
+
+
+@pytest.mark.parametrize("feld", ["creator", ""])
+def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: str) -> None:
+    # both modes (the check, and a refusal): the way back is the list with the selection kept
+    body = (
+        client_as(Archivist())
+        .post("/artikel/sammelbearbeitung", {"auswahl": [_A, _B], "feld": feld, "wert_text": "X"})
+        .content.decode()
+    )
+    back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
+    assert back in [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
 
 
 def test_confirm_page_lists_field_value_count_articles(two_drafts: Corpus) -> None:

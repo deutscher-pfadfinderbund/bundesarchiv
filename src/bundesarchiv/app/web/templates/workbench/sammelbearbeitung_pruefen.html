@@ -25,7 +25,7 @@ server session state).
     <p class="error" role="alert">{{ fehler }}</p>
     {% include "workbench/_feldwahl.html" %}
   </form>
-  <p><a href="?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
+  <p><a href="{% url 'workbench' %}?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
   {% else %}
 
   <section class="panel">
@@ -77,7 +77,7 @@ server session state).
         <button class="primary" type="submit">Auf {{ anzahl }} Artikel anwenden</button>
         {% endif %}
       </form>
-      <a class="button" href="?{{ abbrechen_query }}">Abbrechen</a>
+      <a class="button" href="{% url 'workbench' %}?{{ abbrechen_query }}">Abbrechen</a>
     </div>
   </footer>
   {% endif %}
