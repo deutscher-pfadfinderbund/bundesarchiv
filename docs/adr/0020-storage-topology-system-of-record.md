@@ -133,16 +133,22 @@ Measured on 2026-09-24, full results in [`docs/nextcloud-webdav-notes.md`](../ne
   comes first.
 - The layout (ADR 0019) is the same in both stages, so switching moves code, not data.
 - The details get their own ADR when the trigger fires. The sketch:
+  - **Reads stay local.** Requests and index writers read only the working copy. The
+    system of record takes commits and fills cache misses. So the Archive gets two stores:
+    a local one for reads and a remote one for commits. Stage B must not add a per-file
+    `exists` inside the save lock, an upload to Nextcloud inside the request, or a Range
+    request passed through to Nextcloud on a cache miss.
   - **Metadata.** `save` writes the history file with `create`, and the README with a
     conditional replace against the `version` it read. Both port additions arrive with
     stage B. That is compare-and-swap at the
     system of record, across processes. It retires `WRITER_LOCK` and tech-debt #17. The
     local README copy is updated after.
   - **Media.**
-    - Upload: streamed to the system of record with `create`.
-    - Read: nginx serves the local cache. On a miss it fetches the bytes from the system
-      of record, with Range passed through. For Nextcloud that is an `internal` location
-      that proxies WebDAV with the app user's credentials.
+    - Upload: stored locally first, then pushed with `create` from a job, as in stage A.
+    - Read: nginx serves the local cache. On a miss the whole file is fetched from the
+      system of record into the cache, and ranges are served from there. For Nextcloud
+      that fetch is an `internal` location that proxies WebDAV with the app user's
+      credentials.
     - Authorization stays in Django.
   - **Eviction.** First, media that no current README refers to and that Nextcloud has
     confirmed. Then the least recently used.
