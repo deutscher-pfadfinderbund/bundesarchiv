@@ -101,13 +101,27 @@ class _MatrixCorpus:
         # so the lifecycle route's expected_version matches and the retract succeeds (302, not a
         # conflict re-render).
         self.article_version = self.base.articles.load(self.article_ulid).version
+        # A Public article in the Papierkorb (ADR 0022): every tier would see it but for the mark.
+        self.marked_ulid = new_ulid()
+        marked_ref = self.base.articles.add_media(
+            self.marked_ulid,
+            "cover.png",
+            io.BytesIO(_png_bytes((90, 60, 30))),
+            media_type="image/png",
+        )
+        marked = make_article(
+            self.marked_ulid,
+            collection_id=self.collection_ulid,
+            audience=Audience(AudienceTier.PUBLIC),
+            media=(marked_ref,),
+        )
+        self.base.articles.mark_deleted(marked, self.base.add_article(marked), by="tester")
+        self.marked_hash = marked_ref.content_hash
 
-    def generate_thumbnail(self) -> None:
+    def generate_thumbnail(self, ulid: str, content_hash: str) -> None:
         from bundesarchiv.app import thumbnails
 
-        thumbnails.generate_thumbnail(
-            self.base.store, self.article_ulid, self.content_hash, self.thumbnail_root
-        )
+        thumbnails.generate_thumbnail(self.base.store, ulid, content_hash, self.thumbnail_root)
 
 
 @pytest.fixture
@@ -520,7 +534,7 @@ def test_route_tier_matrix(
     route = _CONTRACT[name]
     expected = _expected_for(route, tier, method)
     if name == "media-thumb":
-        matrix_corpus.generate_thumbnail()
+        matrix_corpus.generate_thumbnail(matrix_corpus.article_ulid, matrix_corpus.content_hash)
     path = route.build_path(matrix_corpus)
     data: dict[str, object] = route.post_data
     if name in _POST_DATA_BUILDERS:
@@ -545,6 +559,30 @@ def test_route_tier_matrix(
         assert response.status_code == expected, (
             f"{method} {name} as {tier}: expected {expected}, got {response.status_code}"
         )
+
+
+# --- a marked Article: the read routes answer the Archivist alone (ADR 0022) ----------------------
+
+#: Method-blind like the rows above, so GET probes each.
+_MARKED_PATHS: dict[str, Callable[[_MatrixCorpus], str]] = {
+    "artikel-detail": lambda c: f"/artikel/{c.marked_ulid}",
+    "media": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}",
+    "media-thumb": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/thumb",
+}
+
+
+@pytest.mark.parametrize("tier", _TIERS)
+@pytest.mark.parametrize("name", _MARKED_PATHS)
+def test_a_marked_article_answers_the_archivist_alone(
+    matrix_corpus: _MatrixCorpus, name: str, tier: str
+) -> None:
+    if name == "media-thumb":
+        matrix_corpus.generate_thumbnail(matrix_corpus.marked_ulid, matrix_corpus.marked_hash)
+    response = client_as(_TIERS[tier]).get(_MARKED_PATHS[name](matrix_corpus))
+    if tier == "archivist":
+        assert response.status_code == OK, f"{name} of a marked article as the archivist"
+    else:
+        assert_denied(response, f"{name} of a marked article as {tier}")
 
 
 # --- the anonymous gate: the same walk with production's gate turned on ---------------------------
