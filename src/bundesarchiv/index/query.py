@@ -3,7 +3,7 @@
 One public function, ``search``, plus the frozen value types it returns. Everything it computes
 — text match, filters, facets, total, the page window — derives from ONE base queryset:
 
-    ArticleIndex.objects.filter(_viewer_scope(viewer))
+    ArticleIndex.objects.filter(_viewer_scope(viewer), <the side of the Papierkorb>)
 
 ``_viewer_scope`` (``index.scope``) is the single visibility predicate; this module never writes
 a tier / archivist_only comparison of its own. The ONE sanctioned exception is choosing which
@@ -84,6 +84,10 @@ class SearchFilters:
 
     ``has_files`` keeps rows with at least one file (the fact ``SearchHit.file_counts`` reports);
     ``drafts_only`` keeps drafts, so it narrows a non-Archivist's scope to nothing.
+
+    ``deleted`` picks the side of the Papierkorb (ADR 0022): False (the default) leaves every
+    marked row out, True keeps only marked rows. Marked rows are archivist-only, so True narrows a
+    non-Archivist's scope to nothing.
     """
 
     collection: Ulid | None = None
@@ -96,6 +100,7 @@ class SearchFilters:
     dateless: bool = False
     has_files: bool = False
     drafts_only: bool = False
+    deleted: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +130,9 @@ class SearchHit:
     collection_id: Ulid  # the Bestand the Article sits in; names no Bestand on a fail-closed row
     # (kind, count) in FileKind order, zero kinds left out; () = no files.
     file_counts: tuple[tuple[FileKind, int], ...]
+    # The Papierkorb mark (ADR 0022); None on a live row. Only archivist_only rows carry one.
+    deleted_at: datetime.datetime | None = None
+    deleted_by: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +177,8 @@ _HIT_COLUMNS = (
     "groups",
     "collection_id",
     "file_counts",
+    "deleted_at",
+    "deleted_by",
 )
 
 
@@ -194,7 +204,9 @@ def search(
     filters = filters or SearchFilters()
     query = _search_query(text)
 
-    base = ArticleIndex.objects.filter(_viewer_scope(viewer))
+    base = ArticleIndex.objects.filter(
+        _viewer_scope(viewer), deleted_at__isnull=not filters.deleted
+    )
     matched = _apply_text(base, query, viewer)
     filtered = _apply_filters(matched, filters)
 

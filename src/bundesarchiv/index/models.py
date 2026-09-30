@@ -97,6 +97,9 @@ class ArticleIndex(models.Model):
     # the archivist already sees. Members/public never receive archivist_only rows.
     is_draft = models.BooleanField(default=False)
     added_at = models.DateTimeField(null=True)  # the date added; None = unknown
+    # The Papierkorb mark (ADR 0022); None = not deleted. A marked row is also archivist_only.
+    deleted_at = models.DateTimeField(null=True)
+    deleted_by = models.TextField(null=True)
     # {FileKind value: count} of the Article's media, zero kinds absent; {} = no files.
     file_counts = models.JSONField(default=dict)
     # bump when the FTS config changes (indexer.CONFIG_VERSION) to trigger a rebuild

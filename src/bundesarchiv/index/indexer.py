@@ -59,7 +59,8 @@ from bundesarchiv.persistence.repository import ArticleRepository
 #   v3: is_draft column added (archivist chrome — ENTWURF badge).
 #   v4: added_at column added (the "added" sort).
 #   v5: file_counts column added (the Digital column and the has-files filter).
-CONFIG_VERSION = 5
+#   v6: deleted_at / deleted_by columns added (the Papierkorb mark).
+CONFIG_VERSION = 6
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -177,6 +178,8 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         # Lifecycle marker (the ENTWURF badge, the drafts filter); NOT a scope column.
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
         "added_at": article.added_at,
+        "deleted_at": article.deleted.at if article.deleted else None,
+        "deleted_by": article.deleted.by if article.deleted else None,
         "file_counts": _file_counts(article),
         "date_edtf": article.date.value if article.date is not None else None,
         "date_earliest": earliest,
