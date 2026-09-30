@@ -17,7 +17,7 @@ from bundesarchiv.app.result import CreateResult, SaveResult
 from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.models import Audience, Collection, Ulid, Version
-from bundesarchiv.index.indexer import index_subtree
+from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_subtree
 from bundesarchiv.persistence.errors import NotFound
 
 
@@ -81,7 +81,7 @@ def _sync_index_subtree(archive: Archive, collection_ulid: str) -> bool:
     """Synchronously reindex the subtree; on ANY failure enqueue a reference retry job and report
     False (never re-raise — the canonical write already stood). Returns True on success."""
     try:
-        index_subtree(archive.store, collection_ulid)
+        index_subtree(archive.store, collection_ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS)
     except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
         _enqueue_reindex_subtree(collection_ulid)
         return False

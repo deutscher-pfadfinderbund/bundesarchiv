@@ -10,6 +10,9 @@ FORBIDDEN inside the gate tests.
 """
 
 import io
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -412,7 +415,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 
     enqueued: list[str] = []
 
-    def boom(_store: object, _ulid: str) -> None:
+    def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
     monkeypatch.setattr(articles_mod, "index_article", boom)
@@ -438,7 +441,7 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     index_updated=False and no exception escapes (mirrors _enqueue_mirror's swallow policy)."""
     import bundesarchiv.app.articles as articles_mod
 
-    def boom(_store: object, _ulid: str) -> None:
+    def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
     def enqueue_boom(_ulid: str) -> None:
@@ -462,7 +465,7 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
 ) -> None:
     import bundesarchiv.app.collections as collections_mod
 
-    def boom(_store: object, _ulid: str) -> None:
+    def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
     def enqueue_boom(_ulid: str) -> None:
@@ -476,6 +479,46 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
 
     assert (result.version, result.index_updated) == (2, False)
     assert archive.collections.load("FOTOS").version == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A save whose index update cannot get the index-writer lock within the sync bound (a rebuild
+    holds it) returns index_updated=False and queues the retry instead of waiting the holder out."""
+    from django.db import connection, transaction
+
+    import bundesarchiv.app.articles as articles_mod
+    from bundesarchiv.index.indexer import _take_writer_lock
+
+    enqueued: list[str] = []
+    monkeypatch.setattr(articles_mod, "enqueue_reindex_article", enqueued.append)
+    monkeypatch.setattr(articles_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+    held, release = threading.Event(), threading.Event()
+
+    def hold_lock() -> None:
+        try:
+            with transaction.atomic():
+                _take_writer_lock()
+                held.set()
+                release.wait(timeout=5)
+        finally:
+            connection.close()
+
+    stored = archive.articles.load("01FOTO")
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        holder = pool.submit(hold_lock)
+        assert held.wait(timeout=5)
+        started = time.monotonic()
+        result = save_article(archive, stored.article, stored.version, changed_by="tester")
+        elapsed = time.monotonic() - started
+        release.set()
+        holder.result()
+
+    assert result.index_updated is False
+    assert enqueued == ["01FOTO"]
+    assert elapsed < 2
 
 
 # ---------------------------------------------------------------------------
@@ -718,3 +761,42 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
 
     assert result.version == 2  # save succeeded despite the mirror-enqueue failure
     assert archive.articles.load("01FOTO").version == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Bestand save path has the same bound as the Article save path."""
+    from django.db import connection, transaction
+
+    import bundesarchiv.app.collections as collections_mod
+    from bundesarchiv.index.indexer import _take_writer_lock
+
+    enqueued: list[str] = []
+    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
+    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+    held, release = threading.Event(), threading.Event()
+
+    def hold_lock() -> None:
+        try:
+            with transaction.atomic():
+                _take_writer_lock()
+                held.set()
+                release.wait(timeout=5)
+        finally:
+            connection.close()
+
+    stored = archive.collections.load("FOTOS")
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        holder = pool.submit(hold_lock)
+        assert held.wait(timeout=5)
+        started = time.monotonic()
+        result = save_collection(archive, stored.collection, stored.version, changed_by="tester")
+        elapsed = time.monotonic() - started
+        release.set()
+        holder.result()
+
+    assert result.index_updated is False
+    assert enqueued == ["FOTOS"]
+    assert elapsed < 2

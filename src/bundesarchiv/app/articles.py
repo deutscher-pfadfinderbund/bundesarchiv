@@ -46,7 +46,7 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.index.indexer import index_article
+from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_article
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 #: Filename extensions of the corpus image types we thumbnail (JPEG/PNG/TIFF), used when a MediaRef
@@ -224,7 +224,7 @@ def _sync_index(archive: Archive, ulid: Ulid) -> bool:
     False (never re-raise — the canonical write already stood, ADR 0014). Returns True on success.
     """
     try:
-        index_article(archive.store, ulid)
+        index_article(archive.store, ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS)
     except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
         _enqueue_reindex(ulid)
         return False

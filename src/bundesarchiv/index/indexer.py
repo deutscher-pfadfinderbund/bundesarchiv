@@ -68,11 +68,20 @@ CONFIG_VERSION = 5
 _INDEX_WRITER_LOCK_KEY = 0x42554E44  # "BUND" — stable, documented, index-writer-only
 
 
-def _take_writer_lock() -> None:
+#: How long a save in the request waits for this lock before handing the reindex to its retry
+#: job. A full rebuild holds the lock for its read (~1.5 s on the 2506-article archive) plus its
+#: write, so a save during a rebuild normally still indexes in the request.
+SYNC_LOCK_TIMEOUT_MS = 5000
+
+
+def _take_writer_lock(lock_timeout_ms: int | None = None) -> None:
     """Acquire the transaction-scoped index-writer advisory lock. MUST be called inside every index
     writer's ``transaction.atomic()`` block BEFORE its first canonical read; it releases at commit
-    or rollback, so no explicit unlock is ever needed."""
+    or rollback, so no explicit unlock is ever needed. With ``lock_timeout_ms`` the wait is bounded
+    for the rest of the transaction and a timeout raises ``OperationalError``."""
     with connection.cursor() as cursor:
+        if lock_timeout_ms is not None:
+            cursor.execute("SELECT set_config('lock_timeout', %s, true)", [f"{lock_timeout_ms}ms"])
         cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_INDEX_WRITER_LOCK_KEY])
 
 
@@ -251,21 +260,22 @@ def rebuild(store: ObjectStore) -> RebuildReport:
     return RebuildReport(indexed=len(rows), failed_closed=tuple(failed))
 
 
-def index_article(store: ObjectStore, ulid: Ulid) -> None:
+def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:
     """Incrementally reindex ONE Article by reference (ADR 0014): re-read canonical truth for
     ``ulid`` and upsert its single row, or DELETE the row when the ulid is gone from canonical.
 
     Reference semantics — the caller passes only a ulid, never a payload, so a stale enqueued job
     recomputes whatever canonical says NOW. Routes through the same ``build_row`` + fail-closed
     branch as ``rebuild`` (a broken chain becomes an archivist-only row). Idempotent. Takes the
-    shared index-writer lock before reading.
+    shared index-writer lock before reading; ``lock_timeout_ms`` bounds that wait (the
+    synchronous request path), and a timeout raises ``OperationalError`` with nothing written.
     """
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
     with transaction.atomic():
-        _take_writer_lock()
+        _take_writer_lock(lock_timeout_ms)
         try:
             article = articles.load(ulid).article
         except NotFound:
@@ -276,7 +286,9 @@ def index_article(store: ObjectStore, ulid: Ulid) -> None:
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
 
 
-def index_subtree(store: ObjectStore, collection_ulid: Ulid) -> None:
+def index_subtree(
+    store: ObjectStore, collection_ulid: Ulid, *, lock_timeout_ms: int | None = None
+) -> None:
     """Incrementally reindex every Article in the subtree rooted at ``collection_ulid`` (ADR 0014).
 
     An audience or parent edit on a Collection changes the effective audience of every descendant
@@ -285,14 +297,15 @@ def index_subtree(store: ObjectStore, collection_ulid: Ulid) -> None:
     ``collection_ulid``. An Article whose chain cannot resolve is upserted as a fail-closed row
     IFF its own ``collection_id`` is the target (a broken chain has no resolvable ancestry to test
     against, so only the directly-targeted orphan is touched — non-descendants stay untouched).
-    Idempotent; takes the shared index-writer lock before reading.
+    Idempotent; takes the shared index-writer lock before reading; ``lock_timeout_ms`` bounds that
+    wait as in ``index_article``.
     """
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
     with transaction.atomic():
-        _take_writer_lock()
+        _take_writer_lock(lock_timeout_ms)
         lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
         for ulid in articles.list_ulids():
             article = articles.load(ulid).article
