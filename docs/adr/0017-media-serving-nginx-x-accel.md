@@ -76,6 +76,13 @@ deliberately non-load-bearing component load-bearing.
   `private` policy Django stamps and let a shared cache store gated bytes. The
   app applies the header at the seam's public exits (`media.media_response`,
   `media.thumbnail_response`).
+- **A failed media answer is not cached.** nginx keeps the app's year-long
+  `Cache-Control` also when the file then fails: not yet on disk, refused as a
+  symlink, or a key outside the `internal;` location's shape (measured on
+  `nginx:1-alpine`, 2026-10-01). A browser would then show that 404 for a year.
+  Core nginx cannot drop a header, so the two `/_media/` locations add
+  `Cache-Control: no-store` to such an error; a cache stores nothing that
+  carries it, whatever the max-age.
 - **An upload is authorized before nginx reads its body.** nginx buffers request
   bodies to disk (owner, 2026-09-24, ADR 0020), so an ungated upload route would
   let anyone fill the disk. Only the upload route takes a large body. On it, an

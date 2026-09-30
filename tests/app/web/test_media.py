@@ -17,6 +17,7 @@ Structure:
 """
 
 import io
+import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -414,17 +415,42 @@ def test_permitted_media_is_not_readable_by_another_site(corpus: _TierCorpus, th
     assert response["Cross-Origin-Resource-Policy"] == "same-origin"
 
 
+_NGINX_CONF = Path(__file__).parents[3] / "deploy/nginx/nginx.conf"
+
+
+def _media_location() -> str:
+    """The whole ``internal;`` media location of the sidecar (ADR 0017)."""
+    return _NGINX_CONF.read_text().split('location ~ "^/_media/', 1)[1].split("\n    }", 1)[0]
+
+
+def test_the_media_sidecar_serves_only_what_the_app_names() -> None:
+    assert "internal;" in _media_location()
+    assert "disable_symlinks on;" in _media_location()
+
+
 def test_the_media_sidecar_sandboxes_what_it_serves() -> None:
-    # On an X-Accel redirect nginx drops the app's CSP, nosniff and CORP headers, so the sidecar's
-    # internal location must add them itself, and must not replace the app's Cache-Control.
-    conf = (Path(__file__).parents[3] / "deploy/nginx/nginx.conf").read_text()
-    media_location = conf.split("alias /canonical/", 1)[1].split("}", 1)[0]
+    media_location = _media_location()
     assert 'add_header Content-Security-Policy "sandbox" always;' in media_location
     assert 'add_header X-Content-Type-Options "nosniff" always;' in media_location
     assert 'add_header Cross-Origin-Resource-Policy "same-origin" always;' in media_location
-    assert "disable_symlinks on;" in media_location
+
+
+def test_the_media_sidecar_keeps_the_apps_cache_policy() -> None:
+    media_location = _media_location()
     assert "expires" not in media_location
-    assert "Cache-Control" not in media_location
+    assert re.findall(r"add_header Cache-Control .*", media_location) == [
+        "add_header Cache-Control $media_failed_no_store always;"
+    ]
+
+
+def test_a_failed_media_answer_is_never_cached() -> None:
+    """nginx keeps the app's year-long Cache-Control also when the file then fails (ADR 0017)."""
+    conf = _NGINX_CONF.read_text()
+    assert (
+        'map $status $media_failed_no_store {\n    ~^[45] "no-store";\n    default "";\n}' in conf
+    )
+    catch_all = conf.split("location /_media/ {", 1)[1].split("}", 1)[0]
+    assert 'add_header Cache-Control "no-store" always;' in catch_all
 
 
 def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
