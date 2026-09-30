@@ -1,6 +1,7 @@
 {% comment %}
 The search sentence's parts that follow the query (a2): the slots ("in" inside the first, so it
-wraps with it), the set filters no slot shows, then "+ Filter". Every link is built from the request's query, so an htmx q-swap refreshes them
+wraps with it), the set filters no slot shows, then "+ Filter". On S the unset slots after the
+first and "+ Filter" fold into "Filter", whose panel repeats their entries. Every link is built from the request's query, so an htmx q-swap refreshes them
 out-of-band (_results.html) while the field keeps its focus. Each slot is its own box: one trigger
 per anchor scope (law C12). A slot's menu clears it when set, then lists the values the index
 counts; a set filter no slot shows is a link that removes it.
@@ -18,6 +19,17 @@ counts; a set filter no slot shows is a link that removes it.
     </div>
     {% endfor %}
     {% for set_filter in set_filters %}<div class="is-set"><a href="?{{ set_filter.query }}" aria-label="{{ set_filter.label }} entfernen">{{ set_filter.label }}</a></div>{% endfor %}
+  </div>
+  <div class="search-sentence-more">
+    <button class="menu-button" type="button" popovertarget="slot-more">Filter</button>
+    <div class="toolpanel" id="slot-more" popover>
+      {% for slot in slots %}{% if not forloop.first and slot.clear_query is None %}<ul class="menu" aria-label="{{ slot.label }}">
+        {% for item in slot.items %}<li><a href="?{{ item.query }}">{{ item.label }}<span>{{ item.count }}</span></a></li>{% endfor %}
+      </ul>{% endif %}{% endfor %}
+      <ul>
+        {% for check in filter_checks %}<li><a href="?{{ check.query }}"{% if check.active %} aria-current="true"{% endif %}>{{ check.label }}</a></li>{% endfor %}
+      </ul>
+    </div>
   </div>
   <div class="search-sentence-add">
     <button class="menu-button" type="button" popovertarget="plus-filter">+ Filter</button>

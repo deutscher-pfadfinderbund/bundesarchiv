@@ -732,6 +732,22 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
         )
 
 
+def test_on_a_phone_the_folded_slots_stay_reachable(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Review U4 (blocking): on S the unset Jahrzehnt and Typ slots fold away; "Filter" must still
+    # reach them, or a phone cannot filter by decade or type at all.
+    page = archivist_page
+    page.set_viewport_size({"width": 390, "height": 900})
+    for param in ("jahrzehnt", "dokumenttyp"):
+        page.goto(live_workbench + "/")
+        page.locator(".search-sentence-more .menu-button").click()
+        entry = page.locator(f'.search-sentence-more .menu a[href*="{param}="]').first
+        expect(entry).to_be_visible()
+        entry.click()
+        page.wait_for_url(f"**{param}=**")
+
+
 def test_pane_open_never_folds_the_ledger(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:

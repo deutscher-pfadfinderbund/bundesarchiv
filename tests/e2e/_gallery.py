@@ -66,9 +66,11 @@ def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the search sentence with "+ Filter" open: the secondary filters as a check list
+    # the search sentence with "+ Filter" open: the secondary filters as a check list; on S,
+    # "Filter", which also holds the folded slots
     page.goto(f"{base}/", wait_until="networkidle")
-    page.locator(".search-sentence-add .menu-button").click()
+    triggers = page.locator(":is(.search-sentence-add, .search-sentence-more) .menu-button")
+    triggers.filter(visible=True).click()
 
 
 def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -182,7 +184,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "workbench-filter-open",
-        "workbench, the search sentence's '+ Filter' open",
+        "workbench, the search sentence's '+ Filter' open (on S: 'Filter')",
         True,
         _reach_plus_filter_open,
     ),

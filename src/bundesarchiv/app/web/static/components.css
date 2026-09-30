@@ -588,7 +588,8 @@
         .record-meta-actions,
         .split-button,
         .search-sentence-slots > div,
-        .search-sentence-add
+        .search-sentence-add,
+        .search-sentence-more
       ) {
       anchor-scope: --menu-button;
     }

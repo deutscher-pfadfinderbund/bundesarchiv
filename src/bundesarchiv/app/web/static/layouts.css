@@ -72,10 +72,13 @@
   .search-sentence :is(.menu-button, .is-set > a):hover {
     text-decoration: underline;
   }
-  /* "+ Filter" reads in an open slot's quieter ink */
-  .search-sentence-add {
+  /* "+ Filter" (and on S "Filter") reads in an open slot's quieter ink */
+  :is(.search-sentence-add, .search-sentence-more) {
     --ink: var(--ink-2);
     padding-inline-start: var(--space-3);
+  }
+  .search-sentence-more {
+    display: none;
   }
   /* clear all: quiet words at the sentence's end */
   .search-sentence-clear {
@@ -101,7 +104,7 @@
     font-weight: 600;
   }
   /* "+ Filter": a check list of links; the box before each entry is filled when it is set */
-  .search-sentence .toolpanel a {
+  .search-sentence .toolpanel ul:not(.menu) a {
     display: flex;
     align-items: center;
     gap: var(--space-3);
@@ -110,19 +113,23 @@
     color: var(--ink);
     text-decoration: none;
   }
-  .search-sentence .toolpanel a::before {
+  .search-sentence .toolpanel ul:not(.menu) a::before {
     content: "";
     inline-size: 1em;
     block-size: 1em;
     border: var(--line-width) solid currentColor;
   }
-  .search-sentence .toolpanel a[aria-current]::before {
+  .search-sentence .toolpanel ul:not(.menu) a[aria-current]::before {
     background: currentColor;
   }
   @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .search-sentence-label,
-    .search-sentence-slots > .is-minor:not(:first-child) {
+    .search-sentence-slots > .is-minor:not(:first-child),
+    .search-sentence-add {
       display: none;
+    }
+    .search-sentence-more {
+      display: block;
     }
     .search-sentence-field {
       flex-basis: 100%;
