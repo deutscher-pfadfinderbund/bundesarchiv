@@ -45,8 +45,7 @@ from bundesarchiv.app.web.card import (
     first_empty_field,
     first_error_field,
 )
-from bundesarchiv.app.web.media_views import not_found as _not_found
-from bundesarchiv.app.web.media_views import thumbnail_url
+from bundesarchiv.app.web.media_views import not_found, thumbnail_url
 from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
 from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
@@ -107,7 +106,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
-        return _not_found()
+        return not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
@@ -184,7 +183,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     just-submitted values preserved and a refreshed ``expected_version``."""
     gated = _load_gated(request, ulid)
     if gated is None:
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
@@ -227,7 +226,7 @@ def _handle_edit_post(
     try:
         lifecycle = current.lifecycle if status is None else Lifecycle(status)
     except ValueError:
-        return _not_found()  # not a Status → no save, no transition, indistinguishable 404
+        return not_found()  # not a Status → no save, no transition, indistinguishable 404
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
@@ -283,7 +282,7 @@ def _handle_edit_post(
             )
         case catalog.DeletedOutcome():
             # hard-deleted underneath the save — collapse to the byte-identical 404
-            return _not_found()
+            return not_found()
 
 
 def _named_custom_row(post: QueryDict) -> int:
@@ -588,7 +587,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
     actually written. A refusal writes nothing and returns to the page as it now stands."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     page = reverse("artikel-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
@@ -612,7 +611,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return redirect_to(request, page)
     match outcome:
         case Missing():
-            return _not_found()
+            return not_found()
         case Conflicted():
             return redirect_to(request, page)
         case Updated(article=article, version=version, index_updated=False):
@@ -632,7 +631,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     (it creates, never destroys). GET is not allowed (a copy is a mutation)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, _, archivist = gated
     copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
@@ -682,7 +681,7 @@ def _confirmed_delete(
     naming the record as it now stands."""
     gated = _load_gated(request, ulid, marked=marked)
     if gated is None:
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     veraltet = ""
     if request.method == "POST":
@@ -693,7 +692,7 @@ def _confirmed_delete(
                 return redirect_to(request, reverse("trash" if marked else "workbench"))
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
-            return _not_found()
+            return not_found()
         stored = reloaded
         veraltet = _LOESCHEN_VERALTET
     confirm = (
@@ -741,7 +740,7 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
     stale version restores nothing and goes to its page too."""
     gated = _load_gated(request, ulid, marked=True)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     page = reverse("artikel-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
@@ -805,7 +804,7 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     the edit form afterwards. A bad hash / edge move is a no-op (never raises)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, _, archivist = gated
     content_hash = request.POST.get("hash", "")
     richtung = request.POST.get("richtung", "")
@@ -825,7 +824,7 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     (the blob is write-once and stays, recoverable). Archivist-only, POST-only → 404 otherwise."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     content_hash = request.POST.get("entfernen", "")
     if request.POST.get("bestaetigt") == "1":
@@ -852,7 +851,7 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     otherwise) — ``add_media`` writes the file, then the structural save commits the refs."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     files = request.FILES.getlist("dateien")
     ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
@@ -890,7 +889,7 @@ def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
     0017). Same-origin is ``Sec-Fetch-Site``, else ``Origin``, else the ``Referer``: the order
     Django's CSRF check falls back in. Otherwise the plain 404."""
     if request.method != "GET" or _load_gated(request, ulid) is None:
-        return _not_found()
+        return not_found()
     site = request.headers.get("Sec-Fetch-Site")
     if site is None:
         origin = request.headers.get("Origin")
@@ -900,7 +899,7 @@ def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
         same_origin = origin == f"{request.scheme}://{request.get_host()}"
     else:
         same_origin = site == "same-origin"
-    return HttpResponse(status=204) if same_origin else _not_found()
+    return HttpResponse(status=204) if same_origin else not_found()
 
 
 def _structural_change(
@@ -929,12 +928,12 @@ def _structural_change(
     bestand = BestandChooser.of(archive)
     match outcome:
         case Missing():
-            return _not_found()
+            return not_found()
         case Conflicted():
             try:
                 stored = archive.articles.load(ulid)
             except ArchiveError:
-                return _not_found()  # hard-deleted between the lost race and this re-load
+                return not_found()  # hard-deleted between the lost race and this re-load
             return EditSurface.of(stored.article, stored.version, bestand).render(
                 request, overlay=MediaError(_MEDIEN_KONFLIKT)
             )
@@ -976,7 +975,7 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
     Medienart; this returns just the chosen Medienart's options for an HTMX inner-swap."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "GET":
-        return _not_found()
+        return not_found()
     # htmx sends the <select name="media_type"> value under that name; accept ?medienart= too so the
     # endpoint is callable directly with the German param name.
     media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
