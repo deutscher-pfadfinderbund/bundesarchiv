@@ -38,6 +38,8 @@ background `until grep -q '^exit ' gate.log; do sleep 20; done` loop; foreground
 blocked.
 The background task itself always reports exit 0 (the trailing `echo` succeeds); the real result
 is the `exit N` line in the log.
+Truncate the log before each run (`: > gate.log`): a reused log still holds the last run's `exit`
+line, and the poll returns at once. `check` has no mypy; typing errors in tests first show in `gate`.
 
 In an isolated worktree, compound shell commands that contain git (a heredoc commit message,
 `cmd; git …`) are refused. Write the message to a file and commit with `git commit -F <file>`.
