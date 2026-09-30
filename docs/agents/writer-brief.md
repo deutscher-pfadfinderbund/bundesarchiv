@@ -94,6 +94,15 @@ specificity even with `:is(a, b)`, but check that the `:is()` matches the same e
 `.menu li > :is(button.link, form > button.link)` is not `.menu li > button.link, .menu li > form >
 button.link`.
 
+## Includes that inherit the page context
+
+An include without `only` sees the whole page context, so an optional param it tests
+(`{% if zurueck %}`) turns on when a page happens to use the same key. Give a page's own keys names
+no include takes, or pass the include `only` with its params.
+
+Controls that exist on every page (the header's tool panels) also match a non-strict Playwright
+selector first. Scope journey selectors to the region they act in (`main …`).
+
 ## An unexpected red is a STOP, not a patch site
 
 A gate, a test or a rule that breaks unexpectedly stops the line. Investigate how

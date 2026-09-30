@@ -218,6 +218,15 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
   part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
 
+### 24. Web view modules import each other in a cycle — Weak
+- **Indicator:** 1 function-local import (`viewers.render_screen` → the header panel builders),
+  2026-09-30.
+- **The pattern:** `catalog_views` imports `browse_views` and `collection_views` imports
+  `catalog_views`, so a module both of them reach (`viewers`) cannot import the panel builders
+  at module level. Wave REST U2 worked around it with one local import.
+- **Sketch:** move `_CardRow` and `FormPanel` into a leaf module that imports no view module;
+  do it when a second local import appears.
+
 ## Tests
 
 ### 12. Pre-existing e2e failures on main — done
