@@ -904,14 +904,12 @@
     text-decoration: underline;
   }
 
-  /* pointer devices: the tools and the unticked boxes show with their row, on hover or focus;
-     touch keeps them shown */
+  /* pointer devices: a row's tool shows with its row, on hover or focus; touch keeps it shown */
   @media (hover: hover) {
-    .ledger :is(td.titel > a ~ a, td.auswahl input:not(:checked)) {
+    .ledger td.titel > a ~ a {
       opacity: 0;
     }
-    .ledger tr:is(:hover, :focus-within) :is(td.titel > a ~ a, td.auswahl input),
-    .ledger:has(td.auswahl :checked) td.auswahl input {
+    .ledger tr:is(:hover, :focus-within) td.titel > a ~ a {
       opacity: 1;
     }
   }

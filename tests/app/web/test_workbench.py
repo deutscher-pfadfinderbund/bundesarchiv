@@ -796,18 +796,40 @@ def _form_fields(body: str) -> tuple[dict[str, set[str]], int]:
     return parser.fields, parser.nested
 
 
-def test_archivist_sees_bulk_checkbox_column(indexed_corpus: Corpus) -> None:
-    body = _get(Archivist()).content.decode()
+def _queries(body: str) -> list[dict[str, list[str]]]:
+    """Every in-page link's query, blank values kept: ``auswahl=`` alone is selection mode."""
+    hrefs = re.findall(r'href="\?([^"]*)"', body)
+    return [parse_qs(unescape(q), keep_blank_values=True) for q in hrefs]
+
+
+def test_the_archivist_list_has_no_selection_until_auswaehlen(indexed_corpus: Corpus) -> None:
+    body = _get(Archivist(), "q=fahrt").content.decode()
+    assert 'name="auswahl"' not in body
+    # "Auswählen" is the same search in selection mode
+    assert {"q": ["fahrt"], "auswahl": [""]} in _queries(body)
+
+
+def test_selection_mode_shows_the_selection_column(indexed_corpus: Corpus) -> None:
+    body = _get(Archivist(), "auswahl=").content.decode()
     assert 'name="auswahl"' in body
+    assert "/artikel/sammelbearbeitung" in _form_fields(body)[0]
 
 
-def test_public_never_gets_bulk_column(indexed_corpus: Corpus) -> None:
-    body = _get(Public()).content.decode()
+@pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
+@pytest.mark.parametrize("query", ["", "auswahl=", f"auswahl={PANE_PUB_ULID}"])
+def test_non_archivists_never_get_the_selection(
+    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch, viewer: Viewer, query: str
+) -> None:
+    # no column, no bulk form, no link into selection mode — a hand-crafted ?auswahl= included;
+    # one hit per page, so the pager's links are there to carry it
+    monkeypatch.setattr(browse, "PAGE_SIZE", 1)
+    body = _get(viewer, query).content.decode()
     assert 'name="auswahl"' not in body
     assert "/artikel/sammelbearbeitung" not in _form_fields(body)[0]
+    assert not [q for q in _queries(body) if "auswahl" in q]
 
 
-@pytest.mark.parametrize("query", ["", f"auswahl={PANE_PUB_ULID}"])
+@pytest.mark.parametrize("query", ["auswahl=", f"auswahl={PANE_PUB_ULID}"])
 def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_form(
     indexed_corpus: Corpus, query: str
 ) -> None:
@@ -819,13 +841,6 @@ def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_f
     assert "spalte" not in fields["/artikel/sammelbearbeitung"]
     assert {"spalte", "zurueck", "csrfmiddlewaretoken"} <= fields["/spalten"]
     assert not {"auswahl", "feld"} & fields["/spalten"]
-
-
-def test_with_no_selection_the_page_can_be_selected_without_js(indexed_corpus: Corpus) -> None:
-    body = _get(Archivist()).content.decode()
-    page_ulids = set(re.findall(r'name="auswahl" value="([^"]+)"', body))
-    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', body)]
-    assert page_ulids in [set(q.get("auswahl", [])) for q in queries]
 
 
 def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
@@ -848,16 +863,16 @@ def test_selection_survives_pagination_links(
     assert [q.get("auswahl") for q in queries] == [[PANE_PUB_ULID]] * 2
 
 
-def test_non_archivist_auswahl_param_is_ignored(indexed_corpus: Corpus) -> None:
-    # a Public viewer hand-crafting ?auswahl= gets no selection (defence-in-depth; the POST route
-    # is independently gated too)
-    body = _get(Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "/artikel/sammelbearbeitung" not in _form_fields(body)[0]
-    assert f'value="{PANE_PUB_ULID}" checked' not in body
+def test_paging_keeps_selection_mode_with_nothing_ticked(
+    indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(browse, "PAGE_SIZE", 2)
+    body = _get(Archivist(), "auswahl=&seite=2").content.decode()
+    pager = body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
+    assert [q.get("auswahl") for q in _queries(pager)] == [[""]] * 2
 
 
-def test_clearing_the_selection_keeps_the_active_search(indexed_corpus: Corpus) -> None:
-    # a bare "?" would wipe the search: the clear link is the same search without the selection
+def test_abbrechen_leaves_selection_mode_and_keeps_the_search(indexed_corpus: Corpus) -> None:
+    # a bare "?" would wipe the search: "Abbrechen" is the same search without the selection
     body = _get(Archivist(), f"q=fahrt&auswahl={PANE_PUB_ULID}").content.decode()
-    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', body)]
-    assert {"q": ["fahrt"]} in queries
+    assert {"q": ["fahrt"]} in _queries(body)

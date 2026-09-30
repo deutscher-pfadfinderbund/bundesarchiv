@@ -137,20 +137,16 @@
     }
   }
 
-  /* ---- the tool row's selection tools (a2 rounds 2 and 11): shown once a row is ticked (CSS, so
-     also without JS) or a URL-borne selection is set; catalog_bulk.js refines it by [hidden]. They
-     fill the row's start, which keeps "Spalten …" at the end edge. ---- */
+  /* ---- the tool row's selection tools: "Auswählen", or in selection mode "Abbrechen", the
+     count and "Feld ändern …" (owner 2026-09-30). They fill the row's start, which keeps
+     "Spalten …" at the end edge. ---- */
   .bulk {
-    display: none;
+    display: flex;
     flex: 1;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2) var(--space-4);
     font: var(--type-meta);
-  }
-  .bulk[data-bulk-gesetzt],
-  form:has(td.auswahl :checked) > [role="toolbar"] > .bulk {
-    display: flex;
   }
   .bulk > [role="status"] {
     color: var(--ink);

@@ -271,8 +271,9 @@ def page_query_with_auswahl(params: Mapping[str, str], auswahl: Sequence[str], p
 def select_page_query(
     params: Mapping[str, str], auswahl: Sequence[str], page_ulids: Sequence[str]
 ) -> str:
-    """The "Alle auf dieser Seite" link: the current state with this page's ulids ADDED to the
-    selection (deduped, order-preserving), staying on the current page (spec §2, no-JS select-page)."""
+    """A workbench query in selection mode: the current state with ``page_ulids`` ADDED to the
+    selection (deduped, order-preserving), staying on the current page (spec §2). The way back
+    from the bulk confirm and result pages."""
     merged = list(dict.fromkeys([*auswahl, *page_ulids]))
     pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
     pairs.extend((PARAM_AUSWAHL, u) for u in merged)

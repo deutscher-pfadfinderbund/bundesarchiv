@@ -34,7 +34,8 @@ then this index, in the same wave.
 | Reading-measure token (~65–70ch) for prose surfaces — enters with the wave that needs it | owner 2026-08-22 §Craft rulings |
 | Amber parks for Submission once gray ENTWURF lands (reserved, not licensed) | owner 2026-08-22 §Craft rulings |
 | Lifecycle mark = gray ENTWURF word (no amber, no box), all surfaces | pane-lifecycle-brief.md; owner 2026-08-22 — **lukewarm ("for now"), revisit candidate (G.20)** |
-| Quiet defaults stand: hover-revealed bulk boxes/row toolbars, self-hiding Sammelbearbeitung | owner 2026-08-07, reconfirmed 2026-08-22 |
+| Quiet defaults stand: hover-revealed row toolbars | owner 2026-08-07, reconfirmed 2026-08-22 |
+| Selection is a mode: "Auswählen" shows the checkbox column, "Abbrechen" leaves it (replaces the hover-revealed boxes and self-hiding Sammelbearbeitung) | owner 2026-09-30 |
 | Signatur presence budget: working data only (ledger, edit field, confirm identification); no chips/tabs/summaries; reader tab demoted to a fact row; bevel back to reserved | owner-interview 2026-08 §Signatur ruling 2026-08-29; review-law row 1 |
 
 ## Open queue — work through in this order

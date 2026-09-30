@@ -76,16 +76,19 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
     pane = _resolve_pane(request, is_archivist=is_archivist)
-    # Bulk-edit selection (archivist-only chrome, spec §2): the multi-valued ?auswahl= carries the
-    # selected ulids across pages. Non-archivists never get the selection column/bar, so their
-    # auswahl is dropped entirely (defence-in-depth — the POST route is independently gated too).
-    auswahl = request.GET.getlist(browse.PARAM_AUSWAHL) if is_archivist else []
+    # Bulk-edit selection (archivist-only chrome, spec §2): any ?auswahl= is selection mode
+    # ("Auswählen"; a bare ``auswahl=`` is the mode with nothing ticked), and its values carry the
+    # selected ulids across pages. Non-archivists never get the mode, so their auswahl is dropped
+    # entirely (defence-in-depth — the POST route is independently gated too).
+    waehlen = is_archivist and browse.PARAM_AUSWAHL in request.GET
+    auswahl = [u for u in request.GET.getlist(browse.PARAM_AUSWAHL) if u] if waehlen else []
     context = _results_context(
         request,
         parsed,
         page,
         is_archivist=is_archivist,
         selected_ulid=pane.ulid if pane is not None else None,
+        waehlen=waehlen,
         auswahl=auswahl,
     )
     context["is_archivist"] = is_archivist
@@ -253,6 +256,7 @@ def _results_context(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
+    waehlen: bool,
     auswahl: list[str],
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
@@ -262,10 +266,10 @@ def _results_context(
     chrome is a presentation gate off ``is_archivist``.
 
     ``artikel`` (pane) and ``auswahl`` (bulk selection) are STRIPPED from the link-building
-    ``params``: neither is search state, so no facet/sort link may carry them. The PAGINATION links
-    re-attach the full multi-valued ``auswahl`` (so paging never drops the selection), and the
-    "Alle auf dieser Seite" link appends this page's ulids — both via the auswahl-preserving
-    helpers. Pane selection is tracked separately via ``selected_ulid``."""
+    ``params``: neither is search state, so no facet/sort link may carry them. In selection mode
+    (``waehlen``) the PAGINATION links re-attach a bare ``auswahl=`` plus every selected ulid, so
+    paging keeps both the mode and the selection. Pane selection is tracked separately via
+    ``selected_ulid``."""
     params = {
         k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
     }
@@ -287,7 +291,7 @@ def _results_context(
             selected_ulid=selected_ulid,
             bestand=bestand,
         ),
-        "pager": _pager(parsed, page, params, auswahl) if total else None,
+        "pager": _pager(parsed, page, params, ["", *auswahl] if waehlen else []) if total else None,
         # "Spalten …" returns to this very list, pane and selection included
         "spalten_zurueck": request.GET.urlencode(),
         "total": vocab.count(total),
@@ -298,7 +302,7 @@ def _results_context(
     }
     context.update(_sentence(params, parsed, page, bestand, is_archivist=is_archivist))
     if is_archivist:
-        context.update(_bulk_bar_context(params, page, auswahl, bestand))
+        context.update(_bulk_bar_context(params, page, waehlen, auswahl, bestand))
     return context
 
 
@@ -356,37 +360,35 @@ def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
 def _bulk_bar_context(
     params: dict[str, str],
     page: SearchPage,
+    waehlen: bool,
     auswahl: list[str],
     bestand: BestandChooser,
 ) -> dict[str, object]:
-    """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11), archivist-only.
+    """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11, owner 2026-09-30),
+    archivist-only: "Auswählen" outside selection mode; in it "Abbrechen", the count and the Feld
+    chooser. Both links keep the search (params already exclude auswahl and artikel): a bare "?"
+    would wipe the filters.
 
-    The tools render whenever there are hits, so the NO-JS path reaches them: a tick shows them
-    (CSS), and "Alle auf dieser Seite" and the Feld chooser's submit need no prior selection.
-    ``has_auswahl`` keeps them shown for a URL-borne selection and gates the count, so an empty
-    selection shows no "0 ausgewählt"; catalog_bulk.js hides them while the live total is 0.
-
-    The client can only hide what it fully accounts for (learning G.25): ``auswahl_offpage_count``
-    is the part of the URL-borne selection that is NOT on this page, so the enhancement can add its
-    own live checkbox count to a number it cannot otherwise see.
+    The client adds its live checkbox count to ``auswahl_offpage_count``, the part of the URL-borne
+    selection NOT on this page, which it cannot otherwise see (learning G.25).
     """
     hits = page.hits
     if not hits:
         return {}
-    page_ulids = [h.ulid for h in hits]
-    on_page = set(page_ulids)
-    context: dict[str, object] = {
-        "has_auswahl": bool(auswahl),
+    search = [(k, v) for k, v in params.items() if v]
+    if not waehlen:
+        return {
+            "waehlen": False,
+            "auswaehlen_query": urlencode([*search, (browse.PARAM_AUSWAHL, "")]),
+        }
+    on_page = {h.ulid for h in hits}
+    return {
+        "waehlen": True,
+        "auswahl_count": len(auswahl),
         "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
-        "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
-        # the clear link drops the selection but KEEPS the search (params already exclude auswahl
-        # and artikel): a bare "?" would wipe the filters
-        "clear_auswahl_query": urlencode({k: v for k, v in params.items() if v}),
+        "abbrechen_query": urlencode(search),
         **bulk.feldwahl_context(bestand),
     }
-    if auswahl:
-        context["auswahl_count"] = len(auswahl)
-    return context
 
 
 def _sentence(

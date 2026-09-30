@@ -130,9 +130,11 @@ Journey: `test_loeschen_confirm_then_delete`.
 
 ## 5. Bulk edit (Sammelbearbeitung)
 
-Selection is URL-borne (`?auswahl=<ulid>&auswahl=…`) so it survives
-navigation and can be seeded by a link; DOM ticks are merged into the URL
-set as the archivist pages. One field + one value per pass.
+"Auswählen" turns on selection mode (`?auswahl=`, the checkbox column);
+"Abbrechen" leaves it and drops the selection. The selection is URL-borne
+(`?auswahl=<ulid>&auswahl=…`) so it survives navigation and can be seeded by
+a link; DOM ticks are merged into the URL set as the archivist pages. One
+field + one value per pass.
 
 ```mermaid
 flowchart TD

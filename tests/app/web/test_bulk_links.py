@@ -1,7 +1,7 @@
 """Auswahl (selection) query-string algebra for bulk edit (Sammelbearbeitung, spec §2/§3 no-JS).
 
 Selection is URL/form state: checkboxes name="auswahl"; pagination links must PRESERVE the
-multi-valued ?auswahl= across pages, and "Alle auf dieser Seite" appends the page's ulids. Pure
+multi-valued ?auswahl= across pages, and the way back from the bulk pages adds ulids to it. Pure
 query-string helpers in ``browse`` (IO-free, unit-tested) so the no-JS baseline persists selection
 with zero server-side session state.
 """
@@ -25,9 +25,7 @@ def test_page_query_with_empty_auswahl_omits_it() -> None:
 
 
 def test_select_page_query_appends_page_ulids_deduped() -> None:
-    # "Alle auf dieser Seite" adds this page's ulids to the existing selection, no duplicates, and
-    # resets the page param (the selection changed, page 1 is honest — actually selection is not a
-    # filter, but we keep the current page so the archivist stays where they are). Order preserved.
+    # the ulids join the existing selection, no duplicates, order preserved; the page stays
     q = browse.select_page_query({"seite": "3"}, ["01A"], ["01A", "01B", "01C"])
     parsed = parse_qs(q)
     assert parsed["auswahl"] == ["01A", "01B", "01C"]  # 01A not duplicated

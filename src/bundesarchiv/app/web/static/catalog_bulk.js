@@ -1,14 +1,9 @@
 // Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
-// baseline works without it (page-select is the "Alle auf dieser Seite" link; the tool row's
-// selection tools show on a tick via CSS, and for a URL-borne selection from the server; paging
-// carries the URL-borne selection, so fresh ticks need a submit first — this file lifts that
-// limit, GH #22). It keeps the live count and hides the selection tools via [hidden] while the
-// TOTAL selection is 0: the live checkboxes here PLUS the off-page URL-borne selection the server
-// hands over in data-bulk-offpage (learning G.25 — an enhancement may only hide what it can
-// account for). Hiding rides the modes-layer `[hidden] { display: none !important }` rule, so no
-// display rule can ever make the hidden tools intercept clicks (the recorded regression class).
-// Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded separately) handles the
-// dependent-Dokumenttyp swap.
+// baseline works without it (selection mode is the ?auswahl= URL; paging carries the URL-borne
+// selection, so fresh ticks need a submit first — this file lifts that limit, GH #22). It keeps
+// the live count: the live checkboxes here PLUS the off-page URL-borne selection the server hands
+// over in data-bulk-offpage (learning G.25). Self-contained, same-origin, no framework (dormancy
+// rule). HTMX (loaded separately) handles the dependent-Dokumenttyp swap.
 (() => {
   "use strict";
 
@@ -46,32 +41,29 @@
       rewriteSelectionLinks();
     });
 
-    // The count target [data-bulk-zahl] is always in the DOM. Empty text at zero keeps
-    // signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may restructure
-    // freely as long as it keeps the hook. The same count drives the tools' visibility.
+    // The count target [data-bulk-zahl] is always in the DOM in selection mode. Empty text at
+    // zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may
+    // restructure freely as long as it keeps the hook.
     //
     // The TOTAL is this page's live checkboxes PLUS the off-page part of the URL-borne selection
     // (data-bulk-offpage, from the server). Both halves matter: on THIS page the live checkbox
     // state supersedes the URL (fresh ticks/unticks count immediately, GH #22), while the
-    // selection on other pages is invisible to the DOM and can only come from the server. An
-    // enhancement may only hide what it accounts for (learning G.25) — counting the boxes alone
-    // hid a live cross-page selection and stranded the archivist on page 2.
+    // selection on other pages is invisible to the DOM and can only come from the server: a
+    // count of the boxes alone would drop a live cross-page selection (learning G.25).
     function updateCount() {
       const zahl = form.querySelector("[data-bulk-zahl]");
       const bulk = form.querySelector("[data-bulk-offpage]");
       const offPage = bulk ? Number.parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
       const n = offPage + rowBoxes().filter((b) => b.checked).length;
       zahl.textContent = n > 0 ? `${n} ausgewählt` : "";
-      if (bulk) {
-        bulk.hidden = n === 0;
-      }
     }
 
     // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
-    // links + "Alle auf dieser Seite" on every change, so unsubmitted ticks/unticks survive paging
-    // while the URL stays the canonical shareable state. Per link, from its own href: drop this
-    // page's ulids from ?auswahl= (fresh unticks stick), keep the rest (other pages' selections),
-    // append the added set. "Auswahl aufheben" is NEVER rewritten — its purpose is clearing.
+    // links on every change, so unsubmitted ticks/unticks survive paging while the URL stays the
+    // canonical shareable state. Per link, from its own href: drop this page's ulids from
+    // ?auswahl= (fresh unticks stick), keep the rest (other pages' selections and the bare
+    // auswahl= that keeps selection mode), append the added set. "Abbrechen" is NEVER rewritten —
+    // its purpose is leaving the mode.
     function rewriteSelectionLinks() {
       const boxes = rowBoxes();
       const pageUlids = boxes.map((b) => b.value);
@@ -81,12 +73,6 @@
       Array.prototype.forEach.call(pagers, (link) => {
         rewriteAuswahl(link, pageUlids, checked);
       });
-      // "Alle auf dieser Seite" re-adds the FULL page set (checked ⊆ page, which the union
-      // absorbs), so it keeps meaning "current selection ∪ this page" — never shrunk.
-      const alleLink = form.querySelector("[data-bulk-alle]");
-      if (alleLink) {
-        rewriteAuswahl(alleLink, pageUlids, pageUlids);
-      }
     }
 
     // Rewrite ONLY the auswahl params of one link, from its own href: every non-auswahl param
@@ -104,8 +90,7 @@
     }
 
     // Fold once at wire time too: back/forward navigation restores checkbox state without firing
-    // change events, and the server-rendered links only carry the URL-borne selection. The count
-    // sync doubles as the initial visibility verdict (hide the server-rendered tools at 0).
+    // change events, and the server-rendered links only carry the URL-borne selection.
     updateCount();
     rewriteSelectionLinks();
   }

@@ -300,7 +300,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Field | `.field` | `workbench/_feld` + standalone forms | `components.css` field |
 | Panel | `.panel` | inline (confirm pages, the Bestand form's CAS conflict) | `forms.css` panel |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
-| Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: the count, its ×, "Feld ändern …") | `layouts.css` selection tools |
+| Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |
 | Search sentence | `.search-sentence` | `workbench/_suchsatz`, `_filterset` | `layouts.css` search sentence |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |

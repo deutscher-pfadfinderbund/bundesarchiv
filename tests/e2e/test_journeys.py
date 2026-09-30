@@ -1272,16 +1272,13 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The cold start: with NO selection the tool row's selection tools are hidden. The first
-    # tick reveals them with the live count → "Feld ändern …" → choose a field → Änderung prüfen
-    # posts the checked boxes → confirm → apply.
+    # The cold start: no checkbox column until "Auswählen" turns selection mode on. Ticks move the
+    # live count → "Feld ändern …" → choose a field → Änderung prüfen posts the checked boxes →
+    # confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator(".bulk")).to_be_hidden()  # cold: no selection, no affordance
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    expect(page.locator(".bulk")).to_be_visible()  # revealed on the first tick
-    # unticking back to zero hides it again — the visibility tracks the live count both ways
-    page.uncheck(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    expect(page.locator(".bulk")).to_be_hidden()
+    expect(page.locator('input[name="auswahl"]')).to_have_count(0)
+    page.get_by_role("link", name="Auswählen").click()
+    page.wait_for_url("**auswahl=**")
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
@@ -1322,9 +1319,8 @@ def test_bulk_url_seeded_selection_still_works(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The pagination-persistence path: a selection seeded in the URL (?auswahl=) still renders the
-    # bar with the count + confirm flow — and the JS wire-time sync must KEEP it visible (count
-    # ≥ 1), it only hides at zero. Cheap second assertion so the fix doesn't regress it.
+    # The pagination-persistence path: a selection seeded in the URL (?auswahl=) renders the
+    # selection mode with the count + confirm flow.
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
@@ -1346,7 +1342,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     # (the same htmx instance). (Under htmx 2 the restore came from a localStorage snapshot that
     # carried the enhancement's stale leftovers — the defect this journey was born from.)
     page = archivist_page
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + "/?auswahl=")
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()
@@ -1360,7 +1356,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the restored page states the URL's selection (none), never the snapshot's stale count
     expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
-    expect(page.locator(".bulk")).to_be_hidden()
+    expect(page.get_by_text("ausgewählt")).to_have_count(0)
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
@@ -1415,8 +1411,8 @@ def test_bulk_fresh_ticks_survive_paging(
     django_db_blocker: DjangoDbBlocker,
 ) -> None:
     # GH #22: UNSUBMITTED ticks/unticks must survive paging. catalog_bulk.js folds the live checkbox
-    # state into the prev/next + "Alle auf dieser Seite" links on every change, so the URL stays the
-    # canonical shareable state — the landed page renders exactly as a cold visit to it would.
+    # state into the prev/next links on every change, so the URL stays the canonical shareable
+    # state — the landed page renders exactly as a cold visit to it would.
     _seed_second_page(_e2e_root, django_db_blocker)
     page = archivist_page
     # land with a URL-seeded selection (the no-JS-persisted baseline state)
@@ -1426,9 +1422,9 @@ def test_bulk_fresh_ticks_survive_paging(
     # a fresh tick + a fresh UNTICK of the URL-seeded item — both unsubmitted, DOM-only
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     seeded.uncheck()
-    # "Auswahl aufheben" is NEVER rewritten — its purpose is clearing the selection
-    aufheben_href = page.get_by_role("link", name="Auswahl aufheben").get_attribute("href")
-    assert "auswahl" not in (aufheben_href or "")
+    # "Abbrechen" is NEVER rewritten — its purpose is leaving selection mode
+    abbrechen_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
+    assert "auswahl" not in (abbrechen_href or "")
     page.click('a[rel="next"]')
     page.wait_for_url("**seite=2**")
     # the URL carries the fresh state: the tick travelled, the untick stuck
@@ -1436,10 +1432,8 @@ def test_bulk_fresh_ticks_survive_paging(
     assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
     # ...and the archivist can SEE it here. Learning G.25: the progressive-visibility JS counted
     # only THIS page's checkboxes, so an off-page selection (nothing ticked on page 2) was hidden
-    # at wire time — the server rendered "1 ausgewählt" + Auswahl aufheben and the client took the
-    # whole disclosure away, stranding the selection. Asserted BEFORE any tick on this page.
+    # at wire time, stranding the selection. Asserted BEFORE any tick on this page.
     expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # none of it is here
-    expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
     page2_box = page.locator('input[name="auswahl"]').first
@@ -1455,11 +1449,10 @@ def test_bulk_fresh_ticks_survive_paging(
     ).not_to_be_checked()
     assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
-    # the cross-page selection stays CLEARABLE from either page (the other half of G.25: an
-    # affordance the client hid could not be used) — one link drops both pages' ulids
-    page.get_by_role("link", name="Auswahl aufheben").click()
-    expect(page.locator(".bulk")).to_be_hidden()  # nothing selected anywhere → hidden again
-    assert not _auswahl_in_url(page)
+    # "Abbrechen" leaves selection mode from either page and drops both pages' ulids
+    page.get_by_role("link", name="Abbrechen").click()
+    expect(page.locator('input[name="auswahl"]')).to_have_count(0)
+    assert "auswahl" not in urlparse(page.url).query
 
 
 # --- edit form guards ----------------------------------------------------------------
@@ -1608,15 +1601,13 @@ def test_no_js_bulk_flow_completes(
     no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = no_js_archivist_page
-    # The no-JS half: with JavaScript OFF a tick still shows the selection tools (CSS), so the
-    # archivist reaches "Alle auf dieser Seite" — the URL-borne selection path — and completes the
-    # whole bulk flow: tick → page-select → "Feld ändern …" → choose a field → prüfen → anwenden.
+    # The no-JS half: with JavaScript OFF "Auswählen" is a plain link into selection mode, and the
+    # archivist completes the whole bulk flow: Auswählen → tick → "Feld ändern …" → choose a field
+    # → prüfen → anwenden.
     page.goto(live_workbench + "/")
-    expect(page.locator(".bulk")).to_be_hidden()
+    page.get_by_role("link", name="Auswählen").click()
+    page.wait_for_url("**auswahl=**")  # selection mode is URL state
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    page.click('a:has-text("Alle auf dieser Seite")')
-    page.wait_for_url("**auswahl=**")  # the selection is URL state now
-    expect(page.locator(".bulk")).to_be_visible()
     page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")

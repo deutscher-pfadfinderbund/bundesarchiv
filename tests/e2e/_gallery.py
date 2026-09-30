@@ -202,14 +202,22 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "workbench-bulk-cold",
-        "workbench cold (no selection): the tool row holds only 'Spalten …' (the selection tools"
-        " show once a row is ticked; that absence is the point of the shot)",
+        "workbench cold (no selection mode): 'Auswählen' at the tool row's start, no checkbox"
+        " column, so the titles align with the sentence",
         True,
         _goto("/"),
     ),
     GalleryState(
+        "workbench-waehlen",
+        "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
+        " checkbox column with its select-all head",
+        True,
+        _goto("/?auswahl="),
+    ),
+    GalleryState(
         "workbench-auswahl",
-        "workbench, two rows picked: the count, its clearing x and the tools at the tool row's start",
+        "workbench, two rows picked: 'Abbrechen', the count and 'Feld ändern …' at the tool row's"
+        " start",
         True,
         _reach_auswahl,
     ),
