@@ -1,18 +1,7 @@
-"""The bulk-edit (Sammelbearbeitung) confirm + commit view (spec §2 D/R, §4, §6).
+"""The bulk-edit (Sammelbearbeitung) check and commit route (spec §2 D/R, §4, §6).
 
-ONE POST route, ``/artikel/sammelbearbeitung`` (archivist-gated, POST-only → byte-identical 404
-otherwise). Two phases in one handler (confirm-always, spec §0.1):
-
-- WITHOUT ``bestaetigt=1``: validate the selection + field + value, then render the full-page CONFIRM
-  (state D) — the new value once, each article with the value it loses; a Medienart change that
-  orphans Dokumenttypen also names each one cleared and requires ``dokumenttyp_leeren=1`` on commit.
-  A validation failure re-renders the ledger's drawer with the verbatim error, selection preserved.
-- WITH ``bestaetigt=1``: run ``bulk.apply_bulk`` (the ONE bulk Conflict catch) and render the
-  full-page RESULT (state R) — saved count + actionable conflict/missing rows.
-
-Zero server-side session state: the selection rides as hidden ``auswahl`` inputs from the confirm
-page into the commit hop. Every deny/invalid shape yields the least-visible output (spec §6): a
-non-archivist gets the media 404; an unknown ``feld`` / empty selection / bad value mutates nothing.
+``/artikel/sammelbearbeitung`` checks first and commits only with ``bestaetigt=1`` (spec §0.1). No
+server-side session state: the selection rides as hidden ``auswahl`` inputs into the commit.
 """
 
 from django.http import HttpRequest
@@ -85,10 +74,7 @@ def _distinct_valid_ulids(raw: list[str]) -> list[str]:
 def _validate(
     auswahl: list[str], feld: str, archive: Archive, bestand: BestandChooser, wert: str
 ) -> str | None:
-    """Return the verbatim German error for an invalid apply, or ``None`` if it may proceed. Order:
-    selection present → field chosen + allowed → value-level (collection in set; Dokumenttyp-alone
-    fits every article's current Medienart). Fail-closed: an unknown field is refused (zero mutation).
-    """
+    """The verbatim German refusal of an apply, or ``None`` when it may proceed."""
     if not auswahl:
         return "Keine Artikel ausgewählt."
     if not feld or not bulk.is_allowed_field(feld):
@@ -115,9 +101,8 @@ def _confirm(
     feld: str,
     wert: str,
 ) -> HttpResponseBase:
-    """Render the full-page confirm (state D). Loads each selected article (read-only) for its row —
-    c-sig, Titel, the value it loses — and to detect Medienart orphans. Absent articles are silently
-    skipped from the list (they will bucket ``missing`` on commit) — no deleted-vs-never oracle."""
+    """The check page (state D). An absent article is left out; the commit buckets it ``missing``, so
+    the page reveals nothing about why it is gone."""
     articles = _load_all(archive, auswahl)
     orphans = {a.ulid for a in _orphans(articles, feld, wert)}
     return render_screen(
@@ -157,10 +142,8 @@ def _commit(
     wert: str,
     changed_by: str,
 ) -> HttpResponseBase:
-    """Run the apply (state R). If the Medienart change orphans any Dokumenttyp, the commit REQUIRES
-    ``dokumenttyp_leeren=1`` (server-enforced, geprueft-idiom) — a missing flag re-confirms without
-    writing. Otherwise ``bulk.apply_bulk`` runs and the result page renders. The orphan pre-check
-    loads only for a media_type apply (the only field that can orphan) — every other field skips it."""
+    """The commit and its result page (state R). A Medienart change that clears a Dokumenttyp needs
+    ``dokumenttyp_leeren=1``; without it the check page comes back and nothing is written."""
     if (
         feld == "media_type"
         and request.POST.get("dokumenttyp_leeren") != "1"
@@ -194,17 +177,8 @@ def _reject(
     wert: str,
     error: str,
 ) -> HttpResponseBase:
-    """A validation failure (spec §2 C): re-render the confirm page in ERROR mode — the shared Feld
-    chooser (``bulk.feldwahl_context``: the chosen field pre-selected, the submitted wert re-echoed
-    into its widget verbatim — even when invalid) with the verbatim error as a c-field-fehler, and the
-    selection carried as hidden ``auswahl`` inputs. The archivist fixes the field/value and
-    re-submits from here — the selection is never lost, and the back-link to the ledger also carries
-    ?auswahl= so leaving doesn't drop it either.
-
-    (Not the full ledger+drawer in-context: the confirm POST does not carry the search query, so a
-    ledger re-render would silently drop the archivist's filter and might not show the selected rows
-    — the gate's MIN variant. This keeps the drawer + selection + verbatim error, which is the
-    spec-§2-C intent, without that entanglement.)"""
+    """A refused apply (spec §2 C): the check page with the Feld chooser, what was sent and the
+    selection kept. Not the list: this POST does not carry the search query."""
     return render_screen(
         request,
         "workbench/sammelbearbeitung_pruefen.html",

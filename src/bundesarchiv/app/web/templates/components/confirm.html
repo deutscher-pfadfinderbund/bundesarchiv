@@ -1,8 +1,6 @@
 {% comment %}
-A confirm as a tool panel, opened by the button right before it: its sentences, the one button that
-commits (tone: its role class), and the version it was shown for. in_place: a refusal comes back as
-this partial and is swapped in place (catalog_views.article_delete).
-Params: id, action, lead, consequence, button, tone, version, veraltet, in_place.
+Params: id, action, lead, consequence, button, tone (the button's role class), version, veraltet,
+in_place (a refusal swaps in as this partial).
 {% endcomment %}
 <form class="toolpanel" id="{{ id }}" popover method="post" action="{{ action }}"{% if in_place %}
       hx-post="{{ action }}" hx-target="this" hx-select="form > *" hx-swap="innerHTML"{% endif %}>

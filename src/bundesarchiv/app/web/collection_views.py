@@ -173,11 +173,9 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /bestand/<ulid>/bearbeiten`` — rename a Bestand. SLIM: the Name field ONLY; parent
     + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
     visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
-    absent ulid all collapse to the byte-identical 404. POST saves the renamed Collection under CAS
-    at the form's hidden ``expected_version`` (parity with the article form, ADR 0013) — never the
-    POST-time stored version, which would let a rename that raced another rename silently win (lost
-    update). ``save_collection`` reindexes the subtree so the new name is live in facets; a blank
-    Name re-renders with the verbatim error, unchanged."""
+    absent ulid all collapse to the byte-identical 404. POST saves against the form's
+    ``expected_version`` (ADR 0013). ``save_collection`` reindexes the subtree so the new name is live
+    in facets; a blank Name re-renders with the verbatim error, unchanged."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return _not_found()
@@ -202,9 +200,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                 changed_by=archivist.username,
             )
         except Conflict:
-            # A concurrent rename won between GET and POST (ADR 0013). Re-load for the fresh version +
-            # winner name, re-render the "Inzwischen geändert" panel with the just-submitted name
-            # preserved (parity with the article form) — never a 500 (security LOW).
+            # ADR 0013: show the winner, the submitted name kept
             winner = archive.collections.load(ulid)
             return _render_edit(
                 request,
@@ -261,11 +257,9 @@ def _edit_panel(
     conflict_name: str | None = None,
 ) -> FormPanel:
     """The rename form, page and tool panel alike: the editable Name (preserved on re-render) + the
-    READ-ONLY parent name + Sichtbarkeit label as facts (this slice edits neither). Autofocus on Name.
-    ``version`` seeds the hidden ``expected_version`` (parity with the article form, ADR 0013) — on
-    the normal path the version just loaded; on a Conflict re-render, the winner's fresh version, so
-    the next Speichern targets the current state instead of racing again. ``conflict_name`` (the
-    winner's name after a racing rename) drives the conflict notice — None on the normal path."""
+    READ-ONLY parent name + Sichtbarkeit label as facts (this slice edits neither). ``version`` is the
+    one the form saves against (ADR 0013); ``conflict_name``, the winner's name, shows the conflict
+    notice."""
     collection = stored.collection
     return FormPanel(
         id="bestand-bearbeiten",
