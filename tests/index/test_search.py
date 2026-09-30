@@ -267,7 +267,7 @@ def test_sort_date_ascending_nulls_last(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_facet_keys_are_exactly_the_five(corpus: None) -> None:
+def test_facet_keys_are_exactly_the_six(corpus: None) -> None:
     page = search(PUBLIC)
     assert set(page.facets.keys()) == {
         "collection",
@@ -275,6 +275,7 @@ def test_facet_keys_are_exactly_the_five(corpus: None) -> None:
         "document_type",
         "tags",
         "decades",
+        "file_kind",
     }
 
 
