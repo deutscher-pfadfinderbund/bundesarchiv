@@ -446,6 +446,8 @@ class EditSurface:
                     ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
+                "loeschen": vocab.delete_confirm(len(self.stored.media), discard=False),
+                "verwerfen": vocab.delete_confirm(len(self.stored.media), discard=True),
                 "crumbs": _crumbs(self.stored, self.bestand),
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,

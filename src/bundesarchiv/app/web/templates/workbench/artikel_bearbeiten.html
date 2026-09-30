@@ -50,10 +50,10 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
             <button class="link" type="submit">Duplizieren</button>
           </form>
         </li>
-        <li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}">Löschen</a></li>
-        {% comment %}Verwerfen is drafts-only and routes through the same confirm page: the
-        destructive idiom lives on its own page, never inline (spec §7).{% endcomment %}
-        {% if values.is_draft %}<li><a class="danger" href="{% url 'artikel-loeschen' values.ulid %}?verwerfen=1">Verwerfen</a></li>{% endif %}
+        {% url 'artikel-loeschen' values.ulid as loeschen_href %}
+        <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "workbench/_loeschen.html" with id="loeschen" action=loeschen_href confirm=loeschen veraltet="" %}</li>
+        {% comment %}Verwerfen is drafts-only: the same delete, worded for a draft given up (spec §7).{% endcomment %}
+        {% if values.is_draft %}<li><button class="link danger" type="button" popovertarget="verwerfen">Verwerfen …</button>{% include "workbench/_loeschen.html" with id="verwerfen" action=loeschen_href|add:"?verwerfen=1" confirm=verwerfen veraltet="" %}</li>{% endif %}
       </ul>
     </div>
   </aside>

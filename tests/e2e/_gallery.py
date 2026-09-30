@@ -106,6 +106,11 @@ def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.click(".record-meta .menu-button")
 
 
+def _reach_edit_verwerfen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    _reach_edit_mehr_open(page, base, corpus)
+    page.click('[popovertarget="verwerfen"]')
+
+
 def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
@@ -241,6 +246,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, the margin's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
         True,
         _reach_edit_mehr_open,
+    ),
+    GalleryState(
+        "edit-verwerfen-open",
+        "the edit surface, a draft's Verwerfen confirm open from 'Mehr …' (the margin's own panel)",
+        True,
+        _reach_edit_verwerfen_open,
     ),
     GalleryState(
         "detail-aktionen-open",

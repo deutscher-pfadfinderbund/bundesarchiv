@@ -185,6 +185,19 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
         corpus.articles.load(PUBLISHED_ULID)
 
 
+def test_the_edit_forms_confirms_delete_against_the_saved_version(corpus: Corpus) -> None:
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{DRAFT_ULID}/bearbeiten").content.decode()
+    forms = _delete_forms(body, DRAFT_ULID)
+    version = str(corpus.articles.load(DRAFT_ULID).version)
+    assert forms
+    assert {fields["expected_version"] for _, fields in forms} == {version}
+    action, fields = forms[-1]
+    assert client.post(action, fields).status_code == 302
+    with pytest.raises(NotFound):
+        corpus.articles.load(DRAFT_ULID)
+
+
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 @pytest.mark.parametrize("method", ["get", "post"])
 def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: str) -> None:

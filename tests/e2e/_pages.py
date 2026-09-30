@@ -224,11 +224,11 @@ SCREENS: tuple[Screen, ...] = (
     ),
     Screen(
         "edit-form",
-        "the edit surface (a draft)",
+        "the edit surface (a draft: the Löschen and Verwerfen confirms in 'Mehr …')",
         True,
         _goto(lambda c: f"/artikel/{c.draft_ulid}/bearbeiten"),
         "artikel-bearbeiten",
-        overlays=2,
+        overlays=4,
         control_rows=("header", "div.record-meta-actions"),
     ),
     # The PUBLISHED record's edit surface is the only screen carrying MEDIA — so it is the only one
@@ -240,7 +240,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/artikel/{c.published_ulid}/bearbeiten"),
         "artikel-bearbeiten",
-        overlays=2,
+        overlays=3,
         control_rows=("header", "div.record-meta-actions", "span.file-row-tools[toolbar]"),
     ),
     Screen(
