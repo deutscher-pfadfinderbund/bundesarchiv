@@ -37,6 +37,8 @@ PARAM_DECADE = "jahrzehnt"
 PARAM_DATELESS = "ohne_datum"
 PARAM_DATE_FROM = "von"
 PARAM_DATE_TO = "bis"
+PARAM_DIGITAL = "digital"
+PARAM_DRAFTS = "entwuerfe"
 PARAM_SORT = "sortierung"
 PARAM_PAGE = "seite"
 
@@ -53,6 +55,8 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_DATELESS,
         PARAM_DATE_FROM,
         PARAM_DATE_TO,
+        PARAM_DIGITAL,
+        PARAM_DRAFTS,
         PARAM_SORT,
         PARAM_PAGE,
     }
@@ -73,7 +77,8 @@ _SORT_BY_LABEL: dict[str, SortOrder] = {
 }
 _DEFAULT_SORT: SortOrder = "relevance"
 
-#: Truthy spellings for the boolean "Ohne Datum" toggle. Anything else (incl. absence) is False.
+#: Truthy spellings for the boolean toggles (Ohne Datum, Digital, Entwürfe). Anything else (incl.
+#: absence) is False.
 _TRUTHY = frozenset({"1", "true", "ja", "on"})
 
 
@@ -129,6 +134,8 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
             date_from=_date_or_none(params.get(PARAM_DATE_FROM)),
             date_to=_date_or_none(params.get(PARAM_DATE_TO)),
             dateless=_truthy(params.get(PARAM_DATELESS)),
+            has_files=_truthy(params.get(PARAM_DIGITAL)),
+            drafts_only=_truthy(params.get(PARAM_DRAFTS)),
         ),
         sort=sort,
         descending=descending,
@@ -174,7 +181,7 @@ def _date_or_none(raw: str | None) -> datetime.date | None:
 
 
 def _truthy(raw: str | None) -> bool:
-    """The "Ohne Datum" toggle: True for a known truthy spelling, else False (incl. absence)."""
+    """A toggle: True for a known truthy spelling, else False (incl. absence)."""
     return (raw or "").strip().lower() in _TRUTHY
 
 
@@ -228,6 +235,8 @@ FILTER_PARAMS: tuple[str, ...] = (
     PARAM_DATELESS,
     PARAM_DATE_FROM,
     PARAM_DATE_TO,
+    PARAM_DIGITAL,
+    PARAM_DRAFTS,
 )
 
 

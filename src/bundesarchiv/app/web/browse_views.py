@@ -18,7 +18,7 @@ Article, so archivist-only fields are floored before render — no member/archiv
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -41,7 +41,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.query import FacetCount, SearchPage, search
+from bundesarchiv.index.query import FacetCount, SearchFilters, SearchPage, search
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
@@ -401,16 +401,7 @@ def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
     """The Bestand ulid when the search's ONLY constraint is that collection (no text, no other
     facet) — else ``None``. Used to pick the Bestand-specific empty state over the generic one."""
     f = parsed.filters
-    others_empty = (
-        not parsed.text
-        and f.media_type is None
-        and f.document_type is None
-        and f.tag is None
-        and f.decade is None
-        and f.date_from is None
-        and f.date_to is None
-        and not f.dateless
-    )
+    others_empty = not parsed.text and replace(f, collection=None) == SearchFilters()
     return f.collection if f.collection is not None and others_empty else None
 
 

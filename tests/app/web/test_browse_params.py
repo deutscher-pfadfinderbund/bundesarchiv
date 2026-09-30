@@ -60,6 +60,12 @@ def test_ohne_datum_truthy_and_falsy() -> None:
     assert _parse().filters.dateless is False
 
 
+def test_the_digital_and_drafts_filters_are_toggles() -> None:
+    assert _parse(digital="1").filters.has_files is True
+    assert _parse(entwuerfe="1").filters.drafts_only is True
+    assert _parse(digital="0", entwuerfe="vielleicht").filters == SearchFilters()
+
+
 def test_date_bounds_parsed_from_von_bis() -> None:
     parsed = _parse(von="1965-01-01", bis="1972-12-31")
     assert parsed.filters.date_from == datetime.date(1965, 1, 1)

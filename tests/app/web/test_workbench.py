@@ -405,6 +405,32 @@ def test_ohne_datum_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
     assert "Öffentliches Foto" not in body  # a dated article is excluded
 
 
+def _listed(body: str) -> set[str]:
+    """The records a page links to (the corpus ulids are upper case, the create route is not)."""
+    return set(re.findall(r'href="/artikel/([0-9A-Z]+)"', body))
+
+
+def test_the_digital_filter_keeps_the_records_with_files(indexed_corpus: Corpus) -> None:
+    assert _listed(_get(Archivist(), "digital=1").content.decode()) == {PANE_PUB_ULID}
+
+
+def test_the_drafts_filter_answers_the_archivist_and_nobody_else(indexed_corpus: Corpus) -> None:
+    assert _listed(_get(Archivist(), "entwuerfe=1").content.decode()) == {"DRAFT"}
+    response = _get(Member(groups=()), "entwuerfe=1")
+    assert response.status_code == 200
+    assert _listed(response.content.decode()) == set()
+
+
+def test_a_bestand_empty_only_under_another_filter_is_not_an_empty_bestand(
+    indexed_corpus: Corpus,
+) -> None:
+    # "Noch keine Artikel in diesem Bestand" and its create link are for a Bestand with no record at
+    # all; AKTEN has records, just none with files.
+    body = _get(Archivist(), "bestand=AKTEN&digital=1").content.decode()
+    assert _listed(body) == set()
+    assert "/artikel/neu?bestand=AKTEN" not in body
+
+
 # --- facet click → filtered results + removable chip -----------------------------
 
 
