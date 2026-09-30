@@ -228,13 +228,16 @@ def test_read_version_rejects_a_non_integer_version() -> None:
 
 
 def test_deeply_nested_front_matter_surfaces_as_archive_error() -> None:
-    # Deeply-nested flow collections blow the stack inside yaml.safe_load (RecursionError, not a
-    # YAMLError subclass) — the codec must still contain it, from both decode and read_version.
+    # Corrupt or hostile nesting surfaces as ArchiveError. Past the loader's stack (libyaml: ~50k
+    # levels) it raises RecursionError, which is not a YAMLError subclass.
     nested = "---\nkey: " + "{" * 600 + "\n---\nbody"
     with pytest.raises(ArchiveError):
         readme.decode("x", nested)
     with pytest.raises(ArchiveError):
         readme.read_version("x", nested)
+    too_deep = "---\nkey: " + "[" * 100_000 + "\n---\nbody"
+    with pytest.raises(ArchiveError):
+        readme.decode("x", too_deep)
 
 
 # --- date / creator / subject_place -----------------------------------------------------------

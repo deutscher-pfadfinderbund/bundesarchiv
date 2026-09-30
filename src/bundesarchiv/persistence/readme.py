@@ -143,10 +143,10 @@ def _parse_front_matter(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
     # lines[close + 1:] reconstructs the body verbatim (a body may open with blank lines).
     body = "\n".join(lines[close + 1 :])
     try:
-        front_matter = yaml.safe_load("\n".join(lines[1:close]))
+        front_matter = yaml.load("\n".join(lines[1:close]), Loader=yaml.CSafeLoader)
     except (yaml.YAMLError, RecursionError) as exc:
         # RecursionError is NOT a yaml.YAMLError subclass: deeply-nested flow collections
-        # (a sub-1KB corrupt/hostile README) blow the stack inside safe_load — contain it too.
+        # (a corrupt/hostile README) blow the stack inside the loader — contain it too.
         raise ArchiveError(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
     if not isinstance(front_matter, dict):
         raise ArchiveError(f"{ulid}: README front-matter is not a mapping")

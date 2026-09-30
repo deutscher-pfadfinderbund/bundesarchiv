@@ -88,7 +88,7 @@ def _parse_front_matter(ulid: Ulid, text: str) -> dict[str, Any]:
     except ValueError:
         raise ArchiveError(f"{ulid}: README front-matter is unterminated") from None
     try:
-        front_matter = yaml.safe_load("\n".join(lines[1:close]))
+        front_matter = yaml.load("\n".join(lines[1:close]), Loader=yaml.CSafeLoader)
     except (yaml.YAMLError, RecursionError) as exc:
         raise ArchiveError(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
     if not isinstance(front_matter, dict):
