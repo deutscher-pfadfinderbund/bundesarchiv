@@ -23,6 +23,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A brief that cuts an **import cycle** lists the whole chain it has to cut, traced in the code (Wave
   REST simplify: moving `FormPanel` alone left the cycle; the field registry had to move too).
 - A finding about **browser behaviour names the platform where it fails** (a focus bug that only Safari shows passed every Chromium pin until the journey reproduced Safari's path). A fix that adds native `required` or other validation lists the tests and gallery states that submit empty fields.
+- A brief built on a ruling **greps `docs/requirements/` for every later ruling on the same subject** first (the door brief cited the 2026-08-22 ruling and missed the 2026-09-26/27 ones that superseded two of its points; the writer caught it).
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
