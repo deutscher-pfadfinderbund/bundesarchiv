@@ -2,8 +2,8 @@
 
 A design gate / an owner phone review wants ONE folder of screenshots that always shows the same
 states in the same order — not a hand-driven click-through. This module is that: a list of named
-``GalleryState``s (a state = how to reach it in a real browser + what to shoot), plus ``render_all``
-which drives each one twice (light + dark ``prefers-color-scheme``) and writes ``<name>.<mode>.png``.
+``GalleryState``s (a state = how to reach it in a real browser + what to shoot), plus ``render_state``
+which drives one state in both color modes and each width (``prefers-color-scheme``) and writes ``<name>.<mode>.png``.
 
 It reuses the E2E stack (live server + Postgres index + the cached chromium) so a shot is the REAL
 page, byte-for-byte what ships — not a static mock. The GET-renderable states come from THE screen
@@ -382,41 +382,36 @@ def gallery_dir() -> Path:
     return Path(os.environ.get("BUNDESARCHIV_GALLERY_DIR") or default)
 
 
-def render_all(
+def render_state(
     browser: Browser,
     base_url: str,
     corpus: CorpusHandles,
     archivist_cookie: dict[str, object],
+    state: GalleryState,
     out_dir: Path | None = None,
 ) -> list[Path]:
-    """Render every canonical state to ``out_dir`` (default ``gallery_dir()``), at each ``WIDTHS``
-    width in both color modes. One full-page PNG per (state, mode, width), named
-    ``<state>.<mode>.<width>.png`` (stable so a review brief can reference a shot). Returns the paths.
+    """Render one state to ``out_dir`` (default ``gallery_dir()``), at each ``WIDTHS`` width in both
+    color modes. One full-page PNG per (mode, width), named ``<state>.<mode>.<width>.png`` (stable
+    so a review brief can reference a shot). Returns the paths.
 
-    Shots are grouped by (mode, width, needs-cookie) so one browser context opens per group — a
-    context fixes the color scheme + viewport + cookie — and every same-group state reuses its page
-    via a fresh navigate, rather than spinning up a context per shot."""
+    A context fixes the color scheme + viewport + cookie, so each shot gets its own; a reach that
+    raises fails this state alone (the context is closed either way)."""
     out = out_dir if out_dir is not None else gallery_dir()
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for mode in MODES:
         for width in WIDTHS:
-            for archivist in (True, False):
-                group = [s for s in STATES if s.archivist == archivist]
-                if not group:
-                    continue
-                context = browser.new_context(
-                    color_scheme=mode, viewport={"width": width, "height": 900}
-                )
-                if archivist:
+            context = browser.new_context(
+                color_scheme=mode, viewport={"width": width, "height": 900}
+            )
+            try:
+                if state.archivist:
                     context.add_cookies([archivist_cookie])  # type: ignore[list-item]
                 page = context.new_page()
-                try:
-                    for state in group:
-                        state.reach(page, base_url, corpus)
-                        target = out / f"{state.name}.{mode}.{width}.png"
-                        page.screenshot(path=str(target), full_page=True)
-                        written.append(target)
-                finally:
-                    context.close()
+                state.reach(page, base_url, corpus)
+                target = out / f"{state.name}.{mode}.{width}.png"
+                page.screenshot(path=str(target), full_page=True)
+                written.append(target)
+            finally:
+                context.close()
     return written
