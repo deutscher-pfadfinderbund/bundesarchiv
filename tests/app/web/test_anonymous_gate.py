@@ -1,4 +1,4 @@
-"""The anonymous gate (ADR 0018): unauthenticated requests are redirected, not answered.
+"""The anonymous gate (ADR 0018): an unauthenticated request gets the door, never the content.
 
 The gate is OFF in the web suite's standard settings (``_fixtures.settings_for``) because dev and
 the browser suites browse anonymously through the dev switcher — so every test here turns it ON
@@ -10,9 +10,8 @@ from collections.abc import Iterator
 
 import pytest
 from django.contrib.staticfiles.storage import staticfiles_storage
-from django.http.response import HttpResponseBase
 from django.test import Client, override_settings
-from tests.app.web._asserts import assert_login_target
+from tests.app.web._asserts import assert_door, assert_login_target
 from tests.app.web._fixtures import PUBLISHED_ULID, Corpus, client_as
 
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -25,39 +24,46 @@ def gated(corpus: Corpus) -> Iterator[Corpus]:
         yield corpus
 
 
-def _expect_login(response: HttpResponseBase, path: str) -> None:
-    assert response.status_code == 302, f"{path}: expected a redirect"
-    assert_login_target(response["Location"], path)
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/",
-        "/?q=sommer&seite=2",
-        f"/artikel/{PUBLISHED_ULID}",
-        "/artikel/does-not-exist",
-        "/artikel/neu",
-        "/nichts-dergleichen",
-    ],
+_PATHS = (
+    "/",
+    "/?q=sommer&seite=2",
+    f"/artikel/{PUBLISHED_ULID}",
+    "/artikel/does-not-exist",
+    "/artikel/neu",
+    "/nichts-dergleichen",
 )
-def test_an_anonymous_request_is_sent_to_the_login(gated: Corpus, path: str) -> None:
-    """Every path alike — a real article, a made-up one and a route that does not exist all answer
-    the same redirect, so existence is only answerable after authentication."""
-    _expect_login(client_as(None).get(path), path)
+
+
+@pytest.mark.parametrize("path", _PATHS)
+def test_an_anonymous_request_gets_the_door(gated: Corpus, path: str) -> None:
+    assert_door(client_as(None).get(path), path)
+
+
+def test_the_door_is_the_same_page_on_every_path(gated: Corpus) -> None:
+    """A real article, a made-up one and a route that does not exist answer the same page, apart
+    from the login target it carries: existence is only answerable after authentication."""
+    doors = {assert_door(client_as(None).get(path), path) for path in _PATHS}
+    assert len(doors) == 1
+    (door,) = doors
+    assert "<form" not in door, "the door offers no search and no other way in"
 
 
 def test_a_signed_public_cookie_is_still_anonymous(gated: Corpus) -> None:
     """Public is the absence of an identity, however it was arrived at."""
-    _expect_login(client_as(Public()).get("/"), "/")
+    assert_door(client_as(Public()).get("/"), "/")
 
 
-def test_an_anonymous_post_is_sent_to_the_login_too(gated: Corpus) -> None:
+def test_an_anonymous_post_gets_the_door_too(gated: Corpus) -> None:
     """The gate is method-blind: one check, no route- or verb-specific holes."""
     path = f"/artikel/{PUBLISHED_ULID}/loeschen"
-    response = client_as(None).post(path, {"bestaetigt": "1"})
-    assert response.status_code == 302
-    assert_login_target(response.headers["Location"], path)
+    assert_door(client_as(None).post(path, {"bestaetigt": "1"}), path)
+
+
+def test_the_door_never_carries_a_foreign_login_target(gated: Corpus) -> None:
+    """A path that is not the shape of a local one lands on the root instead (``safe_next``)."""
+    # set in the environ: the test client would parse a "//host" argument as a host, not a path
+    response = client_as(None).get("/", PATH_INFO="//evil.example/artikel")
+    assert_door(response, "/")
 
 
 @pytest.mark.parametrize("viewer", [Member(groups=()), Archivist()])

@@ -143,10 +143,10 @@ SECURE_CSP = {
     "form-action": [CSP.SELF, *_KEYCLOAK_ORIGINS],
 }
 
-# The anonymous gate (ADR 0018): an anonymous content request is redirected to the login instead of
+# The anonymous gate (ADR 0018): an anonymous request gets the door (the way to the login) instead of
 # being answered. ON here, in the base settings, and disabled ONLY in ``settings_dev`` — the
 # fail-closed direction: a production deploy that forgets its OIDC env vars still cannot fall open
-# to anonymous browsing, it redirects to a login that itself falls closed.
+# to anonymous browsing, its door leads to a login that itself falls closed.
 ANONYMOUS_GATE_ENABLED = True
 
 # Templates for the server-rendered workbench (Part 4.5). The Django template backend only — no

@@ -1,22 +1,23 @@
-"""The anonymous gate: an unauthenticated request is sent to the login, not answered (ADR 0018).
+"""The anonymous gate: an unauthenticated request gets the door, not an answer (ADR 0018).
 
 ONE check for the whole surface, as middleware — never a per-view decorator anybody could forget to
 copy onto the next route. It runs on every path, method and status alike, so an anonymous visitor
-cannot tell a real article from a made-up one: both are the same redirect.
+cannot tell a real article from a made-up one: both are the same door.
 
 ``ANONYMOUS_GATE_ENABLED`` is TRUE in the base settings and false only in ``settings_dev`` — the
 fail-closed direction. A production deploy that forgets its OIDC env vars still cannot fall open to
-anonymous browsing; it redirects to a login that itself falls closed.
+anonymous browsing; its door leads to a login that itself falls closed.
 """
 
 from collections.abc import Callable
 from functools import lru_cache
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from django.urls import reverse
 
-from bundesarchiv.app.web.auth_views import login_redirect
+from bundesarchiv.app.web.auth_views import login_redirect, safe_next
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.viewer import Public
 
@@ -26,7 +27,7 @@ _EXEMPT_ROUTES = ("login", "oidc-callback", "logout")
 
 
 class AnonymousGateMiddleware:
-    """Redirect every anonymous request to ``/login?next=<where they were going>``."""
+    """Answer every anonymous request with the door, whose login keeps where they were going."""
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
@@ -34,21 +35,22 @@ class AnonymousGateMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         if _passes(request):
             return self.get_response(request)
-        return _to_login(request)
+        return _door(request)
 
 
-def _to_login(request: HttpRequest) -> HttpResponse:
-    """The bounce — as a HEADER for an htmx request. An XHR cannot follow the redirect: it ends at
-    Keycloak's cross-origin authorize URL, where the browser blocks the response and htmx swaps
-    nothing, so an expired cookie would turn every save and every search into a control that
-    silently does nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
-    target = login_redirect(request.get_full_path())
+def _door(request: HttpRequest) -> HttpResponse:
+    """The door — or, for an htmx request, the login as a HEADER. A swapped-in door would land
+    inside whatever region the request targeted, and a 302 to the login ends at Keycloak's
+    cross-origin authorize URL, where the browser blocks the response and htmx swaps nothing: an
+    expired cookie would turn every save and every search into a control that silently does
+    nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
     # htmx 4's history restore sends HX-History-Restore-Request without HX-Request
     if request.headers.get("HX-Request") or request.headers.get("HX-History-Restore-Request"):
         response = HttpResponse(status=204)
-        response.headers["HX-Redirect"] = target
+        response.headers["HX-Redirect"] = login_redirect(request.get_full_path())
         return response
-    return HttpResponseRedirect(target)
+    anmelden = login_redirect(safe_next(request.get_full_path()) or "/")
+    return render(request, "workbench/door.html", {"anmelden": anmelden})
 
 
 def _passes(request: HttpRequest) -> bool:

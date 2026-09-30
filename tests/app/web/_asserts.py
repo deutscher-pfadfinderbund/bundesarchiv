@@ -1,4 +1,4 @@
-"""Shared response assertions for the web suite: the deny and the anonymous gate's bounce.
+"""Shared response assertions for the web suite: the deny, the anonymous gate's bounce and its door.
 
 The single definition of what a deny looks like over HTTP, so every per-route test pins the
 same contract and there is ONE edit point if it ever changes (e.g. when a styled access-denied
@@ -8,8 +8,13 @@ what remains is that a deny is a 404 whose body reveals nothing — production e
 empty ``_not_found()``, so an empty body is a true invariant, not a snapshot.
 """
 
+import re
+from collections.abc import Sequence
+from html import unescape
 from typing import Protocol
 from urllib.parse import parse_qs, urlsplit
+
+from django.template.base import Template
 
 
 class _Response(Protocol):
@@ -17,6 +22,13 @@ class _Response(Protocol):
 
     status_code: int
     content: bytes
+
+
+class _Rendered(_Response, Protocol):
+    """A test client response, which also records the templates it rendered."""
+
+    @property
+    def templates(self) -> Sequence[Template]: ...
 
 
 def assert_denied(response: _Response, ctx: str = "") -> None:
@@ -36,3 +48,18 @@ def assert_login_target(url: str, next_path: str, ctx: str = "") -> None:
     assert parse_qs(target.query).get("next") == [next_path], (
         f"the login target must carry next={next_path}{label}, got {url}"
     )
+
+
+_LOGIN_HREF = re.compile(r'href="(/login\?[^"]*)"')
+
+
+def assert_door(response: _Rendered, next_path: str, ctx: str = "") -> str:
+    """The anonymous gate's door (ADR 0018): a 200 whose one login link carries ``next_path``.
+    Returns the page with that link's target cut out, so a caller can compare two doors."""
+    label = f" [{ctx}]" if ctx else ""
+    assert response.status_code == 200, f"expected the door{label}, got {response.status_code}"
+    assert "workbench/door.html" in [t.name for t in response.templates], f"not the door{label}"
+    html = response.content.decode()
+    (href,) = _LOGIN_HREF.findall(html)
+    assert_login_target(unescape(href), next_path, ctx)
+    return html.replace(href, "")

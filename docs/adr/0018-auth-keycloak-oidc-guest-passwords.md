@@ -112,11 +112,12 @@ Consequences accepted deliberately:
 ## Unauthenticated requests: the anonymous gate
 
 Anonymous requests are not answered. One middleware — not a per-view decorator —
-redirects them to `/login?next=<current path>`, and it is blind to path, method
-and would-be status: a real article, a made-up one and a route that does not
-exist all get the same 302. Existence is therefore still only answerable after
-authentication, but without the byte-uniformity contract this ADR first
-demanded — that fell with the owner's 404 relaxation (2026-08). Status
+answers them with the door (owner, 2026-09-27): the wordmark, one sentence and
+"Anmelden mit DPB Login", a link to `/login?next=<current path>`. It is blind to
+path, method and would-be status: a real article, a made-up one and a route
+that does not exist all get the same page, apart from the path it carries.
+Existence is therefore still only answerable after authentication, but without
+the byte-uniformity contract this ADR first demanded — that fell with the owner's 404 relaxation (2026-08). Status
 assertions remain, as leak-matrix rows.
 
 The `?next=` return target is validated against a whitelist of *shape*: it must
@@ -124,8 +125,8 @@ be a local path, never a scheme-relative `//host` or its backslash variants, and
 free of control characters. Exempt from the gate: the three auth routes and
 static files.
 
-An htmx request gets that same bounce as an `HX-Redirect` header instead of a
-302: an XHR cannot follow a redirect to a cross-origin login, so a request whose
+An htmx request gets the login as an `HX-Redirect` header instead of the door:
+an XHR cannot follow a redirect to a cross-origin login, so a request whose
 cookie has just expired would swap nothing and the control would look dead. For
 the same reason — a dead end is worse than a detour — a callback whose *verified*
 transient carries a different `state` (two tabs, one cookie) restarts the login
@@ -133,7 +134,7 @@ rather than answering the shared 404.
 
 The gate is **on in the base settings and disabled only in `settings_dev`** —
 the fail-closed direction. A production deploy that forgets its OIDC env vars
-cannot fall open to anonymous browsing; it redirects to a login that itself
+cannot fall open to anonymous browsing; its door leads to a login that itself
 falls closed. Dev and the browser suites keep anonymous = `Public` and the dev
 viewer-switcher.
 
@@ -170,7 +171,7 @@ Verified against the real realm on 2026-09-26 (Keycloak 26.5.2, local run):
 Not run: two tabs refreshing at once.
 
 There is no Abmelden landing page (owner, 2026-08-29): a logout lands on the
-workbench as an anonymous visitor, which the gate turns into the login screen.
+workbench as an anonymous visitor, which the gate turns into the door.
 
 The same two pieces compose into a later **kiosk mode**: an archivist-only
 action that ends their SSO session and mints a long-lived cookie for a

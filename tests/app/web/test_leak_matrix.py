@@ -34,7 +34,7 @@ import pytest
 from django.test import override_settings
 from django.urls import Resolver404, URLPattern, get_resolver, resolve
 from PIL import Image
-from tests.app.web._asserts import assert_denied, assert_login_target
+from tests.app.web._asserts import assert_denied, assert_door
 from tests.app.web._fixtures import ROOT, Corpus, client_as, make_article, make_collection
 
 from bundesarchiv.domain.identity import new_ulid
@@ -593,16 +593,16 @@ _GATE_EXEMPT = ("login", "oidc-callback", "logout")
 
 
 @pytest.mark.parametrize("name", [n for n in _CONTRACT if n not in _GATE_EXEMPT])
-def test_the_anonymous_gate_redirects_every_route(matrix_corpus: _MatrixCorpus, name: str) -> None:
-    """With the gate on (the production setting), an anonymous visitor is redirected to the login on
-    EVERY route — the 200s and the 404s alike, so nothing about a route or a record is answerable
-    before authentication. Derived from the same contract as the matrix, so a new route is walked
-    here the day it is registered."""
+def test_the_anonymous_gate_shows_the_door_on_every_route(
+    matrix_corpus: _MatrixCorpus, name: str
+) -> None:
+    """With the gate on (the production setting), an anonymous visitor gets the door on EVERY route
+    — the 200s and the 404s alike, so nothing about a route or a record is answerable before
+    authentication. Derived from the same contract as the matrix, so a new route is walked here the
+    day it is registered."""
     path = _CONTRACT[name].build_path(matrix_corpus)
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
-        response = client_as(None).get(path)
-    assert response.status_code == REDIRECT, f"{name}: expected a login redirect"
-    assert_login_target(response["Location"], path, name)
+        assert_door(client_as(None).get(path), path, name)
 
 
 @pytest.mark.parametrize("name", _GATE_EXEMPT)
@@ -611,7 +611,7 @@ def test_the_gate_never_bounces_the_login_flow(matrix_corpus: _MatrixCorpus, nam
     must stay usable to a browser whose cookie can no longer be read."""
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
         response = client_as(None).get(_CONTRACT[name].build_path(matrix_corpus))
-    assert response.status_code != REDIRECT, f"{name} must not be gated"
+    assert "workbench/door.html" not in [t.name for t in response.templates], f"{name} is gated"
 
 
 # --- structural: the contract is exhaustive against the urlconf -----------------------------------

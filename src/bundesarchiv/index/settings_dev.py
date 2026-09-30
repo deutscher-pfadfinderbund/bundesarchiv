@@ -27,7 +27,7 @@ DEV_VIEWER_SIGNING_KEY = os.environ.get(
 )
 
 # Dev browses anonymously as Public and picks a viewer through the switcher, so the ADR 0018
-# anonymous gate — which would bounce every anonymous request to Keycloak — is off here. It stays ON
+# anonymous gate — which would answer every anonymous request with the door — is off here. It stays ON
 # in the base settings this module imports from: disabling it is a deliberate dev-only act, never an
 # omission (settings.py).
 ANONYMOUS_GATE_ENABLED = False

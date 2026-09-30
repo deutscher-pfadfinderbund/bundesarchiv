@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from django.core import signing
 from django.test import Client, override_settings
-from tests.app.web._asserts import assert_denied
+from tests.app.web._asserts import assert_denied, assert_door
 from tests.app.web._fixtures import Corpus
 
 from bundesarchiv.app.web import auth_views, viewers
@@ -390,13 +390,13 @@ def test_a_refresh_through_the_real_middleware_stack_renews_both_cookies(
     assert response.cookies[REFRESH_COOKIE].value == "refresh-archivist"
 
 
-def test_a_dead_refresh_cookie_is_cleared_on_the_way_to_the_login(
+def test_a_dead_refresh_cookie_is_cleared_on_the_way_to_the_door(
     keycloak: _FakeKeycloak,
 ) -> None:
     client = Client()
     client.cookies[REFRESH_COOKIE] = "revoked"
     response = client.get("/artikel/neu")
-    assert response.status_code == 302
+    assert_door(response, "/artikel/neu")
     assert response.cookies[ACCESS_COOKIE].value == ""
     assert response.cookies[REFRESH_COOKIE].value == ""
 
