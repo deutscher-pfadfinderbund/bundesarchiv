@@ -1040,10 +1040,11 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
     # not discarded, so it always reads "Artikel löschen?" regardless of the query param.
     verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
+    confirm = vocab.delete_confirm(len(stored.article.media), discard=verwerfen)
     return render_screen(
         request,
-        # htmx asked from a tool panel: the refusal answers in place (workbench/_loeschen.html)
-        "workbench/_loeschen.html"
+        # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
+        "components/confirm.html"
         if request.headers.get("HX-Request")
         else "workbench/artikel_loeschen.html",
         {
@@ -1054,7 +1055,11 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
             "crumbs": _crumbs(stored.article, BestandChooser.of(archive)),
-            "confirm": vocab.delete_confirm(len(stored.article.media), discard=verwerfen),
+            "lead": confirm.question,
+            "consequence": confirm.consequence,
+            "button": confirm.button,
+            "tone": "danger",
+            "in_place": True,
             "action": request.get_full_path(),
         },
     )

@@ -21,19 +21,16 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
             <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
             <ul class="menu" id="aktionen-menu" popover>
-              <li><form method="post" action="{% url 'artikel-kopieren' ulid %}">{% csrf_token %}<button class="link" type="submit">Duplizieren</button></form></li>
+              <li>{% include "workbench/_duplizieren.html" %}</li>
               {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}
               {% url 'artikel-loeschen' ulid as loeschen_href %}
-              <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "workbench/_loeschen.html" with id="loeschen" action=loeschen_href confirm=loeschen veraltet="" %}</li>
+              <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}</li>
             </ul>
           </div>
           {% if is_draft %}
           <button class="primary" type="button" popovertarget="veroeffentlichen">Veröffentlichen</button>
-          <form class="toolpanel" id="veroeffentlichen" popover method="post" action="{% url 'artikel-veroeffentlichen' ulid %}">
-            <p>{{ publish_statement }}</p>
-            <button class="primary" type="submit">Jetzt veröffentlichen</button>
-            {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
-          </form>
+          {% url 'artikel-veroeffentlichen' ulid as veroeffentlichen_href %}
+          {% include "components/confirm.html" with id="veroeffentlichen" action=veroeffentlichen_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
           {% endif %}
         </div>
         {% endif %}

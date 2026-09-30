@@ -3,25 +3,25 @@
 {% comment %}
 The delete confirm as a page (a3 loeschen.html): the direct link, and where a panel's confirm lands
 without JS when it was older than the record. Archivist-only (the view gates it). Words as the panel's
-(workbench/_loeschen.html); the record's place, its title and Signatur name WHICH record.
+(components/confirm.html); the record's place, its title and Signatur name WHICH record.
 {% endcomment %}
-{% block title %}{{ confirm.question }}{% endblock %}
+{% block title %}{{ lead }}{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-  <h1>{{ confirm.question }}</h1>
+  <h1>{{ lead }}</h1>
   <header>
     <strong><a href="{% url 'artikel-detail' ulid %}">{{ title }}</a></strong>
     {% include "components/signatur_tab.html" with ref_code=ref_code only %}
   </header>
   {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
-  <p>{{ confirm.consequence }}</p>
+  <p>{{ consequence }}</p>
   <div class="actions">
     <form method="post" action="{{ action }}">
       {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
-      <button class="danger" type="submit">{{ confirm.button }}</button>
+      <button class="danger" type="submit">{{ button }}</button>
     </form>
     <a class="button" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
   </div>
