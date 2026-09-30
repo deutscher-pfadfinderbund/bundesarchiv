@@ -183,6 +183,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
         if not name:
             return _render_edit(
                 request,
+                ulid,
                 _edit_panel(
                     archive, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
@@ -202,21 +203,31 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             winner = archive.collections.load(ulid)
             return _render_edit(
                 request,
+                ulid,
                 _edit_panel(
                     archive, winner, name, {}, winner.version, conflict_name=winner.collection.name
                 ),
             )
-        return _redirect(request, f"{reverse('workbench')}?bestand={ulid}")
+        return _redirect(request, _scoped_list(ulid))
     return _render_edit(
-        request, _edit_panel(archive, stored, stored.collection.name, {}, stored.version)
+        request, ulid, _edit_panel(archive, stored, stored.collection.name, {}, stored.version)
     )
 
 
-def _render_edit(request: HttpRequest, panel: FormPanel) -> HttpResponseBase:
+def _render_edit(request: HttpRequest, ulid: str, panel: FormPanel) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if request.headers.get("HX-Request"):
         return render(request, "workbench/_formpanel.html", {"panel": panel})
-    return render_screen(request, "workbench/bestand_bearbeiten.html", {"panel": panel})
+    return render_screen(
+        request,
+        "workbench/bestand_bearbeiten.html",
+        {"panel": panel, "abbrechen": _scoped_list(ulid)},
+    )
+
+
+def _scoped_list(ulid: str) -> str:
+    """The list scoped to the Bestand ``ulid``: where a rename returns and its Abbrechen leads."""
+    return f"{reverse('workbench')}?bestand={ulid}"
 
 
 def _load_gated_collection(

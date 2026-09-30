@@ -98,16 +98,17 @@ _PAST_SEARCH_DEBOUNCE_MS = 450
 
 
 def test_search_works_from_a_screen_without_the_results_region(
-    archivist_page: Page, live_workbench: str
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The shared header's search lives on screens without #results. While the form carried
     # hx-get + hx-target="#results", htmx cancelled the native submit there and aborted with
     # htmx:targetError, so with JS ON the search box did nothing at all (G.32). The enhancement now
     # lives on the region it swaps, so the form is plain HTML everywhere.
     page = archivist_page
+    article = f"/artikel/{e2e_corpus.published_ulid}"
     for path, submit in (
-        ("/bestand/neu", "click"),
-        ("/bestand/neu", "enter"),  # and by implicit submission rather than a click
+        (article, "click"),
+        (article, "enter"),  # and by implicit submission rather than a click
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
         page.evaluate(_COUNT_HTMX_JS)
@@ -128,9 +129,10 @@ def test_search_works_from_a_screen_without_the_results_region(
             page.keyboard.press("Enter")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
-    # the two article forms carry no search at all: it invites leaving a form with unsaved edits
+    # the forms carry no search at all: it invites leaving a form with unsaved edits
     for form_url in (
         live_workbench + "/artikel/neu",
+        live_workbench + "/bestand/neu",
         _create_draft(page, live_workbench, "E2E Formular ohne Suche"),
     ):
         page.goto(form_url)

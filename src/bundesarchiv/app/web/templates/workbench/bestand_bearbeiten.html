@@ -1,14 +1,14 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Rename-Bestand form (Part 4.8, archivist-only — the view gates it). Name is the only editable
-control; Eltern-Bestand and Sichtbarkeit are read-only, because moving and changing visibility move
-descendants' visibility and need the over-exposure machinery a rename does not. POST saves under
-CAS and 302s to the workbench filtered to this Bestand.
+Rename-Bestand form as a page (a3 bestand-bearbeiten.html): the direct link, and where the list's
+panel lands without JS when it was refused. Archivist-only (the view gates it). Name is the only
+editable control; Eltern-Bestand and Sichtbarkeit are read-only, because moving and changing
+visibility move descendants' visibility and need the over-exposure machinery a rename does not.
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Bestand bearbeiten</h1>
@@ -29,6 +29,7 @@ CAS and 302s to the workbench filtered to this Bestand.
     <p class="hint">{{ panel.hinweis }}</p>
     <footer>
       <button class="primary" type="submit">{{ panel.button }}</button>
+      <a class="button" href="{{ abbrechen }}">Abbrechen</a>
     </footer>
   </form>
 </main>
