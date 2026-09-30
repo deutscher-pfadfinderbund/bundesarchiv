@@ -889,3 +889,13 @@ missing records; "N von M gespeichert"; the error pages' wording.
   plain.
 - **Filter by file type.** In "+ Filter", "Digital" becomes a choice: mit PDF, mit Fotos, mit Audio, mit
   Video, mit anderen Dateien; "digital" stays for any file. The address parameter is English (`file`).
+
+## Rulings of 2026-10-01 (media tiles, the door's look)
+
+- **A missing thumbnail never looks broken.** Where no thumbnail exists (a PDF, any non-image file, an
+  image whose thumbnail is not generated yet), the tile shows a deliberate placeholder with the file's
+  type and name instead of an empty or broken image.
+- **The original file is always one click away**, on every tile and in the article view, whether or not
+  a thumbnail exists.
+- **The door as built is enough for now;** it later gets the X3 mock's look (the large wordmark in the
+  page, the sentence in secondary ink), which needs its own door component.
