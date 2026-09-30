@@ -547,8 +547,6 @@
     color: var(--ink-2);
   }
   .c-sig-code {
-    color: var(--ink);
-    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
