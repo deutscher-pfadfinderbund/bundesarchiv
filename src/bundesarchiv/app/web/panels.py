@@ -124,7 +124,7 @@ def bestand_rows(
     and the server-computed autofocus (Name, unless it already has a value)."""
     autofocus = "parent_id" if name and "name" not in errors else "name"
     return (
-        CardRow.standalone(
+        CardRow(
             "name",
             "Name",
             value=name,
@@ -132,7 +132,7 @@ def bestand_rows(
             required=True,
             autofocus=autofocus == "name",
         ),
-        CardRow.standalone(
+        CardRow(
             "parent_id",
             "Eltern-Bestand",
             control="select",
@@ -141,7 +141,7 @@ def bestand_rows(
             options=bestand.parent_options(),
             autofocus=autofocus == "parent_id",
         ),
-        CardRow.standalone(
+        CardRow(
             "sichtbarkeit",
             "Sichtbarkeit",
             control="select",
@@ -149,7 +149,7 @@ def bestand_rows(
             error=errors.get("sichtbarkeit", ""),
             options=vocab.SICHTBARKEIT_OPTIONS,
         ),
-        CardRow.standalone(
+        CardRow(
             "gruppen",
             "Gruppen",
             value=gruppen,
@@ -180,7 +180,7 @@ def bestand_bearbeiten_panel(
         label="Bestand bearbeiten …",
         action=reverse("bestand-bearbeiten", args=[collection.ulid]),
         rows=(
-            CardRow.standalone(
+            CardRow(
                 "name",
                 "Name",
                 value=name,

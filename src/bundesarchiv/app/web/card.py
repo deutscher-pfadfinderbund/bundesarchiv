@@ -316,66 +316,41 @@ class CardRow:
     """One field of the form, ready to render: the registry's declaration joined to THIS render's
     value, error, conflict and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
     is on the form exactly when the registry says so. ``was`` is the winner's stored value when a
-    CAS conflict touches the field, else ``None``. ``base`` is the stem of the ids around the
-    control (label, hint, error), unique on the page."""
+    CAS conflict touches the field, else ``None``. A row built outside the registry (the Bestand
+    forms) sets only what it uses."""
 
     name: str
     label: str
-    control: str
-    base: str
-    control_id: str
-    value: str
-    hint: str
-    error: str
-    was: str | None
-    autofocus: bool
-    options: _Options
-    blank: str
-    hx: tuple[tuple[str, str], ...]
-    span: bool
-    required: bool
-    archivist_only: bool
-    help: str
+    control: str = "text"
+    value: str = ""
+    hint: str = ""
+    error: str = ""
+    was: str | None = None
+    autofocus: bool = False
+    options: _Options = ()
+    blank: str = ""
+    hx: tuple[tuple[str, str], ...] = ()
+    span: bool = False
+    required: bool = False
+    archivist_only: bool = False
+    help: str = ""
+    element_id: str = ""
+    prefix: str = "feld"
 
-    @classmethod
-    def standalone(
-        cls,
-        name: str,
-        label: str,
-        *,
-        control: str = "text",
-        value: str = "",
-        hint: str = "",
-        error: str = "",
-        options: _Options = (),
-        required: bool = False,
-        autofocus: bool = False,
-    ) -> CardRow:
-        """A field of a form outside the registry (the Bestand forms), printed by the same partial."""
-        return cls(
-            name=name,
-            label=label,
-            control=control,
-            base=f"feld-{name}",
-            control_id=f"feld-{name}",
-            value=value,
-            hint=hint,
-            error=error,
-            was=None,
-            autofocus=autofocus,
-            options=options,
-            blank="",
-            hx=(),
-            span=False,
-            required=required,
-            archivist_only=False,
-            help="",
-        )
+    @property
+    def base(self) -> str:
+        """The stem of the ids around the control (label, hint, error), unique on the page."""
+        return f"{self.prefix}-{self.name}"
+
+    @property
+    def control_id(self) -> str:
+        """The id of the control: the registry's ``element_id`` where it declares one."""
+        return self.element_id or self.base
 
     def in_panel(self, panel: str) -> CardRow:
         """This field in the tool panel ``panel``: its ids carry the panel's, so a page may hold the
         panel beside a form of its own."""
-        return replace(self, base=f"{panel}-{self.name}", control_id=f"{panel}-{self.name}")
+        return replace(self, prefix=panel, element_id="")
 
 
 def card_fields(
@@ -416,8 +391,7 @@ def card_fields(
                 name=registered.name,
                 label=registered.label,
                 control=registered.control,
-                base=f"feld-{registered.name}",
-                control_id=registered.control_id,
+                element_id=registered.element_id,
                 value=value,
                 hint=registered.hint,
                 error=errors.get(registered.name, ""),
