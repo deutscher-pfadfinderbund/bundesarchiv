@@ -24,6 +24,7 @@ from bundesarchiv.app.web.catalog_views import (
     article_medien_hochladen,
     article_medien_verschieben,
     article_publish,
+    upload_gate,
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
@@ -73,6 +74,8 @@ urlpatterns = [
         article_medien_hochladen,
         name="artikel-medien-hochladen",
     ),
+    # English: nginx's auth_request asks it before an upload's body (deploy/nginx/nginx.conf).
+    path("upload-gate/<str:ulid>", upload_gate, name="upload-gate"),
     path("artikel/<str:ulid>/dokumenttypen", article_dokumenttypen, name="artikel-dokumenttypen"),
     path("artikel/<str:ulid>", article_detail, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),

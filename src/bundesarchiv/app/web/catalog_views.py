@@ -1170,6 +1170,15 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
     )
 
 
+def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET /upload-gate/<ulid>`` — nginx's ``auth_request`` for the upload route
+    (``deploy/nginx/nginx.conf``): 204 exactly when ``article_medien_hochladen`` would take the
+    files, so nginx refuses everyone else before it reads the body. Otherwise the plain 404."""
+    if request.method != "GET" or _load_gated(request, ulid) is None:
+        return _not_found()
+    return HttpResponse(status=204)
+
+
 def _structural_change(
     request: HttpRequest,
     archive: Archive,

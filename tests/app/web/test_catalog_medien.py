@@ -378,6 +378,30 @@ def test_hochladen_denied_attaches_nothing(corpus: _MediaCorpus, viewer: Viewer)
     assert len(corpus.media()) == 2  # nothing attached
 
 
+@pytest.mark.parametrize(
+    ("viewer", "ulid", "admitted"),
+    [
+        (Archivist(), _ULID, True),
+        (Public(), _ULID, False),
+        (Member(groups=("vorstand",)), _ULID, False),
+        (Archivist(), "01KX7YT9E3VX0CP3A5Q49RZMVJ", False),
+        (Archivist(), "keine-ulid", False),
+    ],
+    ids=["archivist", "public", "member", "absent_article", "malformed_ulid"],
+)
+def test_the_upload_gate_admits_exactly_whom_the_upload_admits(
+    corpus: _MediaCorpus, viewer: Viewer, ulid: str, admitted: bool
+) -> None:
+    """nginx asks this gate before it reads an upload's body (deploy/nginx/nginx.conf)."""
+    client = client_as(viewer)
+    assert (client.post(f"/artikel/{ulid}/medien/hochladen").status_code != 404) is admitted
+    gate = client.get(f"/upload-gate/{ulid}")
+    if admitted:
+        assert gate.status_code == 204
+    else:
+        assert_denied(gate)
+
+
 # --- captions ride the metadata save (README round-trip, "" -> None) ---------------
 
 

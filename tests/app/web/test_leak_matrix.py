@@ -151,6 +151,7 @@ _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
 # NON-archivist and for the Archivist.
 FOUR_OH_FOUR = 404
 OK = 200
+NO_CONTENT = 204
 REDIRECT = 302
 
 
@@ -251,6 +252,10 @@ def _p_medien_entfernen(c: _MatrixCorpus) -> str:
 
 def _p_medien_hochladen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/medien/hochladen"
+
+
+def _p_upload_gate(c: _MatrixCorpus) -> str:
+    return f"/upload-gate/{c.article_ulid}"
 
 
 def _p_dokumenttypen(c: _MatrixCorpus) -> str:
@@ -388,6 +393,14 @@ _CONTRACT: dict[str, Route] = {
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # re-render edit form
+    ),
+    # nginx's auth_request for the upload route: tells nobody but an Archivist anything.
+    "upload-gate": Route(
+        build_path=_p_upload_gate,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=NO_CONTENT,  # the upload may proceed
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
     "artikel-dokumenttypen": Route(
         build_path=_p_dokumenttypen,
