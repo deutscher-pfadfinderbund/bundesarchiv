@@ -103,7 +103,9 @@ properties, it is a variant and law C2 forbids it. A context reaches only parts 
 
 A rule that reaches `form`, `p` or `ul` inside a container also hits a popover panel nested there:
 author CSS beats the browser's `[popover]` hiding, so `.menu li > form { display: block }` shows a
-closed panel. Exclude it (`form:not([popover])`, `p:not(.toolpanel p)`).
+closed panel. Select what the component owns instead: its own children (`.record-meta > p`) or
+the plain element by a class (`.menu-form`); where neither works, exclude the panel
+(`form:not([popover])`).
 
 A `biome-ignore` covers only the selector that follows it. Adding a selector to a list keeps
 specificity even with `:is(a, b)`, but check that the `:is()` matches the same elements: a factored

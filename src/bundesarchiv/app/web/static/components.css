@@ -217,7 +217,7 @@
     opacity: var(--toolbar-opacity, 1);
   }
   /* a mutating action is its own <form> (Enter never fires it) but sits inline in an .actions row.
-     A form inside a PANEL is a list line instead — `.menu li > form` owns that. */
+     A form inside a PANEL is a list line instead — `.menu-form` owns that. */
   .actions form:not([popover]) {
     display: inline;
     margin: 0;
@@ -515,8 +515,7 @@
     flex-direction: column;
     gap: var(--space-3);
   }
-  /* not a tool panel's sentences: the panel spaces its own */
-  .record-meta p:not(.toolpanel p) {
+  .record-meta > p {
     margin: 0;
   }
   /* Gruppen means something only at the GROUPS rung */
@@ -685,8 +684,8 @@
     white-space: nowrap;
     color: var(--ink); /* bound to the role, so a context (.danger) can re-point it */
   }
-  /* not an entry's tool panel: a display here would show it closed */
-  .menu li > form:not([popover]) {
+  /* an entry that POSTs is a line, even in an .actions row */
+  .menu li > form.menu-form {
     display: block;
     margin: 0;
   }
