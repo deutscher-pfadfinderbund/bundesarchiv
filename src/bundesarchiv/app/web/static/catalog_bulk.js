@@ -1,20 +1,14 @@
 // Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
-// baseline works without it (page-select is the "Alle auf dieser Seite" link; the bar visibility
-// + count come from the server off ?auswahl=; paging carries the URL-borne selection, so fresh
-// ticks need a submit first — this file lifts that limit, GH #22). PROGRESSIVE visibility
-// (owner 2026-08-07, reverses the #16 cold-start ruling): the server always renders the
-// disclosure VISIBLE (so a no-JS archivist can reach "Alle auf dieser Seite"); with JS this
-// file hides it via the [hidden] attribute while the TOTAL selection count is 0 and reveals it
-// the moment that total reaches 1. TOTAL, not this page's ticks: it is the live checkboxes here
-// PLUS the off-page URL-borne selection the server hands over in data-bulk-offpage (learning
-// G.25 — an enhancement may only hide what it can account for; a box-counting client hid a live
-// cross-page selection and stranded the archivist). Hiding rides the modes-layer
-// `[hidden] { display: none !important }` rule, so no display rule can ever make the hidden
-// disclosure intercept clicks (the recorded regression class). Row inversion and the
-// Feld→value-widget switch are pure CSS
-// (:has over the checkbox / the select's checked option) — JS for state CSS can express is a
-// blacklist defect. Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded
-// separately) handles the dependent-Dokumenttyp swap.
+// baseline works without it (page-select is the "Alle auf dieser Seite" link; the tool row's
+// selection tools show on a tick via CSS, and for a URL-borne selection from the server; paging
+// carries the URL-borne selection, so fresh ticks need a submit first — this file lifts that
+// limit, GH #22). It keeps the live count and hides the selection tools via [hidden] while the
+// TOTAL selection is 0: the live checkboxes here PLUS the off-page URL-borne selection the server
+// hands over in data-bulk-offpage (learning G.25 — an enhancement may only hide what it can
+// account for). Hiding rides the modes-layer `[hidden] { display: none !important }` rule, so no
+// display rule can ever make the hidden tools intercept clicks (the recorded regression class).
+// Self-contained, same-origin, no framework (dormancy rule). HTMX (loaded separately) handles the
+// dependent-Dokumenttyp swap.
 (() => {
   "use strict";
 
@@ -25,9 +19,10 @@
   document.addEventListener("DOMContentLoaded", init);
   document.body.addEventListener("htmx:after:swap", init);
 
-  // the bulk form currently in the document (absent for non-archivists and on the zero-hit page)
+  // the bulk form currently in the document (absent for non-archivists and on the zero-hit page);
+  // #results also holds the Spalten form, so it is found by its count hook
   function resultsForm() {
-    return document.querySelector("#results > form");
+    return document.querySelector("#results > form:has([data-bulk-zahl])");
   }
 
   function init() {
@@ -51,11 +46,9 @@
       rewriteSelectionLinks();
     });
 
-    // The count target [data-bulk-zahl] (in the disclosure's summary) is always in the DOM,
-    // so the count goes live on the first tick — visible even while the details is collapsed.
-    // Empty text at zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract:
-    // markup may restructure freely as long as it keeps the hook. The same count drives the
-    // disclosure's progressive visibility (see the file header): hidden at 0, revealed at ≥ 1.
+    // The count target [data-bulk-zahl] is always in the DOM. Empty text at zero keeps
+    // signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may restructure
+    // freely as long as it keeps the hook. The same count drives the tools' visibility.
     //
     // The TOTAL is this page's live checkboxes PLUS the off-page part of the URL-borne selection
     // (data-bulk-offpage, from the server). Both halves matter: on THIS page the live checkbox
@@ -65,7 +58,7 @@
     // hid a live cross-page selection and stranded the archivist on page 2.
     function updateCount() {
       const zahl = form.querySelector("[data-bulk-zahl]");
-      const bulk = form.querySelector("details.bulk");
+      const bulk = form.querySelector("[data-bulk-offpage]");
       const offPage = bulk ? Number.parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
       const n = offPage + rowBoxes().filter((b) => b.checked).length;
       zahl.textContent = n > 0 ? `${n} ausgewählt` : "";
@@ -112,7 +105,7 @@
 
     // Fold once at wire time too: back/forward navigation restores checkbox state without firing
     // change events, and the server-rendered links only carry the URL-borne selection. The count
-    // sync doubles as the initial visibility verdict (hide the server-visible disclosure at 0).
+    // sync doubles as the initial visibility verdict (hide the server-rendered tools at 0).
     updateCount();
     rewriteSelectionLinks();
   }

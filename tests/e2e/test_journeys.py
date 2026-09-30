@@ -281,6 +281,8 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
     triggers = page.locator(OVERLAY_TRIGGERS)
     for index in range(triggers.count()):
         trigger = triggers.nth(index)
+        if not trigger.is_visible():  # e.g. "Feld ändern …" before any row is picked
+            continue
         trigger.click()
         for i, row in enumerate(page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)):
             if row["controls"]:
@@ -1254,25 +1256,21 @@ def test_bulk_select_confirm_apply(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The PROGRESSIVE cold start (owner 2026-08-07 — reverses the #16 cold-start ruling): with JS
-    # on and NO selection, the whole Sammelbearbeitung affordance is hidden (the server renders it
-    # visible; catalog_bulk.js hides it at count 0). The first tick reveals it with the live
-    # count → expand → choose a field → Änderung prüfen posts the checked boxes → confirm → apply.
+    # The cold start: with NO selection the tool row's selection tools are hidden. The first
+    # tick reveals them with the live count → "Feld ändern …" → choose a field → Änderung prüfen
+    # posts the checked boxes → confirm → apply.
     page.goto(live_workbench + "/")
-    expect(page.locator("details.bulk")).to_be_hidden()  # cold: no selection, no affordance
+    expect(page.locator(".bulk")).to_be_hidden()  # cold: no selection, no affordance
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    expect(page.locator("details.bulk > summary")).to_be_visible()  # revealed on the first tick
+    expect(page.locator(".bulk")).to_be_visible()  # revealed on the first tick
     # unticking back to zero hides it again — the visibility tracks the live count both ways
     page.uncheck(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    expect(page.locator("details.bulk")).to_be_hidden()
+    expect(page.locator(".bulk")).to_be_hidden()
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick, collapsed
-    # expand by clicking THE COUNT ITSELF — the named regression: a form-associated element in
-    # the summary (the old <output>) swallowed exactly this click and the disclosure never
-    # opened; the status span must toggle like any other point on the summary line
-    page.get_by_text("2 ausgewählt").click()
-    expect(page.locator("details.bulk")).to_have_attribute("open", "")
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
+    page.click('[popovertarget="feld-aendern"]')
+    expect(page.locator("#feld-aendern")).to_be_visible()
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -1291,7 +1289,7 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
-    page.click("details.bulk > summary")
+    page.click('[popovertarget="feld-aendern"]')
     widgets = page.locator("[data-bulk-wert]:visible")
     page.select_option('select[name="feld"]', "media_type")
     expect(widgets).to_have_count(1)
@@ -1314,9 +1312,9 @@ def test_bulk_url_seeded_selection_still_works(
     page.goto(
         live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
-    expect(page.locator("details.bulk > summary")).to_be_visible()
-    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count, collapsed
-    page.click("details.bulk > summary")
+    expect(page.locator(".bulk")).to_be_visible()
+    expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
+    page.click('[popovertarget="feld-aendern"]')
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -1346,7 +1344,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the restored page states the URL's selection (none), never the snapshot's stale count
     expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
-    expect(page.locator("details.bulk")).to_be_hidden()
+    expect(page.locator(".bulk")).to_be_hidden()
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
@@ -1413,7 +1411,7 @@ def test_bulk_fresh_ticks_survive_paging(
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     seeded.uncheck()
     # "Auswahl aufheben" is NEVER rewritten — its purpose is clearing the selection
-    aufheben_href = page.locator('a:has-text("Auswahl aufheben")').get_attribute("href")
+    aufheben_href = page.get_by_role("link", name="Auswahl aufheben").get_attribute("href")
     assert "auswahl" not in (aufheben_href or "")
     page.click('a[rel="next"]')
     page.wait_for_url("**seite=2**")
@@ -1425,7 +1423,7 @@ def test_bulk_fresh_ticks_survive_paging(
     # at wire time — the server rendered "1 ausgewählt" + Auswahl aufheben and the client took the
     # whole disclosure away, stranding the selection. Asserted BEFORE any tick on this page.
     expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # none of it is here
-    expect(page.locator("details.bulk > summary")).to_be_visible()
+    expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
     page2_box = page.locator('input[name="auswahl"]').first
@@ -1443,9 +1441,8 @@ def test_bulk_fresh_ticks_survive_paging(
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
     # the cross-page selection stays CLEARABLE from either page (the other half of G.25: an
     # affordance the client hid could not be used) — one link drops both pages' ulids
-    page.click("details.bulk > summary")
-    page.click('a:has-text("Auswahl aufheben")')
-    expect(page.locator("details.bulk")).to_be_hidden()  # nothing selected anywhere → hidden again
+    page.get_by_role("link", name="Auswahl aufheben").click()
+    expect(page.locator(".bulk")).to_be_hidden()  # nothing selected anywhere → hidden again
     assert not _auswahl_in_url(page)
 
 
@@ -1595,17 +1592,16 @@ def test_no_js_bulk_flow_completes(
     no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = no_js_archivist_page
-    # The progressive pattern's no-JS half (owner 2026-08-07): the server renders the
-    # Sammelbearbeitung disclosure VISIBLE, so with JavaScript OFF and no selection the archivist
-    # still reaches "Alle auf dieser Seite" — the URL-borne selection path — and completes the
-    # whole bulk flow: page-select → expand → choose a field → prüfen → anwenden.
+    # The no-JS half: with JavaScript OFF a tick still shows the selection tools (CSS), so the
+    # archivist reaches "Alle auf dieser Seite" — the URL-borne selection path — and completes the
+    # whole bulk flow: tick → page-select → "Feld ändern …" → choose a field → prüfen → anwenden.
     page.goto(live_workbench + "/")
-    expect(page.locator("details.bulk > summary")).to_be_visible()  # server-visible, no JS hiding
-    page.click("details.bulk > summary")  # native <details> toggle, no JS involved
+    expect(page.locator(".bulk")).to_be_hidden()
+    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.click('a:has-text("Alle auf dieser Seite")')
     page.wait_for_url("**auswahl=**")  # the selection is URL state now
-    expect(page.locator("details.bulk > summary")).to_be_visible()
-    page.click("details.bulk > summary")
+    expect(page.locator(".bulk")).to_be_visible()
+    page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')

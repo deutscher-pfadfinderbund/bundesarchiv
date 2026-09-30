@@ -100,13 +100,13 @@ def _at(path: str) -> Reach:
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    """The bulk CONFIRM surface: a URL-seeded selection, expand the disclosure, choose a field and a
+    """The bulk CONFIRM surface: a URL-seeded selection, open "Feld ändern …", choose a field and a
     value, submit. POST-only — no path reaches it, which is why it needs a reach."""
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
-    page.click("details.bulk > summary")
+    page.click('[popovertarget="feld-aendern"]')
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')

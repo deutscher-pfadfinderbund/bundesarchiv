@@ -16,6 +16,7 @@ import io
 import re
 from collections.abc import Callable
 from html import unescape
+from html.parser import HTMLParser
 from typing import cast
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -740,50 +741,88 @@ def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corp
     assert "q=Vorschau" in close_href and "medienart=Foto" in close_href
 
 
-# --- bulk edit: selection column + bar (Sammelbearbeitung, spec §2) ----------------
+# --- bulk edit: the selection and the tool row (Sammelbearbeitung, spec §2) ----------------
+
+
+class _FormFields(HTMLParser):
+    """Which form each named control submits with, as a browser resolves it: its ``form=`` owner,
+    else the open ``<form>`` around it. A ``<form>`` opened inside another is dropped, as the HTML
+    parser drops it, and counted in ``nested``."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.actions: dict[str, str] = {}
+        self.open: list[str] = []
+        self.nested = 0
+        self.by_id: list[tuple[str, str]] = []
+        self.fields: dict[str, set[str]] = {}
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        a = {k: v or "" for k, v in attrs}
+        if tag == "form":
+            if self.open:
+                self.nested += 1
+                return
+            self.open.append(a.get("action", ""))
+            if "id" in a:
+                self.actions[a["id"]] = a.get("action", "")
+        elif tag in {"input", "select", "textarea", "button"} and a.get("name"):
+            if "form" in a:
+                self.by_id.append((a["form"], a["name"]))
+            elif self.open:
+                self.fields.setdefault(self.open[-1], set()).add(a["name"])
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form" and self.open:
+            self.open.pop()
+
+
+def _form_fields(body: str) -> tuple[dict[str, set[str]], int]:
+    """Each form's action mapped to the names it submits, plus the count of nested forms."""
+    parser = _FormFields()
+    parser.feed(body)
+    for form_id, name in parser.by_id:
+        parser.fields.setdefault(parser.actions[form_id], set()).add(name)
+    return parser.fields, parser.nested
 
 
 def test_archivist_sees_bulk_checkbox_column(indexed_corpus: Corpus) -> None:
     body = _get(Archivist()).content.decode()
-    assert 'name="auswahl"' in body  # row checkboxes
-    assert '<span class="visually-hidden">Auswahl</span>' in body  # the sr-only column header
+    assert 'name="auswahl"' in body
 
 
 def test_public_never_gets_bulk_column(indexed_corpus: Corpus) -> None:
     body = _get(Public()).content.decode()
     assert 'name="auswahl"' not in body
-    assert "Sammelbearbeitung" not in body
+    assert "/artikel/sammelbearbeitung" not in _form_fields(body)[0]
 
 
-def test_bulk_bar_affordances_present_when_empty(indexed_corpus: Corpus) -> None:
-    # The progressive pattern's SERVER half (owner 2026-08-07, reverses the #16 cold-start
-    # ruling): with an EMPTY selection the disclosure still renders VISIBLE for an archivist-
-    # with-results — the no-JS baseline must reach "Alle auf dieser Seite" and the "Änderung
-    # prüfen" submit; catalog_bulk.js (not the server) hides it at count 0 and reveals it on the
-    # first tick (pinned by the e2e journeys). Signals-once still holds: NO "0 ausgewählt" count
-    # and NO "Auswahl aufheben" until a selection exists.
+@pytest.mark.parametrize("query", ["", f"auswahl={PANE_PUB_ULID}"])
+def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_form(
+    indexed_corpus: Corpus, query: str
+) -> None:
+    # The no-JS contract: with or without a selection the bulk form carries the row ticks and the
+    # Feld chooser, and "Spalten …" posts only its own choice, although both sit in one tool row.
+    fields, nested = _form_fields(_get(Archivist(), query).content.decode())
+    assert nested == 0
+    assert {"auswahl", "feld", "csrfmiddlewaretoken"} <= fields["/artikel/sammelbearbeitung"]
+    assert "spalte" not in fields["/artikel/sammelbearbeitung"]
+    assert {"spalte", "zurueck", "csrfmiddlewaretoken"} <= fields["/spalten"]
+    assert not {"auswahl", "feld"} & fields["/spalten"]
+
+
+def test_with_no_selection_the_page_can_be_selected_without_js(indexed_corpus: Corpus) -> None:
     body = _get(Archivist()).content.decode()
-    # the collapsed disclosure (cold = summary only); the open tag also carries the
-    # data-bulk-offpage hook the enhancement counts with, so match the prefix only
-    assert '<details class="bulk"' in body
-    assert "Sammelbearbeitung" in body
-    assert "Änderung prüfen" in body
-    assert "Alle auf dieser Seite" in body
-    assert "ausgewählt" not in body  # no status filler
-    assert "Auswahl aufheben" not in body
+    page_ulids = set(re.findall(r'name="auswahl" value="([^"]+)"', body))
+    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', body)]
+    assert page_ulids in [set(q.get("auswahl", [])) for q in queries]
 
 
-def test_bulk_bar_shows_with_selection_and_count(indexed_corpus: Corpus) -> None:
+def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
     body = _get(Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert '<details class="bulk"' in body
     # the selected article IS on this page, so nothing is off-page — the enhancement adds its own
     # live checkbox count to this number and must not double-count what it can already see (G.25)
     assert 'data-bulk-offpage="0"' in body
-    assert "1 ausgewählt" in body  # the count rides the always-visible summary line
-    assert "Änderung prüfen" in body
-    assert "Feld" in body  # the chooser Feld select
-    # the selected row's checkbox is checked — the checked box IS the selection mark
-    # (owner 2026-08-07: no inversion bar; unchecked boxes reveal on hover)
     assert f'value="{PANE_PUB_ULID}" checked' in body
 
 
@@ -800,17 +839,15 @@ def test_selection_survives_pagination_links(
 
 
 def test_non_archivist_auswahl_param_is_ignored(indexed_corpus: Corpus) -> None:
-    # a Public viewer hand-crafting ?auswahl= gets no bar/column (defence-in-depth; the POST route
+    # a Public viewer hand-crafting ?auswahl= gets no selection (defence-in-depth; the POST route
     # is independently gated too)
     body = _get(Public(), f"auswahl={PANE_PUB_ULID}").content.decode()
-    assert "Sammelbearbeitung" not in body
-    assert "ausgewählt" not in body
+    assert "/artikel/sammelbearbeitung" not in _form_fields(body)[0]
+    assert f'value="{PANE_PUB_ULID}" checked' not in body
 
 
-def test_auswahl_aufheben_preserves_active_search(indexed_corpus: Corpus) -> None:
-    # Design-gate MED: "Auswahl aufheben" drops the selection but must KEEP the active search — a
-    # bare "?" would wipe the filter. The clear link carries the filters, not auswahl.
+def test_clearing_the_selection_keeps_the_active_search(indexed_corpus: Corpus) -> None:
+    # a bare "?" would wipe the search: the clear link is the same search without the selection
     body = _get(Archivist(), f"q=fahrt&auswahl={PANE_PUB_ULID}").content.decode()
-    clear = body.split(">Auswahl aufheben<", 1)[0].rsplit('href="?', 1)[1].split('"', 1)[0]
-    assert "q=fahrt" in clear  # the search survives
-    assert "auswahl" not in clear  # the selection is dropped
+    queries = [parse_qs(unescape(q)) for q in re.findall(r'href="\?([^"]*)"', body)]
+    assert {"q": ["fahrt"]} in queries

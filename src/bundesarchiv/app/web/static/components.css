@@ -231,7 +231,8 @@
   [role="toolbar"] > :is(a:not(.button), button.link),
   .pane header > a,
   .abmelden > button,
-  .remove {
+  .remove,
+  [role="toolbar"] > .bulk > a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -243,6 +244,7 @@
      Declared in :where() per law C13, so every per-site delta outranks it in this same layer. */
   :where(
     [role="toolbar"] > :is(a:not(.button), button.link),
+    [role="toolbar"] > .bulk > a,
     .pane header > a,
     .abmelden > button
   ) {
@@ -250,6 +252,7 @@
   }
   :is(
     [role="toolbar"] > :is(a:not(.button), button.link),
+    [role="toolbar"] > .bulk > a,
     .pane header > a,
     .abmelden > button
   ):hover:not(:disabled) {
@@ -580,6 +583,7 @@
     :is(
         body > header,
         [role="toolbar"],
+        .bulk,
         .actions,
         .record-meta-actions,
         .split-button,
@@ -600,6 +604,11 @@
       inset-inline: 0 anchor(end);
       justify-self: end;
       margin: var(--space-1) 0 0;
+    }
+    /* a selection tool's panel opens start-aligned under its tool (a2 round 2) */
+    .bulk > .toolpanel {
+      inset-inline: anchor(start) 0;
+      justify-self: start;
     }
     /* a help popover hangs under its ⓘ, centred on it as far as the viewport allows */
     .field {
@@ -622,6 +631,7 @@
      things an entry IS — the hit floor (the panel's own knob) and the type role. Sized per panel
      they drift, and the C8 walker compares WITHIN a row, so a mismatch between panels could never
      fail it. Per-panel DELTAS only, below. ---- */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .menu li > a,
   .menu li > form > button.link {
     min-height: var(--control-height);
@@ -651,6 +661,7 @@
   }
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
      it — link or submit button alike (Kopieren mutates, so it cannot be a link). */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .menu li > a,
   .menu li > form > button.link {
     display: flex;
@@ -805,6 +816,7 @@
   }
   /* the sort lives on the head (register row 13): the active direction shows; another sortable
      head shows its ↕ on hover or focus */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .ledger th > a {
     display: inline-flex;
     align-items: baseline;
@@ -897,7 +909,8 @@
     .ledger :is(td.titel > a ~ a, td.auswahl input:not(:checked)) {
       opacity: 0;
     }
-    .ledger tr:is(:hover, :focus-within) :is(td.titel > a ~ a, td.auswahl input) {
+    .ledger tr:is(:hover, :focus-within) :is(td.titel > a ~ a, td.auswahl input),
+    .ledger:has(td.auswahl :checked) td.auswahl input {
       opacity: 1;
     }
   }

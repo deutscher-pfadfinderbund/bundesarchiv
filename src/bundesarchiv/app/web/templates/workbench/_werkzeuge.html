@@ -1,17 +1,30 @@
 {% comment %}
 The list's tool row over the column heads (a2 rounds 2 and 11): at rest only the view tool
-"Spalten …" at the end edge. Its panel is its own form: a POST that keeps the choice in a cookie and
-returns to this very list (browse_views.choose_columns), so it works without JS. The row stands
-outside the bulk form, because forms cannot nest.
-Params: choices — ledger.Ledger.choices; zurueck — this list's query.
+"Spalten …" at the end edge; once rows are picked (archivists), the selection and its tools at the
+start. The row sits inside the bulk form, so its "Spalten …" controls post through their own form
+(form=spalten-form, _results.html): forms cannot nest.
+Params: choices — ledger.Ledger.choices; bulk — the selection tools (the view's bulk context).
 {% endcomment %}
 <div role="toolbar" aria-label="Werkzeuge">
+  {% if bulk %}
+  {% comment %}data-bulk-offpage is the URL-borne selection not on this page, which a client
+  counting checkboxes cannot see (learning G.25). data-bulk-alle: catalog_bulk.js folds unsubmitted
+  ticks into that link; the clearing link must never carry the hook.{% endcomment %}
+  <div class="bulk" data-bulk-offpage="{{ auswahl_offpage_count|default:0 }}"{% if has_auswahl %} data-bulk-gesetzt{% endif %}>
+    <span role="status" data-bulk-zahl>{% if has_auswahl %}{{ auswahl_count }} ausgewählt{% endif %}</span>
+    <a href="?{{ clear_auswahl_query }}" aria-label="Auswahl aufheben" title="Auswahl aufheben">{% include "components/icon.html" with name="x" only %}</a>
+    <a href="?{{ select_page_query }}" data-bulk-alle>Alle auf dieser Seite</a>
+    <button class="menu-button" type="button" popovertarget="feld-aendern">Feld ändern …</button>
+    <div class="toolpanel" id="feld-aendern" popover>
+      {% include "workbench/_feldwahl.html" %}
+    </div>
+  </div>
+  {% endif %}
   <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>
-  <form class="toolpanel" id="spalten" popover method="post" action="{% url 'spalten' %}">
+  <div class="toolpanel" id="spalten" popover>
     <ul>
-      {% for choice in choices %}<li><label><input type="checkbox" name="spalte" value="{{ choice.key }}"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
+      {% for choice in choices %}<li><label><input type="checkbox" name="spalte" value="{{ choice.key }}" form="spalten-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
     </ul>
-    <button class="primary" type="submit">Fertig</button>
-    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ zurueck }}">
-  </form>
+    <button class="primary" type="submit" form="spalten-form">Fertig</button>
+  </div>
 </div>

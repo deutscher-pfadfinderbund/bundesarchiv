@@ -120,33 +120,23 @@
     }
   }
 
-  /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
-     occasional chrome and recede). No wrapper band (law C10), so a hidden one collapses to
-     nothing. Open, it is flat with an edge. ---- */
-  details.bulk summary {
-    padding: var(--space-1) 0;
-  }
-  /* the selection count: a plain <span role=status>, deliberately NOT a form-associated element —
-     that would swallow the summary's own toggle click */
-  details.bulk summary [data-bulk-zahl] {
-    font: var(--type-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-    padding-inline-start: var(--space-3);
-  }
-  details.bulk[open] {
-    padding: 0 var(--space-3) var(--space-3);
-    border: var(--line-width) solid var(--edge);
-  }
-  details.bulk > div:first-of-type {
-    display: flex;
+  /* ---- the tool row's selection tools (a2 rounds 2 and 11): shown once a row is ticked (CSS, so
+     also without JS) or a URL-borne selection is set; catalog_bulk.js refines it by [hidden]. They
+     fill the row's start, which keeps "Spalten …" at the end edge. ---- */
+  .bulk {
+    display: none;
+    flex: 1;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-2) var(--space-4);
-  }
-  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
-  details.bulk a {
     font: var(--type-meta);
+  }
+  .bulk[data-bulk-gesetzt],
+  form:has(td.auswahl :checked) > [role="toolbar"] > .bulk {
+    display: flex;
+  }
+  .bulk > [role="status"] {
+    color: var(--ink);
   }
 
   /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-wert tokens
@@ -162,6 +152,10 @@
   .chooser .actions {
     --control-height: var(--chooser-control-height, auto);
     margin-left: auto;
+  }
+  /* in "Feld ändern …" the panel's knob is the one height source (law C8) */
+  .toolpanel .chooser {
+    --chooser-control-height: var(--control-height);
   }
   .chooser [data-bulk-wert] {
     --field-display: none;
@@ -384,7 +378,7 @@
     min-width: 0;
   }
   /* the list's tool row: its view tool "Spalten …" at the end edge (a2 round 11) */
-  .frame main > [role="toolbar"] {
+  :is(.frame main, .frame main > form) > [role="toolbar"] {
     justify-content: flex-end;
   }
   /* HTMX in-flight: a static opacity dim, no motion */

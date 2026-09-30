@@ -3,8 +3,8 @@ The results region: the htmx swap target (#results) and the page's main landmark
 an HX-Request and inside the full page otherwise. Every hit is already viewer-scoped by search();
 the archivist chrome is a presentation gate on is_archivist.
 
-Bulk edit (archivist-only): the ledger and the Sammelbearbeitung disclosure share ONE form that
-POSTs to /artikel/sammelbearbeitung. The selection survives paging: the view bakes the URL's
+Bulk edit (archivist-only): the tool row and the ledger share ONE form that POSTs to
+/artikel/sammelbearbeitung. The selection survives paging: the view bakes the URL's
 ?auswahl= into the pager and "Alle auf dieser Seite" links, and catalog_bulk.js (GH #22) folds
 unsubmitted ticks into the same links. Without JS a fresh tick needs a submit first.
 {% endcomment %}
@@ -22,17 +22,18 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
       hx-include="[role=search] input" hx-push-url="true"
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% if page.hits %}
-  {% include "workbench/_werkzeuge.html" with choices=ledger.choices zurueck=spalten_zurueck %}
+  <form id="spalten-form" method="post" action="{% url 'spalten' %}" hidden>
+    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ spalten_zurueck }}">
+  </form>
   {% if is_archivist %}
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
         hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% csrf_token %}
-    {% if bulk_bar %}
-    {% include "workbench/_sammelleiste.html" %}
-    {% endif %}
+    {% include "workbench/_werkzeuge.html" with choices=ledger.choices bulk=True %}
     {% include "components/ledger.html" with ledger=ledger bulk=True only %}
   </form>
   {% else %}
+  {% include "workbench/_werkzeuge.html" with choices=ledger.choices bulk=False %}
   {% include "components/ledger.html" with ledger=ledger bulk=False only %}
   {% endif %}
   {% else %}

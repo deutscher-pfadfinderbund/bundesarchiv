@@ -359,43 +359,33 @@ def _bulk_bar_context(
     auswahl: list[str],
     bestand: BestandChooser,
 ) -> dict[str, object]:
-    """The sticky bulk bar + chooser drawer context (spec §2 B/C), archivist-only.
+    """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11), archivist-only.
 
-    The bar's AFFORDANCES render whenever there are hits: the "Änderung prüfen" submit (POSTs the
-    checked boxes — a zero-check submit hits the existing "Keine Artikel ausgewählt." reject) and
-    the "Alle auf dieser Seite" page-select link, so the NO-JS path reaches the feature with no
-    prior selection. Visibility is PROGRESSIVE (owner 2026-08-07, reverses the #16 cold-start
-    ruling): the server always renders the disclosure visible; catalog_bulk.js hides it while the
-    live selection count is 0 and reveals it on the first tick. Signals-once still holds for
-    STATUS: ``has_auswahl`` gates the "{n} ausgewählt" count + "Auswahl aufheben" so an empty
-    selection shows no "0 ausgewählt".
+    The tools render whenever there are hits, so the NO-JS path reaches them: a tick shows them
+    (CSS), and "Alle auf dieser Seite" and the Feld chooser's submit need no prior selection.
+    ``has_auswahl`` keeps them shown for a URL-borne selection and gates the count, so an empty
+    selection shows no "0 ausgewählt"; catalog_bulk.js hides them while the live total is 0.
 
     The client can only hide what it fully accounts for (learning G.25): ``auswahl_offpage_count``
     is the part of the URL-borne selection that is NOT on this page, so the enhancement can add its
-    own live checkbox count to a number it cannot otherwise see. Without it the JS counted this
-    page's boxes alone and hid a live cross-page selection — the archivist on page 2 could neither
-    see, clear nor apply it.
-
-    Bar suppressed only when there are no hits (nothing to select) — ``_results.html`` already gates
-    the whole results block on ``page.hits``, so this returns the off flag defensively for that case.
+    own live checkbox count to a number it cannot otherwise see.
     """
     hits = page.hits
     if not hits:
-        return {"bulk_bar": False}
+        return {}
     page_ulids = [h.ulid for h in hits]
     on_page = set(page_ulids)
     context: dict[str, object] = {
-        "bulk_bar": True,
         "has_auswahl": bool(auswahl),
         "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
         "select_page_query": browse.select_page_query(params, auswahl, page_ulids),
+        # the clear link drops the selection but KEEPS the search (params already exclude auswahl
+        # and artikel): a bare "?" would wipe the filters
+        "clear_auswahl_query": urlencode({k: v for k, v in params.items() if v}),
         **bulk.feldwahl_context(bestand),
     }
     if auswahl:
         context["auswahl_count"] = len(auswahl)
-        # "Auswahl aufheben" drops the selection but KEEPS the active search (params already exclude
-        # auswahl + artikel) — a bare "?" would wipe the filters (design-gate MED finding).
-        context["clear_auswahl_query"] = urlencode({k: v for k, v in params.items() if v})
     return context
 
 

@@ -84,14 +84,18 @@ def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.get_by_role("button", name="Spalten …").click()
 
 
-def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # a URL-seeded selection with the Sammelbearbeitung disclosure EXPANDED (the chooser open) —
-    # the collapsed cold state is its own gallery state (workbench-bulk-cold)
+def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # a URL-seeded selection: the tool row shows the count and its tools
     page.goto(
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
-    page.click("details.bulk > summary")
+
+
+def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # the same selection with "Feld ändern …" open (the chooser in its toolpanel)
+    _reach_auswahl(page, base, corpus)
+    page.click('[popovertarget="feld-aendern"]')
 
 
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -159,7 +163,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
         f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
-    page.click("details.bulk > summary")
+    page.click('[popovertarget="feld-aendern"]')
     page.select_option('select[name="feld"]', "media_type")
     page.select_option('select[name="wert_media_type"]', "")
     page.click('button:has-text("Änderung prüfen")')
@@ -196,13 +200,19 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "workbench-bulk-cold",
-        "workbench cold (no selection) — NO Sammelbearbeitung visible (progressive, owner"
-        " 2026-08-07: JS hides the disclosure at count 0; that absence is the point of the shot)",
+        "workbench cold (no selection): the tool row holds only 'Spalten …' (the selection tools"
+        " show once a row is ticked; that absence is the point of the shot)",
         True,
         _goto("/"),
     ),
     GalleryState(
-        "workbench-bulk", "workbench, selection + expanded Sammelbearbeitung", True, _reach_bulk
+        "workbench-auswahl",
+        "workbench, two rows picked: the count, its clearing x and the tools at the tool row's start",
+        True,
+        _reach_auswahl,
+    ),
+    GalleryState(
+        "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
     ),
     GalleryState(
         "bulk-confirm-error",
