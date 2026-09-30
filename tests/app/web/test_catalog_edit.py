@@ -544,7 +544,6 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "sichtbarkeit": "groups",
         "gruppen": "vorstand, archiv",
         "custom_rows": [("Fotograf", "Meyer")],
-        "is_draft": True,
     }
 
 

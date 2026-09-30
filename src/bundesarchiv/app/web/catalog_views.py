@@ -502,13 +502,12 @@ def _media_rows(
 
 def _article_to_form_values(article: Article) -> dict[str, object]:
     """A stored Article → the flat form-value dict the template prints (GET seed). Every field's own
-    ``seed`` renders it; ``custom_rows`` and ``is_draft`` are the two shapes no single field owns."""
+    ``seed`` renders it; ``custom_rows`` is the one shape no single field owns."""
     values: dict[str, object] = {"ulid": article.ulid}
     for registered in FIELDS:
         if registered.control:
             values[registered.name] = registered.value_of(article)
     values["custom_rows"] = list(article.custom)
-    values["is_draft"] = article.lifecycle is Lifecycle.DRAFT
     return values
 
 
@@ -539,7 +538,6 @@ def _post_to_form_values(
         values["lifecycle"] = lifecycle.value
     rows = [pair for pair in raw if pair != ("", "")]
     values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
-    values["is_draft"] = lifecycle is Lifecycle.DRAFT
     return values
 
 
