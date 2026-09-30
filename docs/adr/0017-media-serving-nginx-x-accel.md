@@ -53,23 +53,38 @@ deliberately non-load-bearing component load-bearing.
 
 ## Consequences
 
-- nginx is in the stack, but only as a ~20-line media sidecar (`internal;`
-  location + `proxy_pass` to gunicorn). Static assets deliberately stay with
-  WhiteNoise (ADR 0016).
-- **Media runs no script.** An uploaded SVG or HTML file opened directly is a
-  document on the archive's origin. Every media and thumbnail response carries
-  `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`, so
-  the file displays but runs no script and gets an opaque origin. On an
-  X-Accel redirect nginx keeps only a few of the app's headers (`Cache-Control`
-  among them) and drops these two, so the `internal;` location adds both with
-  `add_header … always`.
+- nginx is in the stack as a small sidecar: `proxy_pass` to gunicorn, the
+  `internal;` media location, and the upload gate below. Static assets
+  deliberately stay with WhiteNoise (ADR 0016).
+- **The internal location serves only what the app names.** It matches the key
+  shape `articles/<ulid>/media/<name>` (ADR 0019) with no leading dot in the
+  name, and follows no symlink. A README, a history file or a planted symlink is
+  refused even if a bug named it.
+- **Media runs no script and stays on this site.** An uploaded SVG or HTML file
+  opened directly is a document on the archive's origin. Every media and
+  thumbnail response carries `Content-Security-Policy: sandbox` and
+  `X-Content-Type-Options: nosniff`, so the file displays but runs no script and
+  gets an opaque origin. It also carries `Cross-Origin-Resource-Policy:
+  same-origin`: pages on sibling DPB hosts are same-site, so their requests carry
+  the login cookies, and without it such a page could learn whether its visitor
+  may see a record. On an X-Accel redirect nginx keeps only a few of the app's
+  headers (`Cache-Control` among them) and drops these three, so the `internal;`
+  location adds them with `add_header … always`.
 - **The sidecar must not set its own cache headers.** nginx keeps the app's
   `Cache-Control` on an X-Accel redirect, so an `expires` or
   `add_header Cache-Control` in the `internal;` location would override the
   `private` policy Django stamps and let a shared cache store gated bytes. The
-  app side ships with the header applied at the seam's public exits
-  (`media.media_response`, `media.thumbnail_response`); the sidecar config that
-  has to respect it lands with the deploy work (GH #13).
+  app applies the header at the seam's public exits (`media.media_response`,
+  `media.thumbnail_response`).
+- **An upload is authorized before nginx reads its body.** nginx buffers request
+  bodies to disk (owner, 2026-09-24, ADR 0020), so an ungated upload route would
+  let anyone fill the disk. Only the upload route takes a large body. On it, an
+  `auth_request` asks `GET /upload-gate/<ulid>`, which runs the upload view's own
+  gate and answers 204 exactly when the upload would be taken. Everyone else,
+  anonymous included, gets the plain empty 404 from nginx, and the body is
+  discarded, never stored. Every other route takes at most 4 MiB, just above
+  Django's own cap on a body without files. This is `auth_request` for uploads
+  only; media keeps the X-Accel seam (see "Considered options").
 - Dev keeps the direct `FileResponse` path (prefix unset) — no Range in dev,
   documented and accepted in `media.media_response`.
 - **Tiering door**: when the archive outgrows the app host's disk, the
