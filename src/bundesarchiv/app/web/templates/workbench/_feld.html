@@ -1,8 +1,8 @@
 {% comment %}
 One field of the form: the label, the control, then the hint and the error. Params: feld — a
-catalog_views._CardRow, the field registry joined to this render's value/error/focus; form — the
+card.CardRow, the field registry joined to this render's value/error/focus; form — the
 owning form's id where the control sits outside it. The edit form's sections loop this partial, so
-the registry is the only place a field exists; the standalone forms print _CardRow.standalone rows.
+the registry is the only place a field exists; the standalone forms print CardRow.standalone rows.
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
 {% endcomment %}{% with base=feld.base %}{% with control_id=feld.control_id %}<div class="field"{% if feld.span %} data-span="all"{% endif %}>

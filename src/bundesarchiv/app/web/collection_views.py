@@ -24,20 +24,18 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
-from bundesarchiv.app.web import vocab
-from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
-from bundesarchiv.app.web.catalog_views import (
-    FormPanel,
-    _CardRow,
-    _panel_response,
-    _redirect,
-    neu_artikel_panel,
-)
+from bundesarchiv.app.web.catalog_views import _panel_response, _redirect
 from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.panels import (
+    FormPanel,
+    bestand_bearbeiten_panel,
+    bestand_rows,
+    neu_bestand_panel,
+)
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Audience, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
@@ -75,16 +73,16 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
             query = urlencode({"bestand": result.ulid, "angelegt": name})
             return _redirect(request, f"{reverse('artikel-neu')}?{query}")
-        rows = _create_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
+        rows = bestand_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
         if request.headers.get("HX-Request"):
-            return _panel_response(request, _neu_bestand(rows))
+            return _panel_response(request, neu_bestand_panel(rows))
         return render_screen(
             request, "workbench/bestand_neu.html", {"felder": rows}, bestand=bestand
         )
     return render_screen(
         request,
         "workbench/bestand_neu.html",
-        {"felder": _create_rows(bestand, "", "", "", "", {})},
+        {"felder": bestand_rows(bestand, "", "", "", "", {})},
         bestand=bestand,
     )
 
@@ -109,63 +107,6 @@ def _create_errors(
     return errors
 
 
-def _neu_bestand(rows: tuple[_CardRow, ...]) -> FormPanel:
-    """The create form as the header's "Neuer Bestand" tool panel."""
-    return FormPanel(
-        id="neu-bestand",
-        label="Neuer Bestand …",
-        action=reverse("bestand-neu"),
-        rows=rows,
-        button="Anlegen",
-    )
-
-
-def _create_rows(
-    bestand: BestandChooser,
-    name: str,
-    parent_id: str,
-    sichtbarkeit: str,
-    gruppen: str,
-    errors: FormErrors,
-) -> tuple[_CardRow, ...]:
-    """The create form's fields: preserved values, the parent + Sichtbarkeit options, field errors,
-    and the server-computed autofocus (Name, unless it already has a value)."""
-    autofocus = "parent_id" if name and "name" not in errors else "name"
-    return (
-        _CardRow.standalone(
-            "name",
-            "Name",
-            value=name,
-            error=errors.get("name", ""),
-            required=True,
-            autofocus=autofocus == "name",
-        ),
-        _CardRow.standalone(
-            "parent_id",
-            "Eltern-Bestand",
-            control="select",
-            value=parent_id,
-            error=errors.get("parent_id", ""),
-            options=bestand.parent_options(),
-            autofocus=autofocus == "parent_id",
-        ),
-        _CardRow.standalone(
-            "sichtbarkeit",
-            "Sichtbarkeit",
-            control="select",
-            value=sichtbarkeit,
-            error=errors.get("sichtbarkeit", ""),
-            options=vocab.SICHTBARKEIT_OPTIONS,
-        ),
-        _CardRow.standalone(
-            "gruppen",
-            "Gruppen",
-            value=gruppen,
-            hint="Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)",
-        ),
-    )
-
-
 # --- /bestand/<ulid>/bearbeiten — rename (SLIM: Name only) ---------------------------
 
 
@@ -180,6 +121,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None:
         return _not_found()
     archive, stored, archivist = gated
+    bestand = BestandChooser.of(archive)
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         expected_version = parse_version(request.POST.get("expected_version", ""))
@@ -187,8 +129,9 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return _render_edit(
                 request,
                 ulid,
-                _edit_panel(
-                    archive, stored, name, {"name": "Name ist erforderlich."}, expected_version
+                bestand,
+                bestand_bearbeiten_panel(
+                    bestand, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
@@ -205,17 +148,23 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return _render_edit(
                 request,
                 ulid,
-                _edit_panel(
-                    archive, winner, name, {}, winner.version, conflict_name=winner.collection.name
+                bestand,
+                bestand_bearbeiten_panel(
+                    bestand, winner, name, {}, winner.version, conflict_name=winner.collection.name
                 ),
             )
         return _redirect(request, _scoped_list(ulid))
     return _render_edit(
-        request, ulid, _edit_panel(archive, stored, stored.collection.name, {}, stored.version)
+        request,
+        ulid,
+        bestand,
+        bestand_bearbeiten_panel(bestand, stored, stored.collection.name, {}, stored.version),
     )
 
 
-def _render_edit(request: HttpRequest, ulid: str, panel: FormPanel) -> HttpResponseBase:
+def _render_edit(
+    request: HttpRequest, ulid: str, bestand: BestandChooser, panel: FormPanel
+) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if request.headers.get("HX-Request"):
         return _panel_response(request, panel)
@@ -223,6 +172,7 @@ def _render_edit(request: HttpRequest, ulid: str, panel: FormPanel) -> HttpRespo
         request,
         "workbench/bestand_bearbeiten.html",
         {"panel": panel, "abbrechen": _scoped_list(ulid)},
+        bestand=bestand,
     )
 
 
@@ -246,77 +196,3 @@ def _load_gated_collection(
         return archive, archive.collections.load(ulid), archivist
     except ArchiveError:
         return None
-
-
-def _edit_panel(
-    archive: Archive,
-    stored: StoredCollection,
-    name: str,
-    errors: FormErrors,
-    version: Version | None,
-    conflict_name: str | None = None,
-) -> FormPanel:
-    """The rename form, page and tool panel alike: the editable Name (preserved on re-render) + the
-    READ-ONLY parent name + Sichtbarkeit label as facts (this slice edits neither). ``version`` is the
-    one the form saves against (ADR 0013); ``conflict_name``, the winner's name, shows the conflict
-    notice."""
-    collection = stored.collection
-    return FormPanel(
-        id="bestand-bearbeiten",
-        label="Bestand bearbeiten …",
-        action=reverse("bestand-bearbeiten", args=[collection.ulid]),
-        rows=(
-            _CardRow.standalone(
-                "name",
-                "Name",
-                value=name,
-                error=errors.get("name", ""),
-                required=True,
-                autofocus=True,
-            ),
-        ),
-        button="Speichern",
-        version=version,
-        fakten=(
-            ("Eltern-Bestand", _parent_name(archive, collection.parent_id)),
-            ("Sichtbarkeit", _sichtbarkeit_label(collection.audience)),
-        ),
-        hinweis="Verschieben und Sichtbarkeit ändern folgen später.",
-        jetzt=conflict_name,
-    )
-
-
-# --- the header's create panels -------------------------------------------------------
-
-
-def header_panels(bestand: BestandChooser, *, aktiver: str | None) -> tuple[FormPanel, ...]:
-    """The "+ Neu …" menu's forms as tool panels, empty: Neuer Artikel, Neuer Bestand, and while the
-    list is scoped to the Bestand ``aktiver``, Bestand bearbeiten. Archivist chrome — the caller
-    (``viewers.render_screen``) builds it for archivists only; the routes stay gated on their own."""
-    panels = [neu_artikel_panel(bestand), _neu_bestand(_create_rows(bestand, "", "", "", "", {}))]
-    if aktiver is not None and is_valid_ulid(aktiver):
-        archive = Archive.canonical()
-        try:
-            stored = archive.collections.load(aktiver)
-        except ArchiveError:
-            return tuple(panels)
-        panels.append(_edit_panel(archive, stored, stored.collection.name, {}, stored.version))
-    return tuple(panels)
-
-
-def _parent_name(archive: Archive, parent_id: str | None) -> str:
-    """The parent Collection's name for the read-only display row, or the top-level marker. A targeted
-    load (1 read) rather than a full ``load_all`` scan; a dangling parent (shouldn't happen) shows the
-    ulid rather than raising."""
-    if parent_id is None:
-        return TOP_LEVEL_LABEL
-    try:
-        return archive.collections.load(parent_id).collection.name
-    except ArchiveError:
-        return parent_id
-
-
-def _sichtbarkeit_label(audience: Audience | None) -> str:
-    """The human Sichtbarkeit label for the read-only display row — the shared ``vocab`` formatter
-    (the SAME one the 4.7 CAS diff uses), so the two screens can never word the ladder differently."""
-    return vocab.sichtbarkeit_label(audience)

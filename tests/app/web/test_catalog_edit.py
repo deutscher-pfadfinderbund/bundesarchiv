@@ -41,7 +41,7 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 if TYPE_CHECKING:
-    from bundesarchiv.app.web.catalog_views import _CardRow
+    from bundesarchiv.app.web.card import CardRow
 
 _ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 
@@ -465,38 +465,38 @@ def _autofocused(body: str) -> str:
 # registry to the REAL render or the real behaviour, never to a second hand-written list.
 
 
-def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> list[_CardRow]:
+def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> list[CardRow]:
     """Every record-card row the registry renders, in DOM order, for a blank form."""
-    from bundesarchiv.app.web.catalog_views import _card_fields
+    from bundesarchiv.app.web.card import card_fields
 
-    sections = _card_fields(
+    sections = card_fields(
         {"ulid": _ULID}, BestandChooser(lambda: ()), errors=errors or {}, autofocus=autofocus
     )
     return [row for group in sections.values() for row in group]
 
 
 def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus) -> None:
-    # The card's sections are `{% for %}` loops over `_card_fields`, so the template can no longer
+    # The card's sections are `{% for %}` loops over `card_fields`, so the template can no longer
     # render a field the registry does not declare — that direction is closed by construction. The
     # open direction is a section whose loop was never wired: walk the real render for each declared
     # control.
-    from bundesarchiv.app.web.catalog_views import _FIELDS
+    from bundesarchiv.app.web.card import FIELDS
 
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
-    declared = [f.name for f in _FIELDS if f.control]
+    declared = [f.name for f in FIELDS if f.control]
     assert len(declared) >= 13, f"the registry declares {declared} — the guard proves nothing"
     for name in declared:
         assert f'name="{name}"' in body, f"the card renders no control for {name}"
 
 
 def test_only_a_focusable_field_can_carry_the_autofocus() -> None:
-    # `focusable` is what `_first_error_field` scans, so a field marked focusable whose control never
+    # `focusable` is what `first_error_field` scans, so a field marked focusable whose control never
     # receives `autofocus` focuses NOTHING on a validation re-render — silent, and in source it looks
     # exactly like a working one. One partial wires the attribute now, off `row.autofocus`, so the
     # relation is the registry's: every focusable field can take the caret, nothing else can.
-    from bundesarchiv.app.web.catalog_views import _FIELDS
+    from bundesarchiv.app.web.card import FIELDS
 
-    focusable = [f.name for f in _FIELDS if f.focusable]
+    focusable = [f.name for f in FIELDS if f.focusable]
     assert len(focusable) >= 8, f"only {focusable} focusable — the guard proves nothing"
     for name in focusable:
         focused = [row.name for row in _card_rows(autofocus=name) if row.autofocus]
@@ -551,10 +551,11 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
 def test_every_card_field_echoes_the_post_verbatim() -> None:
     # The re-render echo: a field the echo forgets comes back BLANK, and the archivist's next save
     # writes that blank over the stored value. Data loss, so the whole table is walked, not sampled.
-    from bundesarchiv.app.web.catalog_views import _FIELDS, _post_to_form_values
+    from bundesarchiv.app.web.card import FIELDS
+    from bundesarchiv.app.web.catalog_views import _post_to_form_values
 
     # the Status echoes only a Status (the fallback is its own test), so it types the other one
-    typed = {f.name: f"getippt {f.name}" for f in _FIELDS if f.control} | {"lifecycle": "published"}
+    typed = {f.name: f"getippt {f.name}" for f in FIELDS if f.control} | {"lifecycle": "published"}
     values = _post_to_form_values(QueryDict(urlencode(typed)), _ULID, Lifecycle.DRAFT)
     assert len(typed) >= 13, f"only {sorted(typed)} typed — the walk proves nothing"
     for name, text in typed.items():
@@ -585,10 +586,10 @@ def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> No
     # record by design (it means something only at the GROUPS rung), so scanning it would park the
     # caret there on every fully catalogued record. Pinning the relation rather than the membership means a dropped `scanned=True` fails here, and a SECOND
     # exception has to be argued for rather than typed.
-    from bundesarchiv.app.web.catalog_views import _FIELDS
+    from bundesarchiv.app.web.card import FIELDS
 
-    scanned = {f.name for f in _FIELDS if f.scanned}
-    focusable = {f.name for f in _FIELDS if f.focusable}
+    scanned = {f.name for f in FIELDS if f.scanned}
+    focusable = {f.name for f in FIELDS if f.focusable}
     assert scanned == focusable - {"gruppen"}, f"spine {sorted(scanned)} vs {sorted(focusable)}"
 
 
@@ -597,14 +598,14 @@ def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
     # filled and this one empty must autofocus exactly it. A walker over the spine, so a field dropped
     # from it (or reordered out of DOM order) is caught for every field, not just for `creator` — the
     # one instance an existing e2e journey happens to pin.
-    from bundesarchiv.app.web.catalog_views import _FIELDS, _first_empty_field
+    from bundesarchiv.app.web.card import FIELDS, first_empty_field
 
-    spine = [f.name for f in _FIELDS if f.scanned]
+    spine = [f.name for f in FIELDS if f.scanned]
     assert len(spine) >= 8, f"the spine is {spine} — the walk proves nothing"
     for name in spine:
         values: dict[str, object] = {f: "gefüllt" for f in spine if f != name}
-        assert _first_empty_field(values) == name, (
-            f"with only {name} empty the autofocus went to {_first_empty_field(values)}"
+        assert first_empty_field(values) == name, (
+            f"with only {name} empty the autofocus went to {first_empty_field(values)}"
         )
 
 
@@ -615,14 +616,14 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     # save refuses blank must carry it. Both sides are read back: the markers from the render, the
     # refusals from the parse.
     from bundesarchiv.app.web import catalog
-    from bundesarchiv.app.web.catalog_views import _FIELDS
+    from bundesarchiv.app.web.card import FIELDS
 
     body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
     marked = {str(c["name"]) for c in _controls(body) if c.get("aria-required") == "true"}
     chooser = BestandChooser(lambda: (make_collection("PUB"),))
     refused = {
         registered.name
-        for registered in _FIELDS
+        for registered in FIELDS
         if registered.control
         and registered.name
         in catalog.parse_edit_form(
@@ -635,7 +636,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
 
 #: Every field the CAS "Inzwischen geändert" notice names when all of them changed, in the order it shows
 #: them — the archivist's contract on the loss-adjacent surface, so it is pinned VERBATIM rather than
-#: derived from the registry it guards (an expectation read off `_FIELDS` moves with a dropped `diff=`
+#: derived from the registry it guards (an expectation read off `FIELDS` moves with a dropped `diff=`
 #: and asserts nothing: dropping `diff="Ort"` was green against it).
 #: Bestand is deliberately absent: a diff of collection MOVES is its own surface, not this one.
 _CAS_DIFF_ROWS = (

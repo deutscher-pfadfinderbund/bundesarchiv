@@ -21,8 +21,10 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `browse_views.py` — workbench + detail routes: search, browse, read, choose columns · interface: `workbench`, `article_detail`, `choose_columns` · tests: `tests/app/web/test_workbench.py`, `test_choose_columns.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `save_catalog_form`, `apply_captions` · tests: `tests/app/web/test_catalog_form.py`
-- `catalog_views.py` — cataloging routes, the `_FIELDS` card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`, `FormPanel`, `neu_artikel_panel` · tests: `tests/app/web/test_catalog_*.py`
-- `collection_views.py` — Bestand management routes + the header's create panels · interface: `collection_create`, `collection_edit`, `header_panels` · tests: `tests/app/web/test_collection_*.py`
+- `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
+- `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, `neu_artikel_panel` · tests: `test_collection_entrypoints.py`
+- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete` · tests: `tests/app/web/test_catalog_*.py`
+- `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
 - `bulk.py` — bulk-edit core: allowlist, Feld-chooser context, per-article CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `feldwahl_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`

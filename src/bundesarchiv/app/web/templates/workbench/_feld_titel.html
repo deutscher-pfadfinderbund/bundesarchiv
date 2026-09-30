@@ -1,4 +1,4 @@
-{% comment %}The heading field (Titel) of both article forms, a catalog_views._CardRow as `feld`. `form` names
+{% comment %}The heading field (Titel) of both article forms, a card.CardRow as `feld`. `form` names
 the owning form when the control sits outside it.{% endcomment %}{% with base=feld.base %}<label id="{{ base }}-label" class="visually-hidden" for="{{ feld.control_id }}">{{ feld.label }}</label>
 <h1 class="title-field"><textarea id="{{ feld.control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} rows="1" placeholder="{{ feld.label }}" {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>{{ feld.value }}</textarea></h1>
 {% include "workbench/_feld_gespeichert.html" %}

@@ -7,7 +7,7 @@ Params (all optional; an empty value renders less):
   is_signed_in    — gates Abmelden: whoever holds a cookie, Member included (ADR 0018)
   is_archivist    — gates the "+ Neu …" menu. viewers.render_screen stamps it; never pass it as a
                     literal at an include site — the leak matrix asserts route gates, not chrome
-  neu             — the menu's entries, each opening its form as a tool panel (catalog_views.FormPanel);
+  neu             — the menu's entries, each opening its form as a tool panel (panels.FormPanel);
                     render_screen stamps them, "Bestand bearbeiten" among them while a Bestand is in
                     focus (aktiver_bestand)
   ohne_suche      — drops the search form: on the article forms a search invites leaving unsaved

@@ -132,7 +132,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ### 13. `scanned` is derivable from `focusable` — Speculative
 - **Indicator:** 1 pinned relation, `scanned == focusable - {"gruppen"}` (2026-09-02)
-- **Evidence:** `catalog_views._FIELDS` declares both columns;
+- **Evidence:** `card.FIELDS` declares both columns;
   `test_catalog_edit.test_scanned_is_the_focusable_spine_minus_the_one_declared_exception` pins the
   relation. A test pinning a derivation is the smell an owning interface would remove.
 - **Sketch:** drop the `scanned` column; derive the GET spine from `focusable` minus a named
@@ -218,14 +218,15 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **A context reaches only what reads the role:** `color: inherit` passes the resolved colour, so a
   part that should answer a context binds itself to `var(--ink)` (the menu entries had to).
 
-### 24. Web view modules import each other in a cycle — Weak
+### 24. Web view modules import each other in a cycle — done
 - **Indicator:** 1 function-local import (`viewers.render_screen` → the header panel builders),
-  2026-09-30.
+  2026-09-30 → 0 (2026-09-30).
 - **The pattern:** `catalog_views` imports `browse_views` and `collection_views` imports
   `catalog_views`, so a module both of them reach (`viewers`) cannot import the panel builders
   at module level. Wave REST U2 worked around it with one local import.
-- **Sketch:** move `_CardRow` and `FormPanel` into a leaf module that imports no view module;
-  do it when a second local import appears.
+- **Evidence:** `app/web/card.py` (the field registry, `CardRow`) and `app/web/panels.py`
+  (`FormPanel`, `header_panels`) import no view module. The registry moved too: the "Neuer Artikel"
+  panel's rows come from it.
 
 ## Tests
 

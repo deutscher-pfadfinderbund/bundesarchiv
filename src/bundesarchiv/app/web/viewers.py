@@ -27,6 +27,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
 from bundesarchiv.app.web.oidc import viewer_from_claims
+from bundesarchiv.app.web.panels import header_panels
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: Name of the signed cookie the dev switcher sets and this seam reads.
@@ -238,13 +239,10 @@ def render_screen(
         "neu": (),
     }
     if is_archivist:
-        # the panels are the Bestand views' forms, and those views import this module
-        from bundesarchiv.app.web.collection_views import header_panels
-
         aktiver = context.get("aktiver_bestand")
-        chooser = bestand or BestandChooser.of(Archive.canonical())
         # a callable: the template calls it where the header prints the menu, so a partial pays nothing
         chrome["neu"] = lambda: header_panels(
-            chooser, aktiver=aktiver if isinstance(aktiver, str) else None
+            bestand or BestandChooser.of(Archive.canonical()),
+            aktiver=aktiver if isinstance(aktiver, str) else None,
         )
     return render(request, template, {**context, **chrome})

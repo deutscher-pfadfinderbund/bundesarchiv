@@ -1,4 +1,4 @@
-{% comment %}Param: panel — a catalog_views.FormPanel.{% endcomment %}
+{% comment %}Param: panel — a panels.FormPanel.{% endcomment %}
 <form class="toolpanel" id="{{ panel.id }}" popover method="post" action="{{ panel.action }}"
       hx-post="{{ panel.action }}" hx-target="this" hx-select="form > *" hx-swap="innerHTML">
   {% if panel.jetzt %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=panel.jetzt only %}{% endif %}
