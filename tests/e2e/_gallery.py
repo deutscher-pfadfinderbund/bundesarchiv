@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import CorpusHandles
 from tests.e2e._pages import SCREENS, Screen
@@ -119,6 +120,21 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the same selection with "Feld ändern …" open (the chooser in its toolpanel)
     _reach_auswahl(page, base, corpus)
     page.click('[popovertarget="feld-aendern"]')
+
+
+def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # a form posted with a token that no longer matches: the "form expired" page
+    page.goto(f"{base}/bestand/neu", wait_until="networkidle")
+    page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
+    page.locator("main form").get_by_role("button", name="Anlegen").click()
+    page.wait_for_load_state("networkidle")
+
+
+def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # no route fails on purpose: the page as Django's 500 handler renders it (no context), on the
+    # app's origin so its stylesheets load
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.set_content(render_to_string("500.html"), wait_until="networkidle")
 
 
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -334,6 +350,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         True,
         _reach_edit_weitere_angaben,
     ),
+    GalleryState(
+        "csrf-refused",
+        "a form posted with a stale token: the 'form expired' page (403)",
+        True,
+        _reach_csrf_refused,
+    ),
+    GalleryState("server-error", "the server error page (500)", True, _reach_server_error),
 )
 
 #: The canonical states, in a stable order (the gallery is a design contract: same states, same

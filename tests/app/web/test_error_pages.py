@@ -1,0 +1,41 @@
+"""The two pages Django renders outside any view: a refused CSRF check and an uncaught error. Both
+render without a database or request state, and repeat nothing the request carried."""
+
+import pytest
+from django.urls import reverse
+from tests.app.web._fixtures import PUBLISHED_ULID, client_as
+
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.domain.viewer import Archivist
+
+_TYPED = "Quisenberry-Zephyroth"
+
+
+@pytest.mark.usefixtures("corpus")
+def test_a_refused_form_gets_the_expired_page_and_repeats_nothing() -> None:
+    response = client_as(Archivist(), enforce_csrf=True).post(
+        f"/bestand/neu?q={_TYPED}", {"name": _TYPED}
+    )
+    assert response.status_code == 403
+    body = response.content.decode()
+    assert f'href="{reverse("workbench")}"' in body
+    assert _TYPED not in body
+    assert "/bestand/neu" not in body
+
+
+@pytest.mark.usefixtures("corpus")
+def test_an_uncaught_error_gets_the_error_page_and_repeats_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail() -> Archive:
+        raise RuntimeError(_TYPED)
+
+    monkeypatch.setattr(Archive, "canonical", fail)
+    client = client_as(Archivist())
+    client.raise_request_exception = False
+    response = client.get(f"/artikel/{PUBLISHED_ULID}/bearbeiten?q={_TYPED}")
+    assert response.status_code == 500
+    body = response.content.decode()
+    assert f'href="{reverse("workbench")}"' in body
+    assert _TYPED not in body
+    assert PUBLISHED_ULID not in body
