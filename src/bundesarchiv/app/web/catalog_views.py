@@ -33,10 +33,10 @@ from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.result import Conflicted, Missing, Updated
+from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.browse_views import BestandCrumb, bestand_crumbs
+from bundesarchiv.app.web.browse_views import INDEX_LAG_QUERY, BestandCrumb, bestand_crumbs
 from bundesarchiv.app.web.card import (
     FIELDS,
     LIFECYCLE_OPTIONS,
@@ -351,9 +351,6 @@ type Overlay = NoOverlay | Conflict | MediaError | IndexLag | RemoveConfirm
 
 _NO_OVERLAY = NoOverlay()
 
-#: The state-H hinweis (ADR 0014), shown when a save's index update lagged.
-_INDEX_LAG_HINWEIS = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
-
 
 @dataclass(frozen=True, slots=True)
 class EditSurface:
@@ -458,7 +455,7 @@ class EditSurface:
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
                 "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
-                "index_lag": _INDEX_LAG_HINWEIS if isinstance(overlay, IndexLag) else "",
+                "index_lag": vocab.INDEX_LAG if isinstance(overlay, IndexLag) else "",
             },
             bestand=self.bestand,
         )
@@ -673,11 +670,12 @@ def _confirmed_delete(
     ulid: str,
     *,
     marked: bool,
-    delete: Callable[[Archive, Stored, str], object],
+    delete: Callable[[Archive, Stored, str], SaveResult],
 ) -> HttpResponseBase:
     """The delete confirm both deletes share: GET names the record and what happens to it; POST
     deletes against the confirm's ``expected_version`` and 302s to the list the record left (the
-    workbench, or the Papierkorb). A confirm older than the record deletes nothing and asks again,
+    workbench, or the Papierkorb), or, when the index lagged behind a mark, to the record's page,
+    which says so (ADR 0014). A confirm older than the record deletes nothing and asks again,
     naming the record as it now stands."""
     gated = _load_gated(request, ulid, marked=marked)
     if gated is None:
@@ -688,8 +686,11 @@ def _confirmed_delete(
         # The gate's load is what was checked, so it must be the version the CAS bets on.
         if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
             with contextlib.suppress(errors.Conflict):
-                delete(archive, stored, archivist.username)
-                return redirect_to(request, reverse("trash" if marked else "workbench"))
+                result = delete(archive, stored, archivist.username)
+                if marked or result.index_updated:
+                    return redirect_to(request, reverse("trash" if marked else "workbench"))
+                page = reverse("artikel-detail", args=[ulid])
+                return redirect_to(request, f"{page}?{INDEX_LAG_QUERY}")
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
             return not_found()

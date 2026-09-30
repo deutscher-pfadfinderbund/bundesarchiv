@@ -534,11 +534,20 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
     floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
     member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
-    on ``is_archivist``."""
+    on ``is_archivist``. On a record in the Papierkorb, ``INDEX_LAG_QUERY`` adds the index-lag
+    hint: a delete whose index update lagged lands there."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
         return not_found()
-    return render_screen(request, "workbench/detail.html", _detail_context(resolution))
+    context = _detail_context(resolution)
+    lagging = request.GET.get(_INDEX_LAG[0]) == _INDEX_LAG[1] and context["geloescht"] is not None
+    context["index_lag"] = vocab.INDEX_LAG if lagging else ""
+    return render_screen(request, "workbench/detail.html", context)
+
+
+#: The query the delete lands with when the index lagged (ADR 0014): the page says so.
+_INDEX_LAG = ("index", "lagging")
+INDEX_LAG_QUERY = urlencode([_INDEX_LAG])
 
 
 @dataclass(frozen=True, slots=True)

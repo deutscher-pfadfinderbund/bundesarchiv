@@ -19,6 +19,7 @@ The write path is REAL; only the index + queue seams are stubbed (see conftest.p
 
 from dataclasses import replace
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 from tests.app.web._asserts import assert_denied
@@ -284,6 +285,28 @@ def test_wiederherstellen_with_index_lag_says_so(
     assert response.status_code == 200
     assert response.context["index_lag"]
     assert _mark_of(corpus, PUBLISHED_ULID) is None
+
+
+@pytest.mark.parametrize("hx", [False, True], ids=["plain", "htmx"])
+def test_loeschen_with_index_lag_says_so(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch, hx: bool
+) -> None:
+    # ADR 0014: the mark takes the record out of search; a lagging index is said, as on a restore.
+    from bundesarchiv.app import articles
+
+    monkeypatch.setattr(
+        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
+    )
+    client = client_as(Archivist())
+    [(action, fields)] = _delete_forms(
+        client.get(f"/artikel/{PUBLISHED_ULID}").content.decode(), PUBLISHED_ULID
+    )
+    done = client.post(action, fields, headers={"HX-Request": "true"} if hx else {})
+    landing = done["HX-Redirect"] if hx else done["Location"]
+    assert _mark_of(corpus, PUBLISHED_ULID) is not None
+    assert urlparse(landing).path == f"/artikel/{PUBLISHED_ULID}"
+    assert client.get(landing).context["index_lag"]
+    assert not client.get(f"/artikel/{PUBLISHED_ULID}").context["index_lag"]
 
 
 def _version(corpus: Corpus, ulid: str) -> int:
