@@ -210,6 +210,10 @@ def _p_spalten(_c: _MatrixCorpus) -> str:
     return "/spalten"
 
 
+def _p_trash(_c: _MatrixCorpus) -> str:
+    return "/trash"
+
+
 def _p_login(_c: _MatrixCorpus) -> str:
     return "/login"
 
@@ -254,12 +258,12 @@ def _p_loeschen(c: _MatrixCorpus) -> str:
     return f"/artikel/{c.article_ulid}/loeschen"
 
 
-def _p_endgueltig_loeschen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.marked_ulid}/endgueltig-loeschen"
+def _p_delete_permanently(c: _MatrixCorpus) -> str:
+    return f"/artikel/{c.marked_ulid}/delete-permanently"
 
 
-def _p_wiederherstellen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.marked_ulid}/wiederherstellen"
+def _p_restore(c: _MatrixCorpus) -> str:
+    return f"/artikel/{c.marked_ulid}/restore"
 
 
 def _p_veroeffentlichen(c: _MatrixCorpus) -> str:
@@ -318,6 +322,16 @@ _CONTRACT: dict[str, Route] = {
         get_arch=FOUR_OH_FOUR,
         post_nonarch=REDIRECT,
         post_arch=REDIRECT,
+    ),
+    # The Papierkorb (ADR 0022): the Archivist's alone, GET only. Its rows come from search(), whose
+    # Papierkorb scoping is test_leaks_papierkorb.py's; here the gate.
+    "trash": Route(
+        build_path=_p_trash,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,
+        stub_search=True,
     ),
     # The login surface (ADR 0018) with NO realm configured — the deploy-misconfiguration case, which
     # is what these settings are. ``/login`` and the callback fall closed to the shared 404 (no
@@ -392,15 +406,15 @@ _CONTRACT: dict[str, Route] = {
     ),
     # The Papierkorb's two routes, probed on the marked article (ADR 0022); an unmarked one is
     # refused to the Archivist too — see test_a_papierkorb_route_refuses_an_unmarked_article.
-    "artikel-endgueltig-loeschen": Route(
-        build_path=_p_endgueltig_loeschen,
+    "article-delete-permanently": Route(
+        build_path=_p_delete_permanently,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # GET = confirm page
         post_nonarch=FOUR_OH_FOUR,
-        post_arch=REDIRECT,  # deleted for good → 302 to /
+        post_arch=REDIRECT,  # deleted for good → 302 to the Papierkorb
     ),
-    "artikel-wiederherstellen": Route(
-        build_path=_p_wiederherstellen,
+    "article-restore": Route(
+        build_path=_p_restore,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
@@ -554,8 +568,8 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 _POST_DATA_BUILDERS = {
     "artikel-sammelbearbeitung": _sammel_post_data,
     "artikel-loeschen": _loeschen_post_data,
-    "artikel-endgueltig-loeschen": _marked_post_data,
-    "artikel-wiederherstellen": _marked_post_data,
+    "article-delete-permanently": _marked_post_data,
+    "article-restore": _marked_post_data,
 }
 
 
@@ -665,7 +679,7 @@ def test_a_marked_article_refuses_every_other_route(
     assert _unchanged(matrix_corpus) == before
 
 
-@pytest.mark.parametrize("name", ["artikel-endgueltig-loeschen", "artikel-wiederherstellen"])
+@pytest.mark.parametrize("name", ["article-delete-permanently", "article-restore"])
 def test_a_papierkorb_route_refuses_an_unmarked_article(
     matrix_corpus: _MatrixCorpus, name: str
 ) -> None:
@@ -714,8 +728,8 @@ def test_every_article_route_has_a_papierkorb_contract() -> None:
     covered = {
         *_MARKED_PATHS,
         *_MARKED_REFUSED,
-        "artikel-endgueltig-loeschen",
-        "artikel-wiederherstellen",
+        "article-delete-permanently",
+        "article-restore",
     }
     assert article_routes == covered
 

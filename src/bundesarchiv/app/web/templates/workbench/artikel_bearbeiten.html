@@ -41,9 +41,9 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
         <li><a href="{% url 'artikel-detail' values.ulid %}">Zur Artikelseite</a></li>
         <li>{% include "workbench/_duplizieren.html" with ulid=values.ulid %}</li>
         {% url 'artikel-loeschen' values.ulid as loeschen_href %}
-        <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button></li>
+        <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
       </ul>
-      {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}
+      {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="primary" in_place=True %}
     </div>
   </aside>
 

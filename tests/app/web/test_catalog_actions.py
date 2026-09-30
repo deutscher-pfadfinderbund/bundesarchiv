@@ -4,8 +4,8 @@ Covers the four new routes and the read-view action row:
 
 - ``/artikel/<ulid>/kopieren`` POST — copy to a fresh draft, 302 to the copy's edit form.
 - ``/artikel/<ulid>/loeschen`` GET (confirm) + POST (execute) — into the Papierkorb, 302 to the
-  workbench; ``/endgueltig-loeschen`` the same for a marked record, deleting it for good;
-  ``/wiederherstellen`` POST takes it out again (ADR 0022).
+  workbench; ``/delete-permanently`` the same for a marked record, deleting it for good;
+  ``/restore`` POST takes it out again (ADR 0022).
 - the fail-closed publish affordance: no exposure, no Veröffentlichen.
 - ``/artikel/<ulid>/veroeffentlichen`` POST — publish a draft from the article page (a3 round 7):
   CAS on the page's version, the same fail-closed gate as the edit form's Status.
@@ -197,16 +197,16 @@ def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: 
 
 
 def _for_good_forms(body: str, ulid: str) -> list[tuple[str, dict[str, str]]]:
-    return [f for f in page_forms(body) if f[0].startswith(f"/artikel/{ulid}/endgueltig-loeschen")]
+    return [f for f in page_forms(body) if f[0].startswith(f"/artikel/{ulid}/delete-permanently")]
 
 
 def test_endgueltig_loeschen_deletes_a_marked_record_for_good(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
     client = client_as(Archivist())
-    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/delete-permanently").content.decode()
     [(action, fields)] = _for_good_forms(body, PUBLISHED_ULID)
     response = client.post(action, fields)
-    assert (response.status_code, response["Location"]) == (302, "/")
+    assert (response.status_code, response["Location"]) == (302, "/trash")
     with pytest.raises(NotFound):
         corpus.articles.load(PUBLISHED_ULID)
 
@@ -216,7 +216,7 @@ def test_an_endgueltig_confirm_older_than_the_record_deletes_nothing_and_asks_ag
 ) -> None:
     _mark(corpus, PUBLISHED_ULID)
     client = client_as(Archivist())
-    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/delete-permanently").content.decode()
     stored = corpus.articles.load(PUBLISHED_ULID)
     corpus.articles.save(
         replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
@@ -240,7 +240,7 @@ def test_a_restore_landing_while_endgueltig_runs_survives(
 
     _mark(corpus, PUBLISHED_ULID)
     client = client_as(Archivist())
-    body = client.get(f"/artikel/{PUBLISHED_ULID}/endgueltig-loeschen").content.decode()
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/delete-permanently").content.decode()
     real_load = ArticleRepository.load
 
     def load_then_a_restore(self: ArticleRepository, ulid: str) -> Stored:
@@ -259,7 +259,7 @@ def test_a_restore_landing_while_endgueltig_runs_survives(
 
 
 def _restore(client: Any, ulid: str, version: int) -> Any:
-    return client.post(f"/artikel/{ulid}/wiederherstellen", {"expected_version": str(version)})
+    return client.post(f"/artikel/{ulid}/restore", {"expected_version": str(version)})
 
 
 def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus) -> None:
@@ -268,6 +268,45 @@ def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus)
     response = _restore(client_as(Archivist()), PUBLISHED_ULID, before.version)
     assert (response.status_code, response["Location"]) == (302, f"/artikel/{PUBLISHED_ULID}")
     assert corpus.articles.load(PUBLISHED_ULID).article == replace(before.article, deleted=None)
+
+
+def test_wiederherstellen_with_index_lag_says_so(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ADR 0014: a restore makes the record findable again; a lagging index must be said.
+    from bundesarchiv.app import articles
+
+    monkeypatch.setattr(
+        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
+    )
+    _mark(corpus, PUBLISHED_ULID)
+    response = _restore(client_as(Archivist()), PUBLISHED_ULID, _version(corpus, PUBLISHED_ULID))
+    assert response.status_code == 200
+    assert response.context["index_lag"]
+    assert _mark_of(corpus, PUBLISHED_ULID) is None
+
+
+def _version(corpus: Corpus, ulid: str) -> int:
+    return corpus.articles.load(ulid).version
+
+
+def test_the_page_of_a_marked_record_offers_restore_and_delete_permanently_only(
+    corpus: Corpus,
+) -> None:
+    """ADR 0022: a marked record cannot be edited, copied, published or deleted again; its page
+    offers the two Papierkorb actions, each at the version it shows."""
+    _mark(corpus, PUBLISHED_ULID)
+    body = client_as(Archivist()).get(f"/artikel/{PUBLISHED_ULID}").content.decode()
+    main = body[body.index("<main") :]
+    version = str(_version(corpus, PUBLISHED_ULID))
+    forms = dict(page_forms(main))
+    assert set(forms) == {
+        f"/artikel/{PUBLISHED_ULID}/restore",
+        f"/artikel/{PUBLISHED_ULID}/delete-permanently",
+    }
+    assert all(fields["expected_version"] == version for fields in forms.values())
+    for refused in ("bearbeiten", "kopieren", "loeschen", "veroeffentlichen"):
+        assert f"/artikel/{PUBLISHED_ULID}/{refused}" not in main
 
 
 def test_wiederherstellen_on_a_stale_page_restores_nothing(corpus: Corpus) -> None:
@@ -299,7 +338,7 @@ def test_a_save_landing_while_the_restore_runs_survives(
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-@pytest.mark.parametrize("route", ["endgueltig-loeschen", "wiederherstellen"])
+@pytest.mark.parametrize("route", ["delete-permanently", "restore"])
 def test_the_papierkorb_routes_deny_and_change_nothing(
     corpus: Corpus, viewer: Viewer, route: str
 ) -> None:

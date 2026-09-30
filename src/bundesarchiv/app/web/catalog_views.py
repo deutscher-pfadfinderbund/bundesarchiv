@@ -454,7 +454,7 @@ class EditSurface:
                     ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
-                "loeschen": vocab.delete_confirm(len(self.stored.media)),
+                "loeschen": vocab.TRASH_CONFIRM,
                 "crumbs": _crumbs(self.stored, self.bestand),
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
@@ -638,7 +638,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
 
-# --- /artikel/<ulid>/loeschen, /endgueltig-loeschen, /wiederherstellen (ADR 0022) ---
+# --- /artikel/<ulid>/loeschen, /delete-permanently, /restore (ADR 0022) -------------
 
 
 def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -655,9 +655,10 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
-def article_delete_for_good(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /artikel/<ulid>/endgueltig-loeschen`` — the same confirm for an Article in the
-    Papierkorb, whose POST hard-deletes it (ADR 0020, 0022). Any other ulid gets the plain 404."""
+def article_delete_permanently(request: HttpRequest, ulid: str) -> HttpResponseBase:
+    """``GET/POST /artikel/<ulid>/delete-permanently`` — the same confirm for an Article in the
+    Papierkorb, whose POST hard-deletes it (ADR 0020, 0022) and returns to the Papierkorb. Any
+    other ulid gets the plain 404."""
     return _confirmed_delete(
         request,
         ulid,
@@ -675,9 +676,10 @@ def _confirmed_delete(
     marked: bool,
     delete: Callable[[Archive, Stored, str], object],
 ) -> HttpResponseBase:
-    """The delete confirm both deletes share: GET names the record and what goes with it; POST
-    deletes against the confirm's ``expected_version`` and 302s to the workbench. A confirm older
-    than the record deletes nothing and asks again, naming the record as it now stands."""
+    """The delete confirm both deletes share: GET names the record and what happens to it; POST
+    deletes against the confirm's ``expected_version`` and 302s to the list the record left (the
+    workbench, or the Papierkorb). A confirm older than the record deletes nothing and asks again,
+    naming the record as it now stands."""
     gated = _load_gated(request, ulid, marked=marked)
     if gated is None:
         return _not_found()
@@ -688,13 +690,17 @@ def _confirmed_delete(
         if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
             with contextlib.suppress(errors.Conflict):
                 delete(archive, stored, archivist.username)
-                return redirect_to(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+                return redirect_to(request, reverse("trash" if marked else "workbench"))
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
             return _not_found()
         stored = reloaded
         veraltet = _LOESCHEN_VERALTET
-    confirm = vocab.delete_confirm(len(stored.article.media))
+    confirm = (
+        vocab.delete_permanently_confirm(len(stored.article.media))
+        if marked
+        else vocab.TRASH_CONFIRM
+    )
     bestand = BestandChooser.of(archive)
     return render_screen(
         request,
@@ -703,7 +709,7 @@ def _confirmed_delete(
         if request.headers.get("HX-Request")
         else "workbench/artikel_loeschen.html",
         {
-            "id": "loeschen",
+            "id": "endgueltig-loeschen" if marked else "loeschen",
             "ulid": ulid,
             "version": stored.version,
             "veraltet": veraltet,
@@ -713,7 +719,10 @@ def _confirmed_delete(
             "lead": confirm.question,
             "consequence": confirm.consequence,
             "button": confirm.button,
-            "tone": "danger",
+            "tone": "danger" if marked else "primary",
+            "abbrechen_href": reverse("trash")
+            if marked
+            else reverse("artikel-detail", args=[ulid]),
             "in_place": True,
             "action": request.get_full_path(),
         },
@@ -726,20 +735,28 @@ _LOESCHEN_VERALTET = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, 
 
 
 def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/wiederherstellen`` — take an Article out of the Papierkorb (ADR 0022)
-    against the page's ``expected_version``, then return to its page. Archivist-only, POST-only, a
-    marked Article only; else the plain 404. A stale version restores nothing and returns too."""
+    """``POST /artikel/<ulid>/restore`` — take an Article out of the Papierkorb (ADR 0022) against
+    the page's ``expected_version``, then go to its page; a lagging index is said, as after a
+    publish (ADR 0014). Archivist-only, POST-only, a marked Article only; else the plain 404. A
+    stale version restores nothing and goes to its page too."""
     gated = _load_gated(request, ulid, marked=True)
     if gated is None or request.method != "POST":
         return _not_found()
     archive, stored, archivist = gated
     page = reverse("artikel-detail", args=[ulid])
-    if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
-        # a save landing since the gate's load restores nothing; the page shows the record as it is
-        with contextlib.suppress(errors.Conflict):
-            article_services.restore_article(
-                archive, stored.article, stored.version, changed_by=archivist.username
-            )
+    if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
+        return redirect_to(request, page)
+    try:
+        result = article_services.restore_article(
+            archive, stored.article, stored.version, changed_by=archivist.username
+        )
+    except errors.Conflict:
+        return redirect_to(request, page)  # a save landed since the gate's load: nothing restored
+    if not result.index_updated:
+        restored = replace(stored.article, deleted=None)
+        return EditSurface.of(restored, result.version, BestandChooser.of(archive)).render(
+            request, overlay=IndexLag()
+        )
     return redirect_to(request, page)
 
 

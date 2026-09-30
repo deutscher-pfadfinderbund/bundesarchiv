@@ -18,12 +18,12 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_article`, `resolve_visible_detail` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
 - `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
-- `browse_views.py` — workbench + detail routes: search, browse, read, choose columns · interface: `workbench`, `article_detail`, `choose_columns` · tests: `tests/app/web/test_workbench.py`, `test_choose_columns.py`
+- `browse_views.py` — the list, detail and Papierkorb routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `save_catalog_form`, `apply_captions` · tests: `tests/app/web/test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
-- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_for_good`/`_restore` · tests: `tests/app/web/test_catalog_*.py`
+- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore` · tests: `tests/app/web/test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
 - `bulk.py` — bulk-edit core: allowlist, Feld-chooser context, per-article CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `feldwahl_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`

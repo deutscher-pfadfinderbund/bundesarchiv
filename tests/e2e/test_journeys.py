@@ -6,7 +6,7 @@ The ``archivist_page`` / ``public_page`` fixtures (conftest) carry the right vie
 corpus is the canonical one from ``_corpus``.
 
 Journeys: search+filter+pane · create draft · edit+save · CAS conflict (two contexts) · Duplizieren
-loop · Löschen confirm · one-click publish · bulk select→confirm→partial result.
+loop · Löschen → Papierkorb → restore / delete permanently · one-click publish · bulk select→confirm→partial result.
 """
 
 import json
@@ -1290,24 +1290,50 @@ def test_kopieren_creates_draft_copy_signatur_focused(
     expect(page.locator('textarea[name="title"]')).to_have_value("Sommerfahrt 1962")
 
 
-# --- Löschen confirm ---------------------------------------------------------------
+# --- Löschen, the Papierkorb (ADR 0022) ---------------------------------------------
 
 
-def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str) -> None:
-    page = archivist_page
-    _create_draft(page, live_workbench, "E2E Zu Löschen")
+def _delete_new_draft(page: Page, base: str, title: str) -> None:
+    """A new draft, put in the Papierkorb from its article page's "Löschen …"."""
+    _create_draft(page, base, title)
     ulid = page.url.split("/artikel/")[1].split("/")[0]
-    # from the article page, "Löschen …" (in Bearbeiten's menu) opens the confirm panel, whose one
-    # button deletes
-    page.goto(live_workbench + f"/artikel/{ulid}")
+    page.goto(base + f"/artikel/{ulid}")
     page.get_by_label("Weitere Aktionen").click()
     page.click('[popovertarget="loeschen"]')
     panel = page.locator("#loeschen")
     expect(panel).to_be_visible()
     panel.locator('button[type="submit"]').click()
-    page.wait_for_url(
-        lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/"))
-    )  # → workbench
+    page.wait_for_url(lambda url: url.rstrip("/") == base.rstrip("/"))  # → the list
+
+
+def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    title = "E2E Wiederzuholen"
+    _delete_new_draft(page, live_workbench, title)
+    expect(page.locator("main")).not_to_contain_text(title)
+    page.locator("main [role=toolbar]").get_by_role("link", name="Papierkorb").click()
+    page.get_by_role("button", name=f"Wiederherstellen: {title}").click()
+    page.wait_for_url("**/artikel/*")
+    page.goto(live_workbench + "/")
+    expect(page.locator("main").get_by_role("link", name=title, exact=True)).to_be_visible()
+
+
+def test_delete_permanently_removes_it_from_the_papierkorb(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    page = archivist_page
+    title = "E2E Endgültig weg"
+    _delete_new_draft(page, live_workbench, title)
+    page.goto(live_workbench + "/trash")
+    detail = page.locator("main").get_by_role("link", name=title, exact=True).get_attribute("href")
+    page.get_by_role("link", name=f"Endgültig löschen: {title}").click()
+    page.locator("main form button[type=submit]").click()
+    page.wait_for_url("**/trash")
+    expect(page.locator("main")).not_to_contain_text(title)
+    gone = page.goto(live_workbench + str(detail))
+    assert gone is not None and gone.status == 404
 
 
 # --- publish -------------------------------------------------------------------------

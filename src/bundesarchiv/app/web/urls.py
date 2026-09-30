@@ -12,13 +12,13 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 from django.urls import path
 
 from bundesarchiv.app.web.auth_views import login, logout, oidc_callback
-from bundesarchiv.app.web.browse_views import article_detail, choose_columns, workbench
+from bundesarchiv.app.web.browse_views import article_detail, choose_columns, trash, workbench
 from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
     article_create,
     article_delete,
-    article_delete_for_good,
+    article_delete_permanently,
     article_dokumenttypen,
     article_edit,
     article_medien_entfernen,
@@ -41,6 +41,7 @@ from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 urlpatterns = [
     path("", workbench, name="workbench"),
     path("spalten", choose_columns, name="spalten"),
+    path("trash", trash, name="trash"),
     # The login surface (ADR 0018). English paths: these are protocol endpoints, not UI — the
     # callback path is registered in the realm client, and /login is what the anonymous gate points
     # at. They are the routes the gate exempts, so they must stay reachable to an anonymous visitor.
@@ -60,12 +61,13 @@ urlpatterns = [
     path("artikel/<str:ulid>/bearbeiten", article_edit, name="artikel-bearbeiten"),
     path("artikel/<str:ulid>/kopieren", article_copy, name="artikel-kopieren"),
     path("artikel/<str:ulid>/loeschen", article_delete, name="artikel-loeschen"),
+    # English paths: owner-interview-2026-08.md, "Ruling of 2026-10-01 (URLs)".
     path(
-        "artikel/<str:ulid>/endgueltig-loeschen",
-        article_delete_for_good,
-        name="artikel-endgueltig-loeschen",
+        "artikel/<str:ulid>/delete-permanently",
+        article_delete_permanently,
+        name="article-delete-permanently",
     ),
-    path("artikel/<str:ulid>/wiederherstellen", article_restore, name="artikel-wiederherstellen"),
+    path("artikel/<str:ulid>/restore", article_restore, name="article-restore"),
     path("artikel/<str:ulid>/veroeffentlichen", article_publish, name="artikel-veroeffentlichen"),
     path(
         "artikel/<str:ulid>/medien/verschieben",

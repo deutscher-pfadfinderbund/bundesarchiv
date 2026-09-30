@@ -222,6 +222,10 @@
     display: inline;
     margin: 0;
   }
+  /* a toolbar's text link (the list's "Papierkorb") takes the meta type its buttons set */
+  [role="toolbar"] > a:not(.button) {
+    font: var(--type-meta);
+  }
   /* Hit-area mechanics for every quiet icon control, once; ink/hover stay per-site deltas.
      `a:not(.button)` is load-bearing: a toolbar's `a.button` takes its look from @layer elements and
      this layer outranks that one, so a bare `a` here overrode the button even from :where() —

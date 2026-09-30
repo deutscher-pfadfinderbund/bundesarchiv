@@ -167,6 +167,22 @@ def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHan
     page.click('button:has-text("Veröffentlichen")')
 
 
+def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/artikel/{corpus.marked_ulid}", wait_until="networkidle")
+    page.click('[popovertarget="endgueltig-loeschen"]')
+
+
+def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # "Endgültig löschen …" on the one record, confirmed: the Papierkorb it lands on, empty. Every
+    # shot of the state reaches it again on the same corpus, so only the first one deletes.
+    page.goto(f"{base}/trash", wait_until="networkidle")
+    delete = page.locator("main a", has_text="Endgültig löschen …")
+    if delete.count():
+        delete.click()
+        page.locator("main form button[type=submit]").click()
+        page.wait_for_url("**/trash")
+
+
 def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
     page.click("#feld-date-hinweis .help")
@@ -328,6 +344,18 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the article page, a draft's Veröffentlichen confirmation open (who will see it)",
         True,
         _reach_detail_veroeffentlichen_open,
+    ),
+    GalleryState(
+        "detail-in-trash-confirm-open",
+        "the article page of a record in the Papierkorb, its Endgültig löschen confirm open (red)",
+        True,
+        _reach_detail_in_trash_confirm_open,
+    ),
+    GalleryState(
+        "trash-emptied",
+        "the Papierkorb after Endgültig löschen: where it lands, now empty",
+        True,
+        _reach_trash_emptied,
     ),
     GalleryState(
         "edit-datierung-help",

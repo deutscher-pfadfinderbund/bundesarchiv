@@ -1,0 +1,36 @@
+{% extends "workbench/base.html" %}
+{% load static %}
+{% comment %}
+The Papierkorb (ADR 0022). Archivist-only (the view gates it). One quiet row per record, as on the
+bulk result page: the record over one line of its facts, then its own two actions, so a phone
+needs no third column. "Endgültig löschen …" opens the confirm page, which names the record.
+{% endcomment %}
+{% block title %}Papierkorb — Bundesarchiv{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
+{% block header %}{% include "workbench/_header.html" %}{% endblock %}
+{% block body %}
+<main id="inhalt" class="column">
+  <h1>Papierkorb</h1>
+  {% if rows %}
+  <table class="affected">
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><a href="{% url 'artikel-detail' row.ulid %}">{{ row.title }}</a> {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}<br>
+          <span class="affected-old">{% if row.bestand %}{{ row.bestand }} · {% endif %}gelöscht am {{ row.geloescht_am }} von {{ row.geloescht_von }}</span></td>
+        <td>
+          <div class="actions">
+            <form method="post" action="{% url 'article-restore' row.ulid %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ row.version }}"><button type="submit" aria-label="Wiederherstellen: {{ row.title }}">Wiederherstellen</button></form>
+            <a class="button danger" href="{% url 'article-delete-permanently' row.ulid %}" aria-label="Endgültig löschen: {{ row.title }}">Endgültig löschen …</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% include "components/pagination.html" with pager=pager only %}
+  {% else %}
+  {% include "components/empty_state.html" with title="Der Papierkorb ist leer." only %}
+  {% endif %}
+</main>
+{% endblock %}

@@ -39,9 +39,10 @@ from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import Article, Lifecycle
+from bundesarchiv.domain.models import Article, Lifecycle, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
+from bundesarchiv.persistence.errors import ArchiveError
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
@@ -613,9 +614,12 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         )
         for t in article.tags
     )
+    mark = article.deleted
     return {
         "ulid": article.ulid,
         "is_draft": is_draft,
+        # only an Archivist reaches a marked Article (ADR 0022): its page shows the Papierkorb state
+        "geloescht": None if mark is None else {"am": vocab.day(mark.at), "von": mark.by},
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
@@ -634,12 +638,77 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         # so no markup is interpreted). Flagged to the owner as §11: rich Markdown rendering is a later
         # decision, not manufactured here.
         "body_paragraphs": _body_paragraphs(article.body),
-        "crumbs": bestand_crumbs(resolution.chain),
+        # a marked Article's place is the Papierkorb
+        "crumbs": (
+            bestand_crumbs(resolution.chain)
+            if mark is None
+            else (BestandCrumb("Papierkorb", reverse("trash")),)
+        ),
         "tags": tags,
         "umfang": len(media),
-        "loeschen": vocab.delete_confirm(len(media)),
+        "loeschen": vocab.TRASH_CONFIRM
+        if mark is None
+        else vocab.delete_permanently_confirm(len(media)),
         "cover": media[0] if media else None,
         "weitere": media[1:],
         "standort": article.physical_location or "",
         "custom": article.custom,
     }
+
+
+def trash(request: HttpRequest) -> HttpResponseBase:
+    """``GET /trash`` — the Papierkorb (ADR 0022): the marked Articles by title, each with
+    Wiederherstellen and "Endgültig löschen …". Archivist-only, GET-only; else the plain 404."""
+    viewer = viewer_of(request)
+    if not isinstance(viewer, Archivist) or request.method != "GET":
+        return not_found()
+    parsed = browse.parse_query(request.GET)
+    page = search(
+        viewer,
+        filters=SearchFilters(deleted=True),
+        sort="title",
+        page=parsed.page,
+        page_size=browse.PAGE_SIZE,
+    )
+    archive = Archive.canonical()
+    bestand = BestandChooser.of(archive)
+    rows = tuple(row for hit in page.hits if (row := _trash_row(archive, hit.ulid, bestand)))
+    context: dict[str, object] = {
+        "rows": rows,
+        "pager": _pager(parsed, page, {}, []) if page.total else None,
+    }
+    return render_screen(request, "workbench/papierkorb.html", context, bestand=bestand)
+
+
+@dataclass(frozen=True, slots=True)
+class _TrashRow:
+    """One Papierkorb row, read from the canonical record: the index carries no CAS version."""
+
+    ulid: str
+    title: str
+    ref_code: str
+    bestand: str
+    geloescht_am: str
+    geloescht_von: str
+    version: Version
+
+
+def _trash_row(archive: Archive, ulid: str, bestand: BestandChooser) -> _TrashRow | None:
+    """The row for ``ulid``, or ``None`` once it has left the Papierkorb since the index was
+    written (restored, or deleted for good)."""
+    try:
+        stored = archive.articles.load(ulid)
+    except ArchiveError:
+        return None
+    article, mark = stored.article, stored.article.deleted
+    if mark is None:
+        return None
+    return _TrashRow(
+        ulid=ulid,
+        title=article.title,
+        ref_code=article.ref_code or "",
+        bestand=bestand.name_of(article.collection_id) or "",
+        geloescht_am=vocab.day(mark.at),
+        geloescht_von=mark.by,
+        version=stored.version,
+    )

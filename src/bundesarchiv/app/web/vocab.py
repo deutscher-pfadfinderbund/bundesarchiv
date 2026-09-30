@@ -17,6 +17,8 @@ one source with no database:
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from bundesarchiv.domain.access import VisibilityPreview
 from bundesarchiv.domain.edtf import EdtfDate
@@ -187,7 +189,7 @@ def publish_statement(result: VisibilityPreview) -> str:
 
 @dataclass(frozen=True, slots=True)
 class DeleteConfirm:
-    """The delete confirm's words (a3 ``loeschen.html``): the question, what goes, and the one
+    """A delete confirm's words (a3 ``loeschen.html``): the question, what happens, and the one
     button, which names all of it."""
 
     question: str
@@ -195,8 +197,16 @@ class DeleteConfirm:
     button: str
 
 
-def delete_confirm(files: int) -> DeleteConfirm:
-    """The confirm for a record with ``files`` files."""
+#: "Löschen" puts the record in the Papierkorb, so its confirm says where it goes (ADR 0022).
+TRASH_CONFIRM = DeleteConfirm(
+    question="Artikel löschen?",
+    consequence="Er kommt in den Papierkorb. Dort kannst du ihn wiederherstellen.",
+    button="In den Papierkorb",
+)
+
+
+def delete_permanently_confirm(files: int) -> DeleteConfirm:
+    """The Papierkorb's final confirm for a record with ``files`` files."""
     dateien = numbered(files, *_FILE_WORDS[FileKind.OTHER])
     gone = (
         "Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
@@ -205,10 +215,18 @@ def delete_confirm(files: int) -> DeleteConfirm:
         else "Gelöscht wird der Katalogeintrag mit allen Angaben."
     )
     return DeleteConfirm(
-        question="Artikel löschen?",
+        question="Endgültig löschen?",
         consequence=f"{gone} Das lässt sich nicht rückgängig machen.",
-        button=f"Artikel und {dateien} löschen" if files else "Artikel löschen",
+        button=f"Artikel und {dateien} endgültig löschen" if files else "Artikel endgültig löschen",
     )
+
+
+def day(at: datetime) -> str:
+    """The day of a UTC timestamp as the archive lives it (Berlin): ``01.10.2026``."""
+    return f"{at.astimezone(_BERLIN):%d.%m.%Y}"
+
+
+_BERLIN = ZoneInfo("Europe/Berlin")
 
 
 def groups_label(groups: tuple[str, ...]) -> str:
