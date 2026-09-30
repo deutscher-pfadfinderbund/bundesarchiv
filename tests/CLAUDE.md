@@ -101,3 +101,6 @@ sits inside the razor as loss-critical, not as codec-mechanics.
   decision in the fast suite, the browser's answer in `e2e/` (the folded-section
   rule is the canonical pair). That is layering, not duplication; the comment at
   each site says so.
+
+The header's tool panels list every Bestand on every archivist page. A test asserting that a
+value reaches a page scopes itself to the region under test (`<main`), or it passes vacuously.

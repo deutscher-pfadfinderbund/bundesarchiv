@@ -24,6 +24,9 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
 - When naming a library call, ask for a **signature check**, not just an import check.
+- A claim about a framework's DEFAULT behaviour ("Django needs setting X for Y") gets checked in the
+  framework's source before it goes into a brief: a wrong one widens a fence for nothing (Wave REST
+  U3: Django renders `403_csrf.html` without `CSRF_FAILURE_VIEW`).
 - **Dependency upgrades:** list the new version's changed DEFAULTS (timeouts, which responses swap,
   whether swapped scripts re-run), not only renamed APIs — the H4 brief missed two that bit. And
   verify a guard is load-bearing before pinning a contract on it: the CSRF header it asked to
