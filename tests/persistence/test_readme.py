@@ -493,3 +493,36 @@ def test_an_unknown_date_added_is_omitted_and_reads_back_as_unknown() -> None:
 def test_the_date_added_round_trips_any_instant(added_at: datetime) -> None:
     article = _article(added_at=added_at)
     assert readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0] == article
+
+
+# --- the Papierkorb mark (ADR 0022) -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("by", ["anna", " anna ", "Jürgen", "100%", "a: b", "---", "null", "it's"])
+def test_the_mark_round_trips(by: str) -> None:
+    article = _article(deleted=Change(datetime(2026, 9, 30, 8, 15, tzinfo=UTC), by))
+    assert readme.decode("01J0", readme.encode(article, 4, _CHANGE))[0] == article
+
+
+def test_a_readme_without_the_mark_reads_as_not_deleted() -> None:
+    text = "---\nulid: x\nversion: 3\ntitle: t\ncollection_id: c\nlifecycle: published\n---\nbody"
+    assert readme.decode("x", text)[0].deleted is None
+    assert "deleted" not in readme.encode(_article(), 1, _CHANGE)
+
+
+_MARK_HEAD = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: published\n"
+
+
+@pytest.mark.parametrize(
+    ("mark", "why"),
+    [
+        ("deleted_at: '2026-09-30T08:15:00Z'\n", "a time without a name"),
+        ("deleted_by: anna\n", "a name without a time"),
+        ("deleted_at: '2026-09-30T10:15:00+02:00'\ndeleted_by: anna\n", "a time outside UTC"),
+        ("deleted_at: 2026-09-30T08:15:00Z\ndeleted_by: anna\n", "a YAML timestamp"),
+        ("deleted_at: '2026-09-30T08:15:00Z'\ndeleted_by: ''\n", "a blank name"),
+    ],
+)
+def test_a_half_or_broken_mark_is_corrupt(mark: str, why: str) -> None:
+    with pytest.raises(ArchiveError):
+        readme.decode("x", f"{_MARK_HEAD}{mark}---\nbody")

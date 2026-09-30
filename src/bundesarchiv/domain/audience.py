@@ -16,7 +16,7 @@ from bundesarchiv.domain.models import Article, Audience, Lifecycle
 
 @dataclass(frozen=True, slots=True)
 class ArchivistOnly:
-    """The effective Audience of any non-Published Article: only Archivists may see it.
+    """The effective Audience of any non-Published or deleted Article: only Archivists may see it.
     This is *not* a rung on the Public ⊃ Members ⊃ Groups ladder — it sits strictly above
     it, so it is its own type rather than an AudienceTier value."""
 
@@ -33,15 +33,16 @@ def effective_audience(article: Article, chain: ResolvedChain) -> EffectiveAudie
     the only check left here is the *binding*: the chain's leaf must be the Article's own
     Collection (a chain resolved for a different Article is a caller wiring bug → fail closed,
     `MisresolvedChain`). Then the Lifecycle gate wins first (a non-Published Article is
-    Archivist-only); otherwise the nearest explicit Audience walking Article → chain wins (it
-    may *widen* an ancestor, not only narrow), falling back to the root default Members.
+    Archivist-only, and so is one in the Papierkorb, ADR 0022); otherwise the nearest explicit
+    Audience walking Article → chain wins (it may *widen* an ancestor, not only narrow), falling
+    back to the root default Members.
     """
     if chain.leaf.ulid != article.collection_id:
         raise MisresolvedChain(
             f"chain is not rooted at Article {article.ulid!r}'s Collection "
             f"(collection_id={article.collection_id!r}, chain leaf={chain.leaf.ulid!r})"
         )
-    if article.lifecycle is not Lifecycle.PUBLISHED:
+    if article.lifecycle is not Lifecycle.PUBLISHED or article.deleted is not None:
         return ARCHIVIST_ONLY  # the Lifecycle gate overrides Audience entirely
     if article.audience is not None:
         return article.audience  # explicit Article-level Audience wins, and may widen

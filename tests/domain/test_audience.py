@@ -5,6 +5,9 @@ is tested in test_collections.py. Here we test the resolver's own logic: the art
 check, the Lifecycle gate, the nearest-explicit cascade, and the root default.
 """
 
+from dataclasses import replace
+from datetime import UTC, datetime
+
 import pytest
 
 from bundesarchiv.domain.audience import ArchivistOnly, effective_audience
@@ -14,6 +17,7 @@ from bundesarchiv.domain.models import (
     Article,
     Audience,
     AudienceTier,
+    Change,
     Collection,
     Lifecycle,
 )
@@ -53,6 +57,15 @@ def test_lifecycle_gate_makes_a_non_published_article_archivist_only() -> None:
     # A Public *Draft* is Archivist-only: the Lifecycle gate overrides Audience entirely.
     article = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
     assert effective_audience(article, _chain(_coll("c-leaf"))) == ArchivistOnly()
+
+
+def test_a_marked_article_is_archivist_only_whatever_its_audience() -> None:
+    # ADR 0022: a Public, Published Article in the Papierkorb.
+    marked = replace(
+        _article(audience=Audience(AudienceTier.PUBLIC)),
+        deleted=Change(datetime(2026, 9, 30, tzinfo=UTC), "anna"),
+    )
+    assert effective_audience(marked, _chain(_coll("c-leaf"))) == ArchivistOnly()
 
 
 def test_chain_resolved_for_a_different_article_is_rejected() -> None:

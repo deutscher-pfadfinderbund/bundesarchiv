@@ -15,8 +15,8 @@ Callers depend only on this module; they never touch `ObjectStore` keys directly
 
 import hashlib
 import unicodedata
-from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass, replace
 from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
@@ -63,13 +63,29 @@ class ArticleRepository:
         """Commit `article` as the version after `expected_version`, by `changed_by`, and return
         it. Raises `Conflict` (writing nothing) on a stale version, `ArchiveError` on media not yet
         stored."""
+        return self._commit(article, lambda _: article, expected_version, changed_by)
+
+    def mark_deleted(self, article: Article, expected_version: Version, *, by: str) -> Version:
+        """`save` `article` into the Papierkorb (ADR 0022): its `deleted` mark is the change record
+        of the version this writes."""
+        return self._commit(
+            article, lambda change: replace(article, deleted=change), expected_version, by
+        )
+
+    def _commit(
+        self,
+        article: Article,
+        stamped: Callable[[Change], Article],
+        expected_version: Version,
+        changed_by: str,
+    ) -> Version:
         return commit(
             self._store,
             _folder(article.ulid),
             expected_version,
             changed_by=changed_by,
             version_of=lambda text: readme.read_version(article.ulid, text),
-            render=lambda version, change: readme.encode(article, version, change),
+            render=lambda version, change: readme.encode(stamped(change), version, change),
             precondition=lambda: self._refuse_unstored_media(article),
         )
 

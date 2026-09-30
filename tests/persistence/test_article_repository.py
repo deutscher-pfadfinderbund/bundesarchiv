@@ -75,6 +75,18 @@ def test_stale_expected_version_raises_conflict(repo: ArticleRepository) -> None
     )  # correct version wins
 
 
+def test_marking_is_a_save_whose_change_record_is_the_mark(repo: ArticleRepository) -> None:
+    """ADR 0022: the mark keeps the replaced version under history and names who deleted it and
+    when — the same record as the version it writes."""
+    repo.save(_article(), expected_version=0, changed_by="anna")
+    assert repo.mark_deleted(repo.load("01J0").article, expected_version=1, by="bernd") == 2
+    stored = repo.load("01J0")
+    assert stored.change is not None
+    assert (stored.article.deleted, stored.change.by) == (stored.change, "bernd")
+    replaced = repo._store.read(history_key(repo.folder("01J0"), 1)).decode()
+    assert readme.decode("01J0", replaced)[0] == _article()
+
+
 def test_list_ulids_returns_articles_not_media_or_history(repo: ArticleRepository) -> None:
     repo.save(_article("01A"), expected_version=0, changed_by="tester")
     repo.save(_article("01A", title="revised"), expected_version=1, changed_by="tester")

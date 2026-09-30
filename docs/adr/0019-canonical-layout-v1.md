@@ -12,6 +12,11 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > field survives a later history rewrite or layout migration. Absent means unknown (a README
 > written before the field existed).
 
+> **Amended 2026-10-01 (ADR 0022):** the front matter gains an optional `deleted_at` / `deleted_by`
+> pair, spelled like `changed_at` / `changed_by`: the Article is in the Papierkorb, deleted by that
+> Archivist at that time. The pair is the change record of the version that set it. Both are present
+> or both absent; absent means not deleted (a README written before the fields existed).
+
 ## Context
 
 The canonical tree was compared with two preservation layouts (sources below). The

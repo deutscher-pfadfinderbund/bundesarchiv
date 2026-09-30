@@ -48,6 +48,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
         "title": article.title,
         "collection_id": article.collection_id,
         "lifecycle": article.lifecycle.value,
+        **(_change.to_front_matter(article.deleted, "deleted") if article.deleted else {}),
         # None = inherit (ADR 0001): omit the key entirely so absence reads as inherit.
         **(
             {
@@ -258,6 +259,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         subject_place=_as_opt_str(fm.get("subject_place")),
         custom=_as_str_map(fm.get("custom")),
         added_at=_as_opt_instant(fm.get("added_at")),
+        deleted=_change.from_front_matter(fm, "deleted"),
         media=tuple(
             MediaRef(
                 filename=str(m["filename"]),

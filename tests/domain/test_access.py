@@ -360,9 +360,11 @@ def test_visible_floors_exactly_the_archivist_only_fields_for_a_member() -> None
 
 # Every Article field a member may see, listed by hand on purpose: a new field must be classified
 # here or in ARCHIVIST_ONLY_FIELDS before it ships, or it reaches members unfloored by default.
+# `deleted` is None on every Article a member can view: a marked one is archivist-only (ADR 0022).
 _MEMBER_VISIBLE_FIELDS = frozenset(
     {
-        "added_at", "audience", "body", "collection_id", "creator", "date", "document_type",
+        "added_at", "audience", "body", "collection_id", "creator", "date", "deleted",
+        "document_type",
         "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "title", "ulid",
     }
 )  # fmt: skip

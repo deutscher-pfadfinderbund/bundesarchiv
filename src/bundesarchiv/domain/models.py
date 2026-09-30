@@ -138,6 +138,8 @@ class Article:
     custom: tuple[tuple[str, str], ...] = ()
     # Hinzugefügt am: UTC, whole seconds; None = unknown (ADR 0019 amendment).
     added_at: datetime | None = None
+    # The Papierkorb mark: who deleted the Article and when; None = not deleted (ADR 0022).
+    deleted: Change | None = None
 
     def __post_init__(self) -> None:
         if self.added_at is not None and (

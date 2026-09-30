@@ -17,13 +17,13 @@ Two seams (full design + rationale: [ADR 0005](../../../docs/adr/0005-persistenc
 | `adapters/memory.py` | `InMemoryObjectStore` — the test fake; what `ArticleRepository` is exercised against |
 | `adapters/localfs.py` | `LocalFsObjectStore` — **canonical** backend; temp→fsync, then `rename` (replace) or `link` (create-only), all backend errors mapped to `ArchiveError` via the `_backend` seam |
 | `adapters/webdav.py` | `WebDavObjectStore` — the Nextcloud backend (plain `PUT`, bounded retries on `423` and a transient `404`/`409`), a sync adapter; transport errors wrapped via `_request` |
-| `repository.py` | `ArticleRepository` — key scheme, media names, hard delete |
+| `repository.py` | `ArticleRepository` — key scheme, media names, the Papierkorb mark, hard delete |
 | `collections.py` | `CollectionRepository` — the same for Collections |
 | `_writer.py` | the save protocol both share: CAS under `WRITER_LOCK`, history, commit |
 | `readme.py` | the README codec: `encode`/`decode` (Article ⇄ front-matter bytes) + a cheap `read_version` |
 | `collection_readme.py` | the Collection README codec |
 | `fixity.py` | the fixity check (ADR 0019): every README version read, every media file re-hashed against it, unreferenced and missing files named |
-| `_change.py` | the change record's `changed_at` / `changed_by` fields, shared by both codecs |
+| `_change.py` | the change record's `changed_at` / `changed_by` fields (and the mark's `deleted_at` / `deleted_by`), shared by both codecs |
 
 Every adapter passes one shared contract: `tests/persistence/test_objectstore_conformance.py`
 (parametrized over all three — the WebDAV one against a real in-process server).
