@@ -38,6 +38,10 @@ _DEFAULT_CONTENT_TYPE = "application/octet-stream"
 #: ADR 0017. ``private`` is the leak-relevant half — a shared cache must never store gated bytes.
 _IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
+#: ADR 0017. An uploaded SVG or HTML file opened directly is a document on the archive's origin;
+#: the sandbox runs no script in it and gives it an opaque origin.
+_SANDBOX_CSP = "sandbox"
+
 
 def media_response(
     archive: Archive, article: Article, media_ref: MediaRef, request: HttpRequest
@@ -74,7 +78,7 @@ def media_response(
         response = FileResponse(
             blob, content_type=content_type, as_attachment=False, filename=media_ref.filename
         )
-    return _cacheable(response)
+    return _stamped(response)
 
 
 def thumbnail_response(
@@ -90,7 +94,7 @@ def thumbnail_response(
     canonical media tree nginx fronts, and thumbnails are tiny — dev-style streaming is fine in prod
     too). Range is not supported (thumbnails are small; same dev-FileResponse caveat as above)."""
     path = thumbnail_path(Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT), media_ref.content_hash)
-    return _cacheable(
+    return _stamped(
         FileResponse(
             path.open("rb"),
             content_type="image/webp",
@@ -100,10 +104,11 @@ def thumbnail_response(
     )
 
 
-def _cacheable(response: HttpResponseBase) -> HttpResponseBase:
+def _stamped(response: HttpResponseBase) -> HttpResponseBase:
     """Stamped at both public exits, not inside either serving branch, so a future third serving
     path cannot silently miss the policy."""
     response["Cache-Control"] = _IMMUTABLE_CACHE_CONTROL
+    response["Content-Security-Policy"] = _SANDBOX_CSP
     return response
 
 

@@ -56,8 +56,15 @@ deliberately non-load-bearing component load-bearing.
 - nginx is in the stack, but only as a ~20-line media sidecar (`internal;`
   location + `proxy_pass` to gunicorn). Static assets deliberately stay with
   WhiteNoise (ADR 0016).
-- **The sidecar must not set its own cache headers.** nginx passes the app's
-  response headers through on an X-Accel redirect, so an `expires` or
+- **Media runs no script.** An uploaded SVG or HTML file opened directly is a
+  document on the archive's origin. Every media and thumbnail response carries
+  `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`, so
+  the file displays but runs no script and gets an opaque origin. On an
+  X-Accel redirect nginx keeps only a few of the app's headers (`Cache-Control`
+  among them) and drops these two, so the `internal;` location adds both with
+  `add_header … always`.
+- **The sidecar must not set its own cache headers.** nginx keeps the app's
+  `Cache-Control` on an X-Accel redirect, so an `expires` or
   `add_header Cache-Control` in the `internal;` location would override the
   `private` policy Django stamps and let a shared cache store gated bytes. The
   app side ships with the header applied at the seam's public exits
