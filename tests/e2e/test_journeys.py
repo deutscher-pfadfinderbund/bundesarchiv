@@ -767,6 +767,30 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     expect(page.locator(".pager")).to_have_count(0)
 
 
+def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workbench: str) -> None:
+    # Filter by a decade and a file type (through "+ Filter"), open an article: "Archiv" leads to
+    # the list as it was left. Editing and saving the article changes nothing about that.
+    page = archivist_page
+    page.goto(live_workbench + "/?jahrzehnt=1960", wait_until="networkidle")
+    page.locator(".search-sentence-add .menu-button").click()
+    page.locator("#plus-filter").get_by_role("link", name="mit Fotos").click()
+    page.wait_for_url("**file=image**")
+    page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
+    page.wait_for_url("**/artikel/**")
+    page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
+    page.wait_for_url("**file=image**")
+    assert "jahrzehnt=1960" in page.url
+    page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
+    page.get_by_role("link", name="Bearbeiten", exact=True).click()
+    page.wait_for_url("**/bearbeiten**")
+    page.fill('input[name="ref_code"]', "WEG-1")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
+    page.wait_for_url("**file=image**")
+    assert "jahrzehnt=1960" in page.url
+
+
 def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     archivist_page: Page, live_workbench: str
 ) -> None:
