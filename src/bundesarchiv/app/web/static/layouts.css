@@ -438,6 +438,9 @@
   .column > .affected {
     margin-block-end: var(--space-6);
   }
+  .column > .section-head {
+    margin-block: var(--space-7) var(--space-3);
+  }
   /* the record's place over the question (a3 loeschen.html) */
   .column > .crumbs {
     margin-block-end: var(--space-4);

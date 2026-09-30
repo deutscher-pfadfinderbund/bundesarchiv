@@ -298,8 +298,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
 | Field | `.field` | `workbench/_feld` (the edit form, the create step, the Bestand forms) | `components.css` field |
-| Panel | `.panel` | inline (the bulk result page) | `forms.css` panel |
-| Affected | `.affected` | inline (the bulk check page) | `components.css` affected |
+| Affected | `.affected` | inline (the bulk check and result pages) | `components.css` affected |
 | Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |

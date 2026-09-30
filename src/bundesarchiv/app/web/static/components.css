@@ -229,6 +229,7 @@
      DIRECT children only: a toolbar may own a disclosure, and its dropped panel's links are overlay
      contents, not row controls. */
   [role="toolbar"] > :is(a:not(.button), button.link),
+  .actions > a:not(.button),
   .pane header > a,
   .abmelden > button,
   .remove,

@@ -43,6 +43,10 @@ def two_drafts(make_corpus: Callable[[], Corpus]) -> Corpus:
     return corpus
 
 
+def _hrefs(body: str) -> list[str]:
+    return [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
+
+
 def _stored(corpus: Corpus, ulid: str) -> Article:
     """The article as it is on disk right now — the oracle every zero-writes assert reads."""
     return corpus.articles.load(ulid).article
@@ -186,7 +190,7 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: st
         .content.decode()
     )
     back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
-    assert back in [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
+    assert back in _hrefs(body)
 
 
 def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpus) -> None:
@@ -237,9 +241,6 @@ def test_commit_applies_and_shows_result(two_drafts: Corpus) -> None:
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
     )
     assert response.status_code == 200
-    body = response.content.decode()
-    assert "Sammelbearbeitung abgeschlossen" in body
-    assert "2 Artikel gespeichert." in body
     assert _stored(two_drafts, _A).creator == "K. Meyer"
     assert _stored(two_drafts, _B).creator == "K. Meyer"
 
@@ -288,10 +289,11 @@ def test_commit_cas_race_loser_value_not_on_disk(
         "/artikel/sammelbearbeitung",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Bulk", "bestaetigt": "1"},
     )
-    body = response.content.decode()
-    assert "teilweise abgeschlossen" in body
-    assert "1 gespeichert · 1 inzwischen geändert" in body
-    assert "Foto A" in body  # the loser row is listed (c-sig + Titel)
+    # the loser is listed, leading to its edit form, and all losers can be picked again at once
+    hrefs = _hrefs(response.content.decode())
+    assert reverse("artikel-bearbeiten", args=[_A]) in hrefs
+    assert f"{reverse('workbench')}?{browse.select_page_query({}, [], [_A])}" in hrefs
+    assert reverse("artikel-bearbeiten", args=[_B]) not in hrefs
     assert _stored(two_drafts, _A).creator is None  # loser value NOT on disk
     assert _stored(two_drafts, _B).creator == "Bulk"  # winner stands
 
@@ -305,18 +307,18 @@ def test_commit_custom_bag_upsert(two_drafts: Corpus) -> None:
 
 
 def test_commit_missing_ulid_bucketed(two_drafts: Corpus) -> None:
+    gone = "01KX7YT9E3VX0CP3A5Q49RZMZZ"
     response = client_as(Archivist()).post(
         "/artikel/sammelbearbeitung",
         {
-            "auswahl": [_A, "01KX7YT9E3VX0CP3A5Q49RZMZZ"],
+            "auswahl": [_A, gone],
             "feld": "creator",
             "wert_text": "X",
             "bestaetigt": "1",
         },
     )
-    body = response.content.decode()
-    assert "1 Artikel gespeichert." in body
-    assert "Nicht mehr vorhanden:" in body
+    assert _stored(two_drafts, _A).creator == "X"
+    assert gone not in response.content.decode()  # an internal id means nothing to an archivist
 
 
 # --- dependent pair (spec §3) ------------------------------------------------------
@@ -377,7 +379,7 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
 
 def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
     _give_a_schriftgut_brief_pair(two_drafts)
-    response = client_as(Archivist()).post(
+    client_as(Archivist()).post(
         "/artikel/sammelbearbeitung",
         {
             "auswahl": [_A],
@@ -387,7 +389,6 @@ def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
             "dokumenttyp_leeren": "1",
         },
     )
-    assert "abgeschlossen" in response.content.decode()
     got = _stored(two_drafts, _A)
     assert got.media_type == "Foto(s)"
     assert got.document_type is None  # orphan cleared

@@ -1,60 +1,36 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Bulk-edit result page (Sammelbearbeitung state R, spec §2/§7). Archivist-only. The saved count
-stands for the successes (signals-once); only actionable rows are listed: conflicts, each linking
-its edit form (whose CAS panel owns the diff), and articles no longer there. No error colour: a
-conflict is a race outcome, not an error.
+The bulk result page (a2 ergebnis.html). Archivist-only. A bulk outcome is not an error
+(design-system.md): the count carries the successes, and only the rows the archivist can act on are
+listed, each leading to its edit form, plus one collective recovery.
 {% endcomment %}
-{% block title %}Sammelbearbeitung{% endblock %}
+{% block title %}{{ saved }} von {{ total }} gespeichert{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
-  {% if conflict_count %}
-  <h1>Sammelbearbeitung: teilweise abgeschlossen</h1>
-  <p class="count">{{ saved }} gespeichert · {{ conflict_count }} inzwischen geändert</p>
-  {% else %}
-  <h1>Sammelbearbeitung abgeschlossen</h1>
-  <p class="count">{{ saved }} Artikel gespeichert.</p>
-  {% endif %}
-
-  <p class="hint">Feld „{{ feld_label }}“ → „{{ wert_display }}“</p>
-
-  {% if index_lagged %}
-  <p class="hint" role="status">Die Suche zeigt einige Änderungen in Kürze.</p>
-  {% endif %}
-
-  {% if doctype_cleared %}
-  <p class="hint">Bei {{ doctype_cleared|length }} Artikel(n) wurde der Dokumenttyp geleert.</p>
-  {% endif %}
+  <h1>{{ saved }} von {{ total }} gespeichert</h1>
+  <p>{{ feld_label }} → {{ wert_display }}</p>
+  {% if index_lagged %}<p role="status">Die Suche zeigt einige Änderungen in Kürze.</p>{% endif %}
+  {% if doctype_cleared_count %}<p>Bei {{ doctype_cleared_count }} Artikel{{ doctype_cleared_count|pluralize:"n" }} wurde der Dokumenttyp geleert.</p>{% endif %}
+  {% if missing_count %}<p>{{ missing_count }} Artikel gibt es nicht mehr.</p>{% endif %}
 
   {% if conflicted %}
-  <section class="panel" aria-labelledby="konflikt-titel">
-    <p id="konflikt-titel">Nicht gespeichert — ein anderer Bearbeiter war schneller:</p>
-    <ul>
+  <div class="section-head"><h2>Nicht gespeichert</h2></div>
+  <p>Jemand anderes hat diese Artikel inzwischen geändert; sie sind unverändert.</p>
+  <table class="affected">
+    <tbody>
       {% for row in conflicted %}
-      <li>
-        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
-        <span>{{ row.title }}</span>
-        <small>inzwischen geändert</small>
-        <a href="{% url 'artikel-bearbeiten' row.ulid %}">Diesen Artikel bearbeiten</a>
-      </li>
+      <tr><td><a href="{% url 'artikel-bearbeiten' row.ulid %}">{{ row.title }}</a> {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}</td></tr>
       {% endfor %}
-    </ul>
-    <p><a href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflict_count }} erneut auswählen</a></p>
-  </section>
+    </tbody>
+  </table>
   {% endif %}
 
-  {% if missing %}
-  <section class="panel" aria-labelledby="fehlend-titel">
-    <p id="fehlend-titel">Nicht mehr vorhanden:</p>
-    <ul>
-      {% for ulid in missing %}<li><span>{{ ulid }}</span></li>{% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-
-  <p><a class="button" href="{% url 'workbench' %}">Zurück zur Suche</a></p>
+  <p class="actions">
+    {% if conflicted %}<a class="button" href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflicted|length }} erneut auswählen</a>{% endif %}
+    <a href="{% url 'workbench' %}">Zurück zur Suche</a>
+  </p>
 </main>
 {% endblock %}
