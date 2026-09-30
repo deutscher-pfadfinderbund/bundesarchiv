@@ -5,12 +5,14 @@ function to prove the reference semantics and a synchronous worker-execution smo
 """
 
 import io
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
+from procrastinate.testing import InMemoryConnector
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import thumbnail_path
@@ -24,6 +26,8 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
+
+_MIRROR = "http://mirror.example/dav/"
 
 
 @pytest.fixture
@@ -249,34 +253,28 @@ def test_mirror_reconcile_task_is_noop_when_mirror_unset(monkeypatch: pytest.Mon
     assert tasks_mod.mirror_reconcile.func() == {"skipped": True}
 
 
-def test_enqueue_mirror_push_is_noop_when_mirror_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The enqueue wrapper the app services call: when the mirror is unset it must NOT defer a job
-    (no queue churn for a feature that is off). Drives the real settings predicate (GH #20: the
-    enqueue path no longer goes through ``mirror_store()`` at all)."""
+def _queued(enqueue: Callable[[], None], *, mirror: str | None) -> list[tuple[str, str]]:
+    """The (task, ulid) of every job ``enqueue`` queues with the system of record at ``mirror``."""
+    from procrastinate.contrib.django import app
+
+    connector = InMemoryConnector()
+    with (
+        override_settings(
+            BUNDESARCHIV_MIRROR_DAV_URL=mirror,
+            BUNDESARCHIV_MIRROR_DAV_USER="u",
+            BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
+        ),
+        app.replace_connector(connector),
+    ):
+        enqueue()
+    return [(job["task_name"], job["args"]["ulid"]) for job in connector.jobs.values()]
+
+
+def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
+    """No queue churn for a feature that is off."""
     import bundesarchiv.app.tasks as tasks_mod
 
-    deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
-
-    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
-        tasks_mod.enqueue_mirror_push("01A")
-
-    assert deferred == []
-
-
-def test_enqueue_mirror_push_defers_when_mirror_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Drives the real settings predicate (GH #20: the enqueue path no longer goes through
-    ``mirror_store()`` at all — see ``test_enqueue_mirror_push_never_builds_a_client`` for the
-    zero-client-construction pin)."""
-    import bundesarchiv.app.tasks as tasks_mod
-
-    deferred: list[str] = []
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
-
-    with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
-        tasks_mod.enqueue_mirror_push("01A")
-
-    assert deferred == ["01A"]
+    assert _queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=None) == []
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -290,20 +288,30 @@ def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPat
     def _boom(*_args: object, **_kw: object) -> None:
         raise AssertionError("client built on enqueue path")
 
-    deferred: list[str] = []
     # Patch the shared ``httpx2`` module object tasks.py imported (``import httpx2``, not
     # ``from httpx2 import Client``) — this attribute IS what ``tasks.mirror_store`` calls.
     monkeypatch.setattr(httpx2, "Client", _boom)
-    monkeypatch.setattr(tasks_mod.mirror_push, "defer", lambda **kw: deferred.append(kw["ulid"]))
 
-    with override_settings(
-        BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/",
-        BUNDESARCHIV_MIRROR_DAV_USER="u",
-        BUNDESARCHIV_MIRROR_DAV_PASSWORD="p",
-    ):
+    queued = _queued(lambda: tasks_mod.enqueue_mirror_push("01A"), mirror=_MIRROR)
+    assert queued == [("mirror_push", "01A")]
+
+
+def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delete() -> None:
+    """A push re-reads current truth when it runs, so one queued push per ulid covers every save
+    until then; a hard delete is its own job."""
+    import bundesarchiv.app.tasks as tasks_mod
+
+    def saves_then_a_delete() -> None:
         tasks_mod.enqueue_mirror_push("01A")
+        tasks_mod.enqueue_mirror_push("01A")
+        tasks_mod.enqueue_mirror_push("01B")
+        tasks_mod.enqueue_mirror_delete_article("01A")
 
-    assert deferred == ["01A"]
+    assert _queued(saves_then_a_delete, mirror=_MIRROR) == [
+        ("mirror_push", "01A"),
+        ("mirror_push", "01B"),
+        ("mirror_delete_article", "01A"),
+    ]
 
 
 @pytest.mark.django_db(transaction=True)

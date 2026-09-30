@@ -17,6 +17,7 @@ schedule (hourly default) — a periodic full rebuild bounds every missed increm
 ``ensure_index_current`` management command (see docs/adr/0014).
 """
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -26,6 +27,7 @@ from django.conf import settings
 from django.core.management import call_command
 from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
+from procrastinate.exceptions import AlreadyEnqueued
 
 from bundesarchiv.app import mirror, thumbnails
 from bundesarchiv.app.archive import Archive
@@ -42,6 +44,10 @@ _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
 #: The fixity check's schedule (ADR 0019 "Fixity"): monthly, 04:00 on the first.
 _VERIFY_CRON = "0 4 1 * *"
+
+#: A connect to the system of record that takes longer than 5 s is a partition, not a slow server:
+#: fail the attempt then, not after the 30 s a slow answer may take, so the one worker moves on.
+_MIRROR_TIMEOUT = httpx2.Timeout(30, connect=5)
 
 
 def canonical_store() -> ObjectStore:
@@ -70,7 +76,7 @@ def mirror_store() -> ObjectStore | None:
     user: str | None = settings.BUNDESARCHIV_MIRROR_DAV_USER
     password: str | None = settings.BUNDESARCHIV_MIRROR_DAV_PASSWORD
     auth: tuple[str, str] | None = (user, password or "") if user is not None else None
-    return WebDavObjectStore(httpx2.Client(base_url=url, auth=auth, timeout=30))
+    return WebDavObjectStore(httpx2.Client(base_url=url, auth=auth, timeout=_MIRROR_TIMEOUT))
 
 
 # --- reference tasks -------------------------------------------------------------
@@ -208,14 +214,16 @@ def enqueue_mirror_push(ulid: str) -> None:
     """Enqueue a ``mirror_push`` reference job for the saved Article or Collection ``ulid``. The app
     services call this AFTER a canonical write; the push is async and never blocks the request. A
     clean no-op when no system of record is configured (do not churn the queue for a feature that
-    is off).
+    is off). A push already queued for ``ulid`` stands in for this one: it reads current truth when
+    it runs.
 
     Checks ``_mirror_configured()`` rather than ``mirror_store()`` so this path never constructs a
     client (GH #20): building one only to discard it leaked a fresh ``httpx2.Client`` — with its
     eager SSL-context load — on every canonical write when mirroring is configured."""
     if not _mirror_configured():
         return  # mirror unset -> nothing to enqueue
-    mirror_push.defer(ulid=ulid)
+    with contextlib.suppress(AlreadyEnqueued):
+        mirror_push.configure(queueing_lock=f"mirror_push:{ulid}").defer(ulid=ulid)
 
 
 def enqueue_mirror_delete_article(ulid: str) -> None:
