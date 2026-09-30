@@ -82,7 +82,11 @@ deliberately non-load-bearing component load-bearing.
   `auth_request` asks `GET /upload-gate/<ulid>`, which runs the upload view's own
   gate and answers 204 exactly when the upload would be taken. Everyone else,
   anonymous included, gets the plain empty 404 from nginx, and the body is
-  discarded, never stored. Every other route takes at most 4 MiB, just above
+  discarded, never stored. The gate also admits only a same-origin request
+  (`Sec-Fetch-Site`, else `Origin`, else `Referer`, the order Django's CSRF check
+  falls back in): a page on a sibling DPB host is same-site, so its post carries
+  an Archivist's cookies, and Django's CSRF check would refuse it only after the
+  body is on disk. Every other route takes at most 4 MiB, just above
   Django's own cap on a body without files. This is `auth_request` for uploads
   only; media keeps the X-Accel seam (see "Considered options").
 - Dev keeps the direct `FileResponse` path (prefix unset) — no Range in dev,

@@ -396,7 +396,38 @@ def test_the_upload_gate_admits_exactly_whom_the_upload_admits(
     """nginx asks this gate before it reads an upload's body (deploy/nginx/nginx.conf)."""
     client = client_as(viewer)
     assert (client.post(f"/artikel/{ulid}/medien/hochladen").status_code != 404) is admitted
-    gate = client.get(f"/upload-gate/{ulid}")
+    gate = client.get(f"/upload-gate/{ulid}", headers={"Sec-Fetch-Site": "same-origin"})
+    if admitted:
+        assert gate.status_code == 204
+    else:
+        assert_denied(gate)
+
+
+@pytest.mark.parametrize(
+    ("headers", "admitted"),
+    [
+        ({"Sec-Fetch-Site": "same-origin"}, True),
+        ({"Sec-Fetch-Site": "same-site", "Origin": "http://testserver"}, False),
+        ({"Origin": "http://testserver"}, True),
+        ({"Origin": "http://andere.testserver"}, False),
+        ({"Referer": "http://testserver/artikel/"}, True),
+        ({"Referer": "http://andere.testserver/"}, False),
+        ({}, False),
+    ],
+    ids=[
+        "same_origin",
+        "same_site",
+        "origin_match",
+        "origin_sibling",
+        "referer_match",
+        "referer_sibling",
+        "no_header",
+    ],
+)
+def test_the_upload_gate_admits_only_a_same_origin_request(
+    corpus: _MediaCorpus, headers: dict[str, str], admitted: bool
+) -> None:
+    gate = client_as(Archivist()).get(f"/upload-gate/{_ULID}", headers=headers)
     if admitted:
         assert gate.status_code == 204
     else:
@@ -413,6 +444,13 @@ def test_only_the_gated_upload_route_takes_a_large_body() -> None:
     assert "client_max_body_size 8g;" in upload
     assert "auth_request /_upload_gate;" in upload
     assert conf.count("client_max_body_size 8g;") == 1
+
+
+def test_the_gate_subrequest_takes_the_uploads_length() -> None:
+    """auth_request checks its subrequest against the upload's Content-Length."""
+    conf = (Path(__file__).parents[3] / "deploy/nginx/nginx.conf").read_text()
+    gate = conf.split("location = /_upload_gate {", 1)[1].split("}", 1)[0]
+    assert "client_max_body_size 0;" in gate
 
 
 # --- captions ride the metadata save (README round-trip, "" -> None) ---------------

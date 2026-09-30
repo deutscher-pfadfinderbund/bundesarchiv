@@ -146,7 +146,8 @@ changed FTS config version, and an empty index is not stale.
    `deploy/nginx/nginx.conf`. A public `Cache-Control` means that location grew
    an `expires` or a `Cache-Control` header it must not have (ADR 0017).
    An anonymous upload POST to `/artikel/<ulid>/medien/hochladen` gets an
-   immediate empty `404`, before any body is read.
+   immediate empty `404`, before any body is read. So does the same POST with
+   the two cookies and `-H 'Origin: https://example.org'`.
 
 ## Authentication (Keycloak OIDC) — ADR 0018
 

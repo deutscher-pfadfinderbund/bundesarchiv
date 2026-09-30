@@ -527,7 +527,12 @@ def test_route_tier_matrix(
             "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
         )
     client = client_as(_TIERS[tier])
-    response = client.post(path, data=data) if method == "POST" else client.get(path)
+    headers = {"Sec-Fetch-Site": "same-origin"}  # a browser sends it on every request
+    response = (
+        client.post(path, data=data, headers=headers)
+        if method == "POST"
+        else client.get(path, headers=headers)
+    )
     if expected == FOUR_OH_FOUR:
         assert_denied(response, f"{method} {name} as {tier}")
     else:

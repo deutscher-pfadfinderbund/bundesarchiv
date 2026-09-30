@@ -22,6 +22,7 @@ value collapses to the same 404 as an absent one. ``neu`` is registered before `
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import BinaryIO, cast
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
@@ -1173,10 +1174,21 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
 def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /upload-gate/<ulid>`` — nginx's ``auth_request`` for the upload route
     (``deploy/nginx/nginx.conf``): 204 exactly when ``article_medien_hochladen`` would take the
-    files, so nginx refuses everyone else before it reads the body. Otherwise the plain 404."""
+    files from a same-origin page, so nginx refuses everyone else before it reads the body (ADR
+    0017). Same-origin is ``Sec-Fetch-Site``, else ``Origin``, else the ``Referer``: the order
+    Django's CSRF check falls back in. Otherwise the plain 404."""
     if request.method != "GET" or _load_gated(request, ulid) is None:
         return _not_found()
-    return HttpResponse(status=204)
+    site = request.headers.get("Sec-Fetch-Site")
+    if site is None:
+        origin = request.headers.get("Origin")
+        if origin is None:
+            referer = urlsplit(request.headers.get("Referer", ""))
+            origin = f"{referer.scheme}://{referer.netloc}"
+        same_origin = origin == f"{request.scheme}://{request.get_host()}"
+    else:
+        same_origin = site == "same-origin"
+    return HttpResponse(status=204) if same_origin else _not_found()
 
 
 def _structural_change(
