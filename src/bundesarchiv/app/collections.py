@@ -2,15 +2,18 @@
 
 A Collection audience or parent edit changes the effective audience of every descendant Article,
 so after the canonical save we synchronously reindex the WHOLE subtree (``index_subtree``), not a
-single row. Same failure contract as the Article services: a stale ``expected_version`` raises
-``Conflict`` before any index work; an index failure leaves the canonical write standing, enqueues
-a reference subtree-reindex job, and returns ``index_updated=False``.
+single row. The index holds no Collection name, and a new Collection holds no Articles, so a rename
+and a create touch no row and skip the reindex. Same failure contract as the Article services: a
+stale ``expected_version`` raises ``Conflict`` before any index work; an index failure leaves the
+canonical write standing, enqueues a reference subtree-reindex job, and returns
+``index_updated=False``.
 
 ``index_subtree`` and ``enqueue_reindex_subtree`` are module-level names so the service seam is
 monkeypatchable in tests.
 """
 
 import contextlib
+from dataclasses import replace
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
@@ -18,7 +21,7 @@ from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.models import Audience, Collection, Ulid, Version
 from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_subtree
-from bundesarchiv.persistence.errors import NotFound
+from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
 def create_collection(
@@ -29,7 +32,7 @@ def create_collection(
     parent_id: Ulid | None = None,
     audience: Audience | None = None,
 ) -> CreateResult:
-    """Mint a NEW Collection (fresh ULID), save it at version 0 → v1, then reindex its subtree. A
+    """Mint a NEW Collection (fresh ULID) and save it at version 0 → v1; nothing to reindex. A
     fresh collection is empty (a leaf, no descendants), so setting its audience at creation is safe —
     no over-exposure is possible (4.8). When ``parent_id`` is given it MUST exist (else ``NotFound``,
     fail-closed — a new node cannot dangle); a top-level collection passes ``parent_id=None``. A new
@@ -41,9 +44,8 @@ def create_collection(
         ulid=identity.new_ulid(), name=name, parent_id=parent_id, audience=audience
     )
     new_version = archive.collections.save(collection, 0, changed_by=changed_by)  # first: v1
-    index_updated = _sync_index_subtree(archive, collection.ulid)
     _enqueue_mirror(collection.ulid)
-    return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
+    return CreateResult(ulid=collection.ulid, version=new_version, index_updated=True)
 
 
 def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
@@ -59,14 +61,28 @@ def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
 def save_collection(
     archive: Archive, collection: Collection, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
-    """Save ``collection`` (CAS at ``expected_version``) then synchronously reindex its whole
-    subtree — an audience/parent edit moves every descendant Article's visibility. A stale version
-    raises ``Conflict`` before any index work. On index failure the canonical write stands, a
-    subtree-reindex retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
+    """Save ``collection`` (CAS at ``expected_version``), then synchronously reindex its whole
+    subtree unless only the name changed — an audience/parent edit moves every descendant Article's
+    visibility. A stale version raises ``Conflict`` before any index work. On index failure the
+    canonical write stands, a subtree-reindex retry job is enqueued, and ``index_updated=False`` is
+    returned (ADR 0014)."""
+    reindex = _moves_visibility(archive, collection, expected_version)
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
-    index_updated = _sync_index_subtree(archive, collection.ulid)
+    index_updated = _sync_index_subtree(archive, collection.ulid) if reindex else True
     _enqueue_mirror(collection.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
+
+
+def _moves_visibility(archive: Archive, collection: Collection, expected_version: Version) -> bool:
+    """Does saving ``collection`` change anything but the stored name? Read before the save: at
+    ``expected_version`` the CAS refuses the save if another write lands in between. A stored
+    Collection at any other version, or an unreadable one, counts as a change."""
+    try:
+        stored = archive.collections.load(collection.ulid)
+    except ArchiveError:
+        return True
+    unchanged = replace(stored.collection, name=collection.name) == collection
+    return stored.version != expected_version or not unchanged
 
 
 def _enqueue_mirror(ulid: str) -> None:

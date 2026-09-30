@@ -9,9 +9,11 @@ PRODUCTION service entry point must be reflected in the very next ``search()`` â
 FORBIDDEN inside the gate tests.
 """
 
+import contextlib
 import io
 import threading
 import time
+from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -37,8 +39,9 @@ from bundesarchiv.domain.models import (
     Lifecycle,
 )
 from bundesarchiv.domain.viewer import Member, Public
-from bundesarchiv.index.query import search
+from bundesarchiv.index.query import SearchFilters, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
+from bundesarchiv.persistence.collections import StoredCollection
 
 PLAIN_MEMBER = Member(())
 PUBLIC = Public()
@@ -476,7 +479,9 @@ def test_save_collection_swallows_enqueue_failure_after_index_failure(
     monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueue_boom)
 
     stored = archive.collections.load("FOTOS")
-    result = save_collection(archive, stored.collection, stored.version, changed_by="tester")
+    result = save_collection(
+        archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+    )
 
     assert (result.version, result.index_updated) == (2, False)
     assert archive.collections.load("FOTOS").version == 2
@@ -764,19 +769,13 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
     assert archive.articles.load("01FOTO").version == 2
 
 
-@pytest.mark.django_db(transaction=True)
-def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The Bestand save path has the same bound as the Article save path."""
+@contextlib.contextmanager
+def _index_lock_held() -> Generator[None]:
+    """Hold the index-writer lock from another connection for the duration of the block."""
     from django.db import connection, transaction
 
-    import bundesarchiv.app.collections as collections_mod
     from bundesarchiv.index.indexer import _take_writer_lock
 
-    enqueued: list[str] = []
-    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
-    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
     held, release = threading.Event(), threading.Event()
 
     def hold_lock() -> None:
@@ -788,16 +787,117 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
         finally:
             connection.close()
 
-    stored = archive.collections.load("FOTOS")
     with ThreadPoolExecutor(max_workers=1) as pool:
         holder = pool.submit(hold_lock)
         assert held.wait(timeout=5)
+        try:
+            yield
+        finally:
+            release.set()
+            holder.result()
+
+
+def _narrowed(collection: Collection) -> Collection:
+    return replace(collection, audience=Audience(AudienceTier.MEMBERS))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Bestand save path has the same bound as the Article save path."""
+    import bundesarchiv.app.collections as collections_mod
+
+    enqueued: list[str] = []
+    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
+    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+
+    stored = archive.collections.load("FOTOS")
+    with _index_lock_held():
         started = time.monotonic()
-        result = save_collection(archive, stored.collection, stored.version, changed_by="tester")
+        result = save_collection(
+            archive, _narrowed(stored.collection), stored.version, changed_by="tester"
+        )
         elapsed = time.monotonic() - started
-        release.set()
-        holder.result()
 
     assert result.index_updated is False
     assert enqueued == ["FOTOS"]
     assert elapsed < 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_rename_and_a_new_bestand_leave_the_index_as_it_is(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
+    index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
+    import bundesarchiv.app.collections as collections_mod
+
+    stored_article = archive.articles.load("01FOTO")
+    save_article(archive, stored_article.article, stored_article.version, changed_by="tester")
+    enqueued: list[str] = []
+    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
+    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+
+    stored = archive.collections.load("FOTOS")
+    with _index_lock_held():
+        renamed = save_collection(
+            archive, replace(stored.collection, name="Lichtbilder"), stored.version, changed_by="t"
+        )
+        created = create_collection(archive, name="Neu", parent_id="FOTOS", changed_by="t")
+
+    assert (renamed.index_updated, created.index_updated, enqueued) == (True, True, [])
+    for bestand in ("FOTOS", "ROOT"):
+        hits = search(PUBLIC, filters=SearchFilters(collection=bestand)).hits
+        assert [hit.ulid for hit in hits] == ["01FOTO"], bestand
+
+
+@pytest.mark.django_db
+def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rename whose ``expected_version`` is ahead of the version the service read wins the CAS
+    against a concurrent widening edit that lands in between, and writes the older, narrower
+    audience back. Its reindex must run, or the index keeps the widened audience."""
+    save_article(archive, archive.articles.load("01FOTO").article, 1, changed_by="t")
+    fotos = archive.collections.load("FOTOS")
+    save_collection(archive, _narrowed(fotos.collection), fotos.version, changed_by="t")
+    narrow = archive.collections.load("FOTOS")
+    load = archive.collections.load
+
+    def load_then_widen(ulid: str) -> StoredCollection:
+        stored = load(ulid)
+        monkeypatch.setattr(archive.collections, "load", load)
+        save_collection(archive, fotos.collection, stored.version, changed_by="concurrent")
+        return stored
+
+    monkeypatch.setattr(archive.collections, "load", load_then_widen)
+    rename = replace(narrow.collection, name="Lichtbilder")
+    save_collection(archive, rename, narrow.version + 1, changed_by="t")
+
+    assert archive.collections.load("FOTOS").collection == rename
+    assert "Ã–ffentliches Foto" not in _pub_titles(PUBLIC)
+
+
+@pytest.mark.django_db
+def test_gate_moving_a_bestand_under_a_narrower_parent_hides_its_articles(
+    archive: Archive,
+) -> None:
+    """A parent edit moves the effective audience of an inheriting subtree, like an audience edit."""
+    archive.collections.save(
+        Collection(ulid="KIND", name="Kind", parent_id="FOTOS"), 0, changed_by="t"
+    )
+    article = Article(
+        ulid="01KIND", title="Geerbt", collection_id="KIND", lifecycle=Lifecycle.PUBLISHED
+    )
+    archive.articles.save(article, 0, changed_by="t")
+    save_article(archive, article, 1, changed_by="t")
+    assert "Geerbt" in _pub_titles(PUBLIC)  # inherits PUBLIC from FOTOS
+
+    stored = archive.collections.load("KIND")
+    save_collection(
+        archive, replace(stored.collection, parent_id="ROOT"), stored.version, changed_by="t"
+    )
+
+    assert "Geerbt" not in _pub_titles(PUBLIC)  # now inherits the root default, Members
+    assert "Geerbt" in _pub_titles(PLAIN_MEMBER)
