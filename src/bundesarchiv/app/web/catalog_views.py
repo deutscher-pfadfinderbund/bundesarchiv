@@ -1053,6 +1053,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "veraltet": veraltet,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
+            "crumbs": _crumbs(stored.article, BestandChooser.of(archive)),
             "confirm": vocab.delete_confirm(len(stored.article.media), discard=verwerfen),
             "action": request.get_full_path(),
         },

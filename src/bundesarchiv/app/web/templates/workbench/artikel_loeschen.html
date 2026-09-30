@@ -1,31 +1,25 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Delete / discard confirm page (spec §7 state M). Archivist-only (the view gates it). The Signatur
-and Titel name the record before an irreversible delete; one POST executes, there is no undo.
+The delete confirm as a page (a3 loeschen.html): the direct link, and where a panel's confirm lands
+without JS when it was older than the record. Archivist-only (the view gates it). Words as the panel's
+(workbench/_loeschen.html); the record's place, its title and Signatur name WHICH record.
 {% endcomment %}
 {% block title %}{{ confirm.question }}{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% url 'artikel-detail' ulid as artikel_href %}{% include "workbench/_header.html" with zurueck=True zurueck_href=artikel_href zurueck_label="Zurück zum Artikel" %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
+  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
   <h1>{{ confirm.question }}</h1>
+  <header>
+    <strong><a href="{% url 'artikel-detail' ulid %}">{{ title }}</a></strong>
+    {% include "components/signatur_tab.html" with ref_code=ref_code only %}
+  </header>
   {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
-  <section class="panel" aria-labelledby="loeschen-titel">
-    <header>
-      <strong id="loeschen-titel">„{{ title }}“</strong>
-      {% include "components/signatur_tab.html" with ref_code=ref_code only %}
-    </header>
-    <p>
-      Dieser Artikel wird unwiderruflich gelöscht.
-      Ein Papierkorb steht in dieser Version nicht zur Verfügung.
-    </p>
-  </section>
+  <p>{{ confirm.consequence }}</p>
   <div class="actions">
-    {% comment %}HTMX (spec §5): an htmx submit gets HX-Redirect to the workbench (the view's
-    _redirect helper); the no-JS baseline is the plain POST + 302.{% endcomment %}
-    <form method="post" action="{{ action }}"
-          hx-post="{{ action }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <form method="post" action="{{ action }}">
       {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
       <button class="danger" type="submit">{{ confirm.button }}</button>
     </form>

@@ -435,6 +435,10 @@
     margin: 0 0 var(--space-5);
     font: var(--type-display);
   }
+  /* the record's place over the question (a3 loeschen.html) */
+  .column > .crumbs {
+    margin-block-end: var(--space-4);
+  }
   /* the screen header: h1 / context + the reserved marks, once */
   .column header {
     display: flex;
