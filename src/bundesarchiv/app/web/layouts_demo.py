@@ -22,6 +22,7 @@ from django.shortcuts import render
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.panels import header_panels
 from bundesarchiv.index.query import FileKind, SearchHit
 
 #: The known demo set plus extra plausible rows so the ledger scrolls, printed through the REAL
@@ -144,5 +145,6 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
                 "noun": "Artikel",
             },
             "preview": _PREVIEW,
+            "neu": header_panels(BestandChooser(lambda: ()), aktiver=None),
         },
     )
