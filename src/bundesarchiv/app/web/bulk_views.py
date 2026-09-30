@@ -10,7 +10,7 @@ from django.http.response import HttpResponseBase
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article
@@ -20,10 +20,10 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     """``POST /artikel/sammelbearbeitung`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
-    Archivist-only, POST-only → the byte-identical 404 otherwise (spec §6.1/§6.2)."""
+    Archivist-only, POST-only → the plain 404 otherwise (spec §6.1/§6.2)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or request.method != "POST":
-        return _not_found()
+        return not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
     # the ledger's ticked head box ("alle") carries the rows of the page it was rendered on
@@ -47,10 +47,10 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
     """``GET /artikel/sammelbearbeitung/dokumenttypen?medienart=`` — the dependent Dokumenttyp option
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
-    GET-only → the byte-identical 404 otherwise. The no-JS baseline renders all optgroups + the
+    GET-only → the plain 404 otherwise. The no-JS baseline renders all optgroups + the
     server re-validates per-article; this only removes a round-trip on Medienart change."""
     if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
-        return _not_found()
+        return not_found()
     # htmx sends the drawer's <select name="wert_media_type"> value under that name; accept the plain
     # media_type / medienart names too so the endpoint is callable directly.
     media_type = (

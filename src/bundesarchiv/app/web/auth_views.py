@@ -26,7 +26,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
 from bundesarchiv.app.web.keycloak import authorization_url, fetch_tokens, logout_url
-from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import (
     REFRESH_COOKIE,
     delete_token_cookies,
@@ -86,11 +86,11 @@ def login(request: HttpRequest) -> HttpResponse:
     anonymous gate redirects to, hence the ``?next=``."""
     key = settings.VIEWER_SIGNING_KEY
     if request.method != "GET" or not key:
-        return _not_found()
+        return not_found()
     state, nonce = token_urlsafe(_TOKEN_BYTES), token_urlsafe(_TOKEN_BYTES)
     url = authorization_url(state=state, nonce=nonce, redirect_uri=_callback_uri(request))
     if url is None:
-        return _not_found()
+        return not_found()
     payload = {
         "state": state,
         "nonce": nonce,
@@ -135,12 +135,12 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
     """``GET /oidc/callback`` — Keycloak's answer: match the state, exchange the code for checked
     tokens, set the two token cookies, and land on the remembered path."""
     if request.method != "GET":
-        return _not_found()
+        return not_found()
     transient = _transient_of(request)
     code = request.GET.get("code", "")
     state = request.GET.get("state", "")
     if transient is None or not code or not state:
-        return _not_found()
+        return not_found()
     # Encoded, not compared as text: compare_digest REFUSES a non-ASCII str, and this one is the
     # attacker's to choose — a raw comparison answers `?state=ü` with a 500.
     if not compare_digest(state.encode(), transient.state.encode()):
@@ -150,7 +150,7 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         return HttpResponseRedirect(login_redirect(transient.next_path))
     tokens = fetch_tokens(code=code, nonce=transient.nonce, redirect_uri=_callback_uri(request))
     if tokens is None:
-        return _not_found()
+        return not_found()
     response = HttpResponseRedirect(transient.next_path)
     set_token_cookies(tokens, response)
     response.delete_cookie(STATE_COOKIE)
@@ -162,7 +162,7 @@ def logout(request: HttpRequest) -> HttpResponse:
     the token cookies, and continue through Keycloak's end-session endpoint (ADR 0018 "Logout").
     With no realm to return through, the cookies still go."""
     if request.method != "POST":
-        return _not_found()
+        return not_found()
     home = request.build_absolute_uri(_DEFAULT_NEXT)
     url = logout_url(
         refresh_token=request.COOKIES.get(REFRESH_COOKIE), post_logout_redirect_uri=home

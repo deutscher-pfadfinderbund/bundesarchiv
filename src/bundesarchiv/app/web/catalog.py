@@ -14,7 +14,7 @@ Conflict-catch site (ADR 0013) is a thin shell:
   "Inzwischen geändert" panel with the archivist's just-submitted values preserved and a refreshed
   ``expected_version``. If that re-load instead finds the article gone (a stale save racing a hard
   delete, not a concurrent edit), it returns ``DeletedOutcome`` so the view collapses to the
-  byte-identical 404 instead of a 500.
+  plain 404 instead of a 500.
 
 The Django coupling is a single ``getlist`` helper so the parser can be driven by a plain dict in
 tests and a ``QueryDict`` in the view without knowing which it holds.
@@ -305,7 +305,7 @@ class ConflictOutcome:
 @dataclass(frozen=True, slots=True)
 class DeletedOutcome:
     """The article was hard-deleted between the view's initial load and this save — a stale save
-    racing a deletion, not a concurrent edit. The view collapses this to the byte-identical 404
+    racing a deletion, not a concurrent edit. The view collapses this to the plain 404
     (existence-hiding)."""
 
 

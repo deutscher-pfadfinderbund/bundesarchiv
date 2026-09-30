@@ -519,7 +519,7 @@
     margin: 0;
   }
   /* Gruppen means something only at the GROUPS rung */
-  .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
+  .record-meta:not(:has(option[value="groups"]:checked)) > .field[data-shows-with="groups"] {
     --field-display: none;
   }
   .record-meta-line {
@@ -597,7 +597,8 @@
         .split-button,
         .search-sentence-slots > div,
         .search-sentence-add,
-        .search-sentence-more
+        .search-sentence-more,
+        .search-sentence-bestand
       ) {
       anchor-scope: --menu-button;
     }
@@ -614,9 +615,13 @@
       justify-self: end;
       margin: var(--space-1) 0 0;
     }
+    /* a tool panel keeps the page gutter clear on both sides, on S too */
+    .toolpanel {
+      inset-inline: var(--gutter) max(var(--gutter), anchor(end));
+    }
     /* a selection tool's panel opens start-aligned under its tool (a2 round 2) */
     .bulk > .toolpanel {
-      inset-inline: anchor(start) 0;
+      inset-inline: anchor(start) var(--gutter);
       justify-self: start;
     }
     /* a help popover hangs under its ⓘ, centred on it as far as the viewport allows */
@@ -686,6 +691,17 @@
   .menu li > form.menu-form {
     display: block;
     margin: 0;
+  }
+  /* an entry with a count (a filter slot's value): the words, then the count at the end edge */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
+  .menu li > a {
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .menu li > a > span {
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
   }
 
   /* ---- split-button — one action and its rarer siblings in one frame: a .button (the frequent
@@ -766,7 +782,7 @@
      menu. Light dismiss and Esc cancel; without popover support it shows inline. ---- */
   .toolpanel {
     inline-size: var(--measure-query);
-    max-inline-size: 100%;
+    max-inline-size: min(100%, 100vw - 2 * var(--gutter)); /* the page gutter, also on S */
     padding: var(--space-5);
   }
   .toolpanel > * {
@@ -795,6 +811,29 @@
     align-items: center;
     gap: var(--space-3);
     font: var(--type-meta);
+  }
+  /* a check list of links ("+ Filter"): the box before each entry is filled when it is set */
+  .toolpanel > ul:not(.menu) a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--control-height);
+    font: var(--type-meta);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .toolpanel > ul:not(.menu) a::before {
+    content: "";
+    inline-size: 1em;
+    block-size: 1em;
+    border: var(--line-width) solid currentColor;
+  }
+  .toolpanel > ul:not(.menu) a[aria-current]::before {
+    background: currentColor;
+  }
+  /* the set entry of a menu or check list in bold */
+  :is(.menu li > a, .toolpanel > ul a)[aria-current] {
+    font-weight: 600;
   }
   /* the checkbox's UA margin would stand the entry taller than the panel's other controls (C8) */
   .toolpanel > ul label > input {

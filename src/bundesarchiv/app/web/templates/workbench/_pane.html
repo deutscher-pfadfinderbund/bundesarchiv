@@ -10,7 +10,7 @@ The layout demo includes this file too.
     <header>
       {% include "components/signatur_tab.html" with ref_code=pane.ref_code only %}
       <h2>{{ pane.title }}</h2>
-      <a href="{{ pane.close_href }}" aria-label="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
+      <a href="{{ pane.close_href }}" aria-label="Vorschau schließen" title="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
     </header>
     <div role="toolbar" aria-label="Artikelaktionen">
       <a class="button primary" href="{{ pane.oeffnen_href }}">Öffnen</a>

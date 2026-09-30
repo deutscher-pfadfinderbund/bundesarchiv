@@ -76,6 +76,9 @@ class _Field:
 
     ``span`` gives the field the whole row of its section's grid (long values).
 
+    ``shows_with`` names the option value of a sibling select that makes the field meaningful
+    (Gruppen: ``groups``); the stylesheet hides the field otherwise, keyed on the data attribute.
+
     ``required`` marks a field the save refuses blank; ``archivist_only`` one no viewer outside the
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
     template of the popover the hint's ⓘ opens, or ``""`` for a hint without one.
@@ -100,6 +103,7 @@ class _Field:
     hx: tuple[tuple[str, str], ...] = ()
     hx_get: str = ""
     span: bool = False
+    shows_with: str = ""
     required: bool = False
     archivist_only: bool = False
     help: str = ""
@@ -168,6 +172,7 @@ FIELDS: tuple[_Field, ...] = (
         control="text",
         section="margin",
         hint="Mehrere durch Komma trennen",
+        shows_with="groups",
         focusable=True,
         seed=_seed_gruppen,
     ),
@@ -331,6 +336,7 @@ class CardRow:
     blank: str = ""
     hx: tuple[tuple[str, str], ...] = ()
     span: bool = False
+    shows_with: str = ""
     required: bool = False
     archivist_only: bool = False
     help: str = ""
@@ -401,6 +407,7 @@ def card_fields(
                 blank=registered.blank,
                 hx=hx,
                 span=registered.span,
+                shows_with=registered.shows_with,
                 required=registered.required,
                 archivist_only=registered.archivist_only,
                 help=registered.help,

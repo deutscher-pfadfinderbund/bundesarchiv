@@ -83,6 +83,14 @@ def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
     assert "Alle Mitglieder" in body  # the MEMBERS label
 
 
+@pytest.mark.django_db
+def test_the_page_shows_the_parent_chain_as_crumbs(archive: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    crumbs = body.split('class="crumbs"')[1].split("</nav>")[0]
+    assert f"?bestand={ROOT}" in crumbs
+    assert f"?bestand={FOTOS}" in crumbs
+
+
 # --- POST renames -----------------------------------------------------------------
 
 

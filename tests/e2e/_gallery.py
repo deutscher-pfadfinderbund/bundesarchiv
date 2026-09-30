@@ -101,7 +101,8 @@ def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) ->
 
 
 def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    _reach_header_panel(page, base, f"/?bestand={corpus.renamable_ulid}", "Bestand bearbeiten …")
+    page.goto(f"{base}/?bestand={corpus.renamable_ulid}", wait_until="networkidle")
+    page.get_by_role("button", name="Bestand bearbeiten …").click()
 
 
 def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:

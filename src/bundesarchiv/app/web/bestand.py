@@ -1,7 +1,7 @@
 """THE Bestand chooser: one per-request answer to "which Bestände may this be filed into?".
 
 Every Bestand ``<select>`` on the archivist's surface — the create step, the record card, the
-Eltern-Bestand row of the Bestand form, the bulk drawer's Sammlungsteil widget — and every
+Eltern-Bestand row of the Bestand form, the bulk chooser's Bestand widget — and every
 server-side check of a submitted Bestand value reads ONE of these, so the ordering, the placeholder
 wording, the refusal and the membership rule cannot drift apart again (debt #7).
 
@@ -28,7 +28,7 @@ from bundesarchiv.domain.models import Collection, Ulid
 
 #: The Eltern-Bestand top-level marker — a Bestand with no parent. Public because the Bestand form's
 #: read-only parent row displays it too, and the two may not drift.
-TOP_LEVEL_LABEL = "— Oberste Ebene —"
+TOP_LEVEL_LABEL = "Oberste Ebene"
 
 _PLACEHOLDER = "— Bestand wählen —"
 _REFUSAL = "Bitte einen Bestand wählen."

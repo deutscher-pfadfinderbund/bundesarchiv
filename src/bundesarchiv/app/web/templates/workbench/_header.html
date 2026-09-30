@@ -8,8 +8,8 @@ Params (all optional; an empty value renders less):
   is_archivist    — gates the "+ Neu …" menu. viewers.render_screen stamps it; never pass it as a
                     literal at an include site — the leak matrix asserts route gates, not chrome
   neu             — the menu's entries, each opening its form as a tool panel (panels.FormPanel);
-                    render_screen stamps them, "Bestand bearbeiten" among them while a Bestand is in
-                    focus (aktiver_bestand)
+                    render_screen stamps them; the ones not in_menu ("Bestand bearbeiten",
+                    while a Bestand is in focus) are opened by a button of the page
   ohne_suche      — drops the search form: on the article forms a search invites leaving unsaved
                     edits (a1 NOTES, "Top bar")
   zurueck         — renders the back link, for screens whose body offers no way back
@@ -24,7 +24,7 @@ screen without #results.
 {% endcomment %}
 {% if not ohne_suche %}
 <form role="search" method="get" action="{% url 'workbench' %}">
-  <input type="search" name="q" value="{% firstof text %}" placeholder="Archiv durchsuchen…" aria-label="Suche">
+  <input type="search" name="q" value="{% firstof text %}" placeholder="Archiv durchsuchen…" aria-label="Suchbegriff">
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}<button type="submit">Suchen</button>
 </form>
@@ -34,7 +34,7 @@ new header button.{% endcomment %}
 {% if is_archivist %}{% with panels=neu %}
 <button class="menu-button" type="button" popovertarget="neu-menu">+ Neu …</button>
 <ul class="menu" id="neu-menu" popover>
-  {% for panel in panels %}<li><button class="link" type="button" popovertarget="{{ panel.id }}">{{ panel.label }}</button></li>
+  {% for panel in panels %}{% if panel.in_menu %}<li><button class="link" type="button" popovertarget="{{ panel.id }}">{{ panel.label }}</button></li>{% endif %}
   {% endfor %}
 </ul>
 {% for panel in panels %}{% include "workbench/_formpanel.html" %}{% endfor %}

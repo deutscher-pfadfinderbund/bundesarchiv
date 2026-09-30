@@ -30,7 +30,7 @@ from bundesarchiv.app.web.collection_views import collection_create, collection_
 from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
-#: the hash shape itself, mapping any malformed value to the SAME byte-identical 404 — a route-level
+#: the hash shape itself, mapping any malformed value to the SAME plain 404 — a route-level
 #: converter that 404'd on shape would be a distinguishable failure mode (a different 404 body), so
 #: validation stays in the view where every reject collapses to one shape.
 #:

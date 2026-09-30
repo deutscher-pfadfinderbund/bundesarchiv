@@ -1,7 +1,8 @@
 {% load static %}
 {% comment %}
 The base layout of every screen. Every screen works without JS (plan §4.5); htmx only enhances.
-No external requests. The header block carries the screen's chrome after the wordmark.
+No external requests. The header block carries the screen's chrome after the wordmark. The body
+carries the CSRF header of every htmx request (absent on the error page, which has no request).
 {% endcomment %}<!doctype html>
 <html lang="de">
 <head>
@@ -20,7 +21,7 @@ No external requests. The header block carries the screen's chrome after the wor
   <link rel="stylesheet" href="{% static "layouts.css" %}">
   {% block head_extra %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}"{% if csrf_token %} hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'{% endif %}>
 {% comment %}Skip link — the first focusable element on every screen (a11y floor, ruling D). Its
 target is a BLOCK because the workbench's landmark is the htmx swap target #results and cannot
 take a second id; every other screen leaves the default.{% endcomment %}

@@ -72,8 +72,8 @@
   .search-sentence :is(.menu-button, .is-set > a):hover {
     text-decoration: underline;
   }
-  /* "+ Filter" (and on S "Filter") reads in an open slot's quieter ink */
-  :is(.search-sentence-add, .search-sentence-more) {
+  /* "+ Filter" (and on S "Filter") and "Bestand bearbeiten …" read in an open slot's quieter ink */
+  :is(.search-sentence-add, .search-sentence-more, .search-sentence-bestand) {
     --ink: var(--ink-2);
     padding-inline-start: var(--space-3);
   }
@@ -90,38 +90,6 @@
   .search-sentence-clear:hover {
     text-decoration: underline;
   }
-  /* a slot's entry: the value, then its count at the end edge; the set value in bold */
-  .search-sentence .menu a {
-    justify-content: space-between;
-    gap: var(--space-4);
-  }
-  .search-sentence .menu a > span {
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
-  }
-  .search-sentence :is(.menu, .toolpanel) a[aria-current] {
-    font-weight: 600;
-  }
-  /* "+ Filter": a check list of links; the box before each entry is filled when it is set */
-  .search-sentence .toolpanel ul:not(.menu) a {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-height: var(--control-height);
-    font: var(--type-meta);
-    color: var(--ink);
-    text-decoration: none;
-  }
-  .search-sentence .toolpanel ul:not(.menu) a::before {
-    content: "";
-    inline-size: 1em;
-    block-size: 1em;
-    border: var(--line-width) solid currentColor;
-  }
-  .search-sentence .toolpanel ul:not(.menu) a[aria-current]::before {
-    background: currentColor;
-  }
   @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .search-sentence-label,
     .search-sentence-slots > .is-minor:not(:first-child),
@@ -130,6 +98,17 @@
     }
     .search-sentence-more {
       display: block;
+    }
+    /* "Filter" holds the folded slots' lists: it hangs under its trigger between the gutters and
+       scrolls in the room that is left, so none of the list shows beside it */
+    .search-sentence-more > .toolpanel {
+      inline-size: auto;
+      inset-inline: var(--gutter);
+      inset-block-end: var(--gutter);
+      align-self: start;
+      justify-self: stretch;
+      max-block-size: stretch;
+      overflow-y: auto;
     }
     .search-sentence-field {
       flex-basis: 100%;
@@ -217,7 +196,6 @@
   }
   /* the ✕ close: hit area and ink come from the shared icon-control rule. The one local delta is
      alignment — an icon-only flex item has no text baseline to share with the header. */
-  /* biome-ignore lint/style/noDescendingSpecificity: never inside the filter rail */
   .pane header > a {
     align-self: flex-start;
   }
@@ -475,6 +453,10 @@
      outrank them (law C13's second mechanism). */
   .column > p:not([class]) {
     color: var(--ink-2);
+  }
+  /* a value the paragraph states reads as the value, in ink */
+  .column > p:not([class]) > strong {
+    color: var(--ink);
   }
 
   /* ---- dev viewer-switcher stub (dev.py) ---- */

@@ -19,7 +19,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
         <div class="actions">
           <div class="split-button">
             <a class="button" href="{% url 'artikel-bearbeiten' ulid %}">Bearbeiten</a>
-            <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
+            <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
             <ul class="menu" id="aktionen-menu" popover>
               <li>{% include "workbench/_duplizieren.html" %}</li>
               {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}

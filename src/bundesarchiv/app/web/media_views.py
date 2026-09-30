@@ -8,7 +8,7 @@ never web-root reachable").
 
 Denial semantics (BINDING, plan §4.3):
 
-- Everything that is not a served byte is a **byte-identical 404** via ``_not_found()``: no such
+- Everything that is not a served byte is a **plain 404** via ``not_found()``: no such
   article, no such blob on the article, not permitted, malformed ulid, malformed hash, missing
   thumbnail — all the SAME status, body and header set. Existence never leaks; a forbidden article
   is indistinguishable from a nonexistent one, and a not-yet-thumbnailed image from a forbidden one.
@@ -62,8 +62,8 @@ def _is_valid_hash(value: str) -> bool:
     return len(value) == _HASH_LENGTH and all(ch in _HEX_DIGITS for ch in value)
 
 
-def _not_found() -> HttpResponse:
-    """THE single 404 every denial/absence path returns — byte-identical by construction.
+def not_found() -> HttpResponse:
+    """THE single 404 every denial/absence path returns — one shape by construction.
 
     One constant shape: status 404, an empty body, and NO Content-Type/Content-Length divergence
     (Django would otherwise stamp a default ``text/html`` Content-Type; we pin an empty content_type
@@ -79,7 +79,7 @@ def _authorize(
 ) -> tuple[Archive, Article, MediaRef] | None:
     """The shared gate for both views: validate params, resolve the viewer, load + authorize the
     article, and locate the referenced media — returning ``(archive, article, media_ref)`` ONLY if
-    every check passes, else ``None`` (the caller returns ``_not_found()``). The archive travels
+    every check passes, else ``None`` (the caller returns ``not_found()``). The archive travels
     with the decision so the seam reads the blob through the same handle the gate loaded from.
 
     Order is load-bearing: authorization runs to a decision BEFORE any blob-existence lookup (the
@@ -108,31 +108,31 @@ def _authorize(
 
 def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
     """``GET /media/<ulid>/<content_hash>`` — the original blob, authorized. Denial/absence/malformed
-    → the byte-identical 404. A permitted request hands off to the ``media_response`` seam (which
+    → the plain 404. A permitted request hands off to the ``media_response`` seam (which
     alone knows the bytes are local); if the blob is unexpectedly absent, the seam raises absence and
     we still return the SAME 404 (existence-hiding preserved past the auth gate)."""
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
-        return _not_found()
+        return not_found()
     archive, article, media_ref = authorized
     try:
         return media.media_response(archive, article, media_ref, request)
     except ArchiveError:
-        return _not_found()  # blob absent in the store (not-yet-mirrored/pruned) → the same 404
+        return not_found()  # blob absent in the store (not-yet-mirrored/pruned) → the same 404
 
 
 def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
     """``GET /media/<ulid>/<content_hash>/thumb`` — the WebP thumbnail, SAME authorization as the
-    original (a thumbnail leaks the image). A not-yet-generated thumbnail → the same byte-identical
+    original (a thumbnail leaks the image). A not-yet-generated thumbnail → the same plain
     404 as a forbidden one (a not-yet-thumbnailed image must be indistinguishable from a denial)."""
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
-        return _not_found()
+        return not_found()
     _, article, media_ref = authorized
     try:
         return media.thumbnail_response(article, media_ref, request)
     except FileNotFoundError, OSError:
-        return _not_found()  # thumbnail not (yet) generated → the same 404
+        return not_found()  # thumbnail not (yet) generated → the same 404
 
 
 def _collections(archive: Archive) -> dict[Ulid, Collection]:

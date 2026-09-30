@@ -2,9 +2,9 @@
 
 "Neuer Bestand" lives beside "Neuer Artikel" in the header's "+ Neu …" disclosure panel (Mock B,
 owner 2026-08-07 — archivist-only chrome, absent for everyone else). A per-Bestand "Bestand
-bearbeiten" affordance joins the panel only when a ?bestand= filter is active (the archivist has a
-specific Bestand in focus) — the simplest honest entry, no separate list page. Neither is a
-visibility decision: the routes are independently archivist-gated.
+bearbeiten" button sits in the search sentence only when a ?bestand= filter is active (the archivist
+has a specific Bestand in focus), not in the menu. Neither is a visibility decision: the routes are
+independently archivist-gated.
 """
 
 from collections.abc import Callable
@@ -48,6 +48,26 @@ def test_public_workbench_hides_neuer_bestand(corpus: Corpus) -> None:
 def test_edit_affordance_appears_when_a_bestand_filter_is_active(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(f"/?bestand={FOTOS}").content.decode()
     assert f"/bestand/{FOTOS}/bearbeiten" in body  # edit the focused Bestand
+
+
+@pytest.mark.django_db
+def test_the_rename_opens_from_the_list_and_not_from_the_menu(focussed: Corpus) -> None:
+    body = client_as(Archivist()).get(f"/?bestand={FOTOS}").content.decode()
+    menu = body.split('id="neu-menu"')[1].split("</ul>")[0]
+    assert 'popovertarget="bestand-bearbeiten"' in body
+    assert "bestand-bearbeiten" not in menu
+    assert 'id="bestand-bearbeiten"' in body  # the panel the list's button opens
+
+
+@pytest.mark.django_db
+def test_an_empty_bestand_offers_the_new_article_panel_with_itself_preselected(
+    focussed: Corpus,
+) -> None:
+    body = client_as(Archivist()).get(f"/?bestand={FOTOS}").content.decode()
+    empty = body.split('class="empty-state"')[1]
+    assert 'popovertarget="neu-artikel"' in empty
+    panel = body.split('id="neu-artikel"')[1].split("</form>")[0]
+    assert f'<option value="{FOTOS}" selected>' in panel
 
 
 @pytest.mark.django_db

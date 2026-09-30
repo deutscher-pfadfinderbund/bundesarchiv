@@ -28,9 +28,9 @@ listed, each leading to its edit form, plus one collective recovery.
   </table>
   {% endif %}
 
-  <p class="actions">
+  <footer>
     {% if conflicted %}<a class="button" href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflicted|length }} erneut auswählen</a>{% endif %}
-    <a href="{% url 'workbench' %}">Zurück zur Suche</a>
-  </p>
+    <a class="button" href="{% url 'workbench' %}">Zurück zur Suche</a>
+  </footer>
 </main>
 {% endblock %}

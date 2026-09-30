@@ -18,12 +18,12 @@ without JS when it was older than the record. Archivist-only (the view gates it)
   </header>
   {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
   <p>{{ consequence }}</p>
-  <div class="actions">
+  <footer>
     <form method="post" action="{{ action }}">
       {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
       <button class="danger" type="submit">{{ button }}</button>
     </form>
     <a class="button" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
-  </div>
+  </footer>
 </main>
 {% endblock %}

@@ -27,8 +27,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
     {% csrf_token %}<input type="hidden" name="zurueck" value="{{ spalten_zurueck }}">
   </form>
   {% if is_archivist %}
-  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}"
-        hx-headers:inherited='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
     {% csrf_token %}
     {% include "workbench/_werkzeuge.html" with choices=ledger.choices bulk=True %}
     {% include "components/ledger.html" with ledger=ledger bulk=waehlen only %}
@@ -39,12 +38,12 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% endif %}
   {% else %}
   {% comment %}Zero hits with a Bestand as the only filter: that Bestand's own empty state, with an
-  archivist create link seeded with it (4.8).{% endcomment %}
+  archivist create button, which opens the header's "Neuer Artikel" panel with that Bestand preselected (4.8).{% endcomment %}
   {% if leerer_bestand %}
   <div class="empty-state">
     <div class="zeichen" aria-hidden="true"></div>
     <p>Noch keine Artikel in diesem Bestand.</p>
-    {% if is_archivist %}<p><a class="button primary" href="{% url 'artikel-neu' %}?bestand={{ leerer_bestand }}">+ Neuer Artikel</a></p>{% endif %}
+    {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
   </div>
   {% else %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}

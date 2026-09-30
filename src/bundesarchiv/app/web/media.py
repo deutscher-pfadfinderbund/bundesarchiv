@@ -13,7 +13,7 @@ signature. No caller changes. Where the bytes physically live is the store's bus
 module's: a blob is named and opened through ``ArticleRepository`` (ADR 0005). The one local path
 served here is the THUMBNAIL cache, which is deliberately not the ObjectStore (derived, prunable).
 
-Denial is NEVER expressed here — the view owns 404s (see ``media_views._not_found``). These
+Denial is NEVER expressed here — the view owns 404s (see ``media_views.not_found``). These
 functions are only ever reached for an authorized (article, media_ref) pair; if the blob is
 unexpectedly absent they raise, which the view turns into the same 404 (a not-yet-mirrored /
 pruned-thumbnail blob is indistinguishable from a forbidden one).

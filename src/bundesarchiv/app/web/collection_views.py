@@ -1,6 +1,6 @@
 """Bestand (Collection) management views (Part 4.8 SLIM): create + rename.
 
-Two archivist-only routes, both methods gated to the byte-identical 404 (existence-hiding, no oracle):
+Two archivist-only routes, both methods gated to the plain 404 (existence-hiding, no oracle):
 
 - ``/bestand/neu`` (create): Name + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is SAFE — a
   fresh collection is empty, so no over-exposure is possible. Reuses the 4.7 form grammar wholesale
@@ -25,8 +25,9 @@ from django.urls import reverse
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.browse_views import bestand_crumbs
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
-from bundesarchiv.app.web.media_views import _not_found
+from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import (
     FormPanel,
     bestand_bearbeiten_panel,
@@ -49,7 +50,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     validation failure re-renders with the verbatim error + preserved values."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
-        return _not_found()
+        return not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
@@ -113,12 +114,12 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /bestand/<ulid>/bearbeiten`` — rename a Bestand. SLIM: the Name field ONLY; parent
     + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
     visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
-    absent ulid all collapse to the byte-identical 404. POST saves against the form's
+    absent ulid all collapse to the plain 404. POST saves against the form's
     ``expected_version`` (ADR 0013). ``save_collection`` reindexes the subtree so the new name is live
     in facets; a blank Name re-renders with the verbatim error, unchanged."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
-        return _not_found()
+        return not_found()
     archive, stored, archivist = gated
     bestand = BestandChooser.of(archive)
     if request.method == "POST":
@@ -167,10 +168,15 @@ def _render_edit(
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if request.headers.get("HX-Request"):
         return panel_response(request, panel)
+    chain = bestand.chain_of(ulid)
     return render_screen(
         request,
         "workbench/bestand_bearbeiten.html",
-        {"panel": panel, "abbrechen": _scoped_list(ulid)},
+        {
+            "panel": panel,
+            "abbrechen": _scoped_list(ulid),
+            "crumbs": () if chain is None else bestand_crumbs(chain),
+        },
         bestand=bestand,
     )
 
@@ -185,7 +191,7 @@ def _load_gated_collection(
 ) -> tuple[Archive, StoredCollection, Archivist] | None:
     """The shared gate for the rename route: archivist-only, validate the ulid in-view, load the
     Collection — returning ``(archive, stored, archivist)`` ONLY if all pass, else ``None`` (the
-    caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed ulid, and an
+    caller maps ``None`` to the plain 404). A non-archivist, a malformed ulid, and an
     absent/unreadable collection all collapse to the SAME ``None`` (existence-hiding)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):

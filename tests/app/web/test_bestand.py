@@ -37,7 +37,6 @@ def test_options_lead_with_the_placeholder_then_every_bestand_by_name() -> None:
 def test_parent_options_lead_with_the_top_level_marker_then_the_same_order() -> None:
     chooser = _chooser(*_LOAD_ORDER)
     assert chooser.parent_options() == (("", TOP_LEVEL_LABEL), *chooser.options()[1:])
-    assert TOP_LEVEL_LABEL == "— Oberste Ebene —"
 
 
 def test_an_empty_archive_still_offers_the_placeholder() -> None:

@@ -22,7 +22,7 @@ from bundesarchiv.persistence.errors import ArchiveError
 @dataclass(frozen=True, slots=True)
 class FormPanel:
     """A small form as a tool panel (``workbench/_formpanel.html``), opened from the header's
-    "+ Neu …" by the entry ``label``: its fields, its one button, and for a form over a stored record
+    "+ Neu …" by the entry ``label`` (or, with ``in_menu`` off, by a button of the page's own): its fields, its one button, and for a form over a stored record
     the version it was shown for, the record's facts and the conflict notice's ``jetzt``."""
 
     id: str
@@ -34,6 +34,7 @@ class FormPanel:
     fakten: tuple[tuple[str, str], ...] = ()
     hinweis: str = ""
     jetzt: str | None = None
+    in_menu: bool = True
 
     @property
     def felder(self) -> tuple[CardRow, ...]:
@@ -42,11 +43,12 @@ class FormPanel:
 
 
 def header_panels(bestand: BestandChooser, *, aktiver: str | None) -> tuple[FormPanel, ...]:
-    """The "+ Neu …" menu's forms as tool panels, empty: Neuer Artikel, Neuer Bestand, and while the
-    list is scoped to the Bestand ``aktiver``, Bestand bearbeiten. Archivist chrome — the caller
+    """The header's forms as tool panels: Neuer Artikel (the Bestand ``aktiver`` preselected, while the
+    list is scoped to one) and Neuer Bestand in the "+ Neu …" menu, and in that case Bestand
+    bearbeiten, which the list's own button opens. Archivist chrome — the caller
     (``viewers.render_screen``) builds it for archivists only; the routes stay gated on their own."""
     panels = [
-        neu_artikel_panel(bestand),
+        neu_artikel_panel(bestand, collection_id=aktiver or ""),
         neu_bestand_panel(bestand_rows(bestand, "", "", "", "", {})),
     ]
     if aktiver is not None and is_valid_ulid(aktiver):
@@ -198,4 +200,5 @@ def bestand_bearbeiten_panel(
         ),
         hinweis="Verschieben und Sichtbarkeit ändern folgen später.",
         jetzt=conflict_name,
+        in_menu=False,
     )

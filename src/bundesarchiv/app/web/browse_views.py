@@ -35,7 +35,7 @@ from bundesarchiv.app.web.article_auth import (
     resolve_visible_detail,
 )
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.media_views import _not_found, media_url, thumbnail_url
+from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
@@ -122,7 +122,7 @@ def choose_columns(request: HttpRequest) -> HttpResponseBase:
     the cookie holds registry keys only (``ledger.cookie_value``). Any other method is the plain
     404."""
     if request.method != "POST":
-        return _not_found()
+        return not_found()
     # the fixed path is the guard: whatever was posted can only ever be this list's query
     back = request.POST.get("zurueck", "")
     response = HttpResponseRedirect(
@@ -521,14 +521,14 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /artikel/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
 
     ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project —
-    any deny/absence/malformed/broken-chain → the byte-identical 404 (existence-hiding). The template
+    any deny/absence/malformed/broken-chain → the plain 404 (existence-hiding). The template
     is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
     floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
     member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
     on ``is_archivist``."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
-        return _not_found()
+        return not_found()
     return render_screen(request, "workbench/detail.html", _detail_context(resolution))
 
 

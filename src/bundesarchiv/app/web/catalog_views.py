@@ -1,6 +1,6 @@
 """The cataloging-form views (Part 4.7 Slice A+B): create step + full edit form (no-JS baseline).
 
-Two production routes, both archivist-gated to the media route's byte-identical 404 for anyone else
+Two production routes, both archivist-gated to the media route's plain 404 for anyone else
 (existence-hiding — the cataloging surface must not be discoverable). Thin by design: the
 leak-sensitive parsing + validation live in ``catalog`` (pure, unit-tested), the write services in
 ``app.articles``, and the form's ADR-0013 ``Conflict`` catch site in ``catalog.save_catalog_form``
@@ -44,7 +44,8 @@ from bundesarchiv.app.web.card import (
     first_empty_field,
     first_error_field,
 )
-from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
+from bundesarchiv.app.web.media_views import not_found as _not_found
+from bundesarchiv.app.web.media_views import thumbnail_url
 from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
 from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
@@ -69,7 +70,7 @@ _EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffent
 def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archivist] | None:
     """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
     in-view, and load the Article — returning ``(archive, stored, archivist)`` ONLY if all pass,
-    else ``None`` (the caller maps ``None`` to the byte-identical 404). A non-archivist, a malformed
+    else ``None`` (the caller maps ``None`` to the plain 404). A non-archivist, a malformed
     ulid, and an absent/unreadable article all collapse to the SAME ``None`` (existence-hiding,
     spec §8)."""
     archivist = viewer_of(request)
@@ -87,7 +88,7 @@ def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archi
 
 def article_create(request: HttpRequest) -> HttpResponseBase:
     """``GET/POST /artikel/neu`` — the minimal create step. Archivist-only (non-archivist → the
-    byte-identical 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
+    plain 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
     edit form; a validation failure re-renders state B with the verbatim error + preserved values.
 
     On GET, a ``?bestand=<ulid>`` param pre-selects that Bestand (validated against the real set,
@@ -167,7 +168,7 @@ def _create_context(
 
 def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /artikel/<ulid>/bearbeiten`` — the full edit form. Archivist-only (non-archivist,
-    malformed, or absent ulid → the byte-identical 404, both methods). GET seeds the form from the
+    malformed, or absent ulid → the plain 404, both methods). GET seeds the form from the
     stored Article; POST parses + saves under CAS. A ``Conflict`` re-renders state G with the
     just-submitted values preserved and a refreshed ``expected_version``."""
     gated = _load_gated(request, ulid)
@@ -615,7 +616,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /artikel/<ulid>/kopieren`` — copy the article's metadata into a fresh DRAFT (Signatur
     cleared, no media) via the ``copy_article`` service, then 302 to the copy's edit form with the
     Signatur field autofocused (spec §5 — the one field that must change first on the volume path).
-    Archivist-only; a non-archivist / malformed / absent ulid gets the byte-identical 404. No confirm
+    Archivist-only; a non-archivist / malformed / absent ulid gets the plain 404. No confirm
     (it creates, never destroys). GET is not allowed (a copy is a mutation)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
@@ -722,7 +723,7 @@ _DATEINAME_LEER = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die
 def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /artikel/<ulid>/medien/verschieben`` — reorder one media entry up/down (``richtung`` =
     ``hoch``/``runter``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
-    §6.3). Archivist-only, POST-only → byte-identical 404 otherwise. Structural, non-CAS: re-render
+    §6.3). Archivist-only, POST-only → plain 404 otherwise. Structural, non-CAS: re-render
     the edit form afterwards. A bad hash / edge move is a no-op (never raises)."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
