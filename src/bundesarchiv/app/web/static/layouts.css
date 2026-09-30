@@ -77,6 +77,16 @@
     --ink: var(--ink-2);
     padding-inline-start: var(--space-3);
   }
+  /* clear all: quiet words at the sentence's end */
+  .search-sentence-clear {
+    padding-inline-start: var(--space-3);
+    font: var(--type-meta);
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  .search-sentence-clear:hover {
+    text-decoration: underline;
+  }
   /* a slot's entry: the value, then its count at the end edge; the set value in bold */
   .search-sentence .menu a {
     justify-content: space-between;

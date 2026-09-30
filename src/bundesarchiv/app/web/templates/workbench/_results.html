@@ -12,7 +12,7 @@ unsubmitted ticks into the same links. Without JS a fresh tick needs a submit fi
 two out-of-band fragments BEFORE #results: the sentence's slots (the field keeps its focus), and the
 new count into its surviving aria-live node (the pager shows it; the node announces it).
 {% endcomment %}
-{% if oob %}{% include "workbench/_filterset.html" with slots=slots set_filters=set_filters filter_checks=filter_checks oob=True only %}
+{% if oob %}{% include "workbench/_filterset.html" with slots=slots set_filters=set_filters filter_checks=filter_checks clear_all_query=clear_all_query oob=True only %}
 {% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
 {% comment %}Type-to-search (spec §5) sits on the region it swaps, so it exists exactly where its
 target does. It listens on the sentence's q input, sends the whole search form (q plus the

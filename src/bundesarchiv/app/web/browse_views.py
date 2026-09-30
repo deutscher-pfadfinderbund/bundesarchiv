@@ -398,7 +398,8 @@ def _sentence(
     is_archivist: bool,
 ) -> dict[str, object]:
     """The search sentence's parts: its three slots (Bestand, Jahrzehnt, Typ), every set filter no
-    slot shows, and the "+ Filter" checks (Entwürfe for archivists only)."""
+    slot shows, the "+ Filter" checks (Entwürfe for archivists only), and the query that clears
+    every filter once two or more are set (else ``None``)."""
     f = parsed.filters
     facets = page.facets
     names = bestand.names()
@@ -449,14 +450,18 @@ def _sentence(
     checks = [_toggle(params, browse.PARAM_DIGITAL, "Digital (mit Dateien)", f.has_files)]
     if is_archivist:
         checks.append(_toggle(params, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
+    set_filters = tuple(
+        _SetFilter(label, browse.without_param(params, param))
+        for param, label in unslotted
+        if label
+    )
+    set_count = len(set_filters) + sum(slot.clear_query is not None for slot in slots)
     return {
         "slots": slots,
-        "set_filters": tuple(
-            _SetFilter(label, browse.without_param(params, param))
-            for param, label in unslotted
-            if label
-        ),
+        "set_filters": set_filters,
         "filter_checks": tuple(checks),
+        # two or more set filters clear together (owner 2026-09-30); q and the sort stay
+        "clear_all_query": browse.clear_filters_query(params) if set_count >= 2 else None,
     }
 
 

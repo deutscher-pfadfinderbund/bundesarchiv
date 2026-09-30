@@ -429,6 +429,16 @@ def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corp
         assert {"q": ["Nirgendwo"]} in queries, param
 
 
+def test_two_set_filters_clear_together_keeping_the_query_and_sort(
+    indexed_corpus: Corpus,
+) -> None:
+    # Each set filter's own link keeps the other, so only the clear-all link leaves none.
+    queries = _sentence_queries(
+        Public(), "q=Foto&sortierung=titel&bestand=FOTOS&dokumenttyp=Lagerheft&seite=2"
+    )
+    assert {"q": ["Foto"], "sortierung": ["titel"]} in queries
+
+
 def test_the_drafts_filter_is_offered_to_the_archivist_only(indexed_corpus: Corpus) -> None:
     assert {"digital": ["1"]} in _sentence_queries(Public())
     assert {"entwuerfe": ["1"]} in _sentence_queries(Archivist())

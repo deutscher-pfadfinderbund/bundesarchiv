@@ -2,7 +2,7 @@
 The search sentence (a2), the list page's heading: "Suche [field] in [Bestand] · [Jahrzehnt]
 · [Typ]  + Filter". A heading holds phrasing only, so it is an ARIA heading: its slots carry their
 menus. The hidden inputs keep every set filter when a new q is typed (GH #21).
-Params: text, filter_params, and _filterset.html's slots, set_filters, filter_checks.
+Params: text, filter_params, and _filterset.html's slots, set_filters, filter_checks, clear_all_query.
 {% endcomment %}
 <form role="search" class="satz" method="get" action="{% url 'workbench' %}">
   <div class="search-sentence" role="heading" aria-level="1">
