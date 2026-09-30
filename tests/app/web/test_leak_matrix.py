@@ -364,7 +364,7 @@ _CONTRACT: dict[str, Route] = {
         get_arch=OK,  # GET = confirm page
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # confirmed delete → 302 to /
-        post_data={"bestaetigt": "1"},
+        post_data=None,  # filled at probe time (the confirm's version) — see _POST_DATA_BUILDERS
     ),
     "artikel-veroeffentlichen": Route(
         build_path=_p_veroeffentlichen,
@@ -459,6 +459,11 @@ def _sammel_post_data(c: _MatrixCorpus) -> dict[str, object]:
     return {"auswahl": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
 
 
+def _loeschen_post_data(c: _MatrixCorpus) -> dict[str, object]:
+    """The confirm as its page hands it out: against the article's current version."""
+    return {"expected_version": str(c.article_version)}
+
+
 def _empty_search_page() -> object:
     """An empty ``SearchPage`` for the workbench stub: no hits, no facets — enough for the template to
     render the (empty) ledger for any tier so the matrix can assert the route's status DB-free."""
@@ -504,6 +509,7 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 #: Routes whose POST payload needs the corpus (a real ulid / version), filled at probe time.
 _POST_DATA_BUILDERS = {
     "artikel-sammelbearbeitung": _sammel_post_data,
+    "artikel-loeschen": _loeschen_post_data,
 }
 
 

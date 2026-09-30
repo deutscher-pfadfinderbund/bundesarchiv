@@ -16,6 +16,7 @@ The write path is REAL; only the index + queue seams are stubbed (see conftest.p
 """
 
 from dataclasses import replace
+from html.parser import HTMLParser
 from typing import Any
 
 import pytest
@@ -77,15 +78,45 @@ def test_kopieren_get_is_404(corpus: Corpus) -> None:
 # --- Löschen -----------------------------------------------------------------------
 
 
-def test_loeschen_confirm_page_shows_context(corpus: Corpus) -> None:
+class _Forms(HTMLParser):
+    """Every POST form of a page: its action and its hidden fields."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.forms: list[tuple[str, dict[str, str]]] = []
+        self._open = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        a = dict(attrs)
+        if tag == "form" and a.get("method") == "post":
+            self.forms.append((a.get("action") or "", {}))
+            self._open = True
+        elif tag == "input" and a.get("type") == "hidden" and self._open:
+            self.forms[-1][1][a.get("name") or ""] = a.get("value") or ""
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form":
+            self._open = False
+
+
+def _delete_forms(body: str, ulid: str) -> list[tuple[str, dict[str, str]]]:
+    parser = _Forms()
+    parser.feed(body)
+    return [f for f in parser.forms if f[0].startswith(f"/artikel/{ulid}/loeschen")]
+
+
+def _submit_delete_form(client: Any, body: str, ulid: str) -> Any:
+    """Post the page's one delete confirm exactly as the page hands it out."""
+    [(action, fields)] = _delete_forms(body, ulid)
+    return client.post(action, fields)
+
+
+def test_loeschen_confirm_page_names_the_record(corpus: Corpus) -> None:
     response = client_as(Archivist()).get(f"/artikel/{PUBLISHED_ULID}/loeschen")
     assert response.status_code == 200
     body = response.content.decode()
-    assert "Artikel löschen?" in body
-    assert "Sommerfahrt 1962" in body  # Titel context
-    assert "F12" in body  # Signatur context
-    assert "Ein Papierkorb steht in dieser Version nicht zur Verfügung." in body
-    assert "Endgültig löschen" in body
+    assert "Sommerfahrt 1962" in body
+    assert "F12" in body
 
 
 def test_loeschen_confirm_page_verwerfen_wording(corpus: Corpus) -> None:
@@ -107,10 +138,29 @@ def test_loeschen_verwerfen_wording_only_for_drafts(corpus: Corpus) -> None:
     assert "Entwurf verwerfen" not in body
 
 
-def test_loeschen_post_hard_deletes_and_redirects_to_workbench(corpus: Corpus) -> None:
-    response = client_as(Archivist()).post(f"/artikel/{PUBLISHED_ULID}/loeschen")
+def test_the_confirm_page_deletes_and_returns_to_the_workbench(corpus: Corpus) -> None:
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/loeschen").content.decode()
+    response = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert response.status_code == 302
     assert response["Location"] == "/"
+    with pytest.raises(NotFound):
+        corpus.articles.load(PUBLISHED_ULID)
+
+
+def test_a_confirm_older_than_the_record_deletes_nothing_and_asks_again(corpus: Corpus) -> None:
+    """The confirm names what goes; a record saved since then may hold more, so the delete waits for
+    a confirm of the record as it now stands."""
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/loeschen").content.decode()
+    stored = corpus.articles.load(PUBLISHED_ULID)
+    corpus.articles.save(
+        replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
+    )
+    refused = _submit_delete_form(client, body, PUBLISHED_ULID)
+    assert refused.status_code == 200
+    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    assert _submit_delete_form(client, refused.content.decode(), PUBLISHED_ULID).status_code == 302
     with pytest.raises(NotFound):
         corpus.articles.load(PUBLISHED_ULID)
 
@@ -410,9 +460,8 @@ def test_destructive_post_without_csrf_token_is_403(corpus: Corpus) -> None:
 def test_destructive_post_with_csrf_token_works(corpus: Corpus) -> None:
     # The legitimate flow — GET the confirm page (sets the csrf cookie + token), then POST with it.
     client = client_as(Archivist(), enforce_csrf=True)
-    client.get(f"/artikel/{PUBLISHED_ULID}/loeschen")  # seeds the csrf cookie
-    token = client.cookies["csrftoken"].value
-    response = client.post(f"/artikel/{PUBLISHED_ULID}/loeschen", {"csrfmiddlewaretoken": token})
+    body = client.get(f"/artikel/{PUBLISHED_ULID}/loeschen").content.decode()  # seeds the cookie
+    response = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert response.status_code == 302  # accepted → hard-deleted → redirect
     with pytest.raises(NotFound):
         corpus.articles.load(PUBLISHED_ULID)

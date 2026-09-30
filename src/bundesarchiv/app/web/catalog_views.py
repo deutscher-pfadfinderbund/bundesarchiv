@@ -1019,16 +1019,20 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET/POST /artikel/<ulid>/loeschen`` — the delete confirm page (GET) and its execution
-    (POST). Archivist-only; a non-archivist / malformed / absent ulid gets the byte-identical 404,
-    both methods. GET shows the Signatur + Titel so the archivist confirms WHICH record; POST
-    hard-deletes and 302s to the workbench."""
+    (POST). Archivist-only; a non-archivist / malformed / absent ulid gets the plain 404, both
+    methods. GET names the record and what goes with it; POST hard-deletes against the confirm's
+    ``expected_version`` and 302s to the workbench. A confirm older than the record deletes nothing
+    and asks again, naming the record as it now stands."""
     gated = _load_gated(request, ulid)
     if gated is None:
         return _not_found()
     archive, stored, _ = gated
+    veraltet = ""
     if request.method == "POST":
-        article_services.hard_delete_article(archive, ulid)
-        return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+        if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
+            article_services.hard_delete_article(archive, ulid)
+            return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+        veraltet = _LOESCHEN_VERALTET
     # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
     # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
     # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
@@ -1039,13 +1043,19 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
         "workbench/artikel_loeschen.html",
         {
             "ulid": ulid,
+            "version": stored.version,
+            "veraltet": veraltet,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
             "titel_confirm": "Entwurf verwerfen?" if verwerfen else "Artikel löschen?",
             "button_label": "Entwurf verwerfen" if verwerfen else "Endgültig löschen",
-            "action": reverse("artikel-loeschen", args=[ulid]),
+            "action": request.get_full_path(),
         },
     )
+
+
+#: Why a delete asked again: the record was saved after its confirm was shown.
+_LOESCHEN_VERALTET = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
 
 
 # --- who would see it once published (G.34) ----------------------------------------

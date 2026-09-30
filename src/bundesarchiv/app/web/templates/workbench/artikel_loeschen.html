@@ -10,6 +10,7 @@ and Titel name the record before an irreversible delete; one POST executes, ther
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>{{ titel_confirm }}</h1>
+  {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
   <section class="panel" aria-labelledby="loeschen-titel">
     <header>
       <strong id="loeschen-titel">„{{ title }}“</strong>
@@ -25,7 +26,7 @@ and Titel name the record before an irreversible delete; one POST executes, ther
     _redirect helper); the no-JS baseline is the plain POST + 302.{% endcomment %}
     <form method="post" action="{{ action }}"
           hx-post="{{ action }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-      {% csrf_token %}
+      {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
       <button class="danger" type="submit">{{ button_label }}</button>
     </form>
     <a class="button" href="{% url 'artikel-detail' ulid %}">Abbrechen</a>
