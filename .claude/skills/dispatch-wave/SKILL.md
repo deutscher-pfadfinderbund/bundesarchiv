@@ -60,8 +60,18 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A workflow writer stalls when one turn goes silent for 3 minutes (the watchdog counts streamed
   output, not work). A large merged unit at full effort did that six times in a row (Wave LIST U3,
   2026-09-30, ~2.5 h lost; each retry starts over). Pass `effort: 'high'` or lower, keep one
-  writer to one screen part, and brief "plan in a few lines, one edit per call, commit after each
-  green check".
+  writer to one screen part, and brief "run long suites in the background into a log and print a
+  line before each". Do NOT brief "one edit per call": turns are the main cost (writer-brief.md,
+  "Pace"), and small edits do not prevent stalls; silent long calls cause them.
+- **Onboarding is a cost.** A brief names the exact sections to read (file + heading), not whole
+  files; the writer brief's "What to read" gives the always-read core.
+- **Model per unit.** Sonnet for mechanical units (copy, CSS moves, test helpers, docs, render
+  checks); Opus for seams, security and leak paths, data-loss paths, and finishers that must judge
+  a red. Say which in the dispatch.
+- **Parallel when fences are disjoint.** Units whose fences share no file run at once, each in its
+  own worktree created from local `main`; merge them in order. Sequence only units that share a
+  file or where one consumes the other's seam. (Wave REST 2026-09-30 ran U2 and U3 in sequence
+  though their fences were disjoint.)
 - A live-backend run gets a diagnostic budget and prints what it observed on failure. "Run once" plus a silent failing assert turned one finding into a guess.
 - Before treating a grilled or ADR-backed decision as settled, verify the load-bearing code-behaviour claim against source (today: "Bestand required" was traced to 24 sites before ruling).
 

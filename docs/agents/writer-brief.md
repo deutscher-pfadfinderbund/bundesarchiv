@@ -5,6 +5,17 @@ writer onboards from here (plus `CLAUDE.md`, `CONTEXT.md`, and the task's own
 brief) — the mailbox is not the source of truth. Its sibling is
 `design-gate-brief.md` (what a UI review runs); this is how the code gets built.
 
+**What to read.** Always: "Gates green", "TDD", "An unexpected red is a STOP", "The deny contract",
+"Comment discipline", "Clean history", "Report before you idle". The other sections only when your
+task touches their subject (CSS, templates, serialization, map rows, screenshots). Your task brief
+names the sections of other docs to read; read those, not the whole files.
+
+**Pace.** Model turns are the main cost: on 2026-09-30, about 62% of writer wall time was model
+turns of ~10 s each, not tools. Batch related edits into one logical step, and commit once per
+logical step with `mise run check` green. What stalls a run is a long *silent* tool call, not a
+big edit: run the suites and the gate in the background into a log, print a line before each
+long run, and poll.
+
 ## One writer at a time
 
 Exactly ONE writer holds the tree per task (owner call, 2026-07-11: a fresh
@@ -51,6 +62,11 @@ Write the failing test first, watch it fail for the right reason, then make it
 pass (`superpowers:test-driven-development` / the `tdd` skill). Prove a
 security/gate test is non-vacuous by MUTATION: neuter the guard, watch the test
 go red, restore. A gate that never bit is not a gate.
+
+Ceremony follows the testing razor. Mutation proofs: for leak, deny, data-loss and security
+paths, and for gates. A render diff: only for a refactor you claim is neutral. A screenshot
+harness: only when the brief asks for renders before the finisher. Copy, CSS and layout changes
+need `check` and, once per wave, the finisher's gallery and e2e — not per-commit proofs.
 `mise run mutate -- FILE OLD NEW NODE_IDS` does all three and always restores FILE.
 
 Restore a mutation by re-editing the exact lines (or commit before mutating) —
