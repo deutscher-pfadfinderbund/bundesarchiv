@@ -34,7 +34,7 @@ The architect thinks in modules and interfaces; writers implement one module eac
   that never existed). Its fence also covers prose that states the removed mechanism in other
   words (an env example said "signs the Viewer cookie"), and tests that re-derive a value a
   new owner function now builds.
-- Worktree writers: an `isolation: worktree` agent's worktree starts from the remote-tracking base, not local `main`. While local `main` is ahead of origin, the brief must say "fast-forward your branch to local `main` (`<hash>`) first" and name that hash.
+- Worktree writers: an `isolation: worktree` agent's worktree starts from the remote-tracking base, not local `main`, and a writer may be refused the fast-forward. While local `main` is ahead of origin, create the worktree yourself from local `main` and name its path in the brief; use `isolation: worktree` only when `main` equals origin. (The #62 writer, 2026-09-30, built and gated on a base 225 commits old.)
 - Writers share one scratchpad: require task-prefixed log names (`wf-e2e.log`, not `e2e.log`); a
   stale generic log carrying `exit 0` from another agent nearly passed as a result.
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
