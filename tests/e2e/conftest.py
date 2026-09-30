@@ -29,7 +29,7 @@ os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
 import pytest
 from django.core import signing
 from django.test import override_settings
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, BrowserContext, Page
 from pytest_django.live_server_helper import LiveServer
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles, build_corpus
@@ -41,6 +41,31 @@ from bundesarchiv.index import settings_dev
 # The E2E suite's own dev-viewer signing key: the cookie signer (``_archivist_cookie``) and the
 # middleware (via the override below) both use it, so it need not match the real dev default.
 _DEV_KEY = "test-e2e-dev-viewer-key"
+
+
+_REPORT_CSP_VIOLATIONS = """
+document.addEventListener("securitypolicyviolation", (e) => window.__cspViolation(
+  `${e.effectiveDirective} blocked ${e.blockedURI} in ${e.sourceFile}:${e.lineNumber}`));
+"""
+
+
+@pytest.fixture(autouse=True)
+def _no_csp_violations(browser: Browser, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Every journey and every gallery state fails on a Content-Security-Policy violation. Hooked
+    on ``browser.new_context`` because the gallery and the two-browser journeys open their own
+    contexts; the listener is per page, installed on every page of the context."""
+    violations: list[str] = []
+    new_context = browser.new_context
+
+    def guarded(**kwargs: object) -> BrowserContext:
+        context = new_context(**kwargs)  # type: ignore[arg-type]
+        context.expose_binding("__cspViolation", lambda _source, v: violations.append(v))
+        context.add_init_script(_REPORT_CSP_VIOLATIONS)
+        return context
+
+    monkeypatch.setattr(browser, "new_context", guarded)
+    yield
+    assert not violations, f"CSP violations: {violations}"
 
 
 @pytest.fixture

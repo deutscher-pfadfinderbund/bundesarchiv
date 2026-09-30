@@ -66,7 +66,7 @@ def _report(screen: Screen, kind: str, entries: list[dict[str, object]]) -> list
 
 def _check(page: Page, base: str, corpus: CorpusHandles, screen: Screen) -> list[str]:
     screen.reach(page, base, corpus)
-    page.add_script_tag(content=_AXE_SOURCE)
+    page.evaluate(_AXE_SOURCE)  # not a <script> tag: the page policy refuses inline script
     result = page.evaluate(_RUN)
     findings = _report(screen, "violation", result["violations"])
     incomplete = [e for e in result["incomplete"] if e["id"] in _INCOMPLETE_COUNTS]
