@@ -70,6 +70,9 @@ deliberately non-load-bearing component load-bearing.
   may see a record. On an X-Accel redirect nginx keeps only a few of the app's
   headers (`Cache-Control` among them) and drops these three, so the `internal;`
   location adds them with `add_header … always`.
+- **Pages and media have separate policies.** HTML pages get the page policy
+  (`SECURE_CSP`, Django's CSP middleware). Media and thumbnails keep only
+  `sandbox`: the middleware never adds a policy to a response that already has one.
 - **The sidecar must not set its own cache headers.** nginx keeps the app's
   `Cache-Control` on an X-Accel redirect, so an `expires` or
   `add_header Cache-Control` in the `internal;` location would override the

@@ -153,6 +153,10 @@ step fails, the cookies still go, because refusing to sign somebody out is not
 a safe failure. The sign-out is offered to every signed-in viewer, Member
 included.
 
+The page policy's `form-action` names the issuer's origin next to `'self'`: the
+logout POST redirects on to the end-session endpoint, and the browser checks
+`form-action` across that redirect. It is derived from `OIDC_ISSUER`.
+
 Verified against the real realm on 2026-09-26 (Keycloak 26.5.2, local run):
 
 - Keycloak's token preview: the access token carries `aud` `bundesarchiv`, only

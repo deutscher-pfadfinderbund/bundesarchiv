@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from django.utils.csp import CSP
+
 _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 
 # The web layer's template dir (Part 4.5 workbench). Kept as an explicit DIRS entry rather than
@@ -110,6 +112,8 @@ ROOT_URLCONF = "bundesarchiv.app.web.urls"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # SECURE_CSP below; above CSRF and the gate, so their refusals carry the policy too.
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "bundesarchiv.app.web.viewers.TokenCookieMiddleware",  # outside everything that calls viewer_of
@@ -125,6 +129,19 @@ VIEWER_SIGNING_KEY = os.environ.get("BUNDESARCHIV_VIEWER_SIGNING_KEY") or None
 OIDC_ISSUER = os.environ.get("BUNDESARCHIV_OIDC_ISSUER") or None
 OIDC_CLIENT_ID = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_ID") or None
 OIDC_CLIENT_SECRET = os.environ.get("BUNDESARCHIV_OIDC_CLIENT_SECRET") or None
+
+# The page policy; media keep their own ``sandbox`` (ADR 0017). Keycloak in form-action: ADR 0018.
+_KEYCLOAK_ORIGINS = [f"{u.scheme}://{u.netloc}" for u in [urlparse(OIDC_ISSUER or "")] if u.netloc]
+SECURE_CSP = {
+    "default-src": [CSP.SELF],
+    "script-src": [CSP.SELF],
+    "style-src": [CSP.SELF],
+    "img-src": [CSP.SELF, "data:"],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    "frame-ancestors": [CSP.NONE],
+    "form-action": [CSP.SELF, *_KEYCLOAK_ORIGINS],
+}
 
 # The anonymous gate (ADR 0018): an anonymous content request is redirected to the login instead of
 # being answered. ON here, in the base settings, and disabled ONLY in ``settings_dev`` — the

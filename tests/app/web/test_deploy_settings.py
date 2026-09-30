@@ -8,13 +8,17 @@ entry point a real app server uses.
 """
 
 import importlib
+import runpy
 import sys
 from collections.abc import Iterator
 from types import ModuleType
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
+from django.test import override_settings
+from tests.app.web._fixtures import PUBLISHED_ULID, client_as
 
+from bundesarchiv.domain.viewer import Public
 from bundesarchiv.index import settings as prod_settings
 from bundesarchiv.index import settings_dev
 
@@ -84,3 +88,21 @@ def test_security_middleware_leads_both_middleware_stacks() -> None:
     for stack in (prod_settings.MIDDLEWARE, settings_dev.MIDDLEWARE):
         assert stack[0] == "django.middleware.security.SecurityMiddleware"
         assert stack[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+
+
+@pytest.mark.usefixtures("corpus")
+def test_a_page_carries_the_page_policy_with_the_keycloak_origin_as_form_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Spelled out, not built from the setting, so a weakened directive fails HERE. The settings run
+    # fresh under a deploy's issuer: form-action takes the Keycloak origin, never its realm path.
+    monkeypatch.setenv("BUNDESARCHIV_OIDC_ISSUER", "https://auth.example.org/realms/master")
+    deploy_policy = runpy.run_path(prod_settings.__file__)["SECURE_CSP"]
+    with override_settings(SECURE_CSP=deploy_policy):
+        response = client_as(Public()).get(f"/artikel/{PUBLISHED_ULID}")
+    assert response.status_code == 200
+    assert response["Content-Security-Policy"] == (
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
+        "form-action 'self' https://auth.example.org"
+    )
