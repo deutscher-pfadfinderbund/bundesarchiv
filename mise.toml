@@ -119,3 +119,8 @@ run = "uv run pytest -m e2e"
 description = "State gallery, renders screenshots (excluded from default run)"
 depends = ["pg:wait", "e2e:browsers"]
 run = "uv run pytest -m gallery -s"
+
+[tasks."test:gallery-diff"]
+description = "Pixel-diff the gallery: a git ref (default main) vs the working tree. -- REF"
+depends = ["pg:wait", "e2e:browsers"]
+run = "uv run python scripts/gallery_diff.py"

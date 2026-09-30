@@ -86,8 +86,8 @@ tokens, whitespace and static-file hashes (`/static/…<12 hex>.css` changes wit
 throwaway harness as `tests/…/_zz_snapshot.py`: the `_zz_` name keeps it out of
 `python_files` so `mise run check` never collects it, while
 `uv run pytest <path>` still runs it explicitly. `ruff format --check` still
-sees it, so run `ruff format` on it. A harness that needs no pytest fixture
-(a Pillow gallery diff) lives outside the tree instead. Verify the dump is
+sees it, so run `ruff format` on it. Pixel-neutral in the gallery: no
+harness, run `mise run test:gallery-diff -- <ref>`. Verify the dump is
 deterministic (two identical pre-runs), then delete the harness.
 
 ## UI: contexts, not variants

@@ -59,6 +59,21 @@ interaction reached by driving the affordance, so they appear in the gallery too
 Read-only states only: no gallery render mutates the shared corpus (so every shot
 shows clean canonical data).
 
+Each state is its own test (`test_render_state[<state>]`), so a broken reach fails that
+state alone and `mise run test:gallery -- -k edit-conflict` renders just one.
+
+### Before/after diff
+
+```
+mise run test:gallery-diff            # main vs the working tree
+mise run test:gallery-diff -- <ref>   # any git ref
+```
+
+Renders the ref (in a throwaway worktree under `var/`, removed afterwards) and the working
+tree into `var/gallery-diff/{ref,tree}`, then prints each PNG as `identical`, `changed`, `new`
+or `missing` and exits 1 if any is not identical. It is the proof for a refactor you claim is
+pixel-neutral (~5 min: two full renders).
+
 ## Add a journey
 
 Add a `def test_*(...)` to `test_journeys.py` (the module carries
@@ -82,6 +97,6 @@ non-empty PNG.
 - `_corpus.py` — `build_corpus` + the fixed ULIDs the journeys reference.
 - `test_journeys.py` — the journeys.
 - `test_a11y.py` — the axe-core WCAG 2.2 AA pass over the journey pages.
-- `_gallery.py` — the state list + `render_all`.
+- `_gallery.py` — the state list + `render_state`.
 - `test_gallery.py` — the gallery entry point + smoke test.
 - `vendor/` — the vendored axe-core (MPL-2.0; pages are offline-only by design).

@@ -247,15 +247,15 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Also:** the design lint parses CSS that is formatted by hand (no CSS formatter); a mis-wrapped
   rule can slip past it. Watch for a second occurrence before adding a formatter.
 
-### 25. The gallery is one test — Weak
+### 25. The gallery is one test — Weak — done 2026-10-01
 - **Indicator:** 1 test renders every state, 2026-09-30.
 - **The pattern:** the first `_reach_*` exception aborts every render after it, so each red costs a
   full ~2 min re-run (Wave REST U4 paid it twice).
 - **Sketch:** parametrize the gallery over its states, or collect reach failures and fail at the
   end with all of them.
-- **Also missing:** a before/after mode (render a git ref into a directory and pixel-diff it). A
-  "pixel-neutral" proof now costs a stash, two renders and a hand-written Pillow diff (~4 min).
-- **Also:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
+- **Closed 2026-10-01:** one test per state (`-k <state>` renders one; a bad reach fails alone) and
+  `mise run test:gallery-diff` (a ref vs the tree, per-PNG verdict).
+- **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
 ## Process law
 
