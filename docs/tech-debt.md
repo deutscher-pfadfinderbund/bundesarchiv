@@ -261,6 +261,7 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 - **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (bestand.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 1.
 
+- **Left (2026-10-01):** each state rebuilds the corpus (`live_server` → `transactional_db` truncates the index), so the full run is ~9% slower (135 s) and `test:gallery-diff` takes ~4.5 min; a module-scoped corpus would cut both but changes the isolation `edit-conflict` relies on. The diff task's non-zero exit on a change is untested.
 ### 23. Tests pin UI copy and markup — Strong
 - **Indicator:** 188 `"…" in body`-style asserts in `tests/app` (part UI copy; data values and leak absences stay), 53 e2e locators by name or text (2026-09-30)
 - **Evidence:** owner ruling 2026-09-30 (`owner-interview-2026-08.md`, "Ruling of 2026-09-30 (tests)"); the withdrawn exception came from `a08cbb6`
