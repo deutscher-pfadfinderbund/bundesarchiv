@@ -770,6 +770,13 @@ def test_pane_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
     assert "Bearbeiten" in arch and "Öffnen" in arch
 
 
+def test_no_pane_for_an_article_in_the_papierkorb(indexed_corpus: Corpus) -> None:
+    # ADR 0022: a marked Article is edited nowhere, and the pane offers Bearbeiten.
+    stored = indexed_corpus.articles.load(PANE_PUB_ULID)
+    indexed_corpus.articles.mark_deleted(stored.article, stored.version, by="bert")
+    assert client_as(Archivist()).get(f"/?artikel={PANE_PUB_ULID}").context["pane"] is None
+
+
 def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corpus) -> None:
     # The pane-close ✕ must return to the SAME search (text + facets + sort + page), dropping only
     # the pane selection (artikel). A bare href="?" would blow away the whole query — regression.

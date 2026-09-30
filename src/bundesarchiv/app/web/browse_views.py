@@ -213,8 +213,9 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     if not ulid:
         return None
     article = resolve_visible_article(request, ulid)
-    if article is None:
-        return None  # malformed / absent / denied — all indistinguishable, no pane
+    if article is None or article.deleted is not None:
+        # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
+        return None
     media = tuple(
         _PaneMedia(caption=m.caption or "", thumb_url=thumbnail_url(article.ulid, m.content_hash))
         for m in article.media
