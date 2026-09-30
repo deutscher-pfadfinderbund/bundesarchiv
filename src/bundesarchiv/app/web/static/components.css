@@ -634,12 +634,12 @@
      fail it. Per-panel DELTAS only, below. ---- */
   /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .menu li > a,
-  .menu li > form > button.link {
+  :is(.menu li > button.link, .menu li > form > button.link) {
     min-height: var(--control-height);
     font: var(--type-meta);
     text-decoration: none;
   }
-  :is(.menu li > a, .menu li > form > button.link):hover {
+  :is(.menu li > a, .menu li > button.link, .menu li > form > button.link):hover {
     text-decoration: underline;
   }
 
@@ -661,10 +661,11 @@
     min-width: 12rem; /* the panel's reading width — one structural size, no token fits */
   }
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
-     it — link or submit button alike (Kopieren mutates, so it cannot be a link). */
+     it — link or submit button alike (Kopieren mutates, so it cannot be a link), or the button
+     that opens an entry's own tool panel ("Löschen …"). */
   /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .menu li > a,
-  .menu li > form > button.link {
+  :is(.menu li > button.link, .menu li > form > button.link) {
     display: flex;
     align-items: center;
     width: 100%;
@@ -673,7 +674,8 @@
     white-space: nowrap;
     color: var(--ink); /* bound to the role, so a context (.danger) can re-point it */
   }
-  .menu li > form {
+  /* not an entry's tool panel: a display here would show it closed */
+  .menu li > form:not([popover]) {
     display: block;
     margin: 0;
   }

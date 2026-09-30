@@ -165,6 +165,26 @@ def test_a_confirm_older_than_the_record_deletes_nothing_and_asks_again(corpus: 
         corpus.articles.load(PUBLISHED_ULID)
 
 
+def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Corpus) -> None:
+    """The article page's own confirm deletes; one older than the record comes back asking again,
+    with htmx too (it answers in place, then navigates on success)."""
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}").content.decode()
+    stored = corpus.articles.load(PUBLISHED_ULID)
+    corpus.articles.save(
+        replace(stored.article, title="Inzwischen"), stored.version, changed_by="x"
+    )
+    [(action, fields)] = _delete_forms(body, PUBLISHED_ULID)
+    refused = client.post(action, fields, headers={"HX-Request": "true"})
+    assert refused.status_code == 200
+    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+    [(action, fields)] = _delete_forms(refused.content.decode(), PUBLISHED_ULID)
+    done = client.post(action, fields, headers={"HX-Request": "true"})
+    assert done["HX-Redirect"] == "/"
+    with pytest.raises(NotFound):
+        corpus.articles.load(PUBLISHED_ULID)
+
+
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 @pytest.mark.parametrize("method", ["get", "post"])
 def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: str) -> None:

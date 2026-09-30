@@ -503,6 +503,9 @@ _OVERLAY_WALK_JS = (
     const facts = [];
     for (const trigger of document.querySelectorAll(triggers)) {
         const panel = panelOf(trigger);
+        // a trigger inside a closed panel ("Löschen …" in a menu) is reached through that panel
+        const host = trigger.parentElement.closest('[popover]:not(:popover-open)');
+        if (host) host.showPopover();
         const opened = !panel.checkVisibility();
         if (opened) trigger.click();
         const r = panel.getBoundingClientRect();
@@ -532,6 +535,7 @@ _OVERLAY_WALK_JS = (
             covered: covered,
         });
         if (opened) trigger.click();
+        if (host) host.hidePopover();
     }
     return facts;
 }"""
@@ -1204,14 +1208,14 @@ def test_loeschen_confirm_then_delete(archivist_page: Page, live_workbench: str)
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Zu Löschen")
     ulid = page.url.split("/artikel/")[1].split("/")[0]
-    # from the article page, Löschen (in Bearbeiten's menu) → the confirm page (the ONE red
-    # button.danger), then delete
+    # from the article page, "Löschen …" (in Bearbeiten's menu) opens the confirm panel, whose one
+    # button deletes
     page.goto(live_workbench + f"/artikel/{ulid}")
     page.get_by_label("Weitere Aktionen").click()
-    page.click('a:has-text("Löschen")')
-    expect(page.get_by_text("Artikel löschen?")).to_be_visible()
-    expect(page.locator("button.danger")).to_be_visible()
-    page.click('button:has-text("Endgültig löschen")')
+    page.click('[popovertarget="loeschen"]')
+    panel = page.locator("#loeschen")
+    expect(panel).to_be_visible()
+    panel.locator('button[type="submit"]').click()
     page.wait_for_url(
         lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/"))
     )  # → workbench

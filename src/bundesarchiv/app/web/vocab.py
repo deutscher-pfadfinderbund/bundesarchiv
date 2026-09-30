@@ -185,6 +185,33 @@ def publish_statement(result: VisibilityPreview) -> str:
     return "Nach dem Veröffentlichen sieht niemand außer dem Archiv diesen Artikel."
 
 
+@dataclass(frozen=True, slots=True)
+class DeleteConfirm:
+    """The delete confirm's words (a3 ``loeschen.html``): the question, what goes, and the one
+    button, which names all of it."""
+
+    question: str
+    consequence: str
+    button: str
+
+
+def delete_confirm(files: int, *, discard: bool) -> DeleteConfirm:
+    """The confirm for a record with ``files`` files; ``discard`` words it for a draft given up."""
+    thing, verb = ("Entwurf", "verwerfen") if discard else ("Artikel", "löschen")
+    dateien = "1 Datei" if files == 1 else f"{files} Dateien"
+    gone = (
+        f"Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
+        f"{'Datei' if files == 1 else dateien}."
+        if files
+        else "Gelöscht wird der Katalogeintrag mit allen Angaben."
+    )
+    return DeleteConfirm(
+        question=f"{thing} {verb}?",
+        consequence=f"{gone} Das lässt sich nicht rückgängig machen.",
+        button=f"{thing} und {dateien} {verb}" if files else f"{thing} {verb}",
+    )
+
+
 def groups_label(groups: tuple[str, ...]) -> str:
     """The GROUPS-rung caption: ``Gruppe: <name>, <name>``. The one place the group list is joined."""
     return "Gruppe: " + ", ".join(groups)

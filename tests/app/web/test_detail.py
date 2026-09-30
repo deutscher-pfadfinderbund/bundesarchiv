@@ -18,6 +18,7 @@ import pytest
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
 
+from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
@@ -193,6 +194,9 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     member = _texts(Member(groups=()), corpus.pub)
     archivist = _texts(Archivist(), corpus.pub)
     tools = _texts(Archivist(), corpus.markup) - _texts(Member(groups=()), corpus.markup)
+    # the delete confirm names the record's own files: pub holds the cover and a second page
+    confirm = vocab.delete_confirm(len((corpus.cover_hash, corpus.second_hash)), discard=False)
+    tools |= {confirm.consequence, confirm.button}
     assert member <= archivist
     assert archivist - member - tools == {"Standort", _STANDORT, _CUSTOM_KEY, _CUSTOM_VALUE}
 

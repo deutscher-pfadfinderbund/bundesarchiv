@@ -249,7 +249,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/artikel/{c.published_ulid}"),
         "artikel-detail",
-        overlays=2,
+        overlays=3,
         control_rows=("header", "div.actions"),
     ),
     Screen(
@@ -266,7 +266,7 @@ SCREENS: tuple[Screen, ...] = (
         True,
         _goto(lambda c: f"/artikel/{c.draft_ulid}"),
         "artikel-detail",
-        overlays=3,
+        overlays=4,
         control_rows=("header", "div.actions"),
     ),
     Screen(

@@ -1040,15 +1040,18 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
     return render_screen(
         request,
-        "workbench/artikel_loeschen.html",
+        # htmx asked from a tool panel: the refusal answers in place (workbench/_loeschen.html)
+        "workbench/_loeschen.html"
+        if request.headers.get("HX-Request")
+        else "workbench/artikel_loeschen.html",
         {
+            "id": "verwerfen" if verwerfen else "loeschen",
             "ulid": ulid,
             "version": stored.version,
             "veraltet": veraltet,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
-            "titel_confirm": "Entwurf verwerfen?" if verwerfen else "Artikel löschen?",
-            "button_label": "Entwurf verwerfen" if verwerfen else "Endgültig löschen",
+            "confirm": vocab.delete_confirm(len(stored.article.media), discard=verwerfen),
             "action": request.get_full_path(),
         },
     )

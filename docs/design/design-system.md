@@ -290,7 +290,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers) | `components.css` menu |
-| Toolpanel | `.toolpanel` | inline (article page: the Veröffentlichen confirmation; the list's "Spalten …" and "Feld ändern …", `workbench/_werkzeuge`) | `components.css` toolpanel |
+| Toolpanel | `.toolpanel` | `workbench/_loeschen` (the delete confirm), inline (article page: the Veröffentlichen confirmation; the list's "Spalten …" and "Feld ändern …", `workbench/_werkzeuge`) | `components.css` toolpanel |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines) | `components.css` byline |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |

@@ -23,7 +23,8 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             <ul class="menu" id="aktionen-menu" popover>
               <li><form method="post" action="{% url 'artikel-kopieren' ulid %}">{% csrf_token %}<button class="link" type="submit">Duplizieren</button></form></li>
               {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}
-              <li><a class="danger" href="{% url 'artikel-loeschen' ulid %}">Löschen</a></li>
+              {% url 'artikel-loeschen' ulid as loeschen_href %}
+              <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "workbench/_loeschen.html" with id="loeschen" action=loeschen_href confirm=loeschen veraltet="" %}</li>
             </ul>
           </div>
           {% if is_draft %}
