@@ -190,9 +190,9 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <aside class="record-meta" aria-label="Status und Aktionen">
-      <div class="record-meta-alert" role="alert">
-        <p class="record-meta-alert-head">Inzwischen geändert</p>
-        <p class="record-meta-line">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Prüfe <a href="#demo-date-conflict-{{ mode }}">Datierung</a> und speichere erneut.</p>
+      <div class="conflict-notice" role="alert">
+        <p class="conflict-notice-head">Inzwischen geändert</p>
+        <p>Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. Prüfe <a href="#demo-date-conflict-{{ mode }}">Datierung</a> und speichere erneut.</p>
       </div>
       <div class="field">
         <label for="demo-status-{{ mode }}">Status</label>
@@ -220,7 +220,7 @@ components; this storyboard updates in lockstep with them.
   </div>
   {% endfor %}
 </div>
-<code class="doc">aside.record-meta: .record-meta-alert (role="alert": the heavy red rule, a red subhead, a .record-meta-line naming the changed fields as links) · the Status select · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
+<code class="doc">aside.record-meta: the conflict notice (components/conflict_notice, role="alert": the heavy red rule, a red subhead, a sentence naming the changed fields as links) · the Status select · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
 
 <h2>Record margin — the create step</h2>
 <div class="probe">

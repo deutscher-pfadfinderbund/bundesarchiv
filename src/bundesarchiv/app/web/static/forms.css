@@ -63,8 +63,9 @@
     margin-left: auto;
   }
 
-  /* the composition owns the space between stacked panels and the form region */
-  .column .panel {
+  /* the composition owns the space between stacked panels (or the conflict notice) and the form */
+  .column .panel,
+  .column > .conflict-notice {
     margin-bottom: var(--space-6);
   }
 }
@@ -79,21 +80,14 @@
     color: var(--ink-2);
   }
 
-  /* ---- panel: flat, framed by an edge. `.konflikt` is the Bestand form's CAS case: red LEFT
-     border + error heading only, never a flood fill. ---- */
+  /* ---- panel: flat, framed by an edge. ---- */
   .panel {
     padding: var(--space-4);
     border: var(--line-width) solid var(--edge);
   }
-  .panel.konflikt {
-    border-left: var(--state-border) solid var(--error);
-  }
   .panel h2 {
     margin: 0 0 var(--space-2);
     font: var(--type-title);
-  }
-  .panel.konflikt h2 {
-    color: var(--error);
   }
   .panel p {
     margin: 0 0 var(--space-2);

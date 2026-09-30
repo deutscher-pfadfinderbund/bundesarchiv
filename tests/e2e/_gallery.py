@@ -164,7 +164,7 @@ def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.fill('input[name="date"]', "1962~")
     page.fill('textarea[name="body"]', "Fahrtenbericht mit Liedern.")
     page.click('button:has-text("Speichern")')
-    page.wait_for_selector(".record-meta-alert")
+    page.wait_for_selector(".conflict-notice")
     # the fills scrolled the page, and the sticky margin would be shot mid-page
     page.evaluate("window.scrollTo(0, 0)")
 

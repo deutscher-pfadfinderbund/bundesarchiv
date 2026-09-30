@@ -12,14 +12,9 @@ CAS and 302s to the workbench filtered to this Bestand.
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Bestand bearbeiten</h1>
-  {% if conflict_name %}
-  {% comment %}A racing rename (ADR 0013): the panel names the stored winner; the form below carries
-  the refreshed version and the name just typed.{% endcomment %}
-  <section class="panel konflikt" aria-labelledby="konflikt-titel">
-    <h2 id="konflikt-titel">Inzwischen geändert</h2>
-    <p>Ein anderer Bearbeiter hat diesen Bestand gespeichert, während du ihn bearbeitet hast (jetzt „{{ conflict_name }}“). Bitte prüfen und erneut speichern.</p>
-  </section>
-  {% endif %}
+  {% comment %}A racing rename (ADR 0013): the form below carries the refreshed version and the name
+  just typed.{% endcomment %}
+  {% if conflict_name %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=conflict_name only %}{% endif %}
   <form method="post" action="{% url 'bestand-bearbeiten' ulid %}">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">

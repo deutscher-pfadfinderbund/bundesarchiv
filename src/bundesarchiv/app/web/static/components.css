@@ -486,10 +486,29 @@
     font: var(--section-head-type, var(--type-title));
   }
 
+  /* ---- conflict notice (components/conflict_notice.html) — someone saved the record while it was
+     open. It outranks everything around it: the heavy rule and a red subhead (rows 5, 15), then a
+     quiet sentence. ---- */
+  .conflict-notice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-block-start: var(--space-3);
+    border-block-start: var(--state-border) solid var(--error);
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  .conflict-notice > p {
+    margin: 0;
+  }
+  .conflict-notice-head {
+    font: var(--type-subhead);
+    color: var(--error);
+  }
+
   /* ---- record-meta — the form's margin: the conflict notice, the record's Status and audience,
      then the actions. Parts: .record-meta-state (the page's state in words, the create step),
-     .record-meta-alert (+ -head), .record-meta-line (a quiet sentence), .record-meta-actions
-     (Speichern first). ---- */
+     .record-meta-line (a quiet sentence), .record-meta-actions (Speichern first). ---- */
   .record-meta {
     display: flex;
     flex-direction: column;
@@ -502,18 +521,6 @@
   /* Gruppen means something only at the GROUPS rung */
   .record-meta:not(:has(option[value="groups"]:checked)) > .field:has([name="gruppen"]) {
     --field-display: none;
-  }
-  /* a conflict outranks everything in the margin: the heavy rule and a red subhead (rows 5, 15) */
-  .record-meta-alert {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding-block-start: var(--space-3);
-    border-block-start: var(--state-border) solid var(--error);
-  }
-  .record-meta-alert-head {
-    font: var(--type-subhead);
-    color: var(--error);
   }
   .record-meta-line {
     font: var(--type-meta);

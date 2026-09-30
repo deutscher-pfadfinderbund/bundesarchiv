@@ -30,10 +30,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
   the Status (a1 round 4). The publish refusal is the server's (catalog_views._handle_edit_post).{% endcomment %}
   <aside class="record-meta" aria-label="Status und Aktionen">
     {% if conflict %}
-    <div class="record-meta-alert" role="alert">
-      <p class="record-meta-alert-head">Inzwischen geändert</p>
-      <p class="record-meta-line">Ein anderer Bearbeiter hat diesen Artikel gespeichert, während du ihn bearbeitet hast. {% if conflict_rows %}Prüfe {% for row in conflict_rows %}{% if not forloop.first %}{% if forloop.last %} und {% else %}, {% endif %}{% endif %}<a href="#{{ row.target }}">{{ row.label }}</a>{% endfor %} und speichere erneut.{% else %}Bitte prüfen und erneut speichern.{% endif %}</p>
-    </div>
+    {% include "components/conflict_notice.html" with what="Artikel" rows=conflict_rows only %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
