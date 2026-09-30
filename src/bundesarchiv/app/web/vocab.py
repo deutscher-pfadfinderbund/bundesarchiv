@@ -198,10 +198,10 @@ class DeleteConfirm:
 def delete_confirm(files: int, *, discard: bool) -> DeleteConfirm:
     """The confirm for a record with ``files`` files; ``discard`` words it for a draft given up."""
     thing, verb = ("Entwurf", "verwerfen") if discard else ("Artikel", "löschen")
-    dateien = "1 Datei" if files == 1 else f"{files} Dateien"
+    dateien = numbered(files, *_FILE_WORDS[FileKind.OTHER])
     gone = (
-        f"Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
-        f"{'Datei' if files == 1 else dateien}."
+        "Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
+        f"{_files(FileKind.OTHER, files)}."
         if files
         else "Gelöscht wird der Katalogeintrag mit allen Angaben."
     )
@@ -285,9 +285,18 @@ _FILE_WORDS: dict[FileKind, tuple[str, str]] = {
 def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
     """What files a record has, as the Digital column says it ("Foto, PDF", "2 Fotos"). ``()`` →
     empty. ``counts`` is ``SearchHit.file_counts``: kinds in summary order, zero kinds left out."""
-    return ", ".join(
-        _FILE_WORDS[kind][0] if n == 1 else f"{n} {_FILE_WORDS[kind][1]}" for kind, n in counts
-    )
+    return ", ".join(_files(kind, n) for kind, n in counts)
+
+
+def _files(kind: FileKind, n: int) -> str:
+    """``n`` files of ``kind``, one without its number: "Foto", "2 Fotos"."""
+    singular, plural = _FILE_WORDS[kind]
+    return singular if n == 1 else numbered(n, singular, plural)
+
+
+def numbered(n: int, singular: str, plural: str) -> str:
+    """``n`` of a thing, spelled out: "1 Datei", "3 Dateien"."""
+    return f"{n} {singular if n == 1 else plural}"
 
 
 def count(number: int) -> str:

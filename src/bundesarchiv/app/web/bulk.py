@@ -123,7 +123,7 @@ def label_of(feld: str) -> str:
 def counted(feld: str, n: int) -> str:
     """``n`` values of an allowed ``feld``, spelled out: "1 Standort", "3 Standorte"."""
     f = _BY_TARGET[feld]
-    return f"{n} {f.label if n == 1 else f.plural}"
+    return vocab.numbered(n, f.label, f.plural)
 
 
 def value_input_of(feld: str) -> str:
@@ -199,19 +199,21 @@ def field_display(feld: str, wert: str, bestand: BestandChooser) -> str:
     field is not bulk-editable, so no ``.c-sig`` rendering is needed here."""
     if not wert.strip():
         return "(geleert)"
-    if feld == "collection_id":
-        return bestand.name_of(wert) or wert
-    return wert
+    return _display(feld, wert, bestand)
 
 
 def current_display(article: Article, feld: str, bestand: BestandChooser) -> str:
     """The value an allowed ``feld`` holds on ``article`` now, as the check page shows what a commit
     replaces: a Bestand by its name; empty when unset."""
-    if feld in _CUSTOM_FIELDS:
-        return dict(article.custom).get(feld, "")
+    raw = dict(article.custom).get(feld, "") if feld in _CUSTOM_FIELDS else getattr(article, feld)
+    return _display(feld, raw or "", bestand)
+
+
+def _display(feld: str, raw: str, bestand: BestandChooser) -> str:
+    """A raw value of ``feld`` as a person reads it: a Bestand by its name, else verbatim."""
     if feld == "collection_id":
-        return bestand.name_of(article.collection_id) or article.collection_id
-    return getattr(article, feld) or ""
+        return bestand.name_of(raw) or raw
+    return raw
 
 
 # --- the CAS loop + buckets (spec §4) ----------------------------------------------
