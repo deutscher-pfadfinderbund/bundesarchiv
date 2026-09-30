@@ -16,7 +16,7 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
     <span role="status" data-bulk-zahl>{% if auswahl_count %}{{ auswahl_count }} ausgewählt{% endif %}</span>
     <button class="menu-button" type="button" popovertarget="feld-aendern">Feld ändern …</button>
     <div class="toolpanel" id="feld-aendern" popover>
-      {% include "workbench/_feldwahl.html" %}
+      {% include "workbench/_feldwahl.html" with abbrechen_panel="feld-aendern" %}
     </div>
   </div>
   {% else %}
@@ -28,6 +28,9 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
     <ul>
       {% for choice in choices %}<li><label><input type="checkbox" name="spalte" value="{{ choice.key }}" form="spalten-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
     </ul>
-    <button class="primary" type="submit" form="spalten-form">Fertig</button>
+    <div class="actions">
+      <button class="primary" type="submit" form="spalten-form">Fertig</button>
+      {% include "components/toolpanel_abbrechen.html" with panel="spalten" only %}
+    </div>
   </div>
 </div>

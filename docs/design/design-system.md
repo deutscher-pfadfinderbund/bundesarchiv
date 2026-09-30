@@ -290,7 +290,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_duplizieren` (the entry that POSTs) | `components.css` menu |
-| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_werkzeuge`) | `components.css` toolpanel |
+| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_werkzeuge`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_abbrechen` | `components.css` toolpanel |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines) | `components.css` byline |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |

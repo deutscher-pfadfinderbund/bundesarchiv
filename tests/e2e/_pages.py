@@ -40,7 +40,7 @@ from tests.e2e._corpus import CorpusHandles
 #: dropdowns are ``<details>``, the menus popovers. A new mechanism is one line here.
 OVERLAY_MECHANISMS: tuple[tuple[str, str, str], ...] = (
     ("details:has(> ul) > summary", "details > ul", "t.parentElement.querySelector(':scope > ul')"),
-    ("[popovertarget]", "[popover]", "t.popoverTargetElement"),
+    ('[popovertarget]:not([popovertargetaction="hide"])', "[popover]", "t.popoverTargetElement"),
 )
 OVERLAY_TRIGGERS = ", ".join(trigger for trigger, _, _ in OVERLAY_MECHANISMS)
 OVERLAY_PANELS = ", ".join(panel for _, panel, _ in OVERLAY_MECHANISMS)

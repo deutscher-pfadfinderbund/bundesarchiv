@@ -2,7 +2,7 @@
 shows only the one matching the chosen Feld (layouts.css .chooser, via the select's own checked
 option — no JS, and the server reads only the matching widget either way). Rendered by the workbench
 bulk bar and by the confirm page's error mode from one context (bulk.feldwahl_context); the
-data-bulk-wert tokens and the Feld options derive from bulk.FIELDS.{% endcomment %}
+data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: abbrechen_panel — the tool panel it sits in, which its Abbrechen closes.{% endcomment %}
 <div class="chooser">
   <label class="field">
     <span>Feld</span>
@@ -51,5 +51,6 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS.{% endcomment
 
   <div class="actions">
     <button class="primary" type="submit">Änderung prüfen</button>
+    {% if abbrechen_panel %}{% include "components/toolpanel_abbrechen.html" with panel=abbrechen_panel only %}{% endif %}
   </div>
 </div>

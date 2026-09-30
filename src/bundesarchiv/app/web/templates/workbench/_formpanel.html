@@ -5,6 +5,9 @@
   {% for feld in panel.felder %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
   {% if panel.fakten %}<dl class="byline">{% for label, wert in panel.fakten %}<div><dt>{{ label }}</dt><dd>{{ wert }}</dd></div>{% endfor %}</dl>{% endif %}
   {% if panel.hinweis %}<p class="hint">{{ panel.hinweis }}</p>{% endif %}
-  <button class="primary" type="submit">{{ panel.button }}</button>
+  <div class="actions">
+    <button class="primary" type="submit">{{ panel.button }}</button>
+    {% include "components/toolpanel_abbrechen.html" with panel=panel.id only %}
+  </div>
   {% csrf_token %}{% if panel.version %}<input type="hidden" name="expected_version" value="{{ panel.version }}">{% endif %}
 </form>
