@@ -812,6 +812,14 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 ## Ruling of 2026-09-30 (the list, continued)
 
 - The "Spalten …" panel's submit reads **"Fertig"**.
+- **Clear all:** the search sentence ends with a quiet "alle entfernen" when two or more filters
+  are set; each set filter still removes itself on click.
+- **JS can be expected.** Controls should still work without it where that is cheap: a ticked
+  select-all box in the column head means "every row on this page" when the form is submitted.
+- **Selecting rows, like Apple's "Auswählen":** the list shows no selection column until an
+  archivist starts selecting. "Auswählen" sits at the front of the archivists' tool row; it shows
+  the column and becomes "Abbrechen", which leaves selection and clears it. Members get no
+  selection. The select-all box sits in the column head; the words "Alle auf dieser Seite" go.
 - **Column chooser ("Spalten …"):** Datierung, Typ, Digital, Signatur and Bestand for now; Urheber,
   Ort and Standort later.
 - **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
