@@ -825,3 +825,19 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 - **Where state lives:** the address holds ephemeral state (query, filters, sort, page,
   selection). A persistent preference, such as the chosen columns, lives in a cookie per person,
   so a shared link never carries it.
+
+## Ruling of 2026-09-30 (the list, review)
+
+The owner reviewed the list on the real archive and accepted it as built, including:
+
+- the slot words "allen Beständen", "alle Jahrzehnte", "jeder Typ"; decades read "1960er", plus
+  "ohne Datum";
+- set filters without a slot of their own read "Medienart: X", "Schlagwort: X", "ab …", "bis …",
+  "digital", "Entwürfe"; a click removes one, with no × glyph;
+- a person may hide every column but Titel;
+- Signatur in plain quiet mono, not bold;
+- "alle entfernen" in the quiet meta ink; "von" and "bis" count as two filters;
+- the tool row as it stands: "Auswählen"/"Abbrechen" underlined, "Feld ändern …" and "Spalten …"
+  plain.
+
+The phone layout is low priority: the "Filter" panel (#65) and the dead "Auswählen" (#66).
