@@ -1,6 +1,6 @@
 {% comment %}The control attributes that tie a _feld.html row together: name from the label span only,
 the stored value of a conflict, hint and error as description, aria-invalid while an error or a
 conflict shows — never `:invalid`, which would block the save that resolves the conflict (a1 round 4).
-aria-required, not `required`: the custom-row removal submits this form without validating it.
-Needs `feld` and `base`.
-{% endcomment %}aria-labelledby="{{ base }}-label"{% if feld.hint or feld.error or feld.was is not None %} aria-describedby="{% if feld.was is not None %}{{ base }}-gespeichert {% endif %}{% if feld.hint %}{{ base }}-hinweis {% endif %}{% if feld.error %}{{ base }}-fehler{% endif %}"{% endif %}{% if feld.required %} aria-required="true"{% endif %}{% if feld.error or feld.was is not None %} aria-invalid="true"{% endif %}
+`novalidate` (the edit form) marks a required field aria-required, not `required`: its custom-row
+removal submits the form without validating it. Needs `feld` and `base`.
+{% endcomment %}aria-labelledby="{{ base }}-label"{% if feld.hint or feld.error or feld.was is not None %} aria-describedby="{% if feld.was is not None %}{{ base }}-gespeichert {% endif %}{% if feld.hint %}{{ base }}-hinweis {% endif %}{% if feld.error %}{{ base }}-fehler{% endif %}"{% endif %}{% if feld.required %}{% if novalidate %} aria-required="true"{% else %} required{% endif %}{% endif %}{% if feld.error or feld.was is not None %} aria-invalid="true"{% endif %}

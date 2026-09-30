@@ -92,8 +92,10 @@ def _reach_neu_artikel_open(page: Page, base: str, _corpus: CorpusHandles) -> No
 
 
 def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # Anlegen with no Name: htmx answers in the panel itself, the error under the field
+    # Anlegen with a blank Name: htmx answers in the panel itself, the error under the field. Spaces,
+    # because the browser's `required` stops an empty Name before the server sees it.
     _reach_header_panel(page, base, "/", "Neuer Bestand …")
+    page.locator("#neu-bestand-name").fill("   ")
     page.locator("#neu-bestand").get_by_role("button", name="Anlegen").click()
     page.wait_for_selector("#neu-bestand .error")
 
@@ -126,6 +128,7 @@ def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # a form posted with a token that no longer matches: the "form expired" page
     page.goto(f"{base}/bestand/neu", wait_until="networkidle")
     page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
+    page.locator('main input[name="name"]').fill("Abgelaufen")
     page.locator("main form").get_by_role("button", name="Anlegen").click()
     page.wait_for_load_state("networkidle")
 

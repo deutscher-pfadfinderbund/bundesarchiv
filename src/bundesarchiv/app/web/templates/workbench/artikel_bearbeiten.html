@@ -22,7 +22,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
 
   <header>
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-    {% include "workbench/_feld_titel.html" with feld=card_fields.lead.0 form="bearbeiten-form" only %}
+    {% include "workbench/_feld_titel.html" with feld=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
   </header>
 
   {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
@@ -35,7 +35,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
     {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
-    {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" only %}{% endfor %}
+    {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}
     <div class="record-meta-actions">
       <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
       <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
@@ -63,7 +63,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
 
     <section aria-labelledby="h-kerndaten">
       <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
-      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
@@ -77,12 +77,12 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
 
     <section aria-labelledby="h-einordnung">
       <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
-      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     <section aria-labelledby="h-herkunft">
       <header class="section-head"><h2 id="h-herkunft">Herkunft</h2></header>
-      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
   </form>
 
