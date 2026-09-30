@@ -246,6 +246,13 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 - **Also:** the design lint parses CSS that is formatted by hand (no CSS formatter); a mis-wrapped
   rule can slip past it. Watch for a second occurrence before adding a formatter.
 
+### 25. The gallery is one test — Weak
+- **Indicator:** 1 test renders every state, 2026-09-30.
+- **The pattern:** the first `_reach_*` exception aborts every render after it, so each red costs a
+  full ~2 min re-run (Wave REST U4 paid it twice).
+- **Sketch:** parametrize the gallery over its states, or collect reach failures and fail at the
+  end with all of them.
+
 ## Process law
 
 - **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (bestand.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 1.

@@ -103,6 +103,10 @@ no include takes, or pass the include `only` with its params.
 Controls that exist on every page (the header's tool panels) also match a non-strict Playwright
 selector first. Scope journey selectors to the region they act in (`main …`).
 
+A unit that adds or moves a `[popovertarget]` runs the overlay journey itself before it reports
+(`mise run test:e2e -- -k overlays`, ~30 s): a panel anchored under the wrong trigger shows only
+there, and a finisher cycle costs far more.
+
 ## An unexpected red is a STOP, not a patch site
 
 A gate, a test or a rule that breaks unexpectedly stops the line. Investigate how
