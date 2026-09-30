@@ -137,9 +137,11 @@ changed FTS config version, and an empty index is not stale.
    Expect `206`, a `Content-Range: bytes 0-99/<size>`, and
    `Cache-Control: private, …`. A `200` with the whole file means the
    X-Accel-Redirect handoff is not happening — check
-   `BUNDESARCHIV_X_ACCEL_PREFIX` against the `location /_media/` in
+   `BUNDESARCHIV_X_ACCEL_PREFIX` against the `/_media/` media-key location in
    `deploy/nginx/nginx.conf`. A public `Cache-Control` means that location grew
-   an `expires` or `add_header` it must not have (ADR 0017).
+   an `expires` or a `Cache-Control` header it must not have (ADR 0017).
+   An anonymous upload POST to `/artikel/<ulid>/medien/hochladen` gets an
+   immediate empty `404`, before any body is read.
 
 ## Authentication (Keycloak OIDC) — ADR 0018
 
