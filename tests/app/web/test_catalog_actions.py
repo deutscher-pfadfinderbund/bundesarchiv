@@ -16,7 +16,6 @@ The write path is REAL; only the index + queue seams are stubbed (see conftest.p
 """
 
 from dataclasses import replace
-from html.parser import HTMLParser
 from typing import Any
 
 import pytest
@@ -28,6 +27,7 @@ from tests.app.web._fixtures import (
     client_as,
     make_article,
     make_collection,
+    page_forms,
 )
 
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
@@ -78,31 +78,8 @@ def test_kopieren_get_is_404(corpus: Corpus) -> None:
 # --- Löschen -----------------------------------------------------------------------
 
 
-class _Forms(HTMLParser):
-    """Every POST form of a page: its action and its hidden fields."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.forms: list[tuple[str, dict[str, str]]] = []
-        self._open = False
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        a = dict(attrs)
-        if tag == "form" and a.get("method") == "post":
-            self.forms.append((a.get("action") or "", {}))
-            self._open = True
-        elif tag == "input" and a.get("type") == "hidden" and self._open:
-            self.forms[-1][1][a.get("name") or ""] = a.get("value") or ""
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "form":
-            self._open = False
-
-
 def _delete_forms(body: str, ulid: str) -> list[tuple[str, dict[str, str]]]:
-    parser = _Forms()
-    parser.feed(body)
-    return [f for f in parser.forms if f[0].startswith(f"/artikel/{ulid}/loeschen")]
+    return [f for f in page_forms(body) if f[0].startswith(f"/artikel/{ulid}/loeschen")]
 
 
 def _submit_delete_form(client: Any, body: str, ulid: str) -> Any:

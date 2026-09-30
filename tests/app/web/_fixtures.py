@@ -10,8 +10,10 @@ count, a listing or a facet total reads the whole store, so one added record sil
 another file's expectations. Such a test builds its own content with ``make_corpus``.
 """
 
+import re
 from collections.abc import Callable
 from functools import partial
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -95,6 +97,11 @@ def page_forms(body: str) -> list[tuple[str, dict[str, str]]]:
     parser = _PageForms()
     parser.feed(body)
     return parser.forms
+
+
+def page_hrefs(body: str) -> list[str]:
+    """Every link target on a page, unescaped."""
+    return [unescape(href) for href in re.findall(r'href="([^"]*)"', body)]
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

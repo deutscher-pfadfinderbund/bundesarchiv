@@ -22,7 +22,14 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 from django.http import HttpResponse
-from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
+from tests.app.web._fixtures import (
+    Corpus,
+    client_as,
+    draft_mark,
+    make_article,
+    make_collection,
+    page_hrefs,
+)
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
@@ -668,7 +675,7 @@ def test_titel_navigates_and_no_list_link_opens_the_pane(
     # The Titel is plain navigation to the detail route (owner 2026-08-07). The preview is paused
     # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets artikel.
     body = _get(viewer).content.decode()
-    hrefs = [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
+    hrefs = page_hrefs(body)
     assert f"/artikel/{PANE_PUB_ULID}" in hrefs
     assert [h for h in hrefs if "artikel" in parse_qs(urlparse(h).query)] == []
 

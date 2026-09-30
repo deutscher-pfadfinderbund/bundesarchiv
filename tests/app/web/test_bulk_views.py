@@ -10,12 +10,11 @@ only index + queue seams are stubbed (conftest.py).
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
-from html import unescape
 
 import pytest
 from django.urls import reverse
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection, page_hrefs
 
 from bundesarchiv.app.web import browse, bulk
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
@@ -41,10 +40,6 @@ def two_drafts(make_corpus: Callable[[], Corpus]) -> Corpus:
         make_article(_B, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Foto B")
     )
     return corpus
-
-
-def _hrefs(body: str) -> list[str]:
-    return [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
 
 
 def _stored(corpus: Corpus, ulid: str) -> Article:
@@ -190,7 +185,7 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: st
         .content.decode()
     )
     back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
-    assert back in _hrefs(body)
+    assert back in page_hrefs(body)
 
 
 def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpus) -> None:
@@ -290,7 +285,7 @@ def test_commit_cas_race_loser_value_not_on_disk(
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Bulk", "bestaetigt": "1"},
     )
     # the loser is listed, leading to its edit form, and all losers can be picked again at once
-    hrefs = _hrefs(response.content.decode())
+    hrefs = page_hrefs(response.content.decode())
     assert reverse("artikel-bearbeiten", args=[_A]) in hrefs
     assert f"{reverse('workbench')}?{browse.select_page_query({}, [], [_A])}" in hrefs
     assert reverse("artikel-bearbeiten", args=[_B]) not in hrefs
