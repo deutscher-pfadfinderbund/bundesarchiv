@@ -408,7 +408,7 @@ def test_permitted_thumbnail_runs_no_script(corpus: _TierCorpus) -> None:
 
 @pytest.mark.parametrize("thumb", [False, True], ids=["original", "thumbnail"])
 def test_permitted_media_is_not_readable_by_another_site(corpus: _TierCorpus, thumb: bool) -> None:
-    # A page on a sibling DPB host is same-site, so its image requests carry the token cookies.
+    # ADR 0017.
     corpus.generate_thumbnails()
     response = client_as(Public()).get(corpus.url("public", thumb=thumb))
     assert response.status_code == 200

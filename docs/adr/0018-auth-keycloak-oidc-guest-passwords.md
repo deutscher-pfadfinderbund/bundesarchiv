@@ -76,7 +76,10 @@ to this ADR.
   default realm role.
 - **Refresh token rotation ("Revoke Refresh Token") stays off.** Two requests
   that refresh at once (two tabs, parallel htmx requests) then both succeed.
-  With rotation on, the second would fail and sign the user out.
+  With rotation on, the second would fail and sign the user out. The upload
+  gate (ADR 0017) refreshes in its own subrequest, whose new cookies nginx
+  drops, so the upload refreshes again with the same token: if rotation is ever
+  turned on, the gate must not refresh.
 - **Group names are an external contract.** An article audience naming a group
   nobody carries matches nobody (fail-closed). No sync or validation against
   Keycloak.

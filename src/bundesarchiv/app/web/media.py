@@ -42,8 +42,7 @@ _IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 #: the sandbox runs no script in it and gives it an opaque origin.
 _SANDBOX_CSP = "sandbox"
 
-#: A page on a sibling DPB host is same-site, so its image requests carry the token cookies; this
-#: keeps it from learning whether its visitor may see a record, or an image's size.
+#: ADR 0017.
 _SAME_ORIGIN_ONLY = "same-origin"
 
 
