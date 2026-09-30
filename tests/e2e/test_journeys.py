@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from playwright.sync_api import Browser, Dialog, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
+from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import CorpusHandles, _png
 from tests.e2e._pages import (
     BULK_COMMIT,
@@ -25,6 +26,7 @@ from tests.e2e._pages import (
     OVERLAY_PANELS,
     OVERLAY_TRIGGERS,
     SCREENS,
+    reach_door,
     screens_for,
 )
 
@@ -987,6 +989,15 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
     expect(public_page.get_by_role("button", name="+ Neu …")).to_have_count(0)
     expect(public_page.locator('input[name="auswahl"]')).to_have_count(0)
+
+
+def test_an_anonymous_visitor_signs_in_through_the_door(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    reach_door(public_page, live_workbench, e2e_corpus)
+    public_page.get_by_role("link", name="Anmelden mit DPB Login").click()
+    public_page.wait_for_url("**/login?**")
+    assert_login_target(public_page.url, f"/artikel/{e2e_corpus.published_ulid}")
 
 
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:

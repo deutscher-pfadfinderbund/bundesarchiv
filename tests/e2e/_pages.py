@@ -32,6 +32,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from django.test import override_settings
 from playwright.sync_api import Page
 from tests.e2e._corpus import CorpusHandles
 
@@ -122,6 +123,13 @@ def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
     _reach_bulk_confirm(page, base, corpus)
     page.click(BULK_COMMIT)
     page.wait_for_load_state("networkidle")
+
+
+def reach_door(page: Page, base: str, corpus: CorpusHandles) -> None:
+    """The door, on an article's path. The browser suites run with the anonymous gate off
+    (``settings_dev``), so this reach turns it on for its own navigation."""
+    with override_settings(ANONYMOUS_GATE_ENABLED=True):
+        page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
@@ -287,6 +295,13 @@ SCREENS: tuple[Screen, ...] = (
         _goto(lambda c: f"/artikel/{c.second_ulid}"),
         "artikel-detail",
     ),
+    Screen(
+        "door",
+        "the door: an anonymous visitor with the production gate on",
+        False,
+        reach_door,
+        "artikel-detail",
+    ),
     # The two POST-only bulk surfaces. They are real prod screens with real chrome, and until they
     # joined the inventory they existed only as gallery shots — nothing asserted anything about them.
     Screen(
@@ -315,7 +330,7 @@ SCREENS: tuple[Screen, ...] = (
 #: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
 #: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
 #: screens share one route.
-SCREEN_COUNT = 21
+SCREEN_COUNT = 22
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:
