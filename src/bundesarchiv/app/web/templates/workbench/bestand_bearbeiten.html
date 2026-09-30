@@ -14,24 +14,21 @@ CAS and 302s to the workbench filtered to this Bestand.
   <h1>Bestand bearbeiten</h1>
   {% comment %}A racing rename (ADR 0013): the form below carries the refreshed version and the name
   just typed.{% endcomment %}
-  {% if conflict_name %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=conflict_name only %}{% endif %}
-  <form method="post" action="{% url 'bestand-bearbeiten' ulid %}">
+  {% if panel.jetzt %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=panel.jetzt only %}{% endif %}
+  <form method="post" action="{{ panel.action }}">
     {% csrf_token %}
-    <input type="hidden" name="expected_version" value="{{ version }}">
-    {% include "workbench/_feld.html" with feld=name_feld only %}
+    <input type="hidden" name="expected_version" value="{{ panel.version }}">
+    {% for feld in panel.rows %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     <dl class="quiet">
-      <div>
-        <dt>Eltern-Bestand</dt>
-        <dd>{{ parent_display }}</dd>
+      {% for label, wert in panel.fakten %}<div>
+        <dt>{{ label }}</dt>
+        <dd>{{ wert }}</dd>
       </div>
-      <div>
-        <dt>Sichtbarkeit</dt>
-        <dd>{{ sichtbarkeit_display }}</dd>
-      </div>
+      {% endfor %}
     </dl>
-    <p class="hint">Verschieben und Sichtbarkeit ändern folgen später.</p>
+    <p class="hint">{{ panel.hinweis }}</p>
     <footer>
-      <button class="primary" type="submit">Speichern</button>
+      <button class="primary" type="submit">{{ panel.button }}</button>
     </footer>
   </form>
 </main>

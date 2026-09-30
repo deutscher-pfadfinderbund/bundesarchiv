@@ -75,9 +75,30 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
 
 def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the header's "+ Neu …" create menu open (Mock B, owner 2026-08-07) — the floating
-    # overlay panel with Neuer Artikel / Neuer Bestand
+    # overlay panel with "Neuer Artikel …" / "Neuer Bestand …"
     page.goto(f"{base}/", wait_until="networkidle")
     page.click(".menu-button")
+
+
+def _reach_header_panel(page: Page, base: str, path: str, entry: str) -> None:
+    page.goto(f"{base}{path}", wait_until="networkidle")
+    page.click("header .menu-button")
+    page.get_by_role("button", name=entry).click()
+
+
+def _reach_neu_artikel_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    _reach_header_panel(page, base, "/", "Neuer Artikel …")
+
+
+def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # Anlegen with no Name: htmx answers in the panel itself, the error under the field
+    _reach_header_panel(page, base, "/", "Neuer Bestand …")
+    page.locator("#neu-bestand").get_by_role("button", name="Anlegen").click()
+    page.wait_for_selector("#neu-bestand .error")
+
+
+def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    _reach_header_panel(page, base, f"/?bestand={corpus.renamable_ulid}", "Bestand bearbeiten …")
 
 
 def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -137,8 +158,8 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     # error in the margin — a visible cue needs a render to be judged on (learning G.7), and this shot
     # is also the C13 error-border state.
     page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
-    page.select_option('select[name="sichtbarkeit"]', "groups")
-    page.click('button:has-text("Speichern")')
+    page.select_option('main select[name="sichtbarkeit"]', "groups")
+    page.click('main button:has-text("Speichern")')
     page.wait_for_selector(".record-meta .error")
 
 
@@ -157,13 +178,13 @@ def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
     other = page.context.new_page()
     try:
         other.goto(page.url, wait_until="networkidle")
-        other.click('button:has-text("Speichern")')
+        other.click('main button:has-text("Speichern")')
         other.wait_for_url(lambda url: "/bearbeiten" not in url)
     finally:
         other.close()
     page.fill('input[name="date"]', "1962~")
     page.fill('textarea[name="body"]', "Fahrtenbericht mit Liedern.")
-    page.click('button:has-text("Speichern")')
+    page.click('main button:has-text("Speichern")')
     page.wait_for_selector(".conflict-notice")
     # the fills scrolled the page, and the sticky margin would be shot mid-page
     page.evaluate("window.scrollTo(0, 0)")
@@ -252,6 +273,24 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, a draft's Verwerfen confirm open from 'Mehr …' (the margin's own panel)",
         True,
         _reach_edit_verwerfen_open,
+    ),
+    GalleryState(
+        "neu-artikel-open",
+        "the header's 'Neuer Artikel …' panel open from '+ Neu …' (Titel and Bestand)",
+        True,
+        _reach_neu_artikel_open,
+    ),
+    GalleryState(
+        "neu-bestand-refused",
+        "the header's 'Neuer Bestand …' panel after Anlegen without a Name: the error in place",
+        True,
+        _reach_neu_bestand_refused,
+    ),
+    GalleryState(
+        "bestand-bearbeiten-open",
+        "the list scoped to one Bestand, its 'Bestand bearbeiten …' panel open (the rename)",
+        True,
+        _reach_bestand_bearbeiten_open,
     ),
     GalleryState(
         "detail-aktionen-open",

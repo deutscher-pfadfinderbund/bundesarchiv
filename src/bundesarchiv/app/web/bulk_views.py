@@ -135,6 +135,7 @@ def _confirm(
             "orphans": [_orphan_row(a) for a in orphans],
             "abbrechen_query": browse.select_page_query({}, [a.ulid for a in articles], []),
         },
+        bestand=bestand,
     )
 
 
@@ -172,6 +173,7 @@ def _commit(
             "conflict_count": len(outcome.conflicted),
             "erneut_query": browse.select_page_query({}, [], [r.ulid for r in outcome.conflicted]),
         },
+        bestand=bestand,
     )
 
 
@@ -204,6 +206,7 @@ def _reject(
             "abbrechen_query": browse.select_page_query({}, auswahl, []),
             **bulk.feldwahl_context(bestand, feld=feld, wert=wert),
         },
+        bestand=bestand,
     )
 
 

@@ -11,7 +11,7 @@ from collections.abc import Callable
 
 import pytest
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_collection
+from tests.app.web._fixtures import Corpus, client_as, make_collection, page_forms
 
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -95,3 +95,22 @@ def test_create_post_missing_collection_re_renders_state_b(empty_archive: Corpus
     # the typed title is preserved
     assert "Wanderfahrt" in body
     assert list(empty_archive.articles.list_ulids()) == []
+
+
+@pytest.mark.django_db
+def test_the_panel_answers_a_refusal_in_place_then_creates(empty_archive: Corpus) -> None:
+    """With htmx the create step's tool panel is its own answer: a refusal comes back as the one
+    form with the values kept and nothing created; a create navigates to the new draft's form."""
+    client = client_as(Archivist())
+    refused = client.post(
+        "/artikel/neu", {"title": "Fahrt", "collection_id": ""}, headers={"HX-Request": "true"}
+    )
+    [(action, fields)] = page_forms(refused.content.decode())
+    assert action == "/artikel/neu"
+    assert fields["title"] == "Fahrt"
+    assert list(empty_archive.articles.list_ulids()) == []
+    created = client.post(
+        action, {**fields, "collection_id": "PUB"}, headers={"HX-Request": "true"}
+    )
+    [draft] = empty_archive.articles.list_ulids()
+    assert created["HX-Redirect"] == f"/artikel/{draft}/bearbeiten"

@@ -18,6 +18,7 @@ from tests.app.web._fixtures import (
     client_as,
     make_article,
     make_collection,
+    page_forms,
 )
 
 from bundesarchiv.domain.identity import new_ulid
@@ -74,14 +75,12 @@ def test_non_archivist_post_leaves_name_unchanged(archive: Corpus) -> None:
 
 def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
     body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-    assert 'name="name"' in body  # Name is editable
-    assert "Fotografien" in body  # current name seeded
-    assert "Bundesarchiv" in body  # parent shown read-only (the parent's name)
-    assert "Alle Mitglieder" in body  # Sichtbarkeit shown read-only (MEMBERS label)
-    assert "Verschieben und Sichtbarkeit ändern folgen später." in body  # the deferred hint
-    # parent + Sichtbarkeit are NOT editable controls
-    assert 'name="parent_id"' not in body
-    assert 'name="sichtbarkeit"' not in body
+    [fields] = [f for a, f in page_forms(body) if a == f"/bestand/{FOTOS}/bearbeiten"]
+    # Name is the one editable control, seeded; parent + Sichtbarkeit are shown, never posted
+    assert fields.keys() == {"csrfmiddlewaretoken", "expected_version", "name"}
+    assert fields["name"] == "Fotografien"
+    assert "Bundesarchiv" in body  # the parent's name
+    assert "Alle Mitglieder" in body  # the MEMBERS label
 
 
 # --- POST renames -----------------------------------------------------------------
@@ -168,3 +167,24 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
     assert response.status_code == 302
     assert response["Location"] == f"/?bestand={FOTOS}"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
+
+
+@pytest.mark.django_db
+def test_the_panel_answers_a_race_in_place_then_saves(archive: Corpus) -> None:
+    """With htmx the rename's tool panel is its own answer: a lost race comes back as the one form,
+    the typed name kept and the winner's version to save against; a save navigates to the list."""
+    client = client_as(Archivist())
+    client.post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"})
+    refused = client.post(
+        f"/bestand/{FOTOS}/bearbeiten",
+        {"name": "Meins", "expected_version": "1"},
+        headers={"HX-Request": "true"},
+    )
+    [(action, fields)] = page_forms(refused.content.decode())
+    assert action == f"/bestand/{FOTOS}/bearbeiten"
+    assert fields["name"] == "Meins"
+    assert fields["expected_version"] == "2"
+    assert _name_of(archive, FOTOS) == "Lichtbilder"
+    saved = client.post(action, fields, headers={"HX-Request": "true"})
+    assert saved["HX-Redirect"] == f"/?bestand={FOTOS}"
+    assert _name_of(archive, FOTOS) == "Meins"

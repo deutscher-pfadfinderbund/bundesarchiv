@@ -12,6 +12,7 @@ another file's expectations. Such a test builds its own content with ``make_corp
 
 from collections.abc import Callable
 from functools import partial
+from html.parser import HTMLParser
 from pathlib import Path
 
 from django.core import signing
@@ -48,6 +49,52 @@ DRAFT_ULID = "01KX7YT9E3VX0CP3A5Q49RZMVH"
 def draft_mark() -> str:
     """The Entwurf mark as production renders it."""
     return render_to_string("components/mark_lifecycle.html", {"draft": True}).strip()
+
+
+class _PageForms(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.forms: list[tuple[str, dict[str, str]]] = []
+        self._fields: dict[str, str] | None = None
+        self._select: str | None = None
+        self._textarea: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        a = {k: v or "" for k, v in attrs}
+        if tag == "form" and a.get("method") == "post":
+            self._fields = {}
+            self.forms.append((a.get("action", ""), self._fields))
+        elif self._fields is None or (not a.get("name") and tag != "option"):
+            return
+        elif tag == "input" and (a.get("type") not in ("checkbox", "radio") or "checked" in a):
+            self._fields[a["name"]] = a.get("value", "")
+        elif tag == "select":
+            self._select = a["name"]
+        elif tag == "option" and self._select is not None:
+            if self._select not in self._fields or "selected" in a:
+                self._fields[self._select] = a.get("value", "")
+        elif tag == "textarea":
+            self._textarea = a["name"]
+            self._fields[self._textarea] = ""
+
+    def handle_data(self, data: str) -> None:
+        if self._textarea is not None and self._fields is not None:
+            self._fields[self._textarea] += data
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form":
+            self._fields = None
+        elif tag == "select":
+            self._select = None
+        elif tag == "textarea":
+            self._textarea = None
+
+
+def page_forms(body: str) -> list[tuple[str, dict[str, str]]]:
+    """Every POST form a page hands out: its action and the values it would submit as rendered."""
+    parser = _PageForms()
+    parser.feed(body)
+    return parser.forms
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

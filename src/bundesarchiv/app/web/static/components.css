@@ -776,6 +776,10 @@
   .toolpanel > * + * {
     margin-block-start: var(--space-5);
   }
+  /* a form's fields stack, each the panel's width ("Neuer Bestand …") */
+  .toolpanel > .field {
+    --field-display: flex;
+  }
   /* a check list (the ledger's "Spalten …") is as wide as its longest entry */
   .toolpanel:has(> ul) {
     inline-size: auto;

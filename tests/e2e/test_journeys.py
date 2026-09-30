@@ -671,14 +671,12 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     # archivist's actual path end to end.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    for entry, destination in (
-        ("Neuer Artikel", "/artikel/neu"),
-        ("Neuer Bestand", "/bestand/neu"),
-    ):
+    for entry, panel in (("Neuer Artikel …", "#neu-artikel"), ("Neuer Bestand …", "#neu-bestand")):
         page.goto(live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
         page.click("header .menu-button")
-        page.get_by_role("link", name=entry).click(timeout=5000)
-        page.wait_for_url(f"**{destination}")
+        page.get_by_role("button", name=entry).click(timeout=5000)
+        expect(page.locator(panel)).to_be_visible()
+        expect(page.locator(panel).locator('input[type="text"]').first).to_be_focused()
 
 
 def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
@@ -978,21 +976,21 @@ def test_create_bestand_then_file_an_article_under_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # "+ Neu …" → Neuer Bestand → fill Name → Anlegen → LAND on the create-article form
+    # "+ Neu …" → "Neuer Bestand …" (its panel) → fill Name → Anlegen → LAND on the create-article form
     # (create→catalog is one flow), the new Bestand pre-selected + a success hinweis. File the
     # first article under it. The create actions live in the header's ONE menu (Mock B, owner
     # 2026-08-07) — a native popover, opened by a plain click.
     page.goto(live_workbench + "/")
     page.click(".menu-button")
-    page.get_by_role("link", name="Neuer Bestand").click()
-    page.wait_for_url("**/bestand/neu")
-    page.fill('input[name="name"]', "Plakate")
-    page.click('button:has-text("Anlegen")')
-    page.wait_for_url("**/artikel/neu?**")  # 302 to the create-article form, not the workbench
+    page.get_by_role("button", name="Neuer Bestand …").click()
+    panel = page.locator("#neu-bestand")
+    panel.locator('input[name="name"]').fill("Plakate")
+    panel.get_by_role("button", name="Anlegen").click()
+    page.wait_for_url("**/artikel/neu?**")  # HX-Redirect to the create-article form, not the list
     expect(page.get_by_text("Bestand „Plakate“ angelegt.")).to_be_visible()  # success hinweis
-    expect(page.locator('select[name="collection_id"]')).to_contain_text("Plakate")
+    expect(page.locator('main select[name="collection_id"]')).to_contain_text("Plakate")
     page.fill('textarea[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
-    page.click('button:has-text("Anlegen")')
+    page.click('main button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
     # now the Bestand has an article, so it appears in the search sentence's Bestand slot menu
     page.goto(live_workbench + "/")
@@ -1008,8 +1006,8 @@ def _create_draft(page: Page, base: str, title: str) -> str:
     form, so the draft is saveable/publishable. Returns the new draft's edit-form URL."""
     page.goto(base + "/artikel/neu")
     page.fill('textarea[name="title"]', title)
-    page.select_option('select[name="collection_id"]', "FOTOS")
-    page.click('button:has-text("Anlegen")')
+    page.select_option('main select[name="collection_id"]', "FOTOS")
+    page.click('main button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
     # Medienart is required to save/publish (spec §3) — set it so downstream steps aren't blocked.
     page.select_option('select[name="media_type"]', "Foto(s)")
@@ -1517,14 +1515,15 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     # "focused" are browser facts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehler am Rand")
-    gruppen = page.locator('input[name="gruppen"]')
+    gruppen = page.locator('main input[name="gruppen"]')
     expect(gruppen).to_be_hidden()  # not at the GROUPS rung
-    page.select_option('select[name="sichtbarkeit"]', "groups")  # Gruppen stays empty -> invalid
+    # Gruppen stays empty -> invalid
+    page.select_option('main select[name="sichtbarkeit"]', "groups")
     expect(gruppen).to_be_visible()
-    page.click('button:has-text("Speichern")')
+    page.click('main button:has-text("Speichern")')
     error = page.locator(".record-meta .error")
     expect(error).to_have_text("Bitte mindestens eine Gruppe angeben.")
-    expect(page.locator('input[name="gruppen"]')).to_be_focused()
+    expect(page.locator('main input[name="gruppen"]')).to_be_focused()
 
 
 def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
@@ -1638,8 +1637,8 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     # take for granted. Create step → edit form (server 302, not an hx-swap).
     page.goto(live_workbench + "/artikel/neu")
     page.fill('textarea[name="title"]', "E2E Ohne JS")
-    page.select_option('select[name="collection_id"]', "FOTOS")
-    page.click('button:has-text("Anlegen")')
+    page.select_option('main select[name="collection_id"]', "FOTOS")
+    page.click('main button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
     expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ohne JS")
     # save: a plain form POST that 302s to the read view (no JS in the loop at all)

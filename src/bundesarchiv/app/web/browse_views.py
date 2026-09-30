@@ -82,6 +82,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # entirely (defence-in-depth — the POST route is independently gated too).
     waehlen = is_archivist and browse.PARAM_AUSWAHL in request.GET
     auswahl = [u for u in request.GET.getlist(browse.PARAM_AUSWAHL) if u] if waehlen else []
+    bestand = BestandChooser.of(Archive.canonical())
     context = _results_context(
         request,
         parsed,
@@ -90,6 +91,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         selected_ulid=pane.ulid if pane is not None else None,
         waehlen=waehlen,
         auswahl=auswahl,
+        bestand=bestand,
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
@@ -103,13 +105,13 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # A Back-button restore swaps the whole body, so it gets the full page. Checked first, so a
     # restore that also carries HX-Request (htmx 2 did) can never get the chrome-less partial.
     if request.headers.get("HX-History-Restore-Request"):
-        return render_screen(request, "workbench/workbench.html", context)
+        return render_screen(request, "workbench/workbench.html", context, bestand=bestand)
     if request.headers.get("HX-Request"):
         # The search sentence sits outside the #results swap target, so the partial prepends its
         # out-of-band fragments (oob gates them: the full page renders the sentence once).
         context["oob"] = True
         return render(request, "workbench/_results.html", context)
-    return render_screen(request, "workbench/workbench.html", context)
+    return render_screen(request, "workbench/workbench.html", context, bestand=bestand)
 
 
 def choose_columns(request: HttpRequest) -> HttpResponseBase:
@@ -258,6 +260,7 @@ def _results_context(
     selected_ulid: str | None,
     waehlen: bool,
     auswahl: list[str],
+    bestand: BestandChooser,
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
     sentence/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
@@ -274,7 +277,6 @@ def _results_context(
         k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
     }
     total = page.total
-    bestand = BestandChooser.of(Archive.canonical())
     context: dict[str, object] = {
         "text": parsed.text or "",
         # The search form's hidden inputs (GH #21) — every active filter, so typing a new q keeps

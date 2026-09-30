@@ -23,6 +23,8 @@ from django.core import signing
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -202,7 +204,13 @@ def viewer_of(request: HttpRequest) -> Viewer:
     return viewer
 
 
-def render_screen(request: HttpRequest, template: str, context: dict[str, object]) -> HttpResponse:
+def render_screen(
+    request: HttpRequest,
+    template: str,
+    context: dict[str, object],
+    *,
+    bestand: BestandChooser | None = None,
+) -> HttpResponse:
     """Render a screen with ``is_archivist`` and ``is_signed_in`` resolved HERE, from ``viewer_of``.
 
     The shared header's "+ Neu …" create disclosure is ARCHIVIST CHROME, so whether it renders is an
@@ -219,14 +227,24 @@ def render_screen(request: HttpRequest, template: str, context: dict[str, object
     the shared workstation is the normal case — ADR 0018).
 
     This helper is the SINGLE authority for both keys: they are stamped over ``context``, so no
-    caller can assert chrome the viewer has not earned."""
+    caller can assert chrome the viewer has not earned. For an archivist it also stamps ``neu``, the
+    header's create panels, built from the view's own ``bestand`` chooser where it has one, so a
+    request reads the Bestände once."""
     viewer = viewer_of(request)
-    return render(
-        request,
-        template,
-        {
-            **context,
-            "is_archivist": isinstance(viewer, Archivist),
-            "is_signed_in": not isinstance(viewer, Public),
-        },
-    )
+    is_archivist = isinstance(viewer, Archivist)
+    chrome: dict[str, object] = {
+        "is_archivist": is_archivist,
+        "is_signed_in": not isinstance(viewer, Public),
+        "neu": (),
+    }
+    if is_archivist:
+        # the panels are the Bestand views' forms, and those views import this module
+        from bundesarchiv.app.web.collection_views import header_panels
+
+        aktiver = context.get("aktiver_bestand")
+        chooser = bestand or BestandChooser.of(Archive.canonical())
+        # a callable: the template calls it where the header prints the menu, so a partial pays nothing
+        chrome["neu"] = lambda: header_panels(
+            chooser, aktiver=aktiver if isinstance(aktiver, str) else None
+        )
+    return render(request, template, {**context, **chrome})

@@ -424,16 +424,24 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
 
 
 class _ControlScanner(HTMLParser):
-    """The attributes of every named control a render prints, in document order."""
+    """The attributes of every named control a render prints, in document order — the page's own,
+    not those of a form in a tool panel (the header's "Neuer Artikel …")."""
 
     def __init__(self) -> None:
         super().__init__()
         self.controls: list[dict[str, str | None]] = []
+        self._in_panel = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if values.get("name"):
+        if tag == "form":
+            self._in_panel = "popover" in values
+        if values.get("name") and not self._in_panel:
             self.controls.append(values)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form":
+            self._in_panel = False
 
 
 def _controls(body: str) -> list[dict[str, str | None]]:

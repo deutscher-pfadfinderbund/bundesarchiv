@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
 from django.http.response import HttpResponseBase
+from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
@@ -107,11 +108,17 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             ulid = catalog.new_draft(
                 archive, title=title, collection_id=collection_id, changed_by=archivist.username
             )
-            return HttpResponseRedirect(reverse("artikel-bearbeiten", args=[ulid]))
+            return _redirect(request, reverse("artikel-bearbeiten", args=[ulid]))
+        if request.headers.get("HX-Request"):
+            panel = neu_artikel_panel(
+                bestand, title=title, collection_id=collection_id, errors=errors
+            )
+            return render(request, "workbench/_formpanel.html", {"panel": panel})
         return render_screen(
             request,
             "workbench/artikel_neu.html",
             _create_context(bestand, title=title, collection_id=collection_id, errors=errors),
+            bestand=bestand,
         )
     # GET: pre-select the ?bestand only if it is a real collection (else ignore — no oracle); show a
     # "Bestand … angelegt." status line when ?angelegt carries the just-created Bestand's name.
@@ -128,6 +135,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             errors={},
             angelegt=request.GET.get("angelegt", ""),
         ),
+        bestand=bestand,
     )
 
 
@@ -150,9 +158,34 @@ def _create_context(
     errors: catalog.FormErrors,
     angelegt: str = "",
 ) -> dict[str, object]:
-    """The create form's template context: preserved values, the Bestand options, field errors, and
-    the server-computed autofocus target (Titel unless it already has a value). ``angelegt`` is the
-    just-created Bestand's name for the success hinweis (empty on the plain create step)."""
+    """The create page's template context: its two fields and ``angelegt``, the just-created
+    Bestand's name for the success hinweis (empty on the plain create step)."""
+    titel, bestand_feld = _create_rows(bestand, title, collection_id, errors)
+    return {"titel": titel, "bestand_feld": bestand_feld, "angelegt": angelegt}
+
+
+def neu_artikel_panel(
+    bestand: BestandChooser,
+    *,
+    title: str = "",
+    collection_id: str = "",
+    errors: catalog.FormErrors | None = None,
+) -> FormPanel:
+    """The create step as the header's "Neuer Artikel" tool panel."""
+    return FormPanel(
+        id="neu-artikel",
+        label="Neuer Artikel …",
+        action=reverse("artikel-neu"),
+        rows=_create_rows(bestand, title, collection_id, errors or {}),
+        button="Anlegen",
+    )
+
+
+def _create_rows(
+    bestand: BestandChooser, title: str, collection_id: str, errors: catalog.FormErrors
+) -> tuple[_CardRow, _CardRow]:
+    """Titel and Bestand from the registry, with the preserved values, the field errors, and the
+    server-computed autofocus target (Titel unless it already has a value)."""
     autofocus = "collection_id" if title and "title" not in errors else "title"
     fields = _card_fields(
         {"title": title, "collection_id": collection_id},
@@ -161,11 +194,9 @@ def _create_context(
         autofocus=autofocus,
         only=("lead", "kerndaten"),
     )
-    return {
-        "titel": fields["lead"][0],
-        "bestand_feld": next(row for row in fields["kerndaten"] if row.name == "collection_id"),
-        "angelegt": angelegt,
-    }
+    return fields["lead"][0], next(
+        row for row in fields["kerndaten"] if row.name == "collection_id"
+    )
 
 
 # --- /artikel/<ulid>/bearbeiten — the full edit form (Slice B) ---------------------
@@ -455,6 +486,7 @@ class EditSurface:
                 "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
                 "index_lag": _INDEX_LAG_HINWEIS if isinstance(overlay, IndexLag) else "",
             },
+            bestand=self.bestand,
         )
 
 
@@ -857,11 +889,13 @@ class _CardRow:
     """One field of the form, ready to render: the registry's declaration joined to THIS render's
     value, error, conflict and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
     is on the form exactly when the registry says so. ``was`` is the winner's stored value when a
-    CAS conflict touches the field, else ``None``."""
+    CAS conflict touches the field, else ``None``. ``base`` is the stem of the ids around the
+    control (label, hint, error), unique on the page."""
 
     name: str
     label: str
     control: str
+    base: str
     control_id: str
     value: str
     hint: str
@@ -895,6 +929,7 @@ class _CardRow:
             name=name,
             label=label,
             control=control,
+            base=f"feld-{name}",
             control_id=f"feld-{name}",
             value=value,
             hint=hint,
@@ -909,6 +944,33 @@ class _CardRow:
             archivist_only=False,
             help="",
         )
+
+    def in_panel(self, panel: str) -> _CardRow:
+        """This field in the tool panel ``panel``: its ids carry the panel's, so a page may hold the
+        panel beside a form of its own."""
+        return replace(self, base=f"{panel}-{self.name}", control_id=f"{panel}-{self.name}")
+
+
+@dataclass(frozen=True, slots=True)
+class FormPanel:
+    """A small form as a tool panel (``workbench/_formpanel.html``), opened from the header's
+    "+ Neu …" by the entry ``label``: its fields, its one button, and for a form over a stored record
+    the version it was shown for, the record's facts and the conflict notice's ``jetzt``."""
+
+    id: str
+    label: str
+    action: str
+    rows: tuple[_CardRow, ...]
+    button: str
+    version: Version | None = None
+    fakten: tuple[tuple[str, str], ...] = ()
+    hinweis: str = ""
+    jetzt: str | None = None
+
+    @property
+    def felder(self) -> tuple[_CardRow, ...]:
+        """The rows as this panel prints them, with the panel's ids."""
+        return tuple(row.in_panel(self.id) for row in self.rows)
 
 
 def _card_fields(
@@ -949,6 +1011,7 @@ def _card_fields(
                 name=registered.name,
                 label=registered.label,
                 control=registered.control,
+                base=f"feld-{registered.name}",
                 control_id=registered.control_id,
                 value=value,
                 hint=registered.hint,
@@ -1076,6 +1139,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # not discarded, so it always reads "Artikel löschen?" regardless of the query param.
     verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
     confirm = vocab.delete_confirm(len(stored.article.media), discard=verwerfen)
+    bestand = BestandChooser.of(archive)
     return render_screen(
         request,
         # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
@@ -1089,7 +1153,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "veraltet": veraltet,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
-            "crumbs": _crumbs(stored.article, BestandChooser.of(archive)),
+            "crumbs": _crumbs(stored.article, bestand),
             "lead": confirm.question,
             "consequence": confirm.consequence,
             "button": confirm.button,
@@ -1097,6 +1161,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             "in_place": True,
             "action": request.get_full_path(),
         },
+        bestand=bestand,
     )
 
 

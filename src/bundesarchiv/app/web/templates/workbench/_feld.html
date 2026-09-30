@@ -5,7 +5,7 @@ owning form's id where the control sits outside it. The edit form's sections loo
 the registry is the only place a field exists; the standalone forms print _CardRow.standalone rows.
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
-{% endcomment %}{% with base="feld-"|add:feld.name %}{% with control_id=feld.control_id %}<div class="field"{% if feld.span %} data-span="all"{% endif %}>
+{% endcomment %}{% with base=feld.base %}{% with control_id=feld.control_id %}<div class="field"{% if feld.span %} data-span="all"{% endif %}>
   <label id="{{ base }}-label" for="{{ control_id }}">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</label>
   {% if feld.control == "select" %}
   <select id="{{ control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>

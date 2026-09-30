@@ -10,7 +10,7 @@ visibility decision: the routes are independently archivist-gated.
 from collections.abc import Callable
 
 import pytest
-from tests.app.web._fixtures import Corpus, client_as, make_collection
+from tests.app.web._fixtures import Corpus, client_as, make_collection, page_forms
 
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier
@@ -60,3 +60,25 @@ def test_no_edit_affordance_without_a_bestand_filter(focussed: Corpus) -> None:
 def test_public_never_gets_edit_affordance(focussed: Corpus) -> None:
     body = client_as(Public()).get(f"/?bestand={FOTOS}").content.decode()
     assert "/bearbeiten" not in body
+
+
+@pytest.mark.django_db
+def test_the_header_creates_a_bestand_from_an_archivist_page(focussed: Corpus) -> None:
+    client = client_as(Archivist())
+    body = client.get(f"/?bestand={FOTOS}").content.decode()
+    [fields] = [f for action, f in page_forms(body) if action == "/bestand/neu"]
+    client.post("/bestand/neu", {**fields, "name": "Rover"})
+    assert "Rover" in {c.name for c in focussed.collections.load_all()}
+
+
+@pytest.mark.django_db
+def test_the_scoped_list_renames_against_the_version_it_showed(focussed: Corpus) -> None:
+    """The list's "Bestand bearbeiten" panel renames against the version it was rendered for: it
+    saves, and the same panel, now stale, overwrites nothing."""
+    client = client_as(Archivist())
+    body = client.get(f"/?bestand={FOTOS}").content.decode()
+    [(action, fields)] = [(a, f) for a, f in page_forms(body) if a.endswith("/bearbeiten")]
+    client.post(action, {**fields, "name": "Lichtbilder"})
+    assert focussed.collections.load(FOTOS).collection.name == "Lichtbilder"
+    client.post(action, {**fields, "name": "Meins"})
+    assert focussed.collections.load(FOTOS).collection.name == "Lichtbilder"

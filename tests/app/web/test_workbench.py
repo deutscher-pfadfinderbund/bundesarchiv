@@ -362,7 +362,9 @@ def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
     # The SICHTBARKEIT column died entirely (owner 2026-08-07): no header, no cells, no badges —
     # for ANY viewer. Quiet default: ÖFFENTLICH renders nothing anywhere in the ledger. The leak
     # half of the old contract still holds a fortiori: group names never reach a non-archivist.
-    arch = _get(Archivist()).content.decode()
+    page = _get(Archivist()).content.decode()
+    # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
+    arch = page[page.index("<table") : page.index("</table>")]
     assert "Sichtbarkeit" not in arch
     assert "Gruppe: vorstand" not in arch
     assert "Alle Mitglieder" not in arch

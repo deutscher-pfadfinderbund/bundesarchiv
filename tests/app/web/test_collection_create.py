@@ -14,7 +14,7 @@ from collections.abc import Callable
 
 import pytest
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_collection
+from tests.app.web._fixtures import Corpus, client_as, make_collection, page_forms
 
 from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -162,3 +162,23 @@ def test_post_unknown_parent_re_renders_and_creates_nothing(corpus: Corpus) -> N
     response = client_as(Archivist()).post("/bestand/neu", {"name": "Waise", "parent_id": "NOSUCH"})
     assert response.status_code == 200
     assert {c.ulid for c in corpus.collections.load_all()} == before
+
+
+@pytest.mark.django_db
+def test_the_panel_answers_a_refusal_in_place_then_creates(corpus: Corpus) -> None:
+    """With htmx the create's tool panel is its own answer: a refusal comes back as the one form
+    with the values kept and nothing created; a create navigates to the catalog step."""
+    client = client_as(Archivist())
+    before = len(corpus.collections.load_all())
+    refused = client.post(
+        "/bestand/neu",
+        {"name": "", "parent_id": "", "sichtbarkeit": "groups", "gruppen": "Rover"},
+        headers={"HX-Request": "true"},
+    )
+    [(action, fields)] = page_forms(refused.content.decode())
+    assert action == "/bestand/neu"
+    assert (fields["sichtbarkeit"], fields["gruppen"]) == ("groups", "Rover")
+    assert len(corpus.collections.load_all()) == before
+    created = client.post(action, {**fields, "name": "Rover"}, headers={"HX-Request": "true"})
+    assert created["HX-Redirect"].startswith("/artikel/neu?bestand=")
+    assert len(corpus.collections.load_all()) == before + 1
