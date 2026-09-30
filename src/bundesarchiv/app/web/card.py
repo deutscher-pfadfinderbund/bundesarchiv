@@ -118,8 +118,8 @@ class _Field:
 
     @property
     def control_id(self) -> str:
-        """The id of the field's control: ``element_id`` where it declares one."""
-        return self.element_id or f"feld-{self.name}"
+        """The id of the field's control on the edit form, as its ``CardRow`` prints it."""
+        return CardRow(self.name, self.label, element_id=self.element_id).control_id
 
     def diff_of(self, article: Article) -> str:
         """The field's value as the CAS diff prints it — ``shown`` where the form's own spelling is
@@ -365,22 +365,22 @@ def card_fields(
     only: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[CardRow, ...]]:
     """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
-    ``only`` limits it to those sections (the create step renders the lead alone).
+    ``only`` limits it to the fields of those names (the create step renders two).
 
     Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
     focuses nothing rather than nothing-visible."""
-    option_lists: dict[str, _Options] = {
-        "collection_options": bestand.options(),
-        "media_type_options": vocab.media_type_options(),
-        "document_type_groups": vocab.grouped_document_type_options(),
-        "sichtbarkeit_options": sichtbarkeit_options,
-        "lifecycle_options": lifecycle_options,
+    option_lists: dict[str, Callable[[], _Options]] = {
+        "collection_options": bestand.options,
+        "media_type_options": vocab.media_type_options,
+        "document_type_groups": vocab.grouped_document_type_options,
+        "sichtbarkeit_options": lambda: sichtbarkeit_options,
+        "lifecycle_options": lambda: lifecycle_options,
     }
     ulid = str(values.get("ulid") or "")
     conflicts = conflicts or {}
     sections: dict[str, list[CardRow]] = {}
     for registered in FIELDS:
-        if not registered.control or (only is not None and registered.section not in only):
+        if not registered.control or (only is not None and registered.name not in only):
             continue
         value = str(values.get(registered.name) or "")
         hx = registered.hx
@@ -397,7 +397,7 @@ def card_fields(
                 error=errors.get(registered.name, ""),
                 was=conflicts.get(registered.name),
                 autofocus=registered.focusable and registered.name == autofocus,
-                options=option_lists.get(registered.options, ()),
+                options=option_lists[registered.options]() if registered.options else (),
                 blank=registered.blank,
                 hx=hx,
                 span=registered.span,

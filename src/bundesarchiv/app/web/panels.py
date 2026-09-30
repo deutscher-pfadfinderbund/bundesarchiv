@@ -91,11 +91,9 @@ def artikel_rows(
         bestand,
         errors=errors,
         autofocus=autofocus,
-        only=("lead", "kerndaten"),
+        only=("title", "collection_id"),
     )
-    return fields["lead"][0], next(
-        row for row in fields["kerndaten"] if row.name == "collection_id"
-    )
+    return fields["lead"][0], fields["kerndaten"][0]
 
 
 # --- Neuer Bestand ---------------------------------------------------------------------
