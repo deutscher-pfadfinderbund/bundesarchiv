@@ -52,6 +52,11 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A fixer applying review dispositions that involve a DESIGN choice stops and asks the owner, even when a silence rule was announced — dispositions are owner decisions, not writer judgment.
 - A fix ruling from the controller gets the same scoped re-review as any fix round. One such ruling, to sweep every prefix-delete leftover in a folder, raced concurrent deletes of other prefixes; only the re-review caught it.
 - A writer that stalls twice at the same step (a harness stream-watchdog stall, no process of its own still running): drop that step from its task instead of retrying, and the controller runs it itself (it may be a required one, such as the gate). After a third stall, hand the task to a fresh finisher agent that starts from the commits on disk and re-derives the mutation proofs.
+- A workflow writer stalls when one turn goes silent for 3 minutes (the watchdog counts streamed
+  output, not work). A large merged unit at full effort did that six times in a row (Wave LIST U3,
+  2026-09-30, ~2.5 h lost; each retry starts over). Pass `effort: 'high'` or lower, keep one
+  writer to one screen part, and brief "plan in a few lines, one edit per call, commit after each
+  green check".
 - A live-backend run gets a diagnostic budget and prints what it observed on failure. "Run once" plus a silent failing assert turned one finding into a guess.
 - Before treating a grilled or ADR-backed decision as settled, verify the load-bearing code-behaviour claim against source (today: "Bestand required" was traced to 24 sites before ruling).
 
