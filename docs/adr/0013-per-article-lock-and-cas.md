@@ -87,6 +87,9 @@ process replaces the lock object. The reserved `.lock` key name stays reserved
   at the winner's `version + 1`. Assert against the README version — never
   against `changes/*.json` presence (gap-tolerant). *(Amended 2026-09-25: `changes/` is
   gone, see Decision.)*
+- A hard delete takes the version its confirm showed and checks it under the same lock; a stale
+  one raises `Conflict` and deletes nothing, so a save that lands after the confirm survives.
+  *(Added 2026-10-01.)*
 - The Part 4 UI task must map `Conflict` → the "Inzwischen geändert" screen at
   the form controller layer; no other layer catches it.
 - Deferred with triggers: multi-host write path (needs real distributed CAS —

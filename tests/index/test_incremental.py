@@ -125,7 +125,8 @@ def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore)
     indexer.index_article(store, "01FOTO")
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
-    ArticleRepository(store).hard_delete("01FOTO")
+    repo = ArticleRepository(store)
+    repo.hard_delete("01FOTO", repo.load("01FOTO").version)
     indexer.index_article(store, "01FOTO")
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 

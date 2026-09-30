@@ -331,7 +331,7 @@ def test_a_hard_delete_leaves_nothing_of_the_article_on_disk(tmp_path: Path) -> 
     repo.save(_article("01J0X"), expected_version=0, changed_by="tester")
     kept = {path: data for path, data in _files(tmp_path).items() if "01J0X" in path.parts}
 
-    repo.hard_delete("01J0")
+    repo.hard_delete("01J0", 2)
 
     assert _files(tmp_path) == kept
 
@@ -341,7 +341,7 @@ def _files(root: Path) -> dict[Path, bytes]:
 
 
 def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> None:
-    repo.hard_delete("never-existed")  # must not raise
+    repo.hard_delete("never-existed", 0)  # must not raise
 
 
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(

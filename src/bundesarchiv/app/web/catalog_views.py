@@ -3,7 +3,8 @@
 Two production routes, both archivist-gated to the media route's byte-identical 404 for anyone else
 (existence-hiding — the cataloging surface must not be discoverable). Thin by design: the
 leak-sensitive parsing + validation live in ``catalog`` (pure, unit-tested), the write services in
-``app.articles``, and the ONE ADR-0013 ``Conflict`` catch site in ``catalog.save_catalog_form``.
+``app.articles``, and the form's ADR-0013 ``Conflict`` catch site in ``catalog.save_catalog_form``
+(the delete confirm catches its own).
 These views only resolve the viewer, gate, and hand an ``EditSurface`` — the record as SAVED plus
 whatever the form shows — the overlay its outcome calls for.
 
@@ -57,6 +58,7 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.domain.viewer import Archivist
+from bundesarchiv.persistence import errors
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored, cleaned_name
 
@@ -658,9 +660,15 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
     archive, stored, _ = gated
     veraltet = ""
     if request.method == "POST":
-        if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
-            article_services.hard_delete_article(archive, ulid)
+        expected = catalog.parse_version(request.POST.get("expected_version", ""))
+        try:
+            article_services.hard_delete_article(archive, ulid, expected)
             return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+        except errors.Conflict:
+            try:
+                stored = archive.articles.load(ulid)
+            except ArchiveError:
+                return _not_found()
         veraltet = _LOESCHEN_VERALTET
     confirm = vocab.delete_confirm(len(stored.article.media))
     bestand = BestandChooser.of(archive)

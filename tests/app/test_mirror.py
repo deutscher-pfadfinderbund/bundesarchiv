@@ -229,7 +229,7 @@ def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:
     _save(archive, ("scan.pdf", b"a scan"))
     push(archive, remote, record, ULID)
     pushed = list(remote.store.list())
-    archive.articles.hard_delete(ULID)
+    archive.articles.hard_delete(ULID, archive.articles.load(ULID).version)
     push(archive, remote, record, ULID)
     assert (remote.deleted, list(remote.store.list())) == ([], pushed)
 
@@ -240,7 +240,7 @@ def test_a_hard_delete_takes_exactly_its_folder_off_the_system_of_record_and_the
     _save(archive, ("scan.pdf", b"a scan"))
     archive.articles.save(Article("01FOTO2", "Nachbar", "FOTOS"), 0, changed_by="tester")
     reconcile(archive, remote, record)
-    archive.articles.hard_delete(ULID)
+    archive.articles.hard_delete(ULID, archive.articles.load(ULID).version)
     delete_article(archive, remote, record, ULID)
     assert _same_tree(archive, remote)
     assert record.entries().keys() == set(archive.store.list())
@@ -301,7 +301,7 @@ def test_the_reconcile_deletes_nothing_and_reports_what_only_the_system_of_recor
     _save(archive, ("scan.pdf", b"a scan"))
     push(archive, remote, record, ULID)
     deleted = [key.key for key in archive.articles.keys_for(ULID)]
-    archive.articles.hard_delete(ULID)
+    archive.articles.hard_delete(ULID, archive.articles.load(ULID).version)
     remote.store.write_atomic("Notizen/liste.txt", b"not the app's")
     with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
         report = reconcile(archive, remote, record)

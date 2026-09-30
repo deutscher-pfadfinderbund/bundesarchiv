@@ -345,7 +345,8 @@ def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
     tasks_mod.mirror_reconcile.func()
 
     def delete() -> None:
-        hard_delete_article(Archive.of(store), "01FOTO")
+        archive = Archive.of(store)
+        hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL="http://mirror.example/dav/"):
         tasks_mod.run_worker_once_in_test(defer=delete)

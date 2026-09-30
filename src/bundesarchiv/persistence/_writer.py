@@ -4,12 +4,12 @@ A saved record is a folder, ``articles/<ulid>`` or ``collections/<ulid>``, holdi
 (the current version, and the commit point) and ``history/<n>.md`` (each version a save replaced,
 byte for byte). ``commit`` owns the order: check the version, keep the replaced README, commit.
 It also stamps the change record every version carries, so no caller can write one of its own.
+``remove`` deletes a folder against the same version check.
 ``keys_in_save_order`` lists a folder in that order, for the repositories' ``keys_for``.
 
 The port has no compare-and-swap, so the check-then-write runs under ``WRITER_LOCK``. It is one
 lock for both repositories because they write one store. The cross-process race is out of scope
-by the single-app-process deploy rule (ADR 0013). Media writes and hard deletes run without the
-lock. Holding it across store calls assumes a local-latency canonical store.
+by the single-app-process deploy rule (ADR 0013). Media writes run without the lock. Holding it across store calls assumes a local-latency canonical store.
 """
 
 import threading
@@ -97,18 +97,42 @@ def commit(
     ``ArchiveError`` and commits nothing."""
     change = Change(datetime.now(UTC).replace(microsecond=0), changed_by)
     with WRITER_LOCK:
-        try:
-            current = store.read(readme_key(folder))
-        except NotFound:
-            current = None
+        current = _read_readme(store, folder)
         version = 0 if current is None else version_of(current.decode("utf-8"))
-        if version != expected_version:
-            raise Conflict(f"{folder}: expected version {expected_version}, store has {version}")
+        _check(folder, expected_version, version)
         precondition()
         if current is not None:
             _keep(store, history_key(folder, version), current)
         store.write_atomic(readme_key(folder), render(version + 1, change).encode("utf-8"))
     return version + 1
+
+
+def remove(
+    store: ObjectStore,
+    folder: str,
+    expected_version: Version,
+    *,
+    version_of: Callable[[str], Version],
+) -> None:
+    """Delete everything under ``folder``. Raises ``Conflict`` and deletes nothing when the stored
+    version is not ``expected_version``; a folder without a README goes unchecked."""
+    with WRITER_LOCK:
+        current = _read_readme(store, folder)
+        if current is not None:
+            _check(folder, expected_version, version_of(current.decode("utf-8")))
+        store.delete_prefix(folder)
+
+
+def _read_readme(store: ObjectStore, folder: str) -> bytes | None:
+    try:
+        return store.read(readme_key(folder))
+    except NotFound:
+        return None
+
+
+def _check(folder: str, expected_version: Version, version: Version) -> None:
+    if version != expected_version:
+        raise Conflict(f"{folder}: expected version {expected_version}, store has {version}")
 
 
 def _keep(store: ObjectStore, key: str, data: bytes) -> None:

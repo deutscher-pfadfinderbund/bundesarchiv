@@ -21,7 +21,13 @@ from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
-from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, readme_key
+from bundesarchiv.persistence._writer import (
+    StoredKey,
+    commit,
+    keys_in_save_order,
+    readme_key,
+    remove,
+)
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -129,10 +135,16 @@ class ArticleRepository:
         delete removes."""
         return _folder(ulid)
 
-    def hard_delete(self, ulid: Ulid) -> None:
-        """Remove the Article's folder for good, keeping no copy (ADR 0020). A no-op if the
-        Article is absent."""
-        self._store.delete_prefix(_folder(ulid))
+    def hard_delete(self, ulid: Ulid, expected_version: Version) -> None:
+        """Remove the Article's folder for good, keeping no copy (ADR 0020). Raises `Conflict`
+        (deleting nothing) when a save moved it past `expected_version`. A no-op if the Article is
+        absent."""
+        remove(
+            self._store,
+            _folder(ulid),
+            expected_version,
+            version_of=lambda text: readme.read_version(ulid, text),
+        )
 
     def _place(
         self, ulid: Ulid, name: str, source: BinaryIO, start: int, digest: tuple[str, int]

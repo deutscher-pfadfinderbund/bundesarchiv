@@ -3,7 +3,8 @@
 Law: this package NEVER imports Django or reads settings (ADR 0005) — construction from settings
 lives in `app/archive.py`. The README files are canonical; everything else is derived. Both
 repositories save through `_writer.commit`: CAS under `WRITER_LOCK` (ADR 0013), the replaced README
-kept under `history/` (ADR 0019), then the commit. `keys_for` lists a folder in save order (media,
+kept under `history/` (ADR 0019), then the commit. A hard delete checks the version under the same
+lock (`_writer.remove`). `keys_for` lists a folder in save order (media,
 history, README) and marks the write-once keys (ADR 0020). All three ObjectStore adapters are
 parametrized into the one shared conformance suite
 (`tests/persistence/test_objectstore_conformance.py`) — never test an adapter its own way;

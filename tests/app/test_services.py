@@ -221,7 +221,8 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
     caller must learn it is gone (a 404), not that it merely lost a race."""
 
     def mutate(article: Article) -> Article:
-        archive.articles.hard_delete("01FOTO")  # after the load, before our save -> Conflict
+        # after the load, before our save -> Conflict
+        archive.articles.hard_delete("01FOTO", archive.articles.load("01FOTO").version)
         return replace(article, title="Nie gespeichert")
 
     outcome = update_article(archive, "01FOTO", mutate, changed_by="tester")
@@ -378,7 +379,7 @@ def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
     )
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
-    result = hard_delete_article(archive, "01FOTO")
+    result = hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
     assert result.index_updated is True
     assert not ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
@@ -394,7 +395,7 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
 
     monkeypatch.setattr(articles_mod, "enqueue_mirror_delete_article", boom)
 
-    result = hard_delete_article(archive, "01FOTO")
+    result = hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
 
     assert (result.index_updated, list(archive.articles.list_ulids())) == (True, [])
 

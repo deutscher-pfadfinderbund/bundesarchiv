@@ -178,13 +178,14 @@ def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResu
     )
 
 
-def hard_delete_article(archive: Archive, ulid: Ulid) -> SaveResult:
-    """Delete the Article from canonical for good (ADR 0020), then synchronously reindex —
+def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version) -> SaveResult:
+    """Delete the Article from canonical for good (ADR 0020) — a stale ``expected_version`` raises
+    ``Conflict`` before anything is deleted — then synchronously reindex —
     ``index_article`` sees the ulid gone from canonical and DELETES its index row — and enqueue the
     delete on the system of record. On index failure the delete stands, a retry job (which will
     also drop the row) is enqueued, and ``index_updated=False`` is returned. Version is 0 (the
     Article no longer exists)."""
-    archive.articles.hard_delete(ulid)
+    archive.articles.hard_delete(ulid, expected_version)
     index_updated = _sync_index(archive, ulid)
     _enqueue_mirror(enqueue_mirror_delete_article, ulid)
     return SaveResult(version=0, index_updated=index_updated)

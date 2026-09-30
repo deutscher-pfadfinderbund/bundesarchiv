@@ -143,6 +143,29 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
         corpus.articles.load(PUBLISHED_ULID)
 
 
+def test_a_save_landing_while_the_delete_runs_survives(
+    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0013: the delete checks the confirm's version under the save lock, so a save that lands
+    after the view's own load is never deleted."""
+    from bundesarchiv.persistence.repository import ArticleRepository
+
+    client = client_as(Archivist())
+    body = client.get(f"/artikel/{PUBLISHED_ULID}").content.decode()
+    real_load = ArticleRepository.load
+
+    def load_then_a_concurrent_save(self: ArticleRepository, ulid: str) -> Stored:
+        monkeypatch.setattr(ArticleRepository, "load", real_load)
+        loaded = real_load(self, ulid)
+        self.save(replace(loaded.article, title="Inzwischen"), loaded.version, changed_by="bert")
+        return loaded
+
+    monkeypatch.setattr(ArticleRepository, "load", load_then_a_concurrent_save)
+    refused = _submit_delete_form(client, body, PUBLISHED_ULID)
+    assert refused.status_code == 200
+    assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
+
+
 def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> None:
     client = client_as(Archivist())
     body = client.get(f"/artikel/{DRAFT_ULID}/bearbeiten").content.decode()

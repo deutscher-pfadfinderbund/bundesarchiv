@@ -283,7 +283,7 @@ def test_stale_save_against_deleted_article_is_404(
 
     def _delete_then_gate(request: HttpRequest, ulid: str) -> tuple[object, object, object] | None:
         gated = real_gated(request, ulid)
-        corpus.articles.hard_delete(_ULID)
+        corpus.articles.hard_delete(_ULID, corpus.articles.load(_ULID).version)
         return gated
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
