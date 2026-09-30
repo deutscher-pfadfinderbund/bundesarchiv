@@ -79,6 +79,32 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
 
 
+def test_an_abandoned_panel_change_never_rides_along(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # Abbrechen, Esc and a click outside put "Spalten …" and "Feld ändern …" back as rendered, so a
+    # later Fertig / Änderung prüfen submits only what the archivist kept.
+    page = archivist_page
+    page.goto(live_workbench + f"/?auswahl={e2e_corpus.published_ulid}")
+    spalten = page.locator("#spalten")
+    page.get_by_role("button", name="Spalten …").click()
+    spalten.get_by_role("checkbox", name="Bestand").check()
+    spalten.get_by_role("button", name="Abbrechen").click()
+    page.get_by_role("button", name="Spalten …").click()
+    expect(spalten.get_by_role("checkbox", name="Bestand")).not_to_be_checked()
+    spalten.get_by_role("button", name="Fertig").click()
+    expect(page.locator(".ledger th.signatur")).to_be_visible()
+    expect(page.locator(".ledger th.bestand")).to_have_count(0)
+
+    feld = page.locator('#feld-aendern select[name="feld"]')
+    rendered = feld.input_value()
+    page.click('[popovertarget="feld-aendern"]')
+    feld.select_option("creator")
+    page.keyboard.press("Escape")
+    page.click('[popovertarget="feld-aendern"]')
+    expect(feld).to_have_value(rendered)
+
+
 #: Counts htmx's errors AND every request htmx starts. The REQUEST counter is what makes the
 #: assertion an assertion rather than a sleep: "not attached here" means htmx started nothing at all.
 _COUNT_HTMX_JS = """() => {
@@ -689,7 +715,9 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The platform nests a popover opened from inside an open one, so the menu would stay open
-    # under the panel (owner, 2026-09-30).
+    # under the panel (owner, 2026-09-30). Closing the panel hands focus back to the menu's button,
+    # not to <body> or wherever the focus was: the entry that opened it is hidden. The menu opens
+    # without focusing its button, as a click in Safari does.
     page = archivist_page
     edit = f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
     for path, menu, entry, panel in (
@@ -698,10 +726,13 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
         (f"/artikel/{e2e_corpus.published_ulid}", "#aktionen-menu", "Löschen …", "#loeschen"),
     ):
         page.goto(live_workbench + path)
-        page.click(f'[popovertarget="{menu[1:]}"]')
+        page.locator(menu).evaluate("menu => menu.showPopover()")
         page.locator(menu).get_by_role("button", name=entry).click()
         expect(page.locator(panel)).to_be_visible()
         expect(page.locator(menu)).to_be_hidden()
+        page.keyboard.press("Escape")
+        expect(page.locator(panel)).to_be_hidden()
+        expect(page.locator(f'[popovertarget="{menu[1:]}"]')).to_be_focused()
 
 
 def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
