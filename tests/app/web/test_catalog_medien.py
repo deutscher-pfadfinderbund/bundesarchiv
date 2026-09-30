@@ -15,6 +15,7 @@ only index + queue seams are stubbed (conftest.py).
 """
 
 import io
+import re
 import tracemalloc
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -400,6 +401,18 @@ def test_the_upload_gate_admits_exactly_whom_the_upload_admits(
         assert gate.status_code == 204
     else:
         assert_denied(gate)
+
+
+def test_only_the_gated_upload_route_takes_a_large_body() -> None:
+    """Anyone else's body stays small: nginx buffers a body to disk before the app answers."""
+    conf = (Path(__file__).parents[3] / "deploy/nginx/nginx.conf").read_text()
+    server_wide = re.search(r"^    client_max_body_size (\S+);", conf, re.MULTILINE)
+    assert server_wide is not None
+    assert re.fullmatch(r"\d+m", server_wide[1])
+    upload = conf.split("/medien/hochladen$", 1)[1].split("}", 1)[0]
+    assert "client_max_body_size 8g;" in upload
+    assert "auth_request /_upload_gate;" in upload
+    assert conf.count("client_max_body_size 8g;") == 1
 
 
 # --- captions ride the metadata save (README round-trip, "" -> None) ---------------
