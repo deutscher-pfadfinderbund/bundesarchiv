@@ -29,6 +29,8 @@ from bundesarchiv.persistence.objectstore import (
 
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 _RETRY_DELAYS = (0.25, 0.5, 1.0, 2.0)  # seconds before each retry; 5 attempts in all
+_PUT_FIRST_MAX = 1024 * 1024  # a larger body gets its parents made first, so it is sent once
+_MISSING_PARENT = (httpx2.codes.NOT_FOUND, httpx2.codes.CONFLICT)
 _DAV = "{DAV:}"  # ElementTree Clark notation for the DAV: namespace
 _PROPFIND = (
     b'<?xml version="1.0"?><propfind xmlns="DAV:"><prop>'
@@ -81,18 +83,16 @@ class WebDavObjectStore:
         raise NotFound(key)  # absent, or the key names a collection -> no blob here
 
     def write_atomic(self, key: str, data: bytes) -> str:
-        return self._put(key, data, create=False)
+        return self._put(key, data, len(data), create=False)
 
     def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        # `size` is a hint for backends that need it (e.g. chunked upload); the body
-        # is streamed straight through here, so it is unused.
-        return self._put(key, stream, create=False)
+        return self._put(key, stream, size, create=False)
 
     def create(self, key: str, data: bytes) -> str:
-        return self._put(key, data, create=True)
+        return self._put(key, data, len(data), create=True)
 
     def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        return self._put(key, stream, create=True)
+        return self._put(key, stream, size, create=True)
 
     def list(self, prefix: str = "") -> Iterable[str]:
         return [entry.key for entry in self.list_entries(prefix)]
@@ -128,15 +128,23 @@ class WebDavObjectStore:
         if resp.status_code != httpx2.codes.NOT_FOUND:
             self._ensure(resp, httpx2.codes.OK, httpx2.codes.NO_CONTENT)
 
-    def _put(self, key: str, source: bytes | BinaryIO, *, create: bool) -> str:
+    def _put(self, key: str, source: bytes | BinaryIO, size: int, *, create: bool) -> str:
         """One `PUT` of `source`, retried while busy; `create` makes it `If-None-Match: *`."""
         validate_key(key)
         headers = {"If-None-Match": "*"} if create else {}
         body, delays = _replayable(source)
+        put_first = bool(delays) and size <= _PUT_FIRST_MAX
+
+        def send() -> httpx2.Response:
+            return self._request("PUT", self._url(key), content=body(), headers=headers)
 
         def attempt() -> str:
-            self._mkcol_parents(key)
-            resp = self._request("PUT", self._url(key), content=body(), headers=headers)
+            if not put_first:
+                self._mkcol_parents(key)
+            resp = send()
+            if put_first and resp.status_code in _MISSING_PARENT:
+                self._mkcol_parents(key)
+                resp = send()
             if create and resp.status_code == httpx2.codes.PRECONDITION_FAILED:
                 raise AlreadyExists(key)
             _refuse_missing_parent(resp)
@@ -280,7 +288,7 @@ def _replayable(
 
 def _refuse_missing_parent(resp: httpx2.Response) -> None:
     # A parent the adapter created a moment ago can still be invisible to the next request.
-    if resp.status_code in (httpx2.codes.NOT_FOUND, httpx2.codes.CONFLICT):
+    if resp.status_code in _MISSING_PARENT:
         failure = f"WebDAV {resp.request.method} {resp.request.url} -> {resp.status_code}"
         raise _ParentNotVisible(failure)
 

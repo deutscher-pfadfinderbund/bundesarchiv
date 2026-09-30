@@ -136,11 +136,12 @@ def test_a_stream_that_cannot_rewind_gets_one_attempt() -> None:
 @pytest.mark.parametrize(("refusal", "busy"), [(423, True), (404, False), (409, False)])
 def test_spent_retries_raise_busy_only_for_contention(refusal: int, busy: bool) -> None:
     # A 404/409 that outlasts the retries is a missing root or a file in the way, not contention.
-    attempts = len(webdav._RETRY_DELAYS) + 1
-    store, bodies = _scripted_store([refusal] * attempts)
+    # Each attempt answered so makes the parents and sends the body again.
+    puts = (len(webdav._RETRY_DELAYS) + 1) * (1 if busy else 2)
+    store, bodies = _scripted_store([refusal] * puts)
     with pytest.raises(ArchiveError) as refused:
         store.write_atomic("articles/01J0/README.md", b"data")
-    assert (isinstance(refused.value, Busy), len(bodies)) == (busy, attempts)
+    assert (isinstance(refused.value, Busy), len(bodies)) == (busy, puts)
 
 
 def test_a_collection_answered_like_a_file_is_not_found() -> None:

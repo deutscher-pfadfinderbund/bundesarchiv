@@ -11,7 +11,7 @@ from typing import BinaryIO
 import pytest
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.mirror import PushRecord, delete_article, push, reconcile
+from bundesarchiv.app.mirror import Pushed, PushRecord, delete_article, push, reconcile
 from bundesarchiv.app.push_record import InMemoryPushRecord
 from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence._writer import history_key
@@ -222,6 +222,26 @@ def test_a_write_once_file_already_there_is_recorded_not_sent_again() -> None:
     _, history, readme = (key.key for key in archive.articles.keys_for(ULID))
     assert remote.sent[before:] == [history, readme]
     assert _same_tree(archive, remote)
+
+
+@pytest.mark.parametrize("there", [b"a scan", b"another file"], ids=["same", "other size"])
+def test_a_write_once_file_a_broken_off_push_left_unrecorded_is_never_replaced(
+    there: bytes, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The record holds the rest of the Article, so the push sends the file with `create` and
+    learns only from its refusal that the file is there: recorded when its size matches, else
+    flagged, and replaced in neither case."""
+    archive, remote = Archive.of(InMemoryObjectStore()), _Remote()
+    _save(archive, ("scan.pdf", b"a scan"))
+    media, readme = (key.key for key in archive.articles.keys_for(ULID))
+    remote.store.create(media, there)
+    record = InMemoryPushRecord()
+    record.note(readme, Pushed("0" * 64, "gone"))
+    with caplog.at_level("WARNING", logger="bundesarchiv.app.mirror"):
+        push(archive, remote, record, ULID)
+    same = there == b"a scan"
+    assert remote.store.read(media) == there
+    assert (media in record.entries(), media in caplog.text) == (same, not same)
 
 
 def test_the_push_of_a_hard_deleted_article_deletes_nothing() -> None:

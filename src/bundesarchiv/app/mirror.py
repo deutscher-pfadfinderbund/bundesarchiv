@@ -22,7 +22,7 @@ from typing import Protocol
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import Ulid
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 from bundesarchiv.persistence.repository import StoredKey
 
@@ -189,26 +189,40 @@ class _Push:
         names = {*current, *(key.key for key in keys)}
         self.seen |= names
         held = self._record.held(names) if self._sweep is None else self._sweep.entries
+        # A record with none of the folder's keys may be a lost one: look before sending, since
+        # learning from a refused `create` that a file is there costs its whole body.
+        look_first = self._sweep is not None or not held
         for key in keys:
             if key.write_once:
-                self._write_once(key, held.get(key.key))
+                self._write_once(key, held.get(key.key), look_first=look_first)
             elif key.key in current:
                 self._replaceable(key.key, current[key.key], held.get(key.key))
 
-    def _write_once(self, key: StoredKey, held: Pushed | None) -> None:
+    def _write_once(self, key: StoredKey, held: Pushed | None, *, look_first: bool) -> None:
         if held is not None and self._confirmed(key.key):
             return
-        if (there := self._there(key.key)) is not None:
-            if there.size != key.size:
-                self._flag(key.key, self.mismatched, "is there in another size: left as it is")
-                return
-            sha256 = key.sha256 or _digest(self._canonical, key.key)
-            self._note(key.key, Pushed(sha256, there.version), self.recorded)
+        if look_first and (there := self._there(key.key)) is not None:
+            self._found(key, there)
+            return
+        try:
+            with self._canonical.open_stream(key.key) as stream:
+                version = self._remote.create_large(key.key, stream, key.size)
+        except AlreadyExists:
+            if (there := self._listed(key.key)) is None:
+                raise
+            self._found(key, there)
             return
         sha256 = key.sha256 or _digest(self._canonical, key.key)
-        with self._canonical.open_stream(key.key) as stream:
-            version = self._remote.create_large(key.key, stream, key.size)
         self._note(key.key, Pushed(sha256, version), self.sent)
+
+    def _found(self, key: StoredKey, there: ObjectEntry) -> None:
+        """Record the write-once `key` the system of record holds as `there`, unless its size
+        says it is another file."""
+        if there.size != key.size:
+            self._flag(key.key, self.mismatched, "is there in another size: left as it is")
+            return
+        sha256 = key.sha256 or _digest(self._canonical, key.key)
+        self._note(key.key, Pushed(sha256, there.version), self.recorded)
 
     def _replaceable(self, key: str, data: bytes, held: Pushed | None) -> None:
         sha256 = hashlib.sha256(data).hexdigest()
@@ -229,6 +243,10 @@ class _Push:
         """`key`'s entry on the system of record, or None if it lacks the key."""
         if self._sweep is not None:
             return self._sweep.listed.get(key)
+        return self._listed(key)
+
+    def _listed(self, key: str) -> ObjectEntry | None:
+        """`key`'s entry in a listing of the system of record, or None."""
         return next((entry for entry in self._remote.list_entries(key) if entry.key == key), None)
 
     def _note(self, key: str, pushed: Pushed, into: list[str]) -> None:
