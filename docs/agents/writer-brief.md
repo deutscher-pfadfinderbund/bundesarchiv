@@ -83,6 +83,17 @@ properties, it is a variant and law C2 forbids it. A context reaches only parts 
 (`color: var(--ink)`), not parts that inherit a resolved colour. Known open cases: `docs/tech-debt.md`
 #20.
 
+## CSS that reaches into a container
+
+A rule that reaches `form`, `p` or `ul` inside a container also hits a popover panel nested there:
+author CSS beats the browser's `[popover]` hiding, so `.menu li > form { display: block }` shows a
+closed panel. Exclude it (`form:not([popover])`, `p:not(.toolpanel p)`).
+
+A `biome-ignore` covers only the selector that follows it. Adding a selector to a list keeps
+specificity even with `:is(a, b)`, but check that the `:is()` matches the same elements: a factored
+`.menu li > :is(button.link, form > button.link)` is not `.menu li > button.link, .menu li > form >
+button.link`.
+
 ## An unexpected red is a STOP, not a patch site
 
 A gate, a test or a rule that breaks unexpectedly stops the line. Investigate how
