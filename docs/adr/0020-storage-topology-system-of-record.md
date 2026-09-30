@@ -63,6 +63,10 @@ Measured on 2026-09-24, full results in [`docs/nextcloud-webdav-notes.md`](../ne
 - **One writer.** The app's Nextcloud user writes the folder. People get it read-only
   through the Nextcloud share permission. A hand edit there still shows up: its `version`
   token no longer matches the push record. `verify` (ADR 0019) checks the local tree.
+- **The folder is archivist-level data.** It holds every record at every tier: drafts,
+  group-only records, archivist-only fields, history. It is shared only with people who
+  may see all of that, never through a public link and never with a members group
+  (owner, 2026-09-30: no public link exists; the owner controls the share).
 
 ### Stage A — deployment 1: the VPS commits, the push follows
 
