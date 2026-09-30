@@ -51,15 +51,17 @@ def assert_login_target(url: str, next_path: str, ctx: str = "") -> None:
 
 
 _LOGIN_HREF = re.compile(r'href="(/login\?[^"]*)"')
+_CSRF_TOKEN = re.compile(r'"X-CSRFToken": "[^"]*"')
 
 
 def assert_door(response: _Rendered, next_path: str, ctx: str = "") -> str:
     """The anonymous gate's door (ADR 0018): a 200 whose one login link carries ``next_path``.
-    Returns the page with that link's target cut out, so a caller can compare two doors."""
+    Returns the page with that link's target and the per-request CSRF token cut out, so a caller
+    can compare two doors: the token is random per request, never derived from the path."""
     label = f" [{ctx}]" if ctx else ""
     assert response.status_code == 200, f"expected the door{label}, got {response.status_code}"
     assert "workbench/door.html" in [t.name for t in response.templates], f"not the door{label}"
     html = response.content.decode()
     (href,) = _LOGIN_HREF.findall(html)
     assert_login_target(unescape(href), next_path, ctx)
-    return html.replace(href, "")
+    return _CSRF_TOKEN.sub("", html.replace(href, ""))
