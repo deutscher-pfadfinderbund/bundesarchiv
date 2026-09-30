@@ -68,6 +68,11 @@ def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
     return HttpResponseRedirect(location)
 
 
+def _panel_response(request: HttpRequest, panel: FormPanel) -> HttpResponse:
+    """``panel`` alone, as its tool panel swaps in place."""
+    return render(request, "workbench/_formpanel.html", {"panel": panel})
+
+
 def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archivist] | None:
     """The shared gate for every ulid-bearing cataloging route: archivist-only, validate the ulid
     in-view, and load the Article — returning ``(archive, stored, archivist)`` ONLY if all pass,
@@ -110,10 +115,10 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             )
             return _redirect(request, reverse("artikel-bearbeiten", args=[ulid]))
         if request.headers.get("HX-Request"):
-            panel = neu_artikel_panel(
-                bestand, title=title, collection_id=collection_id, errors=errors
+            return _panel_response(
+                request,
+                neu_artikel_panel(bestand, title=title, collection_id=collection_id, errors=errors),
             )
-            return render(request, "workbench/_formpanel.html", {"panel": panel})
         return render_screen(
             request,
             "workbench/artikel_neu.html",

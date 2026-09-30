@@ -20,7 +20,6 @@ from urllib.parse import urlencode
 
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
@@ -28,7 +27,13 @@ from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
-from bundesarchiv.app.web.catalog_views import FormPanel, _CardRow, _redirect, neu_artikel_panel
+from bundesarchiv.app.web.catalog_views import (
+    FormPanel,
+    _CardRow,
+    _panel_response,
+    _redirect,
+    neu_artikel_panel,
+)
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -72,7 +77,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             return _redirect(request, f"{reverse('artikel-neu')}?{query}")
         rows = _create_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
         if request.headers.get("HX-Request"):
-            return render(request, "workbench/_formpanel.html", {"panel": _neu_bestand(rows)})
+            return _panel_response(request, _neu_bestand(rows))
         return render_screen(
             request, "workbench/bestand_neu.html", {"felder": rows}, bestand=bestand
         )
@@ -217,7 +222,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
 def _render_edit(request: HttpRequest, ulid: str, panel: FormPanel) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if request.headers.get("HX-Request"):
-        return render(request, "workbench/_formpanel.html", {"panel": panel})
+        return _panel_response(request, panel)
     return render_screen(
         request,
         "workbench/bestand_bearbeiten.html",
