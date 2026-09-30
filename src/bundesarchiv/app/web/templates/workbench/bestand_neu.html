@@ -13,40 +13,7 @@ with the verbatim error and the values kept.
   <h1>Neuer Bestand</h1>
   <form method="post" action="{% url 'bestand-neu' %}">
     {% csrf_token %}
-    <div class="field">
-      <label for="feld-name">Name</label>
-      <input type="text" name="name" id="feld-name" value="{{ name }}"
-             {% if errors.name %}aria-invalid="true" aria-describedby="feld-name-fehler"{% endif %}
-             {% if autofocus == "name" %}autofocus{% endif %}>
-      {% if errors.name %}<span class="error" id="feld-name-fehler">{{ errors.name }}</span>{% endif %}
-    </div>
-    <div class="field">
-      <label for="feld-parent_id">Eltern-Bestand</label>
-      <select name="parent_id" id="feld-parent_id"
-              {% if errors.parent_id %}aria-invalid="true" aria-describedby="feld-parent_id-fehler"{% endif %}
-              {% if autofocus == "parent_id" %}autofocus{% endif %}>
-        {% for value, caption in parent_options %}
-        <option value="{{ value }}"{% if value == parent_id %} selected{% endif %}>{{ caption }}</option>
-        {% endfor %}
-      </select>
-      {% if errors.parent_id %}<span class="error" id="feld-parent_id-fehler">{{ errors.parent_id }}</span>{% endif %}
-    </div>
-    <div class="field">
-      <label for="feld-sichtbarkeit">Sichtbarkeit</label>
-      <select name="sichtbarkeit" id="feld-sichtbarkeit"
-              {% if errors.sichtbarkeit %}aria-invalid="true" aria-describedby="feld-sichtbarkeit-fehler"{% endif %}>
-        {% for value, caption in sichtbarkeit_options %}
-        <option value="{{ value }}"{% if value == sichtbarkeit %} selected{% endif %}>{{ caption }}</option>
-        {% endfor %}
-      </select>
-      {% if errors.sichtbarkeit %}<span class="error" id="feld-sichtbarkeit-fehler">{{ errors.sichtbarkeit }}</span>{% endif %}
-    </div>
-    <div class="field">
-      <label for="feld-gruppen">Gruppen</label>
-      <input type="text" name="gruppen" id="feld-gruppen" value="{{ gruppen }}"
-             aria-describedby="feld-gruppen-hinweis">
-      <span class="hint" id="feld-gruppen-hinweis">Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)</span>
-    </div>
+    {% for feld in felder %}{% include "workbench/_feld.html" with feld=feld only %}{% endfor %}
     <footer>
       <button class="primary" type="submit">Anlegen</button>
     </footer>

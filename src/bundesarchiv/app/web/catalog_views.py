@@ -154,15 +154,16 @@ def _create_context(
     the server-computed autofocus target (Titel unless it already has a value). ``angelegt`` is the
     just-created Bestand's name for the success hinweis (empty on the plain create step)."""
     autofocus = "collection_id" if title and "title" not in errors else "title"
-    lead = _card_fields(
-        {"title": title}, bestand, errors=errors, autofocus=autofocus, only=("lead",)
+    fields = _card_fields(
+        {"title": title, "collection_id": collection_id},
+        bestand,
+        errors=errors,
+        autofocus=autofocus,
+        only=("lead", "kerndaten"),
     )
     return {
-        "titel": lead["lead"][0],
-        "collection_id": collection_id,
-        "collection_options": bestand.options(),
-        "errors": errors,
-        "autofocus": autofocus,
+        "titel": fields["lead"][0],
+        "bestand_feld": next(row for row in fields["kerndaten"] if row.name == "collection_id"),
         "angelegt": angelegt,
     }
 
@@ -874,6 +875,40 @@ class _CardRow:
     required: bool
     archivist_only: bool
     help: str
+
+    @classmethod
+    def standalone(
+        cls,
+        name: str,
+        label: str,
+        *,
+        control: str = "text",
+        value: str = "",
+        hint: str = "",
+        error: str = "",
+        options: _Options = (),
+        required: bool = False,
+        autofocus: bool = False,
+    ) -> _CardRow:
+        """A field of a form outside the registry (the Bestand forms), printed by the same partial."""
+        return cls(
+            name=name,
+            label=label,
+            control=control,
+            control_id=f"feld-{name}",
+            value=value,
+            hint=hint,
+            error=error,
+            was=None,
+            autofocus=autofocus,
+            options=options,
+            blank="",
+            hx=(),
+            span=False,
+            required=required,
+            archivist_only=False,
+            help="",
+        )
 
 
 def _card_fields(

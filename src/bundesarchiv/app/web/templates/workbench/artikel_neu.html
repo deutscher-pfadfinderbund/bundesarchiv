@@ -28,17 +28,7 @@ neu.html): no crumbs, the article has no place until a Bestand is chosen.
     {% comment %}One field: a section heading would cost more than it tells (a1 NOTES).{% endcomment %}
     <section aria-label="Kerndaten">
       <div class="field-grid">
-        <div class="field">
-          <label for="feld-collection_id">Bestand <span aria-hidden="true">*</span></label>
-          <select name="collection_id" id="feld-collection_id" required
-                  {% if errors.collection_id %}aria-invalid="true" aria-describedby="feld-collection_id-fehler"{% endif %}
-                  {% if autofocus == "collection_id" %}autofocus{% endif %}>
-            {% for value, caption in collection_options %}
-            <option value="{{ value }}"{% if value == collection_id %} selected{% endif %}>{{ caption }}</option>
-            {% endfor %}
-          </select>
-          {% if errors.collection_id %}<span class="error" id="feld-collection_id-fehler">{{ errors.collection_id }}</span>{% endif %}
-        </div>
+        {% include "workbench/_feld.html" with feld=bestand_feld only %}
       </div>
     </section>
   </div>

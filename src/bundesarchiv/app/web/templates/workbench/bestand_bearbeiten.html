@@ -23,12 +23,7 @@ CAS and 302s to the workbench filtered to this Bestand.
   <form method="post" action="{% url 'bestand-bearbeiten' ulid %}">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ version }}">
-    <div class="field">
-      <label for="feld-name">Name</label>
-      <input type="text" name="name" id="feld-name" value="{{ name }}" autofocus
-             {% if errors.name %}aria-invalid="true" aria-describedby="feld-name-fehler"{% endif %}>
-      {% if errors.name %}<span class="error" id="feld-name-fehler">{{ errors.name }}</span>{% endif %}
-    </div>
+    {% include "workbench/_feld.html" with feld=name_feld only %}
     <dl class="quiet">
       <div>
         <dt>Eltern-Bestand</dt>

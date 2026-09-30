@@ -297,7 +297,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
-| Field | `.field` | `workbench/_feld` + standalone forms | `components.css` field |
+| Field | `.field` | `workbench/_feld` (the edit form, the create step, the Bestand forms) | `components.css` field |
 | Panel | `.panel` | inline (confirm pages, the Bestand form's CAS conflict) | `forms.css` panel |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |

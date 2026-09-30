@@ -27,6 +27,7 @@ from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
+from bundesarchiv.app.web.catalog_views import _CardRow
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -108,17 +109,43 @@ def _create_context(
     gruppen: str,
     errors: FormErrors,
 ) -> dict[str, object]:
-    """The create form's template context: preserved values, the parent + Sichtbarkeit options, field
-    errors, and the server-computed autofocus (Name, unless it already has a value)."""
+    """The create form's fields: preserved values, the parent + Sichtbarkeit options, field errors,
+    and the server-computed autofocus (Name, unless it already has a value)."""
+    autofocus = "parent_id" if name and "name" not in errors else "name"
     return {
-        "name": name,
-        "parent_id": parent_id,
-        "sichtbarkeit": sichtbarkeit,
-        "gruppen": gruppen,
-        "parent_options": bestand.parent_options(),
-        "sichtbarkeit_options": vocab.SICHTBARKEIT_OPTIONS,
-        "errors": errors,
-        "autofocus": "parent_id" if name and "name" not in errors else "name",
+        "felder": (
+            _CardRow.standalone(
+                "name",
+                "Name",
+                value=name,
+                error=errors.get("name", ""),
+                required=True,
+                autofocus=autofocus == "name",
+            ),
+            _CardRow.standalone(
+                "parent_id",
+                "Eltern-Bestand",
+                control="select",
+                value=parent_id,
+                error=errors.get("parent_id", ""),
+                options=bestand.parent_options(),
+                autofocus=autofocus == "parent_id",
+            ),
+            _CardRow.standalone(
+                "sichtbarkeit",
+                "Sichtbarkeit",
+                control="select",
+                value=sichtbarkeit,
+                error=errors.get("sichtbarkeit", ""),
+                options=vocab.SICHTBARKEIT_OPTIONS,
+            ),
+            _CardRow.standalone(
+                "gruppen",
+                "Gruppen",
+                value=gruppen,
+                hint="Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)",
+            ),
+        ),
     }
 
 
@@ -217,10 +244,11 @@ def _edit_context(
     collection = stored.collection
     return {
         "ulid": collection.ulid,
-        "name": name,
+        "name_feld": _CardRow.standalone(
+            "name", "Name", value=name, error=errors.get("name", ""), required=True, autofocus=True
+        ),
         "parent_display": _parent_name(archive, collection.parent_id),
         "sichtbarkeit_display": _sichtbarkeit_label(collection.audience),
-        "errors": errors,
         "version": version,
         "conflict_name": conflict_name,
     }

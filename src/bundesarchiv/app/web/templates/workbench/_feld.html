@@ -1,19 +1,20 @@
 {% comment %}
 One field of the form: the label, the control, then the hint and the error. Params: feld — a
-catalog_views._CardRow, the field registry joined to this render's value/error/focus. The form's
-sections loop this partial, so the registry is the only place a field exists.
+catalog_views._CardRow, the field registry joined to this render's value/error/focus; form — the
+owning form's id where the control sits outside it. The edit form's sections loop this partial, so
+the registry is the only place a field exists; the standalone forms print _CardRow.standalone rows.
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
 {% endcomment %}{% with base="feld-"|add:feld.name %}{% with control_id=feld.control_id %}<div class="field"{% if feld.span %} data-span="all"{% endif %}>
   <label id="{{ base }}-label" for="{{ control_id }}">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</label>
   {% if feld.control == "select" %}
-  <select id="{{ control_id }}" name="{{ feld.name }}" form="bearbeiten-form" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <select id="{{ control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
     {% for value, caption in feld.options %}
     <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
     {% endfor %}
   </select>
   {% elif feld.control == "groups" %}
-  <select id="{{ control_id }}" name="{{ feld.name }}" form="bearbeiten-form" {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
+  <select id="{{ control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
     <option value="">{{ feld.blank }}</option>
     {% for group_label, group_options in feld.options %}
     <optgroup label="{{ group_label }}">
@@ -24,7 +25,7 @@ A div with a <label for>, because the hint's ⓘ button and its popover may not 
     {% endfor %}
   </select>
   {% else %}
-  <input type="text" id="{{ control_id }}" name="{{ feld.name }}" value="{{ feld.value }}" form="bearbeiten-form" {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <input type="text" id="{{ control_id }}" name="{{ feld.name }}" value="{{ feld.value }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
   {% endif %}
   {% include "workbench/_feld_gespeichert.html" %}
   {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}{% if feld.help %}<button class="help" type="button" popovertarget="{{ base }}-hilfe" aria-label="Schreibweise: {{ feld.label }}">ⓘ</button>{% endif %}</span>{% endif %}
