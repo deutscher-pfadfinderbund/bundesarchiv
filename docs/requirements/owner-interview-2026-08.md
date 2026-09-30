@@ -841,3 +841,15 @@ The owner reviewed the list on the real archive and accepted it as built, includ
   plain.
 
 The phone layout is low priority: the "Filter" panel (#65) and the dead "Auswählen" (#66).
+
+## Rulings of 2026-09-30 (Papierkorb)
+
+The archivists' Papierkorb wish (`archivist-wishes-2025.md`) is taken up again. It amends the
+2026-09-24 ruling that hard delete is final for the app.
+
+- **Deleting an Article puts it in the Papierkorb.** It can be restored from there. Only
+  "Endgültig löschen" in the Papierkorb is the old, final hard delete.
+- **Every Archivist** may restore and delete for good.
+- **Emptied by hand for now.** A 30-day retention sounds right, but it waits.
+- **Restoring overwritten versions** is on the horizon, not now.
+- Until the Papierkorb exists, the delete confirm does not say there is none.
