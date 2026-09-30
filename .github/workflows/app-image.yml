@@ -1,6 +1,6 @@
 # The app image (Dockerfile) — built here and only here, pushed to GHCR as
-# ghcr.io/deutscher-pfadfinderbund/bundesarchiv. Watchtower on the VPS polls :latest hourly, so a
-# push here IS the deployment: nothing may be pushed that CI has not already passed. Hence
+# ghcr.io/deutscher-pfadfinderbund/bundesarchiv. Komodo on the VPS pulls :latest on its auto-update
+# run, so a push here IS the deployment: nothing may be pushed that CI has not already passed. Hence
 # workflow_run rather than `push` — this waits for the CI run on main to conclude green. A pull
 # request builds the image and stops there, which keeps a broken Dockerfile off main.
 name: App image

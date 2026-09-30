@@ -1,10 +1,11 @@
-# The VPS deploy stack. Lives at /home/admin/bundesarchiv/ together with production.env and the
-# three bind-mounted data folders; every path below is relative to that folder (docs/runbook.md,
-# "Deploy"). Local development does NOT use this file — it runs Postgres alone through Apple's
-# `container` CLI (README, CLAUDE.md).
+# The VPS deploy stack. Komodo runs it as the Stack `bundesarchiv`, from a checkout of this repo, and
+# writes the Stack's environment next to this file as production.env before every deploy. The data
+# lives outside that checkout, in /home/admin/bundesarchiv/, because Komodo owns the checkout and
+# may re-clone it (docs/runbook.md, "Deploy"). Local development does NOT use this file — it runs
+# Postgres alone through Apple's `container` CLI (README, CLAUDE.md).
 #
-# Watchtower (already on the host, hourly) is the whole CD story: it pulls :latest for app and
-# worker and restarts them. Rolling back means retagging or pinning a sha- tag here.
+# Komodo's auto-update run (daily at 03:00 unless its schedule says otherwise) pulls :latest for app
+# and worker and redeploys on a new image. Rolling back means pinning a sha- tag here.
 services:
   # The only service on the `web` network: Traefik terminates TLS and routes to it, it proxies the
   # app and serves media bytes from the canonical tree for X-Accel-Redirect (ADR 0017).
@@ -16,7 +17,7 @@ services:
     networks: [default, web]
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./canonical:/canonical:ro
+      - /home/admin/bundesarchiv/canonical:/canonical:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.bundesarchiv.rule=Host(`archiv.deutscher-pfadfinderbund.de`)
@@ -34,8 +35,8 @@ services:
         condition: service_healthy
     env_file: production.env
     volumes:
-      - ./canonical:/canonical
-      - ./thumbnails:/thumbnails
+      - /home/admin/bundesarchiv/canonical:/canonical
+      - /home/admin/bundesarchiv/thumbnails:/thumbnails
     restart: unless-stopped
 
   # The same image with the worker command: one process, per ADR 0013. It does not migrate — the
@@ -50,8 +51,8 @@ services:
         condition: service_started
     env_file: production.env
     volumes:
-      - ./canonical:/canonical
-      - ./thumbnails:/thumbnails
+      - /home/admin/bundesarchiv/canonical:/canonical
+      - /home/admin/bundesarchiv/thumbnails:/thumbnails
     restart: unless-stopped
 
   # Postgres with the German Hunspell dictionary baked in (docker/postgres/, published by
@@ -61,8 +62,8 @@ services:
     image: ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest
     # Not env_file: that would hand the database container the app's secret key, the viewer signing
     # key, the OIDC client secret and the mirror password for nothing. These three come from
-    # production.env through compose's own --env-file, which every command in the deploy folder
-    # passes (docs/runbook.md, "Deploy") — without it compose stops here and says which one is unset.
+    # production.env through compose's own --env-file, which Komodo passes on every deploy — without
+    # it compose stops here and says which one is unset.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?run compose with --env-file production.env}
       POSTGRES_USER: ${POSTGRES_USER:?run compose with --env-file production.env}
@@ -70,8 +71,8 @@ services:
     volumes:
       # The image's own VOLUME and the parent of its data directory, which under the Postgres 18
       # layout is /var/lib/postgresql/18/docker. Binding .../data instead leaves the cluster in an
-      # anonymous volume and ./pgdata empty.
-      - ./pgdata:/var/lib/postgresql
+      # anonymous volume and pgdata/ empty.
+      - /home/admin/bundesarchiv/pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

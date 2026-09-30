@@ -5,23 +5,19 @@ Settings are env vars read by `bundesarchiv/index/settings.py`.
 
 ## Deploy
 
-The whole system lives in one folder on the VPS, `/home/admin/bundesarchiv/`.
-It is a checkout of this repository plus the data the repository must never
-hold:
+Komodo on the VPS runs `compose.yml` as the Stack `bundesarchiv`. It deploys
+from its own checkout of this repository, so the data the repository must never
+hold lives in a folder of its own:
 
 ```
 /home/admin/bundesarchiv/
-  compose.yml                 the stack (from the repo)
-  deploy/nginx/nginx.conf     the media sidecar (from the repo)
-  production.env              secrets and paths — never committed
   canonical/                  THE ARCHIVE. Losing this loses everything.
   thumbnails/                 derived WebP cache, prunable
   pgdata/                     Postgres data: the search index and the job queue
 ```
 
-Every `docker compose` command in this folder takes `--env-file production.env`.
-Compose reads `.env` for the values it substitutes into `compose.yml`, and the
-stack's file is not named that; without the flag compose stops and says so.
+Komodo owns its checkout and may re-clone it, so nothing in it may be data.
+`compose.yml` names these three folders by absolute path.
 
 Traefik in front terminates TLS and routes
 `archiv.deutscher-pfadfinderbund.de` to the `nginx` service over the existing
@@ -29,29 +25,42 @@ external `web` network.
 
 ### First bring-up
 
+Create the data folders:
+
 ```sh
-cd /home/admin/bundesarchiv
-git clone https://github.com/deutscher-pfadfinderbund/bundesarchiv.git .
-cp deploy/production.env.example production.env
-$EDITOR production.env                      # see below
-mkdir -p canonical thumbnails pgdata
-sudo chown -R 1000:1000 canonical thumbnails
-docker compose --env-file production.env up -d
-docker compose --env-file production.env logs -f app
+sudo mkdir -p /home/admin/bundesarchiv/{canonical,thumbnails,pgdata}
+sudo chown -R 1000:1000 /home/admin/bundesarchiv/canonical /home/admin/bundesarchiv/thumbnails
 ```
 
 The app runs as uid 1000 inside the image, which is why the two writable mounts
 must belong to that id. `pgdata` belongs to Postgres and needs no chown:
 Postgres creates and owns its own `18/docker` subfolder inside it.
 
-The app container migrates the database, checks the index and then serves; a
-failure to start is in the `logs app` output and names what it missed.
+Then create the Stack in Komodo:
+
+| Setting | Value |
+| --- | --- |
+| Name | `bundesarchiv` (the compose project, so containers are `bundesarchiv-app-1` etc.) |
+| Source | git repo `deutscher-pfadfinderbund/bundesarchiv`, branch `main` |
+| File paths | `compose.yml` |
+| Environment | `deploy/production.env.example`, filled in (below) |
+| Env file path | `production.env` |
+| Auto update | on |
+
+Komodo writes the environment as `production.env` next to `compose.yml` and
+passes it to compose as `--env-file`. Compose needs both: the `env_file:` lines
+hand it to app and worker, and the flag feeds the three `POSTGRES_*` values
+`compose.yml` substitutes.
+
+Deploy. The app container migrates the database, checks the index and then
+serves; a failure to start is in the app's log and names what it missed.
 Without `BUNDESARCHIV_SECRET_KEY` or `BUNDESARCHIV_ALLOWED_HOSTS` it refuses to
 serve at all, by design.
 
-### Filling production.env
+### Filling the environment
 
-`deploy/production.env.example` lists every variable with what it is for. Three
+`deploy/production.env.example` lists every variable with what it is for. Keep
+the secrets in Komodo Secrets and reference them from the environment. Three
 need thought:
 
 - `BUNDESARCHIV_SECRET_KEY` and `BUNDESARCHIV_VIEWER_SIGNING_KEY` are two
@@ -64,25 +73,23 @@ need thought:
 
 ### Updating and rolling back
 
-Watchtower already runs on the host and polls hourly. It pulls `:latest` for
-`app` and `worker` and restarts them. So a push to `main` that passes CI is the
-deployment — `.github/workflows/app-image.yml` publishes the image only after
-CI has gone green on that commit.
+Komodo's "Global Auto Update" Procedure (daily at 03:00 unless its schedule
+says otherwise) pulls `:latest` for `app` and `worker` and redeploys when the
+image changed. So a push to `main` that passes CI is the deployment —
+`.github/workflows/app-image.yml` publishes the image only after CI has gone
+green on that commit.
 
-To roll back, pin the last good image instead of `:latest` in `compose.yml`:
+A change to `compose.yml` or `deploy/nginx/nginx.conf` reaches the VPS only on a
+Deploy of the Stack, which pulls the checkout first.
 
-```sh
-docker compose --env-file production.env pull      # normal, forced update
-docker compose --env-file production.env up -d
-# rollback: set both app and worker to ghcr.io/…/bundesarchiv:sha-<sha>, then up -d again
-```
-
-Watchtower only touches `:latest`, so a pinned tag stays pinned until someone
-un-pins it. Pin rather than retag: the tag then says which commit is running.
+To roll back, pin the last good image instead of `:latest` in `compose.yml` —
+both `app` and `worker` to `ghcr.io/…/bundesarchiv:sha-<sha>` — and deploy.
+A pinned tag never has a newer image, so it stays pinned until someone un-pins
+it. Pin rather than retag: the tag then says which commit is running.
 
 ### Backup
 
-The owner's rsync job copies `/home/admin/`. Exclude the two folders that are
+The owner's rsync copies `/home/admin/`. Exclude the two folders that are
 derived and large:
 
 ```
@@ -96,14 +103,13 @@ reindex, not data.
 
 ### Importing a canonical tree
 
-Copy the tree into `./canonical` (keeping its own layout), fix ownership, then
+Copy the tree into `canonical/` (keeping its own layout), fix ownership, then
 rebuild the index:
 
 ```sh
-sudo rsync -a /path/to/import/ canonical/
-sudo chown -R 1000:1000 canonical
-docker compose --env-file production.env exec worker \
-  python manage.py procrastinate defer full_rebuild
+sudo rsync -a /path/to/import/ /home/admin/bundesarchiv/canonical/
+sudo chown -R 1000:1000 /home/admin/bundesarchiv/canonical
+docker exec bundesarchiv-worker-1 python manage.py procrastinate defer full_rebuild
 ```
 
 The hourly reconcile would find it too; the defer just does not wait.
@@ -116,11 +122,10 @@ changed FTS config version, and an empty index is not stale.
    bring-up:
 
    ```sh
-   docker compose --env-file production.env exec postgres \
-     psql -U postgres -tAc "show data_directory"
+   docker exec bundesarchiv-postgres-1 psql -U postgres -tAc "show data_directory"
    ```
 
-   Expect `/var/lib/postgresql/18/docker`, and `ls pgdata/18/docker` on the host
+   Expect `/var/lib/postgresql/18/docker`, and `ls /home/admin/bundesarchiv/pgdata/18/docker`
    showing the cluster. An empty `pgdata/` means the bind mount misses the data
    directory and the cluster lives in an anonymous volume nobody backs up.
 2. The login walk, once per realm change: "Smoke test: one real login per realm
