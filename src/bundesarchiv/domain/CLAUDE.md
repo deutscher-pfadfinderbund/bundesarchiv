@@ -12,3 +12,5 @@ Law: pure core. No IO, no Django, no settings. Errors are the typed `DomainError
 - `edtf.py` — EDTF Level 0/1 archival-date value object · interface: `EdtfDate` · tests: `tests/domain/test_edtf.py`
 
 Internal: `errors.py`
+
+A new `Article` field is classified in `tests/domain/test_access.py::_MEMBER_VISIBLE_FIELDS` (the gate goes red until it is): say whether a Member may ever see it, and why.
