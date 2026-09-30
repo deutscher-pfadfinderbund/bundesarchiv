@@ -16,7 +16,8 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
   (design-review-law section E): `app/web/test_design_lint.py` enforces the
   law's lintable subset over the prod stylesheets.
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
-  behavior.
+  behavior. Not one: a wire pin that states an ADR's contract (the push order ADR 0020
+  prescribes, `[PUT history, PUT README]`) is behaviour, even though it also fixes the count.
 - **Byte-identical response comparisons** — the byte-identical-404 law was
   relaxed (2026-08); see the deny contract below.
 - **UI copy and markup** (German strings, CSS classes, glyphs, htmx attributes,
