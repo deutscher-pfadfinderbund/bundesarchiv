@@ -65,7 +65,7 @@ FIELDS: tuple[BulkField, ...] = (
     BulkField("media_type", "Medienart", "Medienarten", "wert_media_type", False),
     BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "wert_document_type", False),
     BulkField("Quelle", "Quelle", "Quellen", "wert_text", True),
-    BulkField("collection_id", "Sammlungsteil", "Sammlungsteile", "wert_collection_id", False),
+    BulkField("collection_id", "Bestand", "Bestände", "wert_collection_id", False),
     BulkField("Querverweis", "Querverweis", "Querverweise", "wert_text", True),
     BulkField("Besitzer", "Besitzer", "Besitzer", "wert_text", True),
 )
@@ -102,7 +102,7 @@ def feldwahl_context(
     """The whole Feld-chooser context behind ``workbench/_feldwahl.html`` (spec §2 C) — ONE builder
     for the workbench bulk bar and the confirm page's error mode, so the two renders cannot drift.
     ``feld``/``wert`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
-    ``bestand`` supplies the Sammlungsteil widget's options."""
+    ``bestand`` supplies the Bestand widget's options."""
     return {
         "feldwahl_feld": feld,
         "feldwahl_wert": wert,
