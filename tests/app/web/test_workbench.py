@@ -272,7 +272,7 @@ def test_prefix_recall_fahrt_finds_fahrtenbericht(indexed_corpus: Corpus) -> Non
 def test_plain_get_renders_full_page(indexed_corpus: Corpus) -> None:
     response = _get(Public())
     body = response.content.decode()
-    assert "<html" in body and "Suchen" in body  # full chrome (search form)
+    assert "<html" in body and 'role="search"' in body  # full chrome (search form)
     assert 'id="results"' in body
 
 
@@ -388,15 +388,50 @@ def test_entwurf_mark_and_bearbeiten_only_for_archivist(indexed_corpus: Corpus) 
 # --- facets: rendering, name resolution, Ohne Datum ------------------------------
 
 
-def test_facets_render_with_headings(indexed_corpus: Corpus) -> None:
-    body = _get(Public()).content.decode()
-    for heading in ("Bestand", "Medienart", "Dokumenttyp", "Schlagworte", "Jahrzehnte"):
-        assert heading in body
+def _sentence_queries(viewer: Viewer, query: str = "") -> list[dict[str, list[str]]]:
+    """Every query the search sentence links to, parsed (its slot menus, set slots, "+ Filter")."""
+    form_html = _search_form_html(_get(viewer, query).content.decode())
+    return [parse_qs(unescape(href)) for href in re.findall(r'href="\?([^"]*)"', form_html)]
 
 
-def test_ohne_datum_bucket_present_and_counts(indexed_corpus: Corpus) -> None:
-    body = _get(Public()).content.decode()
-    assert "Ohne Datum" in body  # the dateless bucket (Undatiertes Liederheft has no date)
+def test_the_slots_offer_the_bestand_decade_type_and_dateless_values(
+    indexed_corpus: Corpus,
+) -> None:
+    queries = _sentence_queries(Public())
+    for param, value in [
+        ("bestand", "FOTOS"),
+        ("dokumenttyp", "Lagerheft"),
+        ("ohne_datum", "1"),  # Undatiertes Liederheft has no date
+    ]:
+        assert {param: [value]} in queries
+    assert any(set(q) == {"jahrzehnt"} for q in queries)
+
+
+def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corpus) -> None:
+    # Nothing the URL filters by may be invisible on the page: each set filter, a slot's or not,
+    # links to the same search without it, also on a page with no hits (no facet counts it).
+    samples = {
+        "bestand": "FOTOS",
+        "medienart": "Mikrofilm",
+        "dokumenttyp": "Lagerheft",
+        "schlagwort": "fahrten",
+        "jahrzehnt": "1960",
+        "ohne_datum": "1",
+        "von": "1960-01-01",
+        "bis": "1969-12-31",
+        "digital": "1",
+        "entwuerfe": "1",
+    }
+    assert set(samples) == set(browse.FILTER_PARAMS)
+    for param, value in samples.items():
+        queries = _sentence_queries(Public(), f"q=Nirgendwo&{param}={quote(value)}")
+        assert {"q": ["Nirgendwo"]} in queries, param
+
+
+def test_the_drafts_filter_is_offered_to_the_archivist_only(indexed_corpus: Corpus) -> None:
+    assert {"digital": ["1"]} in _sentence_queries(Public())
+    assert {"entwuerfe": ["1"]} in _sentence_queries(Archivist())
+    assert all("entwuerfe" not in q for q in _sentence_queries(Member(groups=())))
 
 
 def test_ohne_datum_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
@@ -438,39 +473,6 @@ def test_media_facet_filter_narrows_results(indexed_corpus: Corpus) -> None:
     body = _get(Public(), "medienart=Schrifttum").content.decode()
     assert "Undatiertes Liederheft" in body
     assert "Öffentliches Foto" not in body  # a Foto is excluded
-
-
-def test_active_filter_renders_rail_chip_with_labeled_remove(indexed_corpus: Corpus) -> None:
-    # The filter rail (owner 2026-08-07: the PRIMARY filter interaction): every active filter
-    # renders as a chip whose remove link carries the German accessible name — the user contract
-    # (tests/CLAUDE.md: verbatim UI strings are assertable; the styling is design-gate territory).
-    body = _get(Public(), "medienart=Schrifttum").content.decode()
-    assert 'aria-label="Filter entfernen: Schrifttum"' in body
-    # no active filter → no chip remove link at all
-    bare = _get(Public()).content.decode()
-    assert "Filter entfernen:" not in bare
-    # ZERO-HIT filter: the value vanishes from the recomputed facet counts (no active dropdown
-    # row), but the chip derives from the URL state — the empty state says "Entferne einzelne
-    # Filter", so the removal affordance must survive exactly there.
-    empty = _get(Public(), "medienart=Mikrofilm").content.decode()
-    assert "Keine Treffer" in empty
-    assert 'aria-label="Filter entfernen: Mikrofilm"' in empty
-
-
-def test_clear_all_link_only_with_active_filter_chips(indexed_corpus: Corpus) -> None:
-    # "Alle Filter entfernen" (owner 2026-08-07, rail round 2): a quiet link at the END of the
-    # chip row, present exactly when ≥1 filter chip is — its href drops every filter param but
-    # keeps the text query (chip semantics: remove filters, keep q).
-    body = _get(Public(), "q=Foto&medienart=Foto&schlagwort=fahrten").content.decode()
-    match = re.search(r'<a href="\?([^"]*)">Alle Filter entfernen</a>', body)
-    assert match is not None
-    from urllib.parse import parse_qsl
-
-    cleared = dict(parse_qsl(match.group(1)))
-    assert cleared == {"q": "Foto"}
-    # no active filter → no clear-all link (q alone is not a filter)
-    bare = _get(Public(), "q=Foto").content.decode()
-    assert "Alle Filter entfernen" not in bare
 
 
 # --- search form keeps active facet filters (GH #21) ------------------------------

@@ -35,7 +35,7 @@
     text-underline-offset: var(--underline-offset);
   }
 
-  /* disclosure headings (facet groups, the custom bag) share the one label treatment */
+  /* disclosure headings (the custom bag) share the one label treatment */
   :where(summary) {
     cursor: pointer;
     font: var(--type-label);
@@ -227,14 +227,11 @@
      this layer outranks that one, so a bare `a` here overrode the button even from :where() —
      14.98:1 down to 2.24:1 (learning G.47).
      DIRECT children only: a toolbar may own a disclosure, and its dropped panel's links are overlay
-     contents, not row controls. The chip's ✕ is the one licensed compact deviation (owner
-     2026-08-07): .chip sets --hit-fallback, which also sizes it in the demo, outside any row. */
+     contents, not row controls. */
   [role="toolbar"] > :is(a:not(.button), button.link),
   .pane header > a,
   .abmelden > button,
-  .remove,
-  /* biome-ignore lint/style/noDescendingSpecificity: one selector list, one declaration block */
-  .chip > a {
+  .remove {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -247,16 +244,14 @@
   :where(
     [role="toolbar"] > :is(a:not(.button), button.link),
     .pane header > a,
-    .abmelden > button,
-    .chip > a
+    .abmelden > button
   ) {
     color: var(--ink-2);
   }
   :is(
     [role="toolbar"] > :is(a:not(.button), button.link),
     .pane header > a,
-    .abmelden > button,
-    .chip > a
+    .abmelden > button
   ):hover:not(:disabled) {
     color: var(--ink);
     text-decoration: none;
@@ -548,28 +543,8 @@
     white-space: nowrap;
   }
 
-  /* ---- facet group (components/facet_group.html): a <details> dropdown on the filter rail. The
-     summary carries a control edge; the dropped panel is a floating panel (register row 12). The
-     active row is read from aria-current (law C2) and marked by inversion. No positioning here —
-     the panel positions against the RAIL (the shared rule below). ---- */
-  .facet > summary {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    list-style: none; /* the ▾ glyph below is the disclosure mark, not the UA triangle */
-    padding: var(--space-1) var(--space-2);
-    border: var(--line-width) solid var(--edge);
-  }
-  .facet > summary::after {
-    content: "▾";
-    font-size: 0.85em; /* the glyph rides the label's own size — relative by nature */
-  }
-  .facet[open] > summary {
-    border-color: var(--ink);
-  }
   /* every floating panel (register row 12): page surface with the full-ink edge, even when its
      trigger sits in the band */
-  .facet > ul,
   ul.menu[popover],
   .popover,
   .toolpanel {
@@ -587,54 +562,30 @@
     color: var(--ink);
     border: var(--line-width) solid var(--ink);
   }
-  /* A native dropdown's panel positions against its CONTROL ROW, never its trigger (law C12) —
-     that is what makes containment STRUCTURAL: the row spans the viewport minus its padding, so a
-     panel pinned to one of the row's inline edges and capped at 100% of it is on-viewport at every
-     width. A trigger's own viewport offset is not expressible in Baseline CSS, so trigger-pinning
-     protects one edge only and both panels escaped at real widths. Which EDGE a panel pins to
-     stays per component (below); the row is whatever positioned ancestor it sits in (layouts.css
-     marks the rail and the header). */
-  .facet > ul {
-    position: absolute;
-    top: calc(100% + var(--space-1));
-    max-width: 100%; /* the containment half of the rule above — never wider than the row */
-    /* above the (sticky, positioned) pane sheet the open panel may overlap (the scale: tokens.css) */
-    z-index: var(--z-overlay-panel);
-    margin: 0;
-    /* the row's LEADING edge (the enhancement below refines it to the trigger where available) */
-    inset-inline-start: 0;
-    min-width: 16rem; /* the panel's reading width — one structural size, no token fits */
-  }
   /* PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier — never load-bearing): where anchor
-     positioning exists the panel drops from its OWN trigger, centered on it and shifted only as far
-     as the row's edges demand (anchor-center clamps to the inset-modified containing block, which
-     the inline insets keep at the row — the C12 containment, preserved in this tier); where it does
-     not, the row-pinned rule above stands unchanged. anchor-scope keeps each disclosure resolving
-     its own trigger, not a later sibling's. anchor() + anchor-center, never position-area or
-     position-try — learning G.50.
+     positioning exists a panel drops from its OWN trigger; where it does not, the browser centres
+     it. anchor-scope keeps each disclosure resolving its own trigger, not a later sibling's.
+     anchor() + anchor-center, never position-area or position-try — learning G.50.
      `--anchor-probe` is also the e2e hook: the containment walker serves this stylesheet with that
      one condition falsified, so the FALLBACK tier gets its own computed proof. */
   @supports (anchor-name: --anchor-probe) and
     (inset-block-start: anchor(end)) and
     (justify-self: anchor-center) {
-    .facet {
-      anchor-name: --dropdown;
-      anchor-scope: --dropdown;
-    }
-    .facet > ul {
-      position-anchor: --dropdown;
-      inset-block-start: anchor(end); /* replaces the row-edge `top` calc above */
-      inset-inline: 0;
-      justify-self: anchor-center;
-      margin-block-start: var(--space-1); /* the drop gap the `top` calc gave before */
-    }
     /* the popover menu lives in the top layer, so no row contains it: the viewport is its
        containing block. Under its button, right edges aligned; a panel that would overflow shifts
        back inside the viewport (default overflow alignment). Without anchor positioning the
        browser centres it (UA margin: auto). The scope keeps each list on its own button when a
        page holds two menus: named containers, never an unqualified :has(); a menu outside them
        fails the e2e "panel under its own trigger" fact. */
-    :is(body > header, [role="toolbar"], .actions, .record-meta-actions, .split-button) {
+    :is(
+        body > header,
+        [role="toolbar"],
+        .actions,
+        .record-meta-actions,
+        .split-button,
+        .search-sentence-slots > div,
+        .search-sentence-add
+      ) {
       anchor-scope: --menu-button;
     }
     .menu-button,
@@ -667,52 +618,18 @@
     }
   }
 
-  .facet li {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
-  }
   /* ---- ONE PANEL ENTRY, every dropped panel: they share register row 12, so they share the two
      things an entry IS — the hit floor (the panel's own knob) and the type role. Sized per panel
-     they drifted, and the C8 walker compares WITHIN a row, so a facet-vs-menu mismatch could never
+     they drift, and the C8 walker compares WITHIN a row, so a mismatch between panels could never
      fail it. Per-panel DELTAS only, below. ---- */
-  .facet li > a,
   .menu li > a,
   .menu li > form > button.link {
     min-height: var(--control-height);
     font: var(--type-meta);
     text-decoration: none;
   }
-  :is(.facet li > a, .menu li > a, .menu li > form > button.link):hover {
+  :is(.menu li > a, .menu li > form > button.link):hover {
     text-decoration: underline;
-  }
-  /* facet delta: a facet VALUE is unbounded, so its entry ellipsizes — hence a BLOCK container (a
-     flex box cannot ellipsize its own text), with align-content centering the line. The ✕ is no
-     value: it keeps the shared icon-control hit area. */
-  .facet li > a:not(.remove) {
-    min-width: 0;
-    align-content: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .facet li > span {
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-  /* hit area: the shared icon-control rule above; only the flex opt-out is local */
-  .facet .remove {
-    flex: none;
-  }
-  .facet li:has(> [aria-current]) {
-    background: var(--ink);
-  }
-  .facet li:has(> [aria-current]) :is(a, span) {
-    color: var(--ground);
-    font-weight: 600;
   }
 
   /* ---- menu: a button that opens a list of actions, a native popover (button.menu-button +
@@ -855,30 +772,6 @@
   /* the checkbox's UA margin would stand the entry taller than the panel's other controls (C8) */
   .toolpanel > ul label > input {
     margin-block: 0;
-  }
-
-  /* ---- filter chip: one ACTIVE filter on the rail, a square chip in a control edge (never an
-     inversion — register row 3). HEIGHT is the rail's knob (law C8); the rail sets it to the
-     licensed compact size (owner 2026-08-07).
-     Its TYPE ROLE (--type-meta against the rail's --type-label controls) cites no ruling and is the
-     one four-axis exemption left in the C8 walker — owner question, issue #45. ---- */
-  .chip {
-    /* the out-of-row fallback, for the chip AND its ✕ (the demo exhibits one outside any row) */
-    --hit-fallback: var(--touch-target-compact);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    min-height: var(--control-height, var(--hit-fallback));
-    font: var(--type-meta);
-    /* an inset outline, not a border: a border would stand the chip taller than its row's one
-       height (C8), because its ✕ already fills that height */
-    outline: var(--line-width) solid var(--edge);
-    outline-offset: calc(-1 * var(--line-width));
-    padding-inline-start: var(--space-2);
-  }
-  .chip b {
-    font-weight: 400;
-    color: var(--ink-2);
   }
 
   /* ---- ledger: the result table in hairlines (DESIGN.md "Register and Ledger"). One lead per

@@ -42,7 +42,7 @@ simplicity checkable instead of a matter of taste.
      no redundant near-duplicates; anything genuinely new is added
      DELIBERATELY — named, filed, entered in the component inventory
      ("Component mapping") — or it doesn't ship.
-  2. **Views** — self-contained work surfaces (facet panel, result ledger,
+  2. **Views** — self-contained work surfaces (search sentence, result ledger,
      article reader, edit form, confirm panel). Viewport-agnostic: a view
      adapts to its CONTAINER (`@container`), never to the screen. One
      implementation per view — the reader in the workbench pane and on the
@@ -98,7 +98,7 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    toggle. One look; the papier experiment is over.
 3. **Dissolve bare-element wrapper components** (`button.html`,
    `input.html`, `select.html`) into plain semantic HTML styled by the
-   cascade. Structural atoms stay (signatur_tab, facet_group, ledger_row,
+   cascade. Structural atoms stay (signatur_tab, ledger_row,
    pagination, …).
 4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
    stay, and every component change updates them in the same wave —
@@ -289,12 +289,10 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
-| Facet group | `.facet` | `components/facet_group` | `components.css` facet group |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers) | `components.css` menu |
 | Toolpanel | `.toolpanel` | inline (article page: the Veröffentlichen confirmation; the list's "Spalten …", `workbench/_werkzeuge`) | `components.css` toolpanel |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines) | `components.css` byline |
-| Filter chip | `.chip` | inline (`_filterset`) | `components.css` filter chip |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
@@ -303,7 +301,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Panel | `.panel` | inline (confirm pages, the Bestand form's CAS conflict) | `forms.css` panel |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Sammelbearbeitung | `.bulk` | `workbench/_sammelleiste` | `layouts.css` Sammelbearbeitung |
-| Filter rail | `.filterrail` | `workbench/_filterrail` | `layouts.css` filter rail |
+| Search sentence | `.search-sentence` | `workbench/_suchsatz`, `_filterset` | `layouts.css` search sentence |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
 | Cover Platte | `.platte` | inline (`detail`) | `detail.css` cover Platte |

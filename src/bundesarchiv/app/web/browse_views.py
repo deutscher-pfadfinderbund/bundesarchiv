@@ -17,7 +17,7 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import urlencode
 
@@ -49,7 +49,7 @@ _PANE_PARAM = "artikel"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /`` — the workbench: search field, filter rail, results, "Neuer Artikel" button.
+    """``GET /`` — the workbench: the search sentence, the results.
 
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
@@ -102,8 +102,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-History-Restore-Request"):
         return render_screen(request, "workbench/workbench.html", context)
     if request.headers.get("HX-Request"):
-        # The filter rail sits outside the #results swap target, so the partial prepends its
-        # out-of-band fragments (oob gates them: the full page renders the rail once).
+        # The search sentence sits outside the #results swap target, so the partial prepends its
+        # out-of-band fragments (oob gates them: the full page renders the sentence once).
         context["oob"] = True
         return render(request, "workbench/_results.html", context)
     return render_screen(request, "workbench/workbench.html", context)
@@ -136,72 +136,35 @@ def choose_columns(request: HttpRequest) -> HttpResponseBase:
 
 @dataclass(frozen=True, slots=True)
 class _FacetItem:
-    """One clickable facet value, fully resolved for the template: its shown label, count, whether
-    it is the currently-active selection, and the query string clicking it produces (add, or remove
-    if already active). The template only prints — no link-building, no filter logic in HTML."""
+    """One entry of a slot's menu or of "+ Filter": its words, its count (empty where none is
+    shown), whether it is set, and the query clicking it produces (add, or remove when set). The
+    template only prints."""
 
     label: str
-    count: int
+    count: str
     active: bool
     query: str
 
 
 @dataclass(frozen=True, slots=True)
-class _FacetGroup:
-    """A filter-rail facet group (one ``<details>`` dropdown): its German heading and its items.
-    Every group shows a bare right-aligned count (collection counts are subtree counts now — no
-    "direkt:" hedge)."""
+class _Slot:
+    """One slot of the search sentence (a2): its words, and its menu -- the entry that clears it
+    (``unset_label`` and ``clear_query``, which is ``None`` while unset), then the values the index
+    counts."""
 
-    heading: str
+    label: str
+    unset_label: str
+    clear_query: str | None
     items: tuple[_FacetItem, ...]
     open: bool = False
 
 
 @dataclass(frozen=True, slots=True)
-class _FilterChip:
-    """One active filter as a rail chip (register row 3 inversion): its group heading, the active
-    value's label, and the query string that REMOVES it (``browse.without_param`` — the chip ✕ and
-    the dropdown's active row clear the same filter through the same link algebra)."""
+class _SetFilter:
+    """A set filter no slot shows: its words, and the query without it (its link removes it)."""
 
-    group: str
     label: str
     query: str
-
-
-def _filter_chips(
-    params: dict[str, str], parsed: browse.ParsedQuery, bestand: BestandChooser
-) -> tuple[_FilterChip, ...]:
-    """Every active filter as a rail chip, derived from the PARSED URL state — not from the facet
-    counts. The distinction matters exactly on the zero-hit page: a filter that matches nothing
-    vanishes from the recomputed counts (so the dropdown shows no active row), but its chip must
-    stay — the empty state says "Entferne einzelne Filter", and the chip ✕ is that affordance.
-    Labels mirror the dropdowns' (collection ULIDs resolve to names; the Datum bounds/toggle
-    reuse the group's own spellings); headings mirror the group headings."""
-    f = parsed.filters
-    chips: list[_FilterChip] = []
-
-    def chip(param: str, group: str, label: str) -> None:
-        chips.append(
-            _FilterChip(group=group, label=label, query=browse.without_param(params, param))
-        )
-
-    if f.collection is not None:
-        chip(browse.PARAM_COLLECTION, "Bestand", bestand.name_of(f.collection) or f.collection)
-    if f.media_type is not None:
-        chip(browse.PARAM_MEDIA_TYPE, "Medienart", f.media_type)
-    if f.document_type is not None:
-        chip(browse.PARAM_DOCUMENT_TYPE, "Dokumenttyp", f.document_type)
-    if f.tag is not None:
-        chip(browse.PARAM_TAG, "Schlagworte", f.tag)
-    if f.decade is not None:
-        chip(browse.PARAM_DECADE, "Jahrzehnte", str(f.decade))
-    if f.date_from is not None:
-        chip(browse.PARAM_DATE_FROM, "Datum", f"von: {f.date_from.isoformat()}")
-    if f.date_to is not None:
-        chip(browse.PARAM_DATE_TO, "Datum", f"bis: {f.date_to.isoformat()}")
-    if f.dateless:
-        chip(browse.PARAM_DATELESS, "Datum", "Ohne Datum")
-    return tuple(chips)
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,17 +230,8 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     )
 
 
-# Which index facet key feeds which rail facet group: (facet key, param key, German heading). The
-# collection group resolves ULIDs → names separately (below); the rest show the value verbatim.
-_FACET_GROUPS: tuple[tuple[str, str, str], ...] = (
-    ("media_type", browse.PARAM_MEDIA_TYPE, "Medienart"),
-    ("document_type", browse.PARAM_DOCUMENT_TYPE, "Dokumenttyp"),
-    ("tags", browse.PARAM_TAG, "Schlagworte"),
-    ("decades", browse.PARAM_DECADE, "Jahrzehnte"),
-)
-
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
-#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the rail's
+#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the sentence's
 #: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
 #: live input, never duplicated as hidden) and ``seite`` (a new search deliberately resets to
 #: page 1 — kept as-is).
@@ -287,7 +241,7 @@ _FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     """The active filter params as ``(key, value)`` pairs for the search form's hidden inputs — read
     from the SAME ``params`` mapping the facet/sort/pagination links below build from, so the form
-    and the rail can never drift out of sync (GH #21: typing refines WITHIN the active filter
+    and the sentence can never drift out of sync (GH #21: typing refines WITHIN the active filter
     scope). A blank or absent param is omitted entirely — never an empty-value hidden input."""
     return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
 
@@ -302,7 +256,7 @@ def _results_context(
     auswahl: list[str],
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
-    rail/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
+    sentence/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
     template calls no functions with args), so the raw query dict itself is never handed to the
     template. No visibility logic — that already happened in ``search``; the ledger's archivist
     chrome is a presentation gate off ``is_archivist``.
@@ -323,13 +277,6 @@ def _results_context(
         # refining WITHIN the current filter scope instead of silently dropping it.
         "filter_params": _form_filters(params),
         "page": page,
-        "facet_groups": _facet_groups(params, parsed, page, bestand),
-        # The rail's active-filter chips — from the parsed URL state, so a zero-hit filter keeps
-        # its removal affordance even after it vanishes from the recomputed facet counts.
-        "filter_chips": _filter_chips(params, parsed, bestand),
-        # "Alle Filter entfernen" at the END of the chip row (owner 2026-08-07, rail round 2):
-        # drops every filter param, keeps q + sort. The template renders it only alongside chips.
-        "clear_filters_query": browse.clear_filters_query(params),
         "ledger": ledger.build(
             page.hits,
             columns=ledger.chosen(request.COOKIES.get(ledger.COOKIE)),
@@ -349,6 +296,7 @@ def _results_context(
         # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
         "leerer_bestand": _only_bestand_filter(parsed) if total == 0 else None,
     }
+    context.update(_sentence(params, parsed, page, bestand, is_archivist=is_archivist))
     if is_archivist:
         context.update(_bulk_bar_context(params, page, auswahl, bestand))
     return context
@@ -451,23 +399,99 @@ def _bulk_bar_context(
     return context
 
 
-def _facet_groups(
+def _sentence(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
     page: SearchPage,
     bestand: BestandChooser,
-) -> tuple[_FacetGroup, ...]:
-    """Build every rail facet group + the "Ohne Datum" bucket as fully-resolved view-models. The
-    collection group resolves ULID facet values to Collection names (via ``bestand``, the shared
-    per-request load) and is marked ``direct``; the "Ohne Datum" bucket is a single toggle item."""
+    *,
+    is_archivist: bool,
+) -> dict[str, object]:
+    """The search sentence's parts: its three slots (Bestand, Jahrzehnt, Typ), every set filter no
+    slot shows, and the "+ Filter" checks (Entwürfe for archivists only)."""
+    f = parsed.filters
     facets = page.facets
-    groups: list[_FacetGroup] = [_collection_group(params, facets.get("collection", ()), bestand)]
-    groups += [
-        _FacetGroup(heading, _facet_items(params, param, facets.get(key, ())))
-        for key, param, heading in _FACET_GROUPS
-    ]
-    groups.append(_datum_group(params, parsed, page))
-    return tuple(g for g in groups if g.items)
+    names = bestand.names()
+    decade_menu = _facet_items(
+        params, browse.PARAM_DECADE, facets.get("decades", ()), label=lambda d: f"{d}er"
+    )
+    if page.dateless_count or f.dateless:
+        decade_menu += (
+            _toggle(params, browse.PARAM_DATELESS, "ohne Datum", f.dateless, page.dateless_count),
+        )
+    slots = (
+        _slot(
+            params,
+            browse.PARAM_COLLECTION,
+            f.collection and names.get(f.collection, f.collection),
+            "allen Beständen",
+            _facet_items(
+                params,
+                browse.PARAM_COLLECTION,
+                facets.get("collection", ()),
+                label=lambda u: names.get(u, u),
+            ),
+        ),
+        _slot(
+            params,
+            browse.PARAM_DECADE,
+            None if f.decade is None else f"{f.decade}er",
+            "alle Jahrzehnte",
+            decade_menu,
+        ),
+        _slot(
+            params,
+            browse.PARAM_DOCUMENT_TYPE,
+            f.document_type,
+            "jeder Typ",
+            _facet_items(params, browse.PARAM_DOCUMENT_TYPE, facets.get("document_type", ())),
+        ),
+    )
+    unslotted = (
+        (browse.PARAM_MEDIA_TYPE, f.media_type and f"Medienart: {f.media_type}"),
+        (browse.PARAM_TAG, f.tag and f"Schlagwort: {f.tag}"),
+        (browse.PARAM_DATE_FROM, f"ab {f.date_from.isoformat()}" if f.date_from else None),
+        (browse.PARAM_DATE_TO, f"bis {f.date_to.isoformat()}" if f.date_to else None),
+        (browse.PARAM_DATELESS, "ohne Datum" if f.dateless else None),
+        (browse.PARAM_DIGITAL, "digital" if f.has_files else None),
+        (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
+    )
+    checks = [_toggle(params, browse.PARAM_DIGITAL, "Digital (mit Dateien)", f.has_files)]
+    if is_archivist:
+        checks.append(_toggle(params, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
+    return {
+        "slots": slots,
+        "set_filters": tuple(
+            _SetFilter(label, browse.without_param(params, param))
+            for param, label in unslotted
+            if label
+        ),
+        "filter_checks": tuple(checks),
+    }
+
+
+def _slot(
+    params: dict[str, str],
+    param: str,
+    value_label: str | None,
+    unset_label: str,
+    items: tuple[_FacetItem, ...],
+) -> _Slot:
+    """A slot reads its set value's words, else ``unset_label``; its menu clears it when set."""
+    return _Slot(
+        label=value_label or unset_label,
+        unset_label=unset_label,
+        clear_query=browse.without_param(params, param) if value_label is not None else None,
+        items=items,
+    )
+
+
+def _toggle(
+    params: dict[str, str], param: str, label: str, active: bool, count: int | None = None
+) -> _FacetItem:
+    """A boolean filter's entry: set, it removes the filter; unset, it adds ``param=1``."""
+    query = browse.without_param(params, param) if active else browse.with_param(params, param, "1")
+    return _FacetItem(label, "" if count is None else vocab.count(count), active, query)
 
 
 def _facet_items(
@@ -475,74 +499,22 @@ def _facet_items(
     param: str,
     counts: tuple[FacetCount, ...],
     *,
-    labels: Mapping[str, str] | None = None,
+    label: Callable[[str], str] = str,
 ) -> tuple[_FacetItem, ...]:
-    """Turn a facet's ``FacetCount``s into clickable items. ``labels`` optionally maps the raw value
-    to a display name (used for collection ULIDs). An item whose value is the current selection is
-    marked active and its query REMOVES it (click-to-toggle); otherwise the query ADDS it."""
+    """A facet's values as menu entries, named by ``label``. The value that is set removes its
+    filter when clicked; every other one sets it."""
     active_value = params.get(param, "")
-    items = []
-    for fc in counts:
-        is_active = fc.value == active_value
-        query = (
-            browse.without_param(params, param)
-            if is_active
-            else browse.with_param(params, param, fc.value)
+    return tuple(
+        _FacetItem(
+            label=label(fc.value),
+            count=vocab.count(fc.count),
+            active=fc.value == active_value,
+            query=browse.without_param(params, param)
+            if fc.value == active_value
+            else browse.with_param(params, param, fc.value),
         )
-        label = (labels or {}).get(fc.value, fc.value)
-        items.append(_FacetItem(label=label, count=fc.count, active=is_active, query=query))
-    return tuple(items)
-
-
-def _collection_group(
-    params: dict[str, str],
-    counts: tuple[FacetCount, ...],
-    bestand: BestandChooser,
-) -> _FacetGroup:
-    """The Bestand facet: ULIDs resolved to Collection names. Counts are SUBTREE counts (the query
-    facets over ``collection_ancestors``), so the number matches what clicking the (subtree) filter
-    yields — a bare right-aligned count like every other group (the old "direkt:" hedge is gone).
-    Empty ``counts`` yields an empty group (dropped by ``_facet_groups``) — and resolves no names,
-    keeping the shared load lazy."""
-    labels = bestand.names() if counts else {}
-    return _FacetGroup(
-        "Bestand",
-        _facet_items(params, browse.PARAM_COLLECTION, counts, labels=labels),
+        for fc in counts
     )
-
-
-def _datum_group(
-    params: dict[str, str], parsed: browse.ParsedQuery, page: SearchPage
-) -> _FacetGroup:
-    """The DATUM group: the "Ohne Datum" toggle PLUS any active von/bis range, each as a removable
-    row (the chips row died — active date filters are removed here, like every other facet).
-
-    "Ohne Datum" (data honesty, ideas §1.3): a toggle counting in-scope dateless rows; shown when
-    there ARE dateless rows OR it is already on. Active → removes it; inactive → adds ``ohne_datum``.
-    von/bis: an active bound shows as an active row (count 0 — a bound is a state, not a bucket) whose
-    query removes just that bound. Order: von, bis, then Ohne Datum."""
-    items: list[_FacetItem] = []
-    for param, label in ((browse.PARAM_DATE_FROM, "von"), (browse.PARAM_DATE_TO, "bis")):
-        raw = params.get(param)
-        if raw:
-            items.append(
-                _FacetItem(
-                    label=f"{label}: {raw}",
-                    count=0,
-                    active=True,
-                    query=browse.without_param(params, param),
-                )
-            )
-    count = page.dateless_count
-    active = parsed.filters.dateless
-    if count > 0 or active:
-        query = (
-            browse.without_param(params, browse.PARAM_DATELESS)
-            if active
-            else browse.with_param(params, browse.PARAM_DATELESS, "1")
-        )
-        items.append(_FacetItem(label="Ohne Datum", count=count, active=active, query=query))
-    return _FacetGroup("Datum", tuple(items))
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:

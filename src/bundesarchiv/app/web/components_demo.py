@@ -32,12 +32,6 @@ _SORT_OPTIONS = (
     ("titel", "Titel"),
 )
 
-_FACET_ITEMS_BESTAND = (
-    {"label": "Fotografien", "count": 24, "query": "bestand=FOTOS", "active": False},
-    {"label": "Aktenbestand", "count": 8, "query": "bestand=AKTEN", "active": True},
-    {"label": "Vorstandsunterlagen", "count": 3, "query": "bestand=VORSTAND", "active": False},
-)
-
 #: Ledger sample hits — the known demo set, printed through the REAL ``ledger.build``. The draft
 #: carries a Signatur (the lifecycle rides the title as its mark); one Signatur sits at the domain
 #: ceiling (owner 2026-08-07: no spaces, 8 characters); the last three show absence as absence.
@@ -142,7 +136,6 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "stylesheet": static("components.css"),
             "modes": _MODES,
             "sort_options": _SORT_OPTIONS,
-            "facet_items_bestand": _FACET_ITEMS_BESTAND,
             "swatch_pairs": _SWATCH_PAIRS,
             "swatch_lines": _SWATCH_LINES,
             "ledger": _demo_ledger(),

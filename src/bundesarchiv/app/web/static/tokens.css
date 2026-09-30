@@ -64,6 +64,7 @@
     --type-page-title: 700 3rem / 1.08 var(--font-serif);
     --type-subhead: 700 1.35rem / 1.25 var(--font-serif);
     --type-entry: 400 1.1rem / 1.35 var(--font-body); /* the lead of a list row */
+    --type-query: 400 1.25rem / 1.4 var(--font-body); /* the search sentence */
     --type-control: 600 0.95rem / 1 var(--font-body); /* the pager's steps */
     --underline-offset: 0.2em;
 
@@ -82,26 +83,25 @@
     --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
      the value each [role=toolbar] row sets as its --control-height (law C8) */
     --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
-     round 2): the filter-rail chips + their ✕ ONLY; still ≥ the WCAG 2.2 AA 24px floor. It is
-     also the VALUE the header and the rail set as their --control-height row knob. */
+     round 2), still ≥ the WCAG 2.2 AA 24px floor: the VALUE the header sets as its --control-height
+     row knob. */
     --line-width: 1px; /* every line; a contrast mode may thicken it globally */
     --focus-width: 3px; /* the focus ring: width and offset */
     --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
     --measure: 80rem; /* the page grid: the header and a page share its measure and gutter */
     --gutter: 3rem;
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
+    --measure-query-min: 18rem; /* the search sentence's field before it wraps */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
     --measure-sig: 12ch; /* a Signatur of at most 8 characters (learning G.31), in the data face */
     --measure-word: 9rem; /* a word cell of the ledger: Typ, Bestand */
 
     /* THE STACKING MODEL (C5 one level down), lowest first:
        (auto)             everything in normal flow, plus the pane column's sticky sheet
-       --z-overlay-panel  a dropped overlay panel — above the sticky sheet it may overlap
        --z-header         the page header — above every control row (learning G.36)
        --z-banner         the viewport-fixed failure banner: above everything
      A popover (the menus) sits in the top layer and needs no value. A new layer joins this
      scale. */
-    --z-overlay-panel: 2;
     --z-header: 5;
     --z-banner: 10;
   }
@@ -109,6 +109,7 @@
   @media (width < 40rem) {
     :root {
       --type-page-title: 700 2rem / 1.08 var(--font-serif);
+      --type-query: 400 1.1rem / 1.4 var(--font-body);
       --gutter: var(--space-4);
     }
   }

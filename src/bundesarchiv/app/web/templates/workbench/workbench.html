@@ -8,10 +8,12 @@ The workbench page. A plain GET renders it whole; an HX-Request GET renders only
 {% block head_extra %}<script src="{% static "catalog_bulk.js" %}" defer></script>{% endblock %}
 {% comment %}body.vorschau adds the pane column (the pane switch, layouts.css).{% endcomment %}
 {% block body_class %}workbench{% if vorschau %} vorschau{% endif %}{% endblock %}
-{% block header %}{% include "workbench/_header.html" %}{% endblock %}
+{% comment %}On this page the search field is the sentence's; the header drops its own.{% endcomment %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block skip_ziel %}results{% endblock %}
 {% block body %}
-{% include "workbench/_filterrail.html" %}
+{% include "workbench/_suchsatz.html" %}
+{% include "workbench/_trefferzahl.html" with total=total only %}
 <div class="frame">
   {% include "workbench/_results.html" %}
   {% if pane %}{% include "workbench/_pane.html" %}{% endif %}

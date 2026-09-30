@@ -177,13 +177,13 @@ def test_ledger_headers_compute_one_uniform_treatment(
 #: The generic control-row walker (design-review-law E, mandatory; learning G.21: invariants are
 #: WALKERS over all instances). Rows are DISCOVERED, never listed: EVERY element that DECLARES the
 #: --control-height knob (its computed value differs from its parent's) and EVERY [role=toolbar] is
-#: walked as a row — so the header cluster, the filter rail, the edit form's action row, each
+#: walked as a row — so the header cluster, the search sentence, the edit form's action row, each
 #: toolbar and each dropped overlay panel are found by the mechanism law C8 is written in, and the next
 #: row built the same way is covered the day it appears. A toolbar that INHERITS its owning row's knob
 #: (a toolbar inside a row) is walked too; that costs nothing, because the equality it then
 #: asserts inside the toolbar is a SUBSET of the one its owning row already asserts.
 #: The control set is EVERY interactive element in the row — link, button, input, select, textarea,
-#: summary, chip — so the selector and law C8's own words ("every interactive child of a control row")
+#: summary — so the selector and law C8's own words ("every interactive child of a control row")
 #: agree. Nothing is left out: `input`/`select`, the two types the consumption rule names explicitly,
 #: were missing, and while they were the header's search field could have stood 61px tall at a 24px
 #: font beside 32px buttons with the whole suite green; bare links were missing too, and `a.back` stood
@@ -213,7 +213,7 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
         name: name(row),
         knob: getComputedStyle(row).getPropertyValue('--control-height').trim(),
         controls: Array.from(row.querySelectorAll(
-            'a[href], button, input, select, textarea, summary, .chip'))
+            'a[href], button, input, select, textarea, summary'))
             // an OVERLAY panel's entries belong to the panel, never to the row the panel hangs from
             // (the law is explicit: a toolbar may own a disclosure, and its dropped contents are
             // overlay contents). The panel is a row in its own right, so its entries are measured
@@ -233,18 +233,15 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
                 const s = getComputedStyle(el);
                 return {
                     label: (el.getAttribute('aria-label') || el.textContent).trim(),
-                    // closest, not matches: the chip's own ✕ INHERITS the chip's typography, so a
-                    // flag that only saw the chip itself measured the ✕ against the row's controls.
-                    chip: !!el.closest('.chip'),
-                    // The ACTIVE facet row carries register row 3's inversion mark, and what row 3
+                    // The ACTIVE panel entry carries register row 3's inversion mark, and what row 3
                     // licenses is the fg/bg swap plus its SEMIBOLD — one axis. So it is exempt on
                     // font-weight and compared on the other four; a blanket exemption made a
                     // different face, size, transform or tracking inside that row unfindable.
                     inverted: !!el.closest('li:has(> [aria-current])'),
                     // ...and the row's TEXT OCCUPANTS, which share its height but not its control
                     // treatment: the wordmark carries the owner's ONE display face
-                    // (tokens.css --type-wordmark, 2026-08-07) and the rail's clear-all is "a quiet
-                    // text link, deliberately not a chip" (owner, rail round 2). Two named
+                    // (tokens.css --type-wordmark, 2026-08-07) and the sentence's clear-all is a quiet
+                    // text link (owner 2026-09-30). Two named
                     // selectors, not a category — anything else IS compared.
                     text: el.matches('.wordmark, .filterset > a'),
                     // a checkbox or radio inside its <label> is hit anywhere on the label, so the
@@ -274,8 +271,8 @@ def _walk_control_rows(page: Page) -> dict[str, list[dict[str, str | int | bool]
 
     A dropped overlay panel is a control row too (it declares the knob), but its entries are only
     MEASURABLE while it is open — a closed <details> or popover keeps them out of checkVisibility. So
-    each overlay is opened in turn by its trigger and the walk repeated; one at a time, because the
-    rail's facet groups share a ``name`` and two can never be open together. Row indices are stable
+    each overlay is opened in turn by its trigger and the walk repeated; one at a time, because
+    opening one popover closes the others. Row indices are stable
     across the passes (same DOM), so the open pass fills in the rows the closed pass saw empty."""
     rows: list[dict[str, object]] = page.evaluate(_CONTROL_ROW_WALKER_JS, OVERLAY_PANELS)
     walked: dict[str, list[dict[str, str | int | bool]]] = {}
@@ -305,9 +302,8 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
     the row's one height (offsetHeight within 1px), and the row's CONTROLS share one type treatment.
 
     The type check is TWO checks, because the licensed deviations are one axis wide, not five. FACE
-    (size, family, transform, tracking) is compared over every control but the chip — whose own type
-    role is the rail's one licensed deviation — and WEIGHT additionally excuses the active facet row's
-    register-row-3 inversion mark, which is exactly a semibold. A single five-axis exemption meant a
+    (size, family, transform, tracking) is compared over every control, and WEIGHT additionally
+    excuses the active panel entry's register-row-3 mark, which is exactly a semibold. A single five-axis exemption meant a
     marked control could differ in ANY of them undetected. The two named text occupants (see the
     walker) are outside both; every exempted element still has to match on HEIGHT."""
     defects: list[str] = []
@@ -326,7 +322,7 @@ def _control_row_defects(by_name: dict[str, list[dict[str, str | int | bool]]]) 
         heights = {f"{i}:{c['label']}": int(str(c["height"])) for i, c in enumerate(controls)}
         if max(heights.values()) - min(heights.values()) > 1:
             defects.append(f"row '{name}' computes more than one height: {heights}")
-        compared = [c for c in controls if not (c["chip"] or c["text"])]
+        compared = [c for c in controls if not c["text"]]
         faces = {c["face"] for c in compared}
         if len(faces) > 1:
             defects.append(f"row '{name}' computes mixed control faces: {faces}")
@@ -345,7 +341,7 @@ def test_control_rows_compute_one_height_source(
     # PUBLISHED record carries media, so the media register's icon toolbar — the form wave's new
     # control row — was composed on a screen this walk never visited (G.21 applied to page coverage).
     #
-    # Per screen the walk finds the header cluster, the filter rail with its chips AND dropdowns, the
+    # Per screen the walk finds the header cluster, the search sentence, the
     # list's tool row, the dropped overlay panels' entries, the edit form's action row
     # (Speichern, the lifecycle action and "Mehr …" must
     # compute one height) and the media register's row toolbars. Each screen NAMES the row prefixes it
@@ -461,7 +457,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 ) -> None:
     # The walk above asserts uniformity; this asserts it is not walking an empty page. The row KINDS
     # the app composes, each on the screen that has the most of them: the header's control cluster, the
-    # rail's chips, the dropped panels' entries, and the edit form's action row plus the media
+    # dropped panels' entries, and the edit form's action row plus the media
     # register's per-row toolbars on the published edit surface (every one of those names itself
     # "span.file-row-tools[toolbar]" — keying rows by name once collapsed 50 such rows into one entry
     # and the walk proved a SINGLE toolbar while reporting green, G.37).
@@ -469,9 +465,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     page.goto(live_workbench + "/?schlagwort=sommer")
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
-    rail = next(n for n in filtered if "filterrail" in n)
-    assert len(filtered[header]) >= 2  # the Suchen button + the "+ Neu …" button
-    assert any(c["chip"] for c in filtered[rail])  # the active-filter chip is present
+    assert filtered[header]  # the "+ Neu …" button (the search field is the sentence's here)
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
     assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
 
@@ -495,8 +489,8 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
 #: regression class CLAUDE.md records. elementFromPoint answers the reachability question the way the
 #: browser will answer it for the archivist's pointer, and it costs the walker one loop, so EVERY
 #: overlay gets it rather than the one that failed (learning G.21).
-#: Opens EVERY overlay on the page in turn (one at a time — the rail's facet groups share a `name`, so
-#: two can never be open together anyway) and returns one facts record per panel. One evaluate per
+#: Opens EVERY overlay on the page in turn (one at a time — opening one popover closes
+#: the others anyway) and returns one facts record per panel. One evaluate per
 #: (screen, width) instead of two clicks plus an evaluate per panel: the whole measurement is
 #: synchronous DOM work (opening forces layout before getBoundingClientRect reads it), so
 #: paying a Playwright round-trip per open/close bought nothing but wall clock.
@@ -648,10 +642,10 @@ def test_overlays_stay_inside_the_viewport(
     page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
     page.goto(live_workbench + "/")
     anchors = page.evaluate(
-        "() => ['.facet > ul', 'ul.menu[popover]'].map("
+        "() => ['ul.menu[popover]'].map("
         "(s) => getComputedStyle(document.querySelector(s)).positionAnchor)"
     )
-    assert not {"--dropdown", "--menu-button"} & set(anchors), (
+    assert "--menu-button" not in anchors, (
         f"the enhancement is still live — the fallback tier would go unproven: {anchors}"
     )
     defects += [
@@ -711,30 +705,29 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     expect(page.locator(".pager")).to_have_count(0)
 
 
-def test_rail_links_keep_the_typed_q_after_a_live_swap(
+def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # The rail lives OUTSIDE the #results swap target, so an htmx q-swap left every rail link
-    # rendered from the PREVIOUS request: the chip ✕ and "Alle Filter entfernen" still pointed at
-    # a query with no q. Typing "Sommerfahrt" and then removing a filter navigated to "?" and
-    # destroyed the search — violating browse.clear_filters_query's contract ("every FILTER param
-    # drops, q + sort survive"). One fact, one source: the whole filter set refreshes out-of-band
-    # with the count, so the rail can never describe a query the URL no longer has.
+    # The search sentence lives OUTSIDE the #results swap target, so an htmx q-swap would leave
+    # every slot link rendered from the PREVIOUS request: removing a filter after typing
+    # "Sommerfahrt" navigated to a query with no q and destroyed the search. One fact, one source:
+    # the slots refresh out-of-band with the count, so no link describes a query the URL no longer
+    # has. Both set filters here are ones no slot shows, so each is its own removing link.
     page = archivist_page
-    for remove in ("Filter entfernen: sommer", "Alle Filter entfernen"):
+    for nth in (0, 1):
         page.goto(live_workbench + "/?schlagwort=sommer&medienart=Foto(s)")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
-        expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
-        link = (
-            page.get_by_label(remove) if remove.startswith("Filter") else page.get_by_text(remove)
-        )
+        expect(page.locator("#trefferzahl")).not_to_be_empty()
+        link = page.locator(".search-sentence .is-set > a").nth(nth)
         assert "q=Sommerfahrt" in (link.get_attribute("href") or ""), (
-            f"'{remove}' was rendered before the q existed: {link.get_attribute('href')}"
+            f"set filter {nth} was rendered before the q existed: {link.get_attribute('href')}"
         )
         link.click()
         page.wait_for_load_state()
-        assert "q=Sommerfahrt" in page.url, f"'{remove}' destroyed the search: {page.url}"
+        assert "q=Sommerfahrt" in page.url, (
+            f"removing set filter {nth} destroyed the search: {page.url}"
+        )
 
 
 def test_pane_open_never_folds_the_ledger(
@@ -979,11 +972,10 @@ def test_create_bestand_then_file_an_article_under_it(
     page.fill('textarea[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
     page.click('button:has-text("Anlegen")')
     page.wait_for_url("**/bearbeiten**")
-    # now the Bestand has an article, so it appears in the workbench's Bestand filter dropdown
-    # (the rail is the primary filter interaction — open the group to see its values)
+    # now the Bestand has an article, so it appears in the search sentence's Bestand slot menu
     page.goto(live_workbench + "/")
-    page.locator(".filterrail summary", has_text="Bestand").click()
-    expect(page.locator(".facet a", has_text="Plakate")).to_be_visible()
+    page.locator(".search-sentence-slots .menu-button").first.click()
+    expect(page.locator(".search-sentence .menu a", has_text="Plakate")).to_be_visible()
 
 
 # --- create a draft ----------------------------------------------------------------
@@ -1364,7 +1356,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     page.wait_for_url("**q=Herbstlager**")
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the swap announced its count through the node outside #results
-    expect(page.locator(".filterrail #trefferzahl")).to_have_text("1 Treffer")
+    expect(page.locator("#trefferzahl")).to_have_text("1 Treffer")
     # htmx 4 re-runs the <script>s of swapped content; a restore swaps the body, so a script there
     # would start a second htmx (and every later Back would restore twice)
     assert page.evaluate("() => htmx === window.__htmxAtLoad"), "the restore re-ran htmx.min.js"

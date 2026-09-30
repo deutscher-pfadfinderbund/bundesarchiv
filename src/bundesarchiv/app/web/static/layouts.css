@@ -1,4 +1,4 @@
-/* The page frame (header · filter rail · results · preview pane) and the chrome every screen
+/* The page frame (header · search sentence · results · preview pane) and the chrome every screen
    shares: the compositions, plus the components only the frame places. Load order: tokens,
    components, then this file. Compositions own the BETWEEN (law C4) and style only what they placed
    (C14). */
@@ -13,38 +13,111 @@
 }
 
 @layer components {
-  /* ---- filter rail: the PRIMARY filter interaction (owner 2026-08-07 — the facet sidebar died
-     with it). It lives OUTSIDE #results, so filter clicks are plain GET navigations and the rail
-     re-renders with fresh counts. Narrow viewports simply wrap the row. ---- */
-  .filterrail {
-    /* a CONTROL ROW (law C8) at the licensed COMPACT height (owner 2026-08-07, rail round 2) */
-    --control-height: var(--touch-target-compact);
-    /* the containing block for its dropdowns' panels (law C12) */
+  /* ---- search sentence: the list's heading, "Suche [field] in … · … · …  + Filter" (a2,
+     DESIGN.md "Search sentence"). It lives OUTSIDE #results, so its links are plain GET navigations;
+     a q-swap refreshes its slots out-of-band. Set slots in ink, open ones quieter, centre dots
+     between. The form is its size container: at S the unset slots after the first fold away. ---- */
+  .satz {
+    container-type: inline-size;
+    /* on the page grid, like the header: "Suche" starts where the wordmark starts */
+    padding: var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter))
+      var(--space-2);
+  }
+  .search-sentence {
+    /* the containing block for its menus' panels (law C12) */
     position: relative;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    /* no band, no rule (owner 2026-08-07: "lighter, more air below the navbar") — the rail sits
-       directly on the desk; only its dropdown buttons keep a hairline */
-    padding: var(--space-4) var(--space-4) var(--space-2);
+    align-items: baseline;
+    gap: var(--space-2);
+    font: var(--type-query);
+    color: var(--ink-2);
   }
-  /* its text occupants take the row's line box (the compositions' row-occupant rule, law C8) */
-  :is(.filterrail, .filterrail > .filterset) > a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--control-height);
+  .search-sentence-field {
+    flex: 1 1 var(--measure-query-min);
+    max-inline-size: var(--measure-query);
+    font: inherit;
   }
-  /* the filter set is grouped in the DOM because it is the unit an htmx q-swap refreshes
-     out-of-band — never because it is a box, hence display: contents */
-  .filterrail > .filterset {
+  /* grouped in the DOM because it is the unit a q-swap refreshes, never because it is a box */
+  .search-sentence > .filterset {
     /* biome-ignore lint/nursery/useBaseline: display: contents is allowed for layout (law F) */
     display: contents;
   }
-  /* the clear-all link ("Alle Filter entfernen", owner 2026-08-07 rail round 2): a quiet text
-     link ending the chip row, deliberately not a chip */
-  .filterrail > .filterset > a {
+  .search-sentence-slots {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  /* "in" rides with the first slot, so it never ends a line alone */
+  .search-sentence-slots > :first-child {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .search-sentence-slots > div + div::before {
+    content: "·";
+    display: inline-block;
+    margin-inline: var(--space-3) var(--space-2);
+    color: var(--ink-2);
+  }
+  /* an open slot is quieter: a context, it re-points the ink its button reads */
+  .search-sentence-slots > .is-minor {
+    --ink: var(--ink-2);
+  }
+  .search-sentence :is(.menu-button, .is-set > a) {
+    font: inherit;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .search-sentence :is(.menu-button, .is-set > a):hover {
+    text-decoration: underline;
+  }
+  /* "+ Filter" reads in an open slot's quieter ink */
+  .search-sentence-add {
+    --ink: var(--ink-2);
+    padding-inline-start: var(--space-3);
+  }
+  /* a slot's entry: the value, then its count at the end edge; the set value in bold */
+  .search-sentence .menu a {
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .search-sentence .menu a > span {
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+  .search-sentence :is(.menu, .toolpanel) a[aria-current] {
+    font-weight: 600;
+  }
+  /* "+ Filter": a check list of links; the box before each entry is filled when it is set */
+  .search-sentence .toolpanel a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--control-height);
     font: var(--type-meta);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .search-sentence .toolpanel a::before {
+    content: "";
+    inline-size: 1em;
+    block-size: 1em;
+    border: var(--line-width) solid currentColor;
+  }
+  .search-sentence .toolpanel a[aria-current]::before {
+    background: currentColor;
+  }
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
+    .search-sentence-label,
+    .search-sentence-slots > .is-minor:not(:first-child) {
+      display: none;
+    }
+    .search-sentence-field {
+      flex-basis: 100%;
+      max-inline-size: none;
+    }
   }
 
   /* ---- Sammelbearbeitung: a COLLAPSED native disclosure (owner 2026-08-07 — bulk tools are
@@ -213,7 +286,7 @@
 @layer compositions {
   /* ---- header bar: wordmark + screen chrome (search / back link) ---- */
   body > header {
-    /* a CONTROL ROW (law C8) — the compact height, the same the rail sets */
+    /* a CONTROL ROW (law C8) — the compact height */
     --control-height: var(--touch-target-compact);
     /* the containing block for the overlay panels its controls drop (law C12) */
     position: relative;
@@ -277,10 +350,9 @@
      A bare <a> or <p> is an inline box, and min-height does nothing to one — so the components-layer
      consumption rule, which names only button/a.button/summary/input/select, could not reach them and
      they stood at their own line box: a.back 19px and a breadcrumb crumb 18px beside 32px buttons,
-     both under the WCAG 2.2 AA 24px target floor (law D). The filter rail owns the same rule for its
-     own occupants. DIRECT-CHILD paths through the structures the compositions placed (law C14), so it
-     can never reach into a dropped overlay panel, whose entries are sized by the panel's own
-     re-declared knob. ---- */
+     both under the WCAG 2.2 AA 24px target floor (law D). DIRECT-CHILD paths through the structures the
+     compositions placed (law C14), so it can never reach into a dropped overlay panel, whose
+     entries are sized by the panel's own re-declared knob. ---- */
   :is(body > header, body > header > nav) > :is(a, p) {
     display: inline-flex;
     align-items: center;
@@ -294,7 +366,8 @@
     grid-template-columns: [main] minmax(0, 1fr);
     align-items: start;
     gap: var(--space-4);
-    padding: var(--space-4);
+    /* on the page grid, like the header (body > header): the list starts where the wordmark starts */
+    padding: var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
   }
 
   /* the work column: a vertical stack, whatever the screen puts in it. The workbench's bulk form
@@ -410,7 +483,8 @@
      ============================================================ */
   /* REM, not px: the ledger's S form is a 40rem CONTAINER query (components.css) whose "never
      folds while the pane is open" guarantee (decision 1) is an inequality against this switch —
-     pane ≤26rem + the 1rem gap + 2rem frame padding out of 80rem leaves main ≥ ~51rem > 40rem.
+     pane ≤26rem + the 1rem gap + 6rem frame padding (two gutters) out of 80rem leaves main
+     ≥ ~47rem > 40rem.
      Both sides must share the rem unit or a non-default root font size silently breaks the
      margin. */
   @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {

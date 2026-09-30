@@ -55,12 +55,11 @@ pane column.
 the demo. {% endcomment %}
 <header>
   <a class="wordmark" href="{% url 'dev-layout' %}">Bundesarchiv</a>
-  {% include "workbench/_header.html" with is_archivist=True is_signed_in=True %}
+  {% include "workbench/_header.html" with is_archivist=True is_signed_in=True ohne_suche=True %}
 </header>
 
-{% comment %} Filter rail — the REAL workbench partial over demo context (facet_groups +
-filter_chips); one group is served open to exhibit the dropped overlay panel. {% endcomment %}
-{% include "workbench/_filterrail.html" %}
+{% comment %} The search sentence — the REAL workbench partial over demo context. {% endcomment %}
+{% include "workbench/_suchsatz.html" %}
 
 <div class="frame">
 

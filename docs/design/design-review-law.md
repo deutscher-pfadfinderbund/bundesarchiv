@@ -87,10 +87,10 @@ lint (E) onto these rows; components still carrying retired cues are listed in `
 | 6 | Dashed border | empty / hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published / normal state renders no mark | — |
 | 8 | Paper sheet material | **RETIRED** (2026-09-27: flat — no tint, no shadow). | forbidden — no shadow, gradient, glow or texture anywhere |
-| 9 | Icons | ONE stroke set (24px grid, stroke 2, `currentColor`; app `components/icon.html`, mock `system/icons.svg`, name for name). Slots: row toolbars (`role="toolbar"`, the media row tools), the removing × (`.remove`, `.chip > button`), the top bar's Abmelden (`log-out`). Every icon-only control names itself. | forbidden — no icon fonts, no second style |
+| 9 | Icons | ONE stroke set (24px grid, stroke 2, `currentColor`; app `components/icon.html`, mock `system/icons.svg`, name for name). Slots: row toolbars (`role="toolbar"`, the media row tools), the removing × (`.remove`), the top bar's Abmelden (`log-out`). Every icon-only control names itself. | forbidden — no icon fonts, no second style |
 | 10 | Pane-row marker | **SUSPENDED** until the list page is recomposed (the preview pane itself is an open question; its token `--surface-container-high` has no monochrome role). | forbidden |
 | 11 | Ledger margin rule | **RETIRED** (2026-09-29, the list wave: the a2 list the owner reviewed has no vertical rule; the Signatur is a quiet column near the end). History: one vertical hairline after the leading Signatur column. | forbidden — no vertical rules |
-| 12 | Floating panel edge | **AMENDED** (was the overlay shadow; 2026-09-27 the edge went from `--edge` to `--ink`: a panel is never quieter than the control that opened it): transient panels are page surface with a 1px `--ink` border, in the top layer via the native popover — the menu (`ul.menu[popover]`), the help popover (`.popover`), the tool panel (`.toolpanel`), the facet panel (`.facet > ul`), the suggestion list (`.autocomplete-list`) | forbidden — no shadow on anything |
+| 12 | Floating panel edge | **AMENDED** (was the overlay shadow; 2026-09-27 the edge went from `--edge` to `--ink`: a panel is never quieter than the control that opened it): transient panels are page surface with a 1px `--ink` border, in the top layer via the native popover — the menu (`ul.menu[popover]`), the help popover (`.popover`), the tool panel (`.toolpanel`), the suggestion list (`.autocomplete-list`) | forbidden — no shadow on anything |
 | 13 | Sort glyph | the direction glyph on the sortable head carrying the active sort; on other sortable heads only on hover / focus (`.ledger th > a`; mock `.ledger-sort`) | forbidden — no step-up of the sorted column |
 | 14 | Hairline row rule | `--rule` 1px between the rows of a register or ledger that have two ends (a lead and a figure) | forbidden — never above the first or below the last row, never under headers, filter bars or section heads |
 | 15 | Heavy rule | 3px, `--error`: the top of the edit-conflict notice only (`.record-meta-alert`) | forbidden — section rules were removed (`r3-linien`) |
@@ -130,7 +130,7 @@ trapezoid register tab lapsed with the square-corner ruling.
    is internal spacing and comes from the scale like everything else.
 5. **Tokens are the only value source.** Spacing from `--space-*`. The
    non-spacing dimensions have named tokens: `--touch-target` (2.75rem),
-   `--touch-target-compact` (2rem — the filter-rail chips + their ✕ only;
+   `--touch-target-compact` (2rem — the header's row knob;
    owner ruling 2026-08-07, rail round 2), `--line-width` (1px),
    `--state-border` (3px). A dimension used once,
    structurally, may be a literal **with a comment naming why no token
@@ -155,7 +155,7 @@ trapezoid register tab lapsed with the square-corner ruling.
    plus this rule.)
 
 8. **One height source per control row** (owner correction 2026-08-07).
-   Every interactive child of a control row — a toolbar, the filter rail,
+   Every interactive child of a control row — a toolbar,
    the header — consumes the row's `--control-height` knob. Equal sizing
    must hold BY CONSTRUCTION, never by two components' values happening to
    agree; a per-component height inside a control row is a defect.
@@ -179,7 +179,7 @@ trapezoid register tab lapsed with the square-corner ruling.
 12. **An overlay positions against its CONTROL ROW, not its trigger**
    (recorded 2026-08-07 from the containment fixes; owner may veto). A
    dropped panel's containing block is the row that owns the trigger (the
-   filter rail, the header cluster), so both its edges stay inside that
+   header cluster, a toolbar), so both its edges stay inside that
    row's box and the panel can never leave the viewport — the trigger's own
    viewport offset is not expressible in CSS. Per-trigger anchoring
    (`anchor-scope` + `anchor()` insets + `justify-self: anchor-center`,
@@ -268,7 +268,7 @@ The machine-checkable slice of B and C, enforced by
 
 **Generic computed invariant (the G.1 pattern, generalized — mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,
-the filter rail, the header's control cluster) and asserts all interactive
+the header's control cluster) and asserts all interactive
 children compute the same height and font treatment. Per-instance copies of
 this test are forbidden — the walker covers new rows automatically.
 

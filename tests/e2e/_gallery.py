@@ -59,10 +59,16 @@ def _screen_state(screen: Screen) -> GalleryState:
     return GalleryState(screen.name, screen.what, screen.archivist, screen.reach)
 
 
-def _reach_rail_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the filter rail with one facet dropdown open — the dropped overlay panel over the ledger
+def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the search sentence with its Bestand slot open: the menu with its counts over the ledger
     page.goto(f"{base}/", wait_until="networkidle")
-    page.locator(".filterrail summary", has_text="Bestand").click()
+    page.locator(".search-sentence-slots .menu-button").first.click()
+
+
+def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # the search sentence with "+ Filter" open: the secondary filters as a check list
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.locator(".search-sentence-add .menu-button").click()
 
 
 def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -165,10 +171,16 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
 #: so the guards cover it too; only a second state of a screen already in the inventory lives here.
 _INTERACTION_STATES: tuple[GalleryState, ...] = (
     GalleryState(
-        "workbench-rail-open",
-        "workbench, Bestand filter dropdown open on the rail",
+        "workbench-slot-open",
+        "workbench, the search sentence's Bestand slot open",
         True,
-        _reach_rail_open,
+        _reach_slot_open,
+    ),
+    GalleryState(
+        "workbench-filter-open",
+        "workbench, the search sentence's '+ Filter' open",
+        True,
+        _reach_plus_filter_open,
     ),
     GalleryState(
         "header-neu-open",
