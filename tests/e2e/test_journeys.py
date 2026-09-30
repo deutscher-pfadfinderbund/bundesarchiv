@@ -512,7 +512,10 @@ _OVERLAY_WALK_JS = (
         const opened = !panel.checkVisibility();
         if (opened) trigger.click();
         const r = panel.getBoundingClientRect();
-        const edge = trigger.getBoundingClientRect();
+        // opening the panel closed its menu, so it hangs from the menu's own button (menu.js)
+        const from = host && !host.matches(':popover-open')
+            ? document.querySelector('[popovertarget="' + host.id + '"]') : trigger;
+        const edge = from.getBoundingClientRect();
         const d = document.documentElement;
         const covered = [];
         for (const entry of panel.querySelectorAll('a, button, input, select')) {
@@ -680,6 +683,25 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
         page.get_by_role("button", name=entry).click(timeout=5000)
         expect(page.locator(panel)).to_be_visible()
         expect(page.locator(panel).locator('input[type="text"]').first).to_be_focused()
+
+
+def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The platform nests a popover opened from inside an open one, so the menu would stay open
+    # under the panel (owner, 2026-09-30).
+    page = archivist_page
+    edit = f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
+    for path, menu, entry, panel in (
+        (edit, "#neu-menu", "Neuer Artikel …", "#neu-artikel"),
+        (edit, "#mehr-menu", "Löschen …", "#loeschen"),
+        (f"/artikel/{e2e_corpus.published_ulid}", "#aktionen-menu", "Löschen …", "#loeschen"),
+    ):
+        page.goto(live_workbench + path)
+        page.click(f'[popovertarget="{menu[1:]}"]')
+        page.locator(menu).get_by_role("button", name=entry).click()
+        expect(page.locator(panel)).to_be_visible()
+        expect(page.locator(menu)).to_be_hidden()
 
 
 def test_the_count_rides_the_pager_and_a_live_swap_announces_it(

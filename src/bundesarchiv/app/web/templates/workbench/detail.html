@@ -24,8 +24,9 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
               <li>{% include "workbench/_duplizieren.html" %}</li>
               {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}
               {% url 'artikel-loeschen' ulid as loeschen_href %}
-              <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}</li>
+              <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button></li>
             </ul>
+            {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}
           </div>
           {% if is_draft %}
           <button class="primary" type="button" popovertarget="veroeffentlichen">Veröffentlichen</button>

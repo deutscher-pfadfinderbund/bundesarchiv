@@ -34,9 +34,10 @@ new header button.{% endcomment %}
 {% if is_archivist %}
 <button class="menu-button" type="button" popovertarget="neu-menu">+ Neu …</button>
 <ul class="menu" id="neu-menu" popover>
-  {% for panel in neu %}<li><button class="link" type="button" popovertarget="{{ panel.id }}">{{ panel.label }}</button>{% include "workbench/_formpanel.html" %}</li>
+  {% for panel in neu %}<li><button class="link" type="button" popovertarget="{{ panel.id }}">{{ panel.label }}</button></li>
   {% endfor %}
 </ul>
+{% for panel in neu %}{% include "workbench/_formpanel.html" %}{% endfor %}
 {% endif %}
 {% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}">{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
 {% comment %}A POST form: a logout changes state and carries the CSRF token like every write.{% endcomment %}

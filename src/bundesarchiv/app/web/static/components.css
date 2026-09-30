@@ -585,8 +585,9 @@
        back inside the viewport (default overflow alignment). Without anchor positioning the
        browser centres it (UA margin: auto). The scope keeps each list on its own button when a
        page holds two menus: named containers, never an unqualified :has(); a menu outside them
-       fails the e2e "panel under its own trigger" fact. A menu entry that opens its own panel
-       ("Löschen …") is a container too, or the entry below it would claim the panel. */
+       fails the e2e "panel under its own trigger" fact. A panel opened from a menu entry
+       ("Löschen …") follows the menu, so it hangs from the menu's button (menu.js closes the
+       menu). */
     :is(
         body > header,
         [role="toolbar"],
@@ -596,8 +597,7 @@
         .split-button,
         .search-sentence-slots > div,
         .search-sentence-add,
-        .search-sentence-more,
-        .menu > li
+        .search-sentence-more
       ) {
       anchor-scope: --menu-button;
     }
