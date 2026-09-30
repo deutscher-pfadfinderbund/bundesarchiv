@@ -26,7 +26,6 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
-from bundesarchiv.app.web.catalog_views import _panel_response, _redirect
 from bundesarchiv.app.web.media_views import _not_found
 from bundesarchiv.app.web.panels import (
     FormPanel,
@@ -34,7 +33,7 @@ from bundesarchiv.app.web.panels import (
     bestand_rows,
     neu_bestand_panel,
 )
-from bundesarchiv.app.web.viewers import render_screen, viewer_of
+from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
@@ -72,10 +71,10 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
             # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
             query = urlencode({"bestand": result.ulid, "angelegt": name})
-            return _redirect(request, f"{reverse('artikel-neu')}?{query}")
+            return redirect_to(request, f"{reverse('artikel-neu')}?{query}")
         rows = bestand_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
         if request.headers.get("HX-Request"):
-            return _panel_response(request, neu_bestand_panel(rows))
+            return panel_response(request, neu_bestand_panel(rows))
         return render_screen(
             request, "workbench/bestand_neu.html", {"felder": rows}, bestand=bestand
         )
@@ -153,7 +152,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                     bestand, winner, name, {}, winner.version, conflict_name=winner.collection.name
                 ),
             )
-        return _redirect(request, _scoped_list(ulid))
+        return redirect_to(request, _scoped_list(ulid))
     return _render_edit(
         request,
         ulid,
@@ -167,7 +166,7 @@ def _render_edit(
 ) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if request.headers.get("HX-Request"):
-        return _panel_response(request, panel)
+        return panel_response(request, panel)
     return render_screen(
         request,
         "workbench/bestand_bearbeiten.html",

@@ -20,14 +20,15 @@ from urllib.parse import quote, unquote
 
 from django.conf import settings
 from django.core import signing
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
 from bundesarchiv.app.web.oidc import viewer_from_claims
-from bundesarchiv.app.web.panels import header_panels
+from bundesarchiv.app.web.panels import FormPanel, header_panels
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 #: Name of the signed cookie the dev switcher sets and this seam reads.
@@ -246,3 +247,20 @@ def render_screen(
             aktiver=aktiver if isinstance(aktiver, str) else None,
         )
     return render(request, template, {**context, **chrome})
+
+
+def redirect_to(request: HttpRequest, location: str) -> HttpResponseBase:
+    """Redirect to ``location`` — a normal 302 for a plain POST, or a 204 carrying ``HX-Redirect`` for
+    an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
+    a saved form navigates to the read view). One helper so the enhancement never forks the render:
+    the destination is identical, only the mechanism differs by request kind."""
+    if request.headers.get("HX-Request"):
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = location
+        return response
+    return HttpResponseRedirect(location)
+
+
+def panel_response(request: HttpRequest, panel: FormPanel) -> HttpResponse:
+    """``panel`` alone, as its tool panel swaps in place."""
+    return render(request, "workbench/_formpanel.html", {"panel": panel})

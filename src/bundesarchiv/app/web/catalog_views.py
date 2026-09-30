@@ -28,7 +28,6 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app import articles as article_services
@@ -46,8 +45,8 @@ from bundesarchiv.app.web.card import (
     first_error_field,
 )
 from bundesarchiv.app.web.media_views import _not_found, thumbnail_url
-from bundesarchiv.app.web.panels import FormPanel, artikel_rows, neu_artikel_panel
-from bundesarchiv.app.web.viewers import render_screen, viewer_of
+from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
+from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
@@ -65,23 +64,6 @@ from bundesarchiv.persistence.repository import Stored, cleaned_name
 #: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
 #: resolve, said as a field error on the Bestand.
 _EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
-
-
-def _redirect(request: HttpRequest, location: str) -> HttpResponseBase:
-    """Redirect to ``location`` — a normal 302 for a plain POST, or a 200 carrying ``HX-Redirect`` for
-    an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
-    a saved form navigates to the read view). One helper so the enhancement never forks the render:
-    the destination is identical, only the mechanism differs by request kind."""
-    if request.headers.get("HX-Request"):
-        response = HttpResponse(status=204)
-        response["HX-Redirect"] = location
-        return response
-    return HttpResponseRedirect(location)
-
-
-def _panel_response(request: HttpRequest, panel: FormPanel) -> HttpResponse:
-    """``panel`` alone, as its tool panel swaps in place."""
-    return render(request, "workbench/_formpanel.html", {"panel": panel})
 
 
 def _load_gated(request: HttpRequest, ulid: str) -> tuple[Archive, Stored, Archivist] | None:
@@ -124,9 +106,9 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             ulid = catalog.new_draft(
                 archive, title=title, collection_id=collection_id, changed_by=archivist.username
             )
-            return _redirect(request, reverse("artikel-bearbeiten", args=[ulid]))
+            return redirect_to(request, reverse("artikel-bearbeiten", args=[ulid]))
         if request.headers.get("HX-Request"):
-            return _panel_response(
+            return panel_response(
                 request,
                 neu_artikel_panel(bestand, title=title, collection_id=collection_id, errors=errors),
             )
@@ -277,7 +259,7 @@ def _handle_edit_post(
             if not save_result.index_updated:
                 saved = EditSurface.of(result.article, save_result.version, bestand)
                 return saved.render(request, overlay=IndexLag())
-            return _redirect(request, reverse("artikel-detail", args=[ulid]))
+            return redirect_to(request, reverse("artikel-detail", args=[ulid]))
         case catalog.ConflictOutcome() as conflict:
             # The surface is the WINNER's: crumbs, media and the refreshed expected_version come from
             # the record as it now stands; the form keeps the archivist's own values.
@@ -599,7 +581,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
     archive, stored, archivist = gated
     page = reverse("artikel-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
-        return _redirect(request, page)
+        return redirect_to(request, page)
     bestand = BestandChooser.of(archive)
 
     def publish(article: Article) -> Article:
@@ -616,16 +598,16 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
             archive, ulid, publish, changed_by=archivist.username, retries=0
         )
     except _PublishRefused:
-        return _redirect(request, page)
+        return redirect_to(request, page)
     match outcome:
         case Missing():
             return _not_found()
         case Conflicted():
-            return _redirect(request, page)
+            return redirect_to(request, page)
         case Updated(article=article, version=version, index_updated=False):
             return EditSurface.of(article, version, bestand).render(request, overlay=IndexLag())
         case Updated():
-            return _redirect(request, page)
+            return redirect_to(request, page)
 
 
 # --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
@@ -663,7 +645,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
         expected = catalog.parse_version(request.POST.get("expected_version", ""))
         try:
             article_services.hard_delete_article(archive, ulid, expected)
-            return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
+            return redirect_to(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
         except errors.Conflict:
             try:
                 stored = archive.articles.load(ulid)
