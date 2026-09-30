@@ -32,14 +32,27 @@
   function wire(form) {
     const rowBoxes = () => Array.from(form.querySelectorAll('input[name="auswahl"]'));
 
-    // 1. Live count + selection-carrying links on every tick/untick.
+    // 1. Live count + selection-carrying links on every tick/untick. The head box ("alle") ticks
+    // or unticks every row on the page, and shows ticked while every row is.
+    const head = form.querySelector('input[name="alle"]');
     form.addEventListener("change", (event) => {
-      if (event.target.name !== "auswahl") {
+      if (event.target === head) {
+        rowBoxes().forEach((b) => {
+          b.checked = head.checked;
+        });
+      } else if (event.target.name !== "auswahl") {
         return;
       }
+      syncHead();
       updateCount();
       rewriteSelectionLinks();
     });
+
+    function syncHead() {
+      if (head) {
+        head.checked = rowBoxes().every((b) => b.checked);
+      }
+    }
 
     // The count target [data-bulk-zahl] is always in the DOM in selection mode. Empty text at
     // zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may
@@ -91,6 +104,7 @@
 
     // Fold once at wire time too: back/forward navigation restores checkbox state without firing
     // change events, and the server-rendered links only carry the URL-borne selection.
+    syncHead();
     updateCount();
     rewriteSelectionLinks();
   }

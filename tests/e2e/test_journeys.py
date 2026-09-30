@@ -1279,6 +1279,12 @@ def test_bulk_select_confirm_apply(
     expect(page.locator('input[name="auswahl"]')).to_have_count(0)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")
+    # the head box ticks every row on the page and unticks them again
+    rows = page.locator('input[name="auswahl"]')
+    page.check('input[name="alle"]')
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(rows.count())
+    page.uncheck('input[name="alle"]')
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
@@ -1602,17 +1608,21 @@ def test_no_js_bulk_flow_completes(
 ) -> None:
     page = no_js_archivist_page
     # The no-JS half: with JavaScript OFF "Auswählen" is a plain link into selection mode, and the
-    # archivist completes the whole bulk flow: Auswählen → tick → "Feld ändern …" → choose a field
-    # → prüfen → anwenden.
+    # archivist completes the whole bulk flow: Auswählen → the head box ("every row on this page")
+    # → "Feld ändern …" → choose a field → prüfen → anwenden.
     page.goto(live_workbench + "/")
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")  # selection mode is URL state
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    rows = page.locator('input[name="auswahl"]').count()
+    page.check('input[name="alle"]')
+    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # no JS ticks them
     page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+    # the confirm page carries every row of the page the head box sat on
+    expect(page.locator('input[name="auswahl"]')).to_have_count(rows)
     page.click('button:has-text("anwenden")')
     expect(page.get_by_text("abgeschlossen")).to_be_visible()
 

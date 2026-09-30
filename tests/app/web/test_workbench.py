@@ -843,6 +843,14 @@ def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_f
     assert not {"auswahl", "feld"} & fields["/spalten"]
 
 
+def test_the_head_box_submits_the_rows_of_its_page(indexed_corpus: Corpus) -> None:
+    # without JS a ticked head box means "every row on this page" (bulk_views reads it)
+    body = _get(Archivist(), "auswahl=").content.decode()
+    rows = re.findall(r'name="auswahl" value="([^"]+)"', body)
+    [alle] = re.findall(r'name="alle" value="([^"]*)"', body)
+    assert rows and alle.split() == rows
+
+
 def test_a_url_selection_ticks_its_row(indexed_corpus: Corpus) -> None:
     body = _get(Archivist(), f"auswahl={PANE_PUB_ULID}").content.decode()
     # the selected article IS on this page, so nothing is off-page — the enhancement adds its own

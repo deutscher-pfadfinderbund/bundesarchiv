@@ -37,7 +37,9 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
         return _not_found()
     archive = Archive.canonical()
     bestand = BestandChooser.of(archive)
-    auswahl = _distinct_valid_ulids(request.POST.getlist("auswahl"))
+    # the ledger's ticked head box ("alle") carries the rows of the page it was rendered on
+    alle = request.POST.get("alle", "").split()
+    auswahl = _distinct_valid_ulids([*request.POST.getlist("auswahl"), *alle])
     feld = request.POST.get("feld", "")
     # Read the value for ANY feld, allowed or not: a refused field never mutates (``_validate``
     # gates that), and the reject page must echo what was typed — gating the read here blanked the

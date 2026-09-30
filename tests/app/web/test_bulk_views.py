@@ -225,6 +225,17 @@ def test_commit_applies_and_shows_result(two_drafts: Corpus) -> None:
     assert _stored(two_drafts, _B).creator == "K. Meyer"
 
 
+def test_the_ticked_head_box_selects_every_row_of_its_page(two_drafts: Corpus) -> None:
+    # without JS the ledger's head box carries the rows of the page it sat on; ticked, they join the
+    # rows ticked one by one (here: none)
+    client_as(Archivist()).post(
+        "/artikel/sammelbearbeitung",
+        {"alle": f"{_A} {_B}", "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
+    )
+    assert _stored(two_drafts, _A).creator == "K. Meyer"
+    assert _stored(two_drafts, _B).creator == "K. Meyer"
+
+
 def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
     added_at = datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
     ulid = "01KX7YT9E3VX0CP3A5Q49RZM03"

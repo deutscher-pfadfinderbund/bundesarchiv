@@ -2,7 +2,8 @@
 Ledger — the result table. Params:
 - ledger — a ledger.Ledger: its heads (Titel first; a sortable head links to its NEXT sort state,
            the active one carries aria-sort) and its rows
-- bulk   — adds the leading selection-checkbox column
+- bulk   — adds the leading selection-checkbox column; ticked, its head box submits every row
+           of this page (bulk_views), and catalog_bulk.js ticks them in place
 The root is the size container and the last-resort scroll box: the page body never scrolls
 sideways (learning G.24, components.css).
 {% endcomment %}
@@ -10,7 +11,7 @@ sideways (learning G.24, components.css).
   <table>
     <thead>
       <tr>
-        {% if bulk %}<th scope="col" class="auswahl"><span class="visually-hidden">Auswahl</span></th>{% endif %}
+        {% if bulk %}<th scope="col" class="auswahl"><input type="checkbox" name="alle" value="{% for row in ledger.rows %}{% if not forloop.first %} {% endif %}{{ row.ulid }}{% endfor %}" aria-label="Alle auswählen"></th>{% endif %}
         {% for head in ledger.heads %}<th scope="col" class="{{ head.key }}"{% if head.sort %} aria-sort="{{ head.sort }}"{% endif %}>{% if head.query is not None %}<a href="?{{ head.query }}">{{ head.label }}</a>{% else %}{{ head.label }}{% endif %}</th>{% endfor %}
       </tr>
     </thead>
