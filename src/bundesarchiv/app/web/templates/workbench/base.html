@@ -16,6 +16,7 @@ carries the CSRF header of every htmx request (absent on the error page, which h
   <script src="{% static "htmx.min.js" %}" defer></script>
   <script src="{% static "error_banner.js" %}" defer></script>
   <script src="{% static "menu.js" %}" defer></script>
+  <script src="{% static "list_address.js" %}" defer></script>
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{% static "layouts.css" %}">
@@ -27,7 +28,7 @@ target is a BLOCK because the workbench's landmark is the htmx swap target #resu
 take a second id; every other screen leaves the default.{% endcomment %}
 <a class="button skip" href="#{% block skip_ziel %}inhalt{% endblock %}">Zum Inhalt springen</a>
 <header>
-  <a class="wordmark" href="{% url 'workbench' %}">Bundesarchiv</a>
+  <a class="wordmark" href="{% url 'workbench' %}" data-list-link>Bundesarchiv</a>
   {% block header %}{% endblock %}
 </header>
 {% block body %}{% endblock %}

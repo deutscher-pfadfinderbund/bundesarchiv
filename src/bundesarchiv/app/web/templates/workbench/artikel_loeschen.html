@@ -10,7 +10,7 @@ without JS when it was older than the record. Archivist-only (the view gates it)
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
-  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+  <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
   <h1>{{ lead }}</h1>
   <header>
     <strong><a href="{% url 'artikel-detail' ulid %}">{{ title }}</a></strong>

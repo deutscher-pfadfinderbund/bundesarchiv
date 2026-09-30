@@ -24,7 +24,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from bundesarchiv.index.query import SearchFilters, SortOrder
+from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
 
 # German query-string keys, mapped to what they mean. The template, the parser and the chip builder
 # all read this ONE vocabulary so a rename can't drift between them.
@@ -38,6 +38,7 @@ PARAM_DATELESS = "ohne_datum"
 PARAM_DATE_FROM = "von"
 PARAM_DATE_TO = "bis"
 PARAM_DIGITAL = "digital"
+PARAM_FILE = "file"
 PARAM_DRAFTS = "entwuerfe"
 PARAM_SORT = "sortierung"
 PARAM_PAGE = "seite"
@@ -56,6 +57,7 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_DATE_FROM,
         PARAM_DATE_TO,
         PARAM_DIGITAL,
+        PARAM_FILE,
         PARAM_DRAFTS,
         PARAM_SORT,
         PARAM_PAGE,
@@ -135,6 +137,7 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
             date_to=_date_or_none(params.get(PARAM_DATE_TO)),
             dateless=_truthy(params.get(PARAM_DATELESS)),
             has_files=_truthy(params.get(PARAM_DIGITAL)),
+            file_kind=_file_kind(params.get(PARAM_FILE)),
             drafts_only=_truthy(params.get(PARAM_DRAFTS)),
         ),
         sort=sort,
@@ -183,6 +186,14 @@ def _date_or_none(raw: str | None) -> datetime.date | None:
 def _truthy(raw: str | None) -> bool:
     """A toggle: True for a known truthy spelling, else False (incl. absence)."""
     return (raw or "").strip().lower() in _TRUTHY
+
+
+def _file_kind(raw: str | None) -> FileKind | None:
+    """The file kind named by ``file``, or ``None`` for an unknown/absent value."""
+    try:
+        return FileKind((raw or "").strip().lower())
+    except ValueError:
+        return None
 
 
 def _page(raw: str | None) -> int:
@@ -236,6 +247,7 @@ FILTER_PARAMS: tuple[str, ...] = (
     PARAM_DATE_FROM,
     PARAM_DATE_TO,
     PARAM_DIGITAL,
+    PARAM_FILE,
     PARAM_DRAFTS,
 )
 

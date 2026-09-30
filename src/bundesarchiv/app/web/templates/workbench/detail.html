@@ -14,7 +14,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
   <article aria-labelledby="artikel-titel">
     <header>
       <div class="record-head">
-        <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+        <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
         {% if is_archivist %}
         <div class="actions">
           <div class="split-button">

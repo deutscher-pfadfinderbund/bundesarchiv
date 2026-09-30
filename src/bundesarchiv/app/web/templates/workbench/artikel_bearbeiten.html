@@ -19,7 +19,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
 <main id="inhalt" class="form-sheet">
 
   <header>
-    <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}">Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
+    <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
     {% include "workbench/_feld_titel.html" with feld=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
   </header>
 

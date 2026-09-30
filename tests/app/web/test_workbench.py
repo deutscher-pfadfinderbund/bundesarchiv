@@ -406,7 +406,7 @@ def _sentence_queries(viewer: Viewer, query: str = "") -> list[dict[str, list[st
 
 def test_the_list_computes_only_the_facets_its_sentence_shows(indexed_corpus: Corpus) -> None:
     page = client_as(Archivist()).get("/").context["page"]
-    assert set(page.facets) == {"collection", "decades", "document_type"}
+    assert set(page.facets) == {"collection", "decades", "document_type", "file_kind"}
 
 
 def test_the_slots_offer_the_bestand_decade_type_and_dateless_values(
@@ -435,6 +435,7 @@ def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corp
         "von": "1960-01-01",
         "bis": "1969-12-31",
         "digital": "1",
+        "file": "pdf",
         "entwuerfe": "1",
     }
     assert set(samples) == set(browse.FILTER_PARAMS)
@@ -472,6 +473,27 @@ def _listed(body: str) -> set[str]:
 
 def test_the_digital_filter_keeps_the_records_with_files(indexed_corpus: Corpus) -> None:
     assert _listed(_get(Archivist(), "digital=1").content.decode()) == {PANE_PUB_ULID}
+
+
+def test_the_file_filter_keeps_the_records_with_that_kind(indexed_corpus: Corpus) -> None:
+    assert _listed(_get(Archivist(), "file=image").content.decode()) == {PANE_PUB_ULID}
+    assert _listed(_get(Archivist(), "file=pdf").content.decode()) == set()
+
+
+def test_the_panel_offers_the_kinds_the_index_counts_and_a_set_kind_removes_itself(
+    indexed_corpus: Corpus,
+) -> None:
+    body = _get(Archivist()).content.decode()
+    assert "mit Fotos" in body
+    assert "mit PDF" not in body  # no record has one: nothing to switch to
+    queries = _sentence_queries(Archivist(), "file=image")
+    assert {} in queries  # the set kind links to the list without it
+
+
+def test_an_unknown_file_kind_is_ignored(indexed_corpus: Corpus) -> None:
+    response = _get(Archivist(), "file=exe")
+    assert response.status_code == 200
+    assert PANE_PUB_ULID in _listed(response.content.decode())
 
 
 def test_the_drafts_filter_answers_the_archivist_and_nobody_else(indexed_corpus: Corpus) -> None:

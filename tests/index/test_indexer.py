@@ -432,6 +432,12 @@ def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -
     assert hits["01MIX"].collection_id == "ROOT"
     with_files = search(Archivist(), filters=SearchFilters(has_files=True)).hits
     assert [hit.ulid for hit in with_files] == ["01MIX"]
+    pdf = search(Archivist(), filters=SearchFilters(file_kind=FileKind.PDF))
+    assert [hit.ulid for hit in pdf.hits] == ["01MIX"]
+    assert search(Archivist(), filters=SearchFilters(file_kind=FileKind.VIDEO)).total == 0
+    # the facet counts rows per kind (not files), with its own dimension cleared
+    kinds = {fc.value: fc.count for fc in pdf.facets["file_kind"]}
+    assert kinds == {"image": 1, "pdf": 1}
 
 
 # ===========================================================================

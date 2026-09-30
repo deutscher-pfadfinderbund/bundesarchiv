@@ -41,7 +41,7 @@ from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Article, Lifecycle
 from bundesarchiv.domain.viewer import Archivist
-from bundesarchiv.index.query import FacetCount, SearchFilters, SearchPage, search
+from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
@@ -72,7 +72,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
         descending=parsed.descending,
         page=parsed.page,
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
-        facets=("collection", "decades", "document_type"),  # the sentence's three slots
+        # the sentence's three slots + the file types of "+ Filter"
+        facets=("collection", "decades", "document_type", "file_kind"),
     )
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
@@ -450,9 +451,16 @@ def _sentence(
         (browse.PARAM_DATE_TO, f"bis {f.date_to.isoformat()}" if f.date_to else None),
         (browse.PARAM_DATELESS, "ohne Datum" if f.dateless else None),
         (browse.PARAM_DIGITAL, "digital" if f.has_files else None),
+        (browse.PARAM_FILE, f.file_kind and vocab.FILE_FILTER_LABELS[f.file_kind]),
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
     )
     checks = [_toggle(params, browse.PARAM_DIGITAL, "Digital (mit Dateien)", f.has_files)]
+    checks += _facet_items(
+        {**params, browse.PARAM_FILE: f.file_kind.value if f.file_kind else ""},
+        browse.PARAM_FILE,
+        facets.get("file_kind", ()),
+        label=lambda kind: vocab.FILE_FILTER_LABELS[FileKind(kind)],
+    )
     if is_archivist:
         checks.append(_toggle(params, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
     set_filters = tuple(

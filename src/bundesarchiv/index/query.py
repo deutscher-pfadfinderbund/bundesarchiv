@@ -57,8 +57,15 @@ _DE_NUMERIC = "de_numeric"
 
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
 
-type Facet = Literal["collection", "tags", "decades", "media_type", "document_type"]
-_ALL_FACETS: tuple[Facet, ...] = ("collection", "tags", "decades", "media_type", "document_type")
+type Facet = Literal["collection", "tags", "decades", "media_type", "document_type", "file_kind"]
+_ALL_FACETS: tuple[Facet, ...] = (
+    "collection",
+    "tags",
+    "decades",
+    "media_type",
+    "document_type",
+    "file_kind",
+)
 
 
 class FileKind(StrEnum):
@@ -86,6 +93,7 @@ class SearchFilters:
     (IS NULL vs IS NOT NULL) conjoin to the empty set — the honest, non-crashing outcome.
 
     ``has_files`` keeps rows with at least one file (the fact ``SearchHit.file_counts`` reports);
+    ``file_kind`` keeps rows with at least one file of that kind;
     ``drafts_only`` keeps drafts, so it narrows a non-Archivist's scope to nothing.
 
     ``deleted`` picks the side of the Papierkorb (ADR 0022): False (the default) leaves every
@@ -102,6 +110,7 @@ class SearchFilters:
     date_to: datetime.date | None = None
     dateless: bool = False
     has_files: bool = False
+    file_kind: FileKind | None = None
     drafts_only: bool = False
     deleted: bool = False
 
@@ -353,6 +362,8 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
         qs = qs.filter(date_earliest__isnull=True)
     if f.has_files:
         qs = qs.exclude(file_counts={})
+    if f.file_kind is not None:
+        qs = qs.filter(file_counts__has_key=f.file_kind.value)
     if f.drafts_only:
         qs = qs.filter(is_draft=True)
     return _apply_date_range(qs, f.date_from, f.date_to)
@@ -536,6 +547,8 @@ def _facets(
         for key, column in _SCALAR_FACETS
         if key in wanted
     }
+    if "file_kind" in wanted:
+        scalar["file_kind"] = _file_kind_facet(matched, _without(filters, "file_kind"))
     array = {
         key: _array_facet(matched, column=column, filters=_without(filters, key))
         for key, column in _ARRAY_FACETS
@@ -554,6 +567,17 @@ def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> 
     would zero this count by construction, which is not the facet's question."""
     other = replace(filters, dateless=False, date_from=None, date_to=None)
     return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
+
+
+def _file_kind_facet(
+    matched: QuerySet[ArticleIndex], filters: SearchFilters
+) -> tuple[FacetCount, ...]:
+    """How many rows carry a file of each kind, in ``FileKind`` order, zero kinds left out: one
+    aggregate over ``matched`` re-filtered by the other dimensions."""
+    counts = _apply_filters(matched, filters).aggregate(
+        **{k.value: Count("ulid", filter=Q(file_counts__has_key=k.value)) for k in FileKind}
+    )
+    return tuple(FacetCount(k.value, counts[k.value]) for k in FileKind if counts[k.value])
 
 
 def _without(filters: SearchFilters, key: str) -> SearchFilters:

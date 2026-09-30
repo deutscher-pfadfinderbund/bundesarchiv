@@ -281,6 +281,16 @@ _FILE_WORDS: dict[FileKind, tuple[str, str]] = {
 }
 
 
+#: Each file kind as the "+ Filter" panel and the search sentence name the filter.
+FILE_FILTER_LABELS: dict[FileKind, str] = {
+    FileKind.IMAGE: "mit Fotos",
+    FileKind.PDF: "mit PDF",
+    FileKind.VIDEO: "mit Video",
+    FileKind.AUDIO: "mit Audio",
+    FileKind.OTHER: "mit anderen Dateien",
+}
+
+
 def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
     """What files a record has, as the Digital column says it ("Foto, PDF", "2 Fotos"). ``()`` →
     empty. ``counts`` is ``SearchHit.file_counts``: kinds in summary order, zero kinds left out."""

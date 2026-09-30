@@ -30,7 +30,7 @@ listed, each leading to its edit form, plus one collective recovery.
 
   <footer>
     {% if conflicted %}<a class="button" href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflicted|length }} erneut auswählen</a>{% endif %}
-    <a class="button" href="{% url 'workbench' %}">Zurück zur Suche</a>
+    <a class="button" href="{% url 'workbench' %}" data-list-link>Zurück zur Suche</a>
   </footer>
 </main>
 {% endblock %}

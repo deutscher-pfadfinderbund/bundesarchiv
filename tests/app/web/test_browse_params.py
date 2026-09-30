@@ -12,7 +12,7 @@ mapping, so the whole URL-as-state contract is pinned here, fast, in isolation.
 import datetime
 
 from bundesarchiv.app.web.browse import ParsedQuery, parse_query
-from bundesarchiv.index.query import SearchFilters
+from bundesarchiv.index.query import FileKind, SearchFilters
 
 
 def _parse(**params: str) -> ParsedQuery:
@@ -107,3 +107,10 @@ def test_page_parsed_and_clamped_to_at_least_one() -> None:
     assert _parse(seite="-5").page == 1
     assert _parse(seite="garbage").page == 1
     assert _parse().page == 1
+
+
+def test_the_file_kind_parses_and_an_unknown_one_is_ignored() -> None:
+    assert _parse(file="pdf").filters.file_kind == FileKind.PDF
+    assert _parse(file=" PDF ").filters.file_kind == FileKind.PDF
+    assert _parse(file="exe").filters == SearchFilters()
+    assert _parse(file="").filters == SearchFilters()
