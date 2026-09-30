@@ -252,6 +252,8 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   full ~2 min re-run (Wave REST U4 paid it twice).
 - **Sketch:** parametrize the gallery over its states, or collect reach failures and fail at the
   end with all of them.
+- **Also missing:** a before/after mode (render a git ref into a directory and pixel-diff it). A
+  "pixel-neutral" proof now costs a stash, two renders and a hand-written Pillow diff (~4 min).
 
 ## Process law
 

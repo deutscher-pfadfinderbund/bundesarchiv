@@ -20,6 +20,8 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - HTML-equivalence constraint? Give the writer the render-diff recipe from `writer-brief.md` (dump states → normalize CSRF/whitespace → diff; throwaway harness named `_zz_*.py` so `check` never collects it — ruff still formats it; a fixture-free script lives outside the tree).
 - Pixel-neutral wave? The gallery covers only its listed states. Ask for a computed-style probe over the touched roots too (states the gallery lacks: error modes, open folds, hover/focus) — C2 found a latent bug that way.
 - A sanctioned pixel change inside a pixel-neutral wave moves the baseline: name the new baseline dir for every later slice.
+- A brief that cuts an **import cycle** lists the whole chain it has to cut, traced in the code (Wave
+  REST simplify: moving `FormPanel` alone left the cycle; the field registry had to move too).
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.

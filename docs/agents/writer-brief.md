@@ -66,7 +66,7 @@ coordinator's problem, not yours.
 
 Proving rendered-HTML equivalence across a refactor: dump the representative
 states before and after (GET, error, conflict, each overlay), normalize CSRF
-tokens and whitespace, diff — expect 0 lines and report the count. Write the
+tokens, whitespace and static-file hashes (`/static/…<12 hex>.css` changes with any CSS edit), diff — expect 0 lines and report the count. Write the
 throwaway harness as `tests/…/_zz_snapshot.py`: the `_zz_` name keeps it out of
 `python_files` so `mise run check` never collects it, while
 `uv run pytest <path>` still runs it explicitly. `ruff format --check` still
