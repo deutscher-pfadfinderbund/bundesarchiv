@@ -54,9 +54,12 @@ by the rebuild's older file snapshot (rebuild read the tree before the edit,
 writes after it). Files heal on the NEXT reconcile, but the window is real.
 **Rule: every index writer — `rebuild`, `index_article`, `index_subtree` —
 takes the same Postgres transaction-scoped advisory lock
-(`pg_advisory_xact_lock`, one project-wide key).** Sync upserts serialize
-briefly behind a running rebuild; a rebuild cannot interleave with an upsert.
-One lock, one rule, no lost updates between index writers. (Canonical-file
+(`pg_advisory_xact_lock`, one project-wide key), and takes it BEFORE it reads
+the files: lock, read, write, in one transaction.** The lock orders the reads
+too, so a writer that read an older snapshot can never commit after a newer
+one. Sync upserts wait behind a running rebuild; in the request that wait is
+bounded (`SYNC_LOCK_TIMEOUT_MS`), and a timeout hands the reindex to the retry
+job. One lock, one rule, no lost updates between index writers. (Canonical-file
 writers are governed by ADR 0013, not this lock.)
 
 ## Honest failure window

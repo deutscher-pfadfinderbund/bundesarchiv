@@ -25,11 +25,11 @@ no groups) that still carries the Article's text, so an Archivist can search for
 source, and records the ulid in the ``RebuildReport`` for the caller/CLI to surface.
 
 Writer coordination (ADR 0014 v2). Every index writer — ``rebuild``, ``index_article``,
-``index_subtree`` — takes the SAME Postgres transaction-scoped advisory lock
-(``pg_advisory_xact_lock`` on ``_INDEX_WRITER_LOCK_KEY``) inside its transaction, so a sync
-upsert can never interleave with a running rebuild and lose to the rebuild's older file snapshot.
-One lock, one rule, no lost updates between index writers. Canonical-file writers are governed by
-ADR 0013's ``WRITER_LOCK``, not this lock.
+``index_subtree`` — runs lock, then read, then write in ONE transaction: it takes the same Postgres
+transaction-scoped advisory lock (``pg_advisory_xact_lock`` on ``_INDEX_WRITER_LOCK_KEY``) before
+its first canonical read. Its snapshot is therefore at least as new as every row committed before
+it, so no writer can overwrite a newer row with an older read. Canonical-file writers are governed
+by ADR 0013's ``WRITER_LOCK``, not this lock.
 """
 
 import mimetypes
@@ -69,9 +69,9 @@ _INDEX_WRITER_LOCK_KEY = 0x42554E44  # "BUND" — stable, documented, index-writ
 
 
 def _take_writer_lock() -> None:
-    """Acquire the transaction-scoped index-writer advisory lock. MUST be called first inside
-    every index writer's ``transaction.atomic()`` block; it releases automatically at commit or
-    rollback (``pg_advisory_xact_lock``), so no explicit unlock is ever needed."""
+    """Acquire the transaction-scoped index-writer advisory lock. MUST be called inside every index
+    writer's ``transaction.atomic()`` block BEFORE its first canonical read; it releases at commit
+    or rollback, so no explicit unlock is ever needed."""
     with connection.cursor() as cursor:
         cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_INDEX_WRITER_LOCK_KEY])
 
@@ -227,26 +227,24 @@ def rebuild(store: ObjectStore) -> RebuildReport:
     rather than dropping it or guessing visibility. Idempotent: the leading wipe means a repeat
     rebuild produces the same rows with no duplicates.
 
-    Takes the shared index-writer advisory lock (ADR 0014 v2) so a concurrent ``index_article`` /
-    ``index_subtree`` cannot interleave and lose to this rebuild's older file snapshot.
+    Holds the shared index-writer lock across the whole read and write (ADR 0014 v2), so every
+    other index writer waits for it; searches still see the old rows until it commits.
     """
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-
-    lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
     cap_year = _current_year()
-
-    rows: list[dict[str, object]] = []
-    failed: list[str] = []
-    for ulid in articles.list_ulids():
-        article = articles.load(ulid).article
-        row, failed_closed = _row_for(article, lookup, cap_year=cap_year)
-        rows.append(row)
-        if failed_closed:
-            failed.append(article.ulid)
 
     with transaction.atomic():
         _take_writer_lock()
+        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        rows: list[dict[str, object]] = []
+        failed: list[str] = []
+        for ulid in articles.list_ulids():
+            article = articles.load(ulid).article
+            row, failed_closed = _row_for(article, lookup, cap_year=cap_year)
+            rows.append(row)
+            if failed_closed:
+                failed.append(article.ulid)
         ArticleIndex.objects.all().delete()
         ArticleIndex.objects.bulk_create(ArticleIndex(**row) for row in rows)
 
@@ -260,24 +258,21 @@ def index_article(store: ObjectStore, ulid: Ulid) -> None:
     Reference semantics — the caller passes only a ulid, never a payload, so a stale enqueued job
     recomputes whatever canonical says NOW. Routes through the same ``build_row`` + fail-closed
     branch as ``rebuild`` (a broken chain becomes an archivist-only row). Idempotent. Takes the
-    shared index-writer advisory lock inside its transaction.
+    shared index-writer lock before reading.
     """
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
-    try:
-        article = articles.load(ulid).article
-    except NotFound:
-        with transaction.atomic():
-            _take_writer_lock()
-            ArticleIndex.objects.filter(ulid=ulid).delete()  # gone from canonical -> drop the row
-        return
-
-    lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
-    row, _failed = _row_for(article, lookup, cap_year=cap_year)
     with transaction.atomic():
         _take_writer_lock()
+        try:
+            article = articles.load(ulid).article
+        except NotFound:
+            ArticleIndex.objects.filter(ulid=ulid).delete()  # gone from canonical -> drop the row
+            return
+        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        row, _failed = _row_for(article, lookup, cap_year=cap_year)
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
 
 
@@ -290,25 +285,20 @@ def index_subtree(store: ObjectStore, collection_ulid: Ulid) -> None:
     ``collection_ulid``. An Article whose chain cannot resolve is upserted as a fail-closed row
     IFF its own ``collection_id`` is the target (a broken chain has no resolvable ancestry to test
     against, so only the directly-targeted orphan is touched — non-descendants stay untouched).
-    Idempotent; takes the shared index-writer advisory lock inside its transaction.
+    Idempotent; takes the shared index-writer lock before reading.
     """
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
-    lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
     cap_year = _current_year()
-
-    updates: list[tuple[str, dict[str, object]]] = []
-    for ulid in articles.list_ulids():
-        article = articles.load(ulid).article
-        if not _in_subtree(article, collection_ulid, lookup):
-            continue
-        row, _failed = _row_for(article, lookup, cap_year=cap_year)
-        updates.append((article.ulid, row))
 
     with transaction.atomic():
         _take_writer_lock()
-        for ulid, row in updates:
-            ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
+        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        for ulid in articles.list_ulids():
+            article = articles.load(ulid).article
+            if _in_subtree(article, collection_ulid, lookup):
+                row, _failed = _row_for(article, lookup, cap_year=cap_year)
+                ArticleIndex.objects.update_or_create(ulid=article.ulid, defaults=row)
 
 
 def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Collection]) -> bool:

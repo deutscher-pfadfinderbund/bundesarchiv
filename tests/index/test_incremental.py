@@ -11,6 +11,8 @@ The single writer coordination rule (ADR 0014 v2): every index writer takes the 
 """
 
 import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, wait
 
 import pytest
 
@@ -25,7 +27,7 @@ from bundesarchiv.domain.models import (
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository
+from bundesarchiv.persistence.repository import ArticleRepository, _readme_key
 
 
 def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
@@ -43,7 +45,10 @@ def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
 def store() -> InMemoryObjectStore:
     """ROOT (Members) -> FOTOS (PUBLIC) -> AKTEN (inherits PUBLIC); three published articles
     (one under each level) plus none pre-indexed. Tests index incrementally from here."""
-    store = InMemoryObjectStore()
+    return _seed(InMemoryObjectStore())
+
+
+def _seed[S: InMemoryObjectStore](store: S) -> S:
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
 
@@ -244,3 +249,73 @@ def test_advisory_lock_serializes_concurrent_index_writers(
 
     assert ArticleIndex.objects.filter(ulid="01FOTO").count() == 1
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
+
+
+# ---------------------------------------------------------------------------
+# Lock, then read: a writer that read before a narrowing cannot overwrite it (issue #62)
+# ---------------------------------------------------------------------------
+
+
+class _PausingStore(InMemoryObjectStore):
+    """Once ``pause_on`` is set, the first read of that key returns the bytes it read only after
+    ``release`` is set — a writer frozen between reading a file and writing its row."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.pause_on: str | None = None
+        self.paused = threading.Event()
+        self.release = threading.Event()
+
+    def read(self, key: str) -> bytes:
+        data = super().read(key)
+        if key == self.pause_on and not self.paused.is_set():
+            self.paused.set()
+            self.release.wait(timeout=10)
+        return data
+
+
+def _in_thread(fn: Callable[..., object], *args: object) -> None:
+    from django.db import connection
+
+    try:
+        fn(*args)
+    finally:
+        connection.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "writer",
+    [
+        pytest.param(indexer.rebuild, id="rebuild"),
+        pytest.param(lambda s: indexer.index_subtree(s, "FOTOS"), id="index_subtree"),
+        pytest.param(lambda s: indexer.index_article(s, "01FOTO"), id="index_article"),
+    ],
+)
+def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
+    writer: Callable[[InMemoryObjectStore], object],
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    store = _seed(_PausingStore())
+    store.pause_on = _readme_key("01FOTO")
+    articles = ArticleRepository(store)
+    narrowed = _article(
+        "FOTOS",
+        "01FOTO",
+        title="Foto",
+        date=EdtfDate("1965"),
+        audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        wide = pool.submit(_in_thread, writer, store)
+        assert store.paused.wait(timeout=5)
+        articles.save(narrowed, articles.load("01FOTO").version, changed_by="tester")
+        narrow = pool.submit(_in_thread, indexer.index_article, store, "01FOTO")
+        wait([narrow], timeout=1.0)  # with the lock taken first, this waits on the paused writer
+        store.release.set()
+        wide.result()
+        narrow.result()
+
+    assert ArticleIndex.objects.get(ulid="01FOTO").tier == "GROUPS"
