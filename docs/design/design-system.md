@@ -298,7 +298,8 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Icon | `.icon` | `components/icon` | none |
 | Field | `.field` | `workbench/_feld` (the edit form, the create step, the Bestand forms) | `components.css` field |
-| Panel | `.panel` | inline (the bulk check and result pages) | `forms.css` panel |
+| Panel | `.panel` | inline (the bulk result page) | `forms.css` panel |
+| Affected | `.affected` | inline (the bulk check page) | `components.css` affected |
 | Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice |
 | Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
 | Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |
@@ -329,14 +330,14 @@ Composition precedents the critique round confirmed as this product's voice.
 Not cues (nothing here needs a register row) — precedent-rule targets: a new
 surface with the same job copies these, not a fresh invention.
 
-- **Consequence disclosure** (`sammelbearbeitung_pruefen.html`, the orphan
-  branch): a side effect is enumerated at the record level — one quiet row
-  per affected record, `{alt} → {neu}` (or `→ (leer)`), weight emphasis, no
-  loud color — and the committing button relabels itself to name the full
-  consequence ("Medienart setzen, Dokumenttyp leeren"). Any surface that
+- **Consequence disclosure** (`sammelbearbeitung_pruefen.html`, a2 `pruefen.html`):
+  what an action overwrites is enumerated at the record level — the new value
+  stated once, then one quiet row (`.affected`) per record with the value it
+  loses, one tier quieter, no loud color; a side effect (a cleared Dokumenttyp)
+  is its own column — and the committing button names the full consequence
+  ("3 Standorte überschreiben, 1 Dokumenttyp leeren"). Any surface that
   destroys or overwrites data per-record renders this grammar; a bare count
-  is not a disclosure. (The bulk-overwrite P0 wave extends this to the main
-  apply path.)
+  is not a disclosure.
 - **A bulk outcome is not an error** (`sammelbearbeitung_ergebnis.html`): a CAS
   race or stale-selection outcome in the bulk result renders as quiet register rows — no red,
   no alert tone — each row carrying its own onward action ("Diesen Artikel

@@ -99,6 +99,10 @@ def _at(path: str) -> Reach:
     return _goto(lambda _corpus: path)
 
 
+#: The bulk check page's commit: the one submit of the form that carries ``bestaetigt``.
+BULK_COMMIT = 'main form:has(input[name="bestaetigt"]) button[type="submit"]'
+
+
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The bulk CONFIRM surface: a URL-seeded selection, open "Feld ändern …", choose a field and a
     value, submit. POST-only — no path reaches it, which is why it needs a reach."""
@@ -116,7 +120,7 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
 def _reach_bulk_result(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The bulk RESULT surface, one POST past the confirm."""
     _reach_bulk_confirm(page, base, corpus)
-    page.click('button:has-text("anwenden")')
+    page.click(BULK_COMMIT)
     page.wait_for_load_state("networkidle")
 
 

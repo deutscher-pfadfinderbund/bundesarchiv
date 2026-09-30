@@ -435,6 +435,9 @@
     margin: 0 0 var(--space-5);
     font: var(--type-display);
   }
+  .column > .affected {
+    margin-block-end: var(--space-6);
+  }
   /* the record's place over the question (a3 loeschen.html) */
   .column > .crumbs {
     margin-block-end: var(--space-4);

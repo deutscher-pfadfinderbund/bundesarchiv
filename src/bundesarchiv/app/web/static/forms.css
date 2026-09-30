@@ -55,8 +55,13 @@
   }
   .column footer {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3);
+  }
+  /* a button that names a whole consequence can outgrow S; it wraps rather than push the page wide */
+  .column footer > button {
+    white-space: normal;
   }
   /* biome-ignore lint/style/noDescendingSpecificity: the earlier rule sets only --control-height */
   .column footer .actions {

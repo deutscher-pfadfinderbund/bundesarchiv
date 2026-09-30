@@ -19,6 +19,7 @@ from playwright.sync_api import Browser, Dialog, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.e2e._corpus import CorpusHandles, _png
 from tests.e2e._pages import (
+    BULK_COMMIT,
     OVERLAY_CENTRED_PANEL,
     OVERLAY_PANEL_OF_JS,
     OVERLAY_PANELS,
@@ -1298,9 +1299,9 @@ def test_bulk_select_confirm_apply(
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     # the confirm page lists the field + count; apply → the result page
-    expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
-    page.click('button:has-text("anwenden")')
-    expect(page.get_by_text("abgeschlossen")).to_be_visible()
+    expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
+    page.click(BULK_COMMIT)
+    expect(page.locator(BULK_COMMIT)).to_have_count(0)  # the result page
 
 
 def test_bulk_chooser_shows_exactly_one_value_widget(
@@ -1340,7 +1341,7 @@ def test_bulk_url_seeded_selection_still_works(
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
-    expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+    expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
 
 
 def test_bulk_enhancement_survives_a_history_restore(
@@ -1625,11 +1626,11 @@ def test_no_js_bulk_flow_completes(
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
-    expect(page.get_by_text("Sammelbearbeitung prüfen")).to_be_visible()
+    expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
     # the confirm page carries every row of the page the head box sat on
     expect(page.locator('input[name="auswahl"]')).to_have_count(rows)
-    page.click('button:has-text("anwenden")')
-    expect(page.get_by_text("abgeschlossen")).to_be_visible()
+    page.click(BULK_COMMIT)
+    expect(page.locator(BULK_COMMIT)).to_have_count(0)  # the result page
 
 
 def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workbench: str) -> None:

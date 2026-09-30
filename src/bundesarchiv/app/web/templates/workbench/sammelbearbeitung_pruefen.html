@@ -1,85 +1,60 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-Bulk-edit confirm page (Sammelbearbeitung state D, spec §2/§7). Archivist-only (the view gates it).
-A Medienart change that orphans Dokumenttypen lists each affected row and requires
-dokumenttyp_leeren=1 on commit. Hidden inputs carry auswahl, feld and wert into the commit (no
-server session state).
+The bulk check page (a2 pruefen.html) and its error mode (pruefen-fehler.html). Archivist-only (the
+view gates it). The consequence disclosure: the new value once, one row per record with the value
+it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server session state).
 {% endcomment %}
-{% block title %}Sammelbearbeitung prüfen{% endblock %}
+{% block title %}Änderung prüfen{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with zurueck=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
-  <h1>Sammelbearbeitung prüfen</h1>
+  <h1>Änderung prüfen</h1>
 
   {% if fehler %}
-  {% comment %}Validation error (spec §2 C): the chooser again, with the verbatim error and the
-  selection as hidden inputs, so the archivist fixes it and re-submits from here.{% endcomment %}
+  <p>{{ anzahl }} ausgewählt</p>
   <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
-    <p class="hint">{{ anzahl }} ausgewählt</p>
-    {% comment %}Before the chooser, so the message precedes the submit it is about in source AND
-    visual order; role=alert announces it on the re-render.{% endcomment %}
     <p class="error" role="alert">{{ fehler }}</p>
     {% include "workbench/_feldwahl.html" %}
   </form>
   <p><a href="{% url 'workbench' %}?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
   {% else %}
+  <p>{{ feld_label }} für {{ anzahl }} Artikel: <strong>{{ wert_display }}</strong></p>
 
-  <section class="panel">
-    <p><strong>Feld</strong>: {{ feld_label }}</p>
-    <p><strong>Neuer Wert</strong>: {{ wert_display }}</p>
-    <p>Betroffen: {{ anzahl }} Artikel</p>
-  </section>
-
-  {% if orphans %}
-  <section class="panel" aria-labelledby="orphans-titel">
-    <h2 id="orphans-titel">Medienart ändern — Achtung</h2>
-    <p>Medienart wird auf „{{ wert }}“ gesetzt. Bei diesen Artikeln passt der bisherige Dokumenttyp nicht mehr und wird geleert:</p>
-    <ul>
-      {% for row in orphans %}
-      <li>
-        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
-        <span>{{ row.title }}</span>
-        <small>Dokumenttyp: {{ row.alt }} → (leer)</small>
-      </li>
+  <table class="affected">
+    <thead>
+      <tr>
+        <th scope="col">Artikel</th>
+        <th scope="col">{{ feld_label }} bisher (wird ersetzt)</th>
+        {% if geleert %}<th scope="col">Dokumenttyp (wird geleert)</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in zeilen %}
+      <tr>
+        <td>{{ row.title }} {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}</td>
+        <td class="affected-old">{% firstof row.bisher "(leer)" %}</td>
+        {% if geleert %}<td class="affected-old">{{ row.dokumenttyp }}</td>{% endif %}
+      </tr>
       {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
+    </tbody>
+  </table>
 
-  <section class="panel" aria-labelledby="betroffene-titel">
-    <h2 id="betroffene-titel">Betroffene Artikel</h2>
-    <ul>
-      {% for row in artikel_liste %}
-      <li>
-        {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}
-        <span>{{ row.title }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-
-  <footer>
-    <div class="actions">
-      <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
-        {% csrf_token %}
-        {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
-        <input type="hidden" name="feld" value="{{ feld }}">
-        <input type="hidden" name="{{ wert_field }}" value="{{ wert }}">
-        <input type="hidden" name="bestaetigt" value="1">
-        {% if orphans %}
-        <input type="hidden" name="dokumenttyp_leeren" value="1">
-        <button class="primary" type="submit">Medienart setzen, Dokumenttyp leeren</button>
-        {% else %}
-        <button class="primary" type="submit">Auf {{ anzahl }} Artikel anwenden</button>
-        {% endif %}
-      </form>
+  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
+    {% csrf_token %}
+    {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    <input type="hidden" name="feld" value="{{ feld }}">
+    <input type="hidden" name="{{ wert_field }}" value="{{ wert }}">
+    <input type="hidden" name="bestaetigt" value="1">
+    {% if geleert %}<input type="hidden" name="dokumenttyp_leeren" value="1">{% endif %}
+    <footer>
+      <button class="primary" type="submit">{{ betroffen }} überschreiben{% if geleert %}, {{ geleert }} leeren{% endif %}</button>
       <a class="button" href="{% url 'workbench' %}?{{ abbrechen_query }}">Abbrechen</a>
-    </div>
-  </footer>
+    </footer>
+  </form>
   {% endif %}
 </main>
 {% endblock %}

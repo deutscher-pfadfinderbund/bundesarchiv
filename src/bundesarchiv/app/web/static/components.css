@@ -977,6 +977,34 @@
     }
   }
 
+  /* ---- affected — the records an action touches, one quiet row each (the consequence disclosure,
+     design-system.md). The Titel leads with its Signatur; .affected-old is the value the action
+     removes, one tier quieter. Values wrap: the disclosure never cuts what is lost. ---- */
+  .affected {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .affected th {
+    padding: 0 var(--space-5) var(--space-3) 0;
+    font: var(--type-label);
+    color: var(--ink-2);
+    text-align: start;
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never a ledger cell */
+  .affected td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    vertical-align: baseline;
+  }
+  .affected :is(th, td):last-child {
+    padding-inline-end: 0;
+  }
+  .affected tbody tr + tr td {
+    border-block-start: var(--line-width) solid var(--rule);
+  }
+  .affected-old {
+    color: var(--ink-2);
+  }
+
   /* ---- pager: the result range between its steps, one group at the end edge (a2 round 10). A
      step that cannot move yet stays, in Faint (DESIGN.md), and in the same type so nothing moves
      when it becomes active. ---- */

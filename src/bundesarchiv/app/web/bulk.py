@@ -49,6 +49,7 @@ class BulkField:
 
     target: str
     label: str
+    plural: str
     value_input: str
     is_custom: bool
 
@@ -58,15 +59,15 @@ class BulkField:
 #: The plain scalars + custom keys share the one text widget (wert_text); the three selects have
 #: their own. Everything below (ALLOWED_FIELDS, labels, options, value-input map) derives from this.
 FIELDS: tuple[BulkField, ...] = (
-    BulkField("physical_location", "Standort", "wert_text", False),
-    BulkField("creator", "Autor", "wert_text", False),
-    BulkField("subject_place", "Ort", "wert_text", False),
-    BulkField("media_type", "Medienart", "wert_media_type", False),
-    BulkField("document_type", "Dokumenttyp", "wert_document_type", False),
-    BulkField("Quelle", "Quelle", "wert_text", True),
-    BulkField("collection_id", "Sammlungsteil", "wert_collection_id", False),
-    BulkField("Querverweis", "Querverweis", "wert_text", True),
-    BulkField("Besitzer", "Besitzer", "wert_text", True),
+    BulkField("physical_location", "Standort", "Standorte", "wert_text", False),
+    BulkField("creator", "Autor", "Autoren", "wert_text", False),
+    BulkField("subject_place", "Ort", "Orte", "wert_text", False),
+    BulkField("media_type", "Medienart", "Medienarten", "wert_media_type", False),
+    BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "wert_document_type", False),
+    BulkField("Quelle", "Quelle", "Quellen", "wert_text", True),
+    BulkField("collection_id", "Sammlungsteil", "Sammlungsteile", "wert_collection_id", False),
+    BulkField("Querverweis", "Querverweis", "Querverweise", "wert_text", True),
+    BulkField("Besitzer", "Besitzer", "Besitzer", "wert_text", True),
 )
 
 _BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
@@ -117,6 +118,12 @@ def label_of(feld: str) -> str:
     """The German label for a field target (confirm/result pages show the label, not the key)."""
     f = _BY_TARGET.get(feld)
     return f.label if f is not None else feld
+
+
+def counted(feld: str, n: int) -> str:
+    """``n`` values of an allowed ``feld``, spelled out: "1 Standort", "3 Standorte"."""
+    f = _BY_TARGET[feld]
+    return f"{n} {f.label if n == 1 else f.plural}"
 
 
 def value_input_of(feld: str) -> str:
@@ -195,6 +202,16 @@ def field_display(feld: str, wert: str, bestand: BestandChooser) -> str:
     if feld == "collection_id":
         return bestand.name_of(wert) or wert
     return wert
+
+
+def current_display(article: Article, feld: str, bestand: BestandChooser) -> str:
+    """The value an allowed ``feld`` holds on ``article`` now, as the check page shows what a commit
+    replaces: a Bestand by its name; empty when unset."""
+    if feld in _CUSTOM_FIELDS:
+        return dict(article.custom).get(feld, "")
+    if feld == "collection_id":
+        return bestand.name_of(article.collection_id) or article.collection_id
+    return getattr(article, feld) or ""
 
 
 # --- the CAS loop + buckets (spec §4) ----------------------------------------------

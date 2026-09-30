@@ -4,8 +4,8 @@ ONE POST route, ``/artikel/sammelbearbeitung`` (archivist-gated, POST-only → b
 otherwise). Two phases in one handler (confirm-always, spec §0.1):
 
 - WITHOUT ``bestaetigt=1``: validate the selection + field + value, then render the full-page CONFIRM
-  (state D) — field · new value · count · the article list; a Medienart change that orphans
-  Dokumenttypen additionally lists each affected row and requires ``dokumenttyp_leeren=1`` on commit.
+  (state D) — the new value once, each article with the value it loses; a Medienart change that
+  orphans Dokumenttypen also names each one cleared and requires ``dokumenttyp_leeren=1`` on commit.
   A validation failure re-renders the ledger's drawer with the verbatim error, selection preserved.
 - WITH ``bestaetigt=1``: run ``bulk.apply_bulk`` (the ONE bulk Conflict catch) and render the
   full-page RESULT (state R) — saved count + actionable conflict/missing rows.
@@ -115,11 +115,11 @@ def _confirm(
     feld: str,
     wert: str,
 ) -> HttpResponseBase:
-    """Render the full-page confirm (state D). Loads each selected article (read-only) for the c-sig +
-    Titel list and to detect Medienart orphans. Absent articles are silently skipped from the list
-    (they will bucket ``missing`` on commit) — no deleted-vs-never oracle."""
+    """Render the full-page confirm (state D). Loads each selected article (read-only) for its row —
+    c-sig, Titel, the value it loses — and to detect Medienart orphans. Absent articles are silently
+    skipped from the list (they will bucket ``missing`` on commit) — no deleted-vs-never oracle."""
     articles = _load_all(archive, auswahl)
-    orphans = _orphans(articles, feld, wert)
+    orphans = {a.ulid for a in _orphans(articles, feld, wert)}
     return render_screen(
         request,
         "workbench/sammelbearbeitung_pruefen.html",
@@ -131,8 +131,17 @@ def _confirm(
             "feld_label": bulk.label_of(feld),
             "wert_display": bulk.field_display(feld, wert, bestand),
             "anzahl": len(articles),
-            "artikel_liste": [_confirm_row(a) for a in articles],
-            "orphans": [_orphan_row(a) for a in orphans],
+            "betroffen": bulk.counted(feld, len(articles)),
+            "geleert": bulk.counted("document_type", len(orphans)) if orphans else "",
+            "zeilen": [
+                {
+                    "ref_code": a.ref_code or "",
+                    "title": a.title,
+                    "bisher": bulk.current_display(a, feld, bestand),
+                    "dokumenttyp": (a.document_type or "") if a.ulid in orphans else "",
+                }
+                for a in articles
+            ],
             "abbrechen_query": browse.select_page_query({}, [a.ulid for a in articles], []),
         },
         bestand=bestand,
@@ -220,20 +229,6 @@ def _orphans(articles: list[Article], feld: str, wert: str) -> list[Article]:
         for a in articles
         if a.document_type is not None and not vocab.is_valid_pair(wert.strip(), a.document_type)
     ]
-
-
-def _confirm_row(article: Article) -> dict[str, str]:
-    """One confirm-list row: the c-sig mark + Titel."""
-    return {"ref_code": article.ref_code or "", "title": article.title}
-
-
-def _orphan_row(article: Article) -> dict[str, str]:
-    """One orphan row for the confirm page: `Dokumenttyp: {alt} → (leer)` (spec §7 verbatim)."""
-    return {
-        "ref_code": article.ref_code or "",
-        "title": article.title,
-        "alt": article.document_type or "",
-    }
 
 
 def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:

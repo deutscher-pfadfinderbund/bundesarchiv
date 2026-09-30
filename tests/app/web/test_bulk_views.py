@@ -189,38 +189,43 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: st
     assert back in [unescape(h) for h in re.findall(r'href="([^"]*)"', body)]
 
 
-def test_confirm_page_lists_field_value_count_articles(two_drafts: Corpus) -> None:
+def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).post(
         "/artikel/sammelbearbeitung",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer"},
     )
     assert response.status_code == 200
     body = response.content.decode()
-    assert "Sammelbearbeitung prüfen" in body
-    assert "Autor" in body  # the Feld label
-    assert "K. Meyer" in body  # the new value
-    assert "Betroffen: 2 Artikel" in body
-    assert "Foto A" in body and "Foto B" in body  # the article list
-    assert "Auf 2 Artikel anwenden" in body
-    # confirm phase writes nothing
+    assert "K. Meyer" in body
+    assert "Foto A" in body and "Foto B" in body
     assert _stored(two_drafts, _A).creator is None
 
 
-def test_the_bulk_surfaces_carry_the_shared_header(two_drafts: Corpus) -> None:
-    # Lockstep: workbench/_header.html exists so that NO archivist screen hand-draws a reduced version
-    # of the approved chrome (the precedent rule — the form wave retired the edit/create screens' own
-    # headers and left these two, plus the delete confirm, still drawing one lone back link). The
-    # user-visible consequence is the SEARCH affordance: from these screens an archivist could not
-    # search at all. Asserted on both phases, since each is its own template.
-    client = client_as(Archivist())
-    payload = {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer"}
-    pruefen = client.post("/artikel/sammelbearbeitung", payload).content.decode()
-    ergebnis = client.post(
-        "/artikel/sammelbearbeitung", {**payload, "bestaetigt": "1"}
-    ).content.decode()
-    for name, body in (("prüfen", pruefen), ("ergebnis", ergebnis)):
-        assert 'placeholder="Archiv durchsuchen…"' in body, f"{name}: no search box in the header"
-        assert "+ Neu …" in body, f"{name}: no create disclosure in the header"
+@pytest.mark.parametrize(
+    ("feld", "widget", "wert", "bisher", "saved_as"),
+    [
+        ("creator", "wert_text", "Neu", "Alt-Autor", {"creator": "Alt-Autor"}),
+        ("Quelle", "wert_text", "Neu", "Alt-Quelle", {"custom": (("Quelle", "Alt-Quelle"),)}),
+        ("collection_id", "wert_collection_id", "ARCH", "Öffentlich", {}),
+    ],
+)
+def test_the_check_page_shows_each_value_it_replaces(
+    two_drafts: Corpus, feld: str, widget: str, wert: str, bisher: str, saved_as: dict[str, object]
+) -> None:
+    # the value a record loses reaches the page before the commit; a Bestand by its name
+    two_drafts.articles.save(
+        make_article(
+            _A, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Foto A", **saved_as
+        ),
+        two_drafts.articles.load(_A).version,
+        changed_by="tester",
+    )
+    body = (
+        client_as(Archivist())
+        .post("/artikel/sammelbearbeitung", {"auswahl": [_A], "feld": feld, widget: wert})
+        .content.decode()
+    )
+    assert bisher in body.split("<main", 1)[1]  # the header's panels list every Bestand
 
 
 # --- commit phase (bestaetigt=1) ---------------------------------------------------
@@ -364,8 +369,9 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
         },
     )
     body = response.content.decode()
-    assert "Medienart ändern — Achtung" in body  # re-confirm shown
-    assert "Dokumenttyp: Brief → (leer)" in body
+    # re-confirmed: the Dokumenttyp it clears is shown, and the commit now carries the flag
+    assert "Brief" in body
+    assert 'name="dokumenttyp_leeren" value="1"' in body
     assert _stored(two_drafts, _A).media_type == "Schrifttum"  # NOT written without the flag
 
 
