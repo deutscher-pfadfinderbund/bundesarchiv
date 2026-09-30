@@ -880,3 +880,12 @@ missing records; "N von M gespeichert"; the error pages' wording.
   are English from now on (the Papierkorb's restore, delete-permanently and trash page). The existing
   German paths (`/artikel/…`, `/bestand/…`, `…/medien/hochladen`) move to English in one later change,
   with permanent redirects from the old paths, because the archive is live and links exist.
+
+## Rulings of 2026-10-01 (the list, from the live archive)
+
+- **The way back keeps the list's filters.** "Archiv" in the crumbs, the wordmark and the back links on
+  the article and edit pages lead to the list as it was left, also after a save. The list address is
+  remembered per browser tab (session storage); shared links stay clean; without JS the links stay
+  plain.
+- **Filter by file type.** In "+ Filter", "Digital" becomes a choice: mit PDF, mit Fotos, mit Audio, mit
+  Video, mit anderen Dateien; "digital" stays for any file. The address parameter is English (`file`).
