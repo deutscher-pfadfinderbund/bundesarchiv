@@ -873,3 +873,10 @@ Accepted as proposed: the outline button that turns red only on hover, press and
 stale notice and question; the confirm page without a back link; one red conflict notice for both
 forms; the new value stated once on the bulk check page with "überschreiben" and a count of
 missing records; "N von M gespeichert"; the error pages' wording.
+
+## Ruling of 2026-10-01 (URLs)
+
+- **URL paths use English terms.** UI copy stays German; the address is development-facing. New routes
+  are English from now on (the Papierkorb's restore, delete-permanently and trash page). The existing
+  German paths (`/artikel/…`, `/bestand/…`, `…/medien/hochladen`) move to English in one later change,
+  with permanent redirects from the old paths, because the archive is live and links exist.
