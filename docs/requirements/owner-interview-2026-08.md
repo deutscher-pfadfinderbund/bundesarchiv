@@ -853,3 +853,23 @@ The archivists' Papierkorb wish (`archivist-wishes-2025.md`) is taken up again. 
 - **Emptied by hand for now.** A 30-day retention sounds right, but it waits.
 - **Restoring overwritten versions** is on the horizon, not now.
 - Until the Papierkorb exists, the delete confirm does not say there is none.
+
+## Rulings of 2026-09-30 (Wave REST review)
+
+The owner reviewed the Wave REST screens (delete confirm, header tool panels, Bestand pages, bulk
+check and result, error pages) and accepted them as built, with these changes:
+
+- **Every tool panel has a visible "Abbrechen".** On a phone there is no Esc and, with the panel
+  as wide as the screen, nowhere to tap outside; Esc and light dismiss stay as well.
+- A draft's "Löschen …" and "Verwerfen …" are one action, "Löschen …".
+- Opening a tool panel from a menu closes the menu.
+- The bulk pages show the Signatur in quiet mono, as the list does.
+- The bulk field names say "Bestand", never "Sammlungsteil".
+- Later: "Bestand bearbeiten" moves out of the "+ Neu …" menu into the list's Bestand context; a
+  sub-Bestand page gets its crumbs; "Oberste Ebene" loses its dashes. The rename hint ("gilt
+  sofort für alle N Artikel") is not built.
+
+Accepted as proposed: the outline button that turns red only on hover, press and focus; the plain
+stale notice and question; the confirm page without a back link; one red conflict notice for both
+forms; the new value stated once on the bulk check page with "überschreiben" and a count of
+missing records; "N von M gespeichert"; the error pages' wording.
