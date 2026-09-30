@@ -228,7 +228,7 @@ SCREENS: tuple[Screen, ...] = (
     ),
     Screen(
         "edit-form",
-        "the edit surface (a draft: the Löschen and Verwerfen confirms in 'Mehr …')",
+        "the edit surface (a draft: the Löschen confirm in 'Mehr …')",
         True,
         _goto(lambda c: f"/artikel/{c.draft_ulid}/bearbeiten"),
         "artikel-bearbeiten",

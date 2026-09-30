@@ -628,7 +628,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "crumbs": bestand_crumbs(resolution.chain),
         "tags": tags,
         "umfang": len(media),
-        "loeschen": vocab.delete_confirm(len(media), discard=False),
+        "loeschen": vocab.delete_confirm(len(media)),
         "cover": media[0] if media else None,
         "weitere": media[1:],
         "standort": article.physical_location or "",

@@ -195,9 +195,8 @@ class DeleteConfirm:
     button: str
 
 
-def delete_confirm(files: int, *, discard: bool) -> DeleteConfirm:
-    """The confirm for a record with ``files`` files; ``discard`` words it for a draft given up."""
-    thing, verb = ("Entwurf", "verwerfen") if discard else ("Artikel", "löschen")
+def delete_confirm(files: int) -> DeleteConfirm:
+    """The confirm for a record with ``files`` files."""
     dateien = numbered(files, *_FILE_WORDS[FileKind.OTHER])
     gone = (
         "Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
@@ -206,9 +205,9 @@ def delete_confirm(files: int, *, discard: bool) -> DeleteConfirm:
         else "Gelöscht wird der Katalogeintrag mit allen Angaben."
     )
     return DeleteConfirm(
-        question=f"{thing} {verb}?",
+        question="Artikel löschen?",
         consequence=f"{gone} Das lässt sich nicht rückgängig machen.",
-        button=f"{thing} und {dateien} {verb}" if files else f"{thing} {verb}",
+        button=f"Artikel und {dateien} löschen" if files else "Artikel löschen",
     )
 
 

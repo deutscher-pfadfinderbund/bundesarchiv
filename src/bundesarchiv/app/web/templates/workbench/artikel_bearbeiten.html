@@ -44,8 +44,6 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
         <li>{% include "workbench/_duplizieren.html" with ulid=values.ulid %}</li>
         {% url 'artikel-loeschen' values.ulid as loeschen_href %}
         <li><button class="link danger" type="button" popovertarget="loeschen">Löschen …</button>{% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}</li>
-        {% comment %}Verwerfen is drafts-only: the same delete, worded for a draft given up (spec §7).{% endcomment %}
-        {% if values.is_draft %}<li><button class="link danger" type="button" popovertarget="verwerfen">Verwerfen …</button>{% include "components/confirm.html" with id="verwerfen" action=loeschen_href|add:"?verwerfen=1" lead=verwerfen.question consequence=verwerfen.consequence button=verwerfen.button tone="danger" in_place=True %}</li>{% endif %}
       </ul>
     </div>
   </aside>

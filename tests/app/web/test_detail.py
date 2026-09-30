@@ -195,7 +195,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     archivist = _texts(Archivist(), corpus.pub)
     tools = _texts(Archivist(), corpus.markup) - _texts(Member(groups=()), corpus.markup)
     # the delete confirm names the record's own files: pub holds the cover and a second page
-    confirm = vocab.delete_confirm(len((corpus.cover_hash, corpus.second_hash)), discard=False)
+    confirm = vocab.delete_confirm(len((corpus.cover_hash, corpus.second_hash)))
     tools |= {confirm.consequence, confirm.button}
     assert member <= archivist
     assert archivist - member - tools == {"Standort", _STANDORT, _CUSTOM_KEY, _CUSTOM_VALUE}

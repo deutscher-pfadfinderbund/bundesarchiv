@@ -96,25 +96,6 @@ def test_loeschen_confirm_page_names_the_record(corpus: Corpus) -> None:
     assert "F12" in body
 
 
-def test_loeschen_confirm_page_verwerfen_wording(corpus: Corpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/loeschen?verwerfen=1")
-    body = response.content.decode()
-    assert "Entwurf verwerfen?" in body
-    assert "Entwurf verwerfen" in body
-
-
-def test_loeschen_verwerfen_wording_only_for_drafts(corpus: Corpus) -> None:
-    # A PUBLISHED article + ?verwerfen=1 is deleted, not discarded — server ignores the param and
-    # shows the plain "Artikel löschen?" wording (behaviour identical, wording honest).
-    body = (
-        client_as(Archivist())
-        .get(f"/artikel/{PUBLISHED_ULID}/loeschen?verwerfen=1")
-        .content.decode()
-    )
-    assert "Artikel löschen?" in body
-    assert "Entwurf verwerfen" not in body
-
-
 def test_the_confirm_page_deletes_and_returns_to_the_workbench(corpus: Corpus) -> None:
     client = client_as(Archivist())
     body = client.get(f"/artikel/{PUBLISHED_ULID}/loeschen").content.decode()
@@ -162,14 +143,11 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
         corpus.articles.load(PUBLISHED_ULID)
 
 
-def test_the_edit_forms_confirms_delete_against_the_saved_version(corpus: Corpus) -> None:
+def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> None:
     client = client_as(Archivist())
     body = client.get(f"/artikel/{DRAFT_ULID}/bearbeiten").content.decode()
-    forms = _delete_forms(body, DRAFT_ULID)
-    version = str(corpus.articles.load(DRAFT_ULID).version)
-    assert forms
-    assert {fields["expected_version"] for _, fields in forms} == {version}
-    action, fields = forms[-1]
+    [(action, fields)] = _delete_forms(body, DRAFT_ULID)
+    assert fields["expected_version"] == str(corpus.articles.load(DRAFT_ULID).version)
     assert client.post(action, fields).status_code == 302
     with pytest.raises(NotFound):
         corpus.articles.load(DRAFT_ULID)

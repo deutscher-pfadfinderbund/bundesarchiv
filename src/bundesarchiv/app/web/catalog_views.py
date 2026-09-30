@@ -457,8 +457,7 @@ class EditSurface:
                     ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
-                "loeschen": vocab.delete_confirm(len(self.stored.media), discard=False),
-                "verwerfen": vocab.delete_confirm(len(self.stored.media), discard=True),
+                "loeschen": vocab.delete_confirm(len(self.stored.media)),
                 "crumbs": _crumbs(self.stored, self.bestand),
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
@@ -663,12 +662,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
             article_services.hard_delete_article(archive, ulid)
             return _redirect(request, "/")  # HTMX: HX-Redirect to the workbench (spec §5)
         veraltet = _LOESCHEN_VERALTET
-    # Verwerfen (abandoning a draft from the edit form) reuses this identical confirm page + the same
-    # hard-delete, only reworded (spec §7 — avoids a second destructive idiom). ?verwerfen=1 flags it,
-    # but the "Entwurf verwerfen" wording is only honest for a DRAFT — a published article is deleted,
-    # not discarded, so it always reads "Artikel löschen?" regardless of the query param.
-    verwerfen = request.GET.get("verwerfen") == "1" and stored.article.lifecycle is Lifecycle.DRAFT
-    confirm = vocab.delete_confirm(len(stored.article.media), discard=verwerfen)
+    confirm = vocab.delete_confirm(len(stored.article.media))
     bestand = BestandChooser.of(archive)
     return render_screen(
         request,
@@ -677,7 +671,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
         if request.headers.get("HX-Request")
         else "workbench/artikel_loeschen.html",
         {
-            "id": "verwerfen" if verwerfen else "loeschen",
+            "id": "loeschen",
             "ulid": ulid,
             "version": stored.version,
             "veraltet": veraltet,

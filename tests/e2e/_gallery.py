@@ -138,14 +138,13 @@ def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # a DRAFT, so the menu holds both destructive entries (Löschen, Verwerfen)
     page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
     page.click(".record-meta .menu-button")
 
 
-def _reach_edit_verwerfen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_edit_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     _reach_edit_mehr_open(page, base, corpus)
-    page.click('[popovertarget="verwerfen"]')
+    page.click('[popovertarget="loeschen"]')
 
 
 def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -280,15 +279,15 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "edit-mehr-open",
-        "the edit surface, the margin's 'Mehr …' menu open (a draft: Löschen and Verwerfen)",
+        "the edit surface, the margin's 'Mehr …' menu open (a draft)",
         True,
         _reach_edit_mehr_open,
     ),
     GalleryState(
-        "edit-verwerfen-open",
-        "the edit surface, a draft's Verwerfen confirm open from 'Mehr …' (the margin's own panel)",
+        "edit-loeschen-open",
+        "the edit surface, a draft's Löschen confirm open from 'Mehr …' (the margin's own panel)",
         True,
-        _reach_edit_verwerfen_open,
+        _reach_edit_loeschen_open,
     ),
     GalleryState(
         "neu-artikel-open",
