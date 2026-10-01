@@ -37,6 +37,10 @@ _PROPFIND = (
     b'<?xml version="1.0"?><propfind xmlns="DAV:"><prop>'
     b"<resourcetype/><getcontentlength/><getetag/></prop></propfind>"
 )
+_PROPFIND_SIZE = (  # Nextcloud/ownCloud: the recursive size of a collection, not in plain DAV
+    b'<?xml version="1.0"?><propfind xmlns="DAV:" xmlns:oc="http://owncloud.org/ns">'
+    b"<prop><oc:size/></prop></propfind>"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +107,22 @@ class WebDavObjectStore(ObjectStore):
             except ArchiveError:
                 return []  # no stored key has an invalid segment
         return _retrying(lambda: self._entries(folder, prefix))
+
+    def root_size(self) -> int | None:
+        """The recursive size in bytes of everything under the root, as Nextcloud reports it
+        (`oc:size`); None when the server does not say. Not part of the port."""
+
+        def ask() -> int | None:
+            resp = self._request(
+                "PROPFIND", self._url(""), headers={"Depth": "0"}, content=_PROPFIND_SIZE
+            )
+            self._ensure(resp, httpx2.codes.MULTI_STATUS)
+            root = ElementTree.fromstring(resp.content)  # noqa: S314
+            sizes = (e.text for e in root.iter("{http://owncloud.org/ns}size") if e.text)
+            size = next((t for t in sizes if t.isdigit()), None)
+            return None if size is None else int(size)
+
+        return _retrying(ask)
 
     def exists(self, key: str) -> bool:
         validate_key(key)

@@ -364,7 +364,8 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
   `mirror_delete_article`): `task`, `outcome` (`ok` at INFO, `failed` at ERROR), `seconds`, and
   `exception_class` + `exc_info` on failure. `mirror_push` adds `ulid`, `sent`, `sent_bytes`;
   `mirror_delete_article` adds `ulid`; `mirror_reconcile` adds `sent`, `sent_bytes`, `recorded`,
-  `changed`, `mismatched`, `unreadable`, `remote_only`, `failed` (key counts). A failed attempt is
+  `changed`, `mismatched`, `unreadable`, `remote_only`, `failed` (key counts), `remote_keys` (keys the mirror listed) and,
+  when the mirror is Nextcloud, `remote_bytes` (its recursive size, `oc:size` of the root). A failed attempt is
   logged on every retry.
 - **Mirror findings** (logger `bundesarchiv.app.mirror`, WARNING): `key` + `finding` for one key;
   `finding` (`changed` | `remote_only`) + `count` + `keys` (first 20) for a reconcile finding;

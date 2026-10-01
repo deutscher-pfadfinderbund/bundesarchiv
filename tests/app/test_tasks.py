@@ -385,6 +385,8 @@ def test_the_reconcile_job_logs_one_summary_record(
     )
     assert fields["sent"] == counts["sent"] == len(list(store.list()))
     assert fields["sent_bytes"] == sum(len(store.read(key)) for key in store.list())
+    assert fields["remote_keys"] == 0  # the listing before the push
+    assert "remote_bytes" not in fields  # only a Nextcloud mirror answers
     assert fields["seconds"] >= 0
 
 

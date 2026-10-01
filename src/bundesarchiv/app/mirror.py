@@ -88,7 +88,8 @@ class ReconcileReport:
     recorded nor replaced. `unreadable`: local READMEs that do not decode, not pushed.
     `remote_only`: keys only the system of record holds, left there: a hard delete that never
     reached it, or a file not the app's. `failed`: the saved records whose push broke off; the next
-    reconcile takes them up again. `sent_bytes`: the bytes of `sent`."""
+    reconcile takes them up again. `sent_bytes`: the bytes of `sent`. `remote_keys`: how many keys the
+    system of record listed before the push."""
 
     sent: tuple[str, ...]
     sent_bytes: int
@@ -98,6 +99,7 @@ class ReconcileReport:
     unreadable: tuple[str, ...]
     remote_only: tuple[str, ...]
     failed: tuple[Ulid, ...]
+    remote_keys: int
 
 
 def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> Sent:
@@ -146,6 +148,7 @@ def reconcile(archive: Archive, remote: ObjectStore, record: PushRecord) -> Reco
         unreadable=tuple(run.unreadable),
         remote_only=tuple(sorted(sweep.listed.keys() - run.seen)),
         failed=tuple(failed),
+        remote_keys=len(sweep.listed),
     )
     _warn("changed", "changed on the system of record since the app pushed them", report.changed)
     _warn("remote_only", "only on the system of record, left there", report.remote_only)

@@ -162,3 +162,28 @@ def test_a_collection_answered_like_a_file_is_not_found() -> None:
     store = WebDavObjectStore(client)
     with pytest.raises(NotFound):
         pytest.fail(f"read returned {store.read('art/1')!r}")
+
+
+def _root_size_store(body: bytes) -> WebDavObjectStore:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert (request.method, request.headers["Depth"]) == ("PROPFIND", "0")
+        return httpx2.Response(207, content=body)
+
+    client = httpx2.Client(base_url="http://dav.invalid/", transport=httpx2.MockTransport(handler))
+    return WebDavObjectStore(client)
+
+
+def test_root_size_reads_the_nextcloud_recursive_size() -> None:
+    body = (
+        b'<d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:response>'
+        b"<d:href>/</d:href><d:propstat><d:prop><oc:size>5300000000</oc:size></d:prop>"
+        b"</d:propstat></d:response></d:multistatus>"
+    )
+    assert _root_size_store(body).root_size() == 5_300_000_000
+
+
+def test_root_size_is_none_when_the_server_does_not_say() -> None:
+    body = (
+        b'<d:multistatus xmlns:d="DAV:"><d:response><d:href>/</d:href></d:response></d:multistatus>'
+    )
+    assert _root_size_store(body).root_size() is None

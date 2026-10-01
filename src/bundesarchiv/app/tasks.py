@@ -184,7 +184,12 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
                 for finding, keys in asdict(report).items()
                 if isinstance(keys, tuple)
             }
-            fields |= counts | {"sent_bytes": report.sent_bytes}
+            fields |= counts | {"sent_bytes": report.sent_bytes, "remote_keys": report.remote_keys}
+            if isinstance(remote, WebDavObjectStore):
+                # the size is for the dashboard only: a failed query never fails the sweep
+                with contextlib.suppress(Exception):
+                    if (size := remote.root_size()) is not None:
+                        fields["remote_bytes"] = size
     finally:
         _close_mirror(remote)  # release the per-job httpx2.Client even when the sweep raises
     return counts
