@@ -924,3 +924,5 @@ missing records; "N von M gespeichert"; the error pages' wording.
   soon.
 - **Thumbnails are built on demand**, once, in the background, and kept. No bulk pre-build at deploy
   or start: it fills the disk with thumbnails no one sees.
+  **Amended (owner, 2026-10-01 night):** a bulk build is fine and stays — the whole corpus's thumbnails
+  are ~40 MB. `manage.py rebuild_thumbnails` is a normal tool, also after a deploy.
