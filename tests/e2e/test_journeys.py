@@ -1766,6 +1766,35 @@ def test_a_media_action_never_hides_anothers_save_from_the_form(
     expect(page.get_by_text("Inzwischen geändert")).to_be_visible()
 
 
+def test_a_media_action_keeps_the_captions_typed_before_it(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # A media action swaps #medien-drawer, which re-renders every caption: the unsaved ones typed
+    # before it must come back with their files and still save with Speichern (ADR 0015).
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Bildunterschrift vor Medienaktion")
+    page.set_input_files(
+        '#medien-drawer input[type="file"]',
+        [
+            FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
+            FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
+        ],
+    )
+    rows = page.locator("#medien-drawer .file-row")
+    expect(rows).to_have_count(2)
+    rows.nth(0).get_by_label("Bildunterschrift").fill("Erste Seite")
+    rows.nth(1).get_by_label("Bildunterschrift").fill("Zweite Seite")
+    page.get_by_role("button", name="Nach unten").first.click()
+    expect(rows.first).to_contain_text("zwei.png")
+    expect(rows.nth(0).get_by_label("Bildunterschrift")).to_have_value("Zweite Seite")
+    expect(rows.nth(1).get_by_label("Bildunterschrift")).to_have_value("Erste Seite")
+    expect(page.locator("#dirty-flag")).to_be_visible()  # still unsaved, and still said
+    page.click('button:has-text("Speichern")')
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
+    expect(page.locator("main")).to_contain_text("Zweite Seite")
+    expect(page.locator("main")).to_contain_text("Erste Seite")
+
+
 def test_the_edit_form_absorbs_long_content(
     archivist_page: Page,
     live_workbench: str,

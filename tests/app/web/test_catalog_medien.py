@@ -306,6 +306,25 @@ def test_a_refused_upload_hands_a_stale_form_its_own_version_back(corpus: _Media
     assert f'name="expected_version" value="{corpus.version}"' in response.content.decode()
 
 
+def test_a_media_action_shows_the_typed_captions_and_saves_none(corpus: _MediaCorpus) -> None:
+    # With JS the drawer's forms send the typed captions along; the swapped-in rows show them by
+    # file, while the move itself writes no caption (ADR 0015). The e2e journeys hold the browser half.
+    a, b = corpus.ref_a.content_hash, corpus.ref_b.content_hash
+    response = client_as(Archivist()).post(
+        f"/articles/{_ULID}/media/move",
+        {
+            "hash": a,
+            "richtung": "runter",
+            "expected_version": str(corpus.version),
+            f"caption[{a}]": "Getippt A",
+            f"caption[{b}]": "Getippt B",
+        },
+    )
+    drawer = _medien_drawer_region(response.content.decode())
+    assert drawer.index('value="Getippt B"') < drawer.index('value="Getippt A"')
+    assert [m.caption for m in corpus.media()] == [None, "Titelbild"]
+
+
 @pytest.mark.parametrize("name", ["...", "  ", " . "])
 def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
     corpus: _MediaCorpus, name: str

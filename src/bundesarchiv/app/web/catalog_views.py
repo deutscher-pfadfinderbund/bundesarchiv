@@ -955,12 +955,13 @@ def _media_surface(
     the media forms post none and the whole form re-renders from ``article``, so ``version`` is the
     honest one. With JS only the drawer and the version swap (the form keeps the archivist's
     values), so the posted version advances only past this route's ``own_save`` of exactly it —
-    never past another editor's save (ADR 0013; a save is ``version + 1``)."""
+    never past another editor's save (ADR 0013; a save is ``version + 1``). The drawer's rows show
+    the unsaved captions the JS forms post along, matched by file; the route saves none of them."""
     raw = request.POST.get("expected_version")
-    if raw is None:
-        return EditSurface.of(article, version, bestand)
-    held = catalog.parse_version(raw)
-    return EditSurface.of(article, version if own_save and version == held + 1 else held, bestand)
+    held = None if raw is None else catalog.parse_version(raw)
+    shown = version if held is None or (own_save and version == held + 1) else held
+    surface = EditSurface.of(article, shown, bestand)
+    return replace(surface, media=catalog.apply_captions(request.POST, article.media))
 
 
 def _reordered(

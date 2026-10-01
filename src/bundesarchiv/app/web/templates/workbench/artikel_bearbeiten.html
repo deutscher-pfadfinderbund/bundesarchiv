@@ -92,11 +92,12 @@ save gets HX-Redirect.{% endcomment %}
 
     The swap triple is declared once, on the region it names, and inherited by the forms below: a
     swap selector must resolve where it fires (G.32). The hidden forms are siblings inside the
-    section (forms cannot nest), so a swap delivers fresh forms for the current rows.{% endcomment %}
+    section (forms cannot nest), so a swap delivers fresh forms for the current rows. The include
+    carries the unsaved captions too, so a swap shows them back unsaved.{% endcomment %}
     <section id="medien-drawer" aria-labelledby="h-medien"
              hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
              hx-swap:inherited="outerHTML"
-             hx-include:inherited="#expected-version" hx-select-oob:inherited="#expected-version">
+             hx-include:inherited="#expected-version, #medien-drawer input[form=bearbeiten-form]" hx-select-oob:inherited="#expected-version">
       <header class="section-head"><h2 id="h-medien">Medien</h2></header>
       {% if medien_fehler %}<p class="error" role="alert">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}
