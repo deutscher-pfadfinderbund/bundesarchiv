@@ -15,7 +15,7 @@ adapter-specific files cover only what the port cannot state.
 - `readme.py` — Article README codec: Markdown+front-matter ↔ Article (ADR 0005/0006) · interface: `encode`, `decode`, `read_version`, `audience_from_front_matter` · tests: `tests/persistence/test_readme.py`
 - `collection_readme.py` — Collection README codec (ADR 0010) · interface: `encode_collection`, `decode_collection` · tests: `tests/persistence/test_collection_readme.py`
 - `fixity.py` — the fixity check: every README version against the stored files (ADR 0019) · interface: `verify`, `Report` · tests: `tests/app/test_verify.py`
-- `objectstore.py` — the ObjectStore port: minimal blob interface + key validation · interface: `ObjectStore`, `ObjectEntry`, `validate_key`, `is_reserved` · tests: `tests/persistence/test_objectstore_conformance.py`
+- `objectstore.py` — the ObjectStore port + key validation · interface: `ObjectStore`, `ObjectEntry`, `validate_key`, `validate_prefix`, `is_reserved` · tests: `tests/persistence/test_objectstore_conformance.py`
 - `adapters/localfs.py` — local-filesystem adapter, the canonical v1 backend · interface: `LocalFsObjectStore` · tests: conformance + `tests/persistence/test_localfs.py` (SIGKILL durability)
 - `adapters/memory.py` — in-memory adapter, the test fake · interface: `InMemoryObjectStore` · tests: conformance
 - `adapters/webdav.py` — WebDAV adapter, the Nextcloud mirror backend (ADR 0005/0007) · interface: `WebDavObjectStore` · tests: conformance + `tests/persistence/test_webdav.py`, `test_mirror_webdav.py`

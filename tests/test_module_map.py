@@ -132,7 +132,7 @@ INTERFACE_ALLOW: dict[str, str] = {
     "app/articles.py:restore_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
     **{
         f"app/web/bestand.py:{m}": _BESTAND
-        for m in ("options", "accepts", "error", "name_of", "by_ulid", "chain_of")
+        for m in ("options", "accepts", "error", "name_of", "names", "by_ulid", "chain_of")
     },
     **{
         f"app/web/catalog_views.py:{m}": _PREFIX + "`article_create`/`_edit`/... suffix shorthand"

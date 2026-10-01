@@ -13,7 +13,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 
 - `viewers.py` — the request→Viewer boundary + response mechanics · interface: `viewer_of`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_viewer_of.py`, `test_token_viewer.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
-- `keycloak.py` — the ONE place that talks to the realm; failure is `None` (ADR 0018) · interface: `verify_access`, `fetch_tokens`, `refresh`, `logout_url` · tests: `tests/app/web/test_keycloak_*.py`
+- `keycloak.py` — the ONE place that talks to the realm; failure is `None` (ADR 0018) · interface: `authorization_url`, `verify_access`, `fetch_tokens`, `refresh`, `logout_url` · tests: `tests/app/web/test_keycloak_*.py`
 - `oidc.py` — validated OIDC claims → Viewer, least privilege on an unknown shape · interface: `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `tests/app/web/test_oidc_claims.py`
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_detail`, `DetailResolution` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
@@ -30,6 +30,6 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `SICHTBARKEIT_OPTIONS`, `exposure_label`, `datierung_parts`, `human_size` · tests: `test_vocab.py`
-- `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`accepts`/`error`/`name_of`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
+- `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`
