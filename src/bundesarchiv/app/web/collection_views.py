@@ -119,8 +119,8 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
     visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
     absent ulid all collapse to the plain 404. POST saves against the form's
-    ``expected_version`` (ADR 0013). ``save_collection`` reindexes the subtree so the new name is live
-    in facets; a blank Name re-renders with the verbatim error, unchanged."""
+    ``expected_version`` (ADR 0013) and returns to the list scoped to it; a blank Name re-renders
+    with the verbatim error, unchanged."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return not_found()

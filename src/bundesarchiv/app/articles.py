@@ -1,15 +1,10 @@
 """Article write services — the canonical-then-index shell (ADR 0013 + 0014).
 
 Each service: write canonical through ``ArticleRepository`` (CAS — a stale ``expected_version``
-raises ``Conflict``, which propagates so the view can re-render the diff), THEN synchronously
-update the index for that one Article. If the synchronous index update raises, the canonical write
-has ALREADY stood, so we must NOT re-raise: we enqueue a reference reindex job (retry net, ADR
-0014) and return ``index_updated=False`` so the view warns that the visibility change is not yet
-effective. Any other exception (e.g. ``Conflict`` from the repo) propagates untouched — the index
-step is only reached after a successful canonical write.
-
-``index_article`` and ``enqueue_reindex_article`` are imported as module-level names so the service
-seam is monkeypatchable in tests (a genuine boundary): the index adapter and the worker queue.
+raises ``Conflict``, which propagates so the view can re-render the diff), THEN hand what it wrote
+to ``after_write.run`` — index sync, retry fallback, mirror job, never raising — and return its
+``index_updated`` so the view can warn that the visibility change is not yet effective (ADR 0014).
+Only the thumbnail jobs stay here: only Article content has files to render.
 
 Two entry points into that shell, and ADR 0013's split is which one you call. ``save_article`` takes
 an Article plus the version the caller is betting on and lets ``Conflict`` propagate — the form path,
@@ -22,7 +17,7 @@ import contextlib
 from collections.abc import Callable
 from dataclasses import replace
 
-from bundesarchiv.app import thumbnails
+from bundesarchiv.app import after_write, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import (
     Conflicted,
@@ -32,12 +27,7 @@ from bundesarchiv.app.result import (
     Updated,
     UpdateOutcome,
 )
-from bundesarchiv.app.tasks import (
-    enqueue_generate_thumbnail,
-    enqueue_mirror_delete_article,
-    enqueue_mirror_push,
-    enqueue_reindex_article,
-)
+from bundesarchiv.app.tasks import enqueue_generate_thumbnail
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -48,7 +38,6 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_article
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 
@@ -59,9 +48,8 @@ def save_article(
     version raises ``Conflict`` before anything is indexed. On index failure the canonical write
     stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
-    index_updated = _sync_index(archive, article.ulid)
+    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     _enqueue_thumbnails(article)
-    _enqueue_mirror(enqueue_mirror_push, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -143,9 +131,8 @@ def create_article(
         custom=custom,
     )
     new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
-    index_updated = _sync_index(archive, article.ulid)
+    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     _enqueue_thumbnails(article)
-    _enqueue_mirror(enqueue_mirror_push, article.ulid)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -185,8 +172,7 @@ def delete_article(
     change record is the mark, reindexed and pushed like ``save_article``. A stale version raises
     ``Conflict`` before anything is written or indexed."""
     new_version = archive.articles.mark_deleted(article, expected_version, changed_by=changed_by)
-    index_updated = _sync_index(archive, article.ulid)
-    _enqueue_mirror(enqueue_mirror_push, article.ulid)
+    index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -208,8 +194,7 @@ def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version)
     also drop the row) is enqueued, and ``index_updated=False`` is returned. Version is 0 (the
     Article no longer exists)."""
     archive.articles.hard_delete(ulid, expected_version)
-    index_updated = _sync_index(archive, ulid)
-    _enqueue_mirror(enqueue_mirror_delete_article, ulid)
+    index_updated = after_write.run(archive, after_write.RemovedArticle(ulid))
     return SaveResult(version=0, index_updated=index_updated)
 
 
@@ -223,31 +208,3 @@ def _enqueue_thumbnails(article: Article) -> None:
         for ref in article.media:
             if thumbnails.renders(ref):
                 enqueue_generate_thumbnail(article.ulid, ref.content_hash)
-
-
-def _enqueue_mirror(enqueue: Callable[[Ulid], None], ulid: Ulid) -> None:
-    """Enqueue the push or the delete of the Article on the system of record (ADR 0020), AFTER the
-    canonical write. Any failure is swallowed: the write stood, and the daily reconcile pushes what
-    a lost push would have and reports what a lost delete left there. A no-op when no system of
-    record is configured (the enqueue wrapper checks)."""
-    with contextlib.suppress(Exception):
-        enqueue(ulid)
-
-
-def _sync_index(archive: Archive, ulid: Ulid) -> bool:
-    """Synchronously reindex ``ulid``; on ANY failure enqueue a reference retry job and report
-    False (never re-raise — the canonical write already stood, ADR 0014). Returns True on success.
-    """
-    try:
-        index_article(archive.store, ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS)
-    except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
-        _enqueue_reindex(ulid)
-        return False
-    return True
-
-
-def _enqueue_reindex(ulid: Ulid) -> None:
-    """Enqueue a reindex retry, swallowing failure (ADR 0014 fail-open): the periodic full rebuild
-    heals the lag."""
-    with contextlib.suppress(Exception):
-        enqueue_reindex_article(ulid)

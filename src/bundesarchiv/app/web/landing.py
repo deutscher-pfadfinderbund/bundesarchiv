@@ -15,6 +15,11 @@ from bundesarchiv.app.web.browse import PARAM_COLLECTION
 _ANGELEGT, _FOKUS, _INDEX = "angelegt", "fokus", "index"
 _YES, _SIGNATUR, _LAGGING = "1", "signatur", "lagging"
 
+#: The keys that hand state to ONE page: no link built from that page's address may carry them on.
+FLAG_KEYS = frozenset({_ANGELEGT, _FOKUS, _INDEX})
+#: What the address-clearing script (``list_address.js``) spells; pinned by a test.
+LAG_FLAG = (_INDEX, _LAGGING)
+
 
 def bestand_created_url(ulid: str) -> str:
     """The create-article form with the just-created Bestand pre-selected and announced."""
@@ -26,9 +31,11 @@ def copy_url(ulid: str) -> str:
     return f"{reverse('artikel-bearbeiten', args=[ulid])}?{urlencode({_FOKUS: _SIGNATUR})}"
 
 
-def index_lagged_url(ulid: str) -> str:
-    """The record's page, told that the search index lagged behind the write."""
-    return f"{reverse('artikel-detail', args=[ulid])}?{urlencode({_INDEX: _LAGGING})}"
+def noting_lag(url: str, index_updated: bool) -> str:
+    """``url``, told when the search index lagged behind the write that leads there (ADR 0014)."""
+    if index_updated:
+        return url
+    return f"{url}{'&' if '?' in url else '?'}{urlencode({_INDEX: _LAGGING})}"
 
 
 def preselected_bestand(request: HttpRequest, bestand: BestandChooser) -> str:

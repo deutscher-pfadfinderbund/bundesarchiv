@@ -44,7 +44,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
         </div>
         {% endif %}
       </div>
-      {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
+      {% include "components/index_lag.html" %}
       <h1 id="artikel-titel">{{ title }}</h1>
       {% if ref_code or typ or datierung or ort or creator %}
       <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if typ %}<span>{{ typ }}</span>{% endif %}{% if datierung %}<span>{% for part in datierung %}{% if not forloop.first %}/<wbr>{% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if ort %}<span>{{ ort }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>

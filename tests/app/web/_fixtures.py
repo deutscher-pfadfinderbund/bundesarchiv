@@ -10,14 +10,18 @@ count, a listing or a facet total reads the whole store, so one added record sil
 another file's expectations. Such a test builds its own content with ``make_corpus``.
 """
 
+import io
 import re
 from collections.abc import Callable
+from dataclasses import replace
 from functools import partial
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import Any
 
 from django.core import signing
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.test import Client
 from tests import _articles
@@ -227,3 +231,147 @@ def settings_for(corpus: Corpus) -> dict[str, object]:
         "ANONYMOUS_GATE_ENABLED": False,
         "BUNDESARCHIV_CANONICAL_ROOT": str(corpus.root),
     }
+
+
+# --- every write route, by route name --------------------------------------------------
+#
+# The request half of the suites that enumerate the write routes (``test_changed_by.py``,
+# ``test_index_lag.py``): each row performs its route's POST on the standard corpus and returns the
+# response unfollowed. A new write route needs one row here and one in each of those suites.
+
+
+def _version(corpus: Corpus, ulid: str) -> str:
+    return str(corpus.articles.load(ulid).version)
+
+
+def with_two_media(corpus: Corpus) -> tuple[str, str]:
+    """Two files on the draft; their content hashes."""
+    stored = corpus.articles.load(DRAFT_ULID)
+    first = corpus.articles.add_media(DRAFT_ULID, "a.pdf", io.BytesIO(b"a"))
+    second = corpus.articles.add_media(DRAFT_ULID, "b.pdf", io.BytesIO(b"b"))
+    corpus.articles.save(
+        replace(stored.article, media=(first, second)), stored.version, changed_by="tester"
+    )
+    return first.content_hash, second.content_hash
+
+
+def _marked(corpus: Corpus, ulid: str) -> str:
+    stored = corpus.articles.load(ulid)
+    return str(corpus.articles.mark_deleted(stored.article, stored.version, changed_by="tester"))
+
+
+_BLANK_FORM = dict.fromkeys(
+    (
+        "ref_code",
+        "document_type",
+        "tags",
+        "date",
+        "creator",
+        "subject_place",
+        "physical_location",
+        "body",
+        "sichtbarkeit",
+        "gruppen",
+    ),
+    "",
+)
+
+
+def _create(client: Client, corpus: Corpus) -> Any:
+    return client.post("/articles/new", {"title": "Neu", "collection_id": PUB})
+
+
+def _edit(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        f"/articles/{DRAFT_ULID}/edit",
+        {
+            **_BLANK_FORM,
+            "title": "Umbenannt",
+            "collection_id": PUB,
+            "media_type": "Foto(s)",
+            "expected_version": _version(corpus, DRAFT_ULID),
+        },
+    )
+
+
+def _copy(client: Client, corpus: Corpus) -> Any:
+    return client.post(f"/articles/{PUBLISHED_ULID}/copy")
+
+
+def _publish(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        f"/articles/{DRAFT_ULID}/publish", {"expected_version": _version(corpus, DRAFT_ULID)}
+    )
+
+
+def _delete(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        f"/articles/{PUBLISHED_ULID}/delete",
+        {"expected_version": _version(corpus, PUBLISHED_ULID)},
+    )
+
+
+def _delete_permanently(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        f"/articles/{PUBLISHED_ULID}/delete-permanently",
+        {"expected_version": _marked(corpus, PUBLISHED_ULID)},
+    )
+
+
+def _restore(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        f"/articles/{PUBLISHED_ULID}/restore",
+        {"expected_version": _marked(corpus, PUBLISHED_ULID)},
+    )
+
+
+def _upload(client: Client, corpus: Corpus) -> Any:
+    upload = SimpleUploadedFile("scan.pdf", b"%PDF-1.4", content_type="application/pdf")
+    return client.post(f"/articles/{DRAFT_ULID}/media/upload", {"dateien": upload})
+
+
+def _reorder(client: Client, corpus: Corpus) -> Any:
+    first, _ = with_two_media(corpus)
+    return client.post(f"/articles/{DRAFT_ULID}/media/move", {"hash": first, "richtung": "runter"})
+
+
+def _remove(client: Client, corpus: Corpus) -> Any:
+    first, _ = with_two_media(corpus)
+    return client.post(
+        f"/articles/{DRAFT_ULID}/media/remove", {"entfernen": first, "bestaetigt": "1"}
+    )
+
+
+def _bulk(client: Client, corpus: Corpus) -> Any:
+    return client.post(
+        "/articles/bulk-edit",
+        {"auswahl": [DRAFT_ULID], "feld": "creator", "wert_text": "Kurt", "bestaetigt": "1"},
+    )
+
+
+def _create_bestand(client: Client, corpus: Corpus) -> Any:
+    return client.post("/collections/new", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""})
+
+
+def _rename_bestand(client: Client, corpus: Corpus) -> Any:
+    version = str(corpus.collections.load(PUB).version)
+    return client.post(
+        f"/collections/{PUB}/edit", {"name": "Umbenannt", "expected_version": version}
+    )
+
+
+WRITES: dict[str, Callable[[Client, Corpus], Any]] = {
+    "artikel-neu": _create,
+    "artikel-bearbeiten": _edit,
+    "artikel-kopieren": _copy,
+    "artikel-veroeffentlichen": _publish,
+    "artikel-loeschen": _delete,
+    "article-delete-permanently": _delete_permanently,
+    "article-restore": _restore,
+    "artikel-medien-hochladen": _upload,
+    "artikel-medien-verschieben": _reorder,
+    "artikel-medien-entfernen": _remove,
+    "artikel-sammelbearbeitung": _bulk,
+    "bestand-neu": _create_bestand,
+    "bestand-bearbeiten": _rename_bestand,
+}

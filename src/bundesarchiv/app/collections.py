@@ -1,26 +1,20 @@
 """Collection write service — the canonical-then-subtree-index shell (ADR 0013 + 0014).
 
 A Collection audience or parent edit changes the effective audience of every descendant Article,
-so after the canonical save we synchronously reindex the WHOLE subtree (``index_subtree``), not a
-single row. The index holds no Collection name, and a new Collection holds no Articles, so a rename
-and a create touch no row and skip the reindex. Same failure contract as the Article services: a
-stale ``expected_version`` raises ``Conflict`` before any index work; an index failure leaves the
-canonical write standing, enqueues a reference subtree-reindex job, and returns
-``index_updated=False``.
-
-``index_subtree`` and ``enqueue_reindex_subtree`` are module-level names so the service seam is
-monkeypatchable in tests.
+so after the canonical save ``after_write.run`` reindexes the WHOLE subtree, not a single row. The
+index holds no Collection name, and a new Collection holds no Articles, so a rename and a create
+touch no row and skip the reindex. Same failure contract as the Article services: a stale
+``expected_version`` raises ``Conflict`` before any index work; an index failure leaves the
+canonical write standing and returns ``index_updated=False``.
 """
 
-import contextlib
 from dataclasses import replace
 
+from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import CreateResult, SaveResult
-from bundesarchiv.app.tasks import enqueue_mirror_push, enqueue_reindex_subtree
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.models import Audience, Collection, Ulid, Version
-from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_subtree
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
@@ -44,8 +38,8 @@ def create_collection(
         ulid=identity.new_ulid(), name=name, parent_id=parent_id, audience=audience
     )
     new_version = archive.collections.save(collection, 0, changed_by=changed_by)  # first: v1
-    _enqueue_mirror(collection.ulid)
-    return CreateResult(ulid=collection.ulid, version=new_version, index_updated=True)
+    index_updated = after_write.run(archive, after_write.SavedCollection(collection.ulid))
+    return CreateResult(ulid=collection.ulid, version=new_version, index_updated=index_updated)
 
 
 def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
@@ -66,10 +60,10 @@ def save_collection(
     visibility. A stale version raises ``Conflict`` before any index work. On index failure the
     canonical write stands, a subtree-reindex retry job is enqueued, and ``index_updated=False`` is
     returned (ADR 0014)."""
-    reindex = _moves_visibility(archive, collection, expected_version)
+    moves = _moves_visibility(archive, collection, expected_version)
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
-    index_updated = _sync_index_subtree(archive, collection.ulid) if reindex else True
-    _enqueue_mirror(collection.ulid)
+    written = after_write.MovedCollection if moves else after_write.SavedCollection
+    index_updated = after_write.run(archive, written(collection.ulid))
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -83,29 +77,3 @@ def _moves_visibility(archive: Archive, collection: Collection, expected_version
         return True
     unchanged = replace(stored.collection, name=collection.name) == collection
     return stored.version != expected_version or not unchanged
-
-
-def _enqueue_mirror(ulid: str) -> None:
-    """Enqueue the push of the Collection to the system of record (ADR 0020), AFTER the canonical
-    write. Any failure is swallowed: the write stood, and the daily reconcile pushes what a lost job
-    would have. A no-op when no system of record is configured."""
-    with contextlib.suppress(Exception):
-        enqueue_mirror_push(ulid)
-
-
-def _sync_index_subtree(archive: Archive, collection_ulid: str) -> bool:
-    """Synchronously reindex the subtree; on ANY failure enqueue a reference retry job and report
-    False (never re-raise — the canonical write already stood). Returns True on success."""
-    try:
-        index_subtree(archive.store, collection_ulid, lock_timeout_ms=SYNC_LOCK_TIMEOUT_MS)
-    except Exception:  # noqa: BLE001 — the canonical write stood; the sync index is best-effort, retry via queue
-        _enqueue_reindex_subtree(collection_ulid)
-        return False
-    return True
-
-
-def _enqueue_reindex_subtree(collection_ulid: str) -> None:
-    """Enqueue a subtree reindex retry, swallowing failure (ADR 0014 fail-open): the periodic full
-    rebuild heals it."""
-    with contextlib.suppress(Exception):
-        enqueue_reindex_subtree(collection_ulid)

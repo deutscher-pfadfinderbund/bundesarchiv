@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.articles import (
     copy_article,
@@ -441,12 +442,10 @@ def test_hard_delete_article_removes_index_row(archive: Archive) -> None:
 def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
     def boom(_ulid: str) -> None:
         raise RuntimeError("queue down")
 
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_delete_article", boom)
+    monkeypatch.setattr(after_write, "enqueue_mirror_delete_article", boom)
 
     result = hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
 
@@ -465,15 +464,13 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
     """Force the synchronous index update to fail at the SERVICE seam. The canonical write must
     stand, a reference reindex job must be enqueued, and the result must carry
     index_updated=False (so the UI shows 'Sichtbarkeitsänderung noch nicht wirksam')."""
-    import bundesarchiv.app.articles as articles_mod
-
     enqueued: list[str] = []
 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
-    monkeypatch.setattr(articles_mod, "index_article", boom)
-    monkeypatch.setattr(articles_mod, "enqueue_reindex_article", lambda ulid: enqueued.append(ulid))
+    monkeypatch.setattr(after_write, "index_article", boom)
+    monkeypatch.setattr(after_write, "enqueue_reindex_article", lambda ulid: enqueued.append(ulid))
 
     articles = archive.articles
     stored = articles.load("01FOTO")
@@ -493,7 +490,6 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     """Queue-down at enqueue time must not fail a request whose canonical write already stood: when
     BOTH the synchronous index update AND the retry enqueue raise, save_article still succeeds with
     index_updated=False and no exception escapes (mirrors _enqueue_mirror's swallow policy)."""
-    import bundesarchiv.app.articles as articles_mod
 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
@@ -501,8 +497,8 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
     def enqueue_boom(_ulid: str) -> None:
         raise RuntimeError("queue down")
 
-    monkeypatch.setattr(articles_mod, "index_article", boom)
-    monkeypatch.setattr(articles_mod, "enqueue_reindex_article", enqueue_boom)
+    monkeypatch.setattr(after_write, "index_article", boom)
+    monkeypatch.setattr(after_write, "enqueue_reindex_article", enqueue_boom)
 
     articles = archive.articles
     stored = articles.load("01FOTO")
@@ -517,16 +513,14 @@ def test_save_article_swallows_enqueue_failure_after_index_failure(
 def test_save_collection_swallows_enqueue_failure_after_index_failure(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.collections as collections_mod
-
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
 
     def enqueue_boom(_ulid: str) -> None:
         raise RuntimeError("queue down")
 
-    monkeypatch.setattr(collections_mod, "index_subtree", boom)
-    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueue_boom)
+    monkeypatch.setattr(after_write, "index_subtree", boom)
+    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueue_boom)
 
     stored = archive.collections.load("FOTOS")
     result = save_collection(
@@ -545,12 +539,11 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
     holds it) returns index_updated=False and queues the retry instead of waiting the holder out."""
     from django.db import connection, transaction
 
-    import bundesarchiv.app.articles as articles_mod
     from bundesarchiv.index.indexer import _take_writer_lock
 
     enqueued: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_reindex_article", enqueued.append)
-    monkeypatch.setattr(articles_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+    monkeypatch.setattr(after_write, "enqueue_reindex_article", enqueued.append)
+    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
     held, release = threading.Event(), threading.Event()
 
     def hold_lock() -> None:
@@ -758,10 +751,8 @@ def test_save_article_thumbnail_enqueue_failure_does_not_break_save(
 def test_save_article_enqueues_one_push_of_the_article(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
     pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
 
     stored = archive.articles.load("01FOTO")
     save_article(archive, stored.article, stored.version, changed_by="tester")
@@ -773,10 +764,8 @@ def test_save_article_enqueues_one_push_of_the_article(
 def test_delete_article_enqueues_one_push_of_the_mark(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
     pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
 
     stored = archive.articles.load("01FOTO")
     delete_article(archive, stored.article, stored.version, changed_by="tester")
@@ -785,13 +774,26 @@ def test_delete_article_enqueues_one_push_of_the_mark(
 
 
 @pytest.mark.django_db
+def test_hard_delete_article_enqueues_the_delete_and_no_push(
+    archive: Archive, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    jobs: list[tuple[str, str]] = []
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", lambda u: jobs.append(("push", u)))
+    monkeypatch.setattr(
+        after_write, "enqueue_mirror_delete_article", lambda u: jobs.append(("delete", u))
+    )
+
+    hard_delete_article(archive, "01FOTO", archive.articles.load("01FOTO").version)
+
+    assert jobs == [("delete", "01FOTO")]
+
+
+@pytest.mark.django_db
 def test_create_article_enqueues_the_push_of_the_new_article(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
     pushed: list[str] = []
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", pushed.append)
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
 
     result = create_article(archive, title="Neu", collection_id="FOTOS", changed_by="tester")
 
@@ -802,10 +804,8 @@ def test_create_article_enqueues_the_push_of_the_new_article(
 def test_save_collection_enqueues_one_push_of_the_collection(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import bundesarchiv.app.collections as collections_mod
-
     pushed: list[str] = []
-    monkeypatch.setattr(collections_mod, "enqueue_mirror_push", pushed.append)
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", pushed.append)
 
     stored = archive.collections.load("FOTOS")
     save_collection(archive, stored.collection, stored.version, changed_by="tester")
@@ -819,12 +819,11 @@ def test_save_article_mirror_enqueue_failure_does_not_break_save(
 ) -> None:
     """A mirror-enqueue failure must NOT fail the request (same discipline as the index-sync retry:
     mirror lag is invisible-by-design and the reconcile heals it). The canonical write stands."""
-    import bundesarchiv.app.articles as articles_mod
 
     def boom(_ulid: str) -> None:
         raise RuntimeError("queue down")
 
-    monkeypatch.setattr(articles_mod, "enqueue_mirror_push", boom)
+    monkeypatch.setattr(after_write, "enqueue_mirror_push", boom)
 
     articles = archive.articles
     stored = articles.load("01FOTO")
@@ -871,11 +870,9 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The Bestand save path has the same bound as the Article save path."""
-    import bundesarchiv.app.collections as collections_mod
-
     enqueued: list[str] = []
-    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
-    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueued.append)
+    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
 
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():
@@ -896,13 +893,11 @@ def test_a_rename_and_a_new_bestand_leave_the_index_as_it_is(
 ) -> None:
     """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
     index lock nor queues a reindex, and the renamed Bestand still finds its Article."""
-    import bundesarchiv.app.collections as collections_mod
-
     stored_article = archive.articles.load("01FOTO")
     save_article(archive, stored_article.article, stored_article.version, changed_by="tester")
     enqueued: list[str] = []
-    monkeypatch.setattr(collections_mod, "enqueue_reindex_subtree", enqueued.append)
-    monkeypatch.setattr(collections_mod, "SYNC_LOCK_TIMEOUT_MS", 100)
+    monkeypatch.setattr(after_write, "enqueue_reindex_subtree", enqueued.append)
+    monkeypatch.setattr(after_write, "SYNC_LOCK_TIMEOUT_MS", 100)
 
     stored = archive.collections.load("FOTOS")
     with _index_lock_held():

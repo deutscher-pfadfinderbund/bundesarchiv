@@ -271,31 +271,15 @@ def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus)
     assert corpus.articles.load(PUBLISHED_ULID).article == replace(before.article, deleted=None)
 
 
-def test_wiederherstellen_with_index_lag_says_so(
-    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # ADR 0014: a restore makes the record findable again; a lagging index must be said.
-    from bundesarchiv.app import articles
-
-    monkeypatch.setattr(
-        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
-    )
-    _mark(corpus, PUBLISHED_ULID)
-    response = _restore(client_as(Archivist()), PUBLISHED_ULID, _version(corpus, PUBLISHED_ULID))
-    assert response.status_code == 200
-    assert response.context["index_lag"]
-    assert _mark_of(corpus, PUBLISHED_ULID) is None
-
-
 @pytest.mark.parametrize("hx", [False, True], ids=["plain", "htmx"])
 def test_loeschen_with_index_lag_says_so(
     corpus: Corpus, monkeypatch: pytest.MonkeyPatch, hx: bool
 ) -> None:
     # ADR 0014: the mark takes the record out of search; a lagging index is said, as on a restore.
-    from bundesarchiv.app import articles
+    from bundesarchiv.app import after_write
 
     monkeypatch.setattr(
-        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
+        after_write, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
     )
     client = client_as(Archivist())
     [(action, fields)] = _delete_forms(
@@ -560,21 +544,6 @@ def test_veroeffentlichen_get_is_404(corpus: Corpus) -> None:
     before = corpus.articles.load(DRAFT_ULID)
     assert_denied(client_as(Archivist()).get(f"/articles/{DRAFT_ULID}/publish"))
     assert corpus.articles.load(DRAFT_ULID) == before
-
-
-def test_veroeffentlichen_with_index_lag_says_so(
-    corpus: Corpus, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # ADR 0014: publishing is a visibility change; a lagging index must be said, not swallowed.
-    from bundesarchiv.app import articles
-
-    monkeypatch.setattr(
-        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
-    )
-    response = _veroeffentlichen(corpus, DRAFT_ULID)
-    assert response.status_code == 200
-    assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
-    assert corpus.articles.load(DRAFT_ULID).article.lifecycle is Lifecycle.PUBLISHED
 
 
 def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:

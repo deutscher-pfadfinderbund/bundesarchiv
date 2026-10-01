@@ -8,6 +8,22 @@
   "use strict";
   const KEY = "list-address";
 
+  // A write whose search index lagged lands here with this flag (landing.LAG_FLAG). The page has
+  // shown the notice; the address drops the flag so a reload, Back or bookmark does not repeat it.
+  function clearLagFlag() {
+    const query = new URLSearchParams(location.search);
+    if (query.get("index") !== "lagging") {
+      return;
+    }
+    query.delete("index");
+    const rest = query.toString();
+    history.replaceState(
+      history.state,
+      "",
+      location.pathname + (rest ? `?${rest}` : "") + location.hash,
+    );
+  }
+
   function remember() {
     if (!document.body.classList.contains("workbench")) {
       return;
@@ -31,10 +47,14 @@
     });
   }
 
+  clearLagFlag();
   remember();
   if (!document.body.classList.contains("workbench")) {
     restore();
   }
-  document.addEventListener("htmx:pushedIntoHistory", remember);
+  document.addEventListener("htmx:pushedIntoHistory", () => {
+    clearLagFlag();
+    remember();
+  });
   document.addEventListener("htmx:historyRestore", remember);
 })();

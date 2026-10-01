@@ -32,8 +32,7 @@ save gets HX-Redirect.{% endcomment %}
     {% include "components/conflict_notice.html" with what="Artikel" rows=conflict_rows only %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
-    {% comment %}State H (ADR 0014): saved, but the index lagged — a quiet hinweis, not an error.{% endcomment %}
-    {% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}
+    {% include "components/index_lag.html" %}
     {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}
     <div class="record-meta-actions">
       <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
@@ -100,6 +99,7 @@ save gets HX-Redirect.{% endcomment %}
              hx-include:inherited="#expected-version, #medien-drawer input[form=bearbeiten-form]" hx-select-oob:inherited="#expected-version">
       <header class="section-head"><h2 id="h-medien">Medien</h2></header>
       {% if medien_fehler %}<p class="error" role="alert">{{ medien_fehler }}</p>{% endif %}
+      {% include "components/index_lag.html" with index_lag=drawer_index_lag only %}
       {% if media_rows %}
       <ul class="register">
         {% for row in media_rows %}

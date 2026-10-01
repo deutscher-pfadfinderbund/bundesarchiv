@@ -25,7 +25,6 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
-from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
@@ -109,7 +108,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
         # The search sentence sits outside the #results swap target, so the partial prepends its
         # out-of-band fragments (oob gates them: the full page renders the sentence once).
         context["oob"] = True
-        return render(request, "workbench/_results.html", context)
+        return render_screen(request, "workbench/_results.html", context, bestand=bestand)
     return render_screen(request, "workbench/workbench.html", context, bestand=bestand)
 
 
@@ -303,8 +302,13 @@ def _results_context(
     paging keeps both the mode and the selection. Pane selection is tracked separately via
     ``selected_ulid``."""
     params = {
-        k: v for k, v in request.GET.dict().items() if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL)
+        k: v
+        for k, v in request.GET.dict().items()
+        if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL) and k not in landing.FLAG_KEYS
     }
+    here = request.GET.copy()
+    for key in landing.FLAG_KEYS:
+        here.pop(key, None)
     total = page.total
     context: dict[str, object] = {
         "text": parsed.text or "",
@@ -324,7 +328,7 @@ def _results_context(
         ),
         "pager": _pager(parsed, page, params, ["", *auswahl] if waehlen else []) if total else None,
         # "Spalten …" returns to this very list, pane and selection included
-        "spalten_zurueck": request.GET.urlencode(),
+        "spalten_zurueck": here.urlencode(),
         "total": vocab.count(total),
         # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
         # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
@@ -560,15 +564,12 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
     floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
     member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
-    on ``is_archivist``. On a record in the Papierkorb, ``landing.index_lagged_url`` adds the index-lag
-    hint: a delete whose index update lagged lands there."""
+    on ``is_archivist``. A write whose index update lagged lands here with the index-lag hint
+    (``landing.noting_lag``); ``render_screen`` shows it."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
         return not_found()
-    context = _detail_context(resolution)
-    lagging = landing.index_lagging(request) and context["geloescht"] is not None
-    context["index_lag"] = vocab.INDEX_LAG if lagging else ""
-    return render_screen(request, "workbench/detail.html", context)
+    return render_screen(request, "workbench/detail.html", _detail_context(resolution))
 
 
 @dataclass(frozen=True, slots=True)

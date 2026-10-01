@@ -199,6 +199,7 @@ class DeleteConfirm:
 
 #: The state-H hinweis (ADR 0014), shown when a save's index update lagged.
 INDEX_LAG = "Gespeichert. Die Suche zeigt die Änderung in Kürze."
+BULK_INDEX_LAG = "Die Suche zeigt einige Änderungen in Kürze."
 
 
 #: "Löschen" puts the record in the Papierkorb, so its confirm says where it goes (ADR 0022).

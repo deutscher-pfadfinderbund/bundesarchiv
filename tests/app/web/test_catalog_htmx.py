@@ -92,23 +92,3 @@ def test_htmx_save_success_sends_hx_redirect(corpus: Corpus) -> None:
     )
     assert response.status_code == 204
     assert response["HX-Redirect"] == f"/articles/{DRAFT_ULID}"
-
-
-# --- state H: index-lag hinweis on the save path -----------------------------------
-
-
-def test_save_with_index_lag_shows_hinweis(corpus: Corpus, monkeypatch: pytest.MonkeyPatch) -> None:
-    # When the synchronous index update fails (ADR 0014), the canonical write stands and the view
-    # must show the quiet "Gespeichert. Die Suche zeigt die Änderung in Kürze." hinweis (state H).
-    # This is a no-JS path too, so it re-renders (not a redirect) carrying the hinweis.
-    from bundesarchiv.app import articles
-
-    monkeypatch.setattr(
-        articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
-    )
-    version = corpus.articles.load(DRAFT_ULID).version
-    response = client_as(Archivist()).post(f"/articles/{DRAFT_ULID}/edit", _save_post(corpus))
-    assert response.status_code == 200  # re-render carrying the hinweis, not a 302
-    assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
-    # the canonical write still stood (version bumped)
-    assert corpus.articles.load(DRAFT_ULID).version == version + 1

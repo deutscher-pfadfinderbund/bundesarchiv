@@ -11,6 +11,7 @@ needs no third column. "Endgültig löschen …" opens the confirm page, which n
 {% block body %}
 <main id="inhalt" class="column">
   <h1>Papierkorb</h1>
+  {% include "components/index_lag.html" %}
   {% if rows %}
   <table class="affected">
     <tbody>

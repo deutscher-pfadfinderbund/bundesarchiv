@@ -1,0 +1,2 @@
+{% comment %}The quiet notice that the search index is behind a write that stood (ADR 0014). Params: index_lag, the text or "".{% endcomment %}
+{% if index_lag %}<p class="hint" role="status">{{ index_lag }}</p>{% endif %}

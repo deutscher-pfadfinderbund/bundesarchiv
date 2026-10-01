@@ -12,7 +12,7 @@ listed, each leading to its edit form, plus one collective recovery.
 <main id="inhalt" class="column">
   <h1>{{ saved }} von {{ total }} gespeichert</h1>
   <p>{{ feld_label }} → {{ wert_display }}</p>
-  {% if index_lagged %}<p role="status">Die Suche zeigt einige Änderungen in Kürze.</p>{% endif %}
+  {% include "components/index_lag.html" with index_lag=bulk_index_lag only %}
   {% if doctype_cleared_count %}<p>Bei {{ doctype_cleared_count }} Artikel{{ doctype_cleared_count|pluralize:"n" }} wurde der Dokumenttyp geleert.</p>{% endif %}
   {% if missing_count %}<p>{{ missing_count }} Artikel gibt es nicht mehr.</p>{% endif %}
 

@@ -27,7 +27,7 @@ from typing import BinaryIO, cast
 from urllib.parse import urlsplit
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, QueryDict
+from django.http import HttpRequest, HttpResponse, QueryDict
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
@@ -126,10 +126,11 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         collection_id = request.POST.get("collection_id", "").strip()
         errors = _create_errors(title, collection_id, bestand)
         if not errors:
-            ulid = catalog.new_draft(
-                archive, title=title, collection_id=collection_id, changed_by=archivist.username
+            created = article_services.create_article(
+                archive, changed_by=archivist.username, title=title, collection_id=collection_id
             )
-            return redirect_to(request, reverse("artikel-bearbeiten", args=[ulid]))
+            edit = reverse("artikel-bearbeiten", args=[created.ulid])
+            return redirect_to(request, landing.noting_lag(edit, created.index_updated))
         if is_partial(request):
             return panel_response(
                 request,
@@ -274,13 +275,9 @@ def _handle_edit_post(
     )
     match outcome:
         case catalog.SavedOutcome(result=save_result):
-            # State H (ADR 0014): the canonical write stood but the sync index update failed and a
-            # retry job was enqueued — re-render (not 302) with the quiet index-lag hinweis so the
-            # archivist knows the visibility change is not yet effective in search. Otherwise 302.
-            if not save_result.index_updated:
-                saved = EditSurface.of(result.article, save_result.version, bestand)
-                return saved.render(request, overlay=IndexLag())
-            return redirect_to(request, reverse("artikel-detail", args=[ulid]))
+            # a lagging index (ADR 0014) is said on the page it lands on
+            page = reverse("artikel-detail", args=[ulid])
+            return redirect_to(request, landing.noting_lag(page, save_result.index_updated))
         case catalog.ConflictOutcome() as conflict:
             # The surface is the WINNER's: crumbs, media and the refreshed expected_version come from
             # the record as it now stands; the form keeps the archivist's own values.
@@ -344,8 +341,10 @@ class MediaError:
 
 
 @dataclass(frozen=True, slots=True)
-class IndexLag:
-    """State H (ADR 0014): the canonical write stood, the synchronous index update did not."""
+class DrawerIndexLag:
+    """State H (ADR 0014) for a media action: the canonical write stood, the synchronous index update
+    did not, and it is said in the Medien drawer, the only part that swap replaces. Every other write
+    redirects and the landing page says it (``landing.noting_lag``)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -356,7 +355,7 @@ class RemoveConfirm:
 
 
 #: What may sit over the edit surface — CLOSED, so the template's panels are enumerable from here.
-type Overlay = NoOverlay | Conflict | MediaError | IndexLag | RemoveConfirm
+type Overlay = NoOverlay | Conflict | MediaError | DrawerIndexLag | RemoveConfirm
 
 _NO_OVERLAY = NoOverlay()
 
@@ -464,7 +463,7 @@ class EditSurface:
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
                 "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
-                "index_lag": vocab.INDEX_LAG if isinstance(overlay, IndexLag) else "",
+                "drawer_index_lag": vocab.INDEX_LAG if isinstance(overlay, DrawerIndexLag) else "",
             },
             bestand=self.bestand,
         )
@@ -615,10 +614,8 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return not_found()
         case Conflicted():
             return redirect_to(request, page)
-        case Updated(article=article, version=version, index_updated=False):
-            return EditSurface.of(article, version, bestand).render(request, overlay=IndexLag())
-        case Updated():
-            return redirect_to(request, page)
+        case Updated(index_updated=index_updated):
+            return redirect_to(request, landing.noting_lag(page, index_updated))
 
 
 # --- /articles/<ulid>/copy — copy to a fresh draft (Slice C, spec §7) -----------
@@ -635,7 +632,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return not_found()
     archive, _, archivist = gated
     copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
-    return HttpResponseRedirect(landing.copy_url(copy.ulid))
+    return redirect_to(request, landing.noting_lag(landing.copy_url(copy.ulid), copy.index_updated))
 
 
 # --- /articles/<ulid>/delete, /delete-permanently, /restore (ADR 0022) -------------
@@ -691,9 +688,13 @@ def _confirmed_delete(
         if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
             with contextlib.suppress(errors.Conflict):
                 result = delete(archive, stored, archivist.username)
-                if marked or result.index_updated:
-                    return redirect_to(request, reverse("trash" if marked else "workbench"))
-                return redirect_to(request, landing.index_lagged_url(ulid))
+                if marked:
+                    left = reverse("trash")
+                elif result.index_updated:
+                    left = reverse("workbench")
+                else:  # the list still shows a mark the index has not caught up with
+                    left = reverse("artikel-detail", args=[ulid])
+                return redirect_to(request, landing.noting_lag(left, result.index_updated))
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
             return not_found()
@@ -753,12 +754,7 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
         )
     except errors.Conflict:
         return redirect_to(request, page)  # a save landed since the gate's load: nothing restored
-    if not result.index_updated:
-        restored = replace(stored.article, deleted=None)
-        return EditSurface.of(restored, result.version, BestandChooser.of(archive)).render(
-            request, overlay=IndexLag()
-        )
-    return redirect_to(request, page)
+    return redirect_to(request, landing.noting_lag(page, result.index_updated))
 
 
 # --- who would see it once published (G.34) ----------------------------------------
@@ -939,8 +935,10 @@ def _structural_change(
             return _media_surface(request, stored.article, stored.version, bestand).render(
                 request, overlay=MediaError(_MEDIEN_KONFLIKT)
             )
-        case Updated(article=article, version=version):
-            return _media_surface(request, article, version, bestand, own_save=True).render(request)
+        case Updated(article=article, version=version, index_updated=index_updated):
+            return _media_surface(request, article, version, bestand, own_save=True).render(
+                request, overlay=_NO_OVERLAY if index_updated else DrawerIndexLag()
+            )
 
 
 def _media_surface(

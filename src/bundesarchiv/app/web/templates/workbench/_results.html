@@ -22,6 +22,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
       hx-get="{% url 'workbench' %}" hx-target="this" hx-swap="outerHTML"
       hx-include="[role=search] input" hx-push-url="true"
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
+  {% include "components/index_lag.html" %}
   {% if page.hits %}
   <form id="spalten-form" method="post" action="{% url 'spalten' %}" hidden>
     {% csrf_token %}<input type="hidden" name="zurueck" value="{{ spalten_zurueck }}">

@@ -162,7 +162,7 @@ def _commit(
             "conflicted": outcome.conflicted,
             "missing_count": len(outcome.missing),
             "doctype_cleared_count": len(outcome.doctype_cleared),
-            "index_lagged": outcome.index_lagged,
+            "bulk_index_lag": vocab.BULK_INDEX_LAG if outcome.index_lagged else "",
             "erneut_query": browse.select_page_query({}, [], [r.ulid for r in outcome.conflicted]),
         },
         bestand=bestand,

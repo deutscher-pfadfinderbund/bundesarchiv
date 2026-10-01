@@ -26,6 +26,7 @@ from django.http.response import HttpResponseBase
 from django.shortcuts import render
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.web import landing, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
 from bundesarchiv.app.web.oidc import viewer_from_claims
@@ -230,7 +231,9 @@ def render_screen(
     the shared workstation is the normal case — ADR 0018).
 
     This helper is the SINGLE authority for both keys: they are stamped over ``context``, so no
-    caller can assert chrome the viewer has not earned. For an archivist it also stamps ``neu``, the
+    caller can assert chrome the viewer has not earned. ``index_lag`` is the same kind of fact: the
+    request says a redirect found the search index behind (``landing``), shown to archivists, who made the write.
+    For an archivist it also stamps ``neu``, the
     header's create panels, built from the view's own ``bestand`` chooser where it has one, so a
     request reads the Bestände once."""
     viewer = viewer_of(request)
@@ -239,6 +242,7 @@ def render_screen(
         "is_archivist": is_archivist,
         "is_signed_in": not isinstance(viewer, Public),
         "neu": (),
+        "index_lag": vocab.INDEX_LAG if is_archivist and landing.index_lagging(request) else "",
     }
     if is_archivist:
         aktiver = context.get("aktiver_bestand")

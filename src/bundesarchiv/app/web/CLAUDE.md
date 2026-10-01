@@ -9,7 +9,8 @@ mutation goes through `app.articles.update_article` and matches on its outcome u
 The edit form has ONE render (`catalog_views.EditSurface`), always built from the SAVED article and
 parameterised by a closed overlay union — a new panel joins that union, never a second context build.
 An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that
-Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`.
+Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`
+and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 
 - `viewers.py` — Viewer, request kind, responses · interface: `viewer_of`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
@@ -30,7 +31,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `SICHTBARKEIT_OPTIONS`, `exposure_label`, `datierung_parts`, `human_size` · tests: `test_vocab.py`
-- `landing.py` — state a redirect hands the next page · interface: `bestand_created_url`, `copy_url`, `index_lagged_url`, `preselected_bestand`, `created_bestand_name` · tests: `test_collection_create.py`
+- `landing.py` — state a redirect hands on · interface: `noting_lag`, `index_lagging`, `copy_url`, `bestand_created_url`, `preselected_bestand`, `created_bestand_name` · tests: `test_index_lag.py`, `test_collection_*.py`
 - `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`
