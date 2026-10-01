@@ -22,14 +22,9 @@ ValueError.
 
 from typing import Any
 
-import yaml
-
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
-from bundesarchiv.persistence import _change, readme
+from bundesarchiv.persistence import _change, _front_matter, readme
 from bundesarchiv.persistence.errors import ArchiveError
-
-_MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
-_FENCE = "---"
 
 
 def encode_collection(collection: Collection, version: Version, change: Change) -> str:
@@ -47,53 +42,21 @@ def encode_collection(collection: Collection, version: Version, change: Change) 
             "tier": collection.audience.tier.value,
             "groups": list(collection.audience.groups),
         }
-    yaml_block = yaml.safe_dump(
-        front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
-    ).rstrip("\n")
-    return f"{_MARKER}\n{_FENCE}\n{yaml_block}\n{_FENCE}\n"
+    return _front_matter.dump(front_matter, "")
 
 
 def decode_collection(text: str, *, ulid: Ulid) -> tuple[Collection, Version, Change | None]:
     """Parse README.md text back to its Collection, stored version (absent -> 0) and change record
     (absent -> None)."""
-    front_matter = _parse_front_matter(ulid, text)
+    front_matter, _ = _front_matter.parse(ulid, text)
     try:
         return (
             _collection_from_front_matter(front_matter, ulid),
-            _version_of(front_matter),
+            _front_matter.version_of(front_matter, absent=0),
             _change.from_front_matter(front_matter),
         )
     except (KeyError, ValueError, TypeError) as exc:
         raise ArchiveError(f"{ulid}: README front-matter is malformed: {exc}") from exc
-
-
-def _version_of(fm: dict[str, Any]) -> Version:
-    """The stored optimistic-concurrency version: absent -> 0 (a pre-versioning README
-    backfills, ADR 0013), otherwise an exact non-negative int. Reject bool/float/str/
-    negative rather than coercing (int(1.5) -> 1 would silently accept a corrupt version)."""
-    value = fm.get("version", 0)
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"version must be a non-negative integer, got {value!r}")
-    return value
-
-
-def _parse_front_matter(ulid: Ulid, text: str) -> dict[str, Any]:
-    lines = text.split("\n")
-    if lines and lines[0].lstrip().startswith("<!--"):
-        lines = lines[1:]  # the managed-by marker (any leading HTML comment)
-    if not lines or lines[0].strip() != _FENCE:
-        raise ArchiveError(f"{ulid}: README has no front-matter fence")
-    try:
-        close = lines.index(_FENCE, 1)
-    except ValueError:
-        raise ArchiveError(f"{ulid}: README front-matter is unterminated") from None
-    try:
-        front_matter = yaml.load("\n".join(lines[1:close]), Loader=yaml.CSafeLoader)
-    except (yaml.YAMLError, RecursionError) as exc:
-        raise ArchiveError(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
-    if not isinstance(front_matter, dict):
-        raise ArchiveError(f"{ulid}: README front-matter is not a mapping")
-    return front_matter
 
 
 def _collection_from_front_matter(fm: dict[str, Any], ulid: Ulid) -> Collection:

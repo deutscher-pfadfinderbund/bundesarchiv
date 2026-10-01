@@ -12,8 +12,6 @@ front-matter all surface as `ArchiveError`, never a raw `yaml`/`KeyError`/`Value
 from datetime import datetime
 from typing import Any
 
-import yaml
-
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -25,11 +23,8 @@ from bundesarchiv.domain.models import (
     Ulid,
     Version,
 )
-from bundesarchiv.persistence import _change
+from bundesarchiv.persistence import _change, _front_matter
 from bundesarchiv.persistence.errors import ArchiveError
-
-_MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
-_FENCE = "---"
 
 
 def encode(article: Article, version: Version, change: Change) -> str:
@@ -83,10 +78,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
             {"added_at": _change.utc_text(article.added_at)} if article.added_at is not None else {}
         ),
     }
-    yaml_block = yaml.safe_dump(
-        front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
-    ).rstrip("\n")
-    return f"{_MARKER}\n{_FENCE}\n{yaml_block}\n{_FENCE}\n{article.body}"
+    return _front_matter.dump(front_matter, article.body)
 
 
 def _media_entry(media: MediaRef) -> dict[str, Any]:
@@ -109,11 +101,11 @@ def _media_entry(media: MediaRef) -> dict[str, Any]:
 def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
     """Parse README.md text back to its Article, stored version and change record (None for a
     README written before ADR 0019)."""
-    front_matter, body = _parse_front_matter(ulid, text)
+    front_matter, body = _front_matter.parse(ulid, text)
     try:
         return (
             _article_from_front_matter(front_matter, body),
-            _version_of(front_matter),
+            _front_matter.version_of(front_matter),
             _change.from_front_matter(front_matter),
         )
     except (KeyError, ValueError, TypeError) as exc:
@@ -122,35 +114,11 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
 
 def read_version(ulid: Ulid, text: str) -> Version:
     """Read only the stored version — no Article rebuild (optimistic-lock / reindex)."""
-    front_matter, _ = _parse_front_matter(ulid, text)
+    front_matter, _ = _front_matter.parse(ulid, text)
     try:
-        return _version_of(front_matter)
+        return _front_matter.version_of(front_matter)
     except (KeyError, ValueError, TypeError) as exc:
         raise ArchiveError(f"{ulid}: README version is malformed: {exc}") from exc
-
-
-def _parse_front_matter(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
-    lines = text.split("\n")
-    if lines and lines[0].lstrip().startswith("<!--"):
-        lines = lines[1:]  # the managed-by marker (any leading HTML comment)
-    if not lines or lines[0].strip() != _FENCE:
-        raise ArchiveError(f"{ulid}: README has no front-matter fence")
-    try:
-        close = lines.index(_FENCE, 1)
-    except ValueError:
-        raise ArchiveError(f"{ulid}: README front-matter is unterminated") from None
-    # The single separator newline the renderer added was already consumed by split;
-    # lines[close + 1:] reconstructs the body verbatim (a body may open with blank lines).
-    body = "\n".join(lines[close + 1 :])
-    try:
-        front_matter = yaml.load("\n".join(lines[1:close]), Loader=yaml.CSafeLoader)
-    except (yaml.YAMLError, RecursionError) as exc:
-        # RecursionError is NOT a yaml.YAMLError subclass: deeply-nested flow collections
-        # (a corrupt/hostile README) blow the stack inside the loader — contain it too.
-        raise ArchiveError(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
-    if not isinstance(front_matter, dict):
-        raise ArchiveError(f"{ulid}: README front-matter is not a mapping")
-    return front_matter, body
 
 
 def _as_str_tuple(value: object) -> tuple[str, ...]:
@@ -211,15 +179,6 @@ def _as_str_map(value: object) -> tuple[tuple[str, str], ...]:
     if not isinstance(value, dict):
         raise ValueError(f"custom: expected a mapping, got {type(value).__name__}")
     return tuple((str(key), str(val)) for key, val in value.items())
-
-
-def _version_of(fm: dict[str, Any]) -> Version:
-    """The stored optimistic-concurrency version: an exact non-negative int. Reject bool/float/
-    str rather than coercing (int(1.5) -> 1 would silently accept a corrupt version)."""
-    value = fm["version"]
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"version must be a non-negative integer, got {value!r}")
-    return value
 
 
 def audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
