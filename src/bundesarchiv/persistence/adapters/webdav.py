@@ -22,6 +22,7 @@ import httpx2
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import (
     ObjectEntry,
+    ObjectStore,
     is_reserved,
     validate_key,
     validate_prefix,
@@ -48,7 +49,7 @@ class _Resource:
     etag: str | None
 
 
-class WebDavObjectStore:
+class WebDavObjectStore(ObjectStore):
     """Stores each blob as a WebDAV resource under the client's `base_url`. Owns the client's
     lifetime: call `close()` when done with the store."""
 
@@ -93,9 +94,6 @@ class WebDavObjectStore:
 
     def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
         return self._put(key, stream, size, create=True)
-
-    def list(self, prefix: str = "") -> Iterable[str]:
-        return [entry.key for entry in self.list_entries(prefix)]
 
     def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
         folder = prefix.rpartition("/")[0]

@@ -11,13 +11,14 @@ from typing import BinaryIO
 from bundesarchiv.persistence.errors import AlreadyExists, NotFound
 from bundesarchiv.persistence.objectstore import (
     ObjectEntry,
+    ObjectStore,
     is_reserved,
     validate_key,
     validate_prefix,
 )
 
 
-class InMemoryObjectStore:
+class InMemoryObjectStore(ObjectStore):
     """Stores blobs in a dict. Writes are atomic (a single dict assignment);
     nothing is persisted across instances. A version is a per-store write counter."""
 
@@ -52,9 +53,6 @@ class InMemoryObjectStore:
 
     def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
         return self.create(key, stream.read())
-
-    def list(self, prefix: str = "") -> Iterable[str]:
-        return [entry.key for entry in self.list_entries(prefix)]
 
     def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
         return [

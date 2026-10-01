@@ -21,13 +21,7 @@ _TREES = {
 _MIN_NODES = 12
 
 #: Groups of functions with an identical body (sorted ``module:qualname``) -> finding id.
-DUPLICATE_BODIES: dict[tuple[str, ...], str] = {
-    (
-        "bundesarchiv/persistence/adapters/localfs.py:LocalFsObjectStore.list",
-        "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore.list",
-        "bundesarchiv/persistence/adapters/webdav.py:WebDavObjectStore.list",
-    ): "review 2026-10-01, pattern 1",
-}
+DUPLICATE_BODIES: dict[tuple[str, ...], str] = {}
 
 #: The ``HX-`` request-header names belong to the request-kind owner.
 HX_OWNER = "bundesarchiv/app/web/viewers.py"

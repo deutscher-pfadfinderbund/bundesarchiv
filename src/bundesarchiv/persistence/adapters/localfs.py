@@ -27,6 +27,7 @@ from typing import BinaryIO
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import (
     ObjectEntry,
+    ObjectStore,
     is_reserved,
     validate_key,
     validate_prefix,
@@ -35,7 +36,7 @@ from bundesarchiv.persistence.objectstore import (
 _CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
 
 
-class LocalFsObjectStore:
+class LocalFsObjectStore(ObjectStore):
     """Stores each blob as a file under `root`; key "a/b/c" → root/a/b/c."""
 
     def __init__(self, root: Path) -> None:
@@ -88,9 +89,6 @@ class LocalFsObjectStore:
 
     def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
         return self._commit(key, _chunks(stream), replace=False)
-
-    def list(self, prefix: str = "") -> Iterable[str]:
-        return [entry.key for entry in self.list_entries(prefix)]
 
     def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
         folder = prefix.rpartition("/")[0]

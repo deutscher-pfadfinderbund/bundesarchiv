@@ -104,7 +104,7 @@ class ObjectStore(Protocol):
         """Keys beginning with `prefix`, in lexicographic order, excluding reserved
         internal keys (`is_reserved`). `Iterable`, not `Iterator`: an adapter
         may return a materialized, sorted list (the natural local-FS/WebDAV shape)."""
-        ...
+        return [entry.key for entry in self.list_entries(prefix)]
 
     def list_entries(self, prefix: str = "") -> Iterable[ObjectEntry]:
         """`list(prefix)`, each key with its size and version."""
