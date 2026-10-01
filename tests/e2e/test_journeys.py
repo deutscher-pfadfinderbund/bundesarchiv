@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from playwright.sync_api import Browser, Dialog, Page, Route, expect
+from playwright.sync_api import Browser, Dialog, FilePayload, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import CorpusHandles, _png
@@ -1696,6 +1696,62 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     page.once("dialog", lambda dialog: dialog.accept())
     remove.click()
     expect(page.get_by_text("Noch keine Medien")).to_be_visible()
+
+
+def test_the_forms_own_media_actions_never_make_its_save_conflict(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Each media route saves on its own and swaps only #medien-drawer; the form's expected_version
+    # has to follow, or Speichern loses to the archivist's own upload, reorder or removal.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Medien dann Speichern")
+    page.set_input_files(
+        '#medien-drawer input[type="file"]',
+        [
+            FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
+            FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
+        ],
+    )
+    rows = page.locator("#medien-drawer .file-row")
+    expect(rows).to_have_count(2)
+    page.get_by_role("button", name="Nach unten").first.click()
+    expect(rows.first).to_contain_text("zwei.png")
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.get_by_role("button", name="eins.png entfernen").click()
+    expect(rows).to_have_count(1)
+    page.select_option('select[name="lifecycle"]', "published")
+    page.click('button:has-text("Speichern")')
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
+
+
+def test_a_media_action_never_hides_anothers_save_from_the_form(
+    archivist_page: Page, live_workbench: str, browser: Browser
+) -> None:
+    # The other half of the contract above: another archivist saved after this form loaded, so the
+    # form's media action must not advance its version past that save (ADR 0013).
+    edit_url = _create_draft(archivist_page, live_workbench, "E2E Medien nach fremdem Speichern")
+
+    from tests.e2e.conftest import _archivist_cookie
+
+    ctx2 = browser.new_context()
+    ctx2.add_cookies([_archivist_cookie(live_workbench)])  # type: ignore[list-item]
+    page2 = ctx2.new_page()
+    page2.goto(edit_url)
+    page2.select_option('select[name="media_type"]', "Foto(s)")
+    page2.fill('input[name="creator"]', "Zweiter")
+    page2.click('button:has-text("Speichern")')
+    page2.wait_for_url(lambda url: "/edit" not in url)
+    ctx2.close()
+
+    page = archivist_page
+    page.set_input_files(
+        '#medien-drawer input[type="file"]',
+        {"name": "eins.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
+    )
+    expect(page.locator("#medien-drawer .file-row")).to_have_count(1)
+    page.fill('input[name="creator"]', "Erster")
+    page.click('button:has-text("Speichern")')
+    expect(page.get_by_text("Inzwischen geändert")).to_be_visible()
 
 
 def test_the_edit_form_absorbs_long_content(

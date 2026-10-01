@@ -274,6 +274,29 @@ def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None
     assert len(corpus.media()) == 2  # nothing attached
 
 
+def test_a_refused_upload_hands_a_stale_form_its_own_version_back(corpus: _MediaCorpus) -> None:
+    # Another archivist saved after this form loaded; the refusal saved nothing of this form's, so
+    # the version swapped back into it must not move past that save (the e2e journeys hold the rest).
+    archivist = client_as(Archivist())
+    other = archivist.post(
+        f"/artikel/{_ULID}/bearbeiten",
+        {
+            "title": "Anderer",
+            "collection_id": "PUB",
+            "media_type": "Foto(s)",
+            "expected_version": str(corpus.version),
+        },
+    )
+    assert other.status_code == 302
+    big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
+    with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
+        response = archivist.post(
+            f"/artikel/{_ULID}/medien/hochladen",
+            {"dateien": big, "expected_version": str(corpus.version)},
+        )
+    assert f'name="expected_version" value="{corpus.version}"' in response.content.decode()
+
+
 @pytest.mark.parametrize("name", ["...", "  ", " . "])
 def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
     corpus: _MediaCorpus, name: str

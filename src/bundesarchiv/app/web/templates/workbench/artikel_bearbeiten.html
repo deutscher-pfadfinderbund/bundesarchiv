@@ -13,8 +13,9 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block body %}
 {% comment %}#form-region wraps the whole sheet; the save swaps exactly this out of the same full-page render
-(hx-select), so a re-render moves every part and the refreshed expected_version together. A part
-left outside the swap would keep a stale CAS version. A successful save gets HX-Redirect.{% endcomment %}
+(hx-select), so a re-render moves every part and the refreshed expected_version together. A media
+action swaps only #medien-drawer and #expected-version (catalog_views._media_surface). A successful
+save gets HX-Redirect.{% endcomment %}
 <div id="form-region">
 <main id="inhalt" class="form-sheet">
 
@@ -57,7 +58,7 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
         hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
-    <input type="hidden" name="expected_version" value="{{ version }}">
+    <input type="hidden" id="expected-version" name="expected_version" value="{{ version }}">
 
     <section aria-labelledby="h-kerndaten">
       <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
@@ -94,7 +95,8 @@ left outside the swap would keep a stale CAS version. A successful save gets HX-
     section (forms cannot nest), so a swap delivers fresh forms for the current rows.{% endcomment %}
     <section id="medien-drawer" aria-labelledby="h-medien"
              hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
-             hx-swap:inherited="outerHTML">
+             hx-swap:inherited="outerHTML"
+             hx-include:inherited="#expected-version" hx-select-oob:inherited="#expected-version">
       <header class="section-head"><h2 id="h-medien">Medien</h2></header>
       {% if medien_fehler %}<p class="error" role="alert">{{ medien_fehler }}</p>{% endif %}
       {% if media_rows %}

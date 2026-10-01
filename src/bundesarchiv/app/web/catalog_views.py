@@ -783,9 +783,9 @@ def _sichtbarkeit_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------
 #
 # Reorder / remove / upload are SEPARATE structural POSTs, distinct from the caption metadata save.
-# "Non-CAS" in that they do not ride the form's expected_version: they hand an idempotent transform
-# of the media tuple to ``update_article``, which loads, applies and retries onto a concurrent
-# winner. Order is meaning (first = cover), so reorder is re-cover and upload appends at the END.
+# "Non-CAS" in that they never save against the form's expected_version (they only hand it back,
+# _media_surface): they hand an idempotent transform of the media tuple to ``update_article``, which
+# loads, applies and retries onto a concurrent winner. Order is meaning (first = cover), so reorder is re-cover and upload appends at the END.
 
 #: How many times a structural media save re-loads after a concurrent version bump before giving up
 #: and telling the archivist to try again (rare: single-app-process, a handful of writers).
@@ -838,9 +838,9 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
         )
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
-    return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
-        request, overlay=RemoveConfirm(content_hash)
-    )
+    return _media_surface(
+        request, stored.article, stored.version, BestandChooser.of(archive)
+    ).render(request, overlay=RemoveConfirm(content_hash))
 
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -862,9 +862,9 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
         message = (
             "Datei zu groß. Bitte kleinere Dateien hochladen." if oversize else _DATEINAME_LEER
         )
-        return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
-            request, overlay=MediaError(message)
-        )
+        return _media_surface(
+            request, stored.article, stored.version, BestandChooser.of(archive)
+        ).render(request, overlay=MediaError(message))
     repo = archive.articles
     new_refs = [
         repo.add_media(ulid, f.name or "", cast(BinaryIO, f), f.content_type or None) for f in files
@@ -878,9 +878,9 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
             changed_by=archivist.username,
         )
     # no files posted — plain re-render of the gated Stored
-    return EditSurface.of(stored.article, stored.version, BestandChooser.of(archive)).render(
-        request
-    )
+    return _media_surface(
+        request, stored.article, stored.version, BestandChooser.of(archive)
+    ).render(request)
 
 
 def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -935,11 +935,31 @@ def _structural_change(
                 stored = archive.articles.load(ulid)
             except ArchiveError:
                 return not_found()  # hard-deleted between the lost race and this re-load
-            return EditSurface.of(stored.article, stored.version, bestand).render(
+            return _media_surface(request, stored.article, stored.version, bestand).render(
                 request, overlay=MediaError(_MEDIEN_KONFLIKT)
             )
         case Updated(article=article, version=version):
-            return EditSurface.of(article, version, bestand).render(request)
+            return _media_surface(request, article, version, bestand, own_save=True).render(request)
+
+
+def _media_surface(
+    request: HttpRequest,
+    article: Article,
+    version: Version,
+    bestand: BestandChooser,
+    *,
+    own_save: bool = False,
+) -> EditSurface:
+    """The edit surface a media route renders, and the expected_version it hands back. Without JS
+    the media forms post none and the whole form re-renders from ``article``, so ``version`` is the
+    honest one. With JS only the drawer and the version swap (the form keeps the archivist's
+    values), so the posted version advances only past this route's ``own_save`` of exactly it —
+    never past another editor's save (ADR 0013; a save is ``version + 1``)."""
+    raw = request.POST.get("expected_version")
+    if raw is None:
+        return EditSurface.of(article, version, bestand)
+    held = catalog.parse_version(raw)
+    return EditSurface.of(article, version if own_save and version == held + 1 else held, bestand)
 
 
 def _reordered(
