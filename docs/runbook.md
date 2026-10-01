@@ -373,3 +373,18 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
 - **Job outcomes of every job** come from Procrastinate (logger `procrastinate.worker`, INFO; ERROR
   when the last attempt fails): `action` (`job_success`, `job_error_retry`, `job_error`, ...), `job` (object with
   `task_name`, `attempts`), `duration`.
+- **Archive statistics** (logger `bundesarchiv.app.stats`, INFO, hourly after the reconcile rebuild;
+  archive-wide, never per user). `archive stats`: `articles`, `collections`, `media_files`,
+  `media_bytes`, `in_papierkorb`, `articles_without_media`, `audience_public`, `audience_members`,
+  `audience_groups`, `audience_archivist_only` (drafts, Papierkorb and broken chains included),
+  `articles_without_date`, `articles_without_description`, `articles_without_tags`,
+  `media_without_thumbnail` (distinct files of a kind with a renderer), `index_rows`, `index_drift`
+  (index rows minus canonical Articles; not 0 means the index lags), `jobs_todo`, `jobs_doing`,
+  `jobs_failed`. Then one `archive media type` record per MIME type: `media_type`, `files`, `bytes`.
+- **Fixity** (logger `bundesarchiv.app.management.commands.verify`, one per `manage.py verify` and so
+  per monthly job): `outcome` (`ok` at INFO, `failed` at ERROR), `checked_readmes`, `checked_files`,
+  `checksum_mismatches`, `unreadable_readmes`, `unreadable_files`, `refs_without_file`,
+  `files_without_ref`. Alert on `checksum_mismatches` > 0.
+- **Slow requests** (logger `bundesarchiv.app.web.slow_requests`, WARNING): `route` (the URL name,
+  never the path), `method`, `status`, `duration_ms`, for requests over `BUNDESARCHIV_SLOW_REQUEST_MS`
+  (default 1000). Media served through X-Accel is skipped.

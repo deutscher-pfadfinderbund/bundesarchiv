@@ -34,6 +34,7 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/jsonlog.py:JsonFormatter": "named by the LOGGING setting",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/web/anonymous_gate.py:AnonymousGateMiddleware": "named by MIDDLEWARE",
+    "bundesarchiv/app/web/slow_requests.py:SlowRequestMiddleware": "named by MIDDLEWARE",
     "bundesarchiv/app/web/viewers.py:TokenCookieMiddleware": "named by MIDDLEWARE",
     "bundesarchiv/app/management/commands/ensure_index_current.py:Command": "Django command",
     "bundesarchiv/app/management/commands/import_legacy.py:Command": "Django command",

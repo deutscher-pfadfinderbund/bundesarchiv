@@ -97,6 +97,22 @@ def test_the_reconcile_job_rebuilds_everything(
 
 
 @pytest.mark.django_db
+def test_the_reconcile_job_logs_the_archive_stats_and_survives_their_failure(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app import stats
+
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    with caplog.at_level("INFO", logger="bundesarchiv.app.stats"):
+        tasks_mod.reconcile.func(timestamp=0)
+    assert [r.getMessage() for r in caplog.records] == ["archive stats"]
+
+    monkeypatch.setattr(stats, "log_archive_stats", lambda _: 1 / 0)
+    tasks_mod.reconcile.func(timestamp=0)  # the rebuild stands; the failure is logged
+
+
+@pytest.mark.django_db
 def test_reindex_subtree_job_recomputes_subtree(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:

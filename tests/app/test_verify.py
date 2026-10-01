@@ -128,3 +128,20 @@ def test_an_unreadable_file_is_found_and_the_check_goes_on(
         locked.chmod(0o600)  # so tmp_path cleanup can remove it
     assert f"Unreadable files: 1\n  {key}\n" in out
     assert f"Files without a reference: 1\n  {stranger}\n" in out
+
+
+def test_the_report_is_one_structured_record_ok_or_failed(
+    archive: Archive, scans: tuple[MediaRef, MediaRef], caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("INFO", logger="bundesarchiv.app.management.commands.verify"):
+        call_command("verify", stdout=io.StringIO())
+        archive.store.delete(archive.articles.media_key(ARTICLE, scans[0]))
+        _findings()
+    clean, broken = (vars(r) for r in caplog.records)
+    assert (clean["outcome"], clean["checked_readmes"], clean["checked_files"]) == ("ok", 4, 2)
+    assert (broken["outcome"], broken["refs_without_file"], broken["checksum_mismatches"]) == (
+        "failed",
+        1,
+        0,
+    )
+    assert [r.levelname for r in caplog.records] == ["INFO", "ERROR"]

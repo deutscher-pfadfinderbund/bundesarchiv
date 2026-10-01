@@ -31,10 +31,11 @@ from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
 from procrastinate.exceptions import AlreadyEnqueued
 
-from bundesarchiv.app import mirror, thumbnails
+from bundesarchiv.app import mirror, stats, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.push_record import PostgresPushRecord
 from bundesarchiv.index import indexer
+from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -117,7 +118,13 @@ def reconcile(timestamp: int) -> None:
     invariant no matter what any incremental path missed. Hourly by default
     (``BUNDESARCHIV_RECONCILE_CRON``). ``timestamp`` is the tick Procrastinate passes to a periodic
     task; it is unused here (the job is a pure reference — it recomputes from current canonical)."""
-    indexer.rebuild(canonical_store())
+    store = canonical_store()
+    rows_before = ArticleIndex.objects.count()  # the drift the rebuild is about to repair
+    indexer.rebuild(store)
+    try:
+        stats.log_archive_stats(store, index_rows_before=rows_before)
+    except Exception:  # the dashboard numbers never fail the rebuild that already committed
+        logger.exception("archive stats failed")
 
 
 @app.periodic(cron=_VERIFY_CRON)

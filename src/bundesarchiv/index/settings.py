@@ -90,6 +90,8 @@ BUNDESARCHIV_CANONICAL_ROOT = os.environ.get("BUNDESARCHIV_CANONICAL_ROOT", "var
 # keeps the worst-case staleness window at an hour, matching the archive's own risk language. Cron
 # expression, overridable by the deploy for a different cadence.
 BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 * * * *")
+# A request slower than this many ms is logged as one WARNING record (app/web/slow_requests.py).
+BUNDESARCHIV_SLOW_REQUEST_MS = int(os.environ.get("BUNDESARCHIV_SLOW_REQUEST_MS", "1000"))
 
 # The production HTTP surface (Part 4.3): the authorized media-serving routes and nothing else.
 # Prod stays deliberately minimal (ADR 0004/0005) — no admin/auth/sessions/templates. The dev
@@ -112,6 +114,7 @@ ROOT_URLCONF = "bundesarchiv.app.web.urls"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "bundesarchiv.app.web.slow_requests.SlowRequestMiddleware",  # times everything below
     # SECURE_CSP below; above CSRF and the gate, so their refusals carry the policy too.
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
