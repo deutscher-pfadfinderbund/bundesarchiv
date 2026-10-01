@@ -84,7 +84,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `access.py:24,92`, `indexer.py:91,108-114`, `query.py:180-194`, `index/models.py:40-49`. Bite: `91900b3` (group names leaked), `ed4c054`.
 - **Sketch:** one owner of the visible attributes; the Python/SQL scope pair stays two encodings.
 
-### 38. One undecodable README stops every index writer — Strong
+### 38. One undecodable README stops every index writer — done (Wave CANON, 2026-10-01: `UnreadableReadme`, archivist-only row, CRLF/BOM decode; review UI flag not built)
 - **Indicator:** 0 handlers in `rebuild`/`index_article`/`index_subtree`/`load_all`; 5 policies for one broken file (2026-10-01, P4)
 - **Evidence:** `indexer.py:256-260,292,317`, `collections.py:75`, `repository.py:214`; `UnicodeDecodeError` escapes `load`. A visibility narrowing then never reaches the index.
 - **Sketch:** ruled policy (owner 2026-10-01): archivist-only, flagged for review. One loader that returns it.
@@ -183,7 +183,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 9. CollectionTree — deepen the resolver's input — Worth exploring
 - **Indicator:** `resolve_chain` called at 5 sites in 4 modules (2026-10-01, better; 6 on 2026-09-01);
   the 2 web `_collections` copies now go through `BestandChooser.chain_of` (Wave CLEAN, 2026-10-01);
-  `index/indexer.py:256,292,317` still build the lookup 3×
+  the indexer builds it through one helper, `_bestand_lookup` (Wave CANON, 2026-10-01)
 - **Evidence:** `article_auth`, `media_views`, `index/indexer` (the web forms now resolve through
   `bestand.by_ulid`). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
   is copied. `media_views` re-reads every Collection README per byte-range.
@@ -260,7 +260,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `anonymous_gate.py:48`, `browse_views.py:113,115`, `catalog_views.py:127,710`, `collection_views.py:77,169`, `viewers.py:257`. Bite: `2675e6c`, `33a9d6a` (history restore missed twice).
 - **Sketch:** one `request_kind(request)`.
 
-### 45. The two README codecs are drifted copies — Strong
+### 45. The two README codecs are drifted copies — done (Wave CANON, 2026-10-01: `persistence/_front_matter.py`)
 - **Indicator:** 6 parallel definitions in `readme.py` and `collection_readme.py` (2026-10-01, A6/P2)
 - **Evidence:** `readme.py:31-153,225-238` vs `collection_readme.py:31-112`. `groups: vorstand` decodes to `('v','o','r',…)` in a Collection, raises in an Article. Bite: `db66d49` fixed one copy; `96e44cf`, `d6c8b22`.
 - **Indicator 2026-10-01 (after Wave CLEAN):** the group decoder is shared (scalar `groups` refused in both); `_MARKER`, `_FENCE`, `_parse_front_matter`, `_version_of` still twice.
