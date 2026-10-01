@@ -114,6 +114,10 @@ def test_decode_rejects_a_corrupt_version() -> None:
             "---\nulid: x\nname: Root\naudience:\n  tier: public\n  groups:\n  - geheim\n---\n",
             "PUBLIC tier with a named group (Audience invariant -> ArchiveError at the seam)",
         ),
+        (
+            "---\nulid: x\nname: Root\naudience:\n  tier: groups\n  groups: vorstand\n---\n",
+            "scalar groups (must not split into one group per character)",
+        ),
     ],
 )
 def test_decode_rejects_corrupt_readme_as_archive_error(text: str, why: str) -> None:

@@ -12,7 +12,7 @@ adapter-specific files cover only what the port cannot state.
 
 - `repository.py` — Article persistence, the deep module (ADR 0005/0019) · interface: `ArticleRepository`, `Stored`, `StoredKey`, `cleaned_name` · tests: `tests/persistence/test_article_repository.py`, `test_history.py`
 - `collections.py` — CollectionRepository (ADR 0010/0013) · interface: `CollectionRepository`, `StoredCollection` · tests: `tests/persistence/test_collection_repository.py`, `test_history.py`
-- `readme.py` — Article README codec: Markdown+front-matter ↔ Article (ADR 0005/0006) · interface: `encode`, `decode`, `read_version` · tests: `tests/persistence/test_readme.py`
+- `readme.py` — Article README codec: Markdown+front-matter ↔ Article (ADR 0005/0006) · interface: `encode`, `decode`, `read_version`, `audience_from_front_matter` · tests: `tests/persistence/test_readme.py`
 - `collection_readme.py` — Collection README codec (ADR 0010) · interface: `encode_collection`, `decode_collection` · tests: `tests/persistence/test_collection_readme.py`
 - `fixity.py` — the fixity check: every README version against the stored files (ADR 0019) · interface: `verify`, `Report` · tests: `tests/app/test_verify.py`
 - `objectstore.py` — the ObjectStore port: minimal blob interface + key validation · interface: `ObjectStore`, `ObjectEntry`, `validate_key`, `is_reserved` · tests: `tests/persistence/test_objectstore_conformance.py`

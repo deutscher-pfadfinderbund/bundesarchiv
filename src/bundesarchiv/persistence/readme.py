@@ -222,9 +222,10 @@ def _version_of(fm: dict[str, Any]) -> Version:
     return value
 
 
-def _audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
-    """Decode the optional audience. An absent or null key is inherit (None, ADR 0001);
-    a present mapping is an explicit rung; anything else present is corrupt."""
+def audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
+    """Decode the optional audience of an Article or a Collection front matter. An absent or null
+    key is inherit (None, ADR 0001); a present mapping is an explicit rung; anything else present
+    is corrupt (`ValueError`)."""
     raw = fm.get("audience")
     if raw is None:
         return None
@@ -248,7 +249,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         collection_id=str(fm["collection_id"]),
         body=body,
         lifecycle=Lifecycle(fm["lifecycle"]),
-        audience=_audience_from_front_matter(fm),
+        audience=audience_from_front_matter(fm),
         ref_code=_as_opt_str(fm.get("ref_code")),
         media_type=_as_opt_str(fm.get("media_type")),
         document_type=_as_opt_str(fm.get("document_type")),

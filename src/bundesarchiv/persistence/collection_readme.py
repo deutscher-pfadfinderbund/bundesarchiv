@@ -24,8 +24,8 @@ from typing import Any
 
 import yaml
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Change, Collection, Ulid, Version
-from bundesarchiv.persistence import _change
+from bundesarchiv.domain.models import Change, Collection, Ulid, Version
+from bundesarchiv.persistence import _change, readme
 from bundesarchiv.persistence.errors import ArchiveError
 
 _MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
@@ -96,26 +96,10 @@ def _parse_front_matter(ulid: Ulid, text: str) -> dict[str, Any]:
     return front_matter
 
 
-def _audience_from_front_matter(fm: dict[str, Any]) -> Audience | None:
-    """Decode the optional audience. Absent or null = inherit (None, ADR 0001);
-    a present mapping is an explicit rung; anything else present is corrupt."""
-    raw = fm.get("audience")
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        raise ValueError(f"audience: expected a mapping, got {type(raw).__name__}")
-    if not raw:
-        return None  # a content-less `audience: {}` names no rung -> inherit
-    return Audience(
-        tier=AudienceTier(raw.get("tier", AudienceTier.MEMBERS.value)),
-        groups=tuple(str(g) for g in (raw.get("groups") or [])),
-    )
-
-
 def _collection_from_front_matter(fm: dict[str, Any], ulid: Ulid) -> Collection:
     return Collection(
         ulid=str(fm["ulid"]),
         name=str(fm["name"]),
         parent_id=str(fm["parent_id"]) if fm.get("parent_id") is not None else None,
-        audience=_audience_from_front_matter(fm),
+        audience=readme.audience_from_front_matter(fm),
     )
