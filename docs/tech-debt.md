@@ -228,6 +228,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Implementation patterns
 
+### 50. Thumbnails need a manual run after a deploy — Worth exploring
+- **Indicator:** 2 deploys in a row needed `manage.py rebuild_thumbnails` by hand (2026-10-01: 577, then ~2,300 PDFs)
+- **Evidence:** thumbnails are made at save time (`tasks.generate_thumbnail`); a miss is a plain 404 (`media_views.serve_thumbnail`). Owner 2026-10-01: build on demand, once, async, and keep it; never pre-build for files no one opens (disk)
+- **Sketch:** on a miss for a viewer who may see the file, enqueue `generate_thumbnail` and show the placeholder; the next request serves the cached file. `rebuild_thumbnails` becomes optional
+
 ### 27. The thumbnail root is resolved in five places — Worth exploring
 - **Indicator:** 5 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-01, stable)
 - **Evidence:** `app/tasks.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`

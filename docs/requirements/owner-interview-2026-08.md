@@ -922,3 +922,5 @@ missing records; "N von M gespeichert"; the error pages' wording.
   for it.
 - **Cleanups land now**, before the demo: a clean code base is an efficient one. The start page comes
   soon.
+- **Thumbnails are built on demand**, once, in the background, and kept. No bulk pre-build at deploy
+  or start: it fills the disk with thumbnails no one sees.
