@@ -10,14 +10,28 @@ Pure request-handling against a local FS store (load + resolve + visible) — no
 """
 
 import io
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from html.parser import HTMLParser
+from pathlib import Path
 
 import pytest
+from django.test import override_settings
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, draft_mark, make_article, make_collection
+from tests.app.web._fixtures import (
+    Corpus,
+    client_as,
+    download_hrefs,
+    draft_mark,
+    make_article,
+    make_collection,
+    page_hrefs,
+)
 
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.thumbnails import generate_thumbnail
+from bundesarchiv.app.web.media_views import media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
@@ -135,14 +149,33 @@ def test_detail_renders_title_and_origin(corpus: _DetailArchive) -> None:
     assert "Erste Zeile." in body  # Beschreibung prose
 
 
-def test_detail_renders_every_medium_as_a_gated_thumb_and_link(corpus: _DetailArchive) -> None:
+def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
+    corpus: _DetailArchive, tmp_path: Path
+) -> None:
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.cover_hash, thumbs)
+        body = _body(Public(), corpus.pub)
+    images = re.findall(r'<img [^>]*src="([^"]*)"', body)
+    assert thumbnail_url(corpus.pub, corpus.cover_hash) in images
+    assert thumbnail_url(corpus.pub, corpus.second_hash) not in body  # nothing that could break
+    assert "b.png" in body  # the uncached file's tile names it
+    assert "data:image" not in body  # no bytes inlined
+
+
+def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
+    corpus: _DetailArchive,
+) -> None:
+    images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), corpus.pub))
+    assert images[0] == media_url(corpus.pub, corpus.cover_hash)  # sharp at any width
+
+
+def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
-    for content_hash in (corpus.cover_hash, corpus.second_hash):
-        assert f"/media/{corpus.pub}/{content_hash}/thumb" in body
-        assert f'href="/media/{corpus.pub}/{content_hash}"' in body
-    assert "Am Lagerfeuer" in body  # caption
-    # no raw bytes inlined — only /media/ URLs
-    assert "data:image" not in body
+    originals = {media_url(corpus.pub, h) for h in (corpus.cover_hash, corpus.second_hash)}
+    assert originals <= set(page_hrefs(body))
+    assert set(download_hrefs(body)) == originals
+    assert len(download_hrefs(body)) == 3  # the cover once under the Platte, then every plate
 
 
 # --- projection / per-tier (the leak surface, §9) ---------------------------------

@@ -36,7 +36,13 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
 from bundesarchiv.app.web import catalog, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.browse_views import INDEX_LAG_QUERY, BestandCrumb, bestand_crumbs
+from bundesarchiv.app.web.browse_views import (
+    INDEX_LAG_QUERY,
+    BestandCrumb,
+    MediaTile,
+    bestand_crumbs,
+    media_tiles,
+)
 from bundesarchiv.app.web.card import (
     FIELDS,
     LIFECYCLE_OPTIONS,
@@ -45,7 +51,7 @@ from bundesarchiv.app.web.card import (
     first_empty_field,
     first_error_field,
 )
-from bundesarchiv.app.web.media_views import not_found, thumbnail_url
+from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
 from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
@@ -470,14 +476,12 @@ def _crumbs(article: Article, bestand: BestandChooser) -> tuple[BestandCrumb, ..
 
 @dataclass(frozen=True, slots=True)
 class _MediaRow:
-    """One media register row (spec §6.3): the thumb URL via the gated media-thumb route (which
-    re-authorizes per request), the filename + human byte size, the caption value, and the structural
-    flags. ``is_cover`` marks the FIRST row; ``confirm_remove`` puts this row into the two-step remove
-    confirm; ``is_first``/``is_last`` disable the reorder controls at the ends."""
+    """One media register row (spec §6.3): the file's tile, its human byte size, the caption value,
+    and the structural flags. ``is_cover`` marks the FIRST row; ``confirm_remove`` puts this row into
+    the two-step remove confirm; ``is_first``/``is_last`` disable the reorder controls at the ends."""
 
-    filename: str
+    tile: MediaTile
     content_hash: str
-    thumb_url: str
     size: str
     caption: str
     is_cover: bool
@@ -489,15 +493,12 @@ class _MediaRow:
 def _media_rows(
     ulid: str, media: tuple[MediaRef, ...], entfernen_hash: str
 ) -> tuple[_MediaRow, ...]:
-    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015). The
-    thumb URL points at the gated route, which re-authorizes on its own — the edit form never
-    bypasses media auth."""
+    """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015)."""
     last = len(media) - 1
     return tuple(
         _MediaRow(
-            filename=ref.filename,
+            tile=tile,
             content_hash=ref.content_hash,
-            thumb_url=thumbnail_url(ulid, ref.content_hash),
             size=vocab.human_size(ref.byte_size),
             caption=ref.caption or "",
             is_cover=i == 0,
@@ -505,7 +506,7 @@ def _media_rows(
             is_last=i == last,
             confirm_remove=ref.content_hash == entfernen_hash,
         )
-        for i, ref in enumerate(media)
+        for i, (ref, tile) in enumerate(zip(media, media_tiles(ulid, media), strict=True))
     )
 
 

@@ -296,6 +296,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
 | Pagination | `.pager` | `components/pagination` | `components.css` pagination |
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
+| Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank |
 | Icon | `.icon` | `components/icon` | none |
 | Field | `.field` | `workbench/_feld` (the edit form, the create step, the Bestand forms) | `components.css` field |
 | Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected |

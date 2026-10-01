@@ -27,8 +27,17 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 from django.test import override_settings
 from tests.app.web._asserts import assert_denied
-from tests.app.web._fixtures import Corpus, client_as, make_article, make_collection
+from tests.app.web._fixtures import (
+    Corpus,
+    client_as,
+    download_hrefs,
+    make_article,
+    make_collection,
+    page_hrefs,
+)
 
+from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.app.web.media_views import media_url, thumbnail_url
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
@@ -279,7 +288,7 @@ def test_a_refused_upload_hands_a_stale_form_its_own_version_back(corpus: _Media
     # the version swapped back into it must not move past that save (the e2e journeys hold the rest).
     archivist = client_as(Archivist())
     other = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "Anderer",
             "collection_id": "PUB",
@@ -386,6 +395,8 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
     assert len(hashes_after) == 3  # the new row is really there
     for content_hash in hashes_after:
         assert f'id="verschieben-{content_hash}"' in drawer
+    # the worker has not derived the new file's thumbnail yet: its tile is the placeholder
+    assert thumbnail_url(_ULID, hashes_after[-1]) not in drawer
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
@@ -512,11 +523,32 @@ def test_caption_saved_via_edit_form_round_trips(corpus: _MediaCorpus) -> None:
 
 def test_edit_form_renders_media_register_with_cover_stamp(corpus: _MediaCorpus) -> None:
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
-    assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL
     # the stamp is a text node; ref_a's caption "Titelbild" is only an input value
     cover_row, rest = body.split("cover.jpg", 1)[1].split("zweite.jpg", 1)
     assert ">Titelbild<" in cover_row
     assert ">Titelbild<" not in rest
+
+
+def test_a_file_row_shows_a_thumbnail_only_once_the_cache_holds_one(
+    corpus: _MediaCorpus, tmp_path: Path
+) -> None:
+    thumbs = tmp_path / "thumbs"
+    cached = thumbnail_path(thumbs, corpus.ref_a.content_hash)
+    cached.parent.mkdir()
+    cached.write_bytes(b"webp")
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
+    drawer = _medien_drawer_region(body)
+    assert thumbnail_url(_ULID, corpus.ref_a.content_hash) in drawer
+    assert thumbnail_url(_ULID, corpus.ref_b.content_hash) not in drawer
+
+
+def test_every_file_row_opens_and_offers_to_save_its_original(corpus: _MediaCorpus) -> None:
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
+    drawer = _medien_drawer_region(body)
+    originals = [media_url(_ULID, ref.content_hash) for ref in (corpus.ref_a, corpus.ref_b)]
+    assert download_hrefs(drawer) == originals
+    assert set(originals) <= set(page_hrefs(drawer))
 
 
 # --- values-preserved-verbatim: error/conflict re-renders keep typed captions ------

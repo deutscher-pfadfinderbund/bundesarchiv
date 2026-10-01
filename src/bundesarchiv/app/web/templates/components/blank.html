@@ -1,0 +1,3 @@
+{% comment %}A file without a thumbnail, in the slot its thumbnail would fill. Params: kind; name
+(optional: left out where the name already stands beside the tile).{% endcomment %}
+<span class="blank"><span class="blank-label">{{ kind }}{% if name %} · {{ name }}{% endif %}</span></span>

@@ -319,6 +319,16 @@ def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
     return ", ".join(_files(kind, n) for kind, n in counts)
 
 
+#: The article page's plate register, headed by what it holds.
+FURTHER_IMAGES = "Weitere Aufnahmen"
+FURTHER_FILES = "Weitere Dateien"
+
+
+def file_word(kind: FileKind) -> str:
+    """One file of ``kind``, as a tile names it: "PDF", "Foto"."""
+    return _FILE_WORDS[kind][0]
+
+
 def _files(kind: FileKind, n: int) -> str:
     """``n`` files of ``kind``, one without its number: "Foto", "2 Fotos"."""
     singular, plural = _FILE_WORDS[kind]

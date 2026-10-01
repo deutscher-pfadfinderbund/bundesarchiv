@@ -40,6 +40,20 @@
     --rule: var(--page-rule);
     --edge: var(--page-edge);
     --faint: var(--page-faint);
+    /* the placeholder cross of a file without a thumbnail (DESIGN.md Shapes): one drawing */
+    --placeholder:
+      linear-gradient(
+        to top right,
+        transparent calc(50% - var(--line-width) / 2),
+        var(--faint) 50%,
+        transparent calc(50% + var(--line-width) / 2)
+      ),
+      linear-gradient(
+        to top left,
+        transparent calc(50% - var(--line-width) / 2),
+        var(--faint) 50%,
+        transparent calc(50% + var(--line-width) / 2)
+      );
 
     /* Type roles (system stacks). Usage: `font: var(--type-title);`. A component sets a type ROLE
      and nothing else — an ad-hoc font-size/weight is the typography equivalent of a raw hex. */

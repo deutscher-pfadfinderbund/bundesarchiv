@@ -19,6 +19,7 @@ Article, so archivist-only fields are floored before render — no member/archiv
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
+from pathlib import Path
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -28,6 +29,7 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import browse, bulk, ledger, vocab
 from bundesarchiv.app.web.article_auth import (
     DetailResolution,
@@ -39,8 +41,9 @@ from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
-from bundesarchiv.domain.models import Article, Lifecycle, Version
+from bundesarchiv.domain.models import Lifecycle, MediaRef, Version
 from bundesarchiv.domain.viewer import Archivist
+from bundesarchiv.index.indexer import file_kind, mime_type
 from bundesarchiv.index.query import FacetCount, FileKind, SearchFilters, SearchPage, search
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -175,14 +178,46 @@ class _SetFilter:
     query: str
 
 
-@dataclass(frozen=True, slots=True)
-class _PaneMedia:
-    """One media entry in the preview pane: its caption (may be empty) and the gated thumbnail URL.
-    The URL points at the existing /media/<ulid>/<hash>/thumb route, which re-authorizes on its own
-    (a thumbnail leaks the image) — the pane never inlines bytes."""
+#: The image types every browser draws: the article page leads with such an original, sharp at
+#: any width, where the 480px thumbnail would be stretched. A TIFF is not among them.
+_DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 
+
+@dataclass(frozen=True, slots=True)
+class MediaTile:
+    """One file as the pane, the article page and the edit form show it: its kind word, name and
+    caption, the gated URL of the original, ``full_url`` (the same URL, only when a browser draws
+    the original as an image), and the gated thumbnail URL, empty while the local cache holds no
+    thumbnail for it (the tile then shows kind and name). The URLs re-authorize per request; a page
+    never inlines bytes."""
+
+    kind: str
+    name: str
     caption: str
+    file_url: str
+    full_url: str
     thumb_url: str
+
+
+def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
+    """``media`` as tiles, in its order (cover first, ADR 0015). One stat per file: the thumbnail
+    cache is local (ADR 0017)."""
+    root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
+    return tuple(
+        MediaTile(
+            kind=vocab.file_word(file_kind(ref)),
+            name=ref.filename,
+            caption=ref.caption or "",
+            file_url=media_url(ulid, ref.content_hash),
+            full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
+            thumb_url=(
+                thumbnail_url(ulid, ref.content_hash)
+                if thumbnail_path(root, ref.content_hash).is_file()
+                else ""
+            ),
+        )
+        for ref in media
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,7 +232,7 @@ class _Pane:
     ref_code: str
     datierung: str
     typ: str
-    media: tuple[_PaneMedia, ...]
+    media: tuple[MediaTile, ...]
     oeffnen_href: str
     bearbeiten_href: str
     close_href: str
@@ -216,10 +251,6 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     if article is None or article.deleted is not None:
         # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
         return None
-    media = tuple(
-        _PaneMedia(caption=m.caption or "", thumb_url=thumbnail_url(article.ulid, m.content_hash))
-        for m in article.media
-    )
     # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
     # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
     # query (a bare "?" would). artikel is pane state, not search state.
@@ -231,7 +262,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
         ref_code=article.ref_code or "",
         datierung=vocab.datierung_mono(article.date),
         typ=article.document_type or "",
-        media=media,
+        media=media_tiles(article.ulid, article.media),
         oeffnen_href=reverse("artikel-detail", args=[article.ulid]),
         # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
         bearbeiten_href=reverse("artikel-bearbeiten", args=[article.ulid]) if is_archivist else "",
@@ -552,17 +583,6 @@ INDEX_LAG_QUERY = urlencode([_INDEX_LAG])
 
 
 @dataclass(frozen=True, slots=True)
-class _DetailMedia:
-    """One plate in the filmstrip (or the cover): its caption, the gated thumb URL, and the full
-    gated byte URL a click opens. The page never inlines bytes — both point at the /media routes,
-    which re-authorize per request."""
-
-    caption: str
-    thumb_url: str
-    file_url: str
-
-
-@dataclass(frozen=True, slots=True)
 class BestandCrumb:
     """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
 
@@ -596,19 +616,6 @@ def _body_paragraphs(body: str) -> tuple[str, ...]:
     return tuple(block.strip() for block in body.split("\n\n") if block.strip())
 
 
-def _detail_media(article: Article) -> tuple[_DetailMedia, ...]:
-    """The article's media as filmstrip view-models, cover-first (the tuple order is meaning). Thumb
-    + full-byte URLs point at the gated /media routes (never inline bytes)."""
-    return tuple(
-        _DetailMedia(
-            caption=m.caption or "",
-            thumb_url=thumbnail_url(article.ulid, m.content_hash),
-            file_url=media_url(article.ulid, m.content_hash),
-        )
-        for m in article.media
-    )
-
-
 def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     """The detail template context, built ONLY from the projected Article (no floored field can reach
     it) + the member-safe chain. Every value is `{% if %}`-gated in the template, so an absent field
@@ -617,7 +624,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     archive's browsing loop)."""
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
-    media = _detail_media(article)
+    media = media_tiles(article.ulid, article.media)
     tags = tuple(
         _DetailTag(
             label=t, href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_TAG, t)}"
@@ -661,6 +668,12 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         else vocab.delete_permanently_confirm(len(media)),
         "cover": media[0] if media else None,
         "weitere": media[1:],
+        "plates": media,
+        "plates_heading": (
+            vocab.FURTHER_IMAGES
+            if all(file_kind(ref) is FileKind.IMAGE for ref in article.media)
+            else vocab.FURTHER_FILES
+        ),
         "standort": article.physical_location or "",
         "custom": article.custom,
     }

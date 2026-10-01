@@ -145,10 +145,15 @@ _MIME_TABLE = mimetypes.MimeTypes()
 _KIND_BY_MAJOR = {"image": FileKind.IMAGE, "video": FileKind.VIDEO, "audio": FileKind.AUDIO}
 
 
-def _file_kind(ref: MediaRef) -> FileKind:
-    """The kind of one file: its MIME type when recorded, else the one its name's extension
-    implies; anything unrecognised is ``OTHER``."""
-    mime = (ref.media_type or _MIME_TABLE.guess_file_type(ref.filename)[0] or "").lower()
+def mime_type(ref: MediaRef) -> str:
+    """One file's MIME type: as recorded, else the one its name's extension implies; ``""`` when
+    neither says."""
+    return (ref.media_type or _MIME_TABLE.guess_file_type(ref.filename)[0] or "").lower()
+
+
+def file_kind(ref: MediaRef) -> FileKind:
+    """The kind of one file by its ``mime_type``; anything unrecognised is ``OTHER``."""
+    mime = mime_type(ref)
     if mime == "application/pdf":
         return FileKind.PDF
     return _KIND_BY_MAJOR.get(mime.partition("/")[0], FileKind.OTHER)
@@ -156,7 +161,7 @@ def _file_kind(ref: MediaRef) -> FileKind:
 
 def _file_counts(article: Article) -> dict[str, int]:
     """The ``file_counts`` column: how many of the Article's files are of each kind."""
-    return dict(Counter(_file_kind(ref).value for ref in article.media))
+    return dict(Counter(file_kind(ref).value for ref in article.media))
 
 
 def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:

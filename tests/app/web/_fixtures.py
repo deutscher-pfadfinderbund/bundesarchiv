@@ -104,6 +104,12 @@ def page_hrefs(body: str) -> list[str]:
     return [unescape(href) for href in re.findall(r'href="([^"]*)"', body)]
 
 
+def download_hrefs(body: str) -> list[str]:
+    """Every link target on a page that the browser saves rather than opens (``download``)."""
+    tags = (tag for tag in re.findall(r"<a\b[^>]*>", body) if re.search(r"\sdownload\b", tag))
+    return [unescape(href) for tag in tags for href in re.findall(r'href="([^"]*)"', tag)]
+
+
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:
     """A test client carrying the signed ``dev_viewer`` cookie for ``viewer`` — or, for ``None``,
     no cookie at all (an anonymous visitor)."""

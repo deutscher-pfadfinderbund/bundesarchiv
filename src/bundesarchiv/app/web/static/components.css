@@ -328,6 +328,9 @@
   }
   .file-row-thumb {
     grid-row: 1 / -1;
+  }
+  .file-row-thumb > img {
+    display: block;
     inline-size: 100%;
     aspect-ratio: 1;
     object-fit: cover;
@@ -1073,6 +1076,26 @@
   }
   .pager > a[aria-disabled] {
     color: var(--faint);
+  }
+
+  /* ---- blank — a file without a thumbnail, in its thumbnail's slot: the placeholder cross under
+     the file's kind and name, so a missing preview never looks broken (owner, 2026-10-01). The
+     slot sizes it as it sizes an img. Part: -label. Knob: --blank-ratio (default square). ---- */
+  .blank {
+    display: flex;
+    align-items: flex-end;
+    aspect-ratio: var(--blank-ratio, 1);
+    padding: var(--space-2);
+    overflow: hidden;
+    border: var(--line-width) solid var(--faint);
+    background: var(--placeholder);
+  }
+  .blank-label {
+    padding: var(--space-1);
+    background: var(--ground);
+    font: var(--type-meta);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
   }
 
   /* ---- honest empty state: a hollow slot (row 6) ---- */

@@ -70,7 +70,14 @@
     width: 100%;
     height: auto;
   }
-  .platte figcaption {
+  .platte .blank {
+    --blank-ratio: 4 / 1; /* a file, not a picture: a band, not the square a photo fills */
+  }
+  .platte figcaption,
+  .filmstrip figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
     margin-top: var(--space-2);
     color: var(--ink-2);
     font: var(--type-meta);
@@ -94,11 +101,10 @@
     overflow-x: auto;
     padding-bottom: var(--space-2);
   }
-  .filmstrip a {
+  .filmstrip figure {
     flex: 0 0 auto;
     width: 9rem; /* one plate width — the strip's own rhythm, no token fits */
-    color: var(--ink-2);
-    text-decoration: none;
+    margin: 0;
   }
   .filmstrip img {
     display: block;
@@ -106,14 +112,12 @@
     height: auto;
     border: var(--line-width) solid var(--edge);
   }
-  .filmstrip a[aria-current] img {
+  .filmstrip a[aria-current] > * {
     /* inset: the strip scrolls in its own box, which clips anything drawn outside a plate */
     outline: var(--focus-width) solid var(--ink);
     outline-offset: calc(-1 * var(--focus-width));
   }
-  .filmstrip a > span {
-    display: block;
+  .filmstrip figcaption {
     margin-top: var(--space-1);
-    font: var(--type-mono-meta);
   }
 }

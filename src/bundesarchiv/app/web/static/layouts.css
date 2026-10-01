@@ -227,10 +227,16 @@
     object-fit: cover;
     border: var(--line-width) solid var(--edge);
   }
+  .pane .blank {
+    --blank-ratio: 4 / 3;
+  }
   .pane .hollow {
     border-style: dashed;
   }
   .pane li p {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
     margin-top: var(--space-1);
     font: var(--type-meta);
     color: var(--ink-2);

@@ -64,20 +64,23 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     </header>
 
     {% comment %}The cover Platte, omitted without media, and the plate register for further sheets.
-    Every image links its full gated byte route.{% endcomment %}
+    Every tile links its full gated byte route.{% endcomment %}
     {% if cover %}
     <figure class="platte">
-      <a href="{{ cover.file_url }}"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
-      {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
+      {% firstof cover.full_url cover.thumb_url as lead %}
+      <a href="{{ cover.file_url }}" target="_blank" rel="noopener">{% if lead %}<img src="{{ lead }}" alt="{% firstof cover.caption cover.name %}">{% else %}{% include "components/blank.html" with kind=cover.kind name=cover.name only %}{% endif %}</a>
+      <figcaption>{% if cover.caption %}<span>{{ cover.caption }}</span>{% endif %}<a href="{{ cover.file_url }}" download>Herunterladen</a></figcaption>
     </figure>
     {% endif %}
     {% if weitere %}
     <section class="filmstrip">
-      <h2>Weitere Aufnahmen <span>Blatt 1 / {{ umfang }}</span></h2>
+      <h2>{{ plates_heading }} <span>Blatt 1 / {{ umfang }}</span></h2>
       <div>
-        <a href="{{ cover.file_url }}" aria-current="true"><img src="{{ cover.thumb_url }}" alt="{{ cover.caption }}" loading="lazy"></a>
-        {% for plate in weitere %}
-        <a href="{{ plate.file_url }}"><img src="{{ plate.thumb_url }}" alt="{{ plate.caption }}" loading="lazy">{% if plate.caption %}<span>{{ plate.caption }}</span>{% endif %}</a>
+        {% for plate in plates %}
+        <figure>
+          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if forloop.first %} aria-current="true"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{% firstof plate.caption plate.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
+          <figcaption>{% if plate.caption and not forloop.first %}<span>{{ plate.caption }}</span>{% endif %}<a href="{{ plate.file_url }}" download>Herunterladen</a></figcaption>
+        </figure>
         {% endfor %}
       </div>
     </section>

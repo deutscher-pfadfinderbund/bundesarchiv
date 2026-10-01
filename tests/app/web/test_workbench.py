@@ -25,6 +25,7 @@ from django.http import HttpResponse
 from tests.app.web._fixtures import (
     Corpus,
     client_as,
+    download_hrefs,
     draft_mark,
     make_article,
     make_collection,
@@ -33,6 +34,7 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
+from bundesarchiv.app.web.media_views import media_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -729,6 +731,14 @@ def test_pane_opens_for_a_viewable_article(indexed_corpus: Corpus) -> None:
     assert "Titelaufnahme der Fahrt" in body  # the media caption
     assert "Öffnen" in body
     assert '<tr aria-current="true">' in body  # the selected row is marked
+
+
+def test_the_pane_opens_and_offers_to_save_each_original(indexed_corpus: Corpus) -> None:
+    body = _get(Public(), f"artikel={PANE_PUB_ULID}").content.decode()
+    pane = body[body.index('class="pane"') :]
+    (ref,) = indexed_corpus.articles.load(PANE_PUB_ULID).article.media
+    assert download_hrefs(pane) == [media_url(PANE_PUB_ULID, ref.content_hash)]
+    assert media_url(PANE_PUB_ULID, ref.content_hash) in page_hrefs(pane)
 
 
 def test_pane_absent_or_malformed_artikel_renders_no_pane(indexed_corpus: Corpus) -> None:

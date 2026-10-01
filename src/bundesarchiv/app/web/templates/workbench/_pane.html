@@ -1,8 +1,8 @@
 {% comment %}
 The preview pane (Part 4.5), rendered from a `visible`-projected Article, so no floored field can
 reach it. A denied, absent or malformed ?artikel renders no pane at all (the view returns
-pane=None): the pane is never an existence oracle. Media are cover-first (ADR 0015); each thumbnail
-goes through the gated /media/.../thumb route. Below the pane switch (layouts.css) the pane hides.
+pane=None): the pane is never an existence oracle. Media are cover-first (ADR 0015); each tile
+goes through the gated /media routes. Below the pane switch (layouts.css) the pane hides.
 The layout demo includes this file too.
 {% endcomment %}
 <aside class="pane" aria-label="Vorschau">
@@ -26,8 +26,8 @@ The layout demo includes this file too.
     <ul>
       {% for m in pane.media %}
       <li>
-        <img src="{{ m.thumb_url }}" alt="" loading="lazy">
-        {% if m.caption %}<p>{{ m.caption }}</p>{% endif %}
+        <a href="{{ m.file_url }}" target="_blank" rel="noopener">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="{% firstof m.caption m.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=m.kind name=m.name only %}{% endif %}</a>
+        <p>{% if m.caption %}<span>{{ m.caption }}</span>{% endif %}<a href="{{ m.file_url }}" download>Herunterladen</a></p>
       </li>
       {% endfor %}
     </ul>
