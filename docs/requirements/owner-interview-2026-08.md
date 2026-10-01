@@ -935,6 +935,8 @@ missing records; "N von M gespeichert"; the error pages' wording.
 ## Rulings of 2026-10-01 night (start page)
 
 - **URLs:** the start page lives at `/`; the list moves to `/articles`. Old `/?…` list links keep working.
+- **Ways back (2026-10-02):** the wordmark leads to the start page; the "Archiv" crumb keeps leading to the list
+  as it was left (LISTNAV) — "Archiv" is the list's name. No extra back link.
 - **Bestände on the start page:** the top level with counts; sub-Bestände through the list's Bestand filter.
 - **"Zuletzt hinzugefügt" stays hidden** until Articles exist that were added after the legacy import.
 - **Reference mock:** `docs/design/explorations/2026-09-26-monochrome/r4-system/start.html` (search with
