@@ -10,13 +10,14 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
+from tests._readmes import UNREADABLE_README
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
 from bundesarchiv.persistence._writer import history_key, readme_key
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
-from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound
+from bundesarchiv.persistence.errors import ArchiveError, Conflict, NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository, cleaned_name
 
@@ -397,3 +398,16 @@ def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     assert repo.load("01J0").version == 2
     raw = repo._store.read("articles/01J0/README.md").decode("utf-8")
     assert readme.read_version("01J0", raw) == 2
+
+
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_an_unreadable_readme_fails_load_and_save(repo: ArticleRepository, data: bytes) -> None:
+    """A hand edit may break a README (ADR 0020): load and save refuse it as ``UnreadableReadme``,
+    and the save writes nothing."""
+    repo._store.write_atomic(readme_key("articles/01J0"), data)
+    before = {key: repo._store.read(key) for key in repo._store.list()}
+    with pytest.raises(UnreadableReadme):
+        repo.load("01J0")
+    with pytest.raises(UnreadableReadme):
+        repo.save(_article(), expected_version=1, changed_by="tester")
+    assert {key: repo._store.read(key) for key in repo._store.list()} == before

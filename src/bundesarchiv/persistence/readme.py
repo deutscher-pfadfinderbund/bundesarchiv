@@ -5,8 +5,8 @@ body. This module owns that translation alone — separate from ArticleRepositor
 versioning/ordering/storage protocol — so it has its own test surface and offers a cheap
 `read_version` (no whole-Article rebuild) for optimistic-lock checks and reindex walks.
 
-Only the `ArchiveError` hierarchy crosses out: malformed/unfenced/non-mapping/invalid
-front-matter all surface as `ArchiveError`, never a raw `yaml`/`KeyError`/`ValueError`.
+Only `UnreadableReadme` crosses out: malformed/unfenced/non-mapping/invalid
+front-matter all surface as it, never a raw `yaml`/`KeyError`/`ValueError`.
 """
 
 from datetime import datetime
@@ -24,7 +24,7 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.persistence import _change, _front_matter
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import UnreadableReadme
 
 
 def encode(article: Article, version: Version, change: Change) -> str:
@@ -109,7 +109,7 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
             _change.from_front_matter(front_matter),
         )
     except (KeyError, ValueError, TypeError) as exc:
-        raise ArchiveError(f"{ulid}: README front-matter is malformed: {exc}") from exc
+        raise UnreadableReadme(f"{ulid}: README front-matter is malformed: {exc}") from exc
 
 
 def read_version(ulid: Ulid, text: str) -> Version:
@@ -118,7 +118,7 @@ def read_version(ulid: Ulid, text: str) -> Version:
     try:
         return _front_matter.version_of(front_matter)
     except (KeyError, ValueError, TypeError) as exc:
-        raise ArchiveError(f"{ulid}: README version is malformed: {exc}") from exc
+        raise UnreadableReadme(f"{ulid}: README version is malformed: {exc}") from exc
 
 
 def _as_str_tuple(value: object) -> tuple[str, ...]:
@@ -153,7 +153,7 @@ def _as_opt_int(value: object) -> int | None:
 
 def _as_opt_edtf(value: object) -> EdtfDate | None:
     """An optional EDTF date field: absent -> None, a YAML scalar -> EdtfDate (validates eagerly),
-    invalid EDTF string -> ValueError (caller wraps to ArchiveError)."""
+    invalid EDTF string -> ValueError (caller wraps to UnreadableReadme)."""
     if value is None:
         return None
     if not isinstance(value, str | int | float):

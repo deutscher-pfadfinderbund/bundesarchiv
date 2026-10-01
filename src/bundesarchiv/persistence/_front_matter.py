@@ -1,7 +1,7 @@
 """The README shape both codecs share (ADR 0005, ADR 0010): the managed-by marker, then the YAML
 front matter between two fences, then the body.
 
-Only `ArchiveError` crosses out of `parse`; a raw `yaml` error never does.
+Only `UnreadableReadme` crosses out of `text_of` and `parse`; a raw decode or `yaml` error never does.
 """
 
 from typing import Any
@@ -9,10 +9,20 @@ from typing import Any
 import yaml
 
 from bundesarchiv.domain.models import Ulid, Version
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import UnreadableReadme
 
 MARKER = "<!-- Managed by bundesarchiv — do not edit by hand. -->"
 FENCE = "---"
+
+
+def text_of(name: str, data: bytes) -> str:
+    """README `data` as text with LF line ends. A hand edit (ADR 0020) may add a BOM or CRLF or
+    CR line ends, which are dropped; one in another encoding than UTF-8 raises `UnreadableReadme`."""
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise UnreadableReadme(f"{name}: README is not UTF-8: {exc}") from exc
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def dump(front_matter: dict[str, Any], body: str) -> str:
@@ -29,11 +39,11 @@ def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
     if lines and lines[0].lstrip().startswith("<!--"):
         lines = lines[1:]  # the managed-by marker (any leading HTML comment)
     if not lines or lines[0].strip() != FENCE:
-        raise ArchiveError(f"{ulid}: README has no front-matter fence")
+        raise UnreadableReadme(f"{ulid}: README has no front-matter fence")
     try:
         close = lines.index(FENCE, 1)
     except ValueError:
-        raise ArchiveError(f"{ulid}: README front-matter is unterminated") from None
+        raise UnreadableReadme(f"{ulid}: README front-matter is unterminated") from None
     # The single separator newline `dump` added was already consumed by split;
     # lines[close + 1:] reconstructs the body verbatim (a body may open with blank lines).
     body = "\n".join(lines[close + 1 :])
@@ -42,9 +52,9 @@ def parse(ulid: Ulid, text: str) -> tuple[dict[str, Any], str]:
     except (yaml.YAMLError, RecursionError) as exc:
         # RecursionError is NOT a yaml.YAMLError subclass: deeply-nested flow collections
         # (a corrupt/hostile README) blow the stack inside the loader — contain it too.
-        raise ArchiveError(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
+        raise UnreadableReadme(f"{ulid}: README front-matter is not valid YAML: {exc}") from exc
     if not isinstance(front_matter, dict):
-        raise ArchiveError(f"{ulid}: README front-matter is not a mapping")
+        raise UnreadableReadme(f"{ulid}: README front-matter is not a mapping")
     return front_matter, body
 
 

@@ -19,10 +19,10 @@ from dataclasses import dataclass, replace
 from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
-from bundesarchiv.persistence import readme
+from bundesarchiv.persistence import _front_matter, readme
 from bundesarchiv.persistence._layout import ARTICLES, content_digest, media_folder, media_key
 from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, remove
-from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
+from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 __all__ = ["ArticleRepository", "Stored", "StoredKey", "cleaned_name", "content_digest"]
@@ -194,7 +194,7 @@ class ArticleRepository:
             media = self.load(ulid).article.media
         except NotFound:
             return {}
-        except ArchiveError, UnicodeDecodeError:
+        except UnreadableReadme:
             return None
         return {media_key(ulid, ref): ref.content_hash for ref in media}
 
@@ -207,7 +207,7 @@ class ArticleRepository:
 
     def _read_readme(self, ulid: Ulid) -> str:
         """Read + decode the Article's README text (raises NotFound if absent)."""
-        return self._store.read(ARTICLES.readme_key(ulid)).decode("utf-8")
+        return _front_matter.text_of(ulid, self._store.read(ARTICLES.readme_key(ulid)))
 
 
 def _name_of(key: str) -> str:

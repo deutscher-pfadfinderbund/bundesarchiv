@@ -14,7 +14,7 @@ Callers depend only on this module; they never touch `ObjectStore` keys directly
 from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
-from bundesarchiv.persistence import collection_readme
+from bundesarchiv.persistence import _front_matter, collection_readme
 from bundesarchiv.persistence._layout import COLLECTIONS
 from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
@@ -42,9 +42,10 @@ class CollectionRepository:
         """Return the Collection for `ulid` with its stored version and change record. Raises
         `NotFound` if absent."""
         try:
-            text = self._store.read(COLLECTIONS.readme_key(ulid)).decode("utf-8")
+            data = self._store.read(COLLECTIONS.readme_key(ulid))
         except NotFound:
             raise NotFound(ulid) from None
+        text = _front_matter.text_of(ulid, data)
         collection, version, change = collection_readme.decode_collection(text, ulid=ulid)
         return StoredCollection(collection, version, change)
 
@@ -92,6 +93,6 @@ class CollectionRepository:
             self.load(ulid)
         except NotFound:
             return True
-        except ArchiveError, UnicodeDecodeError:
+        except ArchiveError:
             return False
         return True

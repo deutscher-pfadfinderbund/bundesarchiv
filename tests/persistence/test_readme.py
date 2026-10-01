@@ -1,12 +1,15 @@
 """README codec — Article ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
+from tests._readmes import HAND_SAVED
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle, MediaRef
 from bundesarchiv.persistence import readme
+from bundesarchiv.persistence._front_matter import text_of
 from bundesarchiv.persistence.errors import ArchiveError
 
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
@@ -529,3 +532,9 @@ _MARK_HEAD = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: p
 def test_a_half_or_broken_mark_is_corrupt(mark: str, why: str) -> None:
     with pytest.raises(ArchiveError):
         readme.decode("x", f"{_MARK_HEAD}{mark}---\nbody")
+
+
+@pytest.mark.parametrize("saved", HAND_SAVED)
+def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], bytes]) -> None:
+    text = readme.encode(_article(body="\n\nAbsatz eins\n\n---\n\nzwei\n"), 1, _CHANGE)
+    assert readme.decode("01J0", text_of("01J0", saved(text))) == readme.decode("01J0", text)

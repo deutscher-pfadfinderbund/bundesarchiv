@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import MediaRef, Ulid
 from bundesarchiv.persistence import collection_readme, readme
+from bundesarchiv.persistence._front_matter import text_of
 from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS, content_digest, media_key
 from bundesarchiv.persistence._writer import is_history_key
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
@@ -55,8 +56,8 @@ def verify(store: ObjectStore) -> Report:
         for key in (readme_key, *_history(store, folder)):
             versions.append(key)
             try:
-                refs = media_of(ulid, store.read(key).decode("utf-8"))
-            except ArchiveError, UnicodeDecodeError:
+                refs = media_of(ulid, text_of(key, store.read(key)))
+            except ArchiveError:
                 unreadable.append(key)
                 continue
             for ref in refs:

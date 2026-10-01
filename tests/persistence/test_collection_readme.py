@@ -1,11 +1,14 @@
 """Collection README codec — Collection ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
+from tests._readmes import HAND_SAVED
 
 from bundesarchiv.domain.models import Audience, AudienceTier, Change, Collection
 from bundesarchiv.persistence import collection_readme
+from bundesarchiv.persistence._front_matter import text_of
 from bundesarchiv.persistence.errors import ArchiveError
 
 _CHANGE = Change(datetime(2026, 9, 25, 10, 30, tzinfo=UTC), "anna")
@@ -134,3 +137,10 @@ def test_a_corrupt_change_record_surfaces_as_archive_error() -> None:
     text = "---\nulid: 01J0\nname: Fotos\nchanged_at: gestern\nchanged_by: anna\n---\n"
     with pytest.raises(ArchiveError):
         collection_readme.decode_collection(text, ulid="01J0")
+
+
+@pytest.mark.parametrize("saved", HAND_SAVED)
+def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], bytes]) -> None:
+    text = collection_readme.encode_collection(_collection(), 1, _CHANGE)
+    decoded = collection_readme.decode_collection(text_of("01J0", saved(text)), ulid="01J0")
+    assert decoded == collection_readme.decode_collection(text, ulid="01J0")

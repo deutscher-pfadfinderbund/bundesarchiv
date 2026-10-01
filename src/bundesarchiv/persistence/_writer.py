@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
 from bundesarchiv.domain.models import Change, Version
+from bundesarchiv.persistence._front_matter import text_of
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Conflict, NotFound
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
 
@@ -98,7 +99,7 @@ def commit(
     change = Change(datetime.now(UTC).replace(microsecond=0), changed_by)
     with WRITER_LOCK:
         current = _read_readme(store, folder)
-        version = 0 if current is None else version_of(current.decode("utf-8"))
+        version = 0 if current is None else version_of(text_of(folder, current))
         _check(folder, expected_version, version)
         precondition()
         if current is not None:
@@ -119,7 +120,7 @@ def remove(
     with WRITER_LOCK:
         current = _read_readme(store, folder)
         if current is not None:
-            _check(folder, expected_version, version_of(current.decode("utf-8")))
+            _check(folder, expected_version, version_of(text_of(folder, current)))
         store.delete_prefix(folder)
 
 

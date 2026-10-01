@@ -12,11 +12,11 @@ Version + backfill (ADR 0013): `encode_collection` writes the caller's version;
 versioning existed has NO `version:` key — it backfills to version 0 (the same
 "never saved" floor a fresh Article uses), so its first versioned save writes
 version 1 and existing unversioned trees migrate cleanly. A present-but-corrupt
-version (float/str/negative) is NOT a backfill case: it surfaces as `ArchiveError`
+version (float/str/negative) is NOT a backfill case: it surfaces as `UnreadableReadme`
 rather than coercing, matching the Article codec's `read_version` discipline.
 
-Only the `ArchiveError` hierarchy crosses out: malformed/unfenced/non-mapping/
-invalid front-matter all surface as `ArchiveError`, never a raw yaml/KeyError/
+Only `UnreadableReadme` crosses out: malformed/unfenced/non-mapping/
+invalid front-matter all surface as it, never a raw yaml/KeyError/
 ValueError.
 """
 
@@ -24,7 +24,7 @@ from typing import Any
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import _change, _front_matter, readme
-from bundesarchiv.persistence.errors import ArchiveError
+from bundesarchiv.persistence.errors import UnreadableReadme
 
 
 def encode_collection(collection: Collection, version: Version, change: Change) -> str:
@@ -56,7 +56,7 @@ def decode_collection(text: str, *, ulid: Ulid) -> tuple[Collection, Version, Ch
             _change.from_front_matter(front_matter),
         )
     except (KeyError, ValueError, TypeError) as exc:
-        raise ArchiveError(f"{ulid}: README front-matter is malformed: {exc}") from exc
+        raise UnreadableReadme(f"{ulid}: README front-matter is malformed: {exc}") from exc
 
 
 def _collection_from_front_matter(fm: dict[str, Any], ulid: Ulid) -> Collection:

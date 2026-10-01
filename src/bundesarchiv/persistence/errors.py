@@ -5,6 +5,11 @@ class ArchiveError(Exception):
     """Base class for all archive persistence errors."""
 
 
+class UnreadableReadme(ArchiveError):
+    """Raised when a README does not decode: not UTF-8, not YAML, or not an Article or Collection.
+    A fact of the file, not of the backend: reading it again gives the same answer."""
+
+
 class NotFound(ArchiveError):
     """Raised when a key does not exist in the store."""
 
