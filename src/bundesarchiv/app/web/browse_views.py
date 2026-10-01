@@ -34,7 +34,7 @@ from bundesarchiv.app.web import browse, bulk, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
-from bundesarchiv.app.web.viewers import render_screen, viewer_of
+from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.models import Lifecycle, MediaRef, Version
@@ -104,11 +104,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # body.vorschau adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
     context["vorschau"] = pane is not None
-    # A Back-button restore swaps the whole body, so it gets the full page. Checked first, so a
-    # restore that also carries HX-Request (htmx 2 did) can never get the chrome-less partial.
-    if request.headers.get("HX-History-Restore-Request"):
-        return render_screen(request, "workbench/workbench.html", context, bestand=bestand)
-    if request.headers.get("HX-Request"):
+    # A Back-button restore swaps the whole body, so only a partial gets the chrome-less region.
+    if is_partial(request):
         # The search sentence sits outside the #results swap target, so the partial prepends its
         # out-of-band fragments (oob gates them: the full page renders the sentence once).
         context["oob"] = True

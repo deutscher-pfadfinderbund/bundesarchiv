@@ -18,7 +18,7 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from bundesarchiv.app.web.auth_views import login_redirect, safe_next
-from bundesarchiv.app.web.viewers import viewer_of
+from bundesarchiv.app.web.viewers import RequestKind, htmx_redirect, request_kind, viewer_of
 from bundesarchiv.domain.viewer import Public
 
 #: The routes the gate may never bounce: the login flow itself (bouncing it would be a loop) and the
@@ -44,11 +44,8 @@ def _door(request: HttpRequest) -> HttpResponse:
     cross-origin authorize URL, where the browser blocks the response and htmx swaps nothing: an
     expired cookie would turn every save and every search into a control that silently does
     nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
-    # htmx 4's history restore sends HX-History-Restore-Request without HX-Request
-    if request.headers.get("HX-Request") or request.headers.get("HX-History-Restore-Request"):
-        response = HttpResponse(status=204)
-        response.headers["HX-Redirect"] = login_redirect(request.get_full_path())
-        return response
+    if request_kind(request) is not RequestKind.PAGE:
+        return htmx_redirect(login_redirect(request.get_full_path()))
     anmelden = login_redirect(safe_next(request.get_full_path()) or "/")
     return render(request, "workbench/door.html", {"anmelden": anmelden})
 

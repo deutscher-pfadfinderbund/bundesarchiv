@@ -16,6 +16,7 @@ error — only ever an anonymous viewer.
 
 import logging
 from collections.abc import Callable
+from enum import StrEnum
 from urllib.parse import quote, unquote
 
 from django.conf import settings
@@ -249,15 +250,46 @@ def render_screen(
     return render(request, template, {**context, **chrome})
 
 
+class RequestKind(StrEnum):
+    """What the browser asked for — the closed answer ``request_kind`` gives."""
+
+    PAGE = "page"  # a plain request: the whole document
+    PARTIAL = "partial"  # an htmx swap: the region only
+    RESTORE = "restore"  # an htmx history restore (Back button): swaps the whole body
+
+
+def request_kind(request: HttpRequest) -> RequestKind:
+    """THE reader of the ``HX-`` request headers (``tests/test_structure.py`` gates it).
+
+    A restore is checked first: htmx 4 sends ``HX-History-Restore-Request`` without ``HX-Request``
+    and htmx 2 sent both, so a restore can never be mistaken for a swap that takes the
+    chrome-less partial."""
+    if request.headers.get("HX-History-Restore-Request"):
+        return RequestKind.RESTORE
+    if request.headers.get("HX-Request"):
+        return RequestKind.PARTIAL
+    return RequestKind.PAGE
+
+
+def is_partial(request: HttpRequest) -> bool:
+    """Did htmx ask for a region swap (not a page, not a history restore)?"""
+    return request_kind(request) is RequestKind.PARTIAL
+
+
+def htmx_redirect(location: str) -> HttpResponse:
+    """A 204 carrying ``HX-Redirect``: htmx does a full browser navigation to ``location``."""
+    response = HttpResponse(status=204)
+    response["HX-Redirect"] = location
+    return response
+
+
 def redirect_to(request: HttpRequest, location: str) -> HttpResponseBase:
     """Redirect to ``location`` — a normal 302 for a plain POST, or a 204 carrying ``HX-Redirect`` for
     an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
     a saved form navigates to the read view). One helper so the enhancement never forks the render:
     the destination is identical, only the mechanism differs by request kind."""
-    if request.headers.get("HX-Request"):
-        response = HttpResponse(status=204)
-        response["HX-Redirect"] = location
-        return response
+    if is_partial(request):
+        return htmx_redirect(location)
     return HttpResponseRedirect(location)
 
 

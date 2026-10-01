@@ -32,12 +32,7 @@ DUPLICATE_BODIES: dict[tuple[str, ...], str] = {
 #: The ``HX-`` request-header names belong to the request-kind owner.
 HX_OWNER = "bundesarchiv/app/web/viewers.py"
 #: module outside the owner -> (number of ``HX-`` header names, finding id).
-HX_READS: dict[str, tuple[int, str]] = {
-    "bundesarchiv/app/web/anonymous_gate.py": (3, "W7"),
-    "bundesarchiv/app/web/browse_views.py": (2, "W7"),
-    "bundesarchiv/app/web/catalog_views.py": (2, "W7"),
-    "bundesarchiv/app/web/collection_views.py": (2, "W7"),
-}
+HX_READS: dict[str, tuple[int, str]] = {}
 
 #: Public top-level ``module:name`` that nothing in ``src/`` references -> reason.
 UNREFERENCED: dict[str, str] = {

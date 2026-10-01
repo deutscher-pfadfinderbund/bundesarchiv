@@ -53,7 +53,13 @@ from bundesarchiv.app.web.card import (
 )
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
-from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
+from bundesarchiv.app.web.viewers import (
+    is_partial,
+    panel_response,
+    redirect_to,
+    render_screen,
+    viewer_of,
+)
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import (
@@ -125,7 +131,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
                 archive, title=title, collection_id=collection_id, changed_by=archivist.username
             )
             return redirect_to(request, reverse("artikel-bearbeiten", args=[ulid]))
-        if request.headers.get("HX-Request"):
+        if is_partial(request):
             return panel_response(
                 request,
                 neu_artikel_panel(bestand, title=title, collection_id=collection_id, errors=errors),
@@ -707,9 +713,7 @@ def _confirmed_delete(
     return render_screen(
         request,
         # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
-        "components/confirm.html"
-        if request.headers.get("HX-Request")
-        else "workbench/artikel_loeschen.html",
+        "components/confirm.html" if is_partial(request) else "workbench/artikel_loeschen.html",
         {
             "id": "endgueltig-loeschen" if marked else "loeschen",
             "ulid": ulid,

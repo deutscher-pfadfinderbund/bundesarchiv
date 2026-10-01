@@ -11,7 +11,7 @@ parameterised by a closed overlay union — a new panel joins that union, never 
 An archivist gate is `isinstance(viewer_of(request), Archivist)`, and a write route passes that
 Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `test_changed_by.py`.
 
-- `viewers.py` — the request→Viewer boundary + response mechanics · interface: `viewer_of`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_viewer_of.py`, `test_token_viewer.py`
+- `viewers.py` — Viewer, request kind, responses · interface: `viewer_of`, `request_kind`, `render_screen`, `redirect_to`, `panel_response`, `TokenCookieMiddleware` · tests: `test_*viewer*.py`, `test_request_kind.py`
 - `auth_views.py` — the login surface: Keycloak in, two token cookies out (ADR 0018) · interface: `login`, `oidc_callback`, `logout`, `login_redirect` · tests: `tests/app/web/test_auth_views.py`
 - `keycloak.py` — the ONE place that talks to the realm; failure is `None` (ADR 0018) · interface: `authorization_url`, `verify_access`, `fetch_tokens`, `refresh`, `logout_url` · tests: `tests/app/web/test_keycloak_*.py`
 - `oidc.py` — validated OIDC claims → Viewer, least privilege on an unknown shape · interface: `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `tests/app/web/test_oidc_claims.py`

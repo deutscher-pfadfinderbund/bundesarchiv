@@ -34,7 +34,13 @@ from bundesarchiv.app.web.panels import (
     bestand_rows,
     neu_bestand_panel,
 )
-from bundesarchiv.app.web.viewers import panel_response, redirect_to, render_screen, viewer_of
+from bundesarchiv.app.web.viewers import (
+    is_partial,
+    panel_response,
+    redirect_to,
+    render_screen,
+    viewer_of,
+)
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
@@ -74,7 +80,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             query = urlencode({"bestand": result.ulid, "angelegt": name})
             return redirect_to(request, f"{reverse('artikel-neu')}?{query}")
         rows = bestand_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
-        if request.headers.get("HX-Request"):
+        if is_partial(request):
             return panel_response(request, neu_bestand_panel(rows))
         return render_screen(
             request, "workbench/bestand_neu.html", {"felder": rows}, bestand=bestand
@@ -166,7 +172,7 @@ def _render_edit(
     request: HttpRequest, ulid: str, bestand: BestandChooser, panel: FormPanel
 ) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
-    if request.headers.get("HX-Request"):
+    if is_partial(request):
         return panel_response(request, panel)
     chain = bestand.chain_of(ulid)
     return render_screen(
