@@ -244,7 +244,7 @@ SCREENS: tuple[Screen, ...] = (
         "bestand-landing",
         "create-article form after a new Bestand (pre-selected + hinweis)",
         True,
-        _goto(lambda c: f"/articles/new?bestand={c.renamable_ulid}&angelegt=Karten"),
+        _goto(lambda c: f"/articles/new?bestand={c.renamable_ulid}&angelegt=1"),
         "artikel-neu",
         overlays=1,
     ),

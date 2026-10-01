@@ -34,10 +34,9 @@ from django.urls import reverse
 from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
-from bundesarchiv.app.web import catalog, vocab
+from bundesarchiv.app.web import catalog, landing, vocab
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import (
-    INDEX_LAG_QUERY,
     BestandCrumb,
     MediaTile,
     bestand_crumbs,
@@ -115,7 +114,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     edit form; a validation failure re-renders state B with the verbatim error + preserved values.
 
     On GET, a ``?bestand=<ulid>`` param pre-selects that Bestand (validated against the real set,
-    ignored if bogus — no oracle) and a ``?angelegt=<name>`` param shows a success hinweis — the
+    ignored if bogus — no oracle) and ``?angelegt=1`` announces it as just created — the
     landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
@@ -142,20 +141,17 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             _create_context(bestand, title=title, collection_id=collection_id, errors=errors),
             bestand=bestand,
         )
-    # GET: pre-select the ?bestand only if it is a real collection (else ignore — no oracle); show a
-    # "Bestand … angelegt." status line when ?angelegt carries the just-created Bestand's name.
-    preselect = request.GET.get("bestand", "").strip()
-    if not bestand.accepts(preselect):
-        preselect = ""
+    # GET: pre-select the Bestand only if it is a real collection (else ignore — no oracle); the
+    # "Bestand … angelegt." line shows the name of a real Bestand, never text from the URL.
     return render_screen(
         request,
         "workbench/artikel_neu.html",
         _create_context(
             bestand,
             title="",
-            collection_id=preselect,
+            collection_id=landing.preselected_bestand(request, bestand),
             errors={},
-            angelegt=request.GET.get("angelegt", ""),
+            angelegt=landing.created_bestand_name(request, bestand),
         ),
         bestand=bestand,
     )
@@ -202,7 +198,7 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if request.method == "POST":
         return _handle_edit_post(request, archive, ulid, stored, bestand, archivist.username)
     # After Duplizieren the copy lands with the just-cleared Signatur focused (spec §5).
-    fokus = "ref_code" if request.GET.get("fokus") == "signatur" else ""
+    fokus = "ref_code" if landing.focus_signatur(request) else ""
     surface = EditSurface.of(stored.article, stored.version, bestand)
     return surface.render(request, autofocus=fokus or surface.first_empty_field())
 
@@ -639,7 +635,7 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return not_found()
     archive, _, archivist = gated
     copy = article_services.copy_article(archive, ulid, changed_by=archivist.username)
-    return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
+    return HttpResponseRedirect(landing.copy_url(copy.ulid))
 
 
 # --- /articles/<ulid>/delete, /delete-permanently, /restore (ADR 0022) -------------
@@ -697,8 +693,7 @@ def _confirmed_delete(
                 result = delete(archive, stored, archivist.username)
                 if marked or result.index_updated:
                     return redirect_to(request, reverse("trash" if marked else "workbench"))
-                page = reverse("artikel-detail", args=[ulid])
-                return redirect_to(request, f"{page}?{INDEX_LAG_QUERY}")
+                return redirect_to(request, landing.index_lagged_url(ulid))
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
             return not_found()

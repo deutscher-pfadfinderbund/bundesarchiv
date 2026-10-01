@@ -30,7 +30,7 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import thumbnail_path
-from bundesarchiv.app.web import browse, bulk, ledger, vocab
+from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
@@ -560,20 +560,15 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
     floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
     member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
-    on ``is_archivist``. On a record in the Papierkorb, ``INDEX_LAG_QUERY`` adds the index-lag
+    on ``is_archivist``. On a record in the Papierkorb, ``landing.index_lagged_url`` adds the index-lag
     hint: a delete whose index update lagged lands there."""
     resolution = resolve_visible_detail(request, ulid)
     if resolution is None:
         return not_found()
     context = _detail_context(resolution)
-    lagging = request.GET.get(_INDEX_LAG[0]) == _INDEX_LAG[1] and context["geloescht"] is not None
+    lagging = landing.index_lagging(request) and context["geloescht"] is not None
     context["index_lag"] = vocab.INDEX_LAG if lagging else ""
     return render_screen(request, "workbench/detail.html", context)
-
-
-#: The query the delete lands with when the index lagged (ADR 0014): the page says so.
-_INDEX_LAG = ("index", "lagging")
-INDEX_LAG_QUERY = urlencode([_INDEX_LAG])
 
 
 @dataclass(frozen=True, slots=True)

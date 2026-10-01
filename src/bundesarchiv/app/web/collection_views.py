@@ -16,7 +16,6 @@ GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-im
 """
 
 from dataclasses import replace
-from urllib.parse import urlencode
 
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
@@ -24,6 +23,7 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
+from bundesarchiv.app.web import landing
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import bestand_crumbs
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
@@ -75,10 +75,8 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
                 audience=audience,
             )
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
-            # (create→catalog is one flow, design-gate blocker 2). The name rides ?angelegt= for the
-            # "Bestand … angelegt." status line; artikel_neu validates ?bestand against the real set.
-            query = urlencode({"bestand": result.ulid, "angelegt": name})
-            return redirect_to(request, f"{reverse('artikel-neu')}?{query}")
+            # (create→catalog is one flow, design-gate blocker 2).
+            return redirect_to(request, landing.bestand_created_url(result.ulid))
         rows = bestand_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
         if is_partial(request):
             return panel_response(request, neu_bestand_panel(rows))

@@ -30,6 +30,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, local thumbnail cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `SICHTBARKEIT_OPTIONS`, `exposure_label`, `datierung_parts`, `human_size` · tests: `test_vocab.py`
+- `landing.py` — state a redirect hands the next page · interface: `bestand_created_url`, `copy_url`, `index_lagged_url`, `preselected_bestand`, `created_bestand_name` · tests: `test_collection_create.py`
 - `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

@@ -80,18 +80,25 @@ def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> Non
     location = response["Location"]
     assert location.startswith("/articles/new?")
     assert f"bestand={created[0].ulid}" in location
-    assert "angelegt=Karten" in location
+    assert "angelegt=1" in location
 
 
 @pytest.mark.django_db
 def test_catalog_form_preselects_bestand_and_shows_hinweis(fotos: Corpus) -> None:
-    body = (
-        client_as(Archivist())
-        .get("/articles/new?bestand=FOTOS&angelegt=Fotografien")
-        .content.decode()
-    )
+    body = client_as(Archivist()).get("/articles/new?bestand=FOTOS&angelegt=1").content.decode()
     assert 'value="FOTOS" selected' in body  # the Bestand pre-selected in the collection select
-    assert "Bestand „Fotografien“ angelegt." in body  # the success status line
+    assert "Bestand „Fotografien“ angelegt." in body  # the name is looked up, not read from the URL
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    ["angelegt=<b>Geheim</b>", "angelegt=Fotografien", "angelegt=1", "bestand=NOSUCH&angelegt=1"],
+)
+def test_angelegt_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
+    body = client_as(Archivist()).get(f"/articles/new?{query}").content.decode()
+    assert "angelegt." not in body
+    assert "Geheim" not in body
 
 
 @pytest.mark.django_db
