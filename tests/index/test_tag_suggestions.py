@@ -79,6 +79,11 @@ def test_a_tag_already_on_the_article_is_not_suggested() -> None:
 
 
 @pytest.mark.usefixtures("corpus")
+def test_a_tag_already_on_the_article_is_not_suggested_whatever_its_case() -> None:
+    assert "Wappenbuch" not in suggest_tags(Archivist(), "wappen", exclude=("wappenBUCH",))
+
+
+@pytest.mark.usefixtures("corpus")
 def test_at_most_ten_whole_tags_and_nothing_for_no_text() -> None:
     assert suggest_tags(Archivist(), "lager") == tuple(f"Lager {n:02}" for n in range(1, 11))
     assert suggest_tags(Archivist(), "auflage,") == ("Dritte, umgearbeitete Auflage, 1924",)

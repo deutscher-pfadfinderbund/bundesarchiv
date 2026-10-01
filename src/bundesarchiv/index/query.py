@@ -25,7 +25,7 @@ scope predicate is therefore always applied by Django as a real ``WHERE`` on eve
 """
 
 import datetime
-from collections.abc import Container, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any, Literal, assert_never
@@ -239,10 +239,10 @@ def search(
 _MAX_SUGGESTIONS = 10
 
 
-def suggest_tags(viewer: Viewer, text: str, *, exclude: Container[str] = ()) -> tuple[str, ...]:
+def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> tuple[str, ...]:
     """The Schlagworte of ``viewer``'s Articles outside the Papierkorb that contain ``text``,
     ignoring case: the ones starting with it first, each part by how many Articles use the tag,
-    then alphabetically. At most ten, none in ``exclude``; a blank ``text`` suggests nothing."""
+    then alphabetically. At most ten, none in ``exclude`` (ignoring case); a blank ``text`` suggests nothing."""
     needle = text.strip().casefold()
     if not needle:
         return ()
@@ -254,8 +254,11 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Container[str] = ()) -> 
         .annotate(_n=Count("ulid"))
         .order_by("-_n", Collate("_elem", _DE_NUMERIC))
     )
+    taken = {tag.casefold() for tag in exclude}
     matches = [
-        tag for row in rows if needle in (tag := row["_elem"]).casefold() and tag not in exclude
+        tag
+        for row in rows
+        if needle in (folded := (tag := row["_elem"]).casefold()) and folded not in taken
     ]
     ranked = sorted(matches, key=lambda tag: not tag.casefold().startswith(needle))
     return tuple(ranked[:_MAX_SUGGESTIONS])
