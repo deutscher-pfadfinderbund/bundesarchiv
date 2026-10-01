@@ -1,8 +1,9 @@
 """``manage.py rebuild_thumbnails`` — derive every missing thumbnail from the canonical store.
 
 The import and a save derive thumbnails; this derives the rest, for a new host or a pruned cache.
-A file whose thumbnail exists is skipped, so a second run derives nothing; a file that is not an
-image derives nothing (``thumbnails.generate_thumbnail``). Reads ``BUNDESARCHIV_CANONICAL_ROOT``
+A file whose thumbnail exists is skipped, so a second run derives nothing; a file no renderer
+reads (text, a broken or encrypted PDF) derives nothing and never stops the run
+(``thumbnails.generate_thumbnail``). Reads ``BUNDESARCHIV_CANONICAL_ROOT``
 and writes into ``BUNDESARCHIV_THUMBNAIL_ROOT``.
 """
 

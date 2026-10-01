@@ -105,8 +105,8 @@ def full_rebuild() -> None:
 def generate_thumbnail(ulid: str, content_hash: str) -> None:
     """Reference job (Part 4.3): derive the WebP thumbnail for the media file with ``content_hash``
     on Article ``ulid``, re-reading it from current canonical and writing to the LOCAL derived
-    thumbnail cache (``BUNDESARCHIV_THUMBNAIL_ROOT``). A no-op for a non-image file or one no longer
-    on the Article; idempotent. The thumbnail is a prunable cache, never archive truth (README
+    thumbnail cache (``BUNDESARCHIV_THUMBNAIL_ROOT``). A no-op for a file without a renderer or one no
+    longer on the Article; idempotent. The thumbnail is a prunable cache, never archive truth (README
     runbook)."""
     thumbnails.generate_thumbnail(
         canonical_store(), ulid, content_hash, Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
@@ -204,8 +204,8 @@ def enqueue_reindex_subtree(collection_ulid: str) -> None:
 
 
 def enqueue_generate_thumbnail(ulid: str, content_hash: str) -> None:
-    """Enqueue a ``generate_thumbnail`` reference job for one image file on Article ``ulid`` (the
-    app services call this for image media on save/create — Part 4.3). Re-enqueuing the same file is
+    """Enqueue a ``generate_thumbnail`` reference job for one file on Article ``ulid`` (the app
+    services call this for image and PDF media on save/create — Part 4.3). Re-enqueuing the same file is
     harmless (the job is idempotent and the cache key is the hash)."""
     generate_thumbnail.defer(ulid=ulid, content_hash=content_hash)
 

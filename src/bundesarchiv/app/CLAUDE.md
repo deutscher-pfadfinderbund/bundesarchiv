@@ -15,7 +15,8 @@ Every write service takes `changed_by`, who is acting; the version it writes rec
 - `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
 - `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`
 - `tasks.py` — the background job seam (Procrastinate, ADR 0014); resolves its stores per job · interface: `reindex_article`, `reindex_subtree`, `full_rebuild`, `generate_thumbnail` · tests: `tests/app/test_tasks.py`
-- `thumbnails.py` — thumbnail generation, content-hash-keyed local cache · interface: `thumbnail_path`, `generate_thumbnail` · tests: `tests/app/web/test_media.py` (no suite of its own)
+- `thumbnails.py` — thumbnails into a content-hash-keyed local cache; one renderer per file kind · interface: `generate_thumbnail`, `thumbnail_path`, `renders`, `Renderer` · tests: `tests/app/test_thumbnails.py`
+- `pdf_preview.py` — a PDF's first page as a picture; the only `pypdfium2` importer, swap the backend here · interface: `first_page` · tests: `tests/app/test_thumbnails.py`
 - `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`
 - `legacy.py` — the legacy CSV → Article mapping for the one-time import; pure, no IO · interface: `ITEM_COLUMNS`, `bestand_names`, `map_item`, `plan`, `unknown_vocabulary`, `Report` · tests: `tests/app/test_legacy.py`
 - `result.py` — the write services' result shapes · interface: `SaveResult`, `CreateResult`, `UpdateOutcome` (`Updated` | `Conflicted` | `Missing`) · tests: `tests/app/test_services.py`

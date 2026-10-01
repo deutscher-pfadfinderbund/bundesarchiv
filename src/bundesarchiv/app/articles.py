@@ -22,6 +22,7 @@ import contextlib
 from collections.abc import Callable
 from dataclasses import replace
 
+from bundesarchiv.app import thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import (
     Conflicted,
@@ -49,11 +50,6 @@ from bundesarchiv.domain.models import (
 )
 from bundesarchiv.index.indexer import SYNC_LOCK_TIMEOUT_MS, index_article
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
-
-#: Filename extensions of the corpus image types we thumbnail (JPEG/PNG/TIFF), used when a MediaRef
-#: carries no ``media_type``. Best-effort: the ``generate_thumbnail`` job itself no-ops on any blob
-#: that isn't a decodable image, so a false positive here just enqueues a job that does nothing.
-_IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"})
 
 
 def save_article(
@@ -218,23 +214,15 @@ def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version)
 
 
 def _enqueue_thumbnails(article: Article) -> None:
-    """Enqueue a thumbnail job for each image media reference on ``article`` (Part 4.3). Best-effort
-    and out-of-band: the thumbnail is a prunable derived cache, so a failure to enqueue never affects
-    the canonical write. Content-hash-keyed and idempotent, so re-saving an Article that keeps its
-    media just re-enqueues harmlessly (write-once files → identical thumbnails)."""
+    """Enqueue a thumbnail job for each media reference on ``article`` whose kind has a renderer
+    (Part 4.3). Best-effort and out-of-band: the thumbnail is a prunable derived cache, so a failure
+    to enqueue never affects the canonical write. Content-hash-keyed and idempotent, so re-saving an
+    Article that keeps its media just re-enqueues harmlessly (write-once files → identical
+    thumbnails)."""
     with contextlib.suppress(Exception):
         for ref in article.media:
-            if _is_image(ref):
+            if thumbnails.renders(ref):
                 enqueue_generate_thumbnail(article.ulid, ref.content_hash)
-
-
-def _is_image(ref: MediaRef) -> bool:
-    """Best-effort image detection for thumbnail enqueue: an ``image/*`` media_type, or (when
-    media_type is absent) a known corpus image extension on the filename. The job no-ops on any blob
-    that isn't a decodable image, so this only needs to avoid enqueuing obvious non-images."""
-    if ref.media_type is not None:
-        return ref.media_type.lower().startswith("image/")
-    return any(ref.filename.lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
 def _enqueue_mirror(enqueue: Callable[[Ulid], None], ulid: Ulid) -> None:

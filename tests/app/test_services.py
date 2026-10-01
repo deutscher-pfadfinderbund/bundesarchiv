@@ -653,16 +653,14 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
 
 
 # ---------------------------------------------------------------------------
-# Thumbnail enqueue — save/create enqueue a thumbnail job for IMAGE media only (Part 4.3)
+# Thumbnail enqueue — save/create enqueue a thumbnail job for image and PDF media (Part 4.3)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_save_article_enqueues_thumbnail_for_image_media(
+def test_save_article_enqueues_thumbnail_for_image_and_pdf_media(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An image MediaRef on a saved Article enqueues a thumbnail job for it; a non-image one
-    does not (the job would no-op anyway, but the service avoids enqueuing obvious non-images)."""
     import bundesarchiv.app.articles as articles_mod
 
     enqueued: list[tuple[str, str]] = []
@@ -691,16 +689,16 @@ def test_save_article_enqueues_thumbnail_for_image_media(
         changed_by="tester",
     )
 
-    assert enqueued == [("01FOTO", image.content_hash)]  # image enqueued, PDF skipped
+    assert enqueued == [("01FOTO", image.content_hash), ("01FOTO", doc.content_hash)]
 
 
-def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
+def test_enqueue_thumbnails_selects_image_and_pdf_media_by_type_and_extension(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The shared enqueue helper (used by both save_article and create_article) enqueues exactly the
-    image media: an ``image/*`` media_type, or a known image extension when media_type is absent —
-    and nothing else. This covers the create path too (it shares this helper), without the
-    chicken-and-egg of storing a blob under a not-yet-minted ULID."""
+    media a thumbnail renders from: an image or PDF media_type, or such an extension when
+    media_type is absent — and nothing else. This covers the create path too (it shares this
+    helper), without the chicken-and-egg of storing a blob under a not-yet-minted ULID."""
     import bundesarchiv.app.articles as articles_mod
     from bundesarchiv.domain.models import MediaRef
 
@@ -717,12 +715,14 @@ def test_enqueue_thumbnails_selects_image_media_by_type_and_extension(
             MediaRef("a.jpg", "hash-typed-image", media_type="image/jpeg"),
             MediaRef("b.png", "hash-untyped-image", media_type=None),  # inferred by extension
             MediaRef("c.pdf", "hash-doc", media_type="application/pdf"),
-            MediaRef("d.bin", "hash-unknown", media_type=None),  # unknown ext, no type
+            MediaRef("d.PDF", "hash-untyped-doc", media_type=None),
+            MediaRef("e.txt", "hash-text", media_type="text/plain"),
+            MediaRef("f.bin", "hash-unknown", media_type=None),  # unknown ext, no type
         ),
     )
     articles_mod._enqueue_thumbnails(article)
 
-    assert enqueued == ["hash-typed-image", "hash-untyped-image"]
+    assert enqueued == ["hash-typed-image", "hash-untyped-image", "hash-doc", "hash-untyped-doc"]
 
 
 @pytest.mark.django_db

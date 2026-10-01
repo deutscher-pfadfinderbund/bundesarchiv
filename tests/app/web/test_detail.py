@@ -170,6 +170,28 @@ def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
     assert images[0] == media_url(corpus.pub, corpus.cover_hash)  # sharp at any width
 
 
+def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
+    make_corpus: Callable[[], Corpus], tmp_path: Path
+) -> None:
+    from PIL import Image
+
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    page = io.BytesIO()
+    Image.new("RGB", (60, 80), (240, 240, 230)).save(page, format="PDF")
+    page.seek(0)
+    ulid = new_ulid()
+    pdf = archive.articles.add_media(ulid, "Protokoll.pdf", page, media_type="application/pdf")
+    archive.add_article(make_article(ulid, collection_id=FOTOS, media=(pdf,)))
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        assert generate_thumbnail(Archive.canonical().store, ulid, pdf.content_hash, thumbs)
+        images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), ulid))
+    assert images[0] == thumbnail_url(ulid, pdf.content_hash)
+
+
 def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
     originals = {media_url(corpus.pub, h) for h in (corpus.cover_hash, corpus.second_hash)}
