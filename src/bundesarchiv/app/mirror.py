@@ -11,7 +11,7 @@ once, with ``create``; a README whenever its SHA-256 differs from the one the re
 move streamed, except a README: it is read whole, so the digest recorded is that of the bytes sent.
 Only ``delete_article`` deletes on the system of record, and nothing replaces a copy there with a
 README that does not decode. A write-once key there in another size than the local file is neither
-recorded nor replaced. Both are logged as warnings.
+recorded nor replaced. Both are logged as warnings, with the key and the finding as record fields.
 """
 
 import hashlib
@@ -30,6 +30,14 @@ logger = logging.getLogger(__name__)
 
 #: How many keys of one finding a reconcile warning names.
 _SAMPLE = 20
+
+
+@dataclass(frozen=True, slots=True)
+class Sent:
+    """What one `push` sent: how many keys, and their bytes."""
+
+    keys: int
+    bytes: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,9 +88,10 @@ class ReconcileReport:
     recorded nor replaced. `unreadable`: local READMEs that do not decode, not pushed.
     `remote_only`: keys only the system of record holds, left there: a hard delete that never
     reached it, or a file not the app's. `failed`: the saved records whose push broke off; the next
-    reconcile takes them up again."""
+    reconcile takes them up again. `sent_bytes`: the bytes of `sent`."""
 
     sent: tuple[str, ...]
+    sent_bytes: int
     recorded: tuple[str, ...]
     changed: tuple[str, ...]
     mismatched: tuple[str, ...]
@@ -91,13 +100,14 @@ class ReconcileReport:
     failed: tuple[Ulid, ...]
 
 
-def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> None:
+def push(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> Sent:
     """Push the saved Article or Collection `ulid` to `remote`: each key `record` does not hold with
     the SHA-256 of its local bytes. A write-once key `remote` holds already is recorded, not sent.
     Raises `ArchiveError` at the first call that fails, and sends nothing after it."""
     run = _Push(archive.store, remote, record, sweep=None)
     for repository in (archive.collections, archive.articles):
         run.folder(repository, ulid)
+    return Sent(len(run.sent), run.sent_bytes)
 
 
 def delete_article(archive: Archive, remote: ObjectStore, record: PushRecord, ulid: Ulid) -> None:
@@ -124,9 +134,12 @@ def reconcile(archive: Archive, remote: ObjectStore, record: PushRecord) -> Reco
                 run.folder(repository, ulid)
             except ArchiveError as exc:
                 failed.append(ulid)
-                logger.warning("reconcile: the push of %s broke off: %s", ulid, exc)
+                logger.warning(
+                    "reconcile: the push of %s broke off: %s", ulid, exc, extra={"ulid": ulid}
+                )
     report = ReconcileReport(
         sent=tuple(run.sent),
+        sent_bytes=run.sent_bytes,
         recorded=tuple(run.recorded),
         changed=tuple(sorted(sweep.changed())),
         mismatched=tuple(run.mismatched),
@@ -134,8 +147,8 @@ def reconcile(archive: Archive, remote: ObjectStore, record: PushRecord) -> Reco
         remote_only=tuple(sorted(sweep.listed.keys() - run.seen)),
         failed=tuple(failed),
     )
-    _warn("changed on the system of record since the app pushed them", report.changed)
-    _warn("only on the system of record, left there", report.remote_only)
+    _warn("changed", "changed on the system of record since the app pushed them", report.changed)
+    _warn("remote_only", "only on the system of record, left there", report.remote_only)
     return report
 
 
@@ -166,6 +179,7 @@ class _Push:
         self._record = record
         self._sweep = sweep
         self.sent: list[str] = []
+        self.sent_bytes = 0
         self.recorded: list[str] = []
         self.mismatched: list[str] = []
         self.unreadable: list[str] = []
@@ -212,6 +226,7 @@ class _Push:
             return
         sha256 = key.sha256 or _digest(self._canonical, key.key)
         self._note(key.key, Pushed(sha256, version), self.sent)
+        self.sent_bytes += key.size
 
     def _found(self, key: StoredKey, there: ObjectEntry) -> None:
         """Record the write-once `key` the system of record holds as `there`, unless its size
@@ -231,6 +246,7 @@ class _Push:
             self._note(key, Pushed(sha256, there.version), self.recorded)
         else:
             self._note(key, Pushed(sha256, self._remote.write_atomic(key, data)), self.sent)
+            self.sent_bytes += len(data)
 
     def _confirmed(self, key: str) -> bool:
         """Whether the record's word that the system of record holds `key` stands: always in a
@@ -253,7 +269,7 @@ class _Push:
 
     @staticmethod
     def _flag(key: str, into: list[str], finding: str) -> None:
-        logger.warning("push: %s %s", key, finding)
+        logger.warning("push: %s %s", key, finding, extra={"key": key, "finding": finding})
         into.append(key)
 
 
@@ -263,7 +279,7 @@ def _digest(store: ObjectStore, key: str) -> str:
         return content_digest(stream)[0]
 
 
-def _warn(finding: str, keys: tuple[str, ...]) -> None:
+def _warn(kind: str, finding: str, keys: tuple[str, ...]) -> None:
     if keys:
         sample = keys[:_SAMPLE]
         logger.warning(
@@ -272,4 +288,5 @@ def _warn(finding: str, keys: tuple[str, ...]) -> None:
             finding,
             len(sample),
             ", ".join(sample),
+            extra={"finding": kind, "count": len(keys), "keys": list(sample)},
         )

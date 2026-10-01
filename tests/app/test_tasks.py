@@ -361,3 +361,59 @@ def test_a_hard_delete_reaches_the_system_of_record_through_the_worker(
 
     assert list(remote.list()) == list(store.list())
     assert PostgresPushRecord().entries().keys() == set(store.list())
+
+
+@pytest.mark.django_db
+def test_the_reconcile_job_logs_one_summary_record(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+
+    remote = InMemoryObjectStore()
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", lambda: remote)
+
+    with caplog.at_level("INFO", logger="bundesarchiv.app.tasks"):
+        counts = tasks_mod.mirror_reconcile.func()
+
+    (record,) = (r for r in caplog.records if r.name == "bundesarchiv.app.tasks")
+    fields = vars(record)
+    assert (record.levelname, fields["task"], fields["outcome"]) == (
+        "INFO",
+        "mirror_reconcile",
+        "ok",
+    )
+    assert fields["sent"] == counts["sent"] == len(list(store.list()))
+    assert fields["sent_bytes"] == sum(len(store.read(key)) for key in store.list())
+    assert fields["seconds"] >= 0
+
+
+@pytest.mark.django_db
+def test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raises(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.persistence.errors import ArchiveError
+
+    class Broken(InMemoryObjectStore):
+        def create_large(self, key: str, stream: object, size: int) -> str:
+            raise ArchiveError("down")
+
+        def write_atomic(self, key: str, data: bytes) -> str:
+            raise ArchiveError("down")
+
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    monkeypatch.setattr(tasks_mod, "mirror_store", Broken)
+
+    with caplog.at_level("INFO", logger="bundesarchiv.app.tasks"), pytest.raises(ArchiveError):
+        tasks_mod.mirror_push.func(ulid="01FOTO")
+
+    (record,) = (r for r in caplog.records if r.name == "bundesarchiv.app.tasks")
+    fields = vars(record)
+    assert (record.levelname, fields["outcome"], fields["exception_class"], fields["ulid"]) == (
+        "ERROR",
+        "failed",
+        "ArchiveError",
+        "01FOTO",
+    )
+    assert record.exc_info

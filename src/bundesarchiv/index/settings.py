@@ -227,3 +227,24 @@ WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True
+
+# Every log record is one JSON line on stdout (app, worker, gunicorn's error log; the format and its
+# fields: docs/runbook.md "Logs"). `gunicorn.error` is named so gunicorn's own handler is replaced.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"json": {"()": "bundesarchiv.app.jsonlog.JsonFormatter"}},
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "json",
+        }
+    },
+    "root": {"handlers": ["stdout"], "level": "INFO"},
+    "loggers": {
+        "gunicorn.error": {"handlers": ["stdout"], "level": "INFO", "propagate": False},
+        # one line per WebDAV request would drown the one summary per mirror job (and name every key)
+        "httpx2": {"level": "WARNING"},
+    },
+}

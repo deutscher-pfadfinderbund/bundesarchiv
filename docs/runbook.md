@@ -350,3 +350,25 @@ heals it.
 A live-Nextcloud mirror smoke is a Part 6 runbook item; the in-repo tests cover
 the logic against both the in-memory double and the real WebDAV adapter (the
 ObjectStore port is the seam).
+
+## Logs
+
+App, worker and gunicorn's error log write one JSON object per line to stdout (`docker logs`
+stays readable; Loki parses it with `| json`). Gunicorn has no access log; nginx keeps the one.
+Management commands print plain text for humans.
+
+Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every key passed as
+`extra` is a top-level field. A traceback is the one string field `exc_info`. All text is English.
+
+- **Mirror job summary** (logger `bundesarchiv.app.tasks`, one per `mirror_reconcile`, `mirror_push`,
+  `mirror_delete_article`): `task`, `outcome` (`ok` at INFO, `failed` at ERROR), `seconds`, and
+  `exception_class` + `exc_info` on failure. `mirror_push` adds `ulid`, `sent`, `sent_bytes`;
+  `mirror_delete_article` adds `ulid`; `mirror_reconcile` adds `sent`, `sent_bytes`, `recorded`,
+  `changed`, `mismatched`, `unreadable`, `remote_only`, `failed` (key counts). A failed attempt is
+  logged on every retry.
+- **Mirror findings** (logger `bundesarchiv.app.mirror`, WARNING): `key` + `finding` for one key;
+  `finding` (`changed` | `remote_only`) + `count` + `keys` (first 20) for a reconcile finding;
+  `ulid` for a record whose push broke off.
+- **Job outcomes of every job** come from Procrastinate (logger `procrastinate.worker`, INFO; ERROR
+  when the last attempt fails): `action` (`job_success`, `job_error_retry`, `job_error`, ...), `job` (object with
+  `task_name`, `attempts`), `duration`.

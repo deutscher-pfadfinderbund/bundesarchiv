@@ -18,7 +18,9 @@ schedule (hourly default) — a periodic full rebuild bounds every missed increm
 """
 
 import contextlib
-from collections.abc import Callable
+import logging
+import time
+from collections.abc import Callable, Generator
 from dataclasses import asdict
 from pathlib import Path
 
@@ -35,6 +37,8 @@ from bundesarchiv.app.push_record import PostgresPushRecord
 from bundesarchiv.index import indexer
 from bundesarchiv.persistence.adapters.webdav import WebDavObjectStore
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+logger = logging.getLogger(__name__)
 
 #: Bounded exponential backoff for the push job. A down/slow WebDAV server is the EXPECTED failure
 #: mode (ADR 0005): retry a handful of times with growing waits (~3s, 9s, 27s, 81s), then PARK the
@@ -138,7 +142,9 @@ def mirror_push(ulid: str) -> None:
     if remote is None:
         return
     try:
-        mirror.push(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
+        with _summary("mirror_push", ulid=ulid) as fields:
+            sent = mirror.push(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
+            fields |= {"sent": sent.keys, "sent_bytes": sent.bytes}
     finally:
         _close_mirror(remote)  # release the per-job httpx2.Client even when the push raises
 
@@ -152,7 +158,8 @@ def mirror_delete_article(ulid: str) -> None:
     if remote is None:
         return
     try:
-        mirror.delete_article(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
+        with _summary("mirror_delete_article", ulid=ulid):
+            mirror.delete_article(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
     finally:
         _close_mirror(remote)
 
@@ -170,10 +177,36 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
     if remote is None:
         return {"skipped": True}
     try:
-        report = mirror.reconcile(Archive.of(canonical_store()), remote, PostgresPushRecord())
+        with _summary("mirror_reconcile") as fields:
+            report = mirror.reconcile(Archive.of(canonical_store()), remote, PostgresPushRecord())
+            counts: dict[str, object] = {
+                finding: len(keys)
+                for finding, keys in asdict(report).items()
+                if isinstance(keys, tuple)
+            }
+            fields |= counts | {"sent_bytes": report.sent_bytes}
     finally:
         _close_mirror(remote)  # release the per-job httpx2.Client even when the sweep raises
-    return {finding: len(keys) for finding, keys in asdict(report).items()}
+    return counts
+
+
+@contextlib.contextmanager
+def _summary(job: str, **fixed: object) -> Generator[dict[str, object]]:
+    """Log the mirror job's one summary record: INFO `outcome=ok` when the body returns, ERROR
+    `outcome=failed` with `exception_class` and the traceback when it raises (then re-raised, so
+    Procrastinate's retry still runs). `task` is not `job`: Procrastinate's own records use `job` for
+    an object. The body adds its counts to the yielded dict."""
+    fields: dict[str, object] = {"task": job, **fixed}
+    started = time.monotonic()
+    try:
+        yield fields
+    except Exception as exc:
+        fields |= {"outcome": "failed", "exception_class": type(exc).__name__}
+        fields["seconds"] = round(time.monotonic() - started, 3)
+        logger.exception("%s failed", job, extra=fields)
+        raise
+    fields |= {"outcome": "ok", "seconds": round(time.monotonic() - started, 3)}
+    logger.info("%s done", job, extra=fields)
 
 
 def _close_mirror(store: ObjectStore) -> None:

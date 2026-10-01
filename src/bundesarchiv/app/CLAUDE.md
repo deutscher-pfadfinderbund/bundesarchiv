@@ -16,6 +16,7 @@ Every write service that writes a version takes `changed_by`, who is acting; the
 - `mirror.py` — the push to the system of record, add-only but for hard delete (ADR 0020); port + injected record only · interface: `push`, `reconcile`, `delete_article`, `PushRecord` · tests: `tests/app/test_mirror.py`
 - `push_record.py` — the push record in Postgres, derived state (ADR 0020) · interface: `PostgresPushRecord`, `InMemoryPushRecord` · tests: `tests/app/test_push_record.py`
 - `tasks.py` — worker jobs (ADR 0014) · interface: `reindex_article`/`reindex_subtree`/`generate_thumbnail`/`reconcile`/`verify`/`mirror_push`/`mirror_delete_article`/`mirror_reconcile` · tests: `tests/app/test_tasks.py`
+- `jsonlog.py` — the log format: one JSON object per record, `extra` merged in; wired through `LOGGING` · interface: `JsonFormatter` · tests: `tests/app/test_jsonlog.py`
 - `thumbnails.py` — thumbnails into a content-hash-keyed local cache; one renderer per file kind · interface: `generate_thumbnail`, `thumbnail_path`, `renders`, `Renderer` · tests: `tests/app/test_thumbnails.py`
 - `pdf_preview.py` — a PDF's first page as a picture; the only `pypdfium2` importer, swap the backend here · interface: `first_page` · tests: `tests/app/test_thumbnails.py`
 - `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`

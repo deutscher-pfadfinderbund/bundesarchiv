@@ -31,6 +31,7 @@ HX_READS: dict[str, tuple[int, str]] = {}
 #: Public top-level ``module:name`` that nothing in ``src/`` references -> reason.
 UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/apps.py:AppServicesConfig": "Django app config, named by INSTALLED_APPS",
+    "bundesarchiv/app/jsonlog.py:JsonFormatter": "named by the LOGGING setting",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
     "bundesarchiv/app/web/anonymous_gate.py:AnonymousGateMiddleware": "named by MIDDLEWARE",
     "bundesarchiv/app/web/viewers.py:TokenCookieMiddleware": "named by MIDDLEWARE",
