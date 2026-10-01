@@ -953,3 +953,7 @@ missing records; "N von M gespeichert"; the error pages' wording.
   decorator (`@member`); a missing decorator fails closed. ADR 0018's "never a per-view decorator"
   guards against a forgotten decorator opening a route; with a fail-closed default that risk is gone,
   so opt-in decorators are fine.
+
+## Ruling of 2026-10-02 (logs)
+
+- **Everything the app logs to the console is English** — messages and field names. German stays UI copy only.

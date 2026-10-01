@@ -222,7 +222,7 @@ verdict — never with prose claiming the UI is good.
 Product UI copy is **German** (per the `CONTEXT.md` glossary — English code
 identifiers, German UI labels). The register is informal **du** (never Sie);
 neutral infinitive imperatives are fine. Everything development-facing — code,
-routes, dev pages, commit messages, docs, comments — is **English**. "Findbuch"
+routes, dev pages, commit messages, docs, comments, log messages and their field names — is **English** (logs: owner, 2026-10-02). "Findbuch"
 is banned from UI copy (archaic).
 
 ## Comment discipline (owner, 2026-08-08)
