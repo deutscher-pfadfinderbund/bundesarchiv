@@ -13,7 +13,9 @@ from django.core import signing
 from django.test import RequestFactory
 from tests.app.web._fixtures import DEV_KEY, PUB, Corpus, make_article, make_collection
 
-from bundesarchiv.app.web.article_auth import resolve_visible_detail
+from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier
@@ -48,8 +50,13 @@ def _request(viewer: Viewer):  # type: ignore[no-untyped-def]
     return request
 
 
+def _resolve(viewer: Viewer, ulid: str) -> DetailResolution | None:
+    archive = Archive.canonical()
+    return resolve_visible_detail(_request(viewer), ulid, archive, BestandChooser.of(archive))
+
+
 def test_resolves_the_projected_article(archive: Corpus) -> None:
-    res = resolve_visible_detail(_request(Archivist()), PUB_ULID)
+    res = _resolve(Archivist(), PUB_ULID)
     assert res is not None
     assert res.article.title == "Sommerfahrt"
     assert res.is_archivist is True
@@ -59,7 +66,7 @@ def test_resolves_the_projected_article(archive: Corpus) -> None:
 
 
 def test_member_projection_floors_archivist_only_fields(archive: Corpus) -> None:
-    res = resolve_visible_detail(_request(Member(groups=())), PUB_ULID)
+    res = _resolve(Member(groups=()), PUB_ULID)
     assert res is not None
     assert res.is_archivist is False
     # project() floored these on the domain object — they cannot reach the template
@@ -68,11 +75,11 @@ def test_member_projection_floors_archivist_only_fields(archive: Corpus) -> None
 
 
 def test_public_projection_floors_too(archive: Corpus) -> None:
-    res = resolve_visible_detail(_request(Public()), PUB_ULID)
+    res = _resolve(Public(), PUB_ULID)
     assert res is not None
     assert res.article.physical_location is None
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
 def test_malformed_or_absent_is_none(archive: Corpus, ulid: str) -> None:
-    assert resolve_visible_detail(_request(Archivist()), ulid) is None
+    assert _resolve(Archivist(), ulid) is None

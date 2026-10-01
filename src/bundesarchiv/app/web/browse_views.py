@@ -74,16 +74,17 @@ def workbench(request: HttpRequest) -> HttpResponse:
         # the sentence's three slots + the file types of "+ Filter"
         facets=("collection", "decades", "document_type", "file_kind"),
     )
+    archive = Archive.canonical()
+    bestand = BestandChooser.of(archive)
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
-    pane = _resolve_pane(request, is_archivist=is_archivist)
+    pane = _resolve_pane(request, archive, bestand, is_archivist=is_archivist)
     # Bulk-edit selection (archivist-only chrome, spec §2): any ?auswahl= is selection mode
     # ("Auswählen"; a bare ``auswahl=`` is the mode with nothing ticked), and its values carry the
     # selected ulids across pages. Non-archivists never get the mode, so their auswahl is dropped
     # entirely (defence-in-depth — the POST route is independently gated too).
     waehlen = is_archivist and browse.PARAM_AUSWAHL in request.GET
     auswahl = [u for u in request.GET.getlist(browse.PARAM_AUSWAHL) if u] if waehlen else []
-    bestand = BestandChooser.of(Archive.canonical())
     context = _results_context(
         request,
         parsed,
@@ -230,7 +231,9 @@ class _Pane:
     close_href: str
 
 
-def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
+def _resolve_pane(
+    request: HttpRequest, archive: Archive, bestand: BestandChooser, *, is_archivist: bool
+) -> _Pane | None:
     """Resolve the ``?artikel`` param to a preview-pane view-model, or ``None`` when there is no
     pane to show. Fail-closed by delegating to the ONE render-resolution path
     (``resolve_visible_detail`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
@@ -239,7 +242,7 @@ def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
-    resolution = resolve_visible_detail(request, ulid)
+    resolution = resolve_visible_detail(request, ulid, archive, bestand)
     article = resolution.article if resolution is not None else None
     if article is None or article.deleted is not None:
         # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
@@ -566,10 +569,14 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
     on ``is_archivist``. A write whose index update lagged lands here with the index-lag hint
     (``landing.noting_lag``); ``render_screen`` shows it."""
-    resolution = resolve_visible_detail(request, ulid)
+    archive = Archive.canonical()
+    bestand = BestandChooser.of(archive)
+    resolution = resolve_visible_detail(request, ulid, archive, bestand)
     if resolution is None:
         return not_found()
-    return render_screen(request, "workbench/detail.html", _detail_context(resolution))
+    return render_screen(
+        request, "workbench/detail.html", _detail_context(resolution), bestand=bestand
+    )
 
 
 @dataclass(frozen=True, slots=True)

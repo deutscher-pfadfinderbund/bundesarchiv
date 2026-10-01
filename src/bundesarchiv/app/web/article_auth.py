@@ -39,10 +39,13 @@ class DetailResolution:
     version: Version
 
 
-def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution | None:
+def resolve_visible_detail(
+    request: HttpRequest, ulid: str, archive: Archive, bestand: BestandChooser
+) -> DetailResolution | None:
     """The full-Article render pipeline (spec §8): load ONCE, resolve the chain, ``visible``-project —
     returning the projection + chain + is_archivist, or ``None`` on any
-    deny/absence/malformed/broken-chain.
+    deny/absence/malformed/broken-chain. ``archive`` and ``bestand`` are the request's own (the chooser reads through
+    that archive).
 
     The ONE resolution path for a rendered full Article — the 4.6 detail view and the preview pane.
     Fail-closed order: a malformed ulid, a
@@ -50,13 +53,12 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     indistinguishable, so a rendered page can never be an existence oracle."""
     if not is_valid_ulid(ulid):
         return None
-    archive = Archive.canonical()
     try:
         loaded = archive.articles.load(ulid)
     except ArchiveError:
         return None
     viewer = viewer_of(request)
-    chain = BestandChooser.of(archive).chain_of(loaded.article.collection_id)
+    chain = bestand.chain_of(loaded.article.collection_id)
     if chain is None:
         return None
     projected = visible(viewer, loaded.article, chain)
