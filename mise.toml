@@ -2,7 +2,7 @@
 # `mise run gate` = the full gate (see CLAUDE.md for when each applies).
 
 [tools]
-biome = "2.5.14"
+biome = "2.5.15"
 
 [tasks.check]
 description = "Fast commit check (no Postgres)"
