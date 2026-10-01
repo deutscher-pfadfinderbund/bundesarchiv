@@ -69,7 +69,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `card.py:138-293`, `bulk.py:61-71,153-168`, `ledger.py:39`, `browse_views.py:264,650`. Bite: `5c902a2`.
 - **Sketch:** one label source both registries read; one rule for "Typ".
 
-### 35. The post-write tail is written out six times — Strong
+### 35. The post-write tail is written out six times — done (Wave LANDING, 2026-10-02: `app/after_write.py`)
 - **Indicator:** 6 copies of mirror enqueue, index sync, reindex fallback in 2 modules (2026-10-01, P3)
 - **Evidence:** `articles.py:61-64,145-148,187-189,210-212`, `collections.py:46-47,70-72`. Bite: `bbad5ee`, `d72d266`, `d3c2c12` co-edited both.
 - **Sketch:** one `after_write(...)` returning the lag result; see #41.
@@ -101,7 +101,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Interfaces
 
-### 41. "Index lagged" has no owner — Strong
+### 41. "Index lagged" has no owner — done (Wave LANDING, 2026-10-02: `landing.py`, `test_index_lag.py`)
 - **Indicator:** `index_updated` is a bool on 3 result types; 4 routes drop it (media actions, create, copy, Bestand rename) (2026-10-01, W2)
 - **Evidence:** `catalog_views.py:277,615,756,691,942,634`, `catalog.py:347`, `collection_views.py:139-144`. Bite: `ab528a6`. ADR 0014 asks the warning on visibility changes.
 - **Sketch:** one lag result the post-write tail (#35) returns and the landing must handle.
@@ -253,12 +253,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** `draft` cuts worker memory on large scans; no change to the output
 - **Sketch:** `image.draft("RGB", (side, side))` before `load()` for JPEG
 
-### 43. Landing state rides in four hand-spelled query params — Strong
+### 43. Landing state rides in four hand-spelled query params — done (Wave LANDING, 2026-10-02: `landing.py`)
 - **Indicator:** 4 params, 3 written in one module and read in another (2026-10-01, W3). Raised: the start page comes soon.
 - **Evidence:** `collection_views.py:74,186`, `catalog_views.py:151,198,635`, `browse_views.py:582`. `?angelegt=` echoes any text from the URL.
 - **Sketch:** one landing vocabulary (encode/decode pair); the delete feedback would be a 5th param.
 
-### 44. "What kind of htmx request" is read raw in 8 places — Strong
+### 44. "What kind of htmx request" is read raw in 8 places — done (Wave LANDING, 2026-10-02: `viewers.request_kind`)
 - **Indicator:** 8 raw `HX-` reads in 5 modules (2026-10-01, W7). Raised: the start page comes soon.
 - **Evidence:** `anonymous_gate.py:48`, `browse_views.py:113,115`, `catalog_views.py:127,710`, `collection_views.py:77,169`, `viewers.py:257`. Bite: `2675e6c`, `33a9d6a` (history restore missed twice).
 - **Sketch:** one `request_kind(request)`.
