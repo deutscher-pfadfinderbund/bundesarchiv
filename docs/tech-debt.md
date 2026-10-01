@@ -203,6 +203,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Deletion test:** fails as written (pure forwarding).
 - **Sketch:** `create_article(archive, article: Article)`; the view mints the valid-by-construction
   Article, and `copy_article` becomes `replace(source, ulid=new_ulid(), …)`.
+- **Gate first (G1, owner-agreed 2026-10-02, before CLASSIFY):** one Article with every field set
+  adversarially, generated from `dataclasses.fields(Article)`, survives README encode→decode,
+  `copy_article` and an unchanged edit-form save; a field the generator cannot fill fails.
 
 ### 13. `scanned` is derivable from `focusable` — Speculative
 - **Indicator:** 1 pinned relation, `scanned == focusable - {"gruppen"}` (2026-10-01, stable)
