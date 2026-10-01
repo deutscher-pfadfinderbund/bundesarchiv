@@ -15,6 +15,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, wait
 
 import pytest
+from tests._readmes import UNREADABLE_README
 
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -25,9 +26,10 @@ from bundesarchiv.domain.models import (
     Lifecycle,
 )
 from bundesarchiv.index import indexer
-from bundesarchiv.persistence._layout import ARTICLES
+from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
+from bundesarchiv.persistence.errors import Busy
 from bundesarchiv.persistence.repository import ArticleRepository
 
 
@@ -208,6 +210,127 @@ def test_index_subtree_on_root_reindexes_whole_tree(store: InMemoryObjectStore) 
 
     indexer.index_subtree(store, "ROOT")
     assert ArticleIndex.objects.count() == 3
+
+
+# ---------------------------------------------------------------------------
+# An unreadable README (owner 2026-10-01): archivist-only, reported, never an abort
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_rebuild_indexes_an_unreadable_article_archivist_only_and_reports_it(
+    store: InMemoryObjectStore, data: bytes, caplog: pytest.LogCaptureFixture
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    store.write_atomic(ARTICLES.readme_key("01FOTO"), data)
+    report = indexer.rebuild(store)
+    assert report.indexed == 3
+    assert report.unreadable_articles == ("01FOTO",)
+    assert "01FOTO" in caplog.text
+    assert ArticleIndex.objects.get(ulid="01FOTO").archivist_only is True
+    assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_rebuild_treats_an_unreadable_collection_as_absent_and_reports_it(
+    store: InMemoryObjectStore, data: bytes
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    store.write_atomic(COLLECTIONS.readme_key("FOTOS"), data)
+    report = indexer.rebuild(store)
+    assert report.unreadable_collections == ("FOTOS",)
+    assert set(report.failed_closed) == {"01FOTO", "01AKTE"}
+    assert ArticleIndex.objects.get(ulid="01AKTE").archivist_only is True
+    assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_index_article_narrows_an_unreadable_article_to_archivist_only(
+    store: InMemoryObjectStore, data: bytes
+) -> None:
+    from bundesarchiv.index.models import ArticleIndex
+
+    indexer.rebuild(store)
+    store.write_atomic(ARTICLES.readme_key("01FOTO"), data)
+    indexer.index_article(store, "01FOTO")
+    assert ArticleIndex.objects.get(ulid="01FOTO").archivist_only is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_index_article_fails_closed_under_an_unreadable_collection(
+    store: InMemoryObjectStore, data: bytes, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A save logs nothing about it: only ``rebuild`` reports an unreadable README."""
+    from bundesarchiv.index.models import ArticleIndex
+
+    indexer.rebuild(store)
+    store.write_atomic(COLLECTIONS.readme_key("FOTOS"), data)
+    caplog.clear()
+    indexer.index_article(store, "01AKTE")
+    assert ArticleIndex.objects.get(ulid="01AKTE").archivist_only is True
+    assert caplog.text == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_index_subtree_goes_on_past_unreadable_readmes(
+    store: InMemoryObjectStore, data: bytes
+) -> None:
+    """Only the subtree and its direct orphans are touched; an unreadable Article is left to
+    ``rebuild``."""
+    from bundesarchiv.index.models import ArticleIndex
+
+    indexer.rebuild(store)
+    store.write_atomic(COLLECTIONS.readme_key("AKTEN"), data)
+    store.write_atomic(ARTICLES.readme_key("01ROOT"), data)
+    indexer.index_subtree(store, "FOTOS")
+    assert ArticleIndex.objects.get(ulid="01AKTE").tier == "PUBLIC"
+    assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
+    indexer.index_subtree(store, "AKTEN")
+    assert ArticleIndex.objects.get(ulid="01AKTE").archivist_only is True
+
+
+class _BusyStore(InMemoryObjectStore):
+    """Refuses to read one key under contention, as a backend may."""
+
+    busy: str = ""
+
+    def read(self, key: str) -> bytes:
+        if key == self.busy:
+            raise Busy(key)
+        return super().read(key)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("busy", "write"),
+    [
+        pytest.param(
+            ARTICLES.readme_key("01FOTO"),
+            lambda s: indexer.index_article(s, "01FOTO"),
+            id="article",
+        ),
+        pytest.param(COLLECTIONS.readme_key("FOTOS"), indexer.rebuild, id="collection"),
+    ],
+)
+def test_a_busy_store_is_no_unreadable_readme(
+    busy: str, write: Callable[[InMemoryObjectStore], object]
+) -> None:
+    """``Busy`` is retryable: it propagates, and the row stays as it was."""
+    from bundesarchiv.index.models import ArticleIndex
+
+    store = _seed(_BusyStore())
+    indexer.rebuild(store)
+    store.busy = busy
+    with pytest.raises(Busy):
+        write(store)
+    assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
 
 
 # ---------------------------------------------------------------------------

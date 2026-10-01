@@ -186,3 +186,14 @@ def test_an_unreadable_readme_fails_load_and_save(repo: CollectionRepository, da
     with pytest.raises(UnreadableReadme):
         repo.save(_collection(), expected_version=1, changed_by="tester")
     assert {key: repo._store.read(key) for key in repo._store.list()} == before
+
+
+@pytest.mark.parametrize("data", UNREADABLE_README)
+def test_load_all_leaves_out_an_unreadable_collection_and_scan_names_it(
+    repo: CollectionRepository, data: bytes
+) -> None:
+    """Owner 2026-10-01: a Collection whose README does not decode is treated as absent."""
+    repo.save(_collection("01OK"), expected_version=0, changed_by="tester")
+    repo._store.write_atomic(readme_key("collections/01BAD"), data)
+    assert [c.ulid for c in repo.load_all()] == ["01OK"]
+    assert repo.scan().unreadable == ("01BAD",)

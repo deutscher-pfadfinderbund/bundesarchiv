@@ -8,12 +8,23 @@ Both repositories and the fixity check read the layout from here.
 """
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import BinaryIO
 
 from bundesarchiv.domain.models import MediaRef, Ulid
 from bundesarchiv.persistence._writer import readme_key
+from bundesarchiv.persistence.errors import UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
+
+
+@dataclass(frozen=True, slots=True)
+class Scan[T]:
+    """Every saved record of one kind whose README decodes, and the ulids of those whose README
+    does not (owner 2026-10-01)."""
+
+    readable: tuple[T, ...]
+    unreadable: tuple[Ulid, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +47,18 @@ class Records:
     def list_ulids(self, store: ObjectStore) -> list[Ulid]:
         """The ulid of every record with a README in `store`, none of them read."""
         return [ulid for key in store.list(f"{self.root}/") if (ulid := self.ulid_of_readme(key))]
+
+    def scan[T](self, store: ObjectStore, load: Callable[[Ulid], T]) -> Scan[T]:
+        """`load` of every record in `store`, sorted by whether its README decodes. Any other
+        error, `Busy` included, propagates."""
+        readable: list[T] = []
+        unreadable: list[Ulid] = []
+        for ulid in self.list_ulids(store):
+            try:
+                readable.append(load(ulid))
+            except UnreadableReadme:
+                unreadable.append(ulid)
+        return Scan(tuple(readable), tuple(unreadable))
 
 
 ARTICLES = Records("articles")

@@ -100,9 +100,12 @@ class Command(BaseCommand):
 
         By name, because the run may be resumed against a root that already holds the Bestände but
         no Articles (the refusal above only guards Articles) — creating a second "Bund" would split
-        the archive in two.
+        the archive in two. So an unreadable Bestand, whose name is unknown, stops the run.
         """
-        existing = {c.name: c.ulid for c in archive.collections.load_all()}
+        scan = archive.collections.scan()
+        if scan.unreadable:
+            raise CommandError(f"Bestand nicht lesbar: {', '.join(scan.unreadable)}")
+        existing = {c.name: c.ulid for c in scan.readable}
         for name in legacy.bestand_names(items):
             if name in existing:
                 continue

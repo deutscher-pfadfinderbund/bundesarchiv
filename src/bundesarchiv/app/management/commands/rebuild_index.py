@@ -24,3 +24,9 @@ class Command(BaseCommand):
         self.stdout.write(f"index rebuilt: {report.indexed} articles")
         if report.failed_closed:
             self.stdout.write(f"failed closed (unresolvable chain): {len(report.failed_closed)}")
+        if report.unreadable_articles:
+            names = ", ".join(report.unreadable_articles)
+            self.stdout.write(f"articles whose README does not decode (archivist-only): {names}")
+        if report.unreadable_collections:
+            names = ", ".join(report.unreadable_collections)
+            self.stdout.write(f"collections whose README does not decode (absent): {names}")

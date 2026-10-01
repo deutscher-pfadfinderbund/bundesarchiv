@@ -8,10 +8,12 @@ lock (`_writer.remove`). `keys_for` lists a folder in save order (media,
 history, README) and marks the write-once keys (ADR 0020). All three ObjectStore adapters are
 parametrized into the one shared conformance suite
 (`tests/persistence/test_objectstore_conformance.py`) — never test an adapter its own way;
-adapter-specific files cover only what the port cannot state.
+adapter-specific files cover only what the port cannot state. A README that does not decode (not
+UTF-8, not YAML, wrong shape) raises `UnreadableReadme`; each repository's `scan` sorts such records
+out, and `load_all` leaves such a Collection out (owner 2026-10-01).
 
 - `repository.py` — Article persistence (ADR 0005/0019) · interface: `ArticleRepository`, `Stored`, `StoredKey`, `cleaned_name`, `content_digest` · tests: `tests/persistence/test_article_repository.py`, `test_history.py`
-- `collections.py` — CollectionRepository (ADR 0010/0013) · interface: `CollectionRepository`, `StoredCollection` · tests: `tests/persistence/test_collection_repository.py`, `test_history.py`
+- `collections.py` — CollectionRepository (ADR 0010/0013) · interface: `CollectionRepository`, `StoredCollection`, `Scan` · tests: `tests/persistence/test_collection_repository.py`, `test_history.py`
 - `readme.py` — Article README codec: Markdown+front-matter ↔ Article (ADR 0005/0006) · interface: `encode`, `decode`, `read_version`, `audience_from_front_matter` · tests: `tests/persistence/test_readme.py`
 - `collection_readme.py` — Collection README codec (ADR 0010); both codecs share `_front_matter` · interface: `encode_collection`, `decode_collection` · tests: `tests/persistence/test_collection_readme.py`
 - `fixity.py` — the fixity check: every README version against the stored files (ADR 0019) · interface: `verify`, `Report` · tests: `tests/app/test_verify.py`

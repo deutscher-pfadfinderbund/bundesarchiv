@@ -20,12 +20,18 @@ from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import _front_matter, readme
-from bundesarchiv.persistence._layout import ARTICLES, content_digest, media_folder, media_key
+from bundesarchiv.persistence._layout import (
+    ARTICLES,
+    Scan,
+    content_digest,
+    media_folder,
+    media_key,
+)
 from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, remove
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 
-__all__ = ["ArticleRepository", "Stored", "StoredKey", "cleaned_name", "content_digest"]
+__all__ = ["ArticleRepository", "Scan", "Stored", "StoredKey", "cleaned_name", "content_digest"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +137,10 @@ class ArticleRepository:
 
     def list_ulids(self) -> Iterable[Ulid]:
         return ARTICLES.list_ulids(self._store)
+
+    def scan(self) -> Scan[Article]:
+        """Every saved Article, sorted by whether its README decodes (owner 2026-10-01)."""
+        return ARTICLES.scan(self._store, lambda ulid: self.load(ulid).article)
 
     def keys_for(self, ulid: Ulid) -> list[StoredKey]:
         """The keys of the Article's folder in the order a save writes them: media, history, the

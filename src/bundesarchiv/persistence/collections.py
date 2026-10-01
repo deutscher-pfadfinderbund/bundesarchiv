@@ -15,9 +15,9 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import _front_matter, collection_readme
-from bundesarchiv.persistence._layout import COLLECTIONS
+from bundesarchiv.persistence._layout import COLLECTIONS, Scan
 from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order
-from bundesarchiv.persistence.errors import ArchiveError, NotFound
+from bundesarchiv.persistence.errors import NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -68,13 +68,18 @@ class CollectionRepository:
         )
 
     def load_all(self) -> tuple[Collection, ...]:
-        """Return every saved Collection (for tree assembly / rebuild).
+        """Return every saved Collection whose README decodes (for tree assembly / rebuild).
 
         Returns plain `Collection`s, NOT `StoredCollection`s: tree assembly and the
         indexer resolve chains and audience from Collection fields alone — they never
         write, so they need no versions. Callers that intend to `save` must `load` the
         one Collection to get its version."""
-        return tuple(self.load(ulid).collection for ulid in self.list_ulids())
+        return self.scan().readable
+
+    def scan(self) -> Scan[Collection]:
+        """Every saved Collection, sorted by whether its README decodes. One that does not is
+        treated as absent (owner 2026-10-01): the Articles under it then fail closed."""
+        return COLLECTIONS.scan(self._store, lambda ulid: self.load(ulid).collection)
 
     def list_ulids(self) -> list[Ulid]:
         """The ulid of every saved Collection, none of them read."""
@@ -93,6 +98,6 @@ class CollectionRepository:
             self.load(ulid)
         except NotFound:
             return True
-        except ArchiveError:
+        except UnreadableReadme:
             return False
         return True

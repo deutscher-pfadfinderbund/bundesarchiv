@@ -25,6 +25,7 @@ from bundesarchiv.app.management.commands.import_legacy import CHANGED_BY
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import vocab
 from bundesarchiv.domain.models import Lifecycle
+from bundesarchiv.persistence._layout import COLLECTIONS
 
 #: Stand-ins for the edit form's two lists: `unknown_vocabulary` only ever tests membership, and
 #: which lists the real import measures against is the command's business, not this module's.
@@ -644,6 +645,20 @@ def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
     hash_ = image.media[0].content_hash
     assert thumbnail_path(tmp_path / "thumbnails", hash_).is_file()
     assert "Vorschaubilder erzeugt: 1" in out  # the PDF is no image and stays a no-op
+
+
+@pytest.mark.django_db
+def test_an_unreadable_bestand_stops_the_import_before_it_writes(tmp_path: Path) -> None:
+    """Matching by name cannot see an unreadable Bestand: going on could create its twin."""
+    csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
+    _write_export(csv_dir, media_root)
+    with _roots(tmp_path):
+        archive = Archive.canonical()
+        archive.store.write_atomic(COLLECTIONS.readme_key("01BAD"), b"---\nname: [\n---\n")
+        with pytest.raises(CommandError, match="01BAD"):
+            _run(csv_dir, media_root)
+        assert list(archive.collections.list_ulids()) == ["01BAD"]
+        assert list(archive.articles.list_ulids()) == []
 
 
 @pytest.mark.django_db

@@ -22,7 +22,11 @@ Fail-closed is the security invariant (ADR 0012). Any ``DomainError`` resolving 
 dangling ``collection_id``, a broken tree, a mis-bound chain — does NOT drop the Article and does
 NOT guess a visibility. It writes an archivist-only row (``archivist_only=True``, ``tier=None``,
 no groups) that still carries the Article's text, so an Archivist can search for it and fix the
-source, and records the ulid in the ``RebuildReport`` for the caller/CLI to surface.
+source, and records the ulid in the ``RebuildReport`` for the caller/CLI to surface. A README
+that does not decode (owner 2026-10-01) never aborts a writer either: the Article gets the same
+archivist-only row with only its ulid known, and a Collection is treated as absent (so its
+Articles fail closed). ``rebuild`` logs and reports both; ``index_subtree`` leaves such an Article
+to it.
 
 Writer coordination (ADR 0014 v2). Every index writer — ``rebuild``, ``index_article``,
 ``index_subtree`` — runs lock, then read, then write in ONE transaction: it takes the same Postgres
@@ -32,6 +36,7 @@ it, so no writer can overwrite a newer row with an older read. Canonical-file wr
 by ADR 0013's ``WRITER_LOCK``, not this lock.
 """
 
+import logging
 import mimetypes
 from collections import Counter
 from dataclasses import dataclass
@@ -47,9 +52,11 @@ from bundesarchiv.index.models import ArticleIndex
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.errors import NotFound
+from bundesarchiv.persistence.errors import NotFound, UnreadableReadme
 from bundesarchiv.persistence.objectstore import ObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
+
+logger = logging.getLogger(__name__)
 
 # Bump on any ADR 0011 config change (FTS config, collation, wrapper functions) OR any change to
 # what feeds a tsvector column. The Part 4 background worker rebuilds when a row's stored
@@ -99,10 +106,14 @@ if _BUILDER_FIELDS != ARCHIVIST_ONLY_FIELDS:
 class RebuildReport:
     """The outcome of a full ``rebuild``. ``failed_closed`` names the ulids indexed as
     fail-closed archivist-only rows (a resolution error), for the caller/CLI to surface so an
-    Archivist can repair the source."""
+    Archivist can repair the source. ``unreadable_articles`` and ``unreadable_collections`` name
+    the records whose README does not decode (owner 2026-10-01): such an Article is indexed
+    archivist-only, such a Collection is treated as absent."""
 
     indexed: int
     failed_closed: tuple[str, ...]
+    unreadable_articles: tuple[str, ...]
+    unreadable_collections: tuple[str, ...]
 
 
 def _archivist_text(article: Article) -> str:
@@ -236,9 +247,19 @@ def _row_for(
         return _fail_closed_row(article, cap_year=cap_year), True
 
 
-def _bestand_lookup(store: ObjectStore) -> dict[Ulid, Collection]:
-    """Every saved Collection by ulid, the lookup ``resolve_chain`` takes."""
-    return {c.ulid: c for c in CollectionRepository(store).load_all()}
+def _unreadable_row(ulid: Ulid, *, cap_year: int) -> dict[str, object]:
+    """The row of an Article whose README does not decode (owner 2026-10-01): archivist-only, with
+    the ulid, all that is known, as its title. Built from a stand-in so every column is written,
+    and an upsert keeps nothing of the old row."""
+    stand_in = Article(ulid=ulid, title=ulid, collection_id="", lifecycle=Lifecycle.PUBLISHED)
+    return _fail_closed_row(stand_in, cap_year=cap_year)
+
+
+def _bestand_lookup(store: ObjectStore) -> tuple[dict[Ulid, Collection], tuple[Ulid, ...]]:
+    """Every saved Collection by ulid, the lookup ``resolve_chain`` takes, and the ulids of those
+    left out because their README does not decode."""
+    scan = CollectionRepository(store).scan()
+    return {c.ulid: c for c in scan.readable}, scan.unreadable
 
 
 def rebuild(store: ObjectStore) -> RebuildReport:
@@ -246,8 +267,9 @@ def rebuild(store: ObjectStore) -> RebuildReport:
     transaction. Loads every Collection and Article through the repositories, resolves each
     Article's chain + effective audience, and writes one row per Article. A ``DomainError`` for
     any Article yields a fail-closed archivist-only row (still indexed, counted in the report)
-    rather than dropping it or guessing visibility. Idempotent: the leading wipe means a repeat
-    rebuild produces the same rows with no duplicates.
+    rather than dropping it or guessing visibility; so does a README that does not decode
+    (reported, and logged). Idempotent: the leading wipe means a repeat rebuild produces
+    the same rows with no duplicates.
 
     Holds the shared index-writer lock across the whole read and write (ADR 0014 v2), so every
     other index writer waits for it; searches still see the old rows until it commits.
@@ -257,19 +279,18 @@ def rebuild(store: ObjectStore) -> RebuildReport:
 
     with transaction.atomic():
         _take_writer_lock()
-        lookup = _bestand_lookup(store)
-        rows: list[dict[str, object]] = []
-        failed: list[str] = []
-        for ulid in articles.list_ulids():
-            article = articles.load(ulid).article
-            row, failed_closed = _row_for(article, lookup, cap_year=cap_year)
-            rows.append(row)
-            if failed_closed:
-                failed.append(article.ulid)
+        lookup, unreadable_collections = _bestand_lookup(store)
+        scan = articles.scan()
+        built = [(a.ulid, *_row_for(a, lookup, cap_year=cap_year)) for a in scan.readable]
+        rows = [row for _, row, _ in built]
+        rows += [_unreadable_row(ulid, cap_year=cap_year) for ulid in scan.unreadable]
         ArticleIndex.objects.all().delete()
         ArticleIndex.objects.bulk_create(ArticleIndex(**row) for row in rows)
 
-    return RebuildReport(indexed=len(rows), failed_closed=tuple(failed))
+    for ulid in (*unreadable_collections, *scan.unreadable):
+        logger.warning("the README of %s does not decode", ulid)
+    failed = tuple(ulid for ulid, _, failed_closed in built if failed_closed)
+    return RebuildReport(len(rows), failed, scan.unreadable, unreadable_collections)
 
 
 def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:
@@ -278,9 +299,10 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
 
     Reference semantics — the caller passes only a ulid, never a payload, so a stale enqueued job
     recomputes whatever canonical says NOW. Routes through the same ``build_row`` + fail-closed
-    branch as ``rebuild`` (a broken chain becomes an archivist-only row). Idempotent. Takes the
-    shared index-writer lock before reading; ``lock_timeout_ms`` bounds that wait (the
-    synchronous request path), and a timeout raises ``OperationalError`` with nothing written.
+    branch as ``rebuild`` (a broken chain or an undecodable README becomes an archivist-only row).
+    Idempotent. Takes the shared index-writer lock before reading; ``lock_timeout_ms`` bounds that
+    wait (the synchronous request path), and a timeout raises ``OperationalError`` with nothing
+    written.
     """
     articles = ArticleRepository(store)
     cap_year = _current_year()
@@ -292,8 +314,11 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
         except NotFound:
             ArticleIndex.objects.filter(ulid=ulid).delete()  # gone from canonical -> drop the row
             return
-        lookup = _bestand_lookup(store)
-        row, _failed = _row_for(article, lookup, cap_year=cap_year)
+        except UnreadableReadme:
+            row = _unreadable_row(ulid, cap_year=cap_year)
+        else:
+            lookup, _ = _bestand_lookup(store)
+            row, _failed = _row_for(article, lookup, cap_year=cap_year)
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
 
 
@@ -307,18 +332,18 @@ def index_subtree(
     Collections + Articles, then upsert each Article whose resolved chain passes through
     ``collection_ulid``. An Article whose chain cannot resolve is upserted as a fail-closed row
     IFF its own ``collection_id`` is the target (a broken chain has no resolvable ancestry to test
-    against, so only the directly-targeted orphan is touched — non-descendants stay untouched).
-    Idempotent; takes the shared index-writer lock before reading; ``lock_timeout_ms`` bounds that
-    wait as in ``index_article``.
+    against, so only the directly-targeted orphan is touched — non-descendants stay untouched); an
+    Article whose README does not decode is left to ``rebuild``. Idempotent; takes the shared
+    index-writer lock before reading; ``lock_timeout_ms`` bounds that wait as in
+    ``index_article``.
     """
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
     with transaction.atomic():
         _take_writer_lock(lock_timeout_ms)
-        lookup = _bestand_lookup(store)
-        for ulid in articles.list_ulids():
-            article = articles.load(ulid).article
+        lookup, _ = _bestand_lookup(store)
+        for article in articles.scan().readable:
             if _in_subtree(article, collection_ulid, lookup):
                 row, _failed = _row_for(article, lookup, cap_year=cap_year)
                 ArticleIndex.objects.update_or_create(ulid=article.ulid, defaults=row)
