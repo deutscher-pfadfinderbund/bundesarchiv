@@ -1280,6 +1280,86 @@ def test_a_schlagwort_is_taken_from_the_suggestions_with_the_keyboard(
     expect(page.locator('main dt:has-text("Schlagworte") + dd a')).to_have_text(["lager", "sommer"])
 
 
+def test_moving_the_caret_off_the_line_ends_the_offer_and_changes_nothing(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
+    field = page.locator("main #feld-tags")
+    page.locator('.autocomplete-list [role="option"]').first.wait_for()
+    # a click into line 1: the list closes, so Enter is a plain newline and nothing is replaced
+    field.click(position={"x": 8, "y": 8})
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    expect(field).to_have_value("lager\nr")
+    # the caret at 0 over a leading empty line: the same, and no error
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    field.fill("\n")
+    field.press_sequentially("r")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    field.evaluate("(el) => el.setSelectionRange(0, 0)")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    page.keyboard.press("Enter")
+    assert not errors
+
+
+def test_a_suggestion_is_not_taken_into_a_line_whose_text_changed(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
+    field = page.locator("main #feld-tags")
+    page.keyboard.press("ArrowDown")  # an option is marked
+    # the line changes under the open list without a key (a script, an extension)
+    field.evaluate("(el) => { el.value = 'lager\\nrx'; }")
+    page.keyboard.press("Enter")
+    expect(field).to_have_value("lager\nrx")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+
+
+def test_the_live_region_speaks_only_for_matches(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
+    status = page.locator("#feld-tags-vorschlaege-status")
+    expect(status).to_have_text("2 Vorschläge")
+    page.locator("main #feld-tags").press_sequentially("zzzq")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    expect(status).to_have_text("")
+    # a failed request is as silent as a miss
+    page.route("**/tags/suggestions*", lambda route: route.fulfill(status=500))
+    page.locator("main #feld-tags").press_sequentially("x")
+    page.wait_for_timeout(500)
+    expect(status).to_have_text("")
+
+
+def test_a_stale_failed_request_leaves_the_newer_list_open(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "r" on the last line
+
+    held: list[Route] = []
+
+    def hold_rx(route: Route) -> None:
+        if "q=rx" in route.request.url:
+            held.append(route)  # answered by the test, after the newer request
+        else:
+            route.continue_()
+
+    page.route("**/tags/suggestions*", hold_rx)
+    field = page.locator("main #feld-tags")
+    field.press_sequentially("x")  # "rx": its request hangs
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    page.wait_for_timeout(300)  # past the debounce, the request is out
+    page.keyboard.press("Backspace")  # "r" again: a newer request, answered at once
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    held[0].abort()  # the old request fails late
+    page.wait_for_timeout(500)
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+
+
 # --- CAS conflict (two contexts) ---------------------------------------------------
 
 

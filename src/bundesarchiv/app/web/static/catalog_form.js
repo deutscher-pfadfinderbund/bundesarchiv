@@ -41,6 +41,7 @@
   const SUGGEST = "textarea[data-suggest]";
   let asked = 0; // the newest request; an older answer arrives too late and is dropped
   let typing;
+  let target; // the line the open list was suggested for: { start, text }
 
   function listOf(field) {
     return document.getElementById(`${field.id}-vorschlaege`);
@@ -72,13 +73,18 @@
 
   function lineAt(field) {
     const caret = field.selectionStart;
-    const start = field.value.lastIndexOf("\n", caret - 1) + 1;
+    const start = caret === 0 ? 0 : field.value.lastIndexOf("\n", caret - 1) + 1;
     const end = field.value.indexOf("\n", caret);
     return [start, end < 0 ? field.value.length : end];
   }
 
+  function statusOf(field) {
+    return document.getElementById(`${field.id}-vorschlaege-status`);
+  }
+
   function close(field) {
     asked += 1;
+    target = undefined;
     clearTimeout(typing);
     field.removeAttribute("aria-activedescendant");
     const list = listOf(field);
@@ -91,16 +97,27 @@
     const [start, end] = lineAt(field);
     const q = field.value.slice(start, end).trim();
     close(field);
+    statusOf(field).textContent = "";
     if (!q) {
       return;
     }
     const ticket = asked;
     const params = new URLSearchParams({ q, tags: field.value });
     fetch(`${field.dataset.suggest}?${params}`)
-      .then((response) => (response.ok ? response.text() : ""))
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(response.status);
+        }
+        return response.text();
+      })
       .then((html) => {
         const list = listOf(field);
-        if (ticket !== asked || document.activeElement !== field || !list) {
+        if (
+          ticket !== asked ||
+          document.activeElement !== field ||
+          !list ||
+          lineAt(field)[0] !== start
+        ) {
           return;
         }
         list.innerHTML = html;
@@ -108,13 +125,18 @@
         options.forEach((option, i) => {
           option.id = `${list.id}-${i}`;
         });
-        document.getElementById(`${list.id}-status`).textContent =
-          options.length === 1 ? "1 Vorschlag" : `${options.length} Vorschläge`;
         if (options.length > 0) {
+          statusOf(field).textContent =
+            options.length === 1 ? "1 Vorschlag" : `${options.length} Vorschläge`;
+          target = { start, text: q };
           list.showPopover();
         }
       })
-      .catch(() => close(field));
+      .catch(() => {
+        if (ticket === asked) {
+          close(field);
+        }
+      });
   }
 
   function mark(field, options, index) {
@@ -131,6 +153,11 @@
 
   function take(field, value) {
     const [start, end] = lineAt(field);
+    // the list was suggested for one line; if the caret or the text moved off it, change nothing
+    if (!target || target.start !== start || field.value.slice(start, end).trim() !== target.text) {
+      close(field);
+      return;
+    }
     field.setRangeText(value, start, end, "end");
     close(field);
     field.dispatchEvent(new Event("input", { bubbles: true })); // the dirty register
@@ -165,6 +192,17 @@
     } else if (event.key === "Escape") {
       event.preventDefault();
       close(field);
+    }
+  });
+
+  // the caret moving to another line (a click, Home/End stay on theirs) ends the offer
+  document.addEventListener("selectionchange", () => {
+    const field = document.activeElement;
+    if (target && field?.matches?.(SUGGEST) && lineAt(field)[0] !== target.start) {
+      // hide only: the request or timer already pending belongs to the line the caret moved to
+      target = undefined;
+      field.removeAttribute("aria-activedescendant");
+      listOf(field).hidePopover();
     }
   });
 
