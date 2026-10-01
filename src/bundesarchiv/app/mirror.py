@@ -24,12 +24,10 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import Ulid
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError
 from bundesarchiv.persistence.objectstore import ObjectEntry, ObjectStore
-from bundesarchiv.persistence.repository import StoredKey
+from bundesarchiv.persistence.repository import StoredKey, content_digest
 
 logger = logging.getLogger(__name__)
 
-#: How much of a file one read of a hash pass takes.
-_CHUNK = 1024 * 1024
 #: How many keys of one finding a reconcile warning names.
 _SAMPLE = 20
 
@@ -261,11 +259,8 @@ class _Push:
 
 def _digest(store: ObjectStore, key: str) -> str:
     """The SHA-256 of the bytes at `key`, read streamed."""
-    digest = hashlib.sha256()
     with store.open_stream(key) as stream:
-        while chunk := stream.read(_CHUNK):
-            digest.update(chunk)
-    return digest.hexdigest()
+        return content_digest(stream)[0]
 
 
 def _warn(finding: str, keys: tuple[str, ...]) -> None:

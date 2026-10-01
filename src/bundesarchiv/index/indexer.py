@@ -236,6 +236,11 @@ def _row_for(
         return _fail_closed_row(article, cap_year=cap_year), True
 
 
+def _bestand_lookup(store: ObjectStore) -> dict[Ulid, Collection]:
+    """Every saved Collection by ulid, the lookup ``resolve_chain`` takes."""
+    return {c.ulid: c for c in CollectionRepository(store).load_all()}
+
+
 def rebuild(store: ObjectStore) -> RebuildReport:
     """Wipe and rebuild the whole ``ArticleIndex`` from the files-canonical core in one
     transaction. Loads every Collection and Article through the repositories, resolves each
@@ -247,13 +252,12 @@ def rebuild(store: ObjectStore) -> RebuildReport:
     Holds the shared index-writer lock across the whole read and write (ADR 0014 v2), so every
     other index writer waits for it; searches still see the old rows until it commits.
     """
-    collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
     with transaction.atomic():
         _take_writer_lock()
-        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        lookup = _bestand_lookup(store)
         rows: list[dict[str, object]] = []
         failed: list[str] = []
         for ulid in articles.list_ulids():
@@ -278,7 +282,6 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
     shared index-writer lock before reading; ``lock_timeout_ms`` bounds that wait (the
     synchronous request path), and a timeout raises ``OperationalError`` with nothing written.
     """
-    collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
@@ -289,7 +292,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
         except NotFound:
             ArticleIndex.objects.filter(ulid=ulid).delete()  # gone from canonical -> drop the row
             return
-        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        lookup = _bestand_lookup(store)
         row, _failed = _row_for(article, lookup, cap_year=cap_year)
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
 
@@ -308,13 +311,12 @@ def index_subtree(
     Idempotent; takes the shared index-writer lock before reading; ``lock_timeout_ms`` bounds that
     wait as in ``index_article``.
     """
-    collections = CollectionRepository(store)
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
     with transaction.atomic():
         _take_writer_lock(lock_timeout_ms)
-        lookup: dict[Ulid, Collection] = {c.ulid: c for c in collections.load_all()}
+        lookup = _bestand_lookup(store)
         for ulid in articles.list_ulids():
             article = articles.load(ulid).article
             if _in_subtree(article, collection_ulid, lookup):

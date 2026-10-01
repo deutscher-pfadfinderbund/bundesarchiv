@@ -25,7 +25,7 @@ from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_ord
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
-__all__ = ["ArticleRepository", "Stored", "StoredKey", "cleaned_name"]
+__all__ = ["ArticleRepository", "Stored", "StoredKey", "cleaned_name", "content_digest"]
 
 
 @dataclass(frozen=True, slots=True)
