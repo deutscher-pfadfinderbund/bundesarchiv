@@ -939,3 +939,10 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **"Zuletzt hinzugefügt" stays hidden** until Articles exist that were added after the legacy import.
 - **Reference mock:** `docs/design/explorations/2026-09-26-monochrome/r4-system/start.html` (search with
   "Weiter bearbeiten" below it; Bestände · Nach Art · Zeitleiste; Highlights / Empfohlen not built).
+
+## Ruling of 2026-10-01 night (route access)
+
+- **Every route is archivist-only unless it says otherwise.** A route open to Members carries a
+  decorator (`@member`); a missing decorator fails closed. ADR 0018's "never a per-view decorator"
+  guards against a forgotten decorator opening a route; with a fail-closed default that risk is gone,
+  so opt-in decorators are fine.

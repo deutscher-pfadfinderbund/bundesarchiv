@@ -296,14 +296,14 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** no separate fix — #3 (EditSurface), #4 (CAS lift) and #7 (BestandChooser) each carve
   out a piece. Re-measure the line count after each.
 
-### 15. Archivist route gate spelled many ways — Speculative
+### 15. Archivist route gate spelled many ways — Strong
 - **Indicator:** 15 hand-written `request.method != …` re-checks in `app/web` (2026-10-01, worse; 8 on
   2026-09-02); 13 `isinstance(…, Archivist)` sites in 9 modules (A8: the policy rework's real cost)
-- **Evidence:** `_load_gated` omits method checking, so callers re-append it. Related: `viewer_of`
-  resolves up to 4× per request.
-- **Cost class:** tidiness, not safety — `test_leak_matrix._CONTRACT` exhaustiveness already makes a
-  forgotten gate loud.
-- **Sketch:** an `@archivist_route(method=…, needs_article=True)` decorator seam.
+- **Evidence:** each write route gates itself; a forgotten gate is open to every Member at runtime
+  (only the leak matrix catches it, in tests). Owner 2026-10-01: archivist-only is the default.
+- **Sketch:** a middleware after the anonymous gate makes every route archivist-only; a view opts
+  wider with `@member` (and names its methods, e.g. `@member(methods=("GET",))`), the pattern of
+  Django's `LoginRequiredMiddleware` + `@login_not_required`. A forgotten decorator fails closed.
 
 ### 16. Shallow wrappers that fail the deletion test — Speculative
 - **Indicator:** 3 pass-throughs (2026-10-01, worse; 2 on 2026-09-02, of which only `card._audience_label` is left)
