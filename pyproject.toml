@@ -26,15 +26,15 @@ build-backend = "uv_build"
 dev = [
     "pytest>=8",
     "pytest-django>=4.9",
-    "django-stubs[compatible-mypy]>=5.1",
-    "ruff>=0.6",
-    "mypy>=1.11",
+    "django-stubs>=6.1.1",
+    "ruff>=0.16.10",
+    "mypy>=2.4.0,<2.5",
     "pre-commit>=3.8",
     "wsgidav>=4.3.4",
     "cheroot>=11.1.2",
     "types-pyyaml>=6.0.12.20260518",
     "pytest-playwright>=0.5",
-    "pyrefly>=1.1.1",
+    "pyrefly>=1.3.2",
 ]
 
 # Editor LSP only; mypy is the gate.
