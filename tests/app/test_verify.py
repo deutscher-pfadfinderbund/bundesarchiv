@@ -40,7 +40,7 @@ def scans(archive: Archive) -> tuple[MediaRef, MediaRef]:
 
 def _findings(count: int = 1) -> str:
     out = io.StringIO()
-    with pytest.raises(CommandError, match=rf"^Befunde: {count}$"):
+    with pytest.raises(CommandError, match=rf"^Findings: {count}$"):
         call_command("verify", stdout=out)
     return out.getvalue()
 
@@ -52,13 +52,13 @@ def test_a_clean_tree_reports_clean(scans: tuple[MediaRef, MediaRef]) -> None:
     out = io.StringIO()
     call_command("verify", stdout=out)
     assert out.getvalue() == (
-        "Geprüft: 4 README-Versionen, 2 Mediendateien\n"
-        "Unlesbare README-Versionen: 0\n"
-        "Unlesbare Dateien: 0\n"
-        "Mediendateien mit abweichender Prüfsumme: 0\n"
-        "Verweise ohne Datei: 0\n"
-        "Dateien ohne Verweis: 0\n"
-        "Keine Befunde.\n"
+        "Checked: 4 README versions, 2 media files\n"
+        "Unreadable README versions: 0\n"
+        "Unreadable files: 0\n"
+        "Media files with a mismatched checksum: 0\n"
+        "References without a file: 0\n"
+        "Files without a reference: 0\n"
+        "No findings.\n"
     )
 
 
@@ -69,7 +69,7 @@ def test_a_flipped_byte_is_found(
     key = archive.articles.media_key(ARTICLE, scans[which])
     data = archive.store.read(key)
     archive.store.write_atomic(key, bytes([data[0] ^ 1]) + data[1:])
-    assert f"Mediendateien mit abweichender Prüfsumme: 1\n  {key}\n" in _findings()
+    assert f"Media files with a mismatched checksum: 1\n  {key}\n" in _findings()
 
 
 @pytest.mark.parametrize("which", [0, 1], ids=["named-now", "named-before"])
@@ -78,7 +78,7 @@ def test_a_missing_file_is_found(
 ) -> None:
     key = archive.articles.media_key(ARTICLE, scans[which])
     archive.store.delete(key)
-    assert f"Verweise ohne Datei: 1\n  {key}\n" in _findings()
+    assert f"References without a file: 1\n  {key}\n" in _findings()
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def test_an_unreferenced_file_is_found_and_left_alone(
 ) -> None:
     archive.store.write_atomic(key, b"Notiz")
     before = list(archive.store.list_entries())
-    assert f"Dateien ohne Verweis: 1\n  {key}\n" in _findings()
+    assert f"Files without a reference: 1\n  {key}\n" in _findings()
     assert list(archive.store.list_entries()) == before
 
 
@@ -111,7 +111,7 @@ def test_an_unreadable_readme_version_is_found(
     archive: Archive, scans: tuple[MediaRef, MediaRef], key: str, data: bytes
 ) -> None:
     archive.store.write_atomic(key, data)
-    assert f"Unlesbare README-Versionen: 1\n  {key}\n" in _findings()
+    assert f"Unreadable README versions: 1\n  {key}\n" in _findings()
 
 
 def test_an_unreadable_file_is_found_and_the_check_goes_on(
@@ -126,5 +126,5 @@ def test_an_unreadable_file_is_found_and_the_check_goes_on(
         out = _findings(2)
     finally:
         locked.chmod(0o600)  # so tmp_path cleanup can remove it
-    assert f"Unlesbare Dateien: 1\n  {key}\n" in out
-    assert f"Dateien ohne Verweis: 1\n  {stranger}\n" in out
+    assert f"Unreadable files: 1\n  {key}\n" in out
+    assert f"Files without a reference: 1\n  {stranger}\n" in out

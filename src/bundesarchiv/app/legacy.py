@@ -178,26 +178,26 @@ class Report:
         )
 
     def lines(self) -> tuple[str, ...]:
-        """The report as scannable lines (German — the archivist reads them)."""
+        """The report as scannable lines (English, like all console output)."""
         return (
-            f"Artikel: {self.items}",
-            f"davon ohne Datei: {self.without_media}",
-            "Bestände:",
+            f"Articles: {self.items}",
+            f"of which without a file: {self.without_media}",
+            "Collections:",
             *(f"  {name}: {count}" for name, count in self.per_bestand),
-            f"Dokumenttyp-Abweichungen (Freitext ≠ Nachschlagetabelle): {self.doctype_disagreements}",
-            f"Unlesbare Datumsangaben: {self.unparseable_date_count}",
+            f"Document type disagreements (free text vs lookup table): {self.doctype_disagreements}",
+            f"Unparseable dates: {self.unparseable_date_count}",
             *(f"  {legacy_id}: {raw}" for legacy_id, raw in self.unparseable_dates),
-            f"Unlesbare Angaben „Hinzugefügt am“: {self.unreadable_added_count}",
+            f"Unreadable added-at values: {self.unreadable_added_count}",
             *(f"  {legacy_id}: {raw}" for legacy_id, raw in self.unreadable_added),
-            f"Datum widerspricht den Spalten Monat/Tag: {self.date_conflicts}",
+            f"Date contradicts the month/day columns: {self.date_conflicts}",
             *(f"  {legacy_id}: {detail}" for legacy_id, detail in self.date_conflict_samples),
-            f"Medienarten außerhalb des Formular-Vokabulars: {len(self.unknown_media_types)}",
+            f"Media types outside the form vocabulary: {len(self.unknown_media_types)}",
             *(f"  {value}" for value in self.unknown_media_types),
-            f"Dokumenttypen außerhalb des Formular-Vokabulars: {len(self.unknown_document_types)}",
+            f"Document types outside the form vocabulary: {len(self.unknown_document_types)}",
             *(f"  {value}" for value in self.unknown_document_types),
-            f"Fehlende Dateien: {len(self.missing_blobs)}",
+            f"Missing files: {len(self.missing_blobs)}",
             *(f"  {path}" for path in self.missing_blobs[:MAX_SAMPLES]),
-            f"Dateinamen nur aus Punkten oder Leerzeichen: {len(self.unnamed_files)}",
+            f"File names of only dots or spaces: {len(self.unnamed_files)}",
             *(f"  {path}" for path in self.unnamed_files[:MAX_SAMPLES]),
         )
 

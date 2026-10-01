@@ -581,7 +581,7 @@ def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -
         archive = Archive.canonical()
 
         dry = _run(csv_dir, media_root, "--dry-run")
-        assert "Artikel: 3" in dry
+        assert "Articles: 3" in dry
         assert list(archive.articles.list_ulids()) == []  # a dry run writes NOTHING
         assert archive.collections.load_all() == ()
 
@@ -600,7 +600,7 @@ def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -
             assert stored.read() == b"%PDF-1.4 eins"
         assert ArticleIndex.objects.count() == 3  # the index sees them without a second command
 
-        with pytest.raises(CommandError, match="bereits"):
+        with pytest.raises(CommandError, match="already holds"):
             _run(csv_dir, media_root)
         assert len(list(archive.articles.list_ulids())) == 3  # the refusal changed nothing
 
@@ -624,8 +624,8 @@ def test_the_import_ends_with_the_fixity_check_of_what_it_wrote(tmp_path: Path) 
     _write_export(csv_dir, media_root)
     with _roots(tmp_path):
         out = _run(csv_dir, media_root)
-    assert "Geprüft: 5 README-Versionen, 2 Mediendateien\n" in out  # three Articles, two Bestände
-    assert out.endswith("Keine Befunde.\n")
+    assert "Checked: 5 README versions, 2 media files\n" in out  # three Articles, two Bestände
+    assert out.endswith("No findings.\n")
 
 
 @pytest.mark.django_db
@@ -644,7 +644,7 @@ def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
         )
     hash_ = image.media[0].content_hash
     assert thumbnail_path(tmp_path / "thumbnails", hash_).is_file()
-    assert "Vorschaubilder erzeugt: 1" in out  # the PDF is no image and stays a no-op
+    assert "Thumbnails generated: 1" in out  # the PDF is no image and stays a no-op
 
 
 @pytest.mark.django_db
@@ -668,7 +668,7 @@ def test_an_absent_media_root_stops_the_import_before_it_writes(tmp_path: Path) 
     csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
     _write_export(csv_dir, media_root)
     with _roots(tmp_path):
-        with pytest.raises(CommandError, match="Medienverzeichnis"):
+        with pytest.raises(CommandError, match="Media directory not found"):
             _run(csv_dir, tmp_path / "nicht-eingehängt")
         assert list(Archive.canonical().articles.list_ulids()) == []
 
@@ -680,7 +680,7 @@ def test_a_media_root_holding_none_of_the_exported_files_stops_the_import(tmp_pa
     empty = tmp_path / "leer"
     empty.mkdir()
     with _roots(tmp_path):
-        with pytest.raises(CommandError, match="falsche Medienpfad"):
+        with pytest.raises(CommandError, match="wrong media path"):
             _run(csv_dir, empty)
         assert list(Archive.canonical().articles.list_ulids()) == []
 
@@ -707,7 +707,7 @@ def test_a_missing_blob_is_reported_not_guessed(tmp_path: Path) -> None:
     with _roots(tmp_path):
         out = _run(csv_dir, media_root)
         archive = Archive.canonical()
-        assert "Fehlende Dateien: 1" in out
+        assert "Missing files: 1" in out
         titles = {
             article.title: article.media
             for u in archive.articles.list_ulids()
@@ -735,7 +735,7 @@ def test_a_name_that_cleans_to_nothing_is_reported_not_renamed(tmp_path: Path) -
         )
         stored = archive.articles.keys_for(article.ulid)
     for report in (dry, out):
-        assert "Dateinamen nur aus Punkten oder Leerzeichen: 1\n  eins.pdf\n" in report
+        assert "File names of only dots or spaces: 1\n  eins.pdf\n" in report
     assert article.media == ()
     assert [key for key in stored if "/media/" in key.key] == []
 
@@ -750,7 +750,7 @@ def test_an_export_with_an_unknown_column_is_refused_before_anything_is_written(
     items = csv_dir / "items.csv"
     items.write_text(items.read_text().replace("id,signature", "id,neue_spalte,signature", 1))
     with _roots(tmp_path):
-        with pytest.raises(CommandError, match="Spalten"):
+        with pytest.raises(CommandError, match="unexpected columns"):
             _run(csv_dir, media_root)
         assert list(Archive.canonical().articles.list_ulids()) == []
 

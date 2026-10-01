@@ -20,19 +20,19 @@ class Command(BaseCommand):
         for line in _lines(report):
             self.stdout.write(line)
         if report.findings:
-            raise CommandError(f"Befunde: {report.findings}")
-        self.stdout.write("Keine Befunde.")
+            raise CommandError(f"Findings: {report.findings}")
+        self.stdout.write("No findings.")
 
 
 def _lines(report: fixity.Report) -> Iterator[str]:
-    """The report as scannable lines (German, like the import's report it ends)."""
-    yield f"Geprüft: {report.readmes} README-Versionen, {report.media} Mediendateien"
+    """The report as scannable lines (English, like all console output)."""
+    yield f"Checked: {report.readmes} README versions, {report.media} media files"
     for label, keys in (
-        ("Unlesbare README-Versionen", report.unreadable_readmes),
-        ("Unlesbare Dateien", report.unreadable_files),
-        ("Mediendateien mit abweichender Prüfsumme", report.altered),
-        ("Verweise ohne Datei", report.missing),
-        ("Dateien ohne Verweis", report.unreferenced),
+        ("Unreadable README versions", report.unreadable_readmes),
+        ("Unreadable files", report.unreadable_files),
+        ("Media files with a mismatched checksum", report.altered),
+        ("References without a file", report.missing),
+        ("Files without a reference", report.unreferenced),
     ):
         yield f"{label}: {len(keys)}"
         yield from (f"  {key}" for key in keys)

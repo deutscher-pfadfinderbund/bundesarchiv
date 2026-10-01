@@ -170,7 +170,7 @@ def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path
 
     with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path)):
         Archive.canonical().store.write_atomic("articles/01WAISE/media/Scan.pdf", b"Scan")
-        with pytest.raises(CommandError, match="Befunde"):
+        with pytest.raises(CommandError, match="Findings"):
             tasks_mod.verify.func(timestamp=0)
 
 

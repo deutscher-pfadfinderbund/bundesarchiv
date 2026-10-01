@@ -64,9 +64,7 @@ class Command(BaseCommand):
         csv_dir: Path = options["csv_dir"]
         media_root: Path = options["media_root"]
         if not media_root.is_dir():
-            raise CommandError(
-                f"Medienverzeichnis nicht gefunden: {media_root} — Laufwerk nicht eingehängt?"
-            )
+            raise CommandError(f"Media directory not found: {media_root} — is the drive mounted?")
         archive = Archive.canonical()
 
         items = _read(csv_dir / "items.csv", legacy.ITEM_COLUMNS)
@@ -78,17 +76,17 @@ class Command(BaseCommand):
 
         if any(archive.articles.list_ulids()):
             raise CommandError(
-                "Der kanonische Speicher enthält bereits Artikel — der Legacy-Import läuft genau "
-                "einmal. Für einen erneuten Lauf einen leeren BUNDESARCHIV_CANONICAL_ROOT wählen."
+                "The canonical store already holds Articles — the legacy import runs exactly once. "
+                "For another run, choose an empty BUNDESARCHIV_CANONICAL_ROOT."
             )
 
         plan = legacy.plan(items, files, self._create_bestaende(archive, items))
         missing, thumbnail_count = self._write(archive, plan, media_root)
-        self.stdout.write(f"Vorschaubilder erzeugt: {thumbnail_count}")
-        self.stdout.write("Index wird neu aufgebaut …")
+        self.stdout.write(f"Thumbnails generated: {thumbnail_count}")
+        self.stdout.write("Rebuilding the index …")
         indexer.rebuild(archive.store)
         self._report(plan, items, media_root, missing=missing)
-        self.stdout.write("Archiv wird geprüft …")
+        self.stdout.write("Checking the archive …")
         call_command("verify", stdout=self.stdout)
 
     # --- the writes ---------------------------------------------------------------
@@ -104,7 +102,7 @@ class Command(BaseCommand):
         """
         scan = archive.collections.scan()
         if scan.unreadable:
-            raise CommandError(f"Bestand nicht lesbar: {', '.join(scan.unreadable)}")
+            raise CommandError(f"Bestand unreadable: {', '.join(scan.unreadable)}")
         existing = {c.name: c.ulid for c in scan.readable}
         for name in legacy.bestand_names(items):
             if name in existing:
@@ -200,12 +198,12 @@ def _read(path: Path, columns: tuple[str, ...]) -> list[dict[str, str]]:
     recover from — the source is deleted afterwards.
     """
     if not path.is_file():
-        raise CommandError(f"Export fehlt: {path}")
+        raise CommandError(f"Export missing: {path}")
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         if tuple(reader.fieldnames or ()) != columns:
             raise CommandError(
-                f"{path.name}: unerwartete Spalten.\n  erwartet: {columns}\n  gelesen:  "
+                f"{path.name}: unexpected columns.\n  expected: {columns}\n  read:     "
                 f"{tuple(reader.fieldnames or ())}"
             )
         return list(reader)
@@ -222,8 +220,8 @@ def _refuse_a_media_root_without_the_files(
     """
     if files and not any((media_root / row["path"]).is_file() for row in files):
         raise CommandError(
-            f"Keine einzige der {len(files)} exportierten Dateien liegt unter {media_root} — "
-            "vermutlich der falsche Medienpfad."
+            f"Not one of the {len(files)} exported files is under {media_root} — "
+            "probably the wrong media path."
         )
 
 
