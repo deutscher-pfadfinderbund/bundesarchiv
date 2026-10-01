@@ -69,6 +69,8 @@ sits inside the razor as loss-critical, not as codec-mechanics.
 - `index/` — viewer-scoped search: the leak suites (`test_leaks*.py`), the
   SQL-vs-domain equivalence proof (`test_equivalence.py`), indexer/incremental
   correctness. Leak-critical; the index itself is disposable.
+  A new index module builds its own corpus through `fixtures.indexed_corpus`
+  (module-scoped): `indexer.rebuild` wipes the whole table.
 - `app/` — the service layer (staleness gates, canonical-write-survives-index-
   failure), the push to the system of record (push order, never an unchanged file
   twice, the add-only reconcile), worker jobs.
