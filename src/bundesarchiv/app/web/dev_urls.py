@@ -17,6 +17,9 @@ from django.views.decorators.csp import csp_override
 from bundesarchiv.app.web.components_demo import component_library
 from bundesarchiv.app.web.dev import favicon, switch_viewer
 from bundesarchiv.app.web.layouts_demo import layout_demo
+from bundesarchiv.app.web.media_views import page_not_found
+
+handler404 = page_not_found
 
 # The two demo pages carry their own <style> and style="" attributes; every other dev page keeps the
 # production policy, so the browser suites catch an inline style there.

@@ -4,8 +4,9 @@ The single definition of what a deny looks like over HTTP, so every per-route te
 same contract and there is ONE edit point if it ever changes (e.g. when a styled access-denied
 page ships). Relaxed from the byte-identical-404 law (owner ruling 2026-08, see
 docs/requirements/owner-interview-2026-08.md): the byte-for-byte shape comparison is gone;
-what remains is that a deny is a 404 whose body reveals nothing — production emits the shared
-empty ``_not_found()``, so an empty body is a true invariant, not a snapshot.
+what remains is that a deny is a 404 whose body reveals nothing — production emits the one
+constant ``404.html`` page from ``not_found()``, rendered once, so the body is the same for every
+reason and every viewer.
 """
 
 import re
@@ -15,6 +16,7 @@ from typing import Protocol
 from urllib.parse import parse_qs, urlsplit
 
 from django.template.base import Template
+from django.template.loader import render_to_string
 
 
 class _Response(Protocol):
@@ -32,10 +34,12 @@ class _Rendered(_Response, Protocol):
 
 
 def assert_denied(response: _Response, ctx: str = "") -> None:
-    """A deny/absence response: status 404 and an empty body (nothing revealed)."""
+    """A deny/absence response: status 404 and exactly the one constant 404 page (nothing revealed)."""
     label = f" [{ctx}]" if ctx else ""
     assert response.status_code == 404, f"expected a 404 deny{label}, got {response.status_code}"
-    assert response.content == b"", f"a deny must not reveal content{label}"
+    assert response.content == render_to_string("404.html").encode(), (
+        f"a deny must be the one constant 404 page{label}"
+    )
 
 
 def assert_login_target(url: str, next_path: str, ctx: str = "") -> None:

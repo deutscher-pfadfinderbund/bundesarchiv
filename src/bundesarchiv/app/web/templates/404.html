@@ -1,0 +1,14 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+The 404 page, for every reason a path answers nothing: unmatched, missing, malformed, denied,
+soft-deleted. Rendered once with no request (media_views.not_found), so it holds nothing from the
+request or the archive and cannot tell the reasons apart.
+{% endcomment %}
+{% block title %}Nicht gefunden{% endblock %}
+{% block body %}
+<main id="inhalt" class="column narrow">
+  <h1>Nicht gefunden</h1>
+  <p>Diese Seite gibt es nicht oder ist nicht freigegeben.</p>
+  <p><a href="{% url 'workbench' %}">Zum Archiv</a></p>
+</main>
+{% endblock %}

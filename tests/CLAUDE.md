@@ -45,7 +45,7 @@ does a filter on it, `|default` included. A value that is optional by design use
 ## The deny contract
 
 A deny/absence/malformed-param on a prod route is `assert_denied` from
-`tests/app/web/_asserts.py` (status 404 + empty body), plus a
+`tests/app/web/_asserts.py` (status 404 + the one constant `404.html` page), plus a
 nothing-was-written assert on write routes. Every new prod route needs a
 `_CONTRACT` entry in `tests/app/web/test_leak_matrix.py` — the exhaustiveness
 gate fails otherwise.

@@ -163,9 +163,9 @@ against its own mocks.
 Every deny / absence / malformed-param / disallowed-method on a prod route is a
 plain 404 that reveals and changes nothing. (The old byte-identical-404 law was
 relaxed by the owner, 2026-08 — see `docs/requirements/owner-interview-2026-08.md`;
-the shared empty `_not_found()` remains the implementation convention, but tests
-no longer compare response bytes.) In tests, a deny is
-`tests/app/web/_asserts.assert_denied` (status 404 + empty body) plus a
+the shared `not_found()` — one constant German page, rendered once — is the
+implementation convention.) In tests, a deny is
+`tests/app/web/_asserts.assert_denied` (status 404 + the one constant `404.html` page) plus a
 nothing-was-written assert on write routes. Any new route must earn a leak-matrix
 entry (`tests/app/web/test_leak_matrix.py` — the exhaustiveness assertion fails
 otherwise), and unauthorized content must stay filtered out of search results,

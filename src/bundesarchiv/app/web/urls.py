@@ -29,7 +29,9 @@ from bundesarchiv.app.web.catalog_views import (
     upload_gate,
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
-from bundesarchiv.app.web.media_views import serve_media, serve_thumbnail
+from bundesarchiv.app.web.media_views import page_not_found, serve_media, serve_thumbnail
+
+handler404 = page_not_found
 
 #: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
 #: the hash shape itself, mapping any malformed value to the SAME plain 404 — a route-level

@@ -141,6 +141,11 @@ def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.set_content(render_to_string("500.html"), wait_until="networkidle")
 
 
+def _reach_not_found(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    # a path nothing answers: the same page every deny gets
+    page.goto(f"{base}/gibt-es-nicht", wait_until="networkidle")
+
+
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.click(".record-meta .menu-button")
@@ -388,6 +393,9 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_csrf_refused,
     ),
     GalleryState("server-error", "the server error page (500)", True, _reach_server_error),
+    GalleryState(
+        "not-found", "the 404 page, shared by every deny and unmatched path", True, _reach_not_found
+    ),
 )
 
 #: The canonical states, in a stable order (the gallery is a design contract: same states, same

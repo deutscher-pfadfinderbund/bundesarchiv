@@ -10,7 +10,7 @@ names — the suite fakes them in place (the web subtree's boundary-stub pattern
 in this module runs for real.
 
 Fail-closed, in the shape the rest of the surface uses: a missing signing key, an unreachable realm,
-a callback nobody's ``/login`` started, a token exchange that failed — all the shared empty 404. Two
+a callback nobody's ``/login`` started, a token exchange that failed — all the shared 404. Two
 deliberate exceptions, both because the alternative is worse than the deny: ``/logout`` always clears
 the local cookies (refusing to sign somebody OUT is not a safe failure), and a callback whose VERIFIED
 transient carries another state restarts the login instead of stranding a stale tab on a blank page.

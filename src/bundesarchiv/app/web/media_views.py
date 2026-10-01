@@ -19,11 +19,14 @@ Denial semantics (BINDING, plan §4.3):
   hash on the WRONG article → 404).
 
 This is a bytes-or-404 endpoint: it NEVER calls the domain ``project()`` and never emits Article
-fields. Nothing but blob bytes (or an empty 404) leaves.
+fields. Nothing but blob bytes (or the constant 404 page) leaves.
 """
+
+from functools import cache
 
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
+from django.template.loader import render_to_string
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import media
@@ -62,16 +65,27 @@ def _is_valid_hash(value: str) -> bool:
     return len(value) == _HASH_LENGTH and all(ch in _HEX_DIGITS for ch in value)
 
 
+@cache
+def _not_found_page() -> bytes:
+    """The one 404 page, rendered once without a request: no viewer, path, query or CSRF token can
+    reach it, so every reason and every viewer gets the same bytes."""
+    return render_to_string("404.html").encode()
+
+
 def not_found() -> HttpResponse:
     """THE single 404 every denial/absence path returns — one shape by construction.
 
-    One constant shape: status 404, an empty body, and NO Content-Type/Content-Length divergence
-    (Django would otherwise stamp a default ``text/html`` Content-Type; we pin an empty content_type
-    so the header set is constant regardless of which reason produced the 404). A caller can learn
-    NOTHING from a 404 — not whether the article exists, the blob exists, the viewer lacks
-    permission, or a param was malformed. That indistinguishability is the existence-hiding invariant
-    (plan §4.3: same body, same headers, constant shape)."""
-    return HttpResponse(b"", status=404, content_type="")
+    Status 404 and one constant German page (``404.html``), rendered once with no request context.
+    A caller can learn NOTHING from a 404 — not whether the article exists, the blob exists, the
+    viewer lacks permission, or a param was malformed: the body and header set are the same for
+    every reason (plan §4.3). Django's own 404 for an unmatched path answers through here too
+    (``page_not_found`` in ``urls.py``)."""
+    return HttpResponse(_not_found_page(), status=404)
+
+
+def page_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
+    """Django's ``handler404``: an unmatched path answers the same page as a deny."""
+    return not_found()
 
 
 def _authorize(
