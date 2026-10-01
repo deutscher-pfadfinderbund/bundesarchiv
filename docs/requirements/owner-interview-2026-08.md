@@ -910,3 +910,15 @@ missing records; "N von M gespeichert"; the error pages' wording.
   Bestand filter shows the name of any Bestand named in the address (`/?bestand=<ulid>`), and an
   unknown ulid shows the raw ulid. Revisit with group access and the access-policy rework: the
   policy names Bestand trees but sets no rule for who may read their names (`docs/tech-debt.md` #30).
+
+## Rulings of 2026-10-01 (cleanup review)
+
+- **An undecodable README is archivist-only, flagged for review.** The index keeps a row only
+  Archivists see, and the record is reported for review. A forensic view comes much later.
+- **An Archivist sees an Article whose Bestand chain is broken**, on the list and the detail page, so
+  it can be repaired.
+- **Medienart and Dokumenttyp become free text** that archivists can extend (rework in progress).
+- **Semi-public access to single Articles via a special link** comes later; the Public viewer is kept
+  for it.
+- **Cleanups land now**, before the demo: a clean code base is an efficient one. The start page comes
+  soon.
