@@ -73,6 +73,11 @@
   .platte .blank {
     --blank-ratio: 4 / 1; /* a file, not a picture: a band, not the square a photo fills */
   }
+  /* The mount is for a photo; the blank draws its own edge (owner 2026-10-01). */
+  .platte:has(.blank) {
+    padding: 0;
+    border: 0;
+  }
   .platte figcaption,
   .filmstrip figcaption {
     display: flex;
