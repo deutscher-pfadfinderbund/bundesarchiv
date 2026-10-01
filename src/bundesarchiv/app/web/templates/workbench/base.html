@@ -27,10 +27,10 @@ carries the CSRF header of every htmx request (absent on the error page, which h
 target is a BLOCK because the workbench's landmark is the htmx swap target #results and cannot
 take a second id; every other screen leaves the default.{% endcomment %}
 <a class="button skip" href="#{% block skip_ziel %}inhalt{% endblock %}">Zum Inhalt springen</a>
-<header>
+{% block band %}<header>
   <a class="wordmark" href="{% url 'workbench' %}" data-list-link>Bundesarchiv</a>
   {% block header %}{% endblock %}
-</header>
+</header>{% endblock %}
 {% block body %}{% endblock %}
 <div class="error-banner" role="alert" aria-live="assertive" hidden>
   <p>Aktion fehlgeschlagen. Bitte erneut versuchen.</p>

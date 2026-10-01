@@ -1,11 +1,13 @@
 {% extends "workbench/base.html" %}
 {% comment %}
 The door (ADR 0018): what the anonymous gate answers on every path. It reads nothing from the archive;
-its one variable is the login target carrying the requested path.
+its one variable is the login target carrying the requested path. No band: the wordmark is the page
+(owner 2026-10-01).
 {% endcomment %}
+{% block band %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column narrow">
-  <h1>Das Archiv des Deutschen Pfadfinderbundes — Zugang für Mitglieder.</h1>
-  <p><a class="button primary" href="{{ anmelden }}">Anmelden mit DPB Login</a></p>
+<main id="inhalt" class="door">
+  <h1 class="wordmark">Bundesarchiv</h1>
+  <a class="button primary" href="{{ anmelden }}">Anmelden mit DPB Login</a>
 </main>
 {% endblock %}

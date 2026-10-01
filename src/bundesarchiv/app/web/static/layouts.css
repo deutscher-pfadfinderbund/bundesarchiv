@@ -415,6 +415,20 @@
   .column.wide {
     --column-width: 72rem;
   }
+  /* The door: the wordmark large and the button below it, centred on the screen (owner 2026-10-01). */
+  .door {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-6);
+    min-block-size: 100dvh;
+    padding: var(--space-4);
+  }
+  .door .wordmark {
+    margin: 0;
+    font-size: clamp(2.75rem, 9vw, 5.25rem); /* the door only: the X3 mock's 44–84px wordmark */
+    letter-spacing: 0.1em;
+  }
   .column h1 {
     margin: 0 0 var(--space-5);
     font: var(--type-display);

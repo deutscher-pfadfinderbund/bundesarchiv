@@ -901,3 +901,5 @@ missing records; "N von M gespeichert"; the error pages' wording.
   a thumbnail exists.
 - **The door as built is enough for now;** it later gets the X3 mock's look (the large wordmark in the
   page, the sentence in secondary ink), which needs its own door component.
+- **The door's look, settled (owner, 2026-10-01 evening):** simple — the large wordmark centred on the
+  screen, the button below it. No sentence, no header band.
