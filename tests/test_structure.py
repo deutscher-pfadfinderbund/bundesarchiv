@@ -107,7 +107,7 @@ def _duplicate_groups() -> set[tuple[str, ...]]:
     return {tuple(sorted(names)) for names in groups.values() if len(names) > 1}
 
 
-def _assert_matches(found: set, allowed: set, what: str) -> None:
+def _assert_matches[T: (str, tuple[str, ...])](found: set[T], allowed: set[T], what: str) -> None:
     assert not found - allowed, f"new {what}: {sorted(found - allowed)}"
     assert not allowed - found, (
         f"allow-list entries that no longer occur: {sorted(allowed - found)}"
