@@ -26,8 +26,6 @@ def _hit(**overrides: Any) -> SearchHit:
         "media_type": "Schrifttum",
         "document_type": "Lagerheft",
         "is_draft": False,
-        "tier": "PUBLIC",
-        "groups": (),
         "collection_id": _BESTAND,
         "file_counts": ((FileKind.PDF, 1),),
     }

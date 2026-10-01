@@ -29,7 +29,6 @@ Runs against the shared corpus (``tests/index/fixtures.py``), indexed ONCE per m
 from collections.abc import Iterator
 
 import pytest
-from tests._articles import make_article
 from tests.index import fixtures
 from tests.index.fixtures import (
     ARCHIVIST,
@@ -38,7 +37,6 @@ from tests.index.fixtures import (
     VORSTAND_MEMBER,
 )
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Member, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder, search
@@ -424,9 +422,8 @@ def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> No
 
 
 # ===========================================================================
-# SearchHit scope data (is_draft / tier / groups) — archivist chrome, no cross-tier leak.
-# These fields ride on returned hits so the ledger can render SICHTBARKEIT + ENTWURF; the guarantee
-# is that _viewer_scope already restricts WHICH rows come back, so the data on them is never a leak.
+# SearchHit is_draft — the archivist's Entwurf mark, no cross-tier leak: _viewer_scope already
+# restricts WHICH rows come back, so the mark on them is never a leak.
 # ===========================================================================
 
 
@@ -456,71 +453,14 @@ def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
     assert by_ulid["ART_ORPHAN"].is_draft is False
 
 
-@pytest.mark.django_db
-def test_group_names_on_a_members_hits_are_only_groups_they_hold(corpus: None) -> None:
-    """The cross-tier leak the reviewer will probe: a GROUPS row's ``groups`` may ride out ONLY to a
-    viewer who holds one of them (that's why _viewer_scope returned the row). The vorstand member
-    sees ART_GRPPROT/ART_GRPBESCH carrying ('vorstand', ...) — groups they hold; a plain member and
-    a wrong-group member receive NO GROUPS row at all, so no group name can ride to them."""
-    vorstand_hits = {h.ulid: h for h in _hits(VORSTAND_MEMBER)}
-    assert "vorstand" in vorstand_hits["ART_GRPPROT"].groups  # a group the viewer holds
-    # Every GROUPS-tier hit this member gets overlaps the groups they hold — never a foreign name.
-    held = {"vorstand"}
-    for hit in vorstand_hits.values():
-        if hit.tier == "GROUPS":
-            assert held & set(hit.groups), (
-                f"{hit.ulid}: group names the viewer does not hold rode out"
-            )
-    # Plain + wrong-group members: no GROUPS row reaches them, so groups never carry a foreign name.
-    for label, viewer in (
-        ("member()", PLAIN_MEMBER),
-        ("member(wrong)", Member(("nicht-vorstand",))),
-    ):
-        for hit in _hits(viewer):
-            assert hit.tier != "GROUPS", f"[{label}] a GROUPS row leaked to a non-holder"
-
-
-@pytest.mark.django_db
-def test_a_member_never_learns_another_groups_name(corpus: None) -> None:
-    """A member of one group gets a row shared by two groups, but never the other group's name."""
-    fixtures.index_beside_corpus(
-        Collection(ulid="ZWEI", name="Zwei Gruppen", parent_id=None),
-        make_article(
-            "ART_ZWEI",
-            title="Geteilt",
-            collection_id="ZWEI",
-            audience=Audience(AudienceTier.GROUPS, ("gruppe-a", "gruppe-b")),
-        ),
-    )
-    held = ("gruppe-a",)
-    hit = next(h for h in _hits(Member(held)) if h.ulid == "ART_ZWEI")
-    assert set(hit.groups) <= set(held)
-    archivist_hit = next(h for h in _hits(ARCHIVIST) if h.ulid == "ART_ZWEI")
-    assert set(archivist_hit.groups) == {"gruppe-a", "gruppe-b"}
-
-
-@pytest.mark.django_db
-def test_public_hits_carry_only_public_tier_no_groups(corpus: None) -> None:
-    """Public only ever gets PUBLIC-tier, non-draft, groupless hits — the scope data is trivially
-    leak-free for the public tier."""
-    for hit in _hits(PUBLIC):
-        assert hit.tier == "PUBLIC"
-        assert hit.groups == ()
-        assert hit.is_draft is False
-
-
 # ===========================================================================
 # SearchHit field floor — a static assert the result type cannot carry a floored field.
 # ===========================================================================
 
 
 def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
-    """Static floor: ``SearchHit.__dataclass_fields__`` is EXACTLY the member-visible identity/
-    metadata columns PLUS the archivist-chrome scope data (is_draft/tier/groups) — and NEVER a
-    floored field. DELIBERATELY extended (4.6 render path): is_draft/tier/groups were added so the
-    ledger's SICHTBARKEIT column + ENTWURF badge render from structured data; they carry no
-    cross-tier leak by construction (see SearchHit docstring) and the template gates them to the
-    archivist. The floored fields below stay OUT — this is a conscious widening, not a relaxation."""
+    """Static floor: ``SearchHit`` carries the member-visible identity/metadata columns plus
+    ``is_draft``, and never a floored field."""
     field_names = set(SearchHit.__dataclass_fields__)
     assert field_names == {
         "ulid",
@@ -530,8 +470,6 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "media_type",
         "document_type",
         "is_draft",
-        "tier",
-        "groups",
         "collection_id",
         "file_counts",
         "deleted_at",  # only archivist_only rows carry the mark (test_leaks_papierkorb.py)

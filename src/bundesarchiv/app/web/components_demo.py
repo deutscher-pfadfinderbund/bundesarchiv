@@ -44,8 +44,6 @@ _LEDGER_HITS = tuple(
         media_type=None,
         document_type=typ or None,
         is_draft=draft,
-        tier="PUBLIC",
-        groups=(),
         collection_id="",
         file_counts=files,
     )

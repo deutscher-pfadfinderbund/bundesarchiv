@@ -118,17 +118,11 @@ class SearchFilters:
 @dataclass(frozen=True, slots=True)
 class SearchHit:
     """One result row, floor-safe by construction: the member-visible identity + metadata columns
-    plus the STRUCTURED scope data the archivist ledger chrome renders (SICHTBARKEIT column +
-    ENTWURF badge). No ``physical_location`` / ``custom`` / ``archivist_text`` (the floored fields)
-    ever appear here.
+    plus ``is_draft`` for the archivist's Entwurf mark. No ``physical_location`` / ``custom`` /
+    ``archivist_text`` (the floored fields) ever appear here.
 
-    ``is_draft`` / ``tier`` / ``groups`` carry NO cross-tier leak: ``_viewer_scope`` restricts the
-    returned rows to those the viewer may see, and ``groups`` is cut to the groups the viewer holds
-    (all of them for the Archivist; public/members rows carry ``groups=()``), so a member never
-    learns another group's name; ``is_draft`` rows (archivist_only) are never returned to a
-    non-archivist at all. The human-German SICHTBARKEIT string is rendered in the view/template from
-    this structured data, and the TEMPLATE additionally gates it to the archivist — this dataclass
-    only carries the facts, it never decides visibility."""
+    ``is_draft`` carries no cross-tier leak: ``_viewer_scope`` restricts the returned rows to those
+    the viewer may see, and draft rows (archivist_only) never reach a non-archivist."""
 
     ulid: str
     title: str
@@ -137,8 +131,6 @@ class SearchHit:
     media_type: str | None
     document_type: str | None
     is_draft: bool
-    tier: str | None  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff an archivist-only row
-    groups: tuple[str, ...]
     collection_id: Ulid  # the Bestand the Article sits in; names no Bestand on a fail-closed row
     # (kind, count) in FileKind order, zero kinds left out; () = no files.
     file_counts: tuple[tuple[FileKind, int], ...]
@@ -175,8 +167,7 @@ class SearchPage:
 
 # The columns ``SearchHit`` reads, pulled with ``.values(...)`` so no model instance is built or
 # leaked. Exactly the SearchHit fields — the floor is enforced by this projection being narrow: the
-# floored columns (physical_location/custom/archivist_text) are simply never named here. is_draft/
-# tier/groups are archivist-chrome scope data (see SearchHit) — safe on scoped rows by construction.
+# floored columns (physical_location/custom/archivist_text) are simply never named here.
 _HIT_COLUMNS = (
     "ulid",
     "title",
@@ -185,8 +176,6 @@ _HIT_COLUMNS = (
     "media_type",
     "document_type",
     "is_draft",
-    "tier",
-    "groups",
     "collection_id",
     "file_counts",
     "deleted_at",
@@ -474,7 +463,7 @@ def _page_of_hits(
     """Order ``qs``, slice the page window, and project to floor-safe ``SearchHit``s.
 
     Uses ``.values(*_HIT_COLUMNS)`` so no model instance is built — only the member-visible
-    columns (+ the archivist-chrome scope data) leave the ORM, and they map 1:1 onto ``SearchHit``.
+    columns leave the ORM, and they map 1:1 onto ``SearchHit``.
     """
     ordered = _ordered(
         qs, query=query, signatur=signatur, viewer=viewer, sort=sort, descending=descending
@@ -482,31 +471,14 @@ def _page_of_hits(
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
-    # ``groups`` is cut to what this viewer may learn; every other column but ``file_counts`` maps 1:1.
     return tuple(
-        SearchHit(
-            **{
-                **row,
-                "groups": _visible_groups(viewer, row["groups"]),
-                "file_counts": _in_kind_order(row["file_counts"]),
-            }
-        )
-        for row in rows
+        SearchHit(**{**row, "file_counts": _in_kind_order(row["file_counts"])}) for row in rows
     )
 
 
 def _in_kind_order(counts: Mapping[str, int]) -> tuple[tuple[FileKind, int], ...]:
     """The stored ``file_counts`` as a hit carries them: (kind, count) in ``FileKind`` order."""
     return tuple((kind, counts[kind]) for kind in FileKind if kind in counts)
-
-
-def _visible_groups(viewer: Viewer, groups: list[str]) -> tuple[str, ...]:
-    """The row's group names this viewer may learn: all of them for the Archivist, otherwise only
-    the groups the viewer holds (a row shared by two groups must not name the other one)."""
-    if isinstance(viewer, Archivist):
-        return tuple(groups)
-    held = viewer.groups if isinstance(viewer, Member) else ()
-    return tuple(g for g in groups if g in held)
 
 
 def _ordered(
