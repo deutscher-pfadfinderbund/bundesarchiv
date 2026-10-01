@@ -2,8 +2,8 @@
 
 The media routes gate BYTES; this gates an ARTICLE view. Same discipline, same 404: validate the
 ulid, load the Article from the canonical store, resolve its Collection chain, and ``visible``-project
-it — returning the projection ONLY if every check passes, else ``None`` (the caller returns the media
-route's shared empty ``not_found``). A forbidden article is indistinguishable from a missing one
+it — returning the projection ONLY if every check passes, else ``None`` (the caller answers with
+the shared ``not_found()``). A forbidden article is indistinguishable from a missing one
 (existence-hiding, plan §4.3), so a result link a viewer can't follow leaks nothing.
 
 ``resolve_visible_detail`` is the ONE pipeline (one load → resolve → ``visible``-project +

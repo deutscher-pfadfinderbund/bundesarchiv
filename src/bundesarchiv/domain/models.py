@@ -3,7 +3,7 @@
 Value objects self-validate their construction invariants here (e.g. `Audience` enforces
 the groups-iff-GROUPS rule in `__post_init__`); the *resolution* logic over these shapes —
 effective-audience and Collection-tree resolution — lives in `audience.py` / `collections.py`,
-and field floors land with the `can_view` layer (Part 2, later steps). Terms follow CONTEXT.md
+and the field floors in `access.py`. Terms follow CONTEXT.md
 (English code, German UI labels live in the glossary).
 """
 
@@ -100,7 +100,7 @@ class MediaRef:
 
 @dataclass(frozen=True, slots=True)
 class Collection:
-    """The single owning, nestable division an Article belongs to (*Sammlung*).
+    """The single owning, nestable division an Article belongs to (*Bestand*).
     Collections form a single-parent tree; the root has `parent_id is None`."""
 
     ulid: Ulid

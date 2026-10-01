@@ -1,9 +1,8 @@
 """Production ROOT_URLCONF (Part 4.3) — the prod-minimal HTTP surface.
 
-Production settings set ``ROOT_URLCONF = "bundesarchiv.app.web.urls"`` and mount ONLY the media
-routes needed to serve authorized bytes. Everything else stays prod-minimal (ADR 0004/0005: Django
-is an adapter, not a web framework here). ``settings_dev`` composes this module (prod media routes)
-WITH the dev viewer switcher (see ``dev_urls``), so dev gets both.
+Production settings set ``ROOT_URLCONF = "bundesarchiv.app.web.urls"``: the app's whole HTTP
+surface. ``settings_dev`` composes this module WITH the dev viewer switcher (see ``dev_urls``), so
+dev gets both.
 
 The public URL namespace never encodes filesystem paths (plan §4.3): media is addressed by
 ``/media/<article-ulid>/<content-hash>`` and the store-relative blob path is derived inside the seam.

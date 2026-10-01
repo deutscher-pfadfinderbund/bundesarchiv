@@ -2,7 +2,7 @@
 symmetrically, into a SQL predicate. This module is security-critical: it is the ONLY code
 that may translate the domain's Audience/Viewer types into the flat ``ArticleIndex`` scope
 columns and the ``Q`` filter over them. No tier comparison lives anywhere else in the index
-adapter (Task 8's ``search`` imports ``_viewer_scope``; it does not re-derive one).
+adapter (``query.search`` imports ``_viewer_scope``; it does not re-derive one).
 
 The two halves are deliberately adjacent and mirror each other:
 
@@ -13,7 +13,7 @@ The two halves are deliberately adjacent and mirror each other:
 
 They are a materialized restatement of ``domain.access.can_view``, not an independent
 reimplementation (ADR 0012): the READ side must stay row-equivalent to running ``can_view``
-per Article, which Task 9's ``test_equivalence.py`` pins by comparison. Both ``match`` blocks
+per Article, which ``tests/index/test_equivalence.py`` pins by comparison. Both ``match`` blocks
 close over their unions with ``assert_never``, so adding a member to ``EffectiveAudience`` /
 ``Viewer`` or a rung to ``AudienceTier`` becomes a type error rather than a silent fail-open —
 the same closed-set discipline the domain resolver uses.
@@ -60,7 +60,7 @@ def _viewer_scope(viewer: Viewer) -> Q:
     """READ side of the seam: the ``Q`` selecting exactly the rows ``viewer`` may see.
 
     Row-equivalent mirror of ``_scope_columns`` above and of ``domain.access.can_view``
-    (comparison pinned by Task 9's ``test_equivalence.py``) — the ONLY place a Viewer meets
+    (comparison pinned by ``tests/index/test_equivalence.py``) — the ONLY place a Viewer meets
     SQL. The tier strings here are the ``AudienceTier.name`` values ``_scope_columns`` writes.
 
     - ``Archivist``: an empty ``Q`` — sees everything, including fail-closed archivist-only rows.

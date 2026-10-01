@@ -35,7 +35,7 @@ _Avoid_: context (template context), session (DB session), store (the persistenc
 ### People & audience
 
 **Archivist** (*Archivar:in*):
-A member of the designated Keycloak group who catalogs and publishes. (Later: reviews Submissions, too.)
+A person holding the archive's Keycloak realm role (`Bundesarchiv`), who catalogs and publishes. (Later: reviews Submissions, too.)
 _Avoid_: Archivar (in code), curator, admin.
 
 **Member** (*Mitglied*):
@@ -43,7 +43,7 @@ Any authenticated DPB member (identity via Keycloak). In v1, reads/browses/searc
 _Avoid_: user.
 
 **Public** (*Öffentlich*):
-**Link-accessible**, not the open internet: a visitor holding a capability link, with no login prompt. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner ruling 2026-08, `docs/requirements/owner-interview-2026-08.md`). The `PUBLIC` code identifier keeps its name for now.
+**Link-accessible**, not the open internet: later, a visitor holding a special link to one Article, with no login prompt (semi-public access, owner 2026-10-01). Today a Public viewer never passes the door: an anonymous request gets the sign-in page. Anonymous internet browsing does not exist — no public listing, browse, or search, ever (owner ruling 2026-08, `docs/requirements/owner-interview-2026-08.md`). The `PUBLIC` code identifier keeps its name for now.
 
 **Viewer** (code term, no single UI label):
 *Who is asking* — the union of Archivist, Member, and Public. The value object the access model takes (with the asker's Group names) to decide what they may see; data only, never reads Keycloak itself.
