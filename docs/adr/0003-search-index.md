@@ -13,7 +13,7 @@ Every query is scoped by the one **effective-audience function**, and is additio
 
 **Update 2026-08-30 — "disposable" means the index, not the database.** Every
 citation of this ADR ("the index is disposable") is about the derived
-search-index tables, which `full_rebuild` recreates from the files at any time.
+search-index tables, which `manage.py rebuild_index` recreates from the files at any time.
 The Postgres *instance* around them is not disposable: it also holds admin data
 — worker jobs today, an audit trail or capability tokens later — which nothing
 can rebuild from the files. Only the archive files (media + Markdown) must

@@ -109,10 +109,10 @@ rebuild the index:
 ```sh
 sudo rsync -a /path/to/import/ /home/admin/bundesarchiv/canonical/
 sudo chown -R 1000:1000 /home/admin/bundesarchiv/canonical
-docker exec bundesarchiv-worker-1 python manage.py procrastinate defer full_rebuild
+docker exec bundesarchiv-worker-1 python manage.py rebuild_index
 ```
 
-The hourly reconcile would find it too; the defer just does not wait.
+The hourly reconcile would find it too; this just does not wait.
 `ensure_index_current` is NOT the command for this — it only reacts to a
 changed FTS config version, and an empty index is not stale.
 
@@ -236,7 +236,7 @@ Members and Archivists alike.
 ## Search index (Postgres)
 
 The index is **derived and disposable** — canonical truth is the files store
-(`BUNDESARCHIV_CANONICAL_ROOT`); `full_rebuild` recreates the index from it at any
+(`BUNDESARCHIV_CANONICAL_ROOT`); `manage.py rebuild_index` recreates the index from it at any
 time. The **database is not** the index: it also holds the worker's job tables,
 and later admin data nothing can rebuild from the files (ADR 0003, update
 2026-08-30). Rebuild the index; drop the database only in an emergency.

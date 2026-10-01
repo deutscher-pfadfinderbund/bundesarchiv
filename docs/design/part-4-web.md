@@ -61,7 +61,7 @@ amend/confirm ADR 0004; discard both prototypes.
 - Synchronous in-request index updates on every canonical write path; failure
   → enqueue + a SPECIFIC UI warning ("Sichtbarkeitsänderung noch nicht
   wirksam"), never fail the canonical write.
-- Scheduled reconcile `full_rebuild()` (**hourly** default — bounds the
+- Scheduled reconcile job `reconcile` (**hourly** default — bounds the
   crash-window over-exposure honestly) + `config_version` comparison at
   deploy/startup (comparison code is new; only the column exists).
 - Job-table retention/prune knob in the runbook.

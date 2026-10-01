@@ -1,7 +1,7 @@
 """Worker jobs — the Postgres-backed background queue (Procrastinate, ADR 0014, Part 4.2).
 
-Every job is a REFERENCE, never a payload: it carries only a ulid (or nothing, for the full
-rebuild), and its execution re-reads canonical truth from the configured store and recomputes
+Every job is a REFERENCE, never a payload: it carries only a ulid (or the periodic tick, for a
+scheduled job), and its execution re-reads canonical truth from the configured store and recomputes
 (ADR 0014 §"Queue jobs are references"). So two racing edits enqueue two pointers and whichever
 runs last recomputes the same final truth — jobs are idempotent and commute. The queue exists for:
 retry after a failed synchronous index update (the app services enqueue here), heavier future work
@@ -11,7 +11,7 @@ The tasks are thin wrappers over ``indexer.index_article`` / ``index_subtree`` /
 security logic lives there, not here. Procrastinate auto-discovers this module (it is named
 ``tasks`` inside an installed app), so ``@app.task`` registration happens on Django startup.
 
-Scheduled reconcile: ``full_rebuild`` is registered periodic on the ``BUNDESARCHIV_RECONCILE_CRON``
+Scheduled reconcile: ``reconcile`` is registered periodic on the ``BUNDESARCHIV_RECONCILE_CRON``
 schedule (hourly default) — a periodic full rebuild bounds every missed incremental update (ADR
 0014 §"Scheduled reconcile"). config_version drift is handled at worker startup by the
 ``ensure_index_current`` management command (see docs/adr/0014).
@@ -92,13 +92,6 @@ def reindex_article(ulid: str) -> None:
 def reindex_subtree(collection_ulid: str) -> None:
     """Reference job: reindex the subtree rooted at ``collection_ulid`` from current canonical."""
     indexer.index_subtree(canonical_store(), collection_ulid)
-
-
-@app.task(name="full_rebuild")
-def full_rebuild() -> None:
-    """Reference job: full index rebuild from canonical — the scheduled reconcile net (ADR 0014).
-    Also the config_version-drift remedy invoked by ``ensure_index_current``."""
-    indexer.rebuild(canonical_store())
 
 
 @app.task(name="generate_thumbnail")

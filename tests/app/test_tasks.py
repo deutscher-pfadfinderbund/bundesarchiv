@@ -85,14 +85,14 @@ def test_reindex_article_job_recomputes_from_current_canonical(
 
 
 @pytest.mark.django_db
-def test_full_rebuild_job_rebuilds_everything(
+def test_the_reconcile_job_rebuilds_everything(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
     monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
-    tasks_mod.full_rebuild.func()
+    tasks_mod.reconcile.func(timestamp=0)
     assert ArticleIndex.objects.filter(ulid="01FOTO").exists()
 
 
