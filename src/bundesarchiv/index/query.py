@@ -31,8 +31,8 @@ from enum import StrEnum
 from typing import Any, Literal, assert_never
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVectorField
-from django.db.models import Count, F, Func, Q, QuerySet
-from django.db.models.functions import Collate
+from django.db.models import Case, Count, F, Func, IntegerField, Q, QuerySet, TextField, Value, When
+from django.db.models.functions import Collate, Lower
 
 from bundesarchiv.domain.models import Ulid
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -221,13 +221,17 @@ def search(
     base = ArticleIndex.objects.filter(
         _viewer_scope(viewer), deleted_at__isnull=not filters.deleted
     )
-    matched = _apply_text(base, query, viewer)
+    signatur = _signatur_hit(text)
+    if signatur is not None:
+        base = base.annotate(_signatur_key=_SIGNATUR_KEY)
+    matched = _apply_text(base, query, viewer, signatur)
     filtered = _apply_filters(matched, filters)
 
     total = filtered.count()
     hits = _page_of_hits(
         filtered,
         query=query,
+        signatur=signatur,
         viewer=viewer,
         sort=sort,
         descending=descending,
@@ -327,13 +331,35 @@ def _matched_vector(viewer: Viewer) -> F | Func:
 
 
 def _apply_text(
-    qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer
+    qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, signatur: Q | None
 ) -> QuerySet[ArticleIndex]:
-    """Restrict ``qs`` to rows whose matched vector matches ``query``. A ``None`` query is a
-    browse — the queryset is returned unchanged (all in-scope rows)."""
+    """Restrict ``qs`` to rows whose matched vector matches ``query``, or whose Signatur equals the
+    text (``signatur``). A ``None`` query is a browse — the queryset is returned unchanged."""
     if query is None:
         return qs
-    return qs.annotate(_vector=_matched_vector(viewer)).filter(_vector=query)
+    hit = Q(_vector=query) | signatur if signatur else Q(_vector=query)
+    return qs.annotate(_vector=_matched_vector(viewer)).filter(hit)
+
+
+# ``ref_code`` with case and whitespace removed: "BA 10", "ba10" and "BA10" share one key. A
+# sequential scan over the scoped rows; an expression index only pays at far more than the corpus.
+_SIGNATUR_KEY = Lower(
+    Func(
+        F("ref_code"),
+        Value(r"\s+"),
+        Value(""),
+        Value("g"),
+        function="regexp_replace",
+        output_field=TextField(),
+    )
+)
+
+
+def _signatur_hit(text: str | None) -> Q | None:
+    """The predicate "this row's Signatur is what the user typed", or ``None`` for a blank text.
+    The row side needs the ``_signatur_key`` annotation (see ``_SIGNATUR_KEY``)."""
+    key = "".join((text or "").split()).lower()
+    return Q(_signatur_key=key) if key else None
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +438,7 @@ def _page_of_hits(
     qs: QuerySet[ArticleIndex],
     *,
     query: SearchQuery | None,
+    signatur: Q | None,
     viewer: Viewer,
     sort: SortOrder,
     descending: bool,
@@ -423,7 +450,9 @@ def _page_of_hits(
     Uses ``.values(*_HIT_COLUMNS)`` so no model instance is built — only the member-visible
     columns (+ the archivist-chrome scope data) leave the ORM, and they map 1:1 onto ``SearchHit``.
     """
-    ordered = _ordered(qs, query=query, viewer=viewer, sort=sort, descending=descending)
+    ordered = _ordered(
+        qs, query=query, signatur=signatur, viewer=viewer, sort=sort, descending=descending
+    )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
     rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
@@ -458,6 +487,7 @@ def _ordered(
     qs: QuerySet[ArticleIndex],
     *,
     query: SearchQuery | None,
+    signatur: Q | None,
     viewer: Viewer,
     sort: SortOrder,
     descending: bool = False,
@@ -475,13 +505,15 @@ def _ordered(
     """
     match sort:
         case "relevance":
-            if query is None:
+            if query is None or signatur is None:
                 return qs.order_by("ulid")  # browse: deterministic, no rank to sort by
             # rank desc, over the viewer's matched vector (combined for an Archivist, general_tsv
             # otherwise — same expression the @@ match used), ``ulid`` breaking ties.
-            return qs.annotate(_rank=SearchRank(_matched_vector(viewer), query)).order_by(
-                "-_rank", "ulid"
-            )
+            # An exact Signatur hit outranks every text rank.
+            exact = Case(When(signatur, then=1), default=0, output_field=IntegerField())
+            return qs.annotate(
+                _exact=exact, _rank=SearchRank(_matched_vector(viewer), query)
+            ).order_by("-_exact", "-_rank", "ulid")
         case "ref_code":
             rc = Collate("ref_code", _DE_NUMERIC)
             primary = (
