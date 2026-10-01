@@ -55,13 +55,14 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Sketch:** promote the deny helper to a public web-level name; each other name goes public on its
   module or moves to its one importer.
 
-### 49. The fixity check reads the repositories' private layout — in progress (Wave CLEAN)
+### 49. The fixity check reads the repositories' private layout — done
 - **Indicator:** 5 private imports, all in `persistence/fixity.py` (2026-10-01, stable; the count of #11)
 - **Evidence:** `_folder` and `_ulid_of_readme` from both repositories, and `repository._digest` —
   the key layout and the hash the check re-reads (ADR 0019 "Fixity"). Accreted. P2 adds: the
   repositories repeat the key scheme byte-identically (`repository.py:222-244`, `collections.py:103-113`).
 - **Sketch:** a named internal layout module beside `_writer` (record folders, README keys, the
   media digest) that both repositories and `fixity` import.
+- **Done 2026-10-01:** `persistence/_layout.py` owns record folders, README keys and the media digest; both repositories and `fixity` import it (Wave CLEAN).
 
 ### 34. Field labels are declared twice, "Typ" derived three ways — Worth exploring
 - **Indicator:** 6 labels in both `card.FIELDS` and `bulk.FIELDS`, a third time in `bulk.apply_field` (2026-10-01, W6)
@@ -181,7 +182,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 9. CollectionTree — deepen the resolver's input — Worth exploring
 - **Indicator:** `resolve_chain` called at 5 sites in 4 modules (2026-10-01, better; 6 on 2026-09-01);
-  2 private `_collections` copies (`article_auth.py:87`, `media_views.py:152`): in progress (Wave CLEAN)
+  the 2 web `_collections` copies now go through `BestandChooser.chain_of` (Wave CLEAN, 2026-10-01);
+  `index/indexer.py:256,292,317` still build the lookup 3×
 - **Evidence:** `article_auth`, `media_views`, `index/indexer` (the web forms now resolve through
   `bestand.by_ulid`). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
   is copied. `media_views` re-reads every Collection README per byte-range.
@@ -248,24 +250,26 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `anonymous_gate.py:48`, `browse_views.py:113,115`, `catalog_views.py:127,710`, `collection_views.py:77,169`, `viewers.py:257`. Bite: `2675e6c`, `33a9d6a` (history restore missed twice).
 - **Sketch:** one `request_kind(request)`.
 
-### 45. The two README codecs are drifted copies — in progress (Wave CLEAN)
+### 45. The two README codecs are drifted copies — Strong
 - **Indicator:** 6 parallel definitions in `readme.py` and `collection_readme.py` (2026-10-01, A6/P2)
 - **Evidence:** `readme.py:31-153,225-238` vs `collection_readme.py:31-112`. `groups: vorstand` decodes to `('v','o','r',…)` in a Collection, raises in an Article. Bite: `db66d49` fixed one copy; `96e44cf`, `d6c8b22`.
+- **Indicator 2026-10-01 (after Wave CLEAN):** the group decoder is shared (scalar `groups` refused in both); `_MARKER`, `_FENCE`, `_parse_front_matter`, `_version_of` still twice.
 - **Sketch:** one front-matter module both import.
 
-### 46. `SearchHit.tier` and `.groups` have no reader — in progress (Wave CLEAN)
+### 46. `SearchHit.tier` and `.groups` have no reader — done (Wave CLEAN, 2026-10-01)
 - **Indicator:** 0 readers in `src/`, 25 test pins (2026-10-01, A3)
 - **Evidence:** `query.py:121,131,179,477`. The `91900b3` leak sat in this unread field.
 - **Deletion test:** delete both fields and the pins; nothing changes.
 
-### 47. Dead code: `tasks.full_rebuild` and `identity.slugify` — in progress (Wave CLEAN)
+### 47. Dead code: `tasks.full_rebuild` and `identity.slugify` — done (Wave CLEAN, 2026-10-01)
 - **Indicator:** 2 symbols with no caller in `src/` (2026-10-01, P7); `slugify` has only its own test
 - **Evidence:** `tasks.py:14,97-101,116` (two false docstring claims; job `reconcile` collides with `mirror.reconcile`).
 - **Deletion test:** both go, with their tests and map rows.
 
-### 48. `changed_by` is spelled several ways — in progress (Wave CLEAN)
+### 48. `changed_by` is spelled several ways — Worth exploring
 - **Indicator:** 3 spellings: `hard_delete_article` takes none, `catalog_views.py:663` passes an unused `_by`, `mark_deleted(by=)` vs `save(changed_by=)` (2026-10-01)
 - **Evidence:** `articles.py:203`, `repository.py:68`; app law says every write names its author.
+- **Indicator 2026-10-01 (after Wave CLEAN):** 1 left, the unused `_by` at `catalog_views.py:663`; `mark_deleted` takes `changed_by`; app law now says every write that writes a version names its author.
 - **Sketch:** one keyword, `changed_by`, on every write.
 
 ### 19. Compositions style inside components — done
@@ -293,8 +297,8 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 16. Shallow wrappers that fail the deletion test — Speculative
 - **Indicator:** 3 pass-throughs (2026-10-01, worse; 2 on 2026-09-02, of which only `card._audience_label` is left)
-- **Evidence:** `card._audience_label`, `app/reindex.py` (3 lines, 1 caller), `article_auth.resolve_visible_article`
-  (2 lines, 1 caller; the last in progress, Wave CLEAN).
+- **Evidence:** `card._audience_label`, `app/reindex.py` (3 lines, 1 caller). `article_auth.resolve_visible_article`
+  inlined (Wave CLEAN, 2026-10-01): 2 left.
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
