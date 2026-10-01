@@ -14,7 +14,10 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 - **Style lints as tests** (color sweeps, import-direction AST police) — that is
   linter/type-checker territory. ONE deliberate exception by owner ruling
   (design-review-law section E): `app/web/test_design_lint.py` enforces the
-  law's lintable subset over the prod stylesheets.
+  law's lintable subset over the prod stylesheets. A second exception: a structure gate
+  is allowed when its failure names a finding class with bite evidence in
+  `docs/tech-debt.md` or the review ledger; `tests/test_structure.py` and the
+  module-map gate are the instances.
 - **Performance micro-pins** (load-count spies) — they pin implementation, not
   behavior. Not one: a wire pin that states an ADR's contract (the push order ADR 0020
   prescribes, `[PUT history, PUT README]`) is behaviour, even though it also fixes the count.
