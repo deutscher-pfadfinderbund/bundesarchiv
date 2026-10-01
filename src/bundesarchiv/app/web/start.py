@@ -187,8 +187,8 @@ _ZEITLEISTE = Area("start/_zeitleiste.html", zeitleiste)
 #: Built, in no tuple yet: the owner rules whether it shows (one name added to a role's tuple).
 _ZULETZT = Area("start/_zuletzt.html", zuletzt_hinzugefuegt)
 
-ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE)
-MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE)
+ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)
+MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)
 
 
 def start(request: HttpRequest) -> HttpResponse:

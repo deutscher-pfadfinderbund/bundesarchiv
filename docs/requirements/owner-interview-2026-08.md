@@ -938,7 +938,8 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **Ways back (2026-10-02):** the wordmark leads to the start page; the "Archiv" crumb keeps leading to the list
   as it was left (LISTNAV) — "Archiv" is the list's name. No extra back link.
 - **Bestände on the start page:** the top level with counts; sub-Bestände through the list's Bestand filter.
-- **"Zuletzt hinzugefügt" stays hidden** until Articles exist that were added after the legacy import.
+- **"Zuletzt hinzugefügt" shows** (amended 2026-10-02: `added_at` holds the real legacy dates added, so the
+  earlier "hidden until new additions" rested on a wrong premise).
 - **Reference mock:** `docs/design/explorations/2026-09-26-monochrome/r4-system/start.html` (search with
   "Weiter bearbeiten" below it; Bestände · Nach Art · Zeitleiste; Highlights / Empfohlen not built).
 - **"Weiter bearbeiten" lists all drafts, newest first** (for now; "only mine" would need `changed_by` in the
