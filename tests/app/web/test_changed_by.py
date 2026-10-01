@@ -46,14 +46,14 @@ def _with_two_media(corpus: Corpus) -> tuple[str, str]:
 
 
 def _create(client: Client, corpus: Corpus) -> Change | None:
-    response = client.post("/artikel/neu", {"title": "Neu", "collection_id": PUB})
+    response = client.post("/articles/new", {"title": "Neu", "collection_id": PUB})
     return corpus.articles.load(_ulid_in(response["Location"])).change
 
 
 def _edit(client: Client, corpus: Corpus) -> Change | None:
     stored = corpus.articles.load(DRAFT_ULID)
     client.post(
-        f"/artikel/{DRAFT_ULID}/bearbeiten",
+        f"/articles/{DRAFT_ULID}/edit",
         {
             **dict.fromkeys(_EDIT_FIELDS, ""),
             "title": "Umbenannt",
@@ -66,37 +66,37 @@ def _edit(client: Client, corpus: Corpus) -> Change | None:
 
 
 def _copy(client: Client, corpus: Corpus) -> Change | None:
-    response = client.post(f"/artikel/{PUBLISHED_ULID}/kopieren")
+    response = client.post(f"/articles/{PUBLISHED_ULID}/copy")
     return corpus.articles.load(_ulid_in(response["Location"])).change
 
 
 def _publish(client: Client, corpus: Corpus) -> Change | None:
     version = corpus.articles.load(DRAFT_ULID).version
-    client.post(f"/artikel/{DRAFT_ULID}/veroeffentlichen", {"expected_version": str(version)})
+    client.post(f"/articles/{DRAFT_ULID}/publish", {"expected_version": str(version)})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _upload(client: Client, corpus: Corpus) -> Change | None:
     upload = SimpleUploadedFile("scan.pdf", b"%PDF-1.4", content_type="application/pdf")
-    client.post(f"/artikel/{DRAFT_ULID}/medien/hochladen", {"dateien": upload})
+    client.post(f"/articles/{DRAFT_ULID}/media/upload", {"dateien": upload})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _reorder(client: Client, corpus: Corpus) -> Change | None:
     first, _ = _with_two_media(corpus)
-    client.post(f"/artikel/{DRAFT_ULID}/medien/verschieben", {"hash": first, "richtung": "runter"})
+    client.post(f"/articles/{DRAFT_ULID}/media/move", {"hash": first, "richtung": "runter"})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _remove(client: Client, corpus: Corpus) -> Change | None:
     first, _ = _with_two_media(corpus)
-    client.post(f"/artikel/{DRAFT_ULID}/medien/entfernen", {"entfernen": first, "bestaetigt": "1"})
+    client.post(f"/articles/{DRAFT_ULID}/media/remove", {"entfernen": first, "bestaetigt": "1"})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _bulk(client: Client, corpus: Corpus) -> Change | None:
     client.post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [DRAFT_ULID], "feld": "creator", "wert_text": "Kurt", "bestaetigt": "1"},
     )
     return corpus.articles.load(DRAFT_ULID).change
@@ -104,19 +104,21 @@ def _bulk(client: Client, corpus: Corpus) -> Change | None:
 
 def _delete(client: Client, corpus: Corpus) -> Change | None:
     version = corpus.articles.load(DRAFT_ULID).version
-    client.post(f"/artikel/{DRAFT_ULID}/loeschen", {"expected_version": str(version)})
+    client.post(f"/articles/{DRAFT_ULID}/delete", {"expected_version": str(version)})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _restore(client: Client, corpus: Corpus) -> Change | None:
     stored = corpus.articles.load(DRAFT_ULID)
     version = corpus.articles.mark_deleted(stored.article, stored.version, by="tester")
-    client.post(f"/artikel/{DRAFT_ULID}/restore", {"expected_version": str(version)})
+    client.post(f"/articles/{DRAFT_ULID}/restore", {"expected_version": str(version)})
     return corpus.articles.load(DRAFT_ULID).change
 
 
 def _create_bestand(client: Client, corpus: Corpus) -> Change | None:
-    response = client.post("/bestand/neu", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""})
+    response = client.post(
+        "/collections/new", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""}
+    )
     [ulid] = parse_qs(urlparse(response["Location"]).query)["bestand"]
     return corpus.collections.load(ulid).change
 
@@ -124,7 +126,7 @@ def _create_bestand(client: Client, corpus: Corpus) -> Change | None:
 def _rename_bestand(client: Client, corpus: Corpus) -> Change | None:
     stored = corpus.collections.load(PUB)
     client.post(
-        f"/bestand/{PUB}/bearbeiten", {"name": "Umbenannt", "expected_version": str(stored.version)}
+        f"/collections/{PUB}/edit", {"name": "Umbenannt", "expected_version": str(stored.version)}
     )
     return corpus.collections.load(PUB).change
 

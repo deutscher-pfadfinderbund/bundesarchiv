@@ -134,7 +134,7 @@ def test_search_works_from_a_screen_without_the_results_region(
     # htmx:targetError, so with JS ON the search box did nothing at all (G.32). The enhancement now
     # lives on the region it swaps, so the form is plain HTML everywhere.
     page = archivist_page
-    article = f"/artikel/{e2e_corpus.published_ulid}"
+    article = f"/articles/{e2e_corpus.published_ulid}"
     for path, submit in (
         (article, "click"),
         (article, "enter"),  # and by implicit submission rather than a click
@@ -160,8 +160,8 @@ def test_search_works_from_a_screen_without_the_results_region(
         expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     # the forms carry no search at all: it invites leaving a form with unsaved edits
     for form_url in (
-        live_workbench + "/artikel/neu",
-        live_workbench + "/bestand/neu",
+        live_workbench + "/articles/new",
+        live_workbench + "/collections/new",
         _create_draft(page, live_workbench, "E2E Formular ohne Suche"),
     ):
         page.goto(form_url)
@@ -502,7 +502,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     panels = [n for n in filtered if n.startswith("ul#") and len(filtered[n]) >= 2]
     assert len(panels) >= 2, f"the walker measured no panel entries: {sorted(filtered)}"
 
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}/bearbeiten")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.published_ulid}/edit")
     edit = _walk_control_rows(page)
     row = next(n for n in edit if "record-meta-actions" in n)
     # Speichern and "Mehr …"
@@ -706,7 +706,7 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
     for entry, panel in (("Neuer Artikel …", "#neu-artikel"), ("Neuer Bestand …", "#neu-bestand")):
-        page.goto(live_workbench + f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten")
+        page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
         page.click("header .menu-button")
         page.get_by_role("button", name=entry).click(timeout=5000)
         expect(page.locator(panel)).to_be_visible()
@@ -721,11 +721,11 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
     # not to <body> or wherever the focus was: the entry that opened it is hidden. The menu opens
     # without focusing its button, as a click in Safari does.
     page = archivist_page
-    edit = f"/artikel/{e2e_corpus.draft_ulid}/bearbeiten"
+    edit = f"/articles/{e2e_corpus.draft_ulid}/edit"
     for path, menu, entry, panel in (
         (edit, "#neu-menu", "Neuer Artikel …", "#neu-artikel"),
         (edit, "#mehr-menu", "Löschen …", "#loeschen"),
-        (f"/artikel/{e2e_corpus.published_ulid}", "#aktionen-menu", "Löschen …", "#loeschen"),
+        (f"/articles/{e2e_corpus.published_ulid}", "#aktionen-menu", "Löschen …", "#loeschen"),
     ):
         page.goto(live_workbench + path)
         page.locator(menu).evaluate("menu => menu.showPopover()")
@@ -776,16 +776,16 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     page.locator("#plus-filter").get_by_role("link", name="mit Fotos").click()
     page.wait_for_url("**file=image**")
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
-    page.wait_for_url("**/artikel/**")
+    page.wait_for_url("**/articles/**")
     page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url("**file=image**")
     assert "jahrzehnt=1960" in page.url
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
     page.get_by_role("link", name="Bearbeiten", exact=True).click()
-    page.wait_for_url("**/bearbeiten**")
+    page.wait_for_url("**/edit**")
     page.fill('input[name="ref_code"]', "WEG-1")
     page.click('button:has-text("Speichern")')
-    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url("**file=image**")
     assert "jahrzehnt=1960" in page.url
@@ -1021,7 +1021,7 @@ def test_an_anonymous_visitor_signs_in_through_the_door(
     reach_door(public_page, live_workbench, e2e_corpus)
     public_page.get_by_role("link", name="Anmelden mit DPB Login").click()
     public_page.wait_for_url("**/login?**")
-    assert_login_target(public_page.url, f"/artikel/{e2e_corpus.published_ulid}")
+    assert_login_target(public_page.url, f"/articles/{e2e_corpus.published_ulid}")
 
 
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
@@ -1046,7 +1046,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
     page.goto(live_workbench + "/")
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
-    page.wait_for_url("**/artikel/**")
+    page.wait_for_url("**/articles/**")
     # the reading structure: title, the origin line (Signatur, date), the cover Platte
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
@@ -1077,12 +1077,12 @@ def test_create_bestand_then_file_an_article_under_it(
     panel = page.locator("#neu-bestand")
     panel.locator('input[name="name"]').fill("Plakate")
     panel.get_by_role("button", name="Anlegen").click()
-    page.wait_for_url("**/artikel/neu?**")  # HX-Redirect to the create-article form, not the list
+    page.wait_for_url("**/articles/new?**")  # HX-Redirect to the create-article form, not the list
     expect(page.get_by_text("Bestand „Plakate“ angelegt.")).to_be_visible()  # success hinweis
     expect(page.locator('main select[name="collection_id"]')).to_contain_text("Plakate")
     page.fill('textarea[name="title"]', "Ein Plakat")  # the new Bestand is already pre-selected
     page.click('main button:has-text("Anlegen")')
-    page.wait_for_url("**/bearbeiten**")
+    page.wait_for_url("**/edit**")
     # now the Bestand has an article, so it appears in the search sentence's Bestand slot menu
     page.goto(live_workbench + "/")
     page.locator(".search-sentence-slots .menu-button").first.click()
@@ -1095,11 +1095,11 @@ def test_create_bestand_then_file_an_article_under_it(
 def _create_draft(page: Page, base: str, title: str) -> str:
     """Drive the create step (Titel + Bestand → Anlegen) then set the required Medienart on the edit
     form, so the draft is saveable/publishable. Returns the new draft's edit-form URL."""
-    page.goto(base + "/artikel/neu")
+    page.goto(base + "/articles/new")
     page.fill('textarea[name="title"]', title)
     page.select_option('main select[name="collection_id"]', "FOTOS")
     page.click('main button:has-text("Anlegen")')
-    page.wait_for_url("**/bearbeiten**")
+    page.wait_for_url("**/edit**")
     # Medienart is required to save/publish (spec §3) — set it so downstream steps aren't blocked.
     page.select_option('select[name="media_type"]', "Foto(s)")
     return page.url
@@ -1107,7 +1107,7 @@ def _create_draft(page: Page, base: str, title: str) -> str:
 
 def test_create_draft_lands_on_edit_form(archivist_page: Page, live_workbench: str) -> None:
     edit_url = _create_draft(archivist_page, live_workbench, "E2E Neuer Entwurf")
-    assert "/bearbeiten" in edit_url
+    assert "/edit" in edit_url
     # the edit form is seeded with the new title, its Status a draft
     expect(archivist_page.locator('textarea[name="title"]')).to_have_value("E2E Neuer Entwurf")
     expect(archivist_page.locator('select[name="lifecycle"]')).to_have_value("draft")
@@ -1129,7 +1129,7 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     page.click('input[name="ref_code"]')
     page.keyboard.press("Enter")
     # save 302s to the read view
-    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     expect(page.get_by_text("E2E-1")).to_be_visible()  # Enter saved the form...
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
 
@@ -1153,7 +1153,7 @@ def test_failed_save_banner_leaves_speichern_clickable(
         else:
             route.fallback()
 
-    page.route("**/bearbeiten", fail_saves)
+    page.route("**/edit", fail_saves)
     page.click('button:has-text("Speichern")')  # htmx:error → the banner reveals
     expect(page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")).to_be_visible()
     # Scrolled to the very bottom — the harshest position for a viewport-bottom banner — the margin
@@ -1201,13 +1201,13 @@ def test_a_denied_save_swaps_nothing_and_a_later_success_hides_the_banner(
         else:
             route.fallback()
 
-    page.route("**/bearbeiten", deny_saves)
+    page.route("**/edit", deny_saves)
     page.click('button:has-text("Speichern")')
     banner = page.get_by_text("Aktion fehlgeschlagen. Bitte erneut versuchen.")
     expect(banner).to_be_visible()
     expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ungespeichert")
     # a later success hides it: a validation re-render is a 200 that stays on the page
-    page.unroute("**/bearbeiten")
+    page.unroute("**/edit")
     page.fill('textarea[name="title"]', "")
     page.click('button:has-text("Speichern")')
     expect(page.locator(".form-sheet .error").first).to_be_visible()
@@ -1259,7 +1259,7 @@ def test_cas_conflict_second_saver_sees_panel(
     # archivist 1 saves first (wins)
     archivist_page.fill('input[name="creator"]', "Erster")
     archivist_page.click('button:has-text("Speichern")')
-    archivist_page.wait_for_url(lambda url: "/bearbeiten" not in url)
+    archivist_page.wait_for_url(lambda url: "/edit" not in url)
 
     # archivist 2 saves the now-stale form → the conflict panel appears inline, values preserved
     page2.fill('input[name="creator"]', "Zweiter")
@@ -1279,10 +1279,10 @@ def test_kopieren_creates_draft_copy_signatur_focused(
     page = archivist_page
     # from the published article's page, Duplizieren (in Bearbeiten's menu) → a fresh draft's edit
     # form, Signatur focused
-    page.goto(live_workbench + f"/artikel/{e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"/articles/{e2e_corpus.published_ulid}")
     page.get_by_label("Weitere Aktionen").click()
     page.click('button:has-text("Duplizieren")')
-    page.wait_for_url("**/bearbeiten**")
+    page.wait_for_url("**/edit**")
     # the copy cleared the Signatur (ref_code) and the field is focused (spec §5)
     expect(page.locator('input[name="ref_code"]')).to_have_value("")
     expect(page.locator('input[name="ref_code"]')).to_be_focused()
@@ -1296,8 +1296,8 @@ def test_kopieren_creates_draft_copy_signatur_focused(
 def _delete_new_draft(page: Page, base: str, title: str) -> None:
     """A new draft, put in the Papierkorb from its article page's "Löschen …"."""
     _create_draft(page, base, title)
-    ulid = page.url.split("/artikel/")[1].split("/")[0]
-    page.goto(base + f"/artikel/{ulid}")
+    ulid = page.url.split("/articles/")[1].split("/")[0]
+    page.goto(base + f"/articles/{ulid}")
     page.get_by_label("Weitere Aktionen").click()
     page.click('[popovertarget="loeschen"]')
     panel = page.locator("#loeschen")
@@ -1315,7 +1315,7 @@ def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
     expect(page.locator("main")).not_to_contain_text(title)
     page.locator("main [role=toolbar]").get_by_role("link", name="Papierkorb").click()
     page.get_by_role("button", name=f"Wiederherstellen: {title}").click()
-    page.wait_for_url("**/artikel/*")
+    page.wait_for_url("**/articles/*")
     page.goto(live_workbench + "/")
     expect(page.locator("main").get_by_role("link", name=title, exact=True)).to_be_visible()
 
@@ -1347,7 +1347,7 @@ def test_publish_from_the_article_page_confirms_first(
     # Jetzt veröffentlichen publishes and lands on the published page.
     _create_draft(page, live_workbench, "E2E Vom Artikel veröffentlicht")
     page.click('button:has-text("Speichern")')
-    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     panel = page.locator("#veroeffentlichen")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
@@ -1378,7 +1378,7 @@ def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: 
     page.select_option('select[name="lifecycle"]', "published")
     page.click('button:has-text("Speichern")')
     # straight to the read view, published — no panel, no checkbox, no second step
-    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)
     expect(page.get_by_text("E2E-42")).to_be_visible()  # the unsaved Signatur survived
     expect(page.get_by_text("Privatbesitz Meyer")).to_be_visible()  # ...and the custom row
@@ -1710,7 +1710,7 @@ def test_the_edit_form_absorbs_long_content(
     # push the page body sideways. Walked at the narrow widths where the form is one column and at the
     # wide one where the margin sits beside it.
     _seed_long_content(_e2e_root, django_db_blocker)
-    url = live_workbench + f"/artikel/{_LONG_ULID}/bearbeiten"
+    url = live_workbench + f"/articles/{_LONG_ULID}/edit"
     # 360 is in the range because a grid's column floor bites there: a bare minmax(floor, 1fr) track
     # cannot shrink below its floor (G.24) and scrolls the page body. The walk itself is the shared one
     # (the ledger proof drives it too, with its own extra probes).
@@ -1752,15 +1752,15 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     # The whole create→edit→save flow must work with JavaScript OFF: plain server-rendered forms,
     # no HTMX swap, no PE enhancements. This pins the baseline promise the other journeys (JS on)
     # take for granted. Create step → edit form (server 302, not an hx-swap).
-    page.goto(live_workbench + "/artikel/neu")
+    page.goto(live_workbench + "/articles/new")
     page.fill('textarea[name="title"]', "E2E Ohne JS")
     page.select_option('main select[name="collection_id"]', "FOTOS")
     page.click('main button:has-text("Anlegen")')
-    page.wait_for_url("**/bearbeiten**")
+    page.wait_for_url("**/edit**")
     expect(page.locator('textarea[name="title"]')).to_have_value("E2E Ohne JS")
     # save: a plain form POST that 302s to the read view (no JS in the loop at all)
     page.select_option('select[name="media_type"]', "Foto(s)")
     page.fill('input[name="creator"]', "K. Meyer")
     page.click('button:has-text("Speichern")')
-    page.wait_for_url(lambda url: "/bearbeiten" not in url and "/artikel/" in url)
-    assert "/bearbeiten" not in page.url
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
+    assert "/edit" not in page.url

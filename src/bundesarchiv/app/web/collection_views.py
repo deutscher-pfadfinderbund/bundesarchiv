@@ -2,11 +2,11 @@
 
 Two archivist-only routes, both methods gated to the plain 404 (existence-hiding, no oracle):
 
-- ``/bestand/neu`` (create): Name + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is SAFE — a
+- ``/collections/new`` (create): Name + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is SAFE — a
   fresh collection is empty, so no over-exposure is possible. Reuses the 4.7 form grammar wholesale
   (the c-form group, the Sichtbarkeit select + GROUPS-iff parse, verbatim German error strings,
   ""→None, autofocus on Name).
-- ``/bestand/<ulid>/bearbeiten`` (rename): Name ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY
+- ``/collections/<ulid>/edit`` (rename): Name ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY
   display rows with one hint — moving + changing visibility are deferred (the parked pile), because
   they can move descendants' visibility and need the over-exposure machinery a rename does not.
 
@@ -40,11 +40,11 @@ from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.collections import StoredCollection
 from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
-# --- /bestand/neu — create -----------------------------------------------------------
+# --- /collections/new — create -----------------------------------------------------------
 
 
 def collection_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /bestand/neu`` — create a Bestand. Archivist-only (non-archivist → the byte-identical
+    """``GET/POST /collections/new`` — create a Bestand. Archivist-only (non-archivist → the byte-identical
     404, both methods). POST validates (Name required; parent must be the top-level option or a real
     collection; GROUPS-iff), creates, and 302s to the workbench filtered to the new Bestand; a
     validation failure re-renders with the verbatim error + preserved values."""
@@ -107,11 +107,11 @@ def _create_errors(
     return errors
 
 
-# --- /bestand/<ulid>/bearbeiten — rename (SLIM: Name only) ---------------------------
+# --- /collections/<ulid>/edit — rename (SLIM: Name only) ---------------------------
 
 
 def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /bestand/<ulid>/bearbeiten`` — rename a Bestand. SLIM: the Name field ONLY; parent
+    """``GET/POST /collections/<ulid>/edit`` — rename a Bestand. SLIM: the Name field ONLY; parent
     + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
     visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
     absent ulid all collapse to the plain 404. POST saves against the form's

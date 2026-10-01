@@ -1,4 +1,4 @@
-"""The full edit form ``/artikel/<ulid>/bearbeiten`` (Part 4.7 Slice B, spec §2/§3/§6.1/§8).
+"""The full edit form ``/articles/<ulid>/edit`` (Part 4.7 Slice B, spec §2/§3/§6.1/§8).
 
 GET seeds the form from the stored Article; POST parses + saves under CAS (ADR 0013) and 302s to the
 read view. Both methods are archivist-gated to a 404 for Member / Public / anonymous, and for a
@@ -107,7 +107,7 @@ def _valid_post(corpus: _EditCorpus, **overrides: str) -> dict[str, str]:
 
 
 def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten")
+    response = client_as(Archivist()).get(f"/articles/{_ULID}/edit")
     assert response.status_code == 200
     body = response.content.decode()
     # the stored values are seeded into the form
@@ -130,7 +130,7 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
     corpus.add_article(
         make_article(no_sig, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Unbetitelt")
     )
-    body = client_as(Archivist()).get(f"/artikel/{no_sig}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{no_sig}/edit").content.decode()
     # the sr-only "Ohne Signatur" text (rendered by the hollow-slot signatur_tab) must NOT appear —
     # the edit header omits the slot entirely; the Signatur input carries absence instead
     assert "Ohne Signatur" not in body
@@ -141,13 +141,13 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
 def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -> None:
     # owner ruling 5: the exposure statement is permanently on screen — here the inherit option says
     # which rung the Bestand hands down, even when the article's own setting overrides it
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     assert '<option value="" selected>Öffentlich (wie Bestand)</option>' in body
     own = PUBLISHED_ULID
     corpus.add_article(
         make_article(own, collection_id="PUB", audience=Audience(AudienceTier.MEMBERS), title="X")
     )
-    body = client_as(Archivist()).get(f"/artikel/{own}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{own}/edit").content.decode()
     assert '<option value="">Öffentlich (wie Bestand)</option>' in body
 
 
@@ -159,7 +159,7 @@ def test_the_inherit_option_names_who_will_see_the_record(corpus: _EditCorpus) -
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=("vorstand",))])
 def test_edit_post_is_404_for_non_archivist(corpus: _EditCorpus, viewer: Viewer) -> None:
     response = client_as(viewer).post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gekapert")
+        f"/articles/{_ULID}/edit", _valid_post(corpus, title="Gekapert")
     )
     assert_denied(response)
     # the non-archivist POST changed nothing
@@ -168,7 +168,7 @@ def test_edit_post_is_404_for_non_archivist(corpus: _EditCorpus, viewer: Viewer)
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
 def test_edit_malformed_or_absent_ulid_is_404(corpus: _EditCorpus, ulid: str) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{ulid}/bearbeiten")
+    response = client_as(Archivist()).get(f"/articles/{ulid}/edit")
     assert_denied(response)
 
 
@@ -177,11 +177,11 @@ def test_edit_malformed_or_absent_ulid_is_404(corpus: _EditCorpus, ulid: str) ->
 
 def test_edit_post_saves_and_redirects_to_read_view(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         _valid_post(corpus, title="Neuer Titel", creator="Kurt Meyer"),
     )
     assert response.status_code == 302
-    assert response["Location"] == f"/artikel/{_ULID}"
+    assert response["Location"] == f"/articles/{_ULID}"
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Neuer Titel"
     assert stored.article.creator == "Kurt Meyer"
@@ -195,13 +195,13 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
         make_article(ulid, collection_id="PUB", title="Wanderfahrt 1962", added_at=added_at)
     )
     post = _valid_post(corpus, expected_version=str(version), added_at="2026-01-01T00:00:00Z")
-    assert client_as(Archivist()).post(f"/artikel/{ulid}/bearbeiten", post).status_code == 302
+    assert client_as(Archivist()).post(f"/articles/{ulid}/edit", post).status_code == 302
     assert corpus.articles.load(ulid).article.added_at == added_at
 
 
 def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
     # Clearing the Signatur field must store None, not "" (the "" -> None boundary, spec §8).
-    client_as(Archivist()).post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, ref_code=""))
+    client_as(Archivist()).post(f"/articles/{_ULID}/edit", _valid_post(corpus, ref_code=""))
     assert corpus.articles.load(_ULID).article.ref_code is None
 
 
@@ -210,7 +210,7 @@ def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
 
 def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         _valid_post(corpus, media_type="Foto(s)", document_type="Brief"),
     )
     assert response.status_code == 200
@@ -223,11 +223,11 @@ def test_edit_post_bad_document_type_pair_re_renders(corpus: _EditCorpus) -> Non
 def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpus) -> None:
     archivist = client_as(Archivist())
     # Both clients load the form at the same version (corpus.version). The FIRST save wins.
-    winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    winner = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, title="Gewinner"))
     assert winner.status_code == 302
     # The SECOND save carries the now-stale version -> Conflict -> state G re-render.
     loser = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         _valid_post(corpus, title="Verlierer", creator="Meine Eingabe"),
     )
     assert loser.status_code == 200
@@ -248,15 +248,15 @@ def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpu
 
 def test_conflict_refreshes_expected_version_so_next_save_wins(corpus: _EditCorpus) -> None:
     archivist = client_as(Archivist())
-    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
-    loser = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Verlierer"))
+    archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, title="Gewinner"))
+    loser = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, title="Verlierer"))
     body = loser.content.decode()
     # the re-rendered form now carries the WINNER's current version
     new_version = corpus.version + 1
     assert f'name="expected_version" value="{new_version}"' in body
     # re-submitting at that refreshed version now WINS
     retry = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         _valid_post(corpus, title="Verlierer", expected_version=str(new_version)),
     )
     assert retry.status_code == 302
@@ -294,7 +294,7 @@ def test_stale_save_against_deleted_article_is_404(
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, expected_version=str(version))
+        f"/articles/{_ULID}/edit", _valid_post(corpus, expected_version=str(version))
     )
     assert_denied(response)
 
@@ -304,7 +304,7 @@ def test_stale_save_against_deleted_article_is_404(
 
 def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus),
             "custom_key": ["Fotograf", "Auflage"],
@@ -321,14 +321,14 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> N
 
 
 def test_the_bag_renders_no_empty_pair_until_one_is_added(corpus: _EditCorpus) -> None:
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     assert 'name="custom_key"' not in body
     assert "+ Angabe hinzufügen" in body
 
 
 def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus),
             "custom_key": ["Fotograf"],
@@ -352,7 +352,7 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
     # actually submitted), not in that filtered result. Rows A/B/C, A blanked, the cross on B (raw
     # index 1) must drop B and keep C — not drop C because the filtered list only has two left.
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus),
             "custom_key": ["", "Bkey", "Ckey", ""],
@@ -386,7 +386,7 @@ def test_published_article_invalid_post_re_render_keeps_its_status(corpus: _Edit
         )
     )
     response = client_as(Archivist()).post(
-        f"/artikel/{published}/bearbeiten",
+        f"/articles/{published}/edit",
         {
             **_valid_post(corpus, expected_version="0"),
             "title": "",  # invalid -> validation error re-render (state F)
@@ -401,7 +401,7 @@ def test_published_article_invalid_post_re_render_keeps_its_status(corpus: _Edit
 def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _EditCorpus) -> None:
     # An error re-render must not grow one blank custom row per round trip.
     first = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus, title=""),
             "custom_key": ["Fotograf", ""],
@@ -416,7 +416,7 @@ def test_repeated_invalid_post_does_not_accumulate_blank_custom_rows(corpus: _Ed
     # re-send the same hand-built payload (the first assertion pinned it equivalent to the
     # re-rendered form) — the blank-row count must not grow
     second = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus, title=""),
             "custom_key": ["Fotograf", ""],
@@ -488,7 +488,7 @@ def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus)
     # control.
     from bundesarchiv.app.web.card import FIELDS
 
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     declared = [f.name for f in FIELDS if f.control]
     assert len(declared) >= 13, f"the registry declares {declared} — the guard proves nothing"
     for name in declared:
@@ -623,7 +623,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     from bundesarchiv.app.web import catalog
     from bundesarchiv.app.web.card import FIELDS
 
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     marked = {str(c["name"]) for c in _controls(body) if c.get("aria-required") == "true"}
     chooser = BestandChooser(lambda: (make_collection("PUB"),))
     refused = {
@@ -684,13 +684,13 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
         "body": "Andere Beschreibung",
         "sichtbarkeit": "members",
     }
-    winner = archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, **changed))
+    winner = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, **changed))
     assert winner.status_code == 302
     # The loser submits the ORIGINAL values at the now-stale version, so every field differs — and
     # publishes, which is the only way to make the STATUS row differ too (the loser's own lifecycle
     # is otherwise read from the article on disk, i.e. the winner's).
     loser = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         _valid_post(corpus, lifecycle="published"),
     )
     assert loser.status_code == 200
@@ -766,7 +766,7 @@ def _conflict(body: str) -> _ConflictScanner:
 
 def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
+        f"/articles/{_ULID}/edit", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
     )
     assert response.status_code == 200
     assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
@@ -774,7 +774,7 @@ def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:
 
 def test_a_custom_bag_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {**_valid_post(corpus), "custom_key": ["title"], "custom_value": ["gekapert"]},
     )
     assert response.status_code == 200
@@ -839,10 +839,10 @@ def _status(body: str) -> _StatusScanner:
 def test_the_margin_offers_the_status_seeded_from_the_record(corpus: _EditCorpus) -> None:
     _published(corpus)
     archivist = client_as(Archivist())
-    draft = _status(archivist.get(f"/artikel/{_ULID}/bearbeiten").content.decode())
+    draft = _status(archivist.get(f"/articles/{_ULID}/edit").content.decode())
     assert draft.options == [("published", "Veröffentlicht"), ("draft", "Entwurf (nur Archivare)")]
     assert draft.selected == ["draft"]
-    published = _status(archivist.get(f"/artikel/{_PUBLISHED_ULID}/bearbeiten").content.decode())
+    published = _status(archivist.get(f"/articles/{_PUBLISHED_ULID}/edit").content.decode())
     assert published.selected == ["published"]
 
 
@@ -855,7 +855,7 @@ def test_an_unchanged_status_is_a_plain_save(corpus: _EditCorpus, record: str, s
         (_ULID, corpus.version) if record == "draft" else (_PUBLISHED_ULID, _published(corpus))
     )
     response = client_as(Archivist()).post(
-        f"/artikel/{ulid}/bearbeiten",
+        f"/articles/{ulid}/edit",
         {
             **_valid_post(corpus, title="Neu getippt", expected_version=str(version)),
             "lifecycle": status,
@@ -869,14 +869,14 @@ def test_an_unchanged_status_is_a_plain_save(corpus: _EditCorpus, record: str, s
 
 def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus, title="Frisch getippt", creator="Kurt Meyer"),
             "lifecycle": "published",
         },
     )
     assert response.status_code == 302
-    assert response["Location"] == f"/artikel/{_ULID}"  # same destination as a plain save
+    assert response["Location"] == f"/articles/{_ULID}"  # same destination as a plain save
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Frisch getippt"  # the edit was NOT discarded
     assert stored.article.creator == "Kurt Meyer"
@@ -887,7 +887,7 @@ def test_publish_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) 
 def test_withdraw_from_the_edit_screen_saves_the_form_first(corpus: _EditCorpus) -> None:
     version = _published(corpus)
     response = client_as(Archivist()).post(
-        f"/artikel/{_PUBLISHED_ULID}/bearbeiten",
+        f"/articles/{_PUBLISHED_ULID}/edit",
         {
             **_valid_post(corpus, title="Doch noch Entwurf", expected_version=str(version)),
             "lifecycle": "draft",
@@ -903,7 +903,7 @@ def test_publish_with_an_invalid_form_publishes_nothing(corpus: _EditCorpus) -> 
     # A validation failure must behave EXACTLY like a failed save: re-render, values preserved,
     # nothing published. It does by construction — the parse runs before any save.
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             **_valid_post(corpus, title="", creator="Behalten"),
             "lifecycle": "published",
@@ -924,7 +924,7 @@ def test_a_re_render_without_a_valid_status_shows_the_stored_one(corpus: _EditCo
     # show it — and the next Speichern would publish a draft nobody chose to publish.
     for posted in ({}, {"lifecycle": "sabotage"}):
         response = client_as(Archivist()).post(
-            f"/artikel/{_ULID}/bearbeiten",
+            f"/articles/{_ULID}/edit",
             {**_valid_post(corpus), **posted, "custom_neu": ""},
         )
         assert response.status_code == 200
@@ -933,9 +933,9 @@ def test_a_re_render_without_a_valid_status_shows_the_stored_one(corpus: _EditCo
 
 def test_publish_on_a_stale_version_behaves_like_a_save_conflict(corpus: _EditCorpus) -> None:
     archivist = client_as(Archivist())
-    archivist.post(f"/artikel/{_ULID}/bearbeiten", _valid_post(corpus, title="Gewinner"))
+    archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, title="Gewinner"))
     loser = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {**_valid_post(corpus, title="Verlierer"), "lifecycle": "published"},
     )
     assert loser.status_code == 200
@@ -954,7 +954,7 @@ def test_an_unknown_status_on_the_edit_post_is_404_without_saving(
 ) -> None:
     # Never mutate on a bad value — and here that means the SAVE does not happen either.
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {**_valid_post(corpus, title="Gekapert"), "lifecycle": status},
     )
     assert_denied(response)

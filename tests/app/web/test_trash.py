@@ -46,9 +46,9 @@ def _main() -> str:
 def test_each_row_restores_its_record_at_the_version_it_shows(trash: Corpus) -> None:
     main = _main()
     assert _LIVE not in main
-    assert f"/artikel/{_MARKED}/delete-permanently" in page_hrefs(main)
+    assert f"/articles/{_MARKED}/delete-permanently" in page_hrefs(main)
     [(action, fields)] = page_forms(main)
-    assert action == f"/artikel/{_MARKED}/restore"
+    assert action == f"/articles/{_MARKED}/restore"
     assert fields["expected_version"] == str(trash.articles.load(_MARKED).version)
     assert client_as(Archivist()).post(action, fields).status_code == 302
     assert trash.articles.load(_MARKED).article.deleted is None

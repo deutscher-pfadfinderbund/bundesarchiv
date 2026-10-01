@@ -169,6 +169,7 @@ FOUR_OH_FOUR = 404
 OK = 200
 NO_CONTENT = 204
 REDIRECT = 302
+ALIAS_PREFIX = "alias-"
 
 
 class Route:
@@ -207,7 +208,7 @@ def _p_root(_c: _MatrixCorpus) -> str:
 
 
 def _p_spalten(_c: _MatrixCorpus) -> str:
-    return "/spalten"
+    return "/columns"
 
 
 def _p_trash(_c: _MatrixCorpus) -> str:
@@ -227,59 +228,59 @@ def _p_logout(_c: _MatrixCorpus) -> str:
 
 
 def _p_artikel_neu(_c: _MatrixCorpus) -> str:
-    return "/artikel/neu"
+    return "/articles/new"
 
 
 def _p_bestand_neu(_c: _MatrixCorpus) -> str:
-    return "/bestand/neu"
+    return "/collections/new"
 
 
 def _p_bestand_bearbeiten(c: _MatrixCorpus) -> str:
-    return f"/bestand/{c.collection_ulid}/bearbeiten"
+    return f"/collections/{c.collection_ulid}/edit"
 
 
 def _p_sammel_dok(_c: _MatrixCorpus) -> str:
-    return "/artikel/sammelbearbeitung/dokumenttypen"
+    return "/articles/bulk-edit/document-types"
 
 
 def _p_sammel(_c: _MatrixCorpus) -> str:
-    return "/artikel/sammelbearbeitung"
+    return "/articles/bulk-edit"
 
 
 def _p_edit(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/bearbeiten"
+    return f"/articles/{c.article_ulid}/edit"
 
 
 def _p_kopieren(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/kopieren"
+    return f"/articles/{c.article_ulid}/copy"
 
 
 def _p_loeschen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/loeschen"
+    return f"/articles/{c.article_ulid}/delete"
 
 
 def _p_delete_permanently(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.marked_ulid}/delete-permanently"
+    return f"/articles/{c.marked_ulid}/delete-permanently"
 
 
 def _p_restore(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.marked_ulid}/restore"
+    return f"/articles/{c.marked_ulid}/restore"
 
 
 def _p_veroeffentlichen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/veroeffentlichen"
+    return f"/articles/{c.article_ulid}/publish"
 
 
 def _p_medien_verschieben(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/medien/verschieben"
+    return f"/articles/{c.article_ulid}/media/move"
 
 
 def _p_medien_entfernen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/medien/entfernen"
+    return f"/articles/{c.article_ulid}/media/remove"
 
 
 def _p_medien_hochladen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/medien/hochladen"
+    return f"/articles/{c.article_ulid}/media/upload"
 
 
 def _p_upload_gate(c: _MatrixCorpus) -> str:
@@ -287,11 +288,11 @@ def _p_upload_gate(c: _MatrixCorpus) -> str:
 
 
 def _p_dokumenttypen(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}/dokumenttypen"
+    return f"/articles/{c.article_ulid}/document-types"
 
 
 def _p_detail(c: _MatrixCorpus) -> str:
-    return f"/artikel/{c.article_ulid}"
+    return f"/articles/{c.article_ulid}"
 
 
 def _p_media(c: _MatrixCorpus) -> str:
@@ -611,7 +612,7 @@ def test_route_tier_matrix(
 
 #: Method-blind like the rows above, so GET probes each.
 _MARKED_PATHS: dict[str, Callable[[_MatrixCorpus], str]] = {
-    "artikel-detail": lambda c: f"/artikel/{c.marked_ulid}",
+    "artikel-detail": lambda c: f"/articles/{c.marked_ulid}",
     "media": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}",
     "media-thumb": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/thumb",
 }
@@ -635,23 +636,23 @@ def test_a_marked_article_answers_the_archivist_alone(
 #: first), writing nothing. Each probe is one that answers something other than the 404 without
 #: the refusal, so it bites.
 _MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, object]]]] = {
-    "artikel-bearbeiten": ("POST", "/artikel/{}/bearbeiten", _marked_post_data),
-    "artikel-kopieren": ("POST", "/artikel/{}/kopieren", lambda _c: {}),
-    "artikel-loeschen": ("POST", "/artikel/{}/loeschen", _marked_post_data),
-    "artikel-veroeffentlichen": ("POST", "/artikel/{}/veroeffentlichen", lambda _c: {}),
+    "artikel-bearbeiten": ("POST", "/articles/{}/edit", _marked_post_data),
+    "artikel-kopieren": ("POST", "/articles/{}/copy", lambda _c: {}),
+    "artikel-loeschen": ("POST", "/articles/{}/delete", _marked_post_data),
+    "artikel-veroeffentlichen": ("POST", "/articles/{}/publish", lambda _c: {}),
     "artikel-medien-verschieben": (
         "POST",
-        "/artikel/{}/medien/verschieben",
+        "/articles/{}/media/move",
         lambda c: {"hash": c.marked_hash, "richtung": "runter"},
     ),
     "artikel-medien-entfernen": (
         "POST",
-        "/artikel/{}/medien/entfernen",
+        "/articles/{}/media/remove",
         lambda c: {"entfernen": c.marked_hash},
     ),
-    "artikel-medien-hochladen": ("POST", "/artikel/{}/medien/hochladen", lambda _c: {}),
+    "artikel-medien-hochladen": ("POST", "/articles/{}/media/upload", lambda _c: {}),
     "upload-gate": ("GET", "/upload-gate/{}", lambda _c: {}),
-    "artikel-dokumenttypen": ("GET", "/artikel/{}/dokumenttypen", lambda _c: {}),
+    "artikel-dokumenttypen": ("GET", "/articles/{}/document-types", lambda _c: {}),
 }
 
 
@@ -701,7 +702,7 @@ def test_bulk_edit_leaves_a_marked_article_out(
     Article, so nothing says why."""
     before = _unchanged(matrix_corpus)
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             **_sammel_post_data(matrix_corpus),
             "auswahl": [matrix_corpus.marked_ulid],
@@ -722,8 +723,9 @@ def test_every_article_route_has_a_papierkorb_contract() -> None:
         p.name
         for p in get_resolver(_PROD_URLCONF).url_patterns
         if isinstance(p, URLPattern)
+        and not (p.name or "").startswith(ALIAS_PREFIX)
         and "<str:ulid>" in str(p.pattern)
-        and not str(p.pattern).startswith("bestand/")
+        and not str(p.pattern).startswith("collections/")
     }
     covered = {
         *_MARKED_PATHS,
@@ -767,7 +769,9 @@ def test_the_gate_never_bounces_the_login_flow(matrix_corpus: _MatrixCorpus, nam
 
 
 def _prod_route_names() -> set[str]:
-    return set(_prod_pattern_names())
+    """The canonical routes. The ``alias-`` routes (the old German paths) serve the SAME view callable
+    as their English twin, which ``test_old_paths.py`` pins, so the twin's contract covers them."""
+    return {name for name in _prod_pattern_names() if not name.startswith(ALIAS_PREFIX)}
 
 
 def _prod_pattern_names() -> list[str]:

@@ -880,6 +880,8 @@ missing records; "N von M gespeichert"; the error pages' wording.
   are English from now on (the Papierkorb's restore, delete-permanently and trash page). The existing
   German paths (`/artikel/…`, `/bestand/…`, `…/medien/hochladen`) move to English in one later change,
   with permanent redirects from the old paths, because the archive is live and links exist.
+- Amended (owner, 2026-10-01): the old German paths stay as aliases of the English ones instead of
+  redirecting.
 
 ## Rulings of 2026-10-01 (the list, from the live archive)
 

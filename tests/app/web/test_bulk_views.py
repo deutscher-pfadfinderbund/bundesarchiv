@@ -1,6 +1,6 @@
 """Bulk-edit confirm + commit route (Sammelbearbeitung, spec §2/§4/§6).
 
-POST /artikel/sammelbearbeitung: archivist-gated, POST-only. Phase 1 (no bestaetigt) → confirm page;
+POST /articles/bulk-edit: archivist-gated, POST-only. Phase 1 (no bestaetigt) → confirm page;
 phase 2 (bestaetigt=1) → apply + result page. The deny suite (spec §6) is the load-bearing part
 (mutation-tested): non-archivist → 404 with ZERO writes; GET → 404; feld allowlist;
 dependent-pair server-enforced; orphan dokumenttyp_leeren server-enforced. The write path is real;
@@ -56,7 +56,7 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_bulk_denied_is_404_and_writes_nothing(two_drafts: Corpus, viewer: Viewer) -> None:
     response = client_as(viewer).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Gekapert", "bestaetigt": "1"},
     )
     assert_denied(response)
@@ -66,7 +66,7 @@ def test_bulk_denied_is_404_and_writes_nothing(two_drafts: Corpus, viewer: Viewe
 
 
 def test_bulk_get_is_404(two_drafts: Corpus) -> None:
-    assert_denied(client_as(Archivist()).get("/artikel/sammelbearbeitung"))
+    assert_denied(client_as(Archivist()).get("/articles/bulk-edit"))
 
 
 @pytest.mark.parametrize(
@@ -74,7 +74,7 @@ def test_bulk_get_is_404(two_drafts: Corpus) -> None:
 )
 def test_forbidden_feld_writes_nothing(two_drafts: Corpus, feld: str) -> None:
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A], "feld": feld, "wert_text": "x", "bestaetigt": "1"},
     )
     assert response.status_code == 200  # re-renders the confirm frame with the field error
@@ -88,7 +88,7 @@ def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts:
     # It re-renders the chooser drawer + the verbatim error, carrying every auswahl ulid as a hidden
     # input so the archivist fixes the value and re-submits from here — selection intact.
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A, _B], "feld": "", "wert_text": "x", "bestaetigt": "1"},
     )
     body = response.content.decode()
@@ -119,7 +119,7 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, feld: str) ->
     widget = bulk.value_input_of(feld)
     wert = _ECHOED_VALUE[widget]
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung", {"feld": feld, widget: wert, "bestaetigt": "1"}
+        "/articles/bulk-edit", {"feld": feld, widget: wert, "bestaetigt": "1"}
     )
     body = response.content.decode()
     assert "Keine Artikel ausgewählt." in body  # verbatim error
@@ -138,9 +138,7 @@ def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> No
     # rendered chooser: every target from bulk.FIELDS, on exactly one widget, and nothing else.
     body = (
         client_as(Archivist())
-        .post(
-            "/artikel/sammelbearbeitung", {"feld": "creator", "wert_text": "x", "bestaetigt": "1"}
-        )
+        .post("/articles/bulk-edit", {"feld": "creator", "wert_text": "x", "bestaetigt": "1"})
         .content.decode()
     )
     tokens = [t for attr in re.findall(r'data-bulk-wert="([^"]*)"', body) for t in attr.split()]
@@ -151,7 +149,7 @@ def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus
     # The commonest slip — value typed, Feld left on "— Feld wählen —" — must be re-echoed like any
     # other rejected submit (spec §2 C: values preserved verbatim), not silently blanked.
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A], "feld": "", "wert_text": "Quisenberry-Zephyroth", "bestaetigt": "1"},
     )
     body = response.content.decode()
@@ -161,7 +159,7 @@ def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus
 
 def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             "auswahl": [_A],
             "feld": "collection_id",
@@ -181,7 +179,7 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: st
     # both modes (the check, and a refusal): the way back is the list with the selection kept
     body = (
         client_as(Archivist())
-        .post("/artikel/sammelbearbeitung", {"auswahl": [_A, _B], "feld": feld, "wert_text": "X"})
+        .post("/articles/bulk-edit", {"auswahl": [_A, _B], "feld": feld, "wert_text": "X"})
         .content.decode()
     )
     back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
@@ -190,7 +188,7 @@ def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: st
 
 def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer"},
     )
     assert response.status_code == 200
@@ -221,7 +219,7 @@ def test_the_check_page_shows_each_value_it_replaces(
     )
     body = (
         client_as(Archivist())
-        .post("/artikel/sammelbearbeitung", {"auswahl": [_A], "feld": feld, widget: wert})
+        .post("/articles/bulk-edit", {"auswahl": [_A], "feld": feld, widget: wert})
         .content.decode()
     )
     assert bisher in body.split("<main", 1)[1]  # the header's panels list every Bestand
@@ -232,7 +230,7 @@ def test_the_check_page_shows_each_value_it_replaces(
 
 def test_commit_applies_and_shows_result(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
     )
     assert response.status_code == 200
@@ -244,7 +242,7 @@ def test_the_ticked_head_box_selects_every_row_of_its_page(two_drafts: Corpus) -
     # without JS the ledger's head box carries the rows of the page it sat on; ticked, they join the
     # rows ticked one by one (here: none)
     client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"alle": f"{_A} {_B}", "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
     )
     assert _stored(two_drafts, _A).creator == "K. Meyer"
@@ -256,7 +254,7 @@ def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
     ulid = "01KX7YT9E3VX0CP3A5Q49RZM03"
     two_drafts.add_article(make_article(ulid, collection_id="PUB", added_at=added_at))
     client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [ulid], "feld": "creator", "wert_text": "K. Meyer", "bestaetigt": "1"},
     )
     stored = _stored(two_drafts, ulid)
@@ -281,7 +279,7 @@ def test_commit_cas_race_loser_value_not_on_disk(
 
     monkeypatch.setattr(articles, "save_article", _conflict_a)
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A, _B], "feld": "creator", "wert_text": "Bulk", "bestaetigt": "1"},
     )
     # the loser is listed, leading to its edit form, and all losers can be picked again at once
@@ -295,7 +293,7 @@ def test_commit_cas_race_loser_value_not_on_disk(
 
 def test_commit_custom_bag_upsert(two_drafts: Corpus) -> None:
     client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {"auswahl": [_A], "feld": "Quelle", "wert_text": "Nachlass", "bestaetigt": "1"},
     )
     assert dict(_stored(two_drafts, _A).custom)["Quelle"] == "Nachlass"
@@ -304,7 +302,7 @@ def test_commit_custom_bag_upsert(two_drafts: Corpus) -> None:
 def test_commit_missing_ulid_bucketed(two_drafts: Corpus) -> None:
     gone = "01KX7YT9E3VX0CP3A5Q49RZMZZ"
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             "auswahl": [_A, gone],
             "feld": "creator",
@@ -323,7 +321,7 @@ def test_document_type_mismatch_rejects_whole_apply(two_drafts: Corpus) -> None:
     # _A has no media_type, and no Dokumenttyp belongs to a missing Medienart → the whole apply
     # is rejected, zero writes (all-or-nothing, fail-closed).
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             "auswahl": [_A],
             "feld": "document_type",
@@ -357,7 +355,7 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
     # A commit WITHOUT dokumenttyp_leeren must NOT write — it re-confirms (server-enforced, spec §3).
     _give_a_schriftgut_brief_pair(two_drafts)
     response = client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             "auswahl": [_A],
             "feld": "media_type",
@@ -375,7 +373,7 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
 def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
     _give_a_schriftgut_brief_pair(two_drafts)
     client_as(Archivist()).post(
-        "/artikel/sammelbearbeitung",
+        "/articles/bulk-edit",
         {
             "auswahl": [_A],
             "feld": "media_type",
@@ -393,16 +391,14 @@ def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
 
 
 def test_bulk_dokumenttypen_archivist(two_drafts: Corpus) -> None:
-    response = client_as(Archivist()).get(
-        "/artikel/sammelbearbeitung/dokumenttypen?media_type=Foto(s)"
-    )
+    response = client_as(Archivist()).get("/articles/bulk-edit/document-types?media_type=Foto(s)")
     assert response.status_code == 200
     assert "Zeitschrift" in response.content.decode()
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_bulk_dokumenttypen_denied_never_content(two_drafts: Corpus, viewer: Viewer) -> None:
-    response = client_as(viewer).get("/artikel/sammelbearbeitung/dokumenttypen?media_type=Foto(s)")
+    response = client_as(viewer).get("/articles/bulk-edit/document-types?media_type=Foto(s)")
     assert_denied(response)
     assert b"Zeitschrift" not in response.content
 
@@ -410,7 +406,7 @@ def test_bulk_dokumenttypen_denied_never_content(two_drafts: Corpus, viewer: Vie
 def test_bulk_dokumenttypen_post_is_404(two_drafts: Corpus) -> None:
     assert (
         client_as(Archivist())
-        .post("/artikel/sammelbearbeitung/dokumenttypen", {"media_type": "Foto(s)"})
+        .post("/articles/bulk-edit/document-types", {"media_type": "Foto(s)"})
         .status_code
         == 404
     )

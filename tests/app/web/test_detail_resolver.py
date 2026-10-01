@@ -44,7 +44,7 @@ def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
 
 def _request(viewer: Viewer):  # type: ignore[no-untyped-def]
     signer = signing.TimestampSigner(key=DEV_KEY, salt=_DEV_VIEWER_SALT)
-    request = RequestFactory().get(f"/artikel/{PUB_ULID}")
+    request = RequestFactory().get(f"/articles/{PUB_ULID}")
     request.COOKIES["dev_viewer"] = signer.sign(encode_viewer(viewer))
     return request
 

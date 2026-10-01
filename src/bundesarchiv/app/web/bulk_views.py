@@ -1,6 +1,6 @@
 """The bulk-edit (Sammelbearbeitung) check and commit route (spec §2 D/R, §4, §6).
 
-``/artikel/sammelbearbeitung`` checks first and commits only with ``bestaetigt=1`` (spec §0.1). No
+``/articles/bulk-edit`` checks first and commits only with ``bestaetigt=1`` (spec §0.1). No
 server-side session state: the selection rides as hidden ``auswahl`` inputs into the commit.
 """
 
@@ -19,7 +19,7 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
-    """``POST /artikel/sammelbearbeitung`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
+    """``POST /articles/bulk-edit`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
     Archivist-only, POST-only → the plain 404 otherwise (spec §6.1/§6.2)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or request.method != "POST":
@@ -45,7 +45,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 
 
 def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
-    """``GET /artikel/sammelbearbeitung/dokumenttypen?medienart=`` — the dependent Dokumenttyp option
+    """``GET /articles/bulk-edit/document-types?medienart=`` — the dependent Dokumenttyp option
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
     GET-only → the plain 404 otherwise. The no-JS baseline renders all optgroups + the
     server re-validates per-article; this only removes a round-trip on Medienart change."""

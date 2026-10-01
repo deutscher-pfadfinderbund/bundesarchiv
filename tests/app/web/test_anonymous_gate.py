@@ -27,9 +27,9 @@ def gated(corpus: Corpus) -> Iterator[Corpus]:
 _PATHS = (
     "/",
     "/?q=sommer&seite=2",
-    f"/artikel/{PUBLISHED_ULID}",
-    "/artikel/does-not-exist",
-    "/artikel/neu",
+    f"/articles/{PUBLISHED_ULID}",
+    "/articles/does-not-exist",
+    "/articles/new",
     "/nichts-dergleichen",
 )
 
@@ -55,14 +55,14 @@ def test_a_signed_public_cookie_is_still_anonymous(gated: Corpus) -> None:
 
 def test_an_anonymous_post_gets_the_door_too(gated: Corpus) -> None:
     """The gate is method-blind: one check, no route- or verb-specific holes."""
-    path = f"/artikel/{PUBLISHED_ULID}/loeschen"
+    path = f"/articles/{PUBLISHED_ULID}/delete"
     assert_door(client_as(None).post(path, {"bestaetigt": "1"}), path)
 
 
 def test_the_door_never_carries_a_foreign_login_target(gated: Corpus) -> None:
     """A path that is not the shape of a local one lands on the root instead (``safe_next``)."""
     # set in the environ: the test client would parse a "//host" argument as a host, not a path
-    response = client_as(None).get("/", PATH_INFO="//evil.example/artikel")
+    response = client_as(None).get("/", PATH_INFO="//evil.example/articles")
     assert_door(response, "/")
 
 
@@ -70,7 +70,7 @@ def test_the_door_never_carries_a_foreign_login_target(gated: Corpus) -> None:
 def test_an_authenticated_viewer_passes_the_gate(gated: Corpus, viewer: Viewer) -> None:
     """The gate authenticates; it does not authorize. A Member still gets the catalog route's 404
     and an Archivist still gets its form — exactly as with the gate off."""
-    response = client_as(viewer).get("/artikel/neu")
+    response = client_as(viewer).get("/articles/new")
     assert response.status_code == (200 if isinstance(viewer, Archivist) else 404)
 
 
@@ -99,4 +99,4 @@ def test_static_assets_stay_public(gated: Corpus) -> None:
 def test_the_gate_is_off_when_the_flag_is_off(corpus: Corpus) -> None:
     """settings_dev's configuration: anonymous browsing behaves exactly as it did before the gate."""
     with override_settings(ANONYMOUS_GATE_ENABLED=False):
-        assert Client().get("/artikel/neu").status_code == 404
+        assert Client().get("/articles/new").status_code == 404

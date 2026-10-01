@@ -8,10 +8,10 @@ leak-sensitive parsing + validation live in ``catalog`` (pure, unit-tested), the
 These views only resolve the viewer, gate, and hand an ``EditSurface`` — the record as SAVED plus
 whatever the form shows — the overlay its outcome calls for.
 
-- ``article_create`` — ``GET/POST /artikel/neu``: GET renders the minimal create form (Titel +
+- ``article_create`` — ``GET/POST /articles/new``: GET renders the minimal create form (Titel +
   Bestand); POST creates a DRAFT via ``create_article`` and 302s to the edit form. Validation
   re-renders state B (verbatim errors, preserved values).
-- ``article_edit`` — ``GET/POST /artikel/<ulid>/bearbeiten``: GET renders the full form seeded from
+- ``article_edit`` — ``GET/POST /articles/<ulid>/edit``: GET renders the full form seeded from
   the stored Article; POST parses + saves (CAS on ``expected_version``). A ``Conflict`` re-renders
   the "Inzwischen geändert" panel (state G) with the just-submitted values preserved.
 
@@ -93,11 +93,11 @@ def _load(archive: Archive, ulid: Ulid, *, marked: bool) -> Stored | None:
     return stored if (stored.article.deleted is not None) == marked else None
 
 
-# --- /artikel/neu — the create step (Slice A) --------------------------------------
+# --- /articles/new — the create step (Slice A) --------------------------------------
 
 
 def article_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /artikel/neu`` — the minimal create step. Archivist-only (non-archivist → the
+    """``GET/POST /articles/new`` — the minimal create step. Archivist-only (non-archivist → the
     plain 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
     edit form; a validation failure re-renders state B with the verbatim error + preserved values.
 
@@ -173,11 +173,11 @@ def _create_context(
     return {"titel": titel, "bestand_feld": bestand_feld, "angelegt": angelegt}
 
 
-# --- /artikel/<ulid>/bearbeiten — the full edit form (Slice B) ---------------------
+# --- /articles/<ulid>/edit — the full edit form (Slice B) ---------------------
 
 
 def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /artikel/<ulid>/bearbeiten`` — the full edit form. Archivist-only (non-archivist,
+    """``GET/POST /articles/<ulid>/edit`` — the full edit form. Archivist-only (non-archivist,
     malformed, or absent ulid → the plain 404, both methods). GET seeds the form from the
     stored Article; POST parses + saves under CAS. A ``Conflict`` re-renders state G with the
     just-submitted values preserved and a refreshed ``expected_version``."""
@@ -569,7 +569,7 @@ def _conflict_rows(mine: Article, theirs: Article) -> list[_ConflictRow]:
     ]
 
 
-# --- /artikel/<ulid>/veroeffentlichen — publish from the article page (a3 round 7) ---
+# --- /articles/<ulid>/publish — publish from the article page (a3 round 7) ---
 
 
 class _PublishRefused(Exception):
@@ -578,7 +578,7 @@ class _PublishRefused(Exception):
 
 
 def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/veroeffentlichen`` — the article page's confirmation publishes the
+    """``POST /articles/<ulid>/publish`` — the article page's confirmation publishes the
     draft. Archivist-only, POST-only, else the plain 404. CAS on the page's ``expected_version``;
     the gate is the edit form's (no resolvable chain, no publishing), checked against the record
     actually written. A refusal writes nothing and returns to the page as it now stands."""
@@ -617,11 +617,11 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return redirect_to(request, page)
 
 
-# --- /artikel/<ulid>/kopieren — copy to a fresh draft (Slice C, spec §7) -----------
+# --- /articles/<ulid>/copy — copy to a fresh draft (Slice C, spec §7) -----------
 
 
 def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/kopieren`` — copy the article's metadata into a fresh DRAFT (Signatur
+    """``POST /articles/<ulid>/copy`` — copy the article's metadata into a fresh DRAFT (Signatur
     cleared, no media) via the ``copy_article`` service, then 302 to the copy's edit form with the
     Signatur field autofocused (spec §5 — the one field that must change first on the volume path).
     Archivist-only; a non-archivist / malformed / absent ulid gets the plain 404. No confirm
@@ -634,11 +634,11 @@ def article_copy(request: HttpRequest, ulid: str) -> HttpResponseBase:
     return HttpResponseRedirect(f"{reverse('artikel-bearbeiten', args=[copy.ulid])}?fokus=signatur")
 
 
-# --- /artikel/<ulid>/loeschen, /delete-permanently, /restore (ADR 0022) -------------
+# --- /articles/<ulid>/delete, /delete-permanently, /restore (ADR 0022) -------------
 
 
 def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /artikel/<ulid>/loeschen`` — the delete confirm page (GET) and its execution
+    """``GET/POST /articles/<ulid>/delete`` — the delete confirm page (GET) and its execution
     (POST), which puts the Article in the Papierkorb (ADR 0022). Archivist-only; a non-archivist /
     malformed / absent / already marked ulid gets the plain 404, both methods."""
     return _confirmed_delete(
@@ -652,7 +652,7 @@ def article_delete(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def article_delete_permanently(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /artikel/<ulid>/delete-permanently`` — the same confirm for an Article in the
+    """``GET/POST /articles/<ulid>/delete-permanently`` — the same confirm for an Article in the
     Papierkorb, whose POST hard-deletes it (ADR 0020, 0022) and returns to the Papierkorb. Any
     other ulid gets the plain 404."""
     return _confirmed_delete(
@@ -735,7 +735,7 @@ _LOESCHEN_VERALTET = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, 
 
 
 def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/restore`` — take an Article out of the Papierkorb (ADR 0022) against
+    """``POST /articles/<ulid>/restore`` — take an Article out of the Papierkorb (ADR 0022) against
     the page's ``expected_version``, then go to its page; a lagging index is said, as after a
     publish (ADR 0014). Archivist-only, POST-only, a marked Article only; else the plain 404. A
     stale version restores nothing and goes to its page too."""
@@ -799,7 +799,7 @@ _DATEINAME_LEER = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die
 
 
 def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/medien/verschieben`` — reorder one media entry up/down (``richtung`` =
+    """``POST /articles/<ulid>/media/move`` — reorder one media entry up/down (``richtung`` =
     ``hoch``/``runter``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
     §6.3). Archivist-only, POST-only → plain 404 otherwise. Structural, non-CAS: re-render
     the edit form afterwards. A bad hash / edge move is a no-op (never raises)."""
@@ -819,7 +819,7 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
 
 
 def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/medien/entfernen`` — the two-step no-JS remove (spec §6.3). First POST
+    """``POST /articles/<ulid>/media/remove`` — the two-step no-JS remove (spec §6.3). First POST
     (``entfernen``=hash) re-renders the edit form with that row in the "Wirklich entfernen? [Ja]
     [Nein]" confirm state — NO removal yet. The [Ja] POST (``bestaetigt``=1) actually drops the ref
     (the blob is write-once and stays, recoverable). Archivist-only, POST-only → 404 otherwise."""
@@ -844,7 +844,7 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
 
 
 def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /artikel/<ulid>/medien/hochladen`` — attach one or more files (multipart ``dateien``).
+    """``POST /articles/<ulid>/media/upload`` — attach one or more files (multipart ``dateien``).
     Each file is stored under its own name (write-once, ADR 0019) and its ref appended at the END
     (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404 otherwise. An oversize
     file or one whose name cleans to nothing → a clean German error, not a 500, and no file of the
@@ -971,7 +971,7 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
 
 
 def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /artikel/<ulid>/dokumenttypen?medienart=`` — the Dokumenttyp option list for one
+    """``GET /articles/<ulid>/document-types?medienart=`` — the Dokumenttyp option list for one
     Medienart (spec §5). Archivist-only, GET-only. The no-JS baseline renders all types grouped by
     Medienart; this returns just the chosen Medienart's options for an HTMX inner-swap."""
     gated = _load_gated(request, ulid)

@@ -342,7 +342,7 @@ def save_catalog_form(
 
 def new_draft(archive: Archive, *, title: str, collection_id: Ulid, changed_by: str) -> Ulid:
     """The minimal create step (spec §2): mint a DRAFT with just Titel + Bestand via the create path
-    and return its ulid so the view can 302 to ``/bearbeiten``. Everything else is filled in on the
+    and return its ulid so the view can 302 to ``/edit``. Everything else is filled in on the
     edit form."""
     return articles.create_article(
         archive, changed_by=changed_by, title=title, collection_id=collection_id

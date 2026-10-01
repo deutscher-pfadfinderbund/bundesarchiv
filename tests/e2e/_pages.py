@@ -129,7 +129,7 @@ def reach_door(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The door, on an article's path. The browser suites run with the anonymous gate off
     (``settings_dev``), so this reach turns it on for its own navigation."""
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
-        page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
+        page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
@@ -212,17 +212,19 @@ SCREENS: tuple[Screen, ...] = (
         "create-form",
         "the create step",
         True,
-        _at("/artikel/neu"),
+        _at("/articles/new"),
         "artikel-neu",
         overlays=1,
         control_rows=("header", "div.record-meta-actions"),
     ),
-    Screen("bestand-neu", "create a Bestand", True, _at("/bestand/neu"), "bestand-neu", overlays=1),
+    Screen(
+        "bestand-neu", "create a Bestand", True, _at("/collections/new"), "bestand-neu", overlays=1
+    ),
     Screen(
         "bestand-bearbeiten",
         "rename a Bestand (Name only)",
         True,
-        _goto(lambda c: f"/bestand/{c.renamable_ulid}/bearbeiten"),
+        _goto(lambda c: f"/collections/{c.renamable_ulid}/edit"),
         "bestand-bearbeiten",
         overlays=1,
     ),
@@ -230,7 +232,7 @@ SCREENS: tuple[Screen, ...] = (
         "bestand-landing",
         "create-article form after a new Bestand (pre-selected + hinweis)",
         True,
-        _goto(lambda c: f"/artikel/neu?bestand={c.renamable_ulid}&angelegt=Karten"),
+        _goto(lambda c: f"/articles/new?bestand={c.renamable_ulid}&angelegt=Karten"),
         "artikel-neu",
         overlays=1,
     ),
@@ -238,7 +240,7 @@ SCREENS: tuple[Screen, ...] = (
         "edit-form",
         "the edit surface (a draft: the Löschen confirm in 'Mehr …')",
         True,
-        _goto(lambda c: f"/artikel/{c.draft_ulid}/bearbeiten"),
+        _goto(lambda c: f"/articles/{c.draft_ulid}/edit"),
         "artikel-bearbeiten",
         overlays=4,
         control_rows=("header", "div.record-meta-actions"),
@@ -250,7 +252,7 @@ SCREENS: tuple[Screen, ...] = (
         "edit-published",
         "the edit surface (a published record: media rows + their icon toolbars)",
         True,
-        _goto(lambda c: f"/artikel/{c.published_ulid}/bearbeiten"),
+        _goto(lambda c: f"/articles/{c.published_ulid}/edit"),
         "artikel-bearbeiten",
         overlays=3,
         control_rows=("header", "div.record-meta-actions", "span.file-row-tools[toolbar]"),
@@ -259,7 +261,7 @@ SCREENS: tuple[Screen, ...] = (
         "read-published",
         "the article page as an archivist (Bearbeiten and its split menu)",
         True,
-        _goto(lambda c: f"/artikel/{c.published_ulid}"),
+        _goto(lambda c: f"/articles/{c.published_ulid}"),
         "artikel-detail",
         overlays=3,
         control_rows=("header", "div.actions"),
@@ -268,7 +270,7 @@ SCREENS: tuple[Screen, ...] = (
         "delete-confirm",
         "delete, confirm page",
         True,
-        _goto(lambda c: f"/artikel/{c.draft_ulid}/loeschen"),
+        _goto(lambda c: f"/articles/{c.draft_ulid}/delete"),
         "artikel-loeschen",
         overlays=1,
     ),
@@ -276,7 +278,7 @@ SCREENS: tuple[Screen, ...] = (
         "delete-permanently-confirm",
         "delete permanently, confirm page (a record in the Papierkorb)",
         True,
-        _goto(lambda c: f"/artikel/{c.marked_ulid}/delete-permanently"),
+        _goto(lambda c: f"/articles/{c.marked_ulid}/delete-permanently"),
         "article-delete-permanently",
         overlays=1,
     ),
@@ -293,7 +295,7 @@ SCREENS: tuple[Screen, ...] = (
         "detail-in-trash",
         "the article page of a record in the Papierkorb (Wiederherstellen, Endgültig löschen …)",
         True,
-        _goto(lambda c: f"/artikel/{c.marked_ulid}"),
+        _goto(lambda c: f"/articles/{c.marked_ulid}"),
         "artikel-detail",
         overlays=2,
         control_rows=("header", "div.actions"),
@@ -302,7 +304,7 @@ SCREENS: tuple[Screen, ...] = (
         "detail-archivist-draft",
         "the article page, a draft as an archivist (Veröffentlichen; Standort, Weitere Angaben)",
         True,
-        _goto(lambda c: f"/artikel/{c.draft_ulid}"),
+        _goto(lambda c: f"/articles/{c.draft_ulid}"),
         "artikel-detail",
         overlays=4,
         control_rows=("header", "div.actions"),
@@ -311,14 +313,14 @@ SCREENS: tuple[Screen, ...] = (
         "detail-member-cover",
         "the article page as a member: cover Platte and the plate register",
         False,
-        _goto(lambda c: f"/artikel/{c.published_ulid}"),
+        _goto(lambda c: f"/articles/{c.published_ulid}"),
         "artikel-detail",
     ),
     Screen(
         "detail-no-media",
         "the article page as a member, no media (the title is the focus)",
         False,
-        _goto(lambda c: f"/artikel/{c.second_ulid}"),
+        _goto(lambda c: f"/articles/{c.second_ulid}"),
         "artikel-detail",
     ),
     Screen(

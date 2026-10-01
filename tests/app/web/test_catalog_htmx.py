@@ -1,6 +1,6 @@
 """HTMX enhancement endpoint (Part 4.7 Slice E, spec §5).
 
-``/artikel/<ulid>/dokumenttypen?medienart=`` → the Dokumenttyp option list for one Medienart, the
+``/articles/<ulid>/document-types?medienart=`` → the Dokumenttyp option list for one Medienart, the
 partial the edit form's HTMX layer swaps in (the no-JS baseline renders the same content
 server-side and is unchanged).
 
@@ -23,14 +23,16 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 
 
 def test_dokumenttypen_returns_options_for_media_type(corpus: Corpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Foto(s)")
+    response = client_as(Archivist()).get(
+        f"/articles/{DRAFT_ULID}/document-types?medienart=Foto(s)"
+    )
     assert response.status_code == 200
     assert "Zeitschrift" in response.content.decode()  # a Foto(s) Dokumenttyp
 
 
 def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpus) -> None:
     response = client_as(Archivist()).get(
-        f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=gibtsnicht"
+        f"/articles/{DRAFT_ULID}/document-types?medienart=gibtsnicht"
     )
     assert response.status_code == 200
     body = response.content.decode()
@@ -41,7 +43,7 @@ def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpu
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_dokumenttypen_denied_is_404_never_content(corpus: Corpus, viewer: Viewer) -> None:
-    response = client_as(viewer).get(f"/artikel/{DRAFT_ULID}/dokumenttypen?medienart=Foto(s)")
+    response = client_as(viewer).get(f"/articles/{DRAFT_ULID}/document-types?medienart=Foto(s)")
     assert_denied(response)
     assert b"Portr" not in response.content  # no partial content leaked
 
@@ -49,7 +51,7 @@ def test_dokumenttypen_denied_is_404_never_content(corpus: Corpus, viewer: Viewe
 def test_dokumenttypen_post_is_404(corpus: Corpus) -> None:
     assert (
         client_as(Archivist())
-        .post(f"/artikel/{DRAFT_ULID}/dokumenttypen", {"medienart": "Foto(s)"})
+        .post(f"/articles/{DRAFT_ULID}/document-types", {"medienart": "Foto(s)"})
         .status_code
         == 404
     )
@@ -58,8 +60,8 @@ def test_dokumenttypen_post_is_404(corpus: Corpus) -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/artikel/not-a-ulid/dokumenttypen?medienart=Foto(s)",
-        "/artikel/01BX5ZZKBKACTAV9WEVGEMMVRZ/dokumenttypen?medienart=Foto(s)",  # well-formed absent
+        "/articles/not-a-ulid/document-types?medienart=Foto(s)",
+        "/articles/01BX5ZZKBKACTAV9WEVGEMMVRZ/document-types?medienart=Foto(s)",  # well-formed absent
     ],
 )
 def test_htmx_endpoints_malformed_or_absent_ulid_is_404(corpus: Corpus, path: str) -> None:
@@ -84,12 +86,12 @@ def test_htmx_save_success_sends_hx_redirect(corpus: Corpus) -> None:
     # An HTMX save (HX-Request header) that succeeds returns 204 + HX-Redirect (htmx navigates), not
     # a 302 — the destination is identical to the no-JS path, only the mechanism differs.
     response = client_as(Archivist()).post(
-        f"/artikel/{DRAFT_ULID}/bearbeiten",
+        f"/articles/{DRAFT_ULID}/edit",
         _save_post(corpus),
         HTTP_HX_REQUEST="true",
     )
     assert response.status_code == 204
-    assert response["HX-Redirect"] == f"/artikel/{DRAFT_ULID}"
+    assert response["HX-Redirect"] == f"/articles/{DRAFT_ULID}"
 
 
 # --- state H: index-lag hinweis on the save path -----------------------------------
@@ -105,7 +107,7 @@ def test_save_with_index_lag_shows_hinweis(corpus: Corpus, monkeypatch: pytest.M
         articles, "index_article", lambda *a, **k: (_ for _ in ()).throw(Exception())
     )
     version = corpus.articles.load(DRAFT_ULID).version
-    response = client_as(Archivist()).post(f"/artikel/{DRAFT_ULID}/bearbeiten", _save_post(corpus))
+    response = client_as(Archivist()).post(f"/articles/{DRAFT_ULID}/edit", _save_post(corpus))
     assert response.status_code == 200  # re-render carrying the hinweis, not a 302
     assert "Die Suche zeigt die Änderung in Kürze." in response.content.decode()
     # the canonical write still stood (version bumped)

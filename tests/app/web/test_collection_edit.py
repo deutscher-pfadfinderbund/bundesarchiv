@@ -1,4 +1,4 @@
-"""The 4.8 rename-Bestand form (`/bestand/<ulid>/bearbeiten`, `collection_edit`).
+"""The 4.8 rename-Bestand form (`/collections/<ulid>/edit`, `collection_edit`).
 
 SLIM rename: Name field ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY display rows with one
 hint — moving + changing visibility are deferred. Archivist-gated both methods (404 otherwise);
@@ -54,19 +54,19 @@ def _name_of(corpus: Corpus, ulid: str) -> str:
 @pytest.mark.parametrize("viewer", [None, Public(), Member(groups=())])
 @pytest.mark.parametrize("method", ["get", "post"])
 def test_non_archivist_gets_404(archive: Corpus, viewer: Viewer | None, method: str) -> None:
-    response = getattr(client_as(viewer), method)(f"/bestand/{FOTOS}/bearbeiten")
+    response = getattr(client_as(viewer), method)(f"/collections/{FOTOS}/edit")
     assert_denied(response)
 
 
 @pytest.mark.parametrize("ulid", ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"])
 def test_malformed_or_absent_ulid_is_404(archive: Corpus, ulid: str) -> None:
-    response = client_as(Archivist()).get(f"/bestand/{ulid}/bearbeiten")
+    response = client_as(Archivist()).get(f"/collections/{ulid}/edit")
     assert_denied(response)
 
 
 @pytest.mark.django_db
 def test_non_archivist_post_leaves_name_unchanged(archive: Corpus) -> None:
-    client_as(Public()).post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Gehackt"})
+    client_as(Public()).post(f"/collections/{FOTOS}/edit", {"name": "Gehackt"})
     assert _name_of(archive, FOTOS) == "Fotografien"  # unchanged
 
 
@@ -74,8 +74,8 @@ def test_non_archivist_post_leaves_name_unchanged(archive: Corpus) -> None:
 
 
 def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
-    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
-    [fields] = [f for a, f in page_forms(body) if a == f"/bestand/{FOTOS}/bearbeiten"]
+    body = client_as(Archivist()).get(f"/collections/{FOTOS}/edit").content.decode()
+    [fields] = [f for a, f in page_forms(body) if a == f"/collections/{FOTOS}/edit"]
     # Name is the one editable control, seeded; parent + Sichtbarkeit are shown, never posted
     assert fields.keys() == {"csrfmiddlewaretoken", "expected_version", "name"}
     assert fields["name"] == "Fotografien"
@@ -85,7 +85,7 @@ def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
 
 @pytest.mark.django_db
 def test_the_page_shows_the_parent_chain_as_crumbs(archive: Corpus) -> None:
-    body = client_as(Archivist()).get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/collections/{FOTOS}/edit").content.decode()
     crumbs = body.split('class="crumbs"')[1].split("</nav>")[0]
     assert f"?bestand={ROOT}" in crumbs
     assert f"?bestand={FOTOS}" in crumbs
@@ -97,7 +97,7 @@ def test_the_page_shows_the_parent_chain_as_crumbs(archive: Corpus) -> None:
 @pytest.mark.django_db
 def test_post_blank_name_re_renders_with_error_unchanged(archive: Corpus) -> None:
     response = client_as(Archivist()).post(
-        f"/bestand/{FOTOS}/bearbeiten", {"name": "", "expected_version": "1"}
+        f"/collections/{FOTOS}/edit", {"name": "", "expected_version": "1"}
     )
     assert response.status_code == 200
     assert "Name ist erforderlich." in response.content.decode()
@@ -109,7 +109,7 @@ def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
     # the reindex path must surface the new name in the collection facet group (the denormalized
     # ancestors reindex + the live name resolution).
     client = client_as(Archivist())
-    client.post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"})
+    client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
     body = client.get("/").content.decode()
     assert "Lichtbilder" in body  # the renamed Bestand's new name in the rail's Bestand dropdown
     assert "Fotografien" not in body  # the old name is gone
@@ -134,20 +134,20 @@ def test_stale_expected_version_loses_the_race_and_preserves_input(archive: Corp
     # raced another rename must NOT silently win (lost update) — and re-render the "Inzwischen
     # geändert" panel with the winner's name shown and the submitted name preserved.
     client = client_as(Archivist())
-    get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    get_body = client.get(f"/collections/{FOTOS}/edit").content.decode()
     stale_version = _expected_version_of(get_body)
     assert stale_version == "1"
 
     # a concurrent rename lands first (its own fresh GET+POST at v1), bumping the store to v2
     client.post(
-        f"/bestand/{FOTOS}/bearbeiten",
+        f"/collections/{FOTOS}/edit",
         {"name": "Lichtbilder", "expected_version": stale_version},
     )
     assert _name_of(archive, FOTOS) == "Lichtbilder"
 
     # the ORIGINAL stale form now POSTs, still carrying expected_version=1
     response = client.post(
-        f"/bestand/{FOTOS}/bearbeiten",
+        f"/collections/{FOTOS}/edit",
         {"name": "Gestohlen", "expected_version": stale_version},
     )
     assert response.status_code == 200  # not a 500, and NOT a redirect (no save happened)
@@ -166,10 +166,10 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
     # Pin: a fresh rename (matching version) still saves and redirects, now that expected_version
     # rides the form.
     client = client_as(Archivist())
-    get_body = client.get(f"/bestand/{FOTOS}/bearbeiten").content.decode()
+    get_body = client.get(f"/collections/{FOTOS}/edit").content.decode()
     version = _expected_version_of(get_body)
     response = client.post(
-        f"/bestand/{FOTOS}/bearbeiten",
+        f"/collections/{FOTOS}/edit",
         {"name": "Lichtbilder", "expected_version": version},
     )
     assert response.status_code == 302
@@ -182,14 +182,14 @@ def test_the_panel_answers_a_race_in_place_then_saves(archive: Corpus) -> None:
     """With htmx the rename's tool panel is its own answer: a lost race comes back as the one form,
     the typed name kept and the winner's version to save against; a save navigates to the list."""
     client = client_as(Archivist())
-    client.post(f"/bestand/{FOTOS}/bearbeiten", {"name": "Lichtbilder", "expected_version": "1"})
+    client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
     refused = client.post(
-        f"/bestand/{FOTOS}/bearbeiten",
+        f"/collections/{FOTOS}/edit",
         {"name": "Meins", "expected_version": "1"},
         headers={"HX-Request": "true"},
     )
     [(action, fields)] = page_forms(refused.content.decode())
-    assert action == f"/bestand/{FOTOS}/bearbeiten"
+    assert action == f"/collections/{FOTOS}/edit"
     assert fields["name"] == "Meins"
     assert fields["expected_version"] == "2"
     assert _name_of(archive, FOTOS) == "Lichtbilder"

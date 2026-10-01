@@ -115,16 +115,16 @@ def test_a_full_login_authenticates_on_the_archivist_gate(
     """The whole point, end to end: an anonymous client starts at ``/login``, comes back through the
     callback, and the cookie it now carries opens an archivist-only route."""
     client = Client()
-    assert client.get("/artikel/neu").status_code == 404  # nobody yet
+    assert client.get("/articles/new").status_code == 404  # nobody yet
 
-    start = _login(client, next="/artikel/neu")
+    start = _login(client, next="/articles/new")
     assert start.status_code == 302
     assert start["Location"].startswith(_AUTHORIZE)
 
     landing = _callback(client, code="the-code", state=keycloak.seen["state"])
     assert landing.status_code == 302
-    assert landing["Location"] == "/artikel/neu"
-    assert client.get("/artikel/neu").status_code == 200
+    assert landing["Location"] == "/articles/new"
+    assert client.get("/articles/new").status_code == 200
 
 
 def test_the_callback_replays_the_nonce_the_authorize_request_carried(
@@ -149,7 +149,7 @@ def test_the_callback_leaves_both_token_cookies(
     _callback(client, code="c", state=keycloak.seen["state"])
     assert client.cookies[ACCESS_COOKIE].value == "access-member"
     assert client.cookies[REFRESH_COOKIE].value == "refresh-member"
-    assert client.get("/artikel/neu").status_code == 404  # a Member, not an Archivist
+    assert client.get("/articles/new").status_code == 404  # a Member, not an Archivist
 
 
 def test_the_transient_state_cookie_is_dropped_at_the_callback(keycloak: _FakeKeycloak) -> None:
@@ -234,10 +234,10 @@ def test_a_state_that_does_not_match_restarts_the_login(
     The non-ASCII row rides the same path: ``compare_digest`` refuses non-ASCII ``str``, so an
     unencoded comparison would answer this callback with a 500."""
     client = Client()
-    _login(client, next="/artikel/neu")
+    _login(client, next="/articles/new")
     response = _callback(client, code="c", state=state)
     assert response.status_code == 302
-    assert response["Location"] == "/login?next=%2Fartikel%2Fneu"
+    assert response["Location"] == "/login?next=%2Farticles%2Fnew"
     assert ACCESS_COOKIE not in response.cookies
 
 
@@ -303,7 +303,7 @@ def test_callback_rejects_a_post(keycloak: _FakeKeycloak) -> None:
         "/artikel\\..\\evil",
         "/artikel\r\nSet-Cookie: x=1",
         "/artikel\nx",
-        "artikel/neu",
+        "articles/new",
         "",
     ],
 )
@@ -320,7 +320,7 @@ def test_a_hostile_next_never_becomes_the_landing_page(
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/artikel/neu", "/?q=sommer&seite=2", "/artikel/01KX7YT9E3VX0CP3A5Q49RZMWK"]
+    "path", ["/", "/articles/new", "/?q=sommer&seite=2", "/articles/01KX7YT9E3VX0CP3A5Q49RZMWK"]
 )
 def test_a_same_origin_next_is_kept(keycloak: _FakeKeycloak, path: str) -> None:
     assert safe_next(path) == path
@@ -344,7 +344,7 @@ def test_logout_hands_the_refresh_cookie_on_and_clears_both_cookies(
     client = Client()
     _login(client)
     _callback(client, code="c", state=keycloak.seen["state"])
-    assert client.get("/artikel/neu").status_code == 200
+    assert client.get("/articles/new").status_code == 200
 
     response = client.post("/logout")
     assert response.status_code == 302
@@ -384,7 +384,7 @@ def test_a_refresh_through_the_real_middleware_stack_renews_both_cookies(
     keycloak.refreshed_to = _ARCHIVIST_TOKENS
     client = Client()
     client.cookies[REFRESH_COOKIE] = "refresh-old"
-    response = client.get("/artikel/neu")
+    response = client.get("/articles/new")
     assert response.status_code == 200
     assert response.cookies[ACCESS_COOKIE].value == "access-archivist"
     assert response.cookies[REFRESH_COOKIE].value == "refresh-archivist"
@@ -395,8 +395,8 @@ def test_a_dead_refresh_cookie_is_cleared_on_the_way_to_the_door(
 ) -> None:
     client = Client()
     client.cookies[REFRESH_COOKIE] = "revoked"
-    response = client.get("/artikel/neu")
-    assert_door(response, "/artikel/neu")
+    response = client.get("/articles/new")
+    assert_door(response, "/articles/new")
     assert response.cookies[ACCESS_COOKIE].value == ""
     assert response.cookies[REFRESH_COOKIE].value == ""
 

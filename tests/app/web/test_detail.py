@@ -1,4 +1,4 @@
-"""The 4.6 Artikel detail read view (`/artikel/<ulid>`, `article_detail`) — the Lesesaal read page.
+"""The 4.6 Artikel detail read view (`/articles/<ulid>`, `article_detail`) — the Lesesaal read page.
 
 The leak surface (spec §9): per-tier projection honesty. One template fed a `visible`-projected
 Article, so archivist-only fields (Standort/physical_location, Weitere Angaben/custom) are FLOORED
@@ -118,7 +118,7 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
 
 
 def _body(viewer: Viewer, ulid: str, query: str = "") -> str:
-    return client_as(viewer).get(f"/artikel/{ulid}{query}").content.decode()
+    return client_as(viewer).get(f"/articles/{ulid}{query}").content.decode()
 
 
 # --- the read view renders the record ---------------------------------------------
@@ -202,17 +202,17 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
 
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
 def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) -> None:
-    response = client_as(viewer).get(f"/artikel/{corpus.draft}")
+    response = client_as(viewer).get(f"/articles/{corpus.draft}")
     assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
 
 
 def test_draft_is_200_and_closes_with_publish_for_archivist(corpus: _DetailArchive) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{corpus.draft}")
+    response = client_as(Archivist()).get(f"/articles/{corpus.draft}")
     assert response.status_code == 200
     body = response.content.decode()
     assert "Veröffentlichen" in body
     assert "Als Entwurf zurückziehen" not in body  # it can never become active on a draft
-    assert "/bearbeiten" in body
+    assert "/edit" in body
 
 
 def test_published_record_offers_withdraw_to_archivist(corpus: _DetailArchive) -> None:
@@ -227,7 +227,7 @@ def test_published_record_offers_withdraw_to_archivist(corpus: _DetailArchive) -
 def test_member_published_view_carries_no_action_row(corpus: _DetailArchive) -> None:
     body = _body(Member(groups=()), corpus.pub)
     assert 'class="actions"' not in body  # no action row for a member
-    assert "/bearbeiten" not in body
+    assert "/edit" not in body
 
 
 def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) -> None:

@@ -62,7 +62,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     viewer = viewer_of(request)
     # Presentation-only chrome flag: the templates hide archivist affordances (the Entwurf mark,
     # Bearbeiten, the bulk selection, "+ Neu …") for non-Archivists. This is NOT scoping (§11) —
-    # result visibility is decided exclusively by search()/can_view; the /artikel/neu ROUTE stays
+    # result visibility is decided exclusively by search()/can_view; the /articles/new ROUTE stays
     # independently Archivist-gated regardless of this flag.
     is_archivist = isinstance(viewer, Archivist)
     page = search(
@@ -100,7 +100,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     context["pane"] = pane
     # The active Bestand filter (if any) — the archivist's focused collection. Drives the workbench's
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
-    # focus. Archivist-only chrome; the /bestand/<ulid>/bearbeiten route is independently gated.
+    # focus. Archivist-only chrome; the /collections/<ulid>/edit route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
     # body.vorschau adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
@@ -118,7 +118,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
 
 
 def choose_columns(request: HttpRequest) -> HttpResponseBase:
-    """``POST /spalten`` — the "Spalten …" choice, kept in a cookie for whoever made it (ruling
+    """``POST /columns`` — the "Spalten …" choice, kept in a cookie for whoever made it (ruling
     2026-09-29), then back to the SAME list (PRG), which works without JS. The way back is always the
     workbench path with the posted query after it, so no posted value can point it off the site;
     the cookie holds registry keys only (``ledger.cookie_value``). Any other method is the plain
@@ -528,7 +528,7 @@ def _facet_items(
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /artikel/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
+    """``GET /articles/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
 
     ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project —
     any deny/absence/malformed/broken-chain → the plain 404 (existence-hiding). The template

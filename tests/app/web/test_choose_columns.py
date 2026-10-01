@@ -1,4 +1,4 @@
-"""``POST /spalten`` — the "Spalten …" choice: kept in a cookie, then back to the same list (PRG).
+"""``POST /columns`` — the "Spalten …" choice: kept in a cookie, then back to the same list (PRG).
 
 The route writes no archive and reads no index; what it may never do is redirect off the site or
 store anything but registry keys."""
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.usefixtures("corpus")
 
 def _post(data: dict[str, object], *, enforce_csrf: bool = False) -> HttpResponse:
     client = client_as(Member(groups=()), enforce_csrf=enforce_csrf)
-    return cast(HttpResponse, client.post("/spalten", data))
+    return cast(HttpResponse, client.post("/columns", data))
 
 
 def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() -> None:
@@ -61,7 +61,7 @@ def test_the_cookie_never_holds_a_posted_value_that_names_no_column() -> None:
 
 
 def test_a_get_is_the_plain_404_and_sets_nothing() -> None:
-    response = client_as(Member(groups=())).get("/spalten?spalte=bestand")
+    response = client_as(Member(groups=())).get("/columns?spalte=bestand")
     assert_denied(response)
     assert ledger.COOKIE not in response.cookies
 

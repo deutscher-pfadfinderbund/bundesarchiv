@@ -1,10 +1,10 @@
-"""The visibility gate on the article detail route (``/artikel/<ulid>``, ``artikel-detail``).
+"""The visibility gate on the article detail route (``/articles/<ulid>``, ``artikel-detail``).
 
 The route loads the article, resolves its chain and asks ``can_view``. Every deny — forbidden
 article, missing article, malformed ulid, broken chain — is a plain 404 that leaks nothing, the
 article's existence included.
 
-``/artikel/neu`` serves the create form; its archivist gate is pinned by
+``/articles/new`` serves the create form; its archivist gate is pinned by
 ``test_catalog_create.py``.
 
 Pure request handling against a local FS store, so these run without Postgres (no DB fixture,
@@ -57,30 +57,30 @@ def tiered(make_corpus: Callable[[], Corpus]) -> Corpus:
     return corpus
 
 
-# --- /artikel/<ulid> (detail stub, can_view gated) -------------------------------
+# --- /articles/<ulid> (detail stub, can_view gated) -------------------------------
 
 
 def test_detail_served_when_can_view(tiered: Corpus) -> None:
     # the gate serves the real 4.6 detail page (the full render is covered by test_detail.py; here we
     # only prove the can_view gate opens for a viewable article).
-    response = client_as(Public()).get(f"/artikel/{PUBLIC_ARTICLE}")
+    response = client_as(Public()).get(f"/articles/{PUBLIC_ARTICLE}")
     assert response.status_code == 200
     assert "public Artikel" in response.content.decode()  # the article's title renders
 
 
 def test_detail_stub_denies_forbidden_article_with_404(tiered: Corpus) -> None:
     # A members-only article, viewed as Public → 404, like a nonexistent one (existence-hiding).
-    response = client_as(Public()).get(f"/artikel/{MEMBERS_ARTICLE}")
+    response = client_as(Public()).get(f"/articles/{MEMBERS_ARTICLE}")
     assert_denied(response)
 
 
 def test_detail_stub_denies_draft_to_member(tiered: Corpus) -> None:
-    response = client_as(Member(groups=())).get(f"/artikel/{DRAFT_ARTICLE}")
+    response = client_as(Member(groups=())).get(f"/articles/{DRAFT_ARTICLE}")
     assert_denied(response)
 
 
 def test_detail_stub_archivist_sees_draft(tiered: Corpus) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{DRAFT_ARTICLE}")
+    response = client_as(Archivist()).get(f"/articles/{DRAFT_ARTICLE}")
     assert response.status_code == 200
 
 
@@ -89,5 +89,5 @@ def test_detail_stub_archivist_sees_draft(tiered: Corpus) -> None:
     ["not-a-ulid", "01BX5ZZKBKACTAV9WEVGEMMVRZ"],  # malformed, then well-formed-but-absent
 )
 def test_detail_stub_malformed_or_missing_is_404(tiered: Corpus, ulid: str) -> None:
-    response = client_as(Archivist()).get(f"/artikel/{ulid}")
+    response = client_as(Archivist()).get(f"/articles/{ulid}")
     assert_denied(response)

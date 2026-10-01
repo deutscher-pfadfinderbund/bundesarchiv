@@ -468,7 +468,7 @@ def test_ohne_datum_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
 
 def _listed(body: str) -> set[str]:
     """The records a page links to (the corpus ulids are upper case, the create route is not)."""
-    return set(re.findall(r'href="/artikel/([0-9A-Z]+)"', body))
+    return set(re.findall(r'href="/articles/([0-9A-Z]+)"', body))
 
 
 def test_the_digital_filter_keeps_the_records_with_files(indexed_corpus: Corpus) -> None:
@@ -510,7 +510,7 @@ def test_a_bestand_empty_only_under_another_filter_is_not_an_empty_bestand(
     # all; AKTEN has records, just none with files.
     body = _get(Archivist(), "bestand=AKTEN&digital=1").content.decode()
     assert _listed(body) == set()
-    assert "/artikel/neu?bestand=AKTEN" not in body
+    assert "/articles/new?bestand=AKTEN" not in body
 
 
 # --- facet click → filtered results + removable chip -----------------------------
@@ -629,7 +629,7 @@ def test_pagination_second_page_via_seite(
 
     def rows(query: str) -> set[str]:
         body = _get(Archivist(), query).content.decode()
-        return {ulid for ulid in ulids if f'href="/artikel/{ulid}"' in body}
+        return {ulid for ulid in ulids if f'href="/articles/{ulid}"' in body}
 
     first, second = rows("seite=1"), rows("seite=2")
     assert first
@@ -703,14 +703,14 @@ def test_titel_navigates_and_no_list_link_opens_the_pane(
     # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets artikel.
     body = _get(viewer).content.decode()
     hrefs = page_hrefs(body)
-    assert f"/artikel/{PANE_PUB_ULID}" in hrefs
+    assert f"/articles/{PANE_PUB_ULID}" in hrefs
     assert [h for h in hrefs if "artikel" in parse_qs(urlparse(h).query)] == []
 
 
 def test_row_bearbeiten_is_archivist_chrome(indexed_corpus: Corpus) -> None:
     # The row's Bearbeiten (→ the edit form) is archivist-only.
     arch = _get(Archivist()).content.decode()
-    assert f'href="/artikel/{PANE_PUB_ULID}/bearbeiten"' in arch
+    assert f'href="/articles/{PANE_PUB_ULID}/edit"' in arch
     assert ">Bearbeiten<" in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
@@ -855,7 +855,7 @@ def test_the_archivist_list_has_no_selection_until_auswaehlen(indexed_corpus: Co
 def test_selection_mode_shows_the_selection_column(indexed_corpus: Corpus) -> None:
     body = _get(Archivist(), "auswahl=").content.decode()
     assert 'name="auswahl"' in body
-    assert "/artikel/sammelbearbeitung" in _form_fields(body)[0]
+    assert "/articles/bulk-edit" in _form_fields(body)[0]
 
 
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
@@ -868,7 +868,7 @@ def test_non_archivists_never_get_the_selection(
     monkeypatch.setattr(browse, "PAGE_SIZE", 1)
     body = _get(viewer, query).content.decode()
     assert 'name="auswahl"' not in body
-    assert "/artikel/sammelbearbeitung" not in _form_fields(body)[0]
+    assert "/articles/bulk-edit" not in _form_fields(body)[0]
     assert not [q for q in _queries(body) if "auswahl" in q]
 
 
@@ -880,10 +880,10 @@ def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_f
     # Feld chooser, and "Spalten …" posts only its own choice, although both sit in one tool row.
     fields, nested = _form_fields(_get(Archivist(), query).content.decode())
     assert nested == 0
-    assert {"auswahl", "feld", "csrfmiddlewaretoken"} <= fields["/artikel/sammelbearbeitung"]
-    assert "spalte" not in fields["/artikel/sammelbearbeitung"]
-    assert {"spalte", "zurueck", "csrfmiddlewaretoken"} <= fields["/spalten"]
-    assert not {"auswahl", "feld"} & fields["/spalten"]
+    assert {"auswahl", "feld", "csrfmiddlewaretoken"} <= fields["/articles/bulk-edit"]
+    assert "spalte" not in fields["/articles/bulk-edit"]
+    assert {"spalte", "zurueck", "csrfmiddlewaretoken"} <= fields["/columns"]
+    assert not {"auswahl", "feld"} & fields["/columns"]
 
 
 def test_the_head_box_submits_the_rows_of_its_page(indexed_corpus: Corpus) -> None:

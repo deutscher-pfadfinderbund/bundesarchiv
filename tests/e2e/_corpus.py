@@ -51,7 +51,7 @@ MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or sear
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
 # A ULID-keyed collection (unlike the literal "ROOT"/"FOTOS" ids) for the 4.8 rename route + gallery
-# state: /bestand/<ulid>/bearbeiten validates a real ULID (real collections created via the app get
+# state: /collections/<ulid>/edit validates a real ULID (real collections created via the app get
 # one), so the rename state needs a genuine ULID, not a literal.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 

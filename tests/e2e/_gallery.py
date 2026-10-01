@@ -127,7 +127,7 @@ def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # a form posted with a token that no longer matches: the "form expired" page
-    page.goto(f"{base}/bestand/neu", wait_until="networkidle")
+    page.goto(f"{base}/collections/new", wait_until="networkidle")
     page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
     page.locator('main input[name="name"]').fill("Abgelaufen")
     page.locator("main form").get_by_role("button", name="Anlegen").click()
@@ -142,7 +142,7 @@ def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.click(".record-meta .menu-button")
 
 
@@ -152,23 +152,23 @@ def _reach_edit_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> N
 
 
 def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
 
 
 def _reach_detail_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
     page.click('[popovertarget="loeschen"]')
 
 
 def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}", wait_until="networkidle")
     page.click('button:has-text("Veröffentlichen")')
 
 
 def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.marked_ulid}", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.marked_ulid}", wait_until="networkidle")
     page.click('[popovertarget="endgueltig-loeschen"]')
 
 
@@ -184,7 +184,7 @@ def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/artikel/{corpus.draft_ulid}/bearbeiten", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.click("#feld-date-hinweis .help")
 
 
@@ -192,7 +192,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the REJECTED state of the edit form: Sichtbarkeit=Gruppe(n) with an empty Gruppen field, the
     # error in the margin — a visible cue needs a render to be judged on (learning G.7), and this shot
     # is also the C13 error-border state.
-    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.select_option('main select[name="sichtbarkeit"]', "groups")
     page.click('main button:has-text("Speichern")')
     page.wait_for_selector(".record-meta .error")
@@ -200,7 +200,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_edit_weitere_angaben(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the corpus holds no custom row; "+ Angabe hinzufügen" re-renders one without saving
-    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('#custom-bag input[name="custom_key"]', "Legacy-ID")
     page.fill('#custom-bag input[name="custom_value"]', "1293")
@@ -209,12 +209,12 @@ def _reach_edit_weitere_angaben(page: Page, base: str, corpus: CorpusHandles) ->
 def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
     # "Inzwischen geändert": a second tab saves the record unchanged (a version bump only, so every
     # other state keeps its content), then this tab's typed edits lose the CAS race
-    page.goto(f"{base}/artikel/{corpus.published_ulid}/bearbeiten", wait_until="networkidle")
+    page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     other = page.context.new_page()
     try:
         other.goto(page.url, wait_until="networkidle")
         other.click('main button:has-text("Speichern")')
-        other.wait_for_url(lambda url: "/bearbeiten" not in url)
+        other.wait_for_url(lambda url: "/edit" not in url)
     finally:
         other.close()
     page.fill('input[name="date"]', "1962~")

@@ -145,7 +145,7 @@ changed FTS config version, and an empty index is not stale.
    `BUNDESARCHIV_X_ACCEL_PREFIX` against the `/_media/` media-key location in
    `deploy/nginx/nginx.conf`. A public `Cache-Control` means that location grew
    an `expires` or a `Cache-Control` header it must not have (ADR 0017).
-   An anonymous upload POST to `/artikel/<ulid>/medien/hochladen` gets an
+   An anonymous upload POST to `/articles/<ulid>/media/upload` gets an
    immediate empty `404`, before any body is read. So does the same POST with
    the two cookies and `-H 'Origin: https://example.org'`.
 

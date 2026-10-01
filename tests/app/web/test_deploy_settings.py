@@ -99,7 +99,7 @@ def test_a_page_carries_the_page_policy_with_the_keycloak_origin_as_form_target(
     monkeypatch.setenv("BUNDESARCHIV_OIDC_ISSUER", "https://auth.example.org/realms/master")
     deploy_policy = runpy.run_path(prod_settings.__file__)["SECURE_CSP"]
     with override_settings(SECURE_CSP=deploy_policy):
-        response = client_as(Public()).get(f"/artikel/{PUBLISHED_ULID}")
+        response = client_as(Public()).get(f"/articles/{PUBLISHED_ULID}")
     assert response.status_code == 200
     assert response["Content-Security-Policy"] == (
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "

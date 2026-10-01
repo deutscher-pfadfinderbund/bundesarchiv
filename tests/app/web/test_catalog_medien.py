@@ -4,7 +4,7 @@ Three structural POST routes plus the caption metadata save:
 
 - ``/medien/verschieben`` — reorder (= re-cover, order is meaning ADR 0015). Structural, non-CAS.
 - ``/medien/entfernen`` — two-step no-JS confirm (show → [Ja] removes the ref; the blob stays).
-- ``/medien/hochladen`` — multipart, multiple files, named write-once files (ADR 0019), append at
+- ``/media/upload`` — multipart, multiple files, named write-once files (ADR 0019), append at
   END; oversize or a name that cleans to nothing → a clean German error not a 500, nothing stored.
   The file persists BEFORE the README references it.
 - captions ride the main edit-form save (``save_article``), README round-trip, ``"" → None``.
@@ -99,7 +99,7 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 def test_verschieben_runter_moves_cover_and_re_covers(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
     )
     assert response.status_code == 200
@@ -109,7 +109,7 @@ def test_verschieben_runter_moves_cover_and_re_covers(corpus: _MediaCorpus) -> N
 
 def test_a_structural_media_edit_keeps_the_date_added(corpus: _MediaCorpus) -> None:
     client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
     )
     assert corpus.articles.load(_ULID).article.added_at == _ADDED_AT
@@ -118,7 +118,7 @@ def test_a_structural_media_edit_keeps_the_date_added(corpus: _MediaCorpus) -> N
 def test_verschieben_hoch_at_top_is_noop(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "hoch"},
     )
     assert _hashes(corpus) == before  # already first → no change
@@ -128,7 +128,7 @@ def test_verschieben_hoch_at_top_is_noop(corpus: _MediaCorpus) -> None:
 def test_verschieben_denied_leaves_order(corpus: _MediaCorpus, viewer: Viewer) -> None:
     before = _hashes(corpus)
     response = client_as(viewer).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
     )
     assert_denied(response)
@@ -136,7 +136,7 @@ def test_verschieben_denied_leaves_order(corpus: _MediaCorpus, viewer: Viewer) -
 
 
 def test_verschieben_get_is_404(corpus: _MediaCorpus) -> None:
-    assert_denied(client_as(Archivist()).get(f"/artikel/{_ULID}/medien/verschieben"))
+    assert_denied(client_as(Archivist()).get(f"/articles/{_ULID}/media/move"))
 
 
 def test_verschieben_against_deleted_article_is_404(
@@ -155,7 +155,7 @@ def test_verschieben_against_deleted_article_is_404(
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
     )
     assert_denied(response)
@@ -176,7 +176,7 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
     monkeypatch.setattr(articles, "save_article", _always_conflict)
     before = _hashes(corpus)
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/verschieben",
+        f"/articles/{_ULID}/media/move",
         {"hash": corpus.ref_a.content_hash, "richtung": "runter"},
     )
     assert response.status_code == 200
@@ -189,7 +189,7 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
 
 def test_entfernen_step1_shows_confirm_without_removing(corpus: _MediaCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/entfernen", {"entfernen": corpus.ref_b.content_hash}
+        f"/articles/{_ULID}/media/remove", {"entfernen": corpus.ref_b.content_hash}
     )
     assert response.status_code == 200
     assert "Wirklich entfernen?" in response.content.decode()
@@ -198,7 +198,7 @@ def test_entfernen_step1_shows_confirm_without_removing(corpus: _MediaCorpus) ->
 
 def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/entfernen",
+        f"/articles/{_ULID}/media/remove",
         {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
     )
     assert response.status_code == 200
@@ -210,7 +210,7 @@ def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_entfernen_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> None:
     response = client_as(viewer).post(
-        f"/artikel/{_ULID}/medien/entfernen",
+        f"/articles/{_ULID}/media/remove",
         {"entfernen": corpus.ref_b.content_hash, "bestaetigt": "1"},
     )
     assert_denied(response)
@@ -231,7 +231,7 @@ def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
         client.get("/_dev/viewer/")  # DB-free; renders a form → sets the csrf cookie
         token = client.cookies["csrftoken"].value
         response = client.post(
-            f"/artikel/{_ULID}/medien/entfernen",
+            f"/articles/{_ULID}/media/remove",
             {
                 "entfernen": corpus.ref_b.content_hash,
                 "bestaetigt": "1",
@@ -248,9 +248,7 @@ def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
 def test_hochladen_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
-    response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
-    )
+    response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"dateien": upload})
     assert response.status_code == 200
     after = _hashes(corpus)
     assert after[: len(before)] == before  # cover + existing kept, in order
@@ -260,7 +258,7 @@ def test_hochladen_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -
 def test_hochladen_the_same_file_again_stores_no_second_file(corpus: _MediaCorpus) -> None:
     files_before = corpus.articles.keys_for(_ULID)
     same = SimpleUploadedFile("cover.jpg", b"cover-bytes", content_type="image/jpeg")
-    client_as(Archivist()).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": same})
+    client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"dateien": same})
     again = corpus.media()[-1]
     assert (again.filename, again.stored_name) == ("cover.jpg", None)
     assert again.content_hash == corpus.ref_a.content_hash
@@ -270,9 +268,7 @@ def test_hochladen_the_same_file_again_stores_no_second_file(corpus: _MediaCorpu
 def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
     big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
     with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
-        response = client_as(Archivist()).post(
-            f"/artikel/{_ULID}/medien/hochladen", {"dateien": big}
-        )
+        response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"dateien": big})
     assert response.status_code == 200  # a clean re-render, not a 500
     assert "Datei zu groß" in response.content.decode()
     assert len(corpus.media()) == 2  # nothing attached
@@ -287,7 +283,7 @@ def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
         SimpleUploadedFile("gut.jpg", b"good-bytes", content_type="image/jpeg"),
         SimpleUploadedFile(name, b"nameless-bytes", content_type="image/jpeg"),
     ]
-    response = client_as(Archivist()).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": batch})
+    response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"dateien": batch})
     assert response.status_code == 200
     assert (
         "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
@@ -322,7 +318,7 @@ def _post_upload(body: Path) -> None:
         environ: dict[str, Any] = {"wsgi.input": wsgi_input}
         response = client_as(Archivist()).generic(
             "POST",
-            f"/artikel/{_ULID}/medien/hochladen",
+            f"/articles/{_ULID}/media/upload",
             CONTENT_TYPE=f"multipart/form-data; boundary={_BOUNDARY}",
             CONTENT_LENGTH=str(body.stat().st_size),
             **environ,
@@ -359,9 +355,7 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
     # CURRENT row set. The fixture seeds 2 rows, so uploading a third brings the count to 3; check
     # the swapped-in region — not the whole page — carries a verschieben-<hash> form for all 3 rows.
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
-    response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload}
-    )
+    response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"dateien": upload})
     assert response.status_code == 200
     body = response.content.decode()
     drawer = _medien_drawer_region(body)
@@ -374,7 +368,7 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 def test_hochladen_denied_attaches_nothing(corpus: _MediaCorpus, viewer: Viewer) -> None:
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
-    response = client_as(viewer).post(f"/artikel/{_ULID}/medien/hochladen", {"dateien": upload})
+    response = client_as(viewer).post(f"/articles/{_ULID}/media/upload", {"dateien": upload})
     assert_denied(response)
     assert len(corpus.media()) == 2  # nothing attached
 
@@ -395,7 +389,7 @@ def test_the_upload_gate_admits_exactly_whom_the_upload_admits(
 ) -> None:
     """nginx asks this gate before it reads an upload's body (deploy/nginx/nginx.conf)."""
     client = client_as(viewer)
-    assert (client.post(f"/artikel/{ulid}/medien/hochladen").status_code != 404) is admitted
+    assert (client.post(f"/articles/{ulid}/media/upload").status_code != 404) is admitted
     gate = client.get(f"/upload-gate/{ulid}", headers={"Sec-Fetch-Site": "same-origin"})
     if admitted:
         assert gate.status_code == 204
@@ -410,7 +404,7 @@ def test_the_upload_gate_admits_exactly_whom_the_upload_admits(
         ({"Sec-Fetch-Site": "same-site", "Origin": "http://testserver"}, False),
         ({"Origin": "http://testserver"}, True),
         ({"Origin": "http://andere.testserver"}, False),
-        ({"Referer": "http://testserver/artikel/"}, True),
+        ({"Referer": "http://testserver/articles/"}, True),
         ({"Referer": "http://andere.testserver/"}, False),
         ({}, False),
     ],
@@ -440,10 +434,20 @@ def test_only_the_gated_upload_route_takes_a_large_body() -> None:
     server_wide = re.search(r"^    client_max_body_size (\S+);", conf, re.MULTILINE)
     assert server_wide is not None
     assert re.fullmatch(r"\d+m", server_wide[1])
-    upload = conf.split("/medien/hochladen$", 1)[1].split("}", 1)[0]
+    upload = conf.split("medien/hochladen)$", 1)[1].split("}", 1)[0]
     assert "client_max_body_size 8g;" in upload
     assert "auth_request /_upload_gate;" in upload
     assert conf.count("client_max_body_size 8g;") == 1
+
+
+def test_the_upload_location_matches_both_spellings_of_the_upload_path() -> None:
+    conf = (Path(__file__).parents[3] / "deploy/nginx/nginx.conf").read_text()
+    pattern = re.search(r'location ~ "(\^/[^"]*medien/hochladen\)\$)"', conf)
+    assert pattern is not None
+    regex = re.compile(pattern[1].replace("(?<", "(?P<"))
+    assert regex.match(f"/articles/{_ULID}/media/upload")
+    assert regex.match(f"/artikel/{_ULID}/medien/hochladen")
+    assert not regex.match(f"/articles/{_ULID}/edit")
 
 
 def test_the_gate_subrequest_takes_the_uploads_length() -> None:
@@ -458,7 +462,7 @@ def test_the_gate_subrequest_takes_the_uploads_length() -> None:
 
 def test_caption_saved_via_edit_form_round_trips(corpus: _MediaCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "Lagerchronik",
             "collection_id": "PUB",
@@ -484,7 +488,7 @@ def test_caption_saved_via_edit_form_round_trips(corpus: _MediaCorpus) -> None:
 
 
 def test_edit_form_renders_media_register_with_cover_stamp(corpus: _MediaCorpus) -> None:
-    body = client_as(Archivist()).get(f"/artikel/{_ULID}/bearbeiten").content.decode()
+    body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     assert f"/media/{_ULID}/{corpus.ref_a.content_hash}/thumb" in body  # gated thumb URL
     # the stamp is a text node; ref_a's caption "Titelbild" is only an input value
     cover_row, rest = body.split("cover.jpg", 1)[1].split("zweite.jpg", 1)
@@ -499,7 +503,7 @@ def test_validation_error_re_render_keeps_typed_caption(corpus: _MediaCorpus) ->
     # A validation error (empty title) must NOT fall back to the stored caption in the
     # re-rendered media register — the archivist's just-typed caption survives.
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "",  # invalid -> state F re-render
             "collection_id": "PUB",
@@ -520,7 +524,7 @@ def test_validation_error_re_render_keeps_typed_caption(corpus: _MediaCorpus) ->
 def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
     archivist = client_as(Archivist())
     winner = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "Gewinner",
             "collection_id": "PUB",
@@ -530,7 +534,7 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
     )
     assert winner.status_code == 302
     loser = archivist.post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "Verlierer",
             "collection_id": "PUB",
@@ -548,7 +552,7 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
 def test_custom_entfernen_keeps_media_register_and_typed_caption(corpus: _MediaCorpus) -> None:
     # The no-JS custom-row removal re-render must NOT drop the whole Medien drawer.
     response = client_as(Archivist()).post(
-        f"/artikel/{_ULID}/bearbeiten",
+        f"/articles/{_ULID}/edit",
         {
             "title": "Lagerchronik",
             "collection_id": "PUB",
