@@ -926,3 +926,8 @@ missing records; "N von M gespeichert"; the error pages' wording.
   or start: it fills the disk with thumbnails no one sees.
   **Amended (owner, 2026-10-01 night):** a bulk build is fine and stays — the whole corpus's thumbnails
   are ~40 MB. `manage.py rebuild_thumbnails` is a normal tool, also after a deploy.
+
+## Ruling of 2026-10-01 night (interaction marks)
+
+- **A dashed frame or an underline marks only something interactive** (an underline at least on hover).
+  Empty states, read-only facts and placeholders carry neither.

@@ -25,7 +25,7 @@
     opacity: 0.6;
   }
 
-  /* ---- read-only facts: a <dl>; the dashed baseline reads as a printed fact, not an input ---- */
+  /* ---- read-only facts: a <dl>; a solid hairline under each fact (dashed is for what reacts, row 6) ---- */
   .column dl {
     display: flex;
     flex-direction: column;
@@ -40,7 +40,7 @@
     margin: 0;
     font: var(--type-body);
     padding: var(--space-1) 0;
-    border-bottom: var(--line-width) dashed var(--rule);
+    border-bottom: var(--line-width) solid var(--rule);
   }
 
   /* ---- footer action bar (spec §3): the create/confirm pages' one action row ---- */

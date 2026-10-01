@@ -230,9 +230,6 @@
   .pane .blank {
     --blank-ratio: 4 / 3;
   }
-  .pane .hollow {
-    border-style: dashed;
-  }
   .pane li p {
     display: flex;
     flex-wrap: wrap;

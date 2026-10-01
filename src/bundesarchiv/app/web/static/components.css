@@ -1131,11 +1131,10 @@
     overflow-wrap: anywhere;
   }
 
-  /* ---- honest empty state: a hollow slot (row 6) ---- */
+  /* ---- honest empty state: words, no frame (row 6: a dashed edge marks only what reacts) ---- */
   .empty-state {
     padding: var(--space-6);
     text-align: center;
-    border: var(--empty-state-border, var(--line-width) dashed var(--edge));
   }
   .empty-state > p {
     margin: 0 0 var(--space-1);
@@ -1159,12 +1158,6 @@
   .quiet {
     --ink: var(--ink-2);
     color: var(--ink);
-  }
-
-  /* ---- unframed — a context (law C2): the empty state's hollow slot drops its frame where the
-     page is nothing but the empty state (the Papierkorb). ---- */
-  .unframed {
-    --empty-state-border: none;
   }
 }
 
