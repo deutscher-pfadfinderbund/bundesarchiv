@@ -228,6 +228,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Implementation patterns
 
+### 51. Knobs are resolved at every use, not once per component — Strong
+- **Indicator:** 13 `var(--knob, fallback)` uses in `components.css`/`layouts.css`, 3 bare `var(--control-height)` with no default, 0 `--_` resolutions (2026-10-01)
+- **Evidence:** `components.css:244-245` repeats a 3-level fallback twice in one rule; law C3 (amended 2026-10-01). Bites: G.38 (23px hit areas), G.45
+- **Sketch:** pixel-neutral wave: each component resolves its knobs into `--_name` at the top of its section (proof: `test:gallery-diff`); then a lint in `test_design_lint.py`: a `var(--_x)` needs a `--_x:` in the same section, a public knob is read only on that line
+
 ### 50. A missing thumbnail stays missing until someone runs a command — Speculative
 - **Indicator:** 2 deploys in a row needed `manage.py rebuild_thumbnails` by hand (2026-10-01: 577, then ~2,300 PDFs)
 - **Evidence:** thumbnails are made at save time (`tasks.generate_thumbnail`); a miss is a plain 404 (`media_views.serve_thumbnail`). Owner 2026-10-01 night: a bulk build is fine (~40 MB for the corpus); `rebuild_thumbnails` after a deploy is a normal step

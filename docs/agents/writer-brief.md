@@ -206,6 +206,10 @@ listings, and facet counts.
 
 ## UI work
 
+Before building a UI feature in HTML, CSS or JS, search the `modern-web-guidance` skill for a
+standard pattern (`npx -y modern-web-guidance@latest search "<what you build>"`). Its guides assume
+Baseline widely available; this project's tiers are law section F of `design-review-law.md`, which wins.
+
 UI is built under the Construction law in `docs/design/design-system.md`
 (owner, 2026-08-05): semantic HTML first, compose existing components
 (atoms → molecules → layouts → pages), no ad-hoc or redundant components,

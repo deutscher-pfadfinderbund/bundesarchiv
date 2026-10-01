@@ -34,8 +34,8 @@ simplicity checkable instead of a matter of taste.
      outer element carries one class named for the component; its one CSS
      section, in the existing layer file and named like its template, styles
      only below that class. Its knobs — custom properties with a
-     component-scoped name and a fallback, listed at the top of its section —
-     are its API: compositions set knobs and place it, never select inside it.
+     component-scoped name, resolved once with their fallback at the top of its
+     section into a private `--_name` (law C3) — are its API: compositions set knobs and place it, never select inside it.
      Facts about one field (width, Signatur ink) come from the field registry
      as markup, never from CSS keyed on an input's `name`. Semantic HTML
      first. Reuse-first: no ad-hoc one-off markup where a component exists,
