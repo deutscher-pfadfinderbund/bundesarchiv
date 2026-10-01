@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from bundesarchiv.app import thumbnails
 from bundesarchiv.domain.edtf import EdtfDate
@@ -33,9 +33,20 @@ from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
 
-def _png(color: tuple[int, int, int]) -> bytes:
+def _png(color: tuple[int, int, int], size: tuple[int, int] = (8, 8)) -> bytes:
     buf = BytesIO()
-    Image.new("RGB", (8, 8), color).save(buf, format="PNG")
+    Image.new("RGB", size, color).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _pdf() -> bytes:
+    """A one-page A4 PDF with bars for lines of text, so its thumbnail reads as a document."""
+    page = Image.new("L", (595, 842), 250)
+    draw = ImageDraw.Draw(page)
+    for top in range(96, 760, 26):
+        draw.rectangle((72, top, 72 + 260 + (top * 37) % 200, top + 9), fill=70)
+    buf = BytesIO()
+    page.save(buf, format="PDF")
     return buf.getvalue()
 
 
@@ -55,9 +66,8 @@ CEILING_REF_CODE = "F12/3-b2"
 # one), so the rename state needs a genuine ULID, not a literal.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 
-#: The one file of the ceiling record: a PDF, so its article page leads with the placeholder.
+#: The one file of the ceiling record: a PDF, so its article page leads with its first page.
 MINUTES_FILENAME = "Protokoll_1958.pdf"
-_PDF = b"%PDF-1.4\n%%EOF\n"
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,17 +113,22 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
     # (add_media stores the blobs first; the repository refuses an Article referencing unstored ones).
     cover = articles.add_media(
-        PUBLISHED_ULID, "cover.png", BytesIO(_png((200, 60, 40))), media_type="image/png"
+        PUBLISHED_ULID,
+        "cover.png",
+        BytesIO(
+            _png((200, 60, 40), size=(1600, 1067))
+        ),  # a photo's pixels: the lead fills the column
+        media_type="image/png",
     )
     plate = articles.add_media(
         PUBLISHED_ULID, "plate.png", BytesIO(_png((40, 120, 200))), media_type="image/png"
     )
-    # a PDF beside the photos: no thumbnail exists for it, so its tiles are the placeholder
+    # a PDF beside the photos: its tiles show its first page
     report = articles.add_media(
-        PUBLISHED_ULID, "Fahrtenbericht_1962.pdf", BytesIO(_PDF), media_type="application/pdf"
+        PUBLISHED_ULID, "Fahrtenbericht_1962.pdf", BytesIO(_pdf()), media_type="application/pdf"
     )
     minutes = articles.add_media(
-        CEILING_ULID, MINUTES_FILENAME, BytesIO(_PDF), media_type="application/pdf"
+        CEILING_ULID, MINUTES_FILENAME, BytesIO(_pdf()), media_type="application/pdf"
     )
     articles.save(
         Article(
@@ -212,8 +227,13 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     if thumbnail_root is not None:
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
         # cover + filmstrip images render instead of the /media/.../thumb route 404ing.
-        for content_hash in (cover.content_hash, plate.content_hash):
-            thumbnails.generate_thumbnail(store, PUBLISHED_ULID, content_hash, thumbnail_root)
+        for ulid, ref in (
+            (PUBLISHED_ULID, cover),
+            (PUBLISHED_ULID, plate),
+            (PUBLISHED_ULID, report),
+            (CEILING_ULID, minutes),
+        ):
+            thumbnails.generate_thumbnail(store, ulid, ref.content_hash, thumbnail_root)
     return CorpusHandles(
         draft_ulid=DRAFT_ULID,
         published_ulid=PUBLISHED_ULID,

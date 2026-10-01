@@ -268,7 +268,7 @@ SCREENS: tuple[Screen, ...] = (
     ),
     Screen(
         "detail-pdf",
-        "the article page of a record whose one file is a PDF: the placeholder tile",
+        "the article page of a record whose one file is a PDF: its first page leads",
         True,
         _goto(lambda c: f"/articles/{c.ceiling_ulid}"),
         "artikel-detail",

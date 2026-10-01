@@ -65,9 +65,17 @@
     padding: var(--space-3);
     border: var(--line-width) solid var(--edge);
   }
+  /* a lead is never drawn wider than its own pixels (a 480px thumbnail stays sharp), so the mount
+     hugs it; the caption wraps to the picture's width instead of widening it */
+  .platte:has(img) {
+    width: fit-content;
+  }
+  .platte figcaption {
+    contain: inline-size;
+  }
   .platte img {
     display: block;
-    width: 100%;
+    max-width: 100%;
     height: auto;
   }
   .platte .blank {
