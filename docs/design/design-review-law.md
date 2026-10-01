@@ -271,7 +271,10 @@ The machine-checkable slice of B and C, enforced by
 - no `margin` on component root selectors;
 - bare px/rem literals outside `tokens.css` flagged (comment-exempted per
   C5);
-- no compositions-layer selector past a component root (C1).
+- no compositions-layer selector past a component root (C1);
+- a knob is resolved once (C3): a `var(--_x)` needs a `--_x:` in the same section, and a
+  public knob with a fallback is read only on a `--_` line (handing it on to another knob is
+  setting it).
 
 **Generic computed invariant (the G.1 pattern, generalized — mandatory):** one
 e2e test walks EVERY control row on the journey pages (each `[role=toolbar]`,

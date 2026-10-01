@@ -18,6 +18,8 @@ and enforces:
 6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
    except the doubled edge of an invalid control (register row 5, law E);
 7. no compositions-layer selector continues past a component root (law C1/C14 — owned components).
+8. a knob is resolved once (law C3): a ``var(--_x)`` needs a ``--_x:`` in the same section, and a
+   public knob with a fallback is read only on a ``--_`` line.
 
 The parser is a small brace tracker for OUR OWN formatting (ruff-format-style CSS: one ``{`` per
 block opener, selectors and values possibly wrapped over lines). It recurses into
@@ -540,3 +542,66 @@ def test_no_composition_selector_reaches_past_a_component_root() -> None:
         "a composition selects inside a component (set its knobs on the root instead):\n"
         + "\n".join(found)
     )
+
+
+_SECTION_HEAD = re.compile(r"/\* (?:----|====)")
+_PRIVATE_DECL = re.compile(r"^\s*(--_[\w-]+)\s*:")
+_CUSTOM_DECL = re.compile(r"^\s*--[\w-]+\s*:")
+_KNOB_WITH_FALLBACK = re.compile(r"var\(\s*(--(?!_)[\w-]+)\s*,")
+
+
+def _sectioned_lines(css: str) -> list[tuple[int, int, str]]:
+    """(section, lineno, line without comments); a `/* ----` or `/* ====` head opens a section."""
+    stripped = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group().count("\n"), css, flags=re.DOTALL)
+    heads = list(itertools.accumulate(bool(_SECTION_HEAD.search(raw)) for raw in css.splitlines()))
+    return [(heads[i], i + 1, line) for i, line in enumerate(stripped.splitlines())]
+
+
+def test_a_private_knob_is_declared_in_its_own_section() -> None:
+    # Law C3: a component resolves each knob once, into a `--_name` at the top of its section.
+    # Reading a `--_name` the section never declares reads one some other component resolved.
+    offenders = []
+    for name in STYLESHEETS:
+        lines = _sectioned_lines((STATIC / name).read_text())
+        declared = {
+            (section, m.group(1)) for section, _n, line in lines if (m := _PRIVATE_DECL.match(line))
+        }
+        offenders += [
+            f"{name}:{lineno}: {private}"
+            for section, lineno, line in lines
+            for private in re.findall(r"var\(\s*(--_[\w-]+)", line)
+            if (section, private) not in declared
+        ]
+    assert not offenders, "a --_name read without its section's declaration (C3):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
+    # Law C3: the knob's fallback lives on its one `--_` line; every rule reads the `--_` name. A
+    # fallback elsewhere is a second default, and a bare read elsewhere skips the default (G.38,
+    # G.45). Handing the knob on to another knob (`--a: var(--b)`) is a parent setting a knob.
+    lines = [
+        (name, lineno, line)
+        for name in STYLESHEETS
+        for _s, lineno, line in _sectioned_lines((STATIC / name).read_text())
+    ]
+    knobs = {
+        knob
+        for _f, _n, line in lines
+        if _PRIVATE_DECL.match(line)
+        for knob in _KNOB_WITH_FALLBACK.findall(line)
+    }
+    offenders = [
+        f"{name}:{lineno}: {line.strip()}"
+        for name, lineno, line in lines
+        if not _PRIVATE_DECL.match(line)
+        and (
+            _KNOB_WITH_FALLBACK.search(line)
+            or (
+                not _CUSTOM_DECL.match(line)
+                and any(re.search(rf"var\(\s*{knob}\s*\)", line) for knob in knobs)
+            )
+        )
+    ]
+    assert not offenders, "a public knob read outside its --_ line (C3):\n" + "\n".join(offenders)
