@@ -939,6 +939,11 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **"Zuletzt hinzugefügt" stays hidden** until Articles exist that were added after the legacy import.
 - **Reference mock:** `docs/design/explorations/2026-09-26-monochrome/r4-system/start.html` (search with
   "Weiter bearbeiten" below it; Bestände · Nach Art · Zeitleiste; Highlights / Empfohlen not built).
+- **"Weiter bearbeiten" lists all drafts, newest first** (for now; "only mine" would need `changed_by` in the
+  index).
+- **Component contract (2026-10-02):** a start-page area is one function building its data plus one template
+  partial, sized by container queries, linking to list presets; one neutral grid; one ordered composition per
+  role; one index query for all counts on the page.
 
 ## Ruling of 2026-10-01 night (route access)
 
