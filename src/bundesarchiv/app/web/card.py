@@ -24,7 +24,7 @@ def _audience_label(article: Article) -> str:
 
 
 def _seed_tags(article: Article) -> str:
-    return ", ".join(article.tags)
+    return "\n".join(article.tags)
 
 
 def _seed_date(article: Article) -> str:
@@ -32,7 +32,7 @@ def _seed_date(article: Article) -> str:
 
 
 def _seed_gruppen(article: Article) -> str:
-    return ", ".join(article.audience.groups) if article.audience is not None else ""
+    return "\n".join(article.audience.groups) if article.audience is not None else ""
 
 
 def _lifecycle_label(article: Article) -> str:
@@ -69,9 +69,9 @@ class _Field:
     something only at the GROUPS rung), so "first empty field" would park the caret there on every
     fully catalogued record.
 
-    ``focusable`` marks every field with its own single-line input, i.e. every field that can CARRY
+    ``focusable`` marks every field with its own input, i.e. every field that can CARRY
     ``autofocus`` — the spine plus Gruppen, since a validation re-render focuses whatever errored.
-    ``body`` is excluded (a textarea is not an "empty field" in the field sense) and so are the custom
+    ``body`` is excluded (the prose is not an "empty field" in the field sense) and so are the custom
     bag's inputs (the escape hatch).
 
     ``span`` gives the field the whole row of its section's grid (long values).
@@ -169,9 +169,9 @@ FIELDS: tuple[_Field, ...] = (
     _Field(
         "gruppen",
         label="Gruppen",
-        control="text",
+        control="textarea",
         section="margin",
-        hint="Mehrere durch Komma trennen",
+        hint="Eine Gruppe pro Zeile",
         shows_with="groups",
         focusable=True,
         seed=_seed_gruppen,
@@ -248,9 +248,9 @@ FIELDS: tuple[_Field, ...] = (
     _Field(
         "tags",
         label="Schlagworte",
-        control="text",
+        control="textarea",
         section="einordnung",
-        hint="Mehrere durch Komma trennen",
+        hint="Ein Schlagwort pro Zeile",
         span=True,
         scanned=True,
         focusable=True,

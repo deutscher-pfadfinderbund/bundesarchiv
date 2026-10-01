@@ -152,8 +152,9 @@ def bestand_rows(
         CardRow(
             "gruppen",
             "Gruppen",
+            control="textarea",
             value=gruppen,
-            hint="Mehrere durch Komma trennen (nur bei Sichtbarkeit „Gruppe(n)“)",
+            hint="Eine Gruppe pro Zeile (nur bei Sichtbarkeit „Gruppe(n)“)",
         ),
     )
 

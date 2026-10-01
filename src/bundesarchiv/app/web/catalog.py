@@ -180,13 +180,14 @@ def parse_edit_form(
         ulid=ulid,
         title=title,
         collection_id=collection_id,
-        body=_get(post, "body"),  # body stays a str ("" → "")
+        # a browser submits a textarea's line breaks as CRLF; the README keeps them as LF
+        body=_get(post, "body").replace("\r\n", "\n"),  # body stays a str ("" → "")
         lifecycle=lifecycle,  # the state the caller handed us — see the docstring
         audience=audience,
         ref_code=_none_if_blank(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
-        tags=_parse_tags(_get(post, "tags")),
+        tags=parse_lines(_get(post, "tags")),
         physical_location=_none_if_blank(_get(post, "physical_location")),
         media=apply_captions(post, current_media),  # preserve media; update captions (spec §6.3)
         date=date,
@@ -228,9 +229,11 @@ def parse_version(raw: str) -> Version:
         return 0
 
 
-def _parse_tags(raw: str) -> tuple[str, ...]:
-    """Comma-separated Schlagworte → a tuple, trimming each and dropping empties."""
-    return tuple(t for part in raw.split(",") if (t := part.strip()))
+def parse_lines(raw: str) -> tuple[str, ...]:
+    """A list field (Schlagworte, Gruppen), one value per line → a tuple, each trimmed, empties
+    dropped. Never split on a comma: legacy Schlagworte carry commas (owner-interview-2026-08.md,
+    "Legacy import"), and so may a group name."""
+    return tuple(t for line in raw.split("\n") if (t := line.strip()))
 
 
 def _parse_date(raw: str) -> tuple[EdtfDate | None, str | None]:
@@ -255,7 +258,7 @@ def parse_audience(sichtbarkeit: str, gruppen: str) -> tuple[Audience | None, st
         return None, None  # empty / unknown → inherit default (ADR 0001)
     if tier is not AudienceTier.GROUPS:
         return Audience(tier=tier), None
-    groups = tuple(g for part in gruppen.split(",") if (g := part.strip()))
+    groups = parse_lines(gruppen)
     if not groups:
         return None, "Bitte mindestens eine Gruppe angeben."
     return Audience(tier=AudienceTier.GROUPS, groups=groups), None

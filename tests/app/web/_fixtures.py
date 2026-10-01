@@ -54,21 +54,36 @@ def draft_mark() -> str:
 
 
 class _PageForms(HTMLParser):
+    """The POST forms and their controls, a control's ``form=`` attribute included: it rides the
+    named form's submit wherever it sits on the page."""
+
     def __init__(self) -> None:
         super().__init__()
         self.forms: list[tuple[str, dict[str, str]]] = []
-        self._fields: dict[str, str] | None = None
+        self._by_id: dict[str, dict[str, str]] = {}
+        self._elsewhere: list[tuple[str, dict[str, str]]] = []  # (form id, its controls)
+        self._form: dict[str, str] | None = None
+        self._fields: dict[str, str] | None = None  # where the current control writes
         self._select: str | None = None
         self._textarea: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         a = {k: v or "" for k, v in attrs}
-        if tag == "form" and a.get("method") == "post":
-            self._fields = {}
-            self.forms.append((a.get("action", ""), self._fields))
-        elif self._fields is None or (not a.get("name") and tag != "option"):
+        if tag == "form":
+            self._form = {} if a.get("method") == "post" else None
+            if self._form is not None:
+                self.forms.append((a.get("action", ""), self._form))
+                self._by_id[a.get("id", "")] = self._form
+            self._fields = self._form
             return
-        elif tag == "input" and (a.get("type") not in ("checkbox", "radio") or "checked" in a):
+        if a.get("form") and tag in ("input", "select", "textarea"):
+            self._fields = {}
+            self._elsewhere.append((a["form"], self._fields))
+        elif tag in ("input", "select", "textarea"):
+            self._fields = self._form
+        if self._fields is None or (not a.get("name") and tag != "option"):
+            return
+        if tag == "input" and (a.get("type") not in ("checkbox", "radio") or "checked" in a):
             self._fields[a["name"]] = a.get("value", "")
         elif tag == "select":
             self._select = a["name"]
@@ -85,17 +100,24 @@ class _PageForms(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "form":
-            self._fields = None
+            self._form = self._fields = None
         elif tag == "select":
             self._select = None
         elif tag == "textarea":
             self._textarea = None
+
+    def close(self) -> None:
+        super().close()
+        for form_id, controls in self._elsewhere:
+            if form_id in self._by_id:
+                self._by_id[form_id].update(controls)
 
 
 def page_forms(body: str) -> list[tuple[str, dict[str, str]]]:
     """Every POST form a page hands out: its action and the values it would submit as rendered."""
     parser = _PageForms()
     parser.feed(body)
+    parser.close()
     return parser.forms
 
 

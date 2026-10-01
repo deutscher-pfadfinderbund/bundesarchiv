@@ -27,6 +27,7 @@ from tests.app.web._fixtures import (
     client_as,
     make_article,
     make_collection,
+    page_forms,
 )
 
 from bundesarchiv.app.web.bestand import BestandChooser
@@ -197,6 +198,37 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
     post = _valid_post(corpus, expected_version=str(version), added_at="2026-01-01T00:00:00Z")
     assert client_as(Archivist()).post(f"/articles/{ulid}/edit", post).status_code == 302
     assert corpus.articles.load(ulid).article.added_at == added_at
+
+
+@pytest.mark.parametrize("title", ["", "Neuer Titel"], ids=["unchanged", "title"])
+def test_the_form_as_rendered_saves_every_other_value_unchanged(
+    corpus: _EditCorpus, title: str
+) -> None:
+    # Each field's pre-fill is parsed back on save. 279 legacy Schlagworte carry a comma, and so may
+    # a group name: a save of the form as rendered must not split them, nor touch any other value.
+    stored = corpus.articles.load(_ULID)
+    before = replace(
+        stored.article,
+        tags=("Dritte, umgearbeitete Auflage, 1924", "Motiv: 100 % Wolle", "\u00c4rmelwappen"),
+        audience=Audience(AudienceTier.GROUPS, ("Gau Wartburg, Nord", "vorstand")),
+        media_type="Foto(s)",
+        document_type="Zeitschrift",
+        date=EdtfDate("1962-07"),
+        creator="Kurt Meyer, Bonn",
+        body="  Zwei\nZeilen  ",
+        custom=(("Quelle", "Nachlass, Teil 2"),),
+    )
+    version = corpus.articles.save(before, stored.version, changed_by="tester")
+    archivist = client_as(Archivist())
+    body = archivist.get(f"/articles/{_ULID}/edit").content.decode()
+    rendered = next(fields for action, fields in page_forms(body) if action.endswith("/edit"))
+    # a browser submits a textarea's line breaks as CRLF
+    post = {name: value.replace("\n", "\r\n") for name, value in rendered.items()}
+    post["title"] = title or post["title"]
+    assert archivist.post(f"/articles/{_ULID}/edit", post).status_code == 302
+    after = corpus.articles.load(_ULID)
+    assert after.version == version + 1, "the form did not save"
+    assert after.article == replace(before, title=title or before.title)
 
 
 def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
@@ -541,14 +573,14 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "ref_code": "F12/3",
         "media_type": "Foto(s)",
         "document_type": "Zeitschrift",
-        "tags": "sommer, fahrt",
+        "tags": "sommer\nfahrt",
         "date": "1962-07",
         "creator": "Kurt Meyer",
         "subject_place": "Bonn",
         "physical_location": "Regal 3",
         "body": "Ein Text.",
         "sichtbarkeit": "groups",
-        "gruppen": "vorstand, archiv",
+        "gruppen": "vorstand\narchiv",
         "custom_rows": [("Fotograf", "Meyer")],
     }
 

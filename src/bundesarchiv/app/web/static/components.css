@@ -136,6 +136,7 @@
   /* the stored value under a field an edit conflict touches: in ink, it is what to decide on */
   .was {
     font: var(--type-meta);
+    white-space: pre-line; /* a stored value of lines (Schlagworte) shows as lines */
   }
 }
 

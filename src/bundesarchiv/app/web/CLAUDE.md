@@ -20,7 +20,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — the list, detail and Papierkorb routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
-- `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `save_catalog_form`, `apply_captions` · tests: `tests/app/web/test_catalog_form.py`
+- `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_captions` · tests: `test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
 - `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore` · tests: `tests/app/web/test_catalog_*.py`

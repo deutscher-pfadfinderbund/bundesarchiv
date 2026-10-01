@@ -128,10 +128,13 @@ def test_whitespace_only_optional_scalar_becomes_none() -> None:
     assert art.ref_code is None
 
 
-def test_tags_split_on_comma() -> None:
-    art = _parse(_post(tags="wanderung, 1962 ,fahrt")).article
+def test_tags_split_on_lines_only() -> None:
+    # Legacy Schlagworte carry commas ("Dritte, umgearbeitete Auflage, 1924"); a browser submits a
+    # textarea's line breaks as CRLF.
+    raw = "Dritte, umgearbeitete Auflage, 1924\r\n  100 % Wolle \r\n\r\n\u00c4rmelwappen\n"
+    art = _parse(_post(tags=raw)).article
     assert art is not None
-    assert art.tags == ("wanderung", "1962", "fahrt")
+    assert art.tags == ("Dritte, umgearbeitete Auflage, 1924", "100 % Wolle", "\u00c4rmelwappen")
 
 
 # --- required-field validation (verbatim strings) ----------------------------------
@@ -233,11 +236,12 @@ def test_members_visibility() -> None:
 
 
 def test_groups_visibility_with_groups() -> None:
-    art = _parse(_post(sichtbarkeit="groups", gruppen="vorstand, kasse")).article
+    # one group per line, as the Schlagworte: a group name may carry a comma
+    art = _parse(_post(sichtbarkeit="groups", gruppen="Gau Wartburg, Nord\r\n kasse ")).article
     assert art is not None
     assert art.audience is not None
     assert art.audience.tier is AudienceTier.GROUPS
-    assert art.audience.groups == ("vorstand", "kasse")
+    assert art.audience.groups == ("Gau Wartburg, Nord", "kasse")
 
 
 def test_groups_visibility_without_groups_is_a_field_error() -> None:

@@ -1644,7 +1644,7 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     # "focused" are browser facts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehler am Rand")
-    gruppen = page.locator('main input[name="gruppen"]')
+    gruppen = page.locator('main textarea[name="gruppen"]')
     expect(gruppen).to_be_hidden()  # not at the GROUPS rung
     # Gruppen stays empty -> invalid
     page.select_option('main select[name="sichtbarkeit"]', "groups")
@@ -1652,7 +1652,7 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     page.click('main button:has-text("Speichern")')
     error = page.locator(".record-meta .error")
     expect(error).to_have_text("Bitte mindestens eine Gruppe angeben.")
-    expect(page.locator('main input[name="gruppen"]')).to_be_focused()
+    expect(page.locator('main textarea[name="gruppen"]')).to_be_focused()
 
 
 def test_weitere_angaben_adds_and_removes_rows_by_round_trip(

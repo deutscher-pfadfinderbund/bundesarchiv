@@ -123,7 +123,7 @@ def test_post_creates_groups_audience_with_gruppen(corpus: Corpus) -> None:
             "name": "Vorstand",
             "parent_id": "",
             "sichtbarkeit": "groups",
-            "gruppen": "vorstand, archiv",
+            "gruppen": "vorstand\r\narchiv",
         },
     )
     created = [c for c in corpus.collections.load_all() if c.name == "Vorstand"]

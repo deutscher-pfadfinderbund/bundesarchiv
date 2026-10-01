@@ -24,6 +24,8 @@ A div with a <label for>, because the hint's ⓘ button and its popover may not 
     </optgroup>
     {% endfor %}
   </select>
+  {% elif feld.control == "textarea" %}
+  <textarea id="{{ control_id }}" name="{{ feld.name }}" rows="3"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>{{ feld.value }}</textarea>
   {% else %}
   <input type="text" id="{{ control_id }}" name="{{ feld.name }}" value="{{ feld.value }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_feld_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
   {% endif %}
