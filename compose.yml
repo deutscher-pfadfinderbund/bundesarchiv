@@ -4,8 +4,9 @@
 # may re-clone it (docs/runbook.md, "Deploy"). Local development does NOT use this file — it runs
 # Postgres alone through Apple's `container` CLI (README, CLAUDE.md).
 #
-# Komodo's auto-update run (daily at 03:00 unless its schedule says otherwise) pulls :latest for app
-# and worker and redeploys on a new image. Rolling back means pinning a sha- tag here.
+# Every image .github/workflows/app-image.yml pushes is deployed by its `deploy` job: a Komodo
+# Deploy of this Stack, which pulls the checkout and :latest. Rolling back means pinning a sha- tag
+# here.
 services:
   # The only service on the `web` network: Traefik terminates TLS and routes to it, it proxies the
   # app and serves media bytes from the canonical tree for X-Accel-Redirect (ADR 0017).
@@ -16,7 +17,9 @@ services:
         condition: service_started
     networks: [default, web]
     volumes:
-      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # The folder, not the file: a pull replaces nginx.conf, and a single-file mount would keep
+      # showing nginx the old one. The Stack's Post Deploy reloads nginx to read it.
+      - ./deploy/nginx:/etc/nginx/conf.d:ro
       - /home/admin/bundesarchiv/canonical:/canonical:ro
     labels:
       - traefik.enable=true

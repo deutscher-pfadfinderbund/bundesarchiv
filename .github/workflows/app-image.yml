@@ -1,6 +1,6 @@
 # The app image (Dockerfile) — built here and only here, pushed to GHCR as
-# ghcr.io/deutscher-pfadfinderbund/bundesarchiv. Komodo on the VPS pulls :latest on its auto-update
-# run, so a push here IS the deployment: nothing may be pushed that CI has not already passed. Hence
+# ghcr.io/deutscher-pfadfinderbund/bundesarchiv, then deployed to the VPS by the `deploy` job, so a
+# push here IS the deployment: nothing may be pushed that CI has not already passed. Hence
 # workflow_run rather than `push` — this waits for the CI run on main to conclude green. A pull
 # request builds the image and stops there, which keeps a broken Dockerfile off main.
 name: App image
@@ -55,3 +55,52 @@ jobs:
         run: |
           docker push ${{ env.IMAGE }}:latest
           docker push ${{ env.IMAGE }}:sha-${{ env.SHA }}
+
+  # A Komodo Deploy of the Stack `bundesarchiv`: it pulls the checkout and :latest, recreates what
+  # changed, then runs the Stack's Post Deploy (nginx -t, nginx reload, rebuild_thumbnails). The job
+  # waits for Komodo's result, so a failed deploy turns the `production` Deployment red. The key
+  # belongs to a Komodo service user with Execute on this one Stack, and only this environment holds
+  # it. Only stage names are printed: this repository's run logs are public; the full log is in Komodo.
+  deploy:
+    needs: build
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://archiv.deutscher-pfadfinderbund.de
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy
+        env:
+          KOMODO_URL: https://komodo.deutscher-pfadfinderbund.de
+          KOMODO_API_KEY: ${{ secrets.KOMODO_API_KEY }}
+          KOMODO_API_SECRET: ${{ secrets.KOMODO_API_SECRET }}
+        shell: python3 {0}
+        run: |
+          import json, os, sys, time, urllib.request
+
+          def komodo(route, body):
+              request = urllib.request.Request(
+                  f"{os.environ['KOMODO_URL']}/{route}",
+                  data=json.dumps(body).encode(),
+                  headers={
+                      "Content-Type": "application/json",
+                      "X-Api-Key": os.environ["KOMODO_API_KEY"],
+                      "X-Api-Secret": os.environ["KOMODO_API_SECRET"],
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  # Komodo's logs carry raw newlines inside strings.
+                  return json.loads(response.read(), strict=False)
+
+          update = komodo("execute", {"type": "DeployStack", "params": {"stack": "bundesarchiv"}})
+          update_id = update["_id"]["$oid"]
+          while update["status"] != "Complete":
+              time.sleep(5)
+              update = komodo("read", {"type": "GetUpdate", "params": {"id": update_id}})
+          for log in update["logs"]:
+              print(f"{'ok    ' if log['success'] else 'FAILED'} {log['stage']}")
+          sys.exit(0 if update["success"] else 1)
