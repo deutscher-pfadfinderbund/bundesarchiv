@@ -25,9 +25,10 @@ from bundesarchiv.domain.models import (
     Lifecycle,
 )
 from bundesarchiv.index import indexer
+from bundesarchiv.persistence._layout import ARTICLES
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
-from bundesarchiv.persistence.repository import ArticleRepository, _readme_key
+from bundesarchiv.persistence.repository import ArticleRepository
 
 
 def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
@@ -299,7 +300,7 @@ def test_a_writer_mid_read_cannot_overwrite_a_later_narrowing(
     from bundesarchiv.index.models import ArticleIndex
 
     store = _seed(_PausingStore())
-    store.pause_on = _readme_key("01FOTO")
+    store.pause_on = ARTICLES.readme_key("01FOTO")
     articles = ArticleRepository(store)
     narrowed = _article(
         "FOTOS",

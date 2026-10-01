@@ -35,14 +35,6 @@ DUPLICATE_BODIES: dict[tuple[str, ...], str] = {
         "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore.list",
         "bundesarchiv/persistence/adapters/webdav.py:WebDavObjectStore.list",
     ): "review 2026-10-01, pattern 1",
-    (
-        "bundesarchiv/persistence/collections.py:CollectionRepository.list_ulids",
-        "bundesarchiv/persistence/repository.py:ArticleRepository.list_ulids",
-    ): "P2",
-    (
-        "bundesarchiv/persistence/collections.py:_ulid_of_readme",
-        "bundesarchiv/persistence/repository.py:_ulid_of_readme",
-    ): "P2",
 }
 
 #: The ``HX-`` request-header names belong to the request-kind owner.

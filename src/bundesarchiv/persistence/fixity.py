@@ -2,7 +2,7 @@
 
 `verify` reads every README version, current and history, of every Article and Collection,
 re-hashes each media file a readable version names, and lists the stored files no version accounts
-for. It writes nothing. Its keys come from their owners, `_writer` and the repositories. It sees
+for. It writes nothing. Its keys come from their owners, `_writer` and `_layout`. It sees
 what `ObjectStore.list` lists: reserved keys (`is_reserved`) are outside it.
 """
 
@@ -12,14 +12,10 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import MediaRef, Ulid
 from bundesarchiv.persistence import collection_readme, readme
+from bundesarchiv.persistence._layout import ARTICLES, COLLECTIONS, content_digest, media_key
 from bundesarchiv.persistence._writer import is_history_key
-from bundesarchiv.persistence.collections import _folder as _collection_folder
-from bundesarchiv.persistence.collections import _ulid_of_readme as _collection_of
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository, _digest
-from bundesarchiv.persistence.repository import _folder as _article_folder
-from bundesarchiv.persistence.repository import _ulid_of_readme as _article_of
 
 #: How the media files one README version names are read from its text.
 type _MediaOf = Callable[[Ulid, str], tuple[MediaRef, ...]]
@@ -52,7 +48,6 @@ def verify(store: ObjectStore) -> Report:
     """Check the tree `store` holds. A save or a delete racing the check can show as a finding
     that the next check no longer reports."""
     stored = frozenset(store.list())
-    media_key = ArticleRepository(store).media_key
     versions: list[str] = []
     unreadable: list[str] = []
     named: defaultdict[str, set[str]] = defaultdict(set)
@@ -83,10 +78,10 @@ def _records(stored: Iterable[str]) -> Iterator[tuple[str, Ulid, str, _MediaOf]]
     """Every Article and Collection with a README among `stored`: that key, the ulid, the folder,
     and how to read the media files a version names."""
     for key in sorted(stored):
-        if ulid := _article_of(key):
-            yield key, ulid, _article_folder(ulid), _article_media
-        elif ulid := _collection_of(key):
-            yield key, ulid, _collection_folder(ulid), _collection_media
+        if ulid := ARTICLES.ulid_of_readme(key):
+            yield key, ulid, ARTICLES.folder(ulid), _article_media
+        elif ulid := COLLECTIONS.ulid_of_readme(key):
+            yield key, ulid, COLLECTIONS.folder(ulid), _collection_media
 
 
 def _history(store: ObjectStore, folder: str) -> list[str]:
@@ -109,7 +104,7 @@ def _hashes(store: ObjectStore, keys: Iterable[str]) -> Iterator[tuple[str, str 
     for key in keys:
         try:
             with store.open_stream(key) as stream:
-                digest: str | None = _digest(stream)[0]
+                digest: str | None = content_digest(stream)[0]
         except NotFound:
             continue
         except ArchiveError, OSError:

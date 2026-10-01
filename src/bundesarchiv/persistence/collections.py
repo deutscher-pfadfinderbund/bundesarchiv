@@ -15,7 +15,8 @@ from dataclasses import dataclass
 
 from bundesarchiv.domain.models import Change, Collection, Ulid, Version
 from bundesarchiv.persistence import collection_readme
-from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, readme_key
+from bundesarchiv.persistence._layout import COLLECTIONS
+from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order
 from bundesarchiv.persistence.errors import ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -41,7 +42,7 @@ class CollectionRepository:
         """Return the Collection for `ulid` with its stored version and change record. Raises
         `NotFound` if absent."""
         try:
-            text = self._store.read(_readme_key(ulid)).decode("utf-8")
+            text = self._store.read(COLLECTIONS.readme_key(ulid)).decode("utf-8")
         except NotFound:
             raise NotFound(ulid) from None
         collection, version, change = collection_readme.decode_collection(text, ulid=ulid)
@@ -56,7 +57,7 @@ class CollectionRepository:
         ulid = collection.ulid
         return commit(
             self._store,
-            _folder(ulid),
+            COLLECTIONS.folder(ulid),
             expected_version,
             changed_by=changed_by,
             version_of=lambda text: collection_readme.decode_collection(text, ulid=ulid)[1],
@@ -76,13 +77,15 @@ class CollectionRepository:
 
     def list_ulids(self) -> list[Ulid]:
         """The ulid of every saved Collection, none of them read."""
-        return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
+        return COLLECTIONS.list_ulids(self._store)
 
     def keys_for(self, ulid: Ulid) -> list[StoredKey]:
         """The keys of the Collection's folder in the order a save writes them: history, the README
         last (ADR 0020 push order). A README that does not decode is not `readable`. An absent
         Collection yields ``[]``."""
-        return keys_in_save_order(self._store, _folder(ulid), {}, readable=self._decodes(ulid))
+        return keys_in_save_order(
+            self._store, COLLECTIONS.folder(ulid), {}, readable=self._decodes(ulid)
+        )
 
     def _decodes(self, ulid: Ulid) -> bool:
         try:
@@ -92,22 +95,3 @@ class CollectionRepository:
         except ArchiveError, UnicodeDecodeError:
             return False
         return True
-
-
-# --- key scheme ------------------------------------------------------------------
-
-
-_ROOT = "collections"
-
-
-def _folder(ulid: Ulid) -> str:
-    return f"{_ROOT}/{ulid}"
-
-
-def _readme_key(ulid: Ulid) -> str:
-    return readme_key(_folder(ulid))
-
-
-def _ulid_of_readme(key: str) -> Ulid | None:
-    parts = key.split("/")
-    return parts[1] if len(parts) == 3 and key == _readme_key(parts[1]) else None

@@ -7,13 +7,12 @@ It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
     articles/<ulid>/media/<name>          media files under their own name, write-once
 
 The README.md ⇄ Article translation is the `readme` codec. The README and history keys and the save
-order are `_writer.commit`'s; this module owns the rest of the key scheme, the media names (ADR
-0019 "Media names") and the hard delete.
+order are `_writer.commit`'s, the folder and media keys `_layout`'s; this module owns the media
+names (ADR 0019 "Media names") and the hard delete.
 
 Callers depend only on this module; they never touch `ObjectStore` keys directly.
 """
 
-import hashlib
 import unicodedata
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
@@ -21,13 +20,8 @@ from typing import BinaryIO
 
 from bundesarchiv.domain.models import Article, Change, MediaRef, Ulid, Version
 from bundesarchiv.persistence import readme
-from bundesarchiv.persistence._writer import (
-    StoredKey,
-    commit,
-    keys_in_save_order,
-    readme_key,
-    remove,
-)
+from bundesarchiv.persistence._layout import ARTICLES, content_digest, media_folder, media_key
+from bundesarchiv.persistence._writer import StoredKey, commit, keys_in_save_order, remove
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, NotFound
 from bundesarchiv.persistence.objectstore import ObjectStore
 
@@ -81,7 +75,7 @@ class ArticleRepository:
     ) -> Version:
         return commit(
             self._store,
-            _folder(article.ulid),
+            ARTICLES.folder(article.ulid),
             expected_version,
             changed_by=changed_by,
             version_of=lambda text: readme.read_version(article.ulid, text),
@@ -108,7 +102,7 @@ class ArticleRepository:
         if not name:
             raise ValueError(f"nothing is left of the media name {filename!r} once cleaned")
         start = source.tell()
-        content_hash, size = digest = _digest(source)
+        content_hash, size = digest = content_digest(source)
         stored = self._place(ulid, name, source, start, digest)
         return MediaRef(
             filename,
@@ -122,19 +116,19 @@ class ArticleRepository:
     def media_key(self, ulid: Ulid, ref: MediaRef) -> str:
         """The store-relative key of `ref`'s file (`articles/<ulid>/media/<name>`).
 
-        THE layout authority (ADR 0005): a caller that must name a file on the wire — the
+        The layout's public face (ADR 0005): a caller that must name a file on the wire — the
         X-Accel redirect target nginx resolves (ADR 0017) — asks here instead of restating
         the scheme."""
-        return _media_key(ulid, ref)
+        return media_key(ulid, ref)
 
     def open_media(self, ulid: Ulid, ref: MediaRef) -> BinaryIO:
         """A readable stream over `ref`'s file, for a caller that hands the bytes straight on
         without materializing them. Raises `NotFound` if the file is not stored; the caller
         closes the stream."""
-        return self._store.open_stream(_media_key(ulid, ref))
+        return self._store.open_stream(media_key(ulid, ref))
 
     def list_ulids(self) -> Iterable[Ulid]:
-        return [ulid for key in self._store.list(f"{_ROOT}/") if (ulid := _ulid_of_readme(key))]
+        return ARTICLES.list_ulids(self._store)
 
     def keys_for(self, ulid: Ulid) -> list[StoredKey]:
         """The keys of the Article's folder in the order a save writes them: media, history, the
@@ -143,13 +137,13 @@ class ArticleRepository:
         by `list`. An absent Article yields ``[]``."""
         named = self._named_media(ulid)
         return keys_in_save_order(
-            self._store, _folder(ulid), named or {}, readable=named is not None
+            self._store, ARTICLES.folder(ulid), named or {}, readable=named is not None
         )
 
     def folder(self, ulid: Ulid) -> str:
         """The folder that holds every file of the Article (`articles/<ulid>`), the prefix a hard
         delete removes."""
-        return _folder(ulid)
+        return ARTICLES.folder(ulid)
 
     def hard_delete(self, ulid: Ulid, expected_version: Version) -> None:
         """Remove the Article's folder for good, keeping no copy (ADR 0020). Raises `Conflict`
@@ -157,7 +151,7 @@ class ArticleRepository:
         absent."""
         remove(
             self._store,
-            _folder(ulid),
+            ARTICLES.folder(ulid),
             expected_version,
             version_of=lambda text: readme.read_version(ulid, text),
         )
@@ -170,7 +164,7 @@ class ArticleRepository:
         free, created there, or that already holds these bytes, reused. Takes no lock (ADR 0019):
         a create that loses a race is checked like a taken name."""
         content_hash, size = digest
-        folder = _media_folder(ulid)
+        folder = media_folder(ulid)
         taken = {_fold(_name_of(entry.key)): entry for entry in self._store.list_entries(folder)}
         for candidate in _candidates(name, content_hash):
             entry = taken.get(_fold(candidate))
@@ -187,7 +181,7 @@ class ArticleRepository:
             else:
                 continue
             with self._store.open_stream(holder) as stored:
-                if _digest(stored) == digest:
+                if content_digest(stored) == digest:
                     return _name_of(holder)
         raise ArchiveError(f"{folder}: every candidate name holds other bytes")
 
@@ -200,48 +194,22 @@ class ArticleRepository:
             return {}
         except ArchiveError, UnicodeDecodeError:
             return None
-        return {_media_key(ulid, ref): ref.content_hash for ref in media}
+        return {media_key(ulid, ref): ref.content_hash for ref in media}
 
     def _refuse_unstored_media(self, article: Article) -> None:
         for ref in article.media:
-            if not self._store.exists(_media_key(article.ulid, ref)):
+            if not self._store.exists(media_key(article.ulid, ref)):
                 raise ArchiveError(
                     f"{article.ulid}: media {ref.content_hash} not stored before save"
                 )
 
     def _read_readme(self, ulid: Ulid) -> str:
         """Read + decode the Article's README text (raises NotFound if absent)."""
-        return self._store.read(_readme_key(ulid)).decode("utf-8")
-
-
-# --- key scheme ------------------------------------------------------------------
-
-_ROOT = "articles"
-
-
-def _folder(ulid: Ulid) -> str:
-    return f"{_ROOT}/{ulid}"
-
-
-def _readme_key(ulid: Ulid) -> str:
-    return readme_key(_folder(ulid))
-
-
-def _media_folder(ulid: Ulid) -> str:
-    return f"{_folder(ulid)}/media/"
-
-
-def _media_key(ulid: Ulid, ref: MediaRef) -> str:
-    return f"{_media_folder(ulid)}{ref.filename if ref.stored_name is None else ref.stored_name}"
+        return self._store.read(ARTICLES.readme_key(ulid)).decode("utf-8")
 
 
 def _name_of(key: str) -> str:
     return key.rpartition("/")[2]
-
-
-def _ulid_of_readme(key: str) -> Ulid | None:
-    parts = key.split("/")
-    return parts[1] if len(parts) == 3 and key == _readme_key(parts[1]) else None
 
 
 # --- media names (ADR 0019) ------------------------------------------------------
@@ -297,17 +265,3 @@ def _candidates(name: str, content_hash: str) -> Iterator[str]:
 def _fold(name: str) -> str:
     """The form two names are compared in: Unicode canonical caseless matching."""
     return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
-
-
-#: How much of a media file one read of a hash pass takes.
-_CHUNK = 1024 * 1024
-
-
-def _digest(stream: BinaryIO) -> tuple[str, int]:
-    """The sha256 hex digest and the byte count of what `stream` holds from where it stands."""
-    digest = hashlib.sha256()
-    size = 0
-    while chunk := stream.read(_CHUNK):
-        digest.update(chunk)
-        size += len(chunk)
-    return digest.hexdigest(), size
