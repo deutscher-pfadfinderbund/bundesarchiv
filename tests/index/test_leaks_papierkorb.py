@@ -21,7 +21,7 @@ from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import SearchFilters, SearchPage, search
+from bundesarchiv.index.query import Facet, SearchFilters, SearchPage, facet_counts, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -46,7 +46,7 @@ _MARKED_ONLY_FILTERS = (
     SearchFilters(decade=1840),
     SearchFilters(dateless=True),
 )
-_MARKED_ONLY_FACETS = (
+_MARKED_ONLY_FACETS: tuple[tuple[Facet, str], ...] = (
     ("tags", "weggeworfen"),
     ("document_type", "Abfallschrift"),
     ("media_type", "Abfallart"),
@@ -129,6 +129,16 @@ def test_the_list_counts_and_facets_leave_marked_articles_out_for_every_viewer(
         assert _facet(page, "collection", _ROOT) == 1, f"[{label}] a marked row counted"
         for key, value in _MARKED_ONLY_FACETS:
             assert _facet(page, key, value) == 0, f"[{label}] {key}={value} counted a marked row"
+
+
+@pytest.mark.django_db
+def test_the_facet_counts_leave_marked_articles_out_for_every_viewer(corpus: None) -> None:
+    keys: tuple[Facet, ...] = ("collection", *(key for key, _ in _MARKED_ONLY_FACETS))
+    for label, viewer in _EVERY_VIEWER:
+        counts = facet_counts(viewer, keys)
+        assert [(fc.value, fc.count) for fc in counts["collection"]] == [(_ROOT, 1)], f"[{label}]"
+        for key, value in _MARKED_ONLY_FACETS:
+            assert value not in {fc.value for fc in counts[key]}, f"[{label}] {key}={value}"
 
 
 @pytest.mark.django_db

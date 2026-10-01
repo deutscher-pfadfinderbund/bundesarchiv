@@ -6,7 +6,15 @@ from pathlib import Path
 
 import pytest
 from django.urls import URLPattern, get_resolver
-from tests.app.web._fixtures import DRAFT_ULID, PUB, PUBLISHED_ULID, WRITES, Corpus, client_as
+from tests.app.web._fixtures import (
+    DRAFT_ULID,
+    PUB,
+    PUBLISHED_ULID,
+    WRITES,
+    Corpus,
+    client_as,
+    list_url,
+)
 
 from bundesarchiv.app import after_write
 from bundesarchiv.app.web import landing
@@ -52,6 +60,7 @@ _STOOD: dict[str, Callable[[Corpus], bool]] = {
 
 #: Every route that writes nothing to the archive.
 _READS = {
+    "start",
     "workbench",
     "spalten",
     "trash",
@@ -130,7 +139,7 @@ def test_only_an_archivist_is_told_of_the_lag(corpus: Corpus) -> None:
 @pytest.mark.django_db
 def test_no_list_link_carries_the_flag_on(corpus: Corpus) -> None:
     client = client_as(Archivist("anna"))
-    page = client.get(f"/?index=lagging&bestand={PUB}")
+    page = client.get(list_url(index="lagging", bestand=PUB))
     assert page.context["index_lag"]
     assert "index=" not in page.content.decode()
     assert "index=" not in page.context["spalten_zurueck"]

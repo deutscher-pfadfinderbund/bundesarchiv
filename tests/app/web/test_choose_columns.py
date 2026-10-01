@@ -29,7 +29,7 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
     response = _post({"spalte": ["bestand", "datierung"], "zurueck": query})
     assert response.status_code == 302
     target = urlsplit(response["Location"])
-    assert (target.scheme, target.netloc, target.path) == ("", "", "/")
+    assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
     assert parse_qs(target.query) == parse_qs(query)
     cookie = response.cookies[ledger.COOKIE]
     assert cookie.value == ledger.cookie_value(["bestand", "datierung"])
@@ -52,7 +52,7 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
 )
 def test_the_way_back_never_leaves_the_site(zurueck: str) -> None:
     target = urlsplit(_post({"spalte": ["datierung"], "zurueck": zurueck})["Location"])
-    assert (target.scheme, target.netloc, target.path) == ("", "", "/")
+    assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
 
 
 def test_the_cookie_never_holds_a_posted_value_that_names_no_column() -> None:

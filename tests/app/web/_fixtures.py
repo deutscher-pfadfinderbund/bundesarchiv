@@ -19,11 +19,13 @@ from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.test import Client
+from django.urls import reverse
 from tests import _articles
 
 from bundesarchiv.app.archive import Archive
@@ -134,6 +136,11 @@ def download_hrefs(body: str) -> list[str]:
     """Every link target on a page that the browser saves rather than opens (``download``)."""
     tags = (tag for tag in re.findall(r"<a\b[^>]*>", body) if re.search(r"\sdownload\b", tag))
     return [unescape(href) for tag in tags for href in re.findall(r'href="([^"]*)"', tag)]
+
+
+def list_url(**params: str) -> str:
+    """The list's address, ``params`` as its query."""
+    return f"{reverse('workbench')}?{urlencode(params)}" if params else reverse("workbench")
 
 
 def client_as(viewer: Viewer | None, *, enforce_csrf: bool = False) -> Client:

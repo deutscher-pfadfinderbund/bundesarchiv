@@ -19,13 +19,13 @@ from dataclasses import replace
 
 from django.http import HttpRequest
 from django.http.response import HttpResponseBase
-from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import landing
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.browse_views import bestand_crumbs
+from bundesarchiv.app.web.browse import PARAM_COLLECTION
+from bundesarchiv.app.web.browse_views import bestand_crumbs, preset_url
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import (
@@ -157,7 +157,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                     bestand, winner, name, {}, winner.version, conflict_name=winner.collection.name
                 ),
             )
-        return redirect_to(request, _scoped_list(ulid))
+        return redirect_to(request, preset_url(PARAM_COLLECTION, ulid))
     return _render_edit(
         request,
         ulid,
@@ -178,16 +178,11 @@ def _render_edit(
         "workbench/bestand_bearbeiten.html",
         {
             "panel": panel,
-            "abbrechen": _scoped_list(ulid),
+            "abbrechen": preset_url(PARAM_COLLECTION, ulid),
             "crumbs": () if chain is None else bestand_crumbs(chain),
         },
         bestand=bestand,
     )
-
-
-def _scoped_list(ulid: str) -> str:
-    """The list scoped to the Bestand ``ulid``: where a rename returns and its Abbrechen leads."""
-    return f"{reverse('workbench')}?bestand={ulid}"
 
 
 def _load_gated_collection(

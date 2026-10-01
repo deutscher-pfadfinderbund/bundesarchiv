@@ -316,6 +316,31 @@
     list-style: none;
   }
 
+  /* ---- register-row — one entry of a list that leads somewhere: the label, its figure (a count)
+     at the end edge. The whole row is the link; only the label underlines, on hover (row 20; no
+     mark on the figure, row 6). Parts: .register-label, .register-figure. ---- */
+  .register-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding-block: var(--space-2);
+    text-decoration: none;
+  }
+  .register-label {
+    flex: 1 1 auto;
+    font: var(--type-entry);
+  }
+  a.register-row:hover .register-label {
+    text-decoration: underline;
+  }
+  /* the menu's count (.menu li > a > span) in a row of its own: the same face, kept per component
+     because a shared `data` element rule would also restyle the pager and the byline */
+  .register-figure {
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+
   /* ---- file-row — one medium in a register: the thumb, then one column of the name (size and
      marks on its line) over the caption field, the tools level with the caption input right after
      it. The column stops at the query measure. Parts: -thumb, -name, -tools. Knob:

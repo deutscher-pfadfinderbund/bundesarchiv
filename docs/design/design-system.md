@@ -267,7 +267,7 @@ monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
 column: a compositions-layer selector may reach a root and never past it. A new component joins
-this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.artikel`,
+this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.start`, `.tiles`, `.artikel`,
 `.record-head`, `.prose`, `.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
 `_trefferzahl` are parts of the filter rail; they are split out only as swap units (law C7).
 
@@ -284,6 +284,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register |
+| Register row | `.register-row` | `start/_bestaende` (a tile of the start page's Bestände) | `components.css` register-row |
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row |
 | Upload | `.upload` | inline (edit form) | `components.css` upload |
 | Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |

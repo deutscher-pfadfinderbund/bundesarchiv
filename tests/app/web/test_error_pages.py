@@ -19,7 +19,7 @@ def test_a_refused_form_gets_the_expired_page_and_repeats_nothing() -> None:
     )
     assert response.status_code == 403
     body = response.content.decode()
-    assert f'href="{reverse("workbench")}"' in body
+    assert f'href="{reverse("start")}"' in body
     assert _TYPED not in body
     assert "/collections/new" not in body
 
@@ -37,7 +37,7 @@ def test_an_uncaught_error_gets_the_error_page_and_repeats_nothing(
     response = client.get(f"/articles/{PUBLISHED_ULID}/edit?q={_TYPED}")
     assert response.status_code == 500
     body = response.content.decode()
-    assert f'href="{reverse("workbench")}"' in body
+    assert f'href="{reverse("start")}"' in body
     assert _TYPED not in body
     assert PUBLISHED_ULID not in body
 

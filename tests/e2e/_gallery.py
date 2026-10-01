@@ -26,7 +26,7 @@ from typing import Literal
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import CorpusHandles
-from tests.e2e._pages import SCREENS, Screen, reach_schlagwort_suggestions
+from tests.e2e._pages import LIST, SCREENS, Screen, reach_schlagwort_suggestions
 
 #: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
 #: ``light-dark()`` tokens, resolved by ``prefers-color-scheme`` — no JS toggle). Every state is
@@ -62,14 +62,14 @@ def _screen_state(screen: Screen) -> GalleryState:
 
 def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the search sentence with its Bestand slot open: the menu with its counts over the ledger
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/articles", wait_until="networkidle")
     page.locator(".search-sentence-slots .menu-button").first.click()
 
 
 def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the search sentence with "+ Filter" open: the secondary filters as a check list; on S,
     # "Filter", which also holds the folded slots
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/articles", wait_until="networkidle")
     triggers = page.locator(":is(.search-sentence-add, .search-sentence-more) .menu-button")
     triggers.filter(visible=True).click()
 
@@ -77,7 +77,7 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
 def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the header's "+ Neu …" create menu open (Mock B, owner 2026-08-07) — the floating
     # overlay panel with "Neuer Artikel …" / "Neuer Bestand …"
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/articles", wait_until="networkidle")
     page.click(".menu-button")
 
 
@@ -88,33 +88,33 @@ def _reach_header_panel(page: Page, base: str, path: str, entry: str) -> None:
 
 
 def _reach_neu_artikel_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    _reach_header_panel(page, base, "/", "Neuer Artikel …")
+    _reach_header_panel(page, base, LIST, "Neuer Artikel …")
 
 
 def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # Anlegen with a blank Name: htmx answers in the panel itself, the error under the field. Spaces,
     # because the browser's `required` stops an empty Name before the server sees it.
-    _reach_header_panel(page, base, "/", "Neuer Bestand …")
+    _reach_header_panel(page, base, LIST, "Neuer Bestand …")
     page.locator("#neu-bestand-name").fill("   ")
     page.locator("#neu-bestand").get_by_role("button", name="Anlegen").click()
     page.wait_for_selector("#neu-bestand .error")
 
 
 def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}/?bestand={corpus.renamable_ulid}", wait_until="networkidle")
+    page.goto(f"{base}{LIST}?bestand={corpus.renamable_ulid}", wait_until="networkidle")
     page.get_by_role("button", name="Bestand bearbeiten …").click()
 
 
 def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the list's "Spalten …" check list open (ruling 2026-09-29: five columns, kept in a cookie)
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/articles", wait_until="networkidle")
     page.get_by_role("button", name="Spalten …").click()
 
 
 def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a URL-seeded selection: the tool row shows the count and its tools
     page.goto(
-        f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
 
@@ -137,7 +137,7 @@ def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
 def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # no route fails on purpose: the page as Django's 500 handler renders it (no context), on the
     # app's origin so its stylesheets load
-    page.goto(f"{base}/", wait_until="networkidle")
+    page.goto(f"{base}/articles", wait_until="networkidle")
     page.set_content(render_to_string("500.html"), wait_until="networkidle")
 
 
@@ -234,7 +234,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
     # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
     # message, which must show exactly one "Neuer Wert" widget
     page.goto(
-        f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
@@ -277,14 +277,14 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench cold (no selection mode): 'Auswählen' at the tool row's start, no checkbox"
         " column, so the titles align with the sentence",
         True,
-        _goto("/"),
+        _goto(LIST),
     ),
     GalleryState(
         "workbench-waehlen",
         "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
         " checkbox column with its select-all head",
         True,
-        _goto("/?auswahl="),
+        _goto(f"{LIST}?auswahl="),
     ),
     GalleryState(
         "workbench-auswahl",

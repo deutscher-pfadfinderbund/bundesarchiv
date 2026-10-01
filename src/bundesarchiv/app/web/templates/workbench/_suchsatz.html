@@ -2,13 +2,14 @@
 The search sentence (a2), the list page's heading: "Suche [field] in [Bestand] · [Jahrzehnt]
 · [Typ]  + Filter". A heading holds phrasing only, so it is an ARIA heading: its slots carry their
 menus. The hidden inputs keep every set filter when a new q is typed (GH #21).
-Params: text, filter_params, and _filterset.html's slots, set_filters, filter_checks, clear_all_query.
+Params: text and filter_params (both optional), and _filterset.html's slots, set_filters,
+filter_checks, clear_all_query; or field_only (the start page): the field alone, without the slots.
 {% endcomment %}
 <form role="search" class="satz" method="get" action="{% url 'workbench' %}">
   <div class="search-sentence" role="heading" aria-level="1">
     <span class="search-sentence-label">Suche</span>
-    <input class="search-sentence-field" type="search" name="q" value="{{ text }}" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
-    {% include "workbench/_filterset.html" %}
+    <input class="search-sentence-field" type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+    {% if not field_only %}{% include "workbench/_filterset.html" %}{% endif %}
   </div>
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}

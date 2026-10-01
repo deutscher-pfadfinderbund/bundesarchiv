@@ -113,7 +113,7 @@ def test_the_confirm_page_deletes_and_returns_to_the_workbench(corpus: Corpus) -
     body = client.get(f"/articles/{PUBLISHED_ULID}/delete").content.decode()
     response = _submit_delete_form(client, body, PUBLISHED_ULID)
     assert response.status_code == 302
-    assert response["Location"] == "/"
+    assert response["Location"] == "/articles"
     assert _mark_of(corpus, PUBLISHED_ULID) is not None
 
 
@@ -149,7 +149,7 @@ def test_the_article_page_deletes_in_place_and_asks_again_when_stale(corpus: Cor
     assert corpus.articles.load(PUBLISHED_ULID).article.title == "Inzwischen"
     [(action, fields)] = _delete_forms(refused.content.decode(), PUBLISHED_ULID)
     done = client.post(action, fields, headers={"HX-Request": "true"})
-    assert done["HX-Redirect"] == "/"
+    assert done["HX-Redirect"] == "/articles"
     assert _mark_of(corpus, PUBLISHED_ULID) is not None
 
 

@@ -48,7 +48,7 @@ _PANE_PARAM = "artikel"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /`` — the workbench: the search sentence, the results.
+    """``GET /articles`` — the workbench: the search sentence, the results.
 
     Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
     ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
@@ -579,6 +579,11 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     )
 
 
+def preset_url(param: str, value: str) -> str:
+    """The list with one filter set: where a crumb, a Schlagwort or a start-page area leads."""
+    return f"{reverse('workbench')}?{browse.with_param({}, param, value)}"
+
+
 @dataclass(frozen=True, slots=True)
 class BestandCrumb:
     """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
@@ -592,7 +597,7 @@ def bestand_crumbs(chain: ResolvedChain) -> tuple[BestandCrumb, ...]:
     return tuple(
         BestandCrumb(
             name=c.name,
-            href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_COLLECTION, c.ulid)}",
+            href=preset_url(browse.PARAM_COLLECTION, c.ulid),
         )
         for c in reversed(chain.collections)
     )
@@ -622,12 +627,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
     media = media_tiles(article.ulid, article.media)
-    tags = tuple(
-        _DetailTag(
-            label=t, href=f"{reverse('workbench')}?{browse.with_param({}, browse.PARAM_TAG, t)}"
-        )
-        for t in article.tags
-    )
+    tags = tuple(_DetailTag(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
     mark = article.deleted
     return {
         "ulid": article.ulid,

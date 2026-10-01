@@ -27,6 +27,7 @@ worker-enqueue seams are the conftest autouse no-ops.
 """
 
 import io
+from collections import defaultdict
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -197,7 +198,7 @@ class Route:
         self.post_data = post_data or {}
         # tier_sensitive: a read route where the matching-group Member is ALLOWED (media/detail).
         self.tier_sensitive = tier_sensitive
-        # stub_search: the workbench route calls the Postgres index (search()); the matrix stubs it
+        # stub_search: the route calls the Postgres index (search()); the matrix stubs it
         # to an empty page so the STATUS/tier-chrome path runs DB-free. Content-scoping correctness is
         # test_workbench.py's job (real Postgres) — here we only assert the route 200s for every tier.
         self.stub_search = stub_search
@@ -205,6 +206,10 @@ class Route:
 
 def _p_root(_c: _MatrixCorpus) -> str:
     return "/"
+
+
+def _p_list(_c: _MatrixCorpus) -> str:
+    return "/articles"
 
 
 def _p_spalten(_c: _MatrixCorpus) -> str:
@@ -310,9 +315,18 @@ def _p_media_thumb(c: _MatrixCorpus) -> str:
 # The exhaustive contract — ONE entry per prod route name. Keeping it a dict keyed by route name lets
 # ``test_contract_covers_every_prod_route`` assert exhaustiveness against the urlconf.
 _CONTRACT: dict[str, Route] = {
-    # Open page — 200 for every tier, method-blind (no guard). Never a deny path here.
-    "workbench": Route(
+    # Open pages — 200 for every tier, method-blind (no guard). Never a deny path here. What each
+    # tier's counts and hits hold is test_start.py's and test_workbench.py's.
+    "start": Route(
         build_path=_p_root,
+        get_nonarch=OK,
+        get_arch=OK,
+        post_nonarch=OK,
+        post_arch=OK,
+        stub_search=True,
+    ),
+    "workbench": Route(
+        build_path=_p_list,
         get_nonarch=OK,
         get_arch=OK,
         post_nonarch=OK,
@@ -605,6 +619,9 @@ def test_route_tier_matrix(
         # still executes — only the index query is replaced with an empty page.
         monkeypatch.setattr(
             "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
+        )
+        monkeypatch.setattr(
+            "bundesarchiv.app.web.start.facet_counts", lambda *a, **k: defaultdict(tuple)
         )
     client = client_as(_TIERS[tier])
     headers = {"Sec-Fetch-Site": "same-origin"}  # a browser sends it on every request

@@ -1,5 +1,5 @@
-/* The page frame (header · search sentence · results · preview pane) and the chrome every screen
-   shares: the compositions, plus the components only the frame places. Load order: tokens,
+/* The page frame (header · search sentence · results · preview pane), the start page's grid and
+   the chrome every screen shares: the compositions, plus the components only the frame places. Load order: tokens,
    components, then this file. Compositions own the BETWEEN (law C4) and style only what they placed
    (C14). */
 
@@ -18,10 +18,14 @@
      a q-swap refreshes its slots out-of-band. Set slots in ink, open ones quieter, centre dots
      between. The form is its size container: at S the unset slots after the first fold away. ---- */
   .satz {
+    /* on the page grid, like the header: "Suche" starts where the wordmark starts. Knob: --satz-pad
+       (0 where a composition already sets the page grid). */
+    --_satz-pad: var(
+      --satz-pad,
+      var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter)) var(--space-2)
+    );
     container-type: inline-size;
-    /* on the page grid, like the header: "Suche" starts where the wordmark starts */
-    padding: var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter))
-      var(--space-2);
+    padding: var(--_satz-pad);
   }
   .search-sentence {
     /* the containing block for its menus' panels (law C12) */
@@ -380,6 +384,47 @@
   /* HTMX in-flight: a static opacity dim, no motion */
   #results.htmx-request {
     opacity: 0.6;
+  }
+
+  /* ---- start — the start page's grid (start.py): areas in auto-fit columns on the page grid. It
+     reads only what an area's root declares: data-span="all" takes the row, data-absent="s" leaves
+     the area out of a small grid. ---- */
+  .start {
+    --section-head-type: var(--type-subhead);
+    --satz-pad: 0;
+    --start-column-min: 18rem; /* the narrowest column: the mock's --column-min */
+    container-type: inline-size;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--start-column-min), 100%), 1fr));
+    align-items: start;
+    gap: var(--space-8);
+    padding: var(--space-6) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter))
+      var(--space-8);
+  }
+  .start > [data-span="all"] {
+    grid-column: 1 / -1;
+  }
+  .start > section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
+    .start > [data-absent~="s"] {
+      display: none;
+    }
+  }
+
+  /* ---- tiles — a list of links in as many columns as fit, one per tile; no width query. ---- */
+  .tiles {
+    container: tiles / inline-size;
+    display: grid;
+    /* a ~24-character Bestand name in the entry face beside its count; no token measures a tile */
+    grid-template-columns: repeat(auto-fit, minmax(min(32ch, 100%), 1fr));
+    column-gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   /* ---- Feld chooser: its place under what precedes it ---- */

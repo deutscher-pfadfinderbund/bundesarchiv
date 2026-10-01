@@ -39,7 +39,14 @@ from tests.index.fixtures import (
 
 from bundesarchiv.domain.viewer import Member, Viewer
 from bundesarchiv.index import indexer
-from bundesarchiv.index.query import SearchFilters, SearchHit, SortOrder, search
+from bundesarchiv.index.query import (
+    Facet,
+    SearchFilters,
+    SearchHit,
+    SortOrder,
+    facet_counts,
+    search,
+)
 
 # The non-Archivist tiers, labelled — every leak channel is asserted for each so a regression names
 # the tier. The Archivist is asserted separately (it is the only viewer these channels open TO).
@@ -305,6 +312,22 @@ def test_collection_facet_subtree_count_hides_restricted_descendants(corpus: Non
 # a value on ONLY restricted rows must be absent from an unauthorized viewer's
 # facet and present for an authorized one. Catches an unscoped facet queryset.
 # ===========================================================================
+
+
+@pytest.mark.django_db
+def test_facet_counts_are_each_tiers_own_search_facets(corpus: None) -> None:
+    """``facet_counts`` (the start page's counts) answers each tier exactly what its unfiltered
+    ``search`` facets do, so every facet negative in this module holds for it too."""
+    facets: tuple[Facet, ...] = (
+        "collection",
+        "tags",
+        "decades",
+        "media_type",
+        "document_type",
+        "file_kind",
+    )
+    for label, viewer in (*_NON_ARCHIVIST_TIERS, ("archivist", ARCHIVIST)):
+        assert facet_counts(viewer, facets) == search(viewer, facets=facets).facets, f"[{label}]"
 
 
 @pytest.mark.django_db

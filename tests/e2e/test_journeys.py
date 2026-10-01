@@ -21,6 +21,7 @@ from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import MINUTES_FILENAME, CorpusHandles, _png
 from tests.e2e._pages import (
     BULK_COMMIT,
+    LIST,
     OVERLAY_CENTRED_PANEL,
     OVERLAY_PANEL_OF_JS,
     OVERLAY_PANELS,
@@ -43,16 +44,16 @@ def test_search_filter_and_open_pane(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     # the ledger shows the corpus
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # filter by a tag facet (Schlagworte: sommer) narrows to the one article
-    page.goto(live_workbench + "/?schlagwort=sommer")
+    page.goto(live_workbench + f"{LIST}?schlagwort=sommer")
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
     # the preview is paused (owner 2026-09-30): only its address opens the pane, beside the search
-    page.goto(live_workbench + f"/?schlagwort=sommer&artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?schlagwort=sommer&artikel={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
     # ✕ closes the pane and keeps the filter
@@ -69,7 +70,7 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     # the next visit still shows it. The address never carries it.
     page = no_js_archivist_page
     query = f"schlagwort=sommer&sortierung=-datierung&auswahl={e2e_corpus.published_ulid}"
-    page.goto(f"{live_workbench}/?{query}")
+    page.goto(f"{live_workbench}{LIST}?{query}")
     page.get_by_role("button", name="Spalten …").click()
     panel = page.locator("#spalten")
     panel.get_by_role("checkbox", name="Bestand").check()
@@ -78,7 +79,7 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     page.wait_for_url(lambda url: parse_qs(urlparse(url).query) == parse_qs(query))
     expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
     expect(page.locator(".ledger th.signatur")).to_have_count(0)
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
 
 
@@ -88,7 +89,7 @@ def test_an_abandoned_panel_change_never_rides_along(
     # Abbrechen, Esc and a click outside put "Spalten …" and "Feld ändern …" back as rendered, so a
     # later Fertig / Änderung prüfen submits only what the archivist kept.
     page = archivist_page
-    page.goto(live_workbench + f"/?auswahl={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?auswahl={e2e_corpus.published_ulid}")
     spalten = page.locator("#spalten")
     page.get_by_role("button", name="Spalten …").click()
     spalten.get_by_role("checkbox", name="Bestand").check()
@@ -139,6 +140,7 @@ def test_search_works_from_a_screen_without_the_results_region(
     for path, submit in (
         (article, "click"),
         (article, "enter"),  # and by implicit submission rather than a click
+        ("/", "enter"),  # the start page's search sentence submits to the list
     ):
         page.goto(path if path.startswith("http") else live_workbench + path)
         page.evaluate(_COUNT_HTMX_JS)
@@ -194,7 +196,7 @@ def test_ledger_headers_compute_one_uniform_treatment(
     # Learning G.1: a comment is not a proof; the computed style is. Every column head AND every
     # anchor inside one must compute the SAME font treatment (the label role) — the sortable-head
     # link may differ only by affordance, never by typography.
-    archivist_page.goto(live_workbench + "/")
+    archivist_page.goto(live_workbench + LIST)
     treatments: list[str] = archivist_page.evaluate(
         """() => Array.from(document.querySelectorAll('.ledger th, .ledger th a')).map((el) => {
                const s = getComputedStyle(el);
@@ -475,7 +477,7 @@ def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
     # exactly like a live one. Under the pointer the primary turns to its outline (DESIGN.md).
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"/?artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}")
     primary = page.locator(".pane [role=toolbar] a.button.primary")
     expect(primary).to_be_visible()
     primary.hover()
@@ -496,7 +498,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     # "span.file-row-tools[toolbar]" — keying rows by name once collapsed 50 such rows into one entry
     # and the walk proved a SINGLE toolbar while reporting green, G.37).
     page = archivist_page
-    page.goto(live_workbench + "/?schlagwort=sommer")
+    page.goto(live_workbench + f"{LIST}?schlagwort=sommer")
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
     assert filtered[header]  # the "+ Neu …" button (the search field is the sentence's here)
@@ -681,7 +683,7 @@ def test_overlays_stay_inside_the_viewport(
         for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=True)
     ]
     page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     anchors = page.evaluate(
         "() => ['ul.menu[popover]'].map("
         "(s) => getComputedStyle(document.querySelector(s)).positionAnchor)"
@@ -746,7 +748,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # its content is not announced — so the announcement lives in a node OUTSIDE the swap target
     # (#trefferzahl), refreshed out-of-band. It is silent on a full page load: nothing changed.
     page = archivist_page
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     expect(page.locator(".pager")).to_have_text("4 Artikel")  # the canonical corpus, one page
     count = page.locator("#trefferzahl")
     expect(count).to_have_text("")
@@ -763,7 +765,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
         "the count's aria-live node was replaced by the swap — announcements die silently"
     )
     # zero hits: the empty state says so, and there is no range to show
-    page.goto(live_workbench + "/?q=zzzznomatch")
+    page.goto(live_workbench + f"{LIST}?q=zzzznomatch")
     expect(page.get_by_text("Keine Treffer")).to_be_visible()
     expect(page.locator(".pager")).to_have_count(0)
 
@@ -772,7 +774,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     # Filter by a decade and a file type (through "+ Filter"), open an article: "Archiv" leads to
     # the list as it was left. Editing and saving the article changes nothing about that.
     page = archivist_page
-    page.goto(live_workbench + "/?jahrzehnt=1960", wait_until="networkidle")
+    page.goto(live_workbench + f"{LIST}?jahrzehnt=1960", wait_until="networkidle")
     page.locator(".search-sentence-add .menu-button").click()
     page.locator("#plus-filter").get_by_role("link", name="mit Fotos").click()
     page.wait_for_url("**file=image**")
@@ -792,6 +794,47 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     assert "jahrzehnt=1960" in page.url
 
 
+def test_a_start_page_bestand_opens_the_list_the_crumb_returns_to(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Start → a Bestand → its list → an article → "Archiv": the list as it was left, Bestand set;
+    # the wordmark leads back to the start page.
+    page = archivist_page
+    page.goto(live_workbench + "/", wait_until="networkidle")
+    page.locator("main").get_by_role("link", name="Bundesarchiv").click()
+    page.wait_for_url(f"**{LIST}?bestand=ROOT")
+    page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
+    page.wait_for_url("**/articles/**")
+    page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
+    page.wait_for_url(f"**{LIST}?bestand=ROOT")
+    page.locator(".wordmark").click()
+    page.wait_for_url(lambda url: url.rstrip("/") == live_workbench.rstrip("/"))
+
+
+def test_an_old_list_link_lands_on_the_list_and_its_clear_links_stay_there(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The list's links are relative ("?…"): rendered at "/", closing the pane (an empty query)
+    # would have led to the start page.
+    page = archivist_page
+    page.goto(f"{live_workbench}/?artikel={e2e_corpus.published_ulid}", wait_until="networkidle")
+    assert urlparse(page.url).path == LIST
+    page.get_by_role("link", name="Vorschau schließen").click()
+    page.wait_for_url(lambda url: urlparse(url).path == LIST and "artikel" not in url)
+
+
+def test_a_way_back_remembered_before_the_list_moved_is_not_followed(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # A tab that remembered the list at "/" (before it moved to LIST) keeps the crumb on the list.
+    page = archivist_page
+    page.goto(f"{live_workbench}/articles/{e2e_corpus.published_ulid}", wait_until="networkidle")
+    page.evaluate("() => sessionStorage.setItem('list-address', '/?jahrzehnt=1960')")
+    page.reload(wait_until="networkidle")
+    crumb = page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True)
+    expect(crumb).to_have_attribute("href", LIST)
+
+
 def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     archivist_page: Page, live_workbench: str
 ) -> None:
@@ -802,7 +845,7 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     # has. Both set filters here are ones no slot shows, so each is its own removing link.
     page = archivist_page
     for nth in (0, 1):
-        page.goto(live_workbench + "/?schlagwort=sommer&medienart=Foto(s)")
+        page.goto(live_workbench + f"{LIST}?schlagwort=sommer&medienart=Foto(s)")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.locator("#trefferzahl")).not_to_be_empty()
@@ -825,7 +868,7 @@ def test_on_a_phone_the_folded_slots_stay_reachable(
     page = archivist_page
     page.set_viewport_size({"width": 390, "height": 900})
     for param in ("jahrzehnt", "dokumenttyp"):
-        page.goto(live_workbench + "/")
+        page.goto(live_workbench + LIST)
         page.locator(".search-sentence-more .menu-button").click()
         entry = page.locator(f'.search-sentence-more .menu a[href*="{param}="]').first
         expect(entry).to_be_visible()
@@ -842,7 +885,7 @@ def test_pane_open_never_folds_the_ledger(
     # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
-    page.goto(live_workbench + f"/?artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 
@@ -966,7 +1009,10 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     # the TITEL is the one genuinely unbounded field, so it carries the pressure.
     _seed_long_content(_e2e_root, django_db_blocker)
     page = archivist_page
-    for width, path in ((680, "/"), (1280, f"/?artikel={e2e_corpus.published_ulid}")):
+    for width, path in (
+        (680, LIST),
+        (1280, f"{LIST}?artikel={e2e_corpus.published_ulid}"),
+    ):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(live_workbench + path)
         for col in ("titel", "datierung", "typ", "digital", "signatur"):
@@ -985,10 +1031,10 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     defects = _sideways_scroll_defects(
         page,
         (
-            (560, live_workbench + "/"),
-            (640, live_workbench + "/"),
-            (800, live_workbench + "/"),
-            (1280, live_workbench + f"/?artikel={e2e_corpus.published_ulid}"),
+            (560, live_workbench + LIST),
+            (640, live_workbench + LIST),
+            (800, live_workbench + LIST),
+            (1280, live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}"),
         ),
         ledger_probes,
     )
@@ -998,7 +1044,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     # S (the space budget's container size): the heads go and each row is its title over one line
     # of its facts. The fold is a form, not a drop: it hides no value (G.33).
     page.set_viewport_size({"width": 500, "height": 900})
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     expect(page.locator(".ledger thead")).to_be_hidden()
     long_row = page.locator(".ledger tbody tr", has_text=_CEILING_REF_CODE)
     for col in ("datierung", "typ", "signatur"):
@@ -1009,7 +1055,7 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     # the leak spine, end to end: a public visitor's workbench shows the published articles but never
     # the draft (search scopes it out) and no archivist chrome (no bulk column, no "+ Neu …" create
     # menu — Mock B, owner 2026-08-07).
-    public_page.goto(live_workbench + "/")
+    public_page.goto(live_workbench + LIST)
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
     expect(public_page.get_by_role("button", name="+ Neu …")).to_have_count(0)
@@ -1028,7 +1074,7 @@ def test_an_anonymous_visitor_signs_in_through_the_door(
 def test_static_assets_serve_in_the_live_server(public_page: Page, live_workbench: str) -> None:
     # A 404'd stylesheet renders an unstyled page the gallery's size-only assertion cannot catch.
     page = public_page
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     refs = page.eval_on_selector_all(
         "link[rel=stylesheet], script[src]", "els => els.map(e => e.href || e.src)"
     )
@@ -1045,7 +1091,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     page = public_page
     # a member/public visitor: the Titel click IS the navigation to the Lesesaal detail read view
     # (one-click entry, owner 2026-08-07 — no pane interception, no JS in the loop).
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
     page.wait_for_url("**/articles/**")
     # the reading structure: title, the origin line (Signatur, date), the cover Platte
@@ -1058,7 +1104,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     href = page.locator(".filmstrip figure > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
     page.get_by_role("link", name="Archiv", exact=True).click()
-    page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
+    page.wait_for_url(lambda url: url.endswith(LIST))
 
 
 def test_herunterladen_saves_the_original_under_its_own_name(
@@ -1084,7 +1130,7 @@ def test_create_bestand_then_file_an_article_under_it(
     # (create→catalog is one flow), the new Bestand pre-selected + a success hinweis. File the
     # first article under it. The create actions live in the header's ONE menu (Mock B, owner
     # 2026-08-07) — a native popover, opened by a plain click.
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     page.click(".menu-button")
     page.get_by_role("button", name="Neuer Bestand …").click()
     panel = page.locator("#neu-bestand")
@@ -1097,7 +1143,7 @@ def test_create_bestand_then_file_an_article_under_it(
     page.click('main button:has-text("Anlegen")')
     page.wait_for_url("**/edit**")
     # now the Bestand has an article, so it appears in the search sentence's Bestand slot menu
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     page.locator(".search-sentence-slots .menu-button").first.click()
     expect(page.locator(".search-sentence .menu a", has_text="Plakate")).to_be_visible()
 
@@ -1427,7 +1473,7 @@ def _delete_new_draft(page: Page, base: str, title: str) -> None:
     panel = page.locator("#loeschen")
     expect(panel).to_be_visible()
     panel.locator('button[type="submit"]').click()
-    page.wait_for_url(lambda url: url.rstrip("/") == base.rstrip("/"))  # → the list
+    page.wait_for_url(lambda url: url.endswith(LIST))  # → the list
 
 
 def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
@@ -1440,7 +1486,7 @@ def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
     page.locator("main [role=toolbar]").get_by_role("link", name="Papierkorb").click()
     page.get_by_role("button", name=f"Wiederherstellen: {title}").click()
     page.wait_for_url("**/articles/*")
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     expect(page.locator("main").get_by_role("link", name=title, exact=True)).to_be_visible()
 
 
@@ -1518,7 +1564,7 @@ def test_bulk_select_confirm_apply(
     # The cold start: no checkbox column until "Auswählen" turns selection mode on. Ticks move the
     # live count → "Feld ändern …" → choose a field → Änderung prüfen posts the checked boxes →
     # confirm → apply.
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     expect(page.locator('input[name="auswahl"]')).to_have_count(0)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")
@@ -1549,7 +1595,8 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
     # The chooser's contract, on both surfaces that render it: the chosen Feld's widget and no other.
     # The confirm page's error mode sits in a .column, whose field rule once outranked the hide.
     page.goto(
-        live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
+        live_workbench
+        + f"{LIST}?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
     page.click('[popovertarget="feld-aendern"]')
     widgets = page.locator("[data-bulk-wert]:visible")
@@ -1571,7 +1618,8 @@ def test_bulk_url_seeded_selection_still_works(
     # The pagination-persistence path: a selection seeded in the URL (?auswahl=) renders the
     # selection mode with the count + confirm flow.
     page.goto(
-        live_workbench + f"/?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
+        live_workbench
+        + f"{LIST}?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
     )
     expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
@@ -1591,7 +1639,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     # (the same htmx instance). (Under htmx 2 the restore came from a localStorage snapshot that
     # carried the enhancement's stale leftovers — the defect this journey was born from.)
     page = archivist_page
-    page.goto(live_workbench + "/?auswahl=")
+    page.goto(live_workbench + f"{LIST}?auswahl=")
     page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()
@@ -1665,7 +1713,7 @@ def test_bulk_fresh_ticks_survive_paging(
     _seed_second_page(_e2e_root, django_db_blocker)
     page = archivist_page
     # land with a URL-seeded selection (the no-JS-persisted baseline state)
-    page.goto(live_workbench + f"/?auswahl={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?auswahl={e2e_corpus.published_ulid}")
     seeded = page.locator(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
     expect(seeded).to_be_checked()
     # a fresh tick + a fresh UNTICK of the URL-seeded item — both unsubmitted, DOM-only
@@ -1939,7 +1987,7 @@ def test_no_js_bulk_flow_completes(
     # The no-JS half: with JavaScript OFF "Auswählen" is a plain link into selection mode, and the
     # archivist completes the whole bulk flow: Auswählen → the head box ("every row on this page")
     # → "Feld ändern …" → choose a field → prüfen → anwenden.
-    page.goto(live_workbench + "/")
+    page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")  # selection mode is URL state
     rows = page.locator('input[name="auswahl"]').count()

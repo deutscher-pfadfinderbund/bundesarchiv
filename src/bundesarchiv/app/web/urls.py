@@ -30,6 +30,7 @@ from bundesarchiv.app.web.catalog_views import (
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
 from bundesarchiv.app.web.media_views import page_not_found, serve_media, serve_thumbnail
+from bundesarchiv.app.web.start import start
 
 handler404 = page_not_found
 
@@ -41,7 +42,8 @@ handler404 = page_not_found
 #: ``artikel-neu`` is registered BEFORE ``artikel-detail`` so the literal ``new`` path wins over the
 #: ``<str:ulid>`` capture (``new`` is not a valid ULID anyway, but ordering makes intent explicit).
 urlpatterns = [
-    path("", workbench, name="workbench"),
+    path("", start, name="start"),
+    path("articles", workbench, name="workbench"),
     path("columns", choose_columns, name="spalten"),
     path("trash", trash, name="trash"),
     # The login surface (ADR 0018). English paths: these are protocol endpoints, not UI — the
@@ -132,4 +134,5 @@ urlpatterns += [
     for route in urlpatterns
     if isinstance(route, URLPattern)
     and str(route.pattern).split("/")[0] in ("articles", "collections", "columns")
+    and route.name != "workbench"  # the list lived at /, which stays its alias (start.start)
 ]

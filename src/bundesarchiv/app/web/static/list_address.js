@@ -2,7 +2,7 @@
 //
 // The list (body.workbench) remembers its address, path and query, per tab in sessionStorage: on
 // load, and after an htmx swap that pushes a new URL. On every other screen the links marked
-// data-list-link ("Archiv" crumb, wordmark, back links) then lead there. Without JS or storage
+// data-list-link (the "Archiv" crumb, back links) then lead there. Without JS or storage
 // (private mode can throw) they stay as rendered.
 (() => {
   "use strict";
@@ -42,8 +42,12 @@
     if (!address?.startsWith("/") || address.startsWith("//")) {
       return;
     }
+    // an address from before the list moved (it lived at "/") leads elsewhere: only the list's path
+    const path = new URL(address, location.origin).pathname;
     document.querySelectorAll("a[data-list-link]").forEach((link) => {
-      link.setAttribute("href", address);
+      if (link.pathname === path) {
+        link.setAttribute("href", address);
+      }
     });
   }
 

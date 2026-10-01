@@ -1,7 +1,8 @@
 """The query layer — viewer-scoped ``search`` over the derived index (ADR 0003/0004).
 
-One public function, ``search``, plus the frozen value types it returns. Everything it computes
-— text match, filters, facets, total, the page window — derives from ONE base queryset:
+``search``, its facets alone (``facet_counts``) and the tag suggestions, plus the frozen value
+types they return. Everything ``search`` computes — text match, filters, facets, total, the page
+window — derives from ONE base queryset:
 
     ArticleIndex.objects.filter(_viewer_scope(viewer), <the side of the Papierkorb>)
 
@@ -207,9 +208,7 @@ def search(
     filters = filters or SearchFilters()
     query = _search_query(text)
 
-    base = ArticleIndex.objects.filter(
-        _viewer_scope(viewer), deleted_at__isnull=not filters.deleted
-    )
+    base = _scoped(viewer, deleted=filters.deleted)
     signatur = _signatur_hit(text)
     if signatur is not None:
         base = base.annotate(_signatur_key=_SIGNATUR_KEY)
@@ -235,6 +234,17 @@ def search(
     )
 
 
+def facet_counts(viewer: Viewer, facets: tuple[Facet, ...]) -> Mapping[str, tuple[FacetCount, ...]]:
+    """The ``facets`` of everything ``viewer`` may see outside the Papierkorb: ``search``'s facets
+    for no text and no filter, without its total and hits."""
+    return _facets(_scoped(viewer, deleted=False), SearchFilters(), facets)
+
+
+def _scoped(viewer: Viewer, *, deleted: bool) -> QuerySet[ArticleIndex]:
+    """The rows ``viewer`` may see on one side of the Papierkorb: every query starts here."""
+    return ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=not deleted)
+
+
 #: How many Schlagworte one suggestion list offers.
 _MAX_SUGGESTIONS = 10
 
@@ -248,7 +258,7 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> t
         return ()
     # ponytail: every distinct tag per call (~3,400 in the corpus); match in SQL if that grows tenfold
     rows = (
-        ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=True)
+        _scoped(viewer, deleted=False)
         .annotate(_elem=Func(F("tags"), function="unnest"))
         .values("_elem")
         .annotate(_n=Count("ulid"))

@@ -36,6 +36,9 @@ from django.test import override_settings
 from playwright.sync_api import Page, expect
 from tests.e2e._corpus import CorpusHandles
 
+#: The list's path, once for every browser file (the start page is "/").
+LIST = "/articles"
+
 #: What an OVERLAY is, once — every walker reads it: each mechanism the app drops a panel with, as
 #: (its trigger, its panel, a JS expression resolving the trigger ``t`` to its panel). The facet
 #: dropdowns are ``<details>``, the menus popovers. A new mechanism is one line here.
@@ -108,7 +111,7 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The bulk CONFIRM surface: a URL-seeded selection, open "Feld ändern …", choose a field and a
     value, submit. POST-only — no path reaches it, which is why it needs a reach."""
     page.goto(
-        f"{base}/?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
@@ -150,10 +153,20 @@ def reach_schlagwort_suggestions(page: Page, base: str, corpus: CorpusHandles) -
 #: page its split button's menu (a draft's also its Veröffentlichen confirmation).
 SCREENS: tuple[Screen, ...] = (
     Screen(
+        "start",
+        "the start page: the search sentence and the Bestände",
+        True,
+        _at("/"),
+        "start",
+        overlays=1,
+        control_rows=("header",),
+    ),
+    Screen("start-member", "the start page as a member", False, _at("/"), "start"),
+    Screen(
         "workbench-empty",
         "workbench, no results",
         True,
-        _at("/?q=zzzznomatch"),
+        _at(f"{LIST}?q=zzzznomatch"),
         "workbench",
         overlays=1,
         control_rows=("header",),
@@ -162,7 +175,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-results",
         "workbench, the corpus",
         True,
-        _at("/"),
+        _at(LIST),
         "workbench",
         overlays=2,
         control_rows=("header", "div[toolbar]"),
@@ -171,7 +184,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-filtered",
         "workbench, tag filter applied (a set filter in the search sentence)",
         True,
-        _at("/?schlagwort=sommer"),
+        _at(f"{LIST}?schlagwort=sommer"),
         "workbench",
         overlays=3,
         control_rows=("header",),
@@ -180,7 +193,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-facets",
         "workbench, two filters applied, both set in the search sentence",
         True,
-        _at("/?schlagwort=sommer&medienart=Foto(s)"),
+        _at(f"{LIST}?schlagwort=sommer&medienart=Foto(s)"),
         "workbench",
         overlays=5,
         control_rows=("header",),
@@ -189,7 +202,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-typ",
         "workbench, a type filter set: the Typ column steps back (a2 round 11)",
         True,
-        _at("/?dokumenttyp=Zeitschrift"),
+        _at(f"{LIST}?dokumenttyp=Zeitschrift"),
         "workbench",
         overlays=3,
         control_rows=("header", "div[toolbar]"),
@@ -198,7 +211,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-pane",
         "workbench, preview pane open",
         True,
-        _goto(lambda c: f"/?artikel={c.published_ulid}"),
+        _goto(lambda c: f"{LIST}?artikel={c.published_ulid}"),
         "workbench",
         overlays=2,
         control_rows=("header", "div[toolbar]"),
@@ -207,7 +220,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-bulk-url",
         "workbench, URL-seeded bulk selection",
         True,
-        _goto(lambda c: f"/?auswahl={c.published_ulid}&auswahl={c.second_ulid}"),
+        _goto(lambda c: f"{LIST}?auswahl={c.published_ulid}&auswahl={c.second_ulid}"),
         "workbench",
         overlays=2,
         control_rows=("header",),
@@ -216,7 +229,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-public",
         "workbench as a public visitor",
         False,
-        _at("/"),
+        _at(LIST),
         "workbench",
         overlays=1,
     ),
@@ -379,7 +392,7 @@ SCREENS: tuple[Screen, ...] = (
 #: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
 #: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
 #: screens share one route.
-SCREEN_COUNT = 26
+SCREEN_COUNT = 28
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:

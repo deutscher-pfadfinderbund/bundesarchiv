@@ -1,0 +1,15 @@
+{% extends "workbench/base.html" %}
+{% comment %}
+The start page (start.start): each area's partial in its role's order, given only its own context.
+An area's root says how the grid places it: data-span="all" takes the row, data-absent="s" leaves
+it out of a small container.
+{% endcomment %}
+{% block title %}Bundesarchiv{% endblock %}
+{% comment %}The search sentence below is the page's search; the header drops its own.{% endcomment %}
+{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block body %}
+<main id="inhalt" class="start">
+  {% for partial, area in areas %}{% include partial with area=area only %}
+  {% endfor %}
+</main>
+{% endblock %}

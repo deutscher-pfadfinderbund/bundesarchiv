@@ -27,6 +27,7 @@ from tests.app.web._fixtures import (
     client_as,
     download_hrefs,
     draft_mark,
+    list_url,
     make_article,
     make_collection,
     page_hrefs,
@@ -234,7 +235,7 @@ def _get(
     hx: bool = False,
     history_restore: bool = False,
 ) -> HttpResponse:
-    path = "/" + (("?" + query) if query else "")
+    path = list_url() + (("?" + query) if query else "")
     headers: dict[str, str] | None = None
     if hx or history_restore:
         headers = {}
@@ -407,7 +408,7 @@ def _sentence_queries(viewer: Viewer, query: str = "") -> list[dict[str, list[st
 
 
 def test_the_list_computes_only_the_facets_its_sentence_shows(indexed_corpus: Corpus) -> None:
-    page = client_as(Archivist()).get("/").context["page"]
+    page = client_as(Archivist()).get(list_url()).context["page"]
     assert set(page.facets) == {"collection", "decades", "document_type", "file_kind"}
 
 
@@ -677,7 +678,7 @@ def test_the_ledger_prints_the_columns_its_viewers_cookie_chose(indexed_corpus: 
     # the Bestand column names the record's own Bestand — for a member too, whose rows it scopes.
     client = client_as(Member(groups=()))
     client.cookies[ledger.COOKIE] = ledger.cookie_value(["bestand", "datierung"])
-    body = client.get("/").content.decode()
+    body = client.get(list_url()).content.decode()
     assert _heads(body) == ["titel", "datierung", "bestand"]
     assert '<td class="bestand">Fotografien</td>' in body
     assert '<td class="bestand">Aktenbestand</td>' in body
@@ -689,7 +690,7 @@ def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
 ) -> None:
     client = client_as(Public())
     client.cookies[ledger.COOKIE] = raw
-    body = client.get("/").content.decode()
+    body = client.get(list_url()).content.decode()
     expected = [] if raw == ledger.cookie_value(()) else [c.key for c in ledger.DEFAULT_COLUMNS]
     assert _heads(body) == ["titel", *expected]
 
@@ -784,7 +785,7 @@ def test_no_pane_for_an_article_in_the_papierkorb(indexed_corpus: Corpus) -> Non
     # ADR 0022: a marked Article is edited nowhere, and the pane offers Bearbeiten.
     stored = indexed_corpus.articles.load(PANE_PUB_ULID)
     indexed_corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
-    assert client_as(Archivist()).get(f"/?artikel={PANE_PUB_ULID}").context["pane"] is None
+    assert client_as(Archivist()).get(list_url(artikel=PANE_PUB_ULID)).context["pane"] is None
 
 
 def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corpus) -> None:

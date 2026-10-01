@@ -16,6 +16,7 @@ from tests.app.web._fixtures import (
     ROOT,
     Corpus,
     client_as,
+    list_url,
     make_article,
     make_collection,
     page_forms,
@@ -110,7 +111,7 @@ def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
     # ancestors reindex + the live name resolution).
     client = client_as(Archivist())
     client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
-    body = client.get("/").content.decode()
+    body = client.get(list_url()).content.decode()
     assert "Lichtbilder" in body  # the renamed Bestand's new name in the rail's Bestand dropdown
     assert "Fotografien" not in body  # the old name is gone
 
@@ -173,7 +174,7 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
         {"name": "Lichtbilder", "expected_version": version},
     )
     assert response.status_code == 302
-    assert response["Location"] == f"/?bestand={FOTOS}"
+    assert response["Location"] == f"/articles?bestand={FOTOS}"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
 
 
@@ -194,5 +195,5 @@ def test_the_panel_answers_a_race_in_place_then_saves(archive: Corpus) -> None:
     assert fields["expected_version"] == "2"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
     saved = client.post(action, fields, headers={"HX-Request": "true"})
-    assert saved["HX-Redirect"] == f"/?bestand={FOTOS}"
+    assert saved["HX-Redirect"] == f"/articles?bestand={FOTOS}"
     assert _name_of(archive, FOTOS) == "Meins"
