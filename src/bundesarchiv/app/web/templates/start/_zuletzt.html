@@ -1,8 +1,8 @@
-{% comment %}The newest Articles: date, title, Bestand. Built, but in no role's tuple yet (start.py).{% endcomment %}
+{% comment %}The newest Articles: date, title, Bestand, one full-width row each.{% endcomment %}
 {% if area.rows %}
 <section data-span="all" data-absent="s" aria-labelledby="start-neu">
   <header class="section-head"><h2 id="start-neu">Zuletzt hinzugefügt</h2><a class="section-head-aside" href="{{ area.all_href }}">Alle ansehen ›</a></header>
-  <ul class="tiles">
+  <ul class="tiles" data-rows>
     {% for date, title, href, bestand in area.rows %}<li><a class="register-row" href="{{ href }}"><span class="register-lead">{{ date|default:"" }}</span><span class="register-label">{{ title }}</span><span class="register-figure">{{ bestand }}</span></a></li>
     {% endfor %}
   </ul>

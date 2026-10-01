@@ -442,14 +442,20 @@
 
   /* ---- tiles — a list of links in as many columns as fit, one per tile; no width query. ---- */
   .tiles {
+    /* a ~24-character Bestand name in the entry face beside its count; no token measures a tile */
+    --_tiles-min: var(--tiles-min, min(32ch, 100%));
     container: tiles / inline-size;
     display: grid;
-    /* a ~24-character Bestand name in the entry face beside its count; no token measures a tile */
-    grid-template-columns: repeat(auto-fit, minmax(min(32ch, 100%), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(var(--_tiles-min), 1fr));
     column-gap: var(--space-8);
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* a list the template marks as rows (Zuletzt hinzugefügt): one full-width row per entry */
+  .tiles[data-rows] {
+    --tiles-min: 100%;
   }
 
   .tiles > .register-apart {
