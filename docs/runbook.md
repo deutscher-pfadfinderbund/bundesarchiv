@@ -73,14 +73,28 @@ need thought:
 
 ### Updating and rolling back
 
-Komodo's "Global Auto Update" Procedure (daily at 03:00 unless its schedule
-says otherwise) pulls `:latest` for `app` and `worker` and redeploys when the
-image changed. So a push to `main` that passes CI is the deployment —
-`.github/workflows/app-image.yml` publishes the image only after CI has gone
-green on that commit.
+A push to `main` that passes CI is the deployment.
+`.github/workflows/app-image.yml` builds the image once CI is green on that
+commit, pushes it, and its `deploy` job runs a Komodo Deploy of the Stack. The
+Deploy pulls the checkout and `:latest`, recreates what changed, then runs the
+Stack's Post Deploy:
 
-A change to `compose.yml` or `deploy/nginx/nginx.conf` reaches the VPS only on a
-Deploy of the Stack, which pulls the checkout first.
+```
+docker exec bundesarchiv-nginx-1 nginx -t
+docker exec bundesarchiv-nginx-1 nginx -s reload
+docker exec bundesarchiv-app-1 python manage.py rebuild_thumbnails
+```
+
+Komodo chains these lines with `&&`, so a config that fails `nginx -t` is never
+loaded and the Deploy fails. The reload is how a changed `nginx.conf` takes
+effect: Compose does not recreate nginx when only a mounted file changed.
+
+The `deploy` job runs in the GitHub environment `production`. That environment
+holds the Komodo API key, of a service user with Execute on this one Stack. The
+job waits for Komodo's result: a failed Deploy turns the run and the
+`production` Deployment red, and GitHub sends its failed-run notification. The
+run log shows stage names only; the full log is in Komodo. To make every deploy
+wait for an approval, add a required reviewer to the environment.
 
 To roll back, pin the last good image instead of `:latest` in `compose.yml` —
 both `app` and `worker` to `ghcr.io/…/bundesarchiv:sha-<sha>` — and deploy.
