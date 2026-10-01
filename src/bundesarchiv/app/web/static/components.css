@@ -341,6 +341,74 @@
     color: var(--ink-2);
   }
 
+  /* the entry of a dated list: its date before the label (Zuletzt hinzugefügt) */
+  .register-lead {
+    flex: 0 0 var(--measure-date);
+    font: var(--type-mono-meta);
+    color: var(--ink-2);
+  }
+  /* a row with a bar (the Zeitleiste): label, then the bar between it and the figure. The bar is a
+     <meter> (a style attribute is blocked by the CSP): its value out of its max, never thinner
+     than the bar is thick. Browsers draw a meter through vendor pseudo-elements only. */
+  .register-row:has(> .register-bar) {
+    align-items: center;
+    padding-block: var(--space-1);
+  }
+  .register-label:has(+ .register-bar) {
+    flex: 0 0 var(--measure-decade);
+    font: var(--type-mono);
+  }
+  .register-bar {
+    flex: 1 1 auto;
+    block-size: var(--bar-weight);
+    appearance: none;
+    border: 0;
+    background: transparent;
+  }
+  .register-bar::-webkit-meter-bar {
+    background: transparent;
+    border: 0;
+    block-size: var(--bar-weight);
+  }
+  .register-bar::-webkit-meter-optimum-value {
+    background: var(--ink-2);
+    min-inline-size: var(--bar-weight);
+  }
+  .register-bar::-moz-meter-bar {
+    background: var(--ink-2);
+  }
+  /* an entry in quieter ink (a context: it re-points the ink its parts read); the list sets it apart */
+  .register-apart {
+    --ink: var(--ink-2);
+  }
+
+  /* ---- resume — "Weiter bearbeiten:" and its links as one running line ---- */
+  .resume {
+    color: var(--ink-2);
+  }
+  .resume > h2 {
+    display: inline;
+    margin: 0 var(--space-2) 0 0;
+    font: inherit;
+  }
+  .resume > ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .resume li {
+    display: inline;
+  }
+  .resume li + li::before {
+    content: " \00B7 ";
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: the toolbar's link rule above styles other links */
+  .resume a {
+    font: var(--type-entry);
+    color: var(--ink);
+  }
+
   /* ---- file-row — one medium in a register: the thumb, then one column of the name (size and
      marks on its line) over the caption field, the tools level with the caption input right after
      it. The column stops at the query measure. Parts: -thumb, -name, -tools. Knob:
@@ -517,7 +585,7 @@
   a.section-head-aside:hover {
     color: var(--ink);
   }
-  .section-head > h2 {
+  .section-head > :is(h1, h2) {
     margin: 0;
     --_head-type: var(--section-head-type, var(--type-title));
     font: var(--_head-type);

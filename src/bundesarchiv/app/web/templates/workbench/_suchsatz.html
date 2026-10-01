@@ -3,13 +3,13 @@ The search sentence (a2), the list page's heading: "Suche [field] in [Bestand] �
 · [Typ]  + Filter". A heading holds phrasing only, so it is an ARIA heading: its slots carry their
 menus. The hidden inputs keep every set filter when a new q is typed (GH #21).
 Params: text and filter_params (both optional), and _filterset.html's slots, set_filters,
-filter_checks, clear_all_query; or field_only (the start page): the field alone, without the slots.
+filter_checks, clear_all_query; or field_only (the start page): the field and its "Suchen" button, without the slots, label and heading role.
 {% endcomment %}
 <form role="search" class="satz" method="get" action="{% url 'workbench' %}">
-  <div class="search-sentence" role="heading" aria-level="1">
-    <span class="search-sentence-label">Suche</span>
+  <div class="search-sentence"{% if not field_only %} role="heading" aria-level="1"{% endif %}>
+    {% if not field_only %}<span class="search-sentence-label">Suche</span>{% endif %}
     <input class="search-sentence-field" type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
-    {% if not field_only %}{% include "workbench/_filterset.html" %}{% endif %}
+    {% if field_only %}<button class="primary search-sentence-submit" type="submit">Suchen</button>{% else %}{% include "workbench/_filterset.html" %}{% endif %}
   </div>
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">
   {% endfor %}

@@ -284,7 +284,8 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register |
-| Register row | `.register-row` | `start/_bestaende` (a tile of the start page's Bestände) | `components.css` register-row |
+| Register row | `.register-row` | `start/_bestaende`, `_nach_art`, `_zeitleiste` (bar: `.register-bar`), `_zuletzt` (`.register-lead`) | `components.css` register-row |
+| Resume | `.resume` | `start/_search` ("Weiter bearbeiten") | `components.css` resume |
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row |
 | Upload | `.upload` | inline (edit form) | `components.css` upload |
 | Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |

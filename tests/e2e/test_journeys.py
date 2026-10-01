@@ -811,6 +811,21 @@ def test_a_start_page_bestand_opens_the_list_the_crumb_returns_to(
     page.wait_for_url(lambda url: url.rstrip("/") == live_workbench.rstrip("/"))
 
 
+def test_each_start_page_area_opens_the_list_with_its_preset(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Nach Art, Zeitleiste and Weiter bearbeiten each lead somewhere: a preset of the list, or the
+    # draft's edit page.
+    page = archivist_page
+    for name, url_part in (("Foto(s)", "medienart="), ("1960er", "jahrzehnt=1960")):
+        page.goto(live_workbench + "/", wait_until="networkidle")
+        page.locator("main").get_by_role("link", name=name).first.click()
+        page.wait_for_url(f"**{LIST}?*{url_part}*")
+    page.goto(live_workbench + "/", wait_until="networkidle")
+    page.locator(".resume").get_by_role("link").first.click()
+    page.wait_for_url("**/articles/**/edit")
+
+
 def test_an_old_list_link_lands_on_the_list_and_its_clear_links_stay_there(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:

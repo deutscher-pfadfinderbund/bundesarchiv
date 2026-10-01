@@ -623,6 +623,10 @@ def test_route_tier_matrix(
         monkeypatch.setattr(
             "bundesarchiv.app.web.start.facet_counts", lambda *a, **k: defaultdict(tuple)
         )
+        monkeypatch.setattr("bundesarchiv.app.web.start.dateless_count", lambda *a, **k: 0)
+        monkeypatch.setattr(
+            "bundesarchiv.app.web.start.search", lambda *a, **k: _empty_search_page()
+        )
     client = client_as(_TIERS[tier])
     headers = {"Sec-Fetch-Site": "same-origin"}  # a browser sends it on every request
     response = (

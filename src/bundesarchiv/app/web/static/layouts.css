@@ -37,10 +37,23 @@
     font: var(--type-query);
     color: var(--ink-2);
   }
+  /* Knobs: --search-field-max (the field's widest), --search-field-pad (inside the frame),
+     --search-field-basis (its width on S, where the list's field takes its own line). The start
+     page sets them for its large search. */
   .search-sentence-field {
+    --_field-max: var(--search-field-max, var(--measure-query));
+    --_field-pad: var(--search-field-pad, var(--space-1) var(--space-2));
     flex: 1 1 var(--measure-query-min);
-    max-inline-size: var(--measure-query);
+    max-inline-size: var(--_field-max);
+    padding: var(--_field-pad);
     font: inherit;
+  }
+  /* "Suchen", beside the field where the field is the whole sentence (the start page): as tall as
+     the field, wide in its label */
+  .search-sentence-submit {
+    align-self: stretch;
+    padding-inline: var(--space-8);
+    font: var(--type-body);
   }
   /* grouped in the DOM because it is the unit a q-swap refreshes, never because it is a box */
   .search-sentence > .filterset {
@@ -115,8 +128,12 @@
       overflow-y: auto;
     }
     .search-sentence-field {
-      flex-basis: 100%;
+      --_field-basis: var(--search-field-basis, 100%);
+      flex-basis: var(--_field-basis);
       max-inline-size: none;
+    }
+    .search-sentence-submit {
+      padding-inline: var(--space-4);
     }
   }
 
@@ -404,6 +421,14 @@
   .start > [data-span="all"] {
     grid-column: 1 / -1;
   }
+  /* the large search: a wide field in an ink frame, with its button in the same row on every size */
+  .start > [data-search] {
+    --section-head-type: var(--type-page-title);
+    --search-field-max: none;
+    --search-field-pad: var(--space-4) var(--space-5);
+    --search-field-basis: 0;
+    --edge: var(--ink);
+  }
   .start > section {
     display: flex;
     flex-direction: column;
@@ -425,6 +450,10 @@
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  .tiles > .register-apart {
+    margin-block-start: var(--space-4);
   }
 
   /* ---- Feld chooser: its place under what precedes it ---- */

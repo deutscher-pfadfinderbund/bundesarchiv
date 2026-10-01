@@ -240,6 +240,12 @@ def facet_counts(viewer: Viewer, facets: tuple[Facet, ...]) -> Mapping[str, tupl
     return _facets(_scoped(viewer, deleted=False), SearchFilters(), facets)
 
 
+def dateless_count(viewer: Viewer) -> int:
+    """How many Articles ``viewer`` may see outside the Papierkorb carry no date (the start page's
+    "Unbekannt"): ``search``'s dateless bucket for no text and no filter."""
+    return _dateless_count(_scoped(viewer, deleted=False), SearchFilters())
+
+
 def _scoped(viewer: Viewer, *, deleted: bool) -> QuerySet[ArticleIndex]:
     """The rows ``viewer`` may see on one side of the Papierkorb: every query starts here."""
     return ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=not deleted)

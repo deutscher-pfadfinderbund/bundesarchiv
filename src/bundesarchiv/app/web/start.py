@@ -19,13 +19,20 @@ from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import preset_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Viewer
-from bundesarchiv.index.query import Facet, FacetCount, facet_counts
+from bundesarchiv.index.query import (
+    Facet,
+    FacetCount,
+    SearchFilters,
+    dateless_count,
+    facet_counts,
+    search,
+)
 
 type Counts = Mapping[str, tuple[FacetCount, ...]]
 type Build = Callable[[Viewer, HttpRequest, Counts, BestandChooser], Mapping[str, object]]
 
 #: Every facet any area reads, so the page asks the index once.
-_FACETS: tuple[Facet, ...] = ("collection",)
+_FACETS: tuple[Facet, ...] = ("collection", "media_type", "decades")
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,11 +53,35 @@ class Tile:
     href: str
 
 
+#: How many titles "Weiter bearbeiten" names before it folds the rest into "und n weitere".
+_RESUME_TITLES = 3
+#: How many Medienarten "Nach Art" names before it sums the rest.
+_MEDIA_TYPES = 7
+#: How many Articles "Zuletzt hinzugefügt" lists.
+_RECENT = 5
+
+
 def search_area(
-    _viewer: Viewer, _request: HttpRequest, _counts: Counts, _bestand: BestandChooser
+    viewer: Viewer, _request: HttpRequest, _counts: Counts, _bestand: BestandChooser
 ) -> Mapping[str, object]:
-    """The list's own search sentence, without its filter slots: it submits to the list."""
-    return {}
+    """The list's own search field, without its filter slots: it submits to the list. For an
+    Archivist it carries "Weiter bearbeiten" under it: every draft, newest ``added_at`` first (the
+    index has no "changed at"). At most three titles; more than three: two and "und n weitere"."""
+    if not isinstance(viewer, Archivist):
+        return {}
+    page = search(
+        viewer,
+        filters=SearchFilters(drafts_only=True),
+        sort="added",
+        page_size=_RESUME_TITLES + 1,
+        facets=(),
+    )
+    shown = page.hits if page.total <= _RESUME_TITLES else page.hits[: _RESUME_TITLES - 1]
+    return {
+        "drafts": tuple((h.title, reverse("artikel-bearbeiten", args=[h.ulid])) for h in shown),
+        "more": page.total - len(shown),
+        "more_href": preset_url(browse.PARAM_DRAFTS, "1"),
+    }
 
 
 def bestaende(
@@ -75,11 +106,89 @@ def bestaende(
     return {"tiles": tuple(tiles)}
 
 
+def nach_art(
+    _viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
+) -> Mapping[str, object]:
+    """The most-used Medienarten as tiles (``counts`` is viewer-scoped, most first); the rest are
+    summed as "Weitere Arten", which opens the whole list."""
+    ranked = counts["media_type"]
+    tiles = tuple(
+        Tile(
+            fc.value,
+            fc.count,
+            vocab.count(fc.count),
+            preset_url(browse.PARAM_MEDIA_TYPE, fc.value),
+        )
+        for fc in ranked[:_MEDIA_TYPES]
+    )
+    rest = sum(fc.count for fc in ranked[_MEDIA_TYPES:])
+    if rest:
+        tiles += (Tile("Weitere Arten", rest, vocab.count(rest), reverse("workbench")),)
+    return {"tiles": tiles}
+
+
+@dataclass(frozen=True, slots=True)
+class Row:
+    """One row of the Zeitleiste: a ``Tile``; its bar is the tile's count out of ``top``."""
+
+    tile: Tile
+    top: int
+    apart: bool = False
+
+
+def zeitleiste(
+    viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
+) -> Mapping[str, object]:
+    """The decades, oldest first, then "Unbekannt" (the undated Articles) set apart. Bars are
+    proportional to the largest row."""
+    decades = sorted(counts["decades"], key=lambda fc: int(fc.value))
+    undated = dateless_count(viewer)
+    tiles = [
+        Tile(
+            f"{fc.value}er",
+            fc.count,
+            vocab.count(fc.count),
+            preset_url(browse.PARAM_DECADE, fc.value),
+        )
+        for fc in decades
+    ]
+    if undated:
+        tiles.append(
+            Tile("Unbekannt", undated, vocab.count(undated), preset_url(browse.PARAM_DATELESS, "1"))
+        )
+    top = max((t.count for t in tiles), default=1)
+    return {"rows": tuple(Row(t, top, apart=t.label == "Unbekannt") for t in tiles)}
+
+
+def zuletzt_hinzugefuegt(
+    viewer: Viewer, _request: HttpRequest, _counts: Counts, bestand: BestandChooser
+) -> Mapping[str, object]:
+    """The newest Articles by ``added_at`` the viewer may see: date, title, Bestand."""
+    hits = search(viewer, sort="added", page_size=_RECENT, facets=()).hits
+    known = bestand.by_ulid()
+    return {
+        "rows": tuple(
+            (
+                h.date_edtf,
+                h.title,
+                reverse("artikel-detail", args=[h.ulid]),
+                known[h.collection_id].name if h.collection_id in known else "",
+            )
+            for h in hits
+        ),
+        "all_href": preset_url(browse.PARAM_SORT, browse.sort_label("added")),
+    }
+
+
 _SEARCH = Area("start/_search.html", search_area)
 _BESTAENDE = Area("start/_bestaende.html", bestaende)
+_NACH_ART = Area("start/_nach_art.html", nach_art)
+_ZEITLEISTE = Area("start/_zeitleiste.html", zeitleiste)
+#: Built, in no tuple yet: the owner rules whether it shows (one name added to a role's tuple).
+_ZULETZT = Area("start/_zuletzt.html", zuletzt_hinzugefuegt)
 
-ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE)
-MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE)
+ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE)
+MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE)
 
 
 def start(request: HttpRequest) -> HttpResponse:

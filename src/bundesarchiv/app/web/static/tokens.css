@@ -99,6 +99,7 @@
     --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
      round 2), still ≥ the WCAG 2.2 AA 24px floor: the VALUE the header sets as its --control-height
      row knob. */
+    --bar-weight: 3px; /* a data bar's thickness */
     --line-width: 1px; /* every line; a contrast mode may thicken it globally */
     --focus-width: 3px; /* the focus ring: width and offset */
     --state-border: 3px; /* the state-marking left border (the CAS conflict panel) */
@@ -106,6 +107,7 @@
     --gutter: 3rem;
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
     --measure-query-min: 18rem; /* the search sentence's field before it wraps */
+    --measure-decade: 10ch; /* "Unbekannt" in the data face */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
     --measure-sig: 12ch; /* a Signatur of at most 8 characters (learning G.31), in the data face */
     --measure-word: 9rem; /* a word cell of the ledger: Typ, Bestand */

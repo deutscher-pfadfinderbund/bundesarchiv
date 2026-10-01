@@ -1,2 +1,18 @@
-{% comment %}The list's search sentence, without its filter slots; it submits to the list.{% endcomment %}
-<section data-span="all">{% include "workbench/_suchsatz.html" with field_only=True only %}</section>
+{% comment %}
+The page's large search: the list's own search component (a field and its button; the look comes from
+its knobs in layouts.css) and, for an archivist with drafts, "Weiter bearbeiten" right under it:
+up to three drafts, or two and "und n weitere" (the list of Entwürfe).
+{% endcomment %}
+<section data-span="all" data-search aria-labelledby="start-suche">
+  <header class="section-head"><h1 id="start-suche">Im Archiv suchen</h1></header>
+  {% include "workbench/_suchsatz.html" with field_only=True only %}
+  {% if area.drafts %}
+  <div class="resume">
+    <h2>Weiter bearbeiten:</h2>
+    <ul>
+      {% for title, href in area.drafts %}<li><a href="{{ href }}">{{ title }}</a></li>
+      {% endfor %}{% if area.more %}<li><a href="{{ area.more_href }}">und {{ area.more }} weitere</a></li>{% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</section>

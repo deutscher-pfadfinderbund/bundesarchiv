@@ -20,7 +20,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_detail`, `DetailResolution` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
 - `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — the list, detail and Papierkorb routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
-- `start.py` — the start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
+- `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role (Zuletzt built, unplaced) · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_captions` · tests: `test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
