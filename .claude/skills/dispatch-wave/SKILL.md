@@ -45,6 +45,10 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - Writers share one scratchpad: require task-prefixed log names (`wf-e2e.log`, not `e2e.log`); a
   stale generic log carrying `exit 0` from another agent nearly passed as a result.
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
+- A UI unit's fence names its CSS (tokens, components, page sheet): no visible state ships without it
+  (MEDIATILES widened its fence by judgment to reach them).
+- A unit that adds corpus fixtures (a PDF, a new record) moves every list state in `test:gallery-diff`,
+  not only its own screens: say so in the brief instead of "only the X states may change".
 - The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
 - Ask for **DX feedback (top 3) upfront** in the final report — it is the brief-quality feedback loop.
 - Security-sensitive waves: include the adversarial checklist from the writer brief's serialization rules (round-trip tests, delimiter rule) *in the brief*, not only in review.
@@ -89,6 +93,11 @@ A dry run (`merge-tree`, rebase preview) describes the tree it was run against. 
 immediately before the merge it sizes; commits landed in between — a docs addendum appended
 to a file the branch also appends to — turn a clean file into a conflict per commit. Order
 integration so doc-appending commits land after the branch merges when possible.
+
+A path or name rename merged while other writers run: at their rebase, grep each branch's NEW test
+lines for the old spelling. A negative check (`"/bearbeiten" not in url`) passes vacuously after a
+rename and a positive wait hangs; aliases keep old GETs green, so the suite will not tell you (URLS +
+CASFIX, 2026-10-01).
 
 `rerere` is on in this repo. A replayed resolution stages the result with no unmerged paths,
 so `git rebase --continue` refuses with "there are staged changes"; a loop polling
