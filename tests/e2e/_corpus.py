@@ -55,6 +55,10 @@ CEILING_REF_CODE = "F12/3-b2"
 # one), so the rename state needs a genuine ULID, not a literal.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 
+#: The one file of the ceiling record: a PDF, so its article page leads with the placeholder.
+MINUTES_FILENAME = "Protokoll_1958.pdf"
+_PDF = b"%PDF-1.4\n%%EOF\n"
+
 
 @dataclass(frozen=True, slots=True)
 class CorpusHandles:
@@ -65,6 +69,7 @@ class CorpusHandles:
     second_ulid: str
     renamable_ulid: str
     marked_ulid: str
+    ceiling_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -103,6 +108,13 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     plate = articles.add_media(
         PUBLISHED_ULID, "plate.png", BytesIO(_png((40, 120, 200))), media_type="image/png"
     )
+    # a PDF beside the photos: no thumbnail exists for it, so its tiles are the placeholder
+    report = articles.add_media(
+        PUBLISHED_ULID, "Fahrtenbericht_1962.pdf", BytesIO(_PDF), media_type="application/pdf"
+    )
+    minutes = articles.add_media(
+        CEILING_ULID, MINUTES_FILENAME, BytesIO(_PDF), media_type="application/pdf"
+    )
     articles.save(
         Article(
             ulid=PUBLISHED_ULID,
@@ -126,6 +138,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             media=(
                 MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
                 MediaRef(plate.filename, plate.content_hash, caption="Gruppenbild"),
+                report,
             ),
         ),
         0,
@@ -177,6 +190,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             media_type="Schrifttum",
             document_type="Protokoll",
             date=EdtfDate("1958-05"),
+            media=(minutes,),
         ),
         0,
         changed_by="tester",
@@ -206,4 +220,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         second_ulid=SECOND_ULID,
         renamable_ulid=RENAMABLE_ULID,
         marked_ulid=MARKED_ULID,
+        ceiling_ulid=CEILING_ULID,
     )

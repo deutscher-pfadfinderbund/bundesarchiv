@@ -267,6 +267,15 @@ SCREENS: tuple[Screen, ...] = (
         control_rows=("header", "div.actions"),
     ),
     Screen(
+        "detail-pdf",
+        "the article page of a record whose one file is a PDF: the placeholder tile",
+        True,
+        _goto(lambda c: f"/articles/{c.ceiling_ulid}"),
+        "artikel-detail",
+        overlays=3,
+        control_rows=("header", "div.actions"),
+    ),
+    Screen(
         "delete-confirm",
         "delete, confirm page",
         True,
@@ -358,7 +367,7 @@ SCREENS: tuple[Screen, ...] = (
 #: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
 #: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
 #: screens share one route.
-SCREEN_COUNT = 25
+SCREEN_COUNT = 26
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:

@@ -18,7 +18,7 @@ import pytest
 from playwright.sync_api import Browser, Dialog, FilePayload, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.app.web._asserts import assert_login_target
-from tests.e2e._corpus import CorpusHandles, _png
+from tests.e2e._corpus import MINUTES_FILENAME, CorpusHandles, _png
 from tests.e2e._pages import (
     BULK_COMMIT,
     OVERLAY_CENTRED_PANEL,
@@ -507,10 +507,10 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     row = next(n for n in edit if "record-meta-actions" in n)
     # Speichern and "Mehr …"
     assert len(edit[row]) >= 2, f"the edit form's action row was not found: {edit[row]}"
-    # the media register's row toolbars: the corpus record has two plates, so two toolbars of three
+    # the media register's row toolbars: the corpus record has three files, so three toolbars of three
     # icon buttons each (up · down · remove) — the control row this wave ADDED, unguarded until now
     media = [n for n in edit if n.startswith("span.file-row-tools[toolbar]") and len(edit[n]) >= 3]
-    assert len(media) >= 2, f"the media register's row toolbars were not walked: {sorted(edit)}"
+    assert len(media) >= 3, f"the media register's row toolbars were not walked: {sorted(edit)}"
 
 
 #: One overlay's containment facts: the panel's box against the viewport, the panel's top edge
@@ -1051,13 +1051,25 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
-    expect(page.locator("main figure img")).to_be_visible()  # cover Platte
-    expect(page.locator(".filmstrip > div > a")).to_have_count(2)  # cover + one further plate
+    expect(page.locator("main .platte img")).to_be_visible()  # cover Platte
+    expect(page.locator(".filmstrip figure")).to_have_count(3)  # cover + two further plates
     # a plate links its gated media byte route; the crumbs lead back into the list
-    href = page.locator(".filmstrip > div > a").first.get_attribute("href")
+    href = page.locator(".filmstrip figure > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
     page.get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url(lambda url: url.rstrip("/").endswith(live_workbench.rstrip("/")))
+
+
+def test_herunterladen_saves_the_original_under_its_own_name(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    # The original is one click away (owner, 2026-10-01): the media route answers inline (ADR
+    # 0017's Content-Disposition and sandbox), and the download attribute still saves it, named.
+    page = archivist_page
+    page.goto(live_workbench + f"/articles/{e2e_corpus.ceiling_ulid}")
+    with page.expect_download() as saved:
+        page.locator(".platte").get_by_role("link", name="Herunterladen").click()
+    assert saved.value.suggested_filename == MINUTES_FILENAME
 
 
 # --- create a Bestand (4.8) --------------------------------------------------------
