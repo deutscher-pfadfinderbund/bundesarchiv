@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx2
 import pytest
+from joserfc.jwk import KeySet, RSAKey
 from pytest_django.fixtures import Settings
 
 from bundesarchiv.app.web import keycloak
@@ -22,8 +23,13 @@ _DOCUMENT: Mapping[str, object] = {
     "authorization_endpoint": f"{_ISSUER}/protocol/openid-connect/auth",
     "token_endpoint": f"{_ISSUER}/protocol/openid-connect/token",
 }
-_KEY_SET: Mapping[str, object] = {"keys": [{"kid": "signing-2026-08", "kty": "RSA"}]}
-_ROTATED: Mapping[str, object] = {"keys": [{"kid": "signing-2026-09", "kty": "RSA"}]}
+_PUBLIC = RSAKey.generate_key(2048).as_dict(private=False)
+_KEY_SET: Mapping[str, object] = {"keys": [{**_PUBLIC, "kid": "signing-2026-08"}]}
+_ROTATED: Mapping[str, object] = {"keys": [{**_PUBLIC, "kid": "signing-2026-09"}]}
+
+
+def _kids(keys: KeySet | None) -> set[str | None] | None:
+    return None if keys is None else {key.kid for key in keys}
 
 
 class _Realm:
@@ -82,30 +88,37 @@ def test_a_failed_key_set_fetch_is_retried_not_remembered(realm: _Realm) -> None
     realm.down = True
     assert keycloak._jwks(_JWKS_URI) is None
     realm.down, realm.body = False, dict(_KEY_SET)
-    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-08"}
+
+
+def test_a_key_set_with_no_usable_key_is_not_remembered(realm: _Realm) -> None:
+    realm.body = {"keys": [{"kty": "unknown"}]}
+    assert keycloak._jwks(_JWKS_URI) is None
+    realm.body = dict(_KEY_SET)
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-08"}
 
 
 def test_a_fetched_key_set_outlives_the_realm(realm: _Realm) -> None:
     """Why the cache exists: a callback validates the ID token without a second round trip to the
     realm, serially after the token exchange it already paid for."""
     realm.body = dict(_KEY_SET)
-    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-08"}
     realm.down = True
-    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-08"}
 
 
 def test_a_refresh_replaces_the_cached_key_set_only_when_it_succeeds(realm: _Realm) -> None:
     """What makes a signing-key rotation survivable — and what keeps an outage during one from
     throwing away the set that still verifies yesterday's keys."""
     realm.body = dict(_KEY_SET)
-    assert keycloak._jwks(_JWKS_URI) == _KEY_SET
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-08"}
 
     realm.body = dict(_ROTATED)
-    assert keycloak._jwks(_JWKS_URI, refresh=True) == _ROTATED
+    assert _kids(keycloak._jwks(_JWKS_URI, refresh=True)) == {"signing-2026-09"}
     realm.down = True
-    assert keycloak._jwks(_JWKS_URI) == _ROTATED
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-09"}
     assert keycloak._jwks(_JWKS_URI, refresh=True) is None
-    assert keycloak._jwks(_JWKS_URI) == _ROTATED
+    assert _kids(keycloak._jwks(_JWKS_URI)) == {"signing-2026-09"}
 
 
 @pytest.mark.parametrize(

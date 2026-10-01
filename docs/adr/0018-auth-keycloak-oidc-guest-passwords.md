@@ -39,6 +39,8 @@ realm** (authorization-code flow, confidential client `bundesarchiv`,
   apps and signs their tokens with the same keys, so a check without `aud` would
   accept another app's token. The claims then pass through the existing pure
   claims→Viewer mapping.
+  **joserfc**, the JOSE library authlib itself builds on, verifies the tokens;
+  authlib's own `jose` module is deprecated.
 - **The server refreshes.** A request whose access token has expired uses the
   refresh cookie at Keycloak's token endpoint, sets both cookies anew on the
   response, and resolves the Viewer from the new token. A failed refresh, and

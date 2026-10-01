@@ -11,12 +11,12 @@ import time
 from base64 import urlsafe_b64encode
 from collections.abc import Iterator, Mapping
 from functools import partial
-from typing import Any
 
 import httpx2
 import pytest
 from authlib.integrations.httpx_client import OAuth2Client
-from authlib.jose import JsonWebKey, JsonWebToken
+from joserfc import jwt
+from joserfc.jwk import KeySet, RSAKey
 from pytest_django.fixtures import Settings
 
 from bundesarchiv.app.web import keycloak
@@ -25,13 +25,12 @@ _ISSUER = "https://auth.example/realms/dpb"
 _CLIENT = "bundesarchiv"
 _JWKS_URI = f"{_ISSUER}/protocol/openid-connect/certs"
 
-_OLD = JsonWebKey.generate_key("RSA", 2048, is_private=True)
-_NEW = JsonWebKey.generate_key("RSA", 2048, is_private=True)
-_KIDS = {id(_OLD): "old", id(_NEW): "new"}
+_OLD = RSAKey.generate_key(2048, parameters={"kid": "old"}, private=True)
+_NEW = RSAKey.generate_key(2048, parameters={"kid": "new"}, private=True)
 
 
-def _public_set(*keys: Any) -> Mapping[str, object]:
-    return {"keys": [{**k.as_dict(is_private=False), "kid": _KIDS[id(k)]} for k in keys]}
+def _public_set(*keys: RSAKey) -> Mapping[str, object]:
+    return {"keys": [k.as_dict(private=False) for k in keys]}
 
 
 def _claims(**overrides: object) -> dict[str, object]:
@@ -52,10 +51,8 @@ def _without(name: str) -> dict[str, object]:
     return {k: v for k, v in _claims().items() if k != name}
 
 
-def _token(claims: Mapping[str, object] | None = None, *, key: Any = _OLD) -> str:
-    header = {"alg": "RS256", "kid": _KIDS[id(key)]}
-    encoded: bytes = JsonWebToken(["RS256"]).encode(header, dict(claims or _claims()), key)
-    return encoded.decode()
+def _token(claims: Mapping[str, object] | None = None, *, key: RSAKey = _OLD) -> str:
+    return jwt.encode({"alg": "RS256", "kid": key.kid}, dict(claims or _claims()), key)
 
 
 def _segment(value: bytes) -> str:
@@ -111,6 +108,7 @@ def test_a_valid_token_yields_its_claims(realm: _Realm) -> None:
         pytest.param(_claims(aud="another-dpb-app"), id="other-client"),
         pytest.param(_without("aud"), id="no-audience"),
         pytest.param(_claims(typ="ID"), id="an-id-token"),
+        pytest.param(_claims(typ=["Bearer", "ID"]), id="a-typ-list"),
         pytest.param(_without("exp"), id="no-expiry"),
     ],
 )
@@ -135,7 +133,7 @@ def test_a_token_hmac_signed_with_the_public_key_is_rejected(realm: _Realm) -> N
     """The classic algorithm confusion: HS256 keyed with the realm's public key."""
     head = _json_segment({"alg": "HS256", "kid": "old"})
     body = _json_segment(_claims())
-    secret = _OLD.as_pem(is_private=False)
+    secret = _OLD.as_pem(private=False)
     signature = hmac.new(secret, f"{head}.{body}".encode(), hashlib.sha256).digest()
     assert keycloak.verify_access(f"{head}.{body}.{_segment(signature)}") is None
 
@@ -197,3 +195,56 @@ def test_a_refresh_answer_that_is_not_an_object_is_a_failed_refresh(
     transport = httpx2.MockTransport(lambda _request: httpx2.Response(200, json=body))
     monkeypatch.setattr(keycloak, "OAuth2Client", partial(OAuth2Client, transport=transport))
     assert keycloak.refresh("r1") is None
+
+
+_KEYS = KeySet.import_key_set({"keys": [_OLD.as_dict(private=False)]})
+
+
+def _id_claims(**overrides: object) -> dict[str, object]:
+    return _claims(typ="ID", sub="user-1", nonce="n1") | overrides
+
+
+def _id_token(**overrides: object) -> str:
+    return _token(_id_claims(**overrides))
+
+
+def _id_token_without(name: str) -> str:
+    return _token({k: v for k, v in _id_claims().items() if k != name})
+
+
+def _validated(token: str) -> Mapping[str, object] | None:
+    return keycloak._validated(token, _KEYS, issuer=_ISSUER, client_id=_CLIENT, nonce="n1")
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param(_id_token(), id="plain"),
+        pytest.param(_id_token(azp=_CLIENT), id="azp-names-this-client"),
+        pytest.param(_id_token(iat=int(time.time()) + 10), id="realm-clock-a-little-ahead"),
+    ],
+)
+def test_an_id_token_from_this_login_validates(token: str) -> None:
+    claims = _validated(token)
+    assert claims is not None
+    assert claims["sub"] == "user-1"
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param(_id_token(nonce="n2"), id="other-nonce"),
+        pytest.param(_id_token_without("nonce"), id="no-nonce"),
+        pytest.param(_id_token(nonce=["n1", "n2"]), id="a-nonce-list"),
+        pytest.param(_id_token(aud="another-dpb-app"), id="other-client"),
+        pytest.param(_id_token(azp="another-dpb-app"), id="issued-to-another-client"),
+        pytest.param(_id_token(iss="https://auth.example/realms/other"), id="other-issuer"),
+        pytest.param(_id_token(exp=int(time.time()) - 1), id="expired"),
+        pytest.param(_id_token_without("sub"), id="no-subject"),
+        pytest.param(_id_token_without("iat"), id="no-issue-time"),
+        pytest.param(_id_token(iat=int(time.time()) + 60), id="issued-in-the-future"),
+    ],
+)
+def test_an_id_token_not_from_this_login_is_rejected(token: str) -> None:
+    """The callback's ID-token check: a replayed or foreign ID token logs nobody in."""
+    assert _validated(token) is None

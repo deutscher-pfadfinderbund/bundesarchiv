@@ -19,12 +19,17 @@ import json
 from base64 import urlsafe_b64decode
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any, cast
 
 import httpx2
 from authlib.common.errors import AuthlibBaseError
 from authlib.common.urls import add_params_to_uri
 from authlib.integrations.httpx_client import OAuth2Client
 from django.conf import settings
+from joserfc import jwt
+from joserfc.errors import InvalidClaimError, JoseError
+from joserfc.jwk import KeySet, KeySetSerialization
+from joserfc.jwt import JWTClaimsRegistry
 
 #: What the authorize request asks for: ``openid`` for the ID token; ``profile`` for
 #: ``preferred_username``, which names an Archivist; ``offline_access`` for the 30-day offline
@@ -40,20 +45,29 @@ _TIMEOUT = 10.0
 #: accepting one would let a token be forged with the realm's PUBLIC key as the HMAC secret.
 _ALGORITHMS = ["RS256"]
 
+#: Seconds a token's ``iat`` may lie ahead of this host's clock: a realm clock a little ahead must not
+#: refuse every login. ``exp`` gets none, so an expired token stays expired.
+_IAT_LEEWAY = 30
+
 
 #: What the realm has already told us, keyed by the URL it came from so a settings change (tests, a
 #: re-pointed deploy) cannot be served another realm's answer. SUCCESSES ONLY — see ``_fetched``.
 _DOCUMENTS: dict[str, Mapping[str, object]] = {}
-_KEY_SETS: dict[str, Mapping[str, object]] = {}
+_KEY_SETS: dict[str, KeySet] = {}
 
 
-def _fetched(
-    url: str, cache: dict[str, Mapping[str, object]], *, refresh: bool = False
-) -> Mapping[str, object] | None:
-    """A JSON object from the realm, fetched once per process and kept for the life of it. A FAILURE
-    is never remembered: memoizing the ``None`` would let one restarting realm disable login in that
-    worker until somebody restarts it. ``refresh`` fetches past the cache and, on success only,
-    replaces what it holds — a failed refresh keeps the answer that still works."""
+def _fetched[T](
+    url: str,
+    cache: dict[str, T],
+    parse: Callable[[Mapping[str, object]], T | None],
+    *,
+    refresh: bool = False,
+) -> T | None:
+    """A JSON object from the realm, ``parse``d, fetched once per process and kept for the life of it.
+    A FAILURE — no answer, or one ``parse`` refuses — is never remembered: memoizing the ``None``
+    would let one restarting realm disable login in that worker until somebody restarts it.
+    ``refresh`` fetches past the cache and, on success only, replaces what it holds — a failed
+    refresh keeps the answer that still works."""
     cached = None if refresh else cache.get(url)
     if cached is not None:
         return cached
@@ -63,22 +77,32 @@ def _fetched(
         document = response.json()
     except httpx2.HTTPError, ValueError:
         return None
-    if not isinstance(document, Mapping):
+    parsed = parse(document) if isinstance(document, Mapping) else None
+    if parsed is None:
         return None
-    cache[url] = document
-    return document
+    cache[url] = parsed
+    return parsed
+
+
+def _key_set(document: Mapping[str, object]) -> KeySet | None:
+    try:
+        return KeySet.import_key_set(cast("KeySetSerialization", dict(document)))
+    except JoseError, KeyError, TypeError, ValueError:
+        return None
 
 
 def _metadata(issuer: str) -> Mapping[str, object] | None:
     """The realm's OIDC discovery document."""
-    return _fetched(f"{issuer.rstrip('/')}/.well-known/openid-configuration", _DOCUMENTS)
+    return _fetched(
+        f"{issuer.rstrip('/')}/.well-known/openid-configuration", _DOCUMENTS, lambda d: d
+    )
 
 
-def _jwks(jwks_uri: str, *, refresh: bool = False) -> Mapping[str, object] | None:
-    """The realm's signing keys. Cached because every request's token check needs them; a key
-    ROTATION is the one thing that invalidates them, which the token checks recognise from a token
-    they cannot verify and answer with ``refresh``."""
-    return _fetched(jwks_uri, _KEY_SETS, refresh=refresh)
+def _jwks(jwks_uri: str, *, refresh: bool = False) -> KeySet | None:
+    """The realm's signing keys, imported. Cached because every request's token check needs them; a
+    key ROTATION is the one thing that invalidates them, which the token checks recognise from a
+    token they cannot verify and answer with ``refresh``."""
+    return _fetched(jwks_uri, _KEY_SETS, _key_set, refresh=refresh)
 
 
 def _endpoint(name: str) -> str | None:
@@ -106,50 +130,52 @@ def authorization_url(*, state: str, nonce: str, redirect_uri: str) -> str | Non
     return str(url)
 
 
-def _decoded(
-    token: str,
-    jwks: Mapping[str, object],
-    *,
-    options: Mapping[str, object],
-    claims_cls: type | None = None,
-    params: Mapping[str, object] | None = None,
-) -> Mapping[str, object] | None:
-    """``token``'s claims, verified against ``jwks`` with ``_ALGORITHMS`` only and validated against
-    ``options``; ``None`` for anything that does not hold."""
-    # Imported here, not at module scope: authlib's `jose` package emits a deprecation warning on
-    # import (it is supported until authlib 2.0); startup and most of the suite stay clear of it.
-    from authlib.jose import JsonWebKey, JsonWebToken
+class _Claims(JWTClaimsRegistry):
+    """joserfc's claim checks, with two changes: only ``aud`` may be a list (joserfc accepts a list
+    when ANY element matches, which would let ``typ: ["Bearer", "ID"]`` pass), and ``iat`` gets
+    ``_IAT_LEEWAY``."""
 
+    def check_value(self, claim_name: str, value: Any) -> None:
+        if isinstance(value, list) and claim_name != "aud":
+            raise InvalidClaimError(claim_name)
+        super().check_value(claim_name, value)
+
+    def validate_iat(self, value: int) -> None:
+        if not isinstance(value, int | float) or value > self.now + _IAT_LEEWAY:
+            raise InvalidClaimError("iat")
+
+
+def _decoded(token: str, keys: KeySet, claims: _Claims) -> Mapping[str, object] | None:
+    """``token``'s claims, verified against ``keys`` with ``_ALGORITHMS`` only and validated by
+    ``claims``; ``None`` for anything that does not hold."""
     try:
-        claims = JsonWebToken(_ALGORITHMS).decode(
-            token,
-            JsonWebKey.import_key_set(dict(jwks)),
-            claims_cls=claims_cls,
-            claims_options=dict(options),
-            claims_params=dict(params) if params else None,
-        )
-        claims.validate()
-    except AuthlibBaseError, KeyError, ValueError:
+        payload = jwt.decode(token, keys, algorithms=_ALGORITHMS).claims
+        if not isinstance(payload, dict):
+            return None
+        claims.validate(payload)
+    except JoseError, KeyError, TypeError, ValueError:
         return None
-    return dict(claims)
+    return payload
 
 
 def _validated(
-    id_token: str, jwks: Mapping[str, object], *, issuer: str, client_id: str, nonce: str
+    id_token: str, keys: KeySet, *, issuer: str, client_id: str, nonce: str
 ) -> Mapping[str, object] | None:
-    """The ID token's claims checked against ``jwks`` — signature, issuer, audience, expiry and the
-    ``nonce`` this browser's authorize request carried — or ``None``."""
-    from authlib.oidc.core import CodeIDToken
-
+    """The ID token's claims checked against ``keys`` — signature, issuer, audience, an ``azp`` that
+    names this client if present, subject, issue and expiry time, and the ``nonce`` this browser's
+    authorize request carried — or ``None``."""
     return _decoded(
         id_token,
-        jwks,
-        options={
-            "iss": {"essential": True, "value": issuer},
-            "aud": {"essential": True, "value": client_id},
-        },
-        claims_cls=CodeIDToken,
-        params={"nonce": nonce},
+        keys,
+        _Claims(
+            iss={"essential": True, "value": issuer},
+            aud={"essential": True, "value": client_id},
+            azp={"value": client_id},
+            sub={"essential": True},
+            exp={"essential": True},
+            iat={"essential": True},
+            nonce={"essential": True, "value": nonce},
+        ),
     )
 
 
@@ -165,13 +191,6 @@ def _kid(token: str) -> str | None:
     return kid if isinstance(kid, str) else None
 
 
-def _kids(jwks: Mapping[str, object]) -> set[object]:
-    keys = jwks.get("keys")
-    return (
-        {k.get("kid") for k in keys if isinstance(k, Mapping)} if isinstance(keys, list) else set()
-    )
-
-
 def verify_access(access_token: str) -> Mapping[str, object] | None:
     """The claims of a Keycloak access token issued to THIS client, or ``None`` when any check fails:
     signature against the realm's keys (``RS256`` only), ``iss``, ``aud`` naming this client, ``typ``
@@ -183,7 +202,7 @@ def verify_access(access_token: str) -> Mapping[str, object] | None:
         return None
     jwks = _jwks(jwks_uri)
     kid = _kid(access_token)
-    if jwks is not None and kid is not None and kid not in _kids(jwks):
+    if jwks is not None and kid is not None and kid not in {key.kid for key in jwks}:
         # A rotated realm key. ponytail: a forged token naming an unknown kid also costs one key-set
         # fetch per request; add a refetch cooldown if that ever shows up in the realm's load.
         jwks = _jwks(jwks_uri, refresh=True)
@@ -192,12 +211,12 @@ def verify_access(access_token: str) -> Mapping[str, object] | None:
     return _decoded(
         access_token,
         jwks,
-        options={
-            "iss": {"essential": True, "value": issuer},
-            "aud": {"essential": True, "value": client_id},
-            "exp": {"essential": True},
-            "typ": {"essential": True, "value": "Bearer"},
-        },
+        _Claims(
+            iss={"essential": True, "value": issuer},
+            aud={"essential": True, "value": client_id},
+            exp={"essential": True},
+            typ={"essential": True, "value": "Bearer"},
+        ),
     )
 
 
