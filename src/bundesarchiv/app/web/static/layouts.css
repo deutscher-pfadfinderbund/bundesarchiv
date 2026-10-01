@@ -142,7 +142,8 @@
     gap: var(--space-3);
   }
   .chooser .actions {
-    --control-height: var(--chooser-control-height, auto);
+    --_chooser-height: var(--chooser-control-height, auto);
+    --control-height: var(--_chooser-height);
     margin-left: auto;
   }
   /* in "Feld ändern …" the panel's knob is the one height source (law C8) */
@@ -342,9 +343,10 @@
      compositions placed (law C14), so it can never reach into a dropped overlay panel, whose
      entries are sized by the panel's own re-declared knob. ---- */
   :is(body > header, body > header > nav) > :is(a, p) {
+    --_row-height: var(--control-height, auto);
     display: inline-flex;
     align-items: center;
-    min-height: var(--control-height);
+    min-height: var(--_row-height);
   }
 
   /* ---- page frame: main · (pane), the pane column present only at/above the 80rem switch ---- */

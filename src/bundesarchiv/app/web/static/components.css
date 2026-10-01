@@ -111,7 +111,8 @@
   textarea,
   select,
   input:not([type="checkbox"], [type="radio"], [type="file"]) {
-    font: var(--field-font, var(--type-meta));
+    --_field-font: var(--field-font, var(--type-meta));
+    font: var(--_field-font);
     background: var(--ground);
     border: var(--line-width) solid var(--edge);
     padding: var(--space-1) var(--space-2);
@@ -149,7 +150,8 @@
      outside that the control keeps its content height. A bare <a> or <p> in a row cannot use
      min-height (it is an inline box) — layouts.css gives those the row's line box. ---- */
   :is(button, a.button, summary, input, select) {
-    min-height: var(--control-height, var(--hit-fallback, auto));
+    --_control-height: var(--control-height, var(--hit-fallback, auto));
+    min-height: var(--_control-height);
   }
 
   /* screen-reader-only text — and the skip link, which is exactly that until it takes focus */
@@ -185,7 +187,8 @@
      field carrying one is a <div> with an explicit <label for>, or its control names itself via
      aria-labelledby (_feld.html). ---- */
   .field {
-    display: var(--field-display, inline-flex);
+    --_field-display: var(--field-display, inline-flex);
+    display: var(--_field-display);
     flex-direction: column;
     gap: var(--space-1);
   }
@@ -215,7 +218,8 @@
     --hit-fallback: var(--touch-target);
   }
   [role="toolbar"] > * {
-    opacity: var(--toolbar-opacity, 1);
+    --_toolbar-opacity: var(--toolbar-opacity, 1);
+    opacity: var(--_toolbar-opacity);
   }
   /* a mutating action is its own <form> (Enter never fires it) but sits inline in an .actions row.
      A form inside a PANEL is a list line instead — `.menu-form` owns that. */
@@ -241,8 +245,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--control-height, var(--hit-fallback, var(--touch-target)));
-    min-height: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    --_icon-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    min-width: var(--_icon-hit);
+    min-height: var(--_icon-hit);
   }
   /* ...and its INK, the same three states, once. Quiet until the pointer is on it; a disabled
      control keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6).
@@ -489,7 +494,8 @@
   }
   .section-head > h2 {
     margin: 0;
-    font: var(--section-head-type, var(--type-title));
+    --_head-type: var(--section-head-type, var(--type-title));
+    font: var(--_head-type);
   }
 
   /* ---- conflict notice (components/conflict_notice.html) — someone saved the record while it was
@@ -667,7 +673,8 @@
   .menu li > a,
   :is(.menu li > button.link, .menu li > form > button.link),
   .autocomplete-list > li {
-    min-height: var(--control-height);
+    --_entry-height: var(--control-height, auto);
+    min-height: var(--_entry-height);
     font: var(--type-meta);
     text-decoration: none;
   }
@@ -854,10 +861,11 @@
   }
   /* a check list of links ("+ Filter"): the box before each entry is filled when it is set */
   .toolpanel > ul:not(.menu) a {
+    --_link-height: var(--control-height, auto);
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: var(--control-height);
+    min-height: var(--_link-height);
     font: var(--type-meta);
     color: var(--ink);
     text-decoration: none;
@@ -1117,7 +1125,8 @@
   .blank {
     display: flex;
     align-items: flex-end;
-    aspect-ratio: var(--blank-ratio, 1);
+    --_blank-ratio: var(--blank-ratio, 1);
+    aspect-ratio: var(--_blank-ratio);
     padding: var(--space-2);
     overflow: hidden;
     border: var(--line-width) solid var(--faint);
