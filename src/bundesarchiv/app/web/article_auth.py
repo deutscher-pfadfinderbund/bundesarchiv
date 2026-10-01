@@ -7,9 +7,8 @@ route's shared empty ``not_found``). A forbidden article is indistinguishable fr
 (existence-hiding, plan §4.3), so a result link a viewer can't follow leaks nothing.
 
 ``resolve_visible_detail`` is the ONE pipeline (one load → resolve → ``visible``-project +
-is_archivist); ``resolve_visible_article`` is the pane's thin wrapper over it. Keeping one pipeline
-means the fail-closed order — malformed → absent → broken chain → denied — can never drift between
-the pane and the detail page.
+is_archivist) for the detail page and the preview pane, so the fail-closed order — malformed →
+absent → broken chain → denied — can never drift between them.
 """
 
 from dataclasses import dataclass
@@ -25,18 +24,6 @@ from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
-
-
-def resolve_visible_article(request: HttpRequest, ulid: str) -> Article | None:
-    """The preview pane's resolution: the Article PROJECTED to the viewer's visible fields
-    (``visible`` = can_view + project), or ``None`` on any deny/absence/malformed/broken-chain.
-
-    A thin wrapper over ``resolve_visible_detail`` (the ONE full-Article render pipeline): the pane
-    just takes the projected Article and ignores the detail-only extras (chain + is_archivist).
-    Keeping one pipeline means the fail-closed order — malformed → absent → broken chain → denied —
-    can never drift between the pane and the detail page."""
-    resolution = resolve_visible_detail(request, ulid)
-    return resolution.article if resolution is not None else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,8 +44,8 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     returning the projection + chain + is_archivist, or ``None`` on any
     deny/absence/malformed/broken-chain.
 
-    The ONE resolution path for a rendered full Article — the 4.6 detail view uses it directly;
-    ``resolve_visible_article`` (the pane) wraps it. Fail-closed order: a malformed ulid, a
+    The ONE resolution path for a rendered full Article — the 4.6 detail view and the preview pane.
+    Fail-closed order: a malformed ulid, a
     missing/unreadable article, a broken chain, or a denied viewer all collapse to ``None`` —
     indistinguishable, so a rendered page can never be an existence oracle."""
     if not is_valid_ulid(ulid):

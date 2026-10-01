@@ -176,7 +176,7 @@ def _fill(corpus: Corpus) -> None:
             custom=(("herkunft", "Nachlass Schmidt"),),
         )
     )
-    # Two articles with VALID ULIDs so the preview pane (resolve_visible_article -> is_valid_ulid)
+    # Two articles with VALID ULIDs so the preview pane (resolve_visible_detail -> is_valid_ulid)
     # can open them. PANE_PUB is public (pane opens for everyone) and carries a captioned media
     # file; PANE_MEM is members-only with the floored fields (pane denied for public -> the
     # workbench renders no pane at all; floored fields never in a member body).

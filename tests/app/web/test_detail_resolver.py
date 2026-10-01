@@ -1,10 +1,9 @@
 """The 4.6 detail resolver (`resolve_visible_detail`, spec §8) — ONE load feeding the render
 view-model.
 
-`resolve_visible_article` (the pane's path) returns only a projected Article; the detail view also
-needs the Bestand chain and the is_archivist presentation gate, so `resolve_visible_detail` loads ONCE
-and returns a `DetailResolution` carrying all three. These tests pin the projection (archivist-only
-fields floored for members).
+`resolve_visible_detail` loads ONCE and returns a `DetailResolution` carrying the projected Article,
+the Bestand chain and the is_archivist presentation gate. These tests pin the projection
+(archivist-only fields floored for members).
 """
 
 from collections.abc import Callable

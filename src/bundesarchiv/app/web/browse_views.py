@@ -31,11 +31,7 @@ from django.urls import reverse
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web import browse, bulk, ledger, vocab
-from bundesarchiv.app.web.article_auth import (
-    DetailResolution,
-    resolve_visible_article,
-    resolve_visible_detail,
-)
+from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
@@ -241,13 +237,14 @@ class _Pane:
 def _resolve_pane(request: HttpRequest, *, is_archivist: bool) -> _Pane | None:
     """Resolve the ``?artikel`` param to a preview-pane view-model, or ``None`` when there is no
     pane to show. Fail-closed by delegating to the ONE render-resolution path
-    (``resolve_visible_article`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
+    (``resolve_visible_detail`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
     all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
     existence oracle). An absent ``artikel`` param is simply no pane."""
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
-    article = resolve_visible_article(request, ulid)
+    resolution = resolve_visible_detail(request, ulid)
+    article = resolution.article if resolution is not None else None
     if article is None or article.deleted is not None:
         # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
         return None
