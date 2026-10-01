@@ -10,6 +10,7 @@ The prose budgets below are the second half of the contract: an index that grows
 index. They are mechanical on purpose — a busted budget is compressed, never raised.
 """
 
+import importlib
 import re
 from pathlib import Path
 
@@ -121,3 +122,53 @@ def test_every_row_is_one_line_within_budget() -> None:
             assert len(row) <= ROW_MAX_CHARS, (
                 f"{pkg}: row {len(row)} chars, budget {ROW_MAX_CHARS} — {_COMPRESS}\n{row}"
             )
+
+
+_PREFIX = "interface spelling that is not a name: "
+_BESTAND = "method of BestandChooser, listed bare after `BestandChooser.of`"
+#: ``pkg/module.py:spelling`` -> reason: interface spellings that are not importable names.
+INTERFACE_ALLOW: dict[str, str] = {
+    "app/articles.py:delete_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
+    "app/articles.py:restore_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
+    **{
+        f"app/web/bestand.py:{m}": _BESTAND
+        for m in ("options", "accepts", "error", "name_of", "by_ulid", "chain_of")
+    },
+    **{
+        f"app/web/catalog_views.py:{m}": _PREFIX + "`article_create`/`_edit`/... suffix shorthand"
+        for m in ("_edit", "_copy", "_delete", "_delete_permanently", "_restore")
+    },
+    "app/web/panels.py:*_panel": _PREFIX + "`the three *_panel builders`",
+}
+
+_INTERFACE_ROW = re.compile(rf"^- `({_NAME})` .*? interface: (.*?)(?: · tests:.*)?$", re.MULTILINE)
+
+
+def _interface_names() -> set[str]:
+    """``pkg/module.py:spelling`` for every backticked name in a row's ``interface:`` segment;
+    ``.method`` forms belong to the name before them and are skipped."""
+    return {
+        f"{pkg}/{module}:{spelling}"
+        for pkg in PACKAGES
+        for module, segment in _INTERFACE_ROW.findall(_map_path(pkg).read_text())
+        for spelling in re.findall(r"`([^`]+)`", segment)
+        if not spelling.startswith(".")
+    }
+
+
+def _resolves(entry: str) -> bool:
+    path, spelling = entry.split(":", 1)
+    pkg = next(p for p in PACKAGES if path.startswith(p + "/"))
+    module = path.removeprefix(pkg + "/").removesuffix(".py").replace("/", ".")
+    imported = importlib.import_module(f"bundesarchiv.{pkg.replace('/', '.')}.{module}")
+    return hasattr(imported, re.split(r"[.(]", spelling)[0])
+
+
+def test_every_listed_interface_name_exists_on_its_module() -> None:
+    stale = {e for e in _interface_names() if not _resolves(e)}
+    assert not stale - set(INTERFACE_ALLOW), (
+        f"interface names that do not exist on their module: {sorted(stale - set(INTERFACE_ALLOW))}"
+    )
+    assert not set(INTERFACE_ALLOW) - stale, (
+        f"allow-list entries that now resolve: {sorted(set(INTERFACE_ALLOW) - stale)}"
+    )
