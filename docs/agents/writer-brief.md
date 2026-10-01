@@ -5,7 +5,8 @@ writer onboards from here (plus `CLAUDE.md`, `CONTEXT.md`, and the task's own
 brief) — the mailbox is not the source of truth. Its sibling is
 `design-gate-brief.md` (what a UI review runs); this is how the code gets built.
 
-**What to read.** Always: "Gates green", "TDD", "An unexpected red is a STOP", "The deny contract",
+**What to read.** Always: "Gates green", "TDD", "An unexpected red is a STOP", "One owner per
+decision", "The deny contract",
 "Comment discipline", "Clean history", "Report before you idle". The other sections only when your
 task touches their subject (CSS, templates, serialization, map rows, screenshots). Your task brief
 names the sections of other docs to read; read those, not the whole files.
@@ -136,6 +137,32 @@ it came to be and what would have prevented it; fix the cause; the report states
 both cause and prevention. Adding a test or gate is the last resort after the
 systemic cause is addressed, never the reflex.
 
+## One owner per decision
+
+Measured 2026-10-01: 10 of 23 review findings, and most of the bugs behind them, were a second
+caller restating a decision the first caller already made. Examples: the publish precondition in 3
+places, field labels in 2 registries, "which fields may a Member see" in 7, the README front matter
+in 2 codecs, the after-write steps in 6 services.
+
+- **The second caller moves the decision.** A decision answers a question about the domain or the
+  request: may this be published, may this viewer see this field, what is this field called, what
+  kind of request is this, what runs after a write. When you need one a second time, first move it
+  into the module that owns its subject, then call it from both places. Markup and one-line
+  predicates (`deleted is not None`) are exempt.
+- **Fix every copy.** Before a fix commit, grep for siblings of the code you fix: the same name, the
+  same literal, the same shape. Fix them all, or list the rest under "Found, not fixed".
+- **A state the user must see is shown at every caller.** When a service result carries one (index
+  lagged, conflict, refused), every route that calls the service shows it. Grep the callers when you
+  add such a field or call such a service.
+- **Delete before you guard.** Before a leak or defect fix on a field, function or route, count its
+  readers in `src/` (tests do not count). Zero readers: delete it instead of guarding it.
+- **The canonical tree is untrusted input.** A README may be hand-edited, undecodable or not UTF-8
+  (ADR 0020 expects hand edits on the system of record). Code that reads canonical files uses its
+  layer's existing policy for a bad file and never invents a new one; where the layer has none, stop
+  and ask.
+- **Words move with the code.** A change to who can reach a surface, or to what a term means,
+  updates `CONTEXT.md` and the module docstring in the same commit.
+
 ## Serialization is adversarial by default
 
 Every encode/decode or serialize/parse pair ships with an adversarial round-trip
@@ -143,12 +170,18 @@ test in the commit that introduces it: the delimiter itself, empty, unicode,
 percent, leading/trailing whitespace. Joining externally-controlled values with
 an in-band delimiter and no escaping is a defect, not a style call.
 
+A form field is such a pair: the value the form pre-fills is parsed back on save, so an unchanged
+field must save unchanged. Values from the legacy import count as external (Schlagworte contain
+commas: 245 of 2506 records, 2026-10-01). A pair older than this rule that you touch without such a
+test gets the test in your commit.
+
 ## Tests assert derived values, never re-derived ones
 
 A test asserting an encoding, a URL or a key layout gets the value from the
 production helper, or parses the parts back out — it never re-derives the value
 with its own copy of the rule. A drift test pinning two copies equal needs a
-stated reason why an owning interface is not the fix.
+stated reason why an owning interface is not the fix, and a `docs/tech-debt.md` entry for the copy.
+The one standing exception is a fact that must exist in two encodings (Python and SQL scope, ADR 0012).
 
 ## No heavy mocking
 

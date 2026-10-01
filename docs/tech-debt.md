@@ -24,7 +24,11 @@ continue it.
 
 ## Domain language
 
-No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
+### 30. Who may read a Bestand's name is unruled — Worth exploring
+- **Indicator:** 1 site shows any Bestand's name, or an unknown ulid, to a Member: the list's Bestand slot (2026-10-01)
+- **Evidence:** `browse_views.py` slot label from `bestand.names()` (all Collections); `article_auth.py` asserts "names are member-safe" without a ruling. Owner 2026-10-01: OK for now, revisit
+- **Deletion test:** n/a — a missing rule, not a module
+- **Sketch:** decide with group access / the policy rework; if names are scoped, the slot label comes from the viewer-scoped facet only
 
 ## Module map & packages
 

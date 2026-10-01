@@ -903,3 +903,10 @@ missing records; "N von M gespeichert"; the error pages' wording.
   page, the sentence in secondary ink), which needs its own door component.
 - **The door's look, settled (owner, 2026-10-01 evening):** simple — the large wordmark centred on the
   screen, the button below it. No sentence, no header band.
+
+## Ruling of 2026-10-01 (Bestand names)
+
+- **A Bestand's name may reach a Member who cannot see its articles, for now.** Today the list's
+  Bestand filter shows the name of any Bestand named in the address (`/?bestand=<ulid>`), and an
+  unknown ulid shows the raw ulid. Revisit with group access and the access-policy rework: the
+  policy names Bestand trees but sets no rule for who may read their names (`docs/tech-debt.md` #30).

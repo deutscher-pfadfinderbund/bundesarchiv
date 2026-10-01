@@ -56,6 +56,8 @@ Every encode/decode or serialize/parse pair carries an adversarial round-trip
 test in the commit that introduces it — the delimiter itself, empty, unicode,
 percent, leading/trailing whitespace. Canonical bytes are the archive, so this
 sits inside the razor as loss-critical, not as codec-mechanics.
+A form field's pre-fill and its parse are such a pair: an unchanged field saves unchanged, with
+legacy values (commas inside a Schlagwort) among the adversarial inputs.
 
 ## What each suite owns
 

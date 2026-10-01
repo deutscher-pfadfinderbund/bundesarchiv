@@ -39,6 +39,10 @@ Unintentional + has bitten = rethink candidate. Intentional (ADR-backed) + repea
    - Knowledge with no owning module — the same list/string/layout declared N times?
    - Strings built by joining externally-controlled values with an in-band delimiter?
    - Pure logic reachable only through heavy stacks (DB + HTTP + HTML grep for a link-algebra assertion)?
+   - A decision restated at its second caller instead of moved to an owner (publish rule, field label, request kind, post-write steps)?
+   - A result state the user must see (index lagged, conflict) that some callers drop?
+   - A guard or leak fix on a field, function or route that nothing in `src/` reads?
+   - A reader of canonical files with its own policy for an undecodable README?
 3. Deletion-test every map row in scope; flag rows that describe pass-throughs or whose hooks no longer match reality.
 4. Do not re-litigate ADRs. Flag a conflict only when friction is severe enough to reopen one, and say so explicitly.
 5. Record in `docs/tech-debt.md` — the ONE checked-in ledger, one section per abstraction level (domain language, module map/package structure, interfaces, implementation patterns, tests, process law, build/CI). Every entry carries: the pattern, a measurable indicator with its date, intentional? (ADR ref or "accreted"), bite evidence inline (commit/finding refs), cost class, and options; module/interface entries additionally carry the deepening sketch and a strength rating (Strong / Worth exploring / Speculative). Apply map corrections directly (they are facts, not proposals). No fixes, no dispatches — the ledger is input to a think-first prioritization with the owner; entries chosen for action graduate to GitHub issues via the triage flow.
