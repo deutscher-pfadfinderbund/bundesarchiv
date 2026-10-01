@@ -30,12 +30,11 @@ from django.template.loader import render_to_string
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import media
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import can_view
-from bundesarchiv.domain.collections import resolve_chain
-from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, Collection, MediaRef, Ulid
+from bundesarchiv.domain.models import Article, MediaRef
 from bundesarchiv.persistence.errors import ArchiveError
 
 #: A content_hash is a sha256 hex digest: exactly 64 lowercase hex characters. Anything else is
@@ -108,9 +107,8 @@ def _authorize(
     except ArchiveError:
         return None  # no such article (or an unreadable one) → 404 (existence-hiding)
     viewer = viewer_of(request)
-    try:
-        chain = resolve_chain(article.collection_id, _collections(archive))
-    except DomainError:
+    chain = BestandChooser.of(archive).chain_of(article.collection_id)
+    if chain is None:
         return None  # broken/unresolvable chain → deny everyone (fail closed)
     if not can_view(viewer, article, chain):
         return None  # AUTHORIZATION denies here — before any blob-existence lookup
@@ -147,12 +145,6 @@ def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpR
         return media.thumbnail_response(article, media_ref, request)
     except FileNotFoundError, OSError:
         return not_found()  # thumbnail not (yet) generated → the same 404
-
-
-def _collections(archive: Archive) -> dict[Ulid, Collection]:
-    """Every saved Collection as a ULID→Collection mapping for ``resolve_chain`` (chain resolution
-    is injected the lookup, never fetches — domain purity). Read-only; no versions needed."""
-    return {c.ulid: c for c in archive.collections.load_all()}
 
 
 def _media_ref_for(article: Article, content_hash: str) -> MediaRef | None:

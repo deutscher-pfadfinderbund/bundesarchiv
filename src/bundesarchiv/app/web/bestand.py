@@ -55,7 +55,7 @@ class BestandChooser:
 
     def by_ulid(self) -> Mapping[Ulid, Collection]:
         """Every saved Bestand keyed by ulid — the whole set, for the callers that need Collections
-        rather than options (the chain resolvers; debt #9)."""
+        rather than options."""
         if self._loaded is None:
             self._loaded = {c.ulid: c for c in self._load()}
         return self._loaded

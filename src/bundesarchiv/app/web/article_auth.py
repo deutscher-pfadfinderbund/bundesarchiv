@@ -17,12 +17,12 @@ from dataclasses import dataclass
 from django.http import HttpRequest
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import visible
-from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
-from bundesarchiv.domain.errors import DomainError
+from bundesarchiv.domain.collections import ResolvedChain
 from bundesarchiv.domain.identity import is_valid_ulid
-from bundesarchiv.domain.models import Article, Collection, Ulid, Version
+from bundesarchiv.domain.models import Article, Version
 from bundesarchiv.domain.viewer import Archivist
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -69,9 +69,8 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
     except ArchiveError:
         return None
     viewer = viewer_of(request)
-    try:
-        chain = resolve_chain(loaded.article.collection_id, _collections(archive))
-    except DomainError:
+    chain = BestandChooser.of(archive).chain_of(loaded.article.collection_id)
+    if chain is None:
         return None
     projected = visible(viewer, loaded.article, chain)
     if projected is None:
@@ -82,9 +81,3 @@ def resolve_visible_detail(request: HttpRequest, ulid: str) -> DetailResolution 
         is_archivist=isinstance(viewer, Archivist),
         version=loaded.version,
     )
-
-
-def _collections(archive: Archive) -> dict[Ulid, Collection]:
-    """Every saved Collection as a ULID→Collection map for ``resolve_chain`` (read-only, per request;
-    chain resolution is injected the lookup, never fetches — domain purity)."""
-    return {c.ulid: c for c in archive.collections.load_all()}

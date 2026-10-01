@@ -23,10 +23,6 @@ _MIN_NODES = 12
 #: Groups of functions with an identical body (sorted ``module:qualname``) -> finding id.
 DUPLICATE_BODIES: dict[tuple[str, ...], str] = {
     (
-        "bundesarchiv/app/web/article_auth.py:_collections",
-        "bundesarchiv/app/web/media_views.py:_collections",
-    ): "debt #9",
-    (
         "bundesarchiv/app/web/browse.py:_nonempty",
         "bundesarchiv/app/web/browse.py:_text",
     ): "review 2026-10-01, pattern 1",

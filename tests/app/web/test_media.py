@@ -10,7 +10,7 @@ Structure:
   archivist-only), each carrying one real image blob, on a ``LocalFsObjectStore`` under a tmp root.
 - The per-tier grid: original + thumb URLs against [Public, Member(wrong group), Member(right
   group), Archivist] -> 200 iff ``can_view`` says so, everything else 404.
-- A 404 for each of five distinct denial/absence reasons.
+- A 404 for each of six distinct denial/absence reasons.
 - Authz-before-existence: a forbidden request is denied before any blob or thumbnail probe.
 - X-Accel mode and dev-streaming mode.
 - The thumbnail job (JPEG/PNG generate, text no-op, idempotent, output location).
@@ -90,6 +90,7 @@ class _TierCorpus:
             ("groups", "GRP", Lifecycle.PUBLISHED, (40, 60, 200)),
             ("draft", "PUB", Lifecycle.DRAFT, (200, 200, 40)),
             ("archivist", "GRP", Lifecycle.DRAFT, (200, 40, 200)),
+            ("orphan", "NOPE", Lifecycle.PUBLISHED, (40, 200, 200)),  # no such Bestand
         ]
         for tier, coll, lifecycle, color in specs:
             ulid = new_ulid()
@@ -220,6 +221,7 @@ def test_404_across_all_deny_reasons(corpus: _TierCorpus) -> None:
             f"/media/01BX5ZZKBKACTAV9WEVGEMMVRZ/{good_hash}"
         ),
         "forbidden": client_as(Public()).get(corpus.url("members")),
+        "broken_chain": client_as(Member(groups=())).get(corpus.url("orphan")),
         # a hash that belongs to a DIFFERENT article
         "wrong_hash": client_as(Archivist()).get(
             f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
