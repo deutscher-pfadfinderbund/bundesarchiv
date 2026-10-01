@@ -43,7 +43,7 @@
   }
   /* the tools are a control row (law C8) */
   .record-head > .actions {
-    --control-height: var(--touch-target);
+    --control-height: var(--touch-target-compact);
   }
 
   /* the Beschreibung: the record's lede, at reading measure */

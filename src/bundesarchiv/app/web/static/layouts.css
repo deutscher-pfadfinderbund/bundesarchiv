@@ -427,7 +427,6 @@
   .door .wordmark {
     margin: 0;
     font-size: clamp(2.75rem, 9vw, 5.25rem); /* the door only: the X3 mock's 44–84px wordmark */
-    letter-spacing: 0.1em;
   }
   .column h1 {
     margin: 0 0 var(--space-5);

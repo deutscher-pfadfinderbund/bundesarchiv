@@ -87,7 +87,7 @@ lint (E) onto these rows; components still carrying retired cues are listed in `
 | 6 | Dashed border | empty / hollow slots (e.g. "ohne Signatur") | forbidden — never decoration |
 | 7 | Quiet default | the published / normal state renders no mark | — |
 | 8 | Paper sheet material | **RETIRED** (2026-09-27: flat — no tint, no shadow). | forbidden — no shadow, gradient, glow or texture anywhere |
-| 9 | Icons | ONE stroke set (24px grid, stroke 2, `currentColor`; app `components/icon.html`, mock `system/icons.svg`, name for name). Slots: row toolbars (`role="toolbar"`, the media row tools), the removing × (`.remove`), the top bar's Abmelden (`log-out`). Every icon-only control names itself. | forbidden — no icon fonts, no second style |
+| 9 | Icons | ONE stroke set (24px grid, stroke 2, `currentColor`; app `components/icon.html`, mock `system/icons.svg`, name for name). Slots: row toolbars (`role="toolbar"`, the media row tools), the removing × (`.remove`). Every icon-only control names itself. | forbidden — no icon fonts, no second style |
 | 10 | Pane-row marker | **SUSPENDED** until the list page is recomposed (the preview pane itself is an open question; its token `--surface-container-high` has no monochrome role). | forbidden |
 | 11 | Ledger margin rule | **RETIRED** (2026-09-29, the list wave: the a2 list the owner reviewed has no vertical rule; the Signatur is a quiet column near the end). History: one vertical hairline after the leading Signatur column. | forbidden — no vertical rules |
 | 12 | Floating panel edge | **AMENDED** (was the overlay shadow; 2026-09-27 the edge went from `--edge` to `--ink`: a panel is never quieter than the control that opened it): transient panels are page surface with a 1px `--ink` border, in the top layer via the native popover — the menu (`ul.menu[popover]`), the help popover (`.popover`), the tool panel (`.toolpanel`), the suggestion list (`.autocomplete-list`) | forbidden — no shadow on anything |
@@ -130,8 +130,8 @@ trapezoid register tab lapsed with the square-corner ruling.
    is internal spacing and comes from the scale like everything else.
 5. **Tokens are the only value source.** Spacing from `--space-*`. The
    non-spacing dimensions have named tokens: `--touch-target` (2.75rem),
-   `--touch-target-compact` (2rem — the header's row knob;
-   owner ruling 2026-08-07, rail round 2), `--line-width` (1px),
+   `--touch-target-compact` (2rem — the row knob of the header and of every page action row;
+   owner rulings 2026-08-07, rail round 2, and 2026-10-01), `--line-width` (1px),
    `--state-border` (3px). A dimension used once,
    structurally, may be a literal **with a comment naming why no token
    fits**; a bare literal is an S3 defect. This binds **at-rule conditions**

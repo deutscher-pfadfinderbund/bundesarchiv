@@ -9,7 +9,7 @@ needs no third column. "Endgültig löschen …" opens the confirm page, which n
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column">
+<main id="inhalt" class="column unframed">
   <h1>Papierkorb</h1>
   {% if rows %}
   <table class="affected">

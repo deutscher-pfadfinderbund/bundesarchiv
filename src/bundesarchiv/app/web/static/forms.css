@@ -47,10 +47,10 @@
   .column footer {
     /* the row is the ONE height source for its controls (law C8); without it a button falls back to
        its content height, ~29px, under the AA target floor (ruling D) */
-    --control-height: var(--touch-target);
+    --control-height: var(--touch-target-compact);
   }
   .column .chooser {
-    --chooser-control-height: var(--touch-target);
+    --chooser-control-height: var(--touch-target-compact);
   }
   .column footer {
     display: flex;

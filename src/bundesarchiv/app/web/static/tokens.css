@@ -62,7 +62,7 @@
     --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --font-wordmark: ui-serif, "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
     --type-wordmark: small-caps 600 1.5rem / 1.2 var(--font-wordmark);
-    --wordmark-tracking: 0.12em;
+    --wordmark-tracking: 0.06em;
     --type-display: 600 1.35rem / 1.2 var(--font-display);
     --type-title: 600 1.05rem / 1.35 var(--font-display);
     --type-body: 400 0.95rem / 1.5 var(--font-body);

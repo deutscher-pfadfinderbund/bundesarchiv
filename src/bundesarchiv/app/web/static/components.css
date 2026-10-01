@@ -236,7 +236,6 @@
   [role="toolbar"] > :is(a:not(.button), button.link),
   .actions > a:not(.button),
   .pane header > a,
-  .abmelden > button,
   .remove,
   [role="toolbar"] > .bulk > a {
     display: inline-flex;
@@ -251,16 +250,14 @@
   :where(
     [role="toolbar"] > :is(a:not(.button), button.link),
     [role="toolbar"] > .bulk > a,
-    .pane header > a,
-    .abmelden > button
+    .pane header > a
   ) {
     color: var(--ink-2);
   }
   :is(
     [role="toolbar"] > :is(a:not(.button), button.link),
     [role="toolbar"] > .bulk > a,
-    .pane header > a,
-    .abmelden > button
+    .pane header > a
   ):hover:not(:disabled) {
     color: var(--ink);
     text-decoration: none;
@@ -536,7 +533,7 @@
   }
   .record-meta-actions {
     /* a CONTROL ROW (law C8): Speichern and "Mehr …" share one height */
-    --control-height: var(--touch-target);
+    --control-height: var(--touch-target-compact);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -737,7 +734,7 @@
   .split-button > .menu-button {
     display: inline-grid;
     place-items: center;
-    padding-inline: var(--space-1);
+    padding: 0 var(--space-1); /* the 24px icon plus a block padding would outgrow the compact row */
     border: var(--line-width) solid var(--ink);
     border-inline-start-width: 0;
   }
@@ -766,6 +763,9 @@
     width: var(--byline-sep);
     text-align: center;
     color: var(--ink-2);
+  }
+  .byline a:not(:hover, :focus-visible) {
+    text-decoration: none;
   }
   .byline :is(dt, dd) {
     display: inline;
@@ -1135,7 +1135,7 @@
   .empty-state {
     padding: var(--space-6);
     text-align: center;
-    border: var(--line-width) dashed var(--edge);
+    border: var(--empty-state-border, var(--line-width) dashed var(--edge));
   }
   .empty-state > p {
     margin: 0 0 var(--space-1);
@@ -1159,6 +1159,12 @@
   .quiet {
     --ink: var(--ink-2);
     color: var(--ink);
+  }
+
+  /* ---- unframed — a context (law C2): the empty state's hollow slot drops its frame where the
+     page is nothing but the empty state (the Papierkorb). ---- */
+  .unframed {
+    --empty-state-border: none;
   }
 }
 
