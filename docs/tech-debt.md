@@ -45,6 +45,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Interfaces
 
+### 26. A media route re-derives the version its own save started from — Worth exploring
+- **Indicator:** 1 site, `catalog_views._media_surface` (`version == held + 1`) (2026-10-01)
+- **Evidence:** `app/result.py::Updated` carries only the new version; `app/articles.update_article`
+- **Deletion test:** with `Updated.base`, the ADR 0013 counter arithmetic leaves the web layer
+- **Sketch:** `Updated(article, version, base)`; `_media_surface` advances iff `base == held`
+
 ### 1. Archive handle — one construction site for the canonical store — done
 - **Indicator:** store constructed from settings at 8 sites → 1 (2026-09-02)
 - **Evidence:** landed as `app/archive.py` (`4b1da8b`), views (`8330afa`), services (`c00a784`).
@@ -154,6 +160,18 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
 
 ## Implementation patterns
 
+### 27. The thumbnail root is resolved in five places — Worth exploring
+- **Indicator:** 5 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-01)
+- **Evidence:** `app/tasks.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
+- **Deletion test:** one `thumbnails.root()` removes four copies of the settings lookup
+- **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
+
+### 28. Thumbnails decode a whole image before downscaling — Speculative
+- **Indicator:** up to ~179M px decoded per image (Pillow's bomb limit) (2026-10-01)
+- **Evidence:** `app/thumbnails.py::_picture`; JPEG could decode reduced via `Image.draft`
+- **Deletion test:** `draft` cuts worker memory on large scans; no change to the output
+- **Sketch:** `image.draft("RGB", (side, side))` before `load()` for JPEG
+
 ### 19. Compositions style inside components — done
 - **Indicator:** 0 composition reach-ins, the lint's allow-list deleted (2026-09-26; 44 → 37 → 1 → 0
   over WAVE-C); 0 wrapper-sensitive knob sites (Wave R U1 cut the record card's `.fach > .field`; the
@@ -229,6 +247,12 @@ No open entries. `CONTEXT.md` matched the code at the 2026-09-01 sweep.
   panel's rows come from it.
 
 ## Tests
+
+### 29. The gallery has no lead without a picture — Worth exploring
+- **Indicator:** 0 gallery states render `.platte:has(.blank)` (2026-10-01)
+- **Evidence:** every e2e corpus file now has a thumbnail (PDFTHUMBS); `static/detail.css`
+- **Deletion test:** a non-renderable corpus file (audio/video) brings the state back
+- **Sketch:** one audio file on a corpus article + a `detail-audio` gallery state
 
 ### 12. Pre-existing e2e failures on main — done
 - **Indicator:** 3 red journeys (2026-09-02); 0 red, 44/44 green (2026-09-26, the anchor-insets
