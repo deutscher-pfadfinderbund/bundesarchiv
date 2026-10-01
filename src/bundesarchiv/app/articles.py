@@ -184,7 +184,7 @@ def delete_article(
     """Put ``article``, as stored at ``expected_version``, in the Papierkorb (ADR 0022): a save whose
     change record is the mark, reindexed and pushed like ``save_article``. A stale version raises
     ``Conflict`` before anything is written or indexed."""
-    new_version = archive.articles.mark_deleted(article, expected_version, by=changed_by)
+    new_version = archive.articles.mark_deleted(article, expected_version, changed_by=changed_by)
     index_updated = _sync_index(archive, article.ulid)
     _enqueue_mirror(enqueue_mirror_push, article.ulid)
     return SaveResult(version=new_version, index_updated=index_updated)

@@ -116,7 +116,7 @@ class _MatrixCorpus:
             media=(marked_ref,),
         )
         self.marked_version = self.base.articles.mark_deleted(
-            marked, self.base.add_article(marked), by="tester"
+            marked, self.base.add_article(marked), changed_by="tester"
         )
         self.marked_hash = marked_ref.content_hash
 

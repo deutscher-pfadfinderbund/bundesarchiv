@@ -238,7 +238,7 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
 def test_update_article_leaves_an_article_in_the_papierkorb_alone(archive: Archive) -> None:
     """ADR 0022: restore it first. Every internal mutation — publish, media, bulk — routes here."""
     stored = archive.articles.load("01FOTO")
-    archive.articles.mark_deleted(stored.article, stored.version, by="bert")
+    archive.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
     before = archive.articles.load("01FOTO")
 
     outcome = update_article(

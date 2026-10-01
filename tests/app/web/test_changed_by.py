@@ -110,7 +110,7 @@ def _delete(client: Client, corpus: Corpus) -> Change | None:
 
 def _restore(client: Client, corpus: Corpus) -> Change | None:
     stored = corpus.articles.load(DRAFT_ULID)
-    version = corpus.articles.mark_deleted(stored.article, stored.version, by="tester")
+    version = corpus.articles.mark_deleted(stored.article, stored.version, changed_by="tester")
     client.post(f"/articles/{DRAFT_ULID}/restore", {"expected_version": str(version)})
     return corpus.articles.load(DRAFT_ULID).change
 

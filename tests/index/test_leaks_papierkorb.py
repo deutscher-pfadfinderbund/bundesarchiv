@@ -89,7 +89,7 @@ def _build_store() -> InMemoryObjectStore:
     )
     for article in (_with_file(repo, marked, "Kehrichtnotiz"), dateless):
         repo.save(article, 0, changed_by="anna")
-        repo.mark_deleted(repo.load(article.ulid).article, 1, by="bernd")
+        repo.mark_deleted(repo.load(article.ulid).article, 1, changed_by="bernd")
     return store
 
 

@@ -41,7 +41,7 @@ from bundesarchiv.persistence.repository import Stored
 
 def _mark(corpus: Corpus, ulid: str) -> None:
     stored = corpus.articles.load(ulid)
-    corpus.articles.mark_deleted(stored.article, stored.version, by="bert")
+    corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
 
 
 def _mark_of(corpus: Corpus, ulid: str) -> Change | None:

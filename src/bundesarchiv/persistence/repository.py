@@ -59,11 +59,13 @@ class ArticleRepository:
         stored."""
         return self._commit(article, lambda _: article, expected_version, changed_by)
 
-    def mark_deleted(self, article: Article, expected_version: Version, *, by: str) -> Version:
+    def mark_deleted(
+        self, article: Article, expected_version: Version, *, changed_by: str
+    ) -> Version:
         """`save` `article` into the Papierkorb (ADR 0022): its `deleted` mark is the change record
         of the version this writes."""
         return self._commit(
-            article, lambda change: replace(article, deleted=change), expected_version, by
+            article, lambda change: replace(article, deleted=change), expected_version, changed_by
         )
 
     def _commit(

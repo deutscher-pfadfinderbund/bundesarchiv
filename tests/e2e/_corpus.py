@@ -220,7 +220,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         media_type="Foto(s)",
     )
     articles.mark_deleted(
-        winterlager, articles.save(winterlager, 0, changed_by="tester"), by="tester"
+        winterlager, articles.save(winterlager, 0, changed_by="tester"), changed_by="tester"
     )
 
     indexer.rebuild(store)

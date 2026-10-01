@@ -321,7 +321,7 @@ def test_stale_save_against_deleted_article_is_404(
         if for_good:
             corpus.articles.hard_delete(_ULID, now.version)
         else:
-            corpus.articles.mark_deleted(now.article, now.version, by="bert")
+            corpus.articles.mark_deleted(now.article, now.version, changed_by="bert")
         return gated
 
     monkeypatch.setattr(catalog_views, "_load_gated", _delete_then_gate)

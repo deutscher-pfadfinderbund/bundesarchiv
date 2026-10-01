@@ -42,7 +42,7 @@ def _build_store() -> InMemoryObjectStore:
     )
     repo.save(draft, 0, changed_by="anna")
     marked = make_article("TS_MARKED", collection_id=_ROOT, tags=("Wappenfund",))
-    repo.mark_deleted(marked, repo.save(marked, 0, changed_by="anna"), by="bernd")
+    repo.mark_deleted(marked, repo.save(marked, 0, changed_by="anna"), changed_by="bernd")
     return store
 
 

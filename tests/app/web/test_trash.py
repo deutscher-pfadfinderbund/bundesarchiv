@@ -32,7 +32,7 @@ def trash(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
         make_collection(PUB, "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
     )
     marked = make_article(_MARKED, title="Winterlager 1961")
-    corpus.articles.mark_deleted(marked, corpus.add_article(marked), by="bert")
+    corpus.articles.mark_deleted(marked, corpus.add_article(marked), changed_by="bert")
     corpus.add_article(make_article(_LIVE, title="Sommerlager 1962"))
     indexer.rebuild(corpus.store)
     return corpus

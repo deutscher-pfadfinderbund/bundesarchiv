@@ -79,7 +79,7 @@ def test_marking_is_a_save_whose_change_record_is_the_mark(repo: ArticleReposito
     """ADR 0022: the mark keeps the replaced version under history and names who deleted it and
     when — the same record as the version it writes."""
     repo.save(_article(), expected_version=0, changed_by="anna")
-    assert repo.mark_deleted(repo.load("01J0").article, expected_version=1, by="bernd") == 2
+    assert repo.mark_deleted(repo.load("01J0").article, expected_version=1, changed_by="bernd") == 2
     stored = repo.load("01J0")
     assert stored.change is not None
     assert (stored.article.deleted, stored.change.by) == (stored.change, "bernd")
