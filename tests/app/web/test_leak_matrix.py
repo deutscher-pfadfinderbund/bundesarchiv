@@ -291,6 +291,10 @@ def _p_dokumenttypen(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/document-types"
 
 
+def _p_tag_suggestions(_c: _MatrixCorpus) -> str:
+    return "/tags/suggestions"
+
+
 def _p_detail(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}"
 
@@ -461,6 +465,15 @@ _CONTRACT: dict[str, Route] = {
         build_path=_p_dokumenttypen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # options partial
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,  # POST disallowed
+    ),
+    # The Schlagwort suggestions: counts across every Article, so the Archivist's alone. No ``q``,
+    # so the probe never reaches the index; the ranking is tests/index/test_tag_suggestions.py's.
+    "tag-suggestions": Route(
+        build_path=_p_tag_suggestions,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),

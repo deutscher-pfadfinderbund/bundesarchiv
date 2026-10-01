@@ -83,6 +83,9 @@ class _Field:
     archivists ever sees. Both put a marker after the label (the minority is marked). ``help`` is the
     template of the popover the hint's ⓘ opens, or ``""`` for a hint without one.
 
+    ``suggest`` names the route whose fragment offers the archive's own values for the line being
+    typed (catalog_form.js), or ``""`` for a field that suggests nothing.
+
     ``diff`` is the German label the CAS conflict notice names the field by, or ``""`` when a
     conflict never marks it.
 
@@ -107,6 +110,7 @@ class _Field:
     required: bool = False
     archivist_only: bool = False
     help: str = ""
+    suggest: str = ""
     scanned: bool = False
     focusable: bool = False
     diff: str = ""
@@ -251,6 +255,7 @@ FIELDS: tuple[_Field, ...] = (
         control="textarea",
         section="einordnung",
         hint="Ein Schlagwort pro Zeile",
+        suggest="tag-suggestions",
         span=True,
         scanned=True,
         focusable=True,
@@ -340,6 +345,7 @@ class CardRow:
     required: bool = False
     archivist_only: bool = False
     help: str = ""
+    suggest: str = ""
     element_id: str = ""
     prefix: str = "feld"
 
@@ -411,6 +417,7 @@ def card_fields(
                 required=registered.required,
                 archivist_only=registered.archivist_only,
                 help=registered.help,
+                suggest=reverse(registered.suggest) if registered.suggest else "",
             )
         )
     return {name: tuple(rows) for name, rows in sections.items()}

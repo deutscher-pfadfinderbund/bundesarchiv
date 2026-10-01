@@ -33,7 +33,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from django.test import override_settings
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 from tests.e2e._corpus import CorpusHandles
 
 #: What an OVERLAY is, once — every walker reads it: each mechanism the app drops a panel with, as
@@ -130,6 +130,18 @@ def reach_door(page: Page, base: str, corpus: CorpusHandles) -> None:
     (``settings_dev``), so this reach turns it on for its own navigation."""
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
         page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
+
+
+def reach_schlagwort_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
+    """The second Article's edit form (it carries "lager") with "r" typed on a new last line of the
+    Schlagworte, the suggestion list open."""
+    page.goto(f"{base}/articles/{corpus.second_ulid}/edit", wait_until="networkidle")
+    field = page.locator("main #feld-tags")
+    field.click()
+    field.evaluate("(el) => el.setSelectionRange(el.value.length, el.value.length)")
+    page.keyboard.press("Enter")
+    field.press_sequentially("r")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
 
 
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared

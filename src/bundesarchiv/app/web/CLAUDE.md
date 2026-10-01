@@ -23,7 +23,7 @@ Archivist's `username` on as `changed_by` (ADR 0019); a new write route joins `t
 - `catalog.py` — the cataloging form's leak-sensitive parse layer + save controller · interface: `parse_edit_form`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_captions` · tests: `test_catalog_form.py`
 - `card.py` — THE record card field registry: every field declared once, joined to a render (debt #2) · interface: `FIELDS`, `CardRow`, `card_fields` · tests: `tests/app/web/test_catalog_edit.py`
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
-- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore` · tests: `tests/app/web/test_catalog_*.py`
+- `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore`, `tag_suggestions` · tests: `test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
 - `bulk.py` — bulk-edit core: allowlist, Feld-chooser context, per-article CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `feldwahl_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`

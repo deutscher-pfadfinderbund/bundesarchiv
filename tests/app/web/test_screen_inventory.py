@@ -38,6 +38,7 @@ _NOT_A_SCREEN: dict[str, str] = {
     "media-thumb": "a derived thumbnail, not a page",
     "artikel-dokumenttypen": "an HTMX fragment (an <option> list swapped into a screen)",
     "artikel-sammelbearbeitung-dokumenttypen": "an HTMX fragment (the bulk chooser's options)",
+    "tag-suggestions": "a fragment (the <li> options of the Schlagworte field's list)",
 }
 
 

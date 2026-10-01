@@ -26,7 +26,7 @@ from typing import Literal
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import CorpusHandles
-from tests.e2e._pages import SCREENS, Screen
+from tests.e2e._pages import SCREENS, Screen, reach_schlagwort_suggestions
 
 #: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
 #: ``light-dark()`` tokens, resolved by ``prefers-color-scheme`` — no JS toggle). Every state is
@@ -367,6 +367,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, the Datierung hint's ⓘ popover open (the notation list)",
         True,
         _reach_edit_datierung_help,
+    ),
+    GalleryState(
+        "edit-schlagwort-suggestions",
+        "the edit surface, the Schlagworte field suggesting for the line being typed",
+        True,
+        reach_schlagwort_suggestions,
     ),
     GalleryState(
         "edit-rejected",

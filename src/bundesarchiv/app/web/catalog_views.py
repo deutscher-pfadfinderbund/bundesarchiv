@@ -64,6 +64,7 @@ from bundesarchiv.domain.models import (
     Version,
 )
 from bundesarchiv.domain.viewer import Archivist
+from bundesarchiv.index.query import suggest_tags
 from bundesarchiv.persistence import errors
 from bundesarchiv.persistence.errors import ArchiveError
 from bundesarchiv.persistence.repository import Stored, cleaned_name
@@ -1006,4 +1007,19 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
         request,
         "workbench/_dokumenttyp_options.html",
         {"document_types": vocab.document_types_for(media_type)},
+    )
+
+
+def tag_suggestions(request: HttpRequest) -> HttpResponseBase:
+    """``GET /tags/suggestions?q=&tags=`` — the Schlagworte the archive already uses that match
+    ``q``, the line being typed, leaving out those in ``tags``, the whole field: the option list
+    the edit form's Schlagworte field offers. Archivist-only, GET-only; else the plain 404."""
+    viewer = viewer_of(request)
+    if not isinstance(viewer, Archivist) or request.method != "GET":
+        return not_found()
+    on_field = frozenset(catalog.parse_lines(request.GET.get("tags", "")))
+    return render_screen(
+        request,
+        "workbench/_schlagwort_vorschlaege.html",
+        {"suggestions": suggest_tags(viewer, request.GET.get("q", ""), exclude=on_field)},
     )

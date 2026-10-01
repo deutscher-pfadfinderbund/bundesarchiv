@@ -25,7 +25,7 @@ scope predicate is therefore always applied by Django as a real ``WHERE`` on eve
 """
 
 import datetime
-from collections.abc import Mapping
+from collections.abc import Container, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any, Literal, assert_never
@@ -244,6 +244,32 @@ def search(
         facets=_facets(matched, filters, facets),
         dateless_count=_dateless_count(matched, filters),
     )
+
+
+#: How many Schlagworte one suggestion list offers.
+_MAX_SUGGESTIONS = 10
+
+
+def suggest_tags(viewer: Viewer, text: str, *, exclude: Container[str] = ()) -> tuple[str, ...]:
+    """The Schlagworte of ``viewer``'s Articles outside the Papierkorb that contain ``text``,
+    ignoring case: the ones starting with it first, each part by how many Articles use the tag,
+    then alphabetically. At most ten, none in ``exclude``; a blank ``text`` suggests nothing."""
+    needle = text.strip().casefold()
+    if not needle:
+        return ()
+    # ponytail: every distinct tag per call (~3,400 in the corpus); match in SQL if that grows tenfold
+    rows = (
+        ArticleIndex.objects.filter(_viewer_scope(viewer), deleted_at__isnull=True)
+        .annotate(_elem=Func(F("tags"), function="unnest"))
+        .values("_elem")
+        .annotate(_n=Count("ulid"))
+        .order_by("-_n", Collate("_elem", _DE_NUMERIC))
+    )
+    matches = [
+        tag for row in rows if needle in (tag := row["_elem"]).casefold() and tag not in exclude
+    ]
+    ranked = sorted(matches, key=lambda tag: not tag.casefold().startswith(needle))
+    return tuple(ranked[:_MAX_SUGGESTIONS])
 
 
 # ---------------------------------------------------------------------------

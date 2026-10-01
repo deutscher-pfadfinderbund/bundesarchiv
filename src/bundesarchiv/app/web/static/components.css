@@ -564,7 +564,8 @@
      trigger sits in the band */
   ul.menu[popover],
   .popover,
-  .toolpanel {
+  .toolpanel,
+  .autocomplete-list {
     /* A panel is not part of the row it hangs from, so the row's (possibly compact) knob must not
        reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom property
        that is the guaranteed-invalid value, so each consumer falls back to its OWN default and one
@@ -647,6 +648,18 @@
       justify-self: anchor-center;
       margin: var(--space-1) 0 0;
     }
+    /* a suggestion list hangs under its field, as wide as the field */
+    [data-suggest] {
+      anchor-name: --suggest;
+    }
+    .autocomplete-list {
+      position-anchor: --suggest;
+      inset: auto;
+      inset-block-start: anchor(end);
+      inset-inline: anchor(start) anchor(end);
+      inline-size: auto;
+      margin: var(--space-1) 0 0;
+    }
   }
 
   /* ---- ONE PANEL ENTRY, every dropped panel: they share register row 12, so they share the two
@@ -655,7 +668,8 @@
      fail it. Per-panel DELTAS only, below. ---- */
   /* biome-ignore lint/style/noDescendingSpecificity: never a tool row's link */
   .menu li > a,
-  :is(.menu li > button.link, .menu li > form > button.link) {
+  :is(.menu li > button.link, .menu li > form > button.link),
+  .autocomplete-list > li {
     min-height: var(--control-height);
     font: var(--type-meta);
     text-decoration: none;
@@ -760,6 +774,24 @@
   .byline dt {
     margin-inline-end: var(--space-2);
     color: var(--ink-2);
+  }
+
+  /* ---- autocomplete-list — the values a field suggests for what is typed (catalog_form.js): a
+     native [popover] listbox, its surface the floating-panel rule's (register row 12). The option
+     the arrow keys reach inverts. Unanchored the browser centres it. ---- */
+  .autocomplete-list > li {
+    display: flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-2);
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  .autocomplete-list > li:hover {
+    text-decoration: underline;
+  }
+  .autocomplete-list > [aria-selected="true"] {
+    color: var(--ground);
+    background: var(--ink);
   }
 
   /* ---- popover — the surface a help button opens: a native [popover] holding a <dl> of

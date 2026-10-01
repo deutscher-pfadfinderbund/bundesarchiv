@@ -26,6 +26,7 @@ from bundesarchiv.app.web.catalog_views import (
     article_medien_verschieben,
     article_publish,
     article_restore,
+    tag_suggestions,
     upload_gate,
 )
 from bundesarchiv.app.web.collection_views import collection_create, collection_edit
@@ -88,6 +89,7 @@ urlpatterns = [
     ),
     path("upload-gate/<str:ulid>", upload_gate, name="upload-gate"),
     path("articles/<str:ulid>/document-types", article_dokumenttypen, name="artikel-dokumenttypen"),
+    path("tags/suggestions", tag_suggestions, name="tag-suggestions"),
     path("articles/<str:ulid>", article_detail, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),

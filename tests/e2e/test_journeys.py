@@ -27,6 +27,7 @@ from tests.e2e._pages import (
     OVERLAY_TRIGGERS,
     SCREENS,
     reach_door,
+    reach_schlagwort_suggestions,
     screens_for,
 )
 
@@ -1246,6 +1247,37 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.fill('input[name="ref_code"]', "E2E-U2")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
+
+
+def test_a_schlagwort_is_taken_from_the_suggestions_with_the_keyboard(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
+    field = page.locator("main #feld-tags")
+    options = page.locator('.autocomplete-list [role="option"]')
+    # "lager" is on the field already, so only the corpus's other two
+    expect(options).to_have_text(["fahrt", "sommer"])
+    hangs = page.evaluate(
+        """() => {
+        const list = document.querySelector('.autocomplete-list').getBoundingClientRect();
+        const field = document.querySelector('#feld-tags').getBoundingClientRect();
+        return list.top >= field.bottom && list.left >= field.left && list.right <= field.right;
+    }"""
+    )
+    assert hangs, "the suggestion list does not hang under its field"
+    page.keyboard.press("Escape")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    page.keyboard.press("Backspace")
+    field.press_sequentially("so")
+    expect(options).to_have_text(["sommer"])
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    expect(field).to_have_value("lager\nsommer")
+    page.click('main button:has-text("Speichern")')
+    page.wait_for_url(f"**/articles/{e2e_corpus.second_ulid}")
+    expect(page.locator('main dt:has-text("Schlagworte") + dd a')).to_have_text(["lager", "sommer"])
 
 
 # --- CAS conflict (two contexts) ---------------------------------------------------

@@ -1,0 +1,4 @@
+{% comment %}
+The Schlagwort suggestions for the line being typed: catalog_form.js puts them in the field's list.
+Without JS the field is a plain textarea.
+{% endcomment %}{% for tag in suggestions %}<li role="option" aria-selected="false">{{ tag }}</li>{% endfor %}

@@ -287,6 +287,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row |
 | Upload | `.upload` | inline (edit form) | `components.css` upload |
 | Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |
+| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_schlagwort_vorschlaege` | `components.css` autocomplete-list |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark |
 | Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_duplizieren` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu |
