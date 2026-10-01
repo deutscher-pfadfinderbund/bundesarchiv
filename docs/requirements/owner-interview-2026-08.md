@@ -937,3 +937,5 @@ missing records; "N von M gespeichert"; the error pages' wording.
 - **URLs:** the start page lives at `/`; the list moves to `/articles`. Old `/?…` list links keep working.
 - **Bestände on the start page:** the top level with counts; sub-Bestände through the list's Bestand filter.
 - **"Zuletzt hinzugefügt" stays hidden** until Articles exist that were added after the legacy import.
+- **Reference mock:** `docs/design/explorations/2026-09-26-monochrome/r4-system/start.html` (search with
+  "Weiter bearbeiten" below it; Bestände · Nach Art · Zeitleiste; Highlights / Empfohlen not built).
