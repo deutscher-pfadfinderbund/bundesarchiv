@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from bundesarchiv.domain.identity import create_article, is_valid_ulid, slugify
+from bundesarchiv.domain.identity import create_article, is_valid_ulid
 from bundesarchiv.domain.models import Lifecycle
 
 
@@ -34,19 +34,3 @@ def test_a_new_article_is_added_now() -> None:
     added_at = create_article(title="x", collection_id="c").added_at
     assert added_at is not None
     assert before <= added_at <= datetime.now(UTC)
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("Zeltlager 1955", "zeltlager-1955"),
-        ("  Hello, World!  ", "hello-world"),  # trims + collapses separators
-        ("Café Grün", "cafe-grun"),  # accents → base letter
-        ("Schwarz-Weiß Foto", "schwarz-wei-foto"),  # ß has no ASCII base → dropped
-        ("Foto-1955/007", "foto-1955-007"),  # a ref_code shape
-        ("", ""),
-        ("你好", ""),  # nothing ASCII → empty slug
-    ],
-)
-def test_slugify(text: str, expected: str) -> None:
-    assert slugify(text) == expected

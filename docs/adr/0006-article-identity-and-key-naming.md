@@ -18,10 +18,9 @@ moving its files and breaking the stable-identity invariant CONTEXT.md states pl
 - **The canonical key is ULID-only and stable** — `articles/<ulid>/…`. It never embeds a
   slug. Renaming an Article never moves its files.
 - **Media keys are content-addressed** (sha256), also slug-free and write-once.
-- **The slug is a display helper, not identity** — `domain.identity.slugify()` (NFKD →
-  drop non-ASCII → lowercase → hyphenate) produces human-readable download filenames, URL
-  slugs (web layer, Part 4), and browse labels. It is intentionally lossy (ß is dropped)
-  and non-unique; nothing load-bearing depends on it.
+- **A slug is never identity** — a title-derived slug changes with the title and is
+  non-unique, so nothing load-bearing may depend on one. (The `slugify()` display helper
+  first named here was deleted unused, 2026-10-01.)
 
 ## Consequences
 

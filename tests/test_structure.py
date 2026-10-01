@@ -70,7 +70,6 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
     "bundesarchiv/app/tasks.py:mirror_reconcile": "Procrastinate task, run by name",
     "bundesarchiv/app/tasks.py:run_worker_once_in_test": "test hook, called from tests only",
-    "bundesarchiv/domain/identity.py:slugify": "dead: no caller in src/",
 }
 
 
