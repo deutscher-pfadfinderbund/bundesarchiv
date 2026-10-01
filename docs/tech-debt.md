@@ -228,7 +228,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ## Implementation patterns
 
-### 51. Knobs are resolved at every use, not once per component — Strong
+### 51. Knobs are resolved at every use, not once per component — done (Wave KNOBS, 2026-10-01)
 - **Indicator:** 13 `var(--knob, fallback)` uses in `components.css`/`layouts.css`, 3 bare `var(--control-height)` with no default, 0 `--_` resolutions (2026-10-01)
 - **Evidence:** `components.css:244-245` repeats a 3-level fallback twice in one rule; law C3 (amended 2026-10-01). Bites: G.38 (23px hit areas), G.45
 - **Sketch:** pixel-neutral wave: each component resolves its knobs into `--_name` at the top of its section (proof: `test:gallery-diff`); then a lint in `test_design_lint.py`: a `var(--_x)` needs a `--_x:` in the same section, a public knob is read only on that line

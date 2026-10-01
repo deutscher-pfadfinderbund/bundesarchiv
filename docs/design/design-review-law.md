@@ -125,10 +125,11 @@ trapezoid register tab lapsed with the square-corner ruling.
 3. **Custom properties are the component API.** Parents set knobs
    (`--gap`, `--density`); children consume them. Variation travels down
    through properties, not through new selectors.
-   **A knob is resolved once, at the top of its component's section** (owner,
-   2026-10-01): `--_height: var(--control-height, var(--touch-target));`. Every rule
-   below reads only the private `--_height`, never the public knob and never a second
-   fallback. One default per knob per component, so two rules cannot resolve it
+   **A knob is resolved once per component** (owner, 2026-10-01): the rule that reads
+   it declares `--_height: var(--control-height, var(--touch-target));` first and then
+   reads only `--_height`, never the public knob and never a second fallback. Each
+   component section uses its own `--_` names: a shared one would let one rule's
+   default reach another rule's element. One default per knob per component, so two rules cannot resolve it
    differently (G.38, G.45). A component declares every `--_` name it reads; it never
    reads one an ancestor set. Source: Lea Verou, "Custom properties with defaults"
    (2021), pseudo-private properties. Not `@property`: registration is global.
