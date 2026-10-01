@@ -88,7 +88,10 @@ Any rule breach or unexpected red stops the wave line. Investigate the cause cha
 ## Close the wave
 
 After each merged unit (or 2–3 tiny ones together): run the `simplify` skill on that diff, then the
-`code-review` skill; fix confirmed findings before the next unit (owner rule 2026-10-01).
+`code-review` skill; fix confirmed findings before the next unit (owner rule 2026-10-01). Pass both an
+explicit range (`git diff main...<branch>`): given a bare branch name, one review read code already
+on main and missed the branch's own (2026-10-01). Before the controller fast-forwards `main`, the
+rebased branch runs `mise run gate`, not `check`: `check` has no mypy (a merged gate failed on it).
 
 Integrating parked branches: when the wave added an **exhaustiveness gate over a directory** (module map, leak matrix), list every in-flight branch's new files in that directory before merging. A rebase or `merge-tree` dry run sees overlapping TEXT only, so a gate that asserts over a whole package is invisible until it runs — four unrowed `app/web` modules stopped one integration exactly here.
 
