@@ -126,7 +126,7 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
     own default, so a hand-edited / garbage URL yields a sane all-defaults search, never a 500."""
     sort, descending = _parse_sort(params.get(PARAM_SORT))
     return ParsedQuery(
-        text=_text(params.get(PARAM_Q)),
+        text=_nonempty(params.get(PARAM_Q)),
         filters=SearchFilters(
             collection=_nonempty(params.get(PARAM_COLLECTION)),
             media_type=_nonempty(params.get(PARAM_MEDIA_TYPE)),
@@ -146,16 +146,9 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
     )
 
 
-def _text(raw: str | None) -> str | None:
-    """The free-text term: stripped, or ``None`` for blank/absent (a browse, not an empty query)."""
-    if raw is None:
-        return None
-    stripped = raw.strip()
-    return stripped or None
-
-
 def _nonempty(raw: str | None) -> str | None:
-    """A scalar filter value, or ``None`` for a blank/absent param (no constraint)."""
+    """A param stripped, or ``None`` when blank/absent: no text is a browse, no filter value no
+    constraint."""
     if raw is None:
         return None
     stripped = raw.strip()
