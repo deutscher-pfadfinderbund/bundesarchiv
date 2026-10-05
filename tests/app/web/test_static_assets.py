@@ -31,6 +31,7 @@ _KNOWN_ASSETS = frozenset(
         "layouts.css",
         "list_address.js",
         "menu.js",
+        "theme.js",
         "tokens.css",
     }
 )

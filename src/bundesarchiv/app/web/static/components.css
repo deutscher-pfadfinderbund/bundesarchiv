@@ -241,6 +241,7 @@
   .actions > a:not(.button),
   .pane header > a,
   .remove,
+  .theme-toggle,
   [role="toolbar"] > .bulk > a {
     display: inline-flex;
     align-items: center;
@@ -287,6 +288,17 @@
     color: var(--ink-2);
   }
   .remove:is(:hover, :active, :focus-visible) {
+    color: var(--ink);
+  }
+  /* the light/dark toggle: a quiet glyph, in ink while pointed at */
+  .theme-toggle {
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .theme-toggle:is(:hover, :active, :focus-visible) {
     color: var(--ink);
   }
 

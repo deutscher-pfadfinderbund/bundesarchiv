@@ -120,6 +120,14 @@
     --z-header: 5;
     --z-banner: 10;
   }
+  /* the viewer's saved choice (theme.js, the "theme" cookie) fixes the scheme; without one the
+     page follows the system */
+  :root[data-theme="light"] {
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
   /* S (DESIGN.md): the Title and the gutter step down; they follow the viewport, not a container */
   @media (width < 40rem) {
     :root {

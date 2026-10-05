@@ -36,6 +36,7 @@ UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/web/anonymous_gate.py:AnonymousGateMiddleware": "named by MIDDLEWARE",
     "bundesarchiv/app/web/slow_requests.py:SlowRequestMiddleware": "named by MIDDLEWARE",
     "bundesarchiv/app/web/viewers.py:TokenCookieMiddleware": "named by MIDDLEWARE",
+    "bundesarchiv/app/web/theme.py:theme": "context processor, named by TEMPLATES",
     "bundesarchiv/app/management/commands/ensure_index_current.py:Command": "Django command",
     "bundesarchiv/app/management/commands/import_legacy.py:Command": "Django command",
     "bundesarchiv/app/management/commands/rebuild_index.py:Command": "Django command",

@@ -161,7 +161,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [str(_WEB_TEMPLATES)],
         "APP_DIRS": False,
-        "OPTIONS": {"context_processors": []},
+        "OPTIONS": {"context_processors": ["bundesarchiv.app.web.theme.theme"]},
     }
 ]
 

@@ -326,6 +326,21 @@
     color: var(--ink);
     border-bottom: var(--line-width) solid var(--band-edge);
   }
+  /* ---- page-footer — the page's last line: the light/dark toggle at the end edge, on the page
+     grid. A control row (law C8). :not([hidden]), so the display never overrides [hidden]. Absent
+     on S: a phone follows the system (owner 2026-10-05). ---- */
+  .page-footer:not([hidden]) {
+    --control-height: var(--touch-target-compact);
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--space-8) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
+  }
+  @media (width < 40rem) /* space budget S (design-system.md) */ {
+    .page-footer:not([hidden]) {
+      display: none;
+    }
+  }
+
   /* the wordmark: the ONE place a display face has character (owner 2026-08-07) */
   .wordmark {
     font: var(--type-wordmark);

@@ -4,7 +4,7 @@ The base layout of every screen. Every screen works without JS (plan §4.5); htm
 No external requests. The header block carries the screen's chrome after the wordmark. The body
 carries the CSRF header of every htmx request (absent on the error page, which has no request).
 {% endcomment %}<!doctype html>
-<html lang="de">
+<html lang="de"{% if theme %} data-theme="{{ theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +17,7 @@ carries the CSRF header of every htmx request (absent on the error page, which h
   <script src="{% static "error_banner.js" %}" defer></script>
   <script src="{% static "menu.js" %}" defer></script>
   <script src="{% static "list_address.js" %}" defer></script>
+  <script src="{% static "theme.js" %}" defer></script>
   <link rel="stylesheet" href="{% static "tokens.css" %}">
   <link rel="stylesheet" href="{% static "components.css" %}">
   <link rel="stylesheet" href="{% static "layouts.css" %}">
@@ -32,6 +33,9 @@ take a second id; every other screen leaves the default.{% endcomment %}
   {% block header %}{% endblock %}
 </header>{% endblock %}
 {% block body %}{% endblock %}
+{% comment %}The light/dark toggle (theme.js): hidden until the script names it, since without the
+script it could do nothing. Absent on S, where the page follows the system.{% endcomment %}
+<footer class="page-footer" hidden><button class="theme-toggle" type="button">{% include "components/icon.html" with name="contrast" only %}</button></footer>
 <div class="error-banner" role="alert" aria-live="assertive" hidden>
   <p>Aktion fehlgeschlagen. Bitte erneut versuchen.</p>
   <button type="button" aria-label="Meldung schließen">&times;</button>

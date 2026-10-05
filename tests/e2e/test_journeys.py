@@ -2039,3 +2039,28 @@ def test_no_js_create_and_save_baseline(no_js_archivist_page: Page, live_workben
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     assert "/edit" not in page.url
+
+
+# --- the light/dark toggle (theme.js, theme.py) -------------------------------------
+
+
+def test_the_theme_toggle_saves_the_opposite_of_the_system_and_returns_to_it(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # Two states: following the system, or the scheme opposite to the system's at the click. The
+    # saved choice survives a reload because the server renders it; a second click forgets it.
+    page = archivist_page
+    page.emulate_media(color_scheme="light")
+    page.goto(live_workbench + LIST)
+    root, toggle = page.locator("html"), page.locator(".page-footer .theme-toggle")
+    expect(root).not_to_have_attribute("data-theme", "dark")
+    toggle.click()
+    expect(root).to_have_attribute("data-theme", "dark")
+    expect(toggle).to_have_attribute("aria-pressed", "true")
+    page.reload()
+    expect(root).to_have_attribute("data-theme", "dark")  # the server's render, before any script
+    page.locator(".page-footer .theme-toggle").click()
+    expect(root).not_to_have_attribute("data-theme", "dark")
+    page.reload()
+    expect(root).not_to_have_attribute("data-theme", "dark")
+    assert not [c for c in page.context.cookies() if c["name"] == "theme"]
