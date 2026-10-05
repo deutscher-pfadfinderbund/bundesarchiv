@@ -16,12 +16,12 @@
   }
   /* inside the head the stack owns every gap: origin, description and the labelled lines read as
      one block */
-  .artikel > article > header {
+  .artikel > article > :is(header, .facts) {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
   }
-  .artikel > article > header > * {
+  .artikel > article > :is(header, .facts) > * {
     margin: 0;
   }
   /* the article's flex gap spaces the media; the figure's own margin would add to it (C4) */
@@ -70,7 +70,7 @@
   .platte:has(img) {
     width: fit-content;
   }
-  .platte figcaption {
+  .platte :is(figcaption, .herunterladen) {
     contain: inline-size;
   }
   .platte img {
@@ -86,27 +86,21 @@
     padding: 0;
     border: 0;
   }
-  .platte figcaption,
-  .filmstrip figcaption {
+  .platte :is(figcaption, .herunterladen),
+  .filmstrip :is(figcaption, .herunterladen) {
     display: flex;
     flex-wrap: wrap;
     gap: 0 var(--space-3);
-    margin-top: var(--space-2);
+    margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
   }
 
-  /* ---- plate register (filmstrip): a horizontal strip that scrolls inside its own box — the
-     page never scrolls sideways. The active plate (the cover) carries aria-current and a
-     neutral-ink INVERSION frame (register row 3). ---- */
+  /* ---- the files after the cover (filmstrip): a horizontal strip that scrolls inside its own
+     box — the page never scrolls sideways. Its heading ranks as a section's (serif). ---- */
   .filmstrip h2 {
-    margin: 0 0 var(--space-2);
-    font: var(--type-label);
-    color: var(--ink-2);
-  }
-  .filmstrip h2 span {
-    font: var(--type-mono-meta);
-    color: var(--ink);
+    margin: 0 0 var(--space-3);
+    font: var(--type-subhead);
   }
   .filmstrip > div {
     display: flex;
@@ -125,12 +119,11 @@
     height: auto;
     border: var(--line-width) solid var(--edge);
   }
-  .filmstrip a[aria-current] > * {
-    /* inset: the strip scrolls in its own box, which clips anything drawn outside a plate */
-    outline: var(--focus-width) solid var(--ink);
-    outline-offset: calc(-1 * var(--focus-width));
-  }
-  .filmstrip figcaption {
+  .filmstrip :is(figcaption, .herunterladen) {
     margin-top: var(--space-1);
+  }
+  /* one run of words (a link and its size), not a row of parts */
+  :is(.platte, .filmstrip) .herunterladen {
+    display: block;
   }
 }

@@ -1114,7 +1114,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
     expect(page.locator("main .platte img")).to_be_visible()  # cover Platte
-    expect(page.locator(".filmstrip figure")).to_have_count(3)  # cover + two further plates
+    expect(page.locator(".filmstrip figure")).to_have_count(2)  # the two files after the cover
     # a plate links its gated media byte route; the crumbs lead back into the list
     href = page.locator(".filmstrip figure > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
@@ -1543,7 +1543,6 @@ def test_publish_from_the_article_page_confirms_first(
     page.click('button:has-text("Jetzt veröffentlichen")')
     page.wait_for_load_state("networkidle")
     expect(page.get_by_role("button", name="Veröffentlichen", exact=True)).to_have_count(0)
-    expect(page.get_by_text("Als Entwurf zurückziehen")).to_be_attached()
 
 
 def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: str) -> None:

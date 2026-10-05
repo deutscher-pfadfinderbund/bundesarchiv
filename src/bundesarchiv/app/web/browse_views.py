@@ -191,6 +191,7 @@ class MediaTile:
     file_url: str
     full_url: str
     thumb_url: str
+    size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
 
 
 def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
@@ -201,6 +202,7 @@ def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]
         MediaTile(
             kind=vocab.file_word(file_kind(ref)),
             name=ref.filename,
+            size=vocab.human_size(ref.byte_size),
             caption=ref.caption or "",
             file_url=media_url(ulid, ref.content_hash),
             full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
@@ -679,13 +681,11 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
             else (BestandCrumb("Papierkorb", reverse("trash")),)
         ),
         "tags": tags,
-        "umfang": len(media),
         "loeschen": vocab.TRASH_CONFIRM
         if mark is None
         else vocab.delete_permanently_confirm(len(media)),
         "cover": media[0] if media else None,
         "weitere": media[1:],
-        "plates": media,
         "plates_heading": (
             vocab.FURTHER_IMAGES
             if all(file_kind(ref) is FileKind.IMAGE for ref in article.media)

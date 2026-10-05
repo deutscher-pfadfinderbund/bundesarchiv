@@ -595,8 +595,6 @@ def test_detail_action_row_present_for_archivist(corpus: Corpus) -> None:
     assert f"/articles/{PUBLISHED_ULID}/edit" in body
     assert f"/articles/{PUBLISHED_ULID}/copy" in body
     assert f"/articles/{PUBLISHED_ULID}/delete" in body
-    # published article → the unpublish action, not Veröffentlichen
-    assert "Als Entwurf zurückziehen" in body
 
 
 def test_detail_action_row_absent_for_non_archivist(corpus: Corpus) -> None:

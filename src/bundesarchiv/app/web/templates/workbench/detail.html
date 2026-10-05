@@ -30,7 +30,6 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
             <ul class="menu" id="aktionen-menu" popover>
               <li>{% include "workbench/_duplizieren.html" %}</li>
-              {% if not is_draft %}<li><a href="{% url 'artikel-bearbeiten' ulid %}">Als Entwurf zurückziehen</a></li>{% endif %}
               {% url 'artikel-loeschen' ulid as loeschen_href %}
               <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
             </ul>
@@ -52,38 +51,46 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% if body_paragraphs %}
       <div class="prose">{% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}</div>
       {% endif %}
-      {% if standort %}
-      <dl class="byline"><div><dt>Standort</dt><dd>{{ standort }}</dd></div></dl>
-      {% endif %}
-      {% if tags %}
-      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd></div></dl>
-      {% endif %}
-      {% if custom %}
-      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
-      {% endif %}
     </header>
 
-    {% comment %}The cover Platte, omitted without media, and the plate register for further sheets.
-    Every tile links its full gated byte route.{% endcomment %}
+    {% comment %}The cover Platte, omitted without media, then the files after it. Every tile links its
+    full gated byte route; its download link names the kind and the size.{% endcomment %}
     {% if cover %}
     <figure class="platte">
       {% firstof cover.full_url cover.thumb_url as lead %}
       <a href="{{ cover.file_url }}" target="_blank" rel="noopener">{% if lead %}<img src="{{ lead }}" alt="{% firstof cover.caption cover.name %}">{% else %}{% include "components/blank.html" with kind=cover.kind name=cover.name only %}{% endif %}</a>
-      <figcaption>{% if cover.caption %}<span>{{ cover.caption }}</span>{% endif %}<a href="{{ cover.file_url }}" download>Herunterladen</a></figcaption>
+      {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
+      {% include "workbench/_herunterladen.html" with tile=cover only %}
     </figure>
     {% endif %}
     {% if weitere %}
     <section class="filmstrip">
-      <h2>{{ plates_heading }} <span>Blatt 1 / {{ umfang }}</span></h2>
+      <h2>{{ plates_heading }}</h2>
       <div>
-        {% for plate in plates %}
+        {% for plate in weitere %}
         <figure>
-          <a href="{{ plate.file_url }}" target="_blank" rel="noopener"{% if forloop.first %} aria-current="true"{% endif %}>{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{% firstof plate.caption plate.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
-          <figcaption>{% if plate.caption and not forloop.first %}<span>{{ plate.caption }}</span>{% endif %}<a href="{{ plate.file_url }}" download>Herunterladen</a></figcaption>
+          <a href="{{ plate.file_url }}" target="_blank" rel="noopener">{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{% firstof plate.caption plate.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
+          {% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
+          {% include "workbench/_herunterladen.html" with tile=plate only %}
         </figure>
         {% endfor %}
       </div>
     </section>
+    {% endif %}
+    {% comment %}The labelled facts after the media: on a phone the cover is not pushed below a long
+    Schlagwort list, and a keyboard reaches the files first.{% endcomment %}
+    {% if standort or tags or custom %}
+    <div class="facts">
+      {% if standort %}
+      <dl class="byline"><div><dt>Standort</dt><dd>{{ standort }}</dd></div></dl>
+      {% endif %}
+      {% if tags %}
+      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
+      {% endif %}
+      {% if custom %}
+      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+      {% endif %}
+    </div>
     {% endif %}
   </article>
 </main>

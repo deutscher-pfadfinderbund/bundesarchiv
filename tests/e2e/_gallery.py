@@ -334,7 +334,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
     GalleryState(
         "detail-aktionen-open",
-        "the article page, the split button's menu open (Duplizieren, zurückziehen, Löschen)",
+        "the article page, the split button's menu open (Duplizieren, Löschen)",
         True,
         _reach_detail_aktionen_open,
     ),

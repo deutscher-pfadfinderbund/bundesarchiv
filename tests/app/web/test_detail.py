@@ -153,14 +153,15 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
     corpus: _DetailArchive, tmp_path: Path
 ) -> None:
     thumbs = tmp_path / "thumbs"
+    second = thumbnail_url(corpus.pub, corpus.second_hash)
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
-        assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.cover_hash, thumbs)
-        body = _body(Public(), corpus.pub)
-    images = re.findall(r'<img [^>]*src="([^"]*)"', body)
-    assert thumbnail_url(corpus.pub, corpus.cover_hash) in images
-    assert thumbnail_url(corpus.pub, corpus.second_hash) not in body  # nothing that could break
-    assert "b.png" in body  # the uncached file's tile names it
-    assert "data:image" not in body  # no bytes inlined
+        before = _body(Public(), corpus.pub)
+        assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.second_hash, thumbs)
+        after = _body(Public(), corpus.pub)
+    assert second not in before  # nothing that could break
+    assert "b.png" in before  # the uncached file's tile names it
+    assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
+    assert "data:image" not in after  # no bytes inlined
 
 
 def test_the_page_leads_with_the_original_of_an_image_a_browser_draws(
@@ -197,7 +198,7 @@ def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive
     originals = {media_url(corpus.pub, h) for h in (corpus.cover_hash, corpus.second_hash)}
     assert originals <= set(page_hrefs(body))
     assert set(download_hrefs(body)) == originals
-    assert len(download_hrefs(body)) == 3  # the cover once under the Platte, then every plate
+    assert len(download_hrefs(body)) == 2  # the cover under the Platte, the second in the strip
 
 
 # --- projection / per-tier (the leak surface, §9) ---------------------------------
@@ -270,10 +271,17 @@ def test_draft_is_200_and_closes_with_publish_for_archivist(corpus: _DetailArchi
     assert "/edit" in body
 
 
-def test_published_record_offers_withdraw_to_archivist(corpus: _DetailArchive) -> None:
+def test_published_record_offers_no_publish_to_archivist(corpus: _DetailArchive) -> None:
+    # withdrawing is the form's Status, next to Speichern: the page's menu has no entry for it
     body = _body(Archivist(), corpus.pub)
-    assert "Als Entwurf zurückziehen" in body
     assert "Veröffentlichen" not in body
+    assert "Als Entwurf zurückziehen" not in body
+
+
+def test_the_files_after_the_cover_leave_the_cover_out(corpus: _DetailArchive) -> None:
+    strip = _body(Public(), corpus.pub).split('class="filmstrip"', 1)[1]
+    assert media_url(corpus.pub, corpus.second_hash) in strip
+    assert media_url(corpus.pub, corpus.cover_hash) not in strip
 
 
 # --- action row / archivist chrome ------------------------------------------------
