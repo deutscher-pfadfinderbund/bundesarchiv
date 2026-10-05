@@ -45,6 +45,8 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
     <div class="zeichen" aria-hidden="true"></div>
     <p>Noch keine Artikel in diesem Bestand.</p>
     {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
+    {% comment %}no rows, so no tool row: the rename stays reachable here{% endcomment %}
+    {% if aktiver_bestand %}<p><button class="menu-button" type="button" popovertarget="bestand-bearbeiten">Bestand bearbeiten …</button></p>{% endif %}
   </div>
   {% else %}
   {% if any_filter_set %}

@@ -2,7 +2,9 @@
 The list's tool row over the column heads (a2 rounds 2 and 11, owner 2026-09-30): the view tool
 "Spalten …" at the end edge; for archivists "Auswählen" at the start, which turns on selection mode
 (the ledger's checkbox column) and, in it, becomes "Abbrechen", the count and "Feld ändern …", and
-the way to the Papierkorb before "Spalten …" (ADR 0022). The
+the way to the Papierkorb before "Spalten …" (ADR 0022). While one Bestand is in focus
+(aktiver_bestand), "Bestand bearbeiten …" opens the header's rename panel: an edit is a tool, not
+a word of the search sentence. The
 row sits inside the bulk form, so its "Spalten …" controls post through their own form
 (form=spalten-form, _results.html): forms cannot nest.
 Params: choices — ledger.Ledger.choices; bulk — the selection tools (the view's bulk context).
@@ -23,6 +25,7 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
   {% else %}
   <div class="bulk"><a href="?{{ auswaehlen_query }}">Auswählen</a></div>
   {% endif %}
+  {% if aktiver_bestand %}<button class="menu-button" type="button" popovertarget="bestand-bearbeiten">Bestand bearbeiten …</button>{% endif %}
   <a href="{% url 'trash' %}">Papierkorb</a>
   {% endif %}
   <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>

@@ -390,7 +390,6 @@ def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
 def test_entwurf_mark_and_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
     arch = _get(Archivist()).content.decode()
     assert draft_mark() in arch
-    assert "Bearbeiten" in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
         assert "Bearbeiten" not in body, f"[{label}] Bearbeiten action leaked"
@@ -711,8 +710,8 @@ def test_the_ledger_prints_the_columns_its_viewers_cookie_chose(indexed_corpus: 
     client.cookies[ledger.COOKIE] = ledger.cookie_value(["bestand", "datierung"])
     body = client.get(list_url()).content.decode()
     assert _heads(body) == ["titel", "datierung", "bestand"]
-    assert '<td class="bestand">Fotografien</td>' in body
-    assert '<td class="bestand">Aktenbestand</td>' in body
+    assert re.search(r'<td class="bestand"><a href="\?bestand=FOTOS">Fotografien</a></td>', body)
+    assert ">Aktenbestand</a></td>" in body
 
 
 @pytest.mark.parametrize("raw", ["", "gibt.es.nicht", "\u00e4", ledger.cookie_value(())])
@@ -741,14 +740,11 @@ def test_titel_navigates_and_no_list_link_opens_the_pane(
     assert [h for h in hrefs if "artikel" in parse_qs(urlparse(h).query)] == []
 
 
-def test_row_bearbeiten_is_archivist_chrome(indexed_corpus: Corpus) -> None:
-    # The row's Bearbeiten (→ the edit form) is archivist-only.
+def test_a_row_leads_to_its_record_and_carries_no_tool(indexed_corpus: Corpus) -> None:
+    # The record's tools (Bearbeiten) are on its page, one click from the row.
     arch = _get(Archivist()).content.decode()
-    assert f'href="/articles/{PANE_PUB_ULID}/edit"' in arch
-    assert ">Bearbeiten<" in arch
-    for viewer, label in _NON_ARCHIVIST:
-        body = _get(viewer).content.decode()
-        assert ">Bearbeiten<" not in body, f"[{label}] Bearbeiten control leaked"
+    assert f'href="/articles/{PANE_PUB_ULID}"' in arch
+    assert f'href="/articles/{PANE_PUB_ULID}/edit"' not in arch
 
 
 # --- preview pane (?artikel): fail-closed, leak-safe ----------------

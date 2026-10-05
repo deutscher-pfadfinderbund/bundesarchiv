@@ -2,8 +2,9 @@
 
 "Neuer Bestand" lives beside "Neuer Artikel" in the header's "+ Neu …" disclosure panel (Mock B,
 owner 2026-08-07 — archivist-only chrome, absent for everyone else). A per-Bestand "Bestand
-bearbeiten" button sits in the search sentence only when a ?bestand= filter is active (the archivist
-has a specific Bestand in focus), not in the menu. Neither is a visibility decision: the routes are
+bearbeiten" button sits in the list's tool row (or, while the Bestand is empty, in its empty state)
+only when a ?bestand= filter is active (the archivist has a specific Bestand in focus), not in the
+menu. Neither is a visibility decision: the routes are
 independently archivist-gated.
 """
 
@@ -66,6 +67,7 @@ def test_an_empty_bestand_offers_the_new_article_panel_with_itself_preselected(
     body = client_as(Archivist()).get(list_url(bestand=FOTOS)).content.decode()
     empty = body.split('class="empty-state"')[1]
     assert 'popovertarget="neu-artikel"' in empty
+    assert 'popovertarget="bestand-bearbeiten"' in empty  # no rows, no tool row: renamed from here
     panel = body.split('id="neu-artikel"')[1].split("</form>")[0]
     assert f'<option value="{FOTOS}" selected>' in panel
 

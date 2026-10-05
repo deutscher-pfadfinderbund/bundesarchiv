@@ -77,6 +77,16 @@ def test_the_bestand_cell_names_the_records_bestand_or_nothing() -> None:
     assert [row.cells[0].text for row in built.rows] == ["Gau Wartburg", ""]
 
 
+def test_a_bestand_cell_sets_its_bestand_and_a_set_bestand_hides_the_column() -> None:
+    columns = (_column("bestand"),)
+    (cell,) = _build(columns=columns).rows[0].cells
+    assert cell.text == "Gau Wartburg"
+    assert parse_qs(cell.query) == {browse.PARAM_COLLECTION: [_BESTAND]}  # the ulid, not the name
+
+    filtered = _build(params={browse.PARAM_COLLECTION: _BESTAND}, columns=columns)
+    assert filtered.rows[0].cells == ()
+
+
 @pytest.mark.parametrize(
     ("is_archivist", "drafts_only", "marked"),
     [(True, False, True), (False, False, False), (True, True, False)],

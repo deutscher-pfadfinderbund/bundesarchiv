@@ -720,8 +720,7 @@
         .split-button,
         .search-sentence-slots > div,
         .search-sentence-add,
-        .search-sentence-more,
-        .search-sentence-bestand
+        .search-sentence-more
       ) {
       anchor-scope: --menu-button;
     }
@@ -835,7 +834,10 @@
     justify-content: space-between;
     gap: var(--space-4);
   }
-  .menu li > a > span {
+  /* a count reads the same in a slot's menu and in "+ Filter"'s check list: quiet tabular figures
+     at the end edge */
+  :is(.menu li > a, .toolpanel > ul:not(.menu) a) > span {
+    margin-inline-start: auto;
     font: var(--type-mono-meta);
     font-variant-numeric: tabular-nums;
     color: var(--ink-2);
@@ -1000,6 +1002,15 @@
     background: currentColor;
   }
   /* the set entry of a menu or check list in bold */
+  /* the head over one list of the phone's "Filter" fold: which slot its entries set */
+  .toolpanel > .toolpanel-head {
+    margin: var(--space-3) 0 var(--space-1);
+    font: var(--type-label);
+    color: var(--ink-2);
+  }
+  .toolpanel > .toolpanel-head:first-child {
+    margin-block-start: 0;
+  }
   :is(.menu li > a, .toolpanel > ul a)[aria-current] {
     font-weight: 600;
   }
@@ -1070,16 +1081,6 @@
   .ledger td.titel > a:first-child:hover {
     text-decoration: underline;
   }
-  /* the row's tools follow the title in its cell (round 2) */
-  .ledger td.titel > a ~ a {
-    margin-inline-start: var(--space-4);
-    font: var(--type-meta);
-    color: var(--ink-2);
-  }
-  .ledger td.titel > a ~ a:hover {
-    color: var(--ink);
-  }
-
   .ledger td:not(.titel, .auswahl) {
     font: var(--type-meta);
     color: var(--ink-2);
@@ -1099,7 +1100,9 @@
   .ledger :where(td.signatur) {
     width: var(--measure-sig);
   }
-  .ledger :where(td.typ, td.bestand) {
+  /* the word cells keep one width on every page, so the columns do not jump between results */
+  .ledger :where(td.typ, td.digital, td.bestand) {
+    width: var(--measure-word);
     max-width: var(--measure-word);
   }
   .ledger :where(th, td):where(.auswahl, :last-child) {
@@ -1113,27 +1116,15 @@
   .ledger td:not(.titel):has(> a) {
     overflow: visible;
   }
-  /* biome-ignore lint/style/noDescendingSpecificity: never the Titel cell's links */
   .ledger td:not(.titel) > a {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     text-decoration: none;
   }
-  /* biome-ignore lint/style/noDescendingSpecificity: never the Titel cell's links */
   .ledger td:not(.titel) > a:hover {
     color: var(--ink);
     text-decoration: underline;
-  }
-
-  /* pointer devices: a row's tool shows with its row, on hover or focus; touch keeps it shown */
-  @media (hover: hover) {
-    .ledger td.titel > a ~ a {
-      opacity: 0;
-    }
-    .ledger tr:is(:hover, :focus-within) td.titel > a ~ a {
-      opacity: 1;
-    }
   }
 
   /* S: the heads go, and a row is its title over one line of its facts, "1866-11-20 · Lagerheft ·
@@ -1178,7 +1169,7 @@
       content: "·" / "";
       margin-inline: var(--space-2);
     }
-    .ledger :is(td.auswahl, td.titel > a ~ a) {
+    .ledger td.auswahl {
       display: none;
     }
   }

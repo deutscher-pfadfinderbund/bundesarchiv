@@ -43,7 +43,8 @@
   .search-sentence-field {
     --_field-max: var(--search-field-max, var(--measure-query));
     --_field-pad: var(--search-field-pad, var(--space-1) var(--space-2));
-    flex: 1 1 var(--measure-query-min);
+    /* starts at its widest, so setting a filter wraps the sentence instead of narrowing the field */
+    flex: 1 1 var(--measure-query);
     max-inline-size: var(--_field-max);
     padding: var(--_field-pad);
     font: inherit;
@@ -95,8 +96,8 @@
   .search-sentence :is(.menu-button, .is-set > a):hover {
     text-decoration: underline;
   }
-  /* "+ Filter" (and on S "Filter") and "Bestand bearbeiten …" read in an open slot's quieter ink */
-  :is(.search-sentence-add, .search-sentence-more, .search-sentence-bestand) {
+  /* "+ Filter" (and on S "Filter") read in an open slot's quieter ink */
+  :is(.search-sentence-add, .search-sentence-more) {
     --ink: var(--ink-2);
     padding-inline-start: var(--space-3);
   }
@@ -115,6 +116,7 @@
   }
   @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .search-sentence-label,
+    .search-sentence-slots > :first-child > span:first-child,
     .search-sentence-slots > .is-minor:not(:first-child),
     .search-sentence-add {
       display: none;
@@ -154,8 +156,9 @@
     gap: var(--space-2) var(--space-4);
     font: var(--type-meta);
   }
+  /* the count is a state, quieter than the tools beside it */
   .bulk > [role="status"] {
-    color: var(--ink);
+    color: var(--ink-2);
   }
 
   /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-wert tokens

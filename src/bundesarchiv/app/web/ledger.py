@@ -25,13 +25,15 @@ from bundesarchiv.index.query import SearchHit
 class Column:
     """One column after the Titel: its key (the CSS class and the stored choice), its head, the
     sort label it sorts by (``None``: not sortable), the filter param its cell sets (``None``: the
-    cell is plain text) and how a hit spells its value."""
+    cell is plain text), how a hit spells its value, and the value the filter takes when the
+    words are not it (a Bestand's name stands for its ulid)."""
 
     key: str
     label: str
     sort: str | None
     filter: str | None
     value: Callable[[SearchHit, BestandChooser], str]
+    filter_value: Callable[[SearchHit], str] | None = None
 
 
 COLUMNS: tuple[Column, ...] = (
@@ -39,7 +41,14 @@ COLUMNS: tuple[Column, ...] = (
     Column("typ", "Typ", None, browse.PARAM_DOCUMENT_TYPE, lambda hit, _: hit.document_type or ""),
     Column("digital", "Digital", None, None, lambda hit, _: vocab.file_summary(hit.file_counts)),
     Column("signatur", "Signatur", "signatur", None, lambda hit, _: hit.ref_code or ""),
-    Column("bestand", "Bestand", None, None, lambda hit, b: b.name_of(hit.collection_id) or ""),
+    Column(
+        "bestand",
+        "Bestand",
+        None,
+        browse.PARAM_COLLECTION,
+        lambda hit, b: b.name_of(hit.collection_id) or "",
+        lambda hit: hit.collection_id,
+    ),
 )
 
 #: The columns a ledger shows until its viewer chooses (the a2 mock's set).
@@ -91,14 +100,13 @@ class Cell:
 
 @dataclass(frozen=True, slots=True)
 class Row:
-    """One hit as the ledger prints it. ``draft``, ``bearbeiten_href`` and ``gewaehlt`` are the
-    archivist's chrome, False / empty for everyone else; ``selected`` marks the row in the pane."""
+    """One hit as the ledger prints it. ``draft`` and ``gewaehlt`` are the archivist's chrome,
+    False for everyone else; ``selected`` marks the row in the pane."""
 
     ulid: str
     title: str
     href: str
     draft: bool
-    bearbeiten_href: str
     selected: bool
     gewaehlt: bool
     cells: tuple[Cell, ...]
@@ -151,9 +159,6 @@ def build(
             title=hit.title,
             href=reverse("artikel-detail", args=[hit.ulid]),
             draft=mark_drafts and hit.is_draft,
-            bearbeiten_href=(
-                reverse("artikel-bearbeiten", args=[hit.ulid]) if is_archivist else ""
-            ),
             selected=hit.ulid == selected_ulid,
             gewaehlt=hit.ulid in selection,
             cells=tuple(_cell(c, hit, bestand, params) for c in shown),
@@ -174,7 +179,8 @@ def _cell(
     text = column.value(hit, bestand)
     if column.filter is None or not text:
         return Cell(column.key, text)
-    return Cell(column.key, text, browse.with_param(params, column.filter, text))
+    value = column.filter_value(hit) if column.filter_value else text
+    return Cell(column.key, text, browse.with_param(params, column.filter, value))
 
 
 def _head(
