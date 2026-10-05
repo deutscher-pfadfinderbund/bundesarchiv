@@ -700,17 +700,17 @@ def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) ->
 
 
 def _heads(body: str) -> list[str]:
-    return re.findall(r'<th scope="col" class="([a-z]+)"', body)
+    return re.findall(r'<th scope="col" class="([a-z-]+)"', body)
 
 
 def test_the_ledger_prints_the_columns_its_viewers_cookie_chose(indexed_corpus: Corpus) -> None:
     # The "Spalten …" choice is a per-person cookie (ruling 2026-09-29): it reaches the ledger, and
     # the Bestand column names the record's own Bestand — for a member too, whose rows it scopes.
     client = client_as(Member(groups=()))
-    client.cookies[ledger.COOKIE] = ledger.cookie_value(["bestand", "datierung"])
+    client.cookies[ledger.COOKIE] = ledger.cookie_value(["collection", "date"])
     body = client.get(list_url()).content.decode()
-    assert _heads(body) == ["titel", "datierung", "bestand"]
-    assert re.search(r'<td class="bestand"><a href="\?bestand=FOTOS">Fotografien</a></td>', body)
+    assert _heads(body) == ["title", "date", "collection"]
+    assert re.search(r'<td class="collection"><a href="\?bestand=FOTOS">Fotografien</a></td>', body)
     assert ">Aktenbestand</a></td>" in body
 
 
@@ -722,7 +722,7 @@ def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
     client.cookies[ledger.COOKIE] = raw
     body = client.get(list_url()).content.decode()
     expected = [] if raw == ledger.cookie_value(()) else [c.key for c in ledger.DEFAULT_COLUMNS]
-    assert _heads(body) == ["titel", *expected]
+    assert _heads(body) == ["title", *expected]
 
 
 # --- one-click entry: the Titel navigates; the paused pane has no way in from the list -------

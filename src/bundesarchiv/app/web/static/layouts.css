@@ -21,7 +21,7 @@
      DESIGN.md "Search sentence"). It lives OUTSIDE #results, so its links are plain GET navigations;
      a q-swap refreshes its slots out-of-band. Set slots in ink, open ones quieter, centre dots
      between. The form is its size container: at S the unset slots after the first fold away. ---- */
-  .satz {
+  .search-form {
     /* on the page grid, like the header: "Suche" starts where the wordmark starts. Knob: --satz-pad
        (0 where a composition already sets the page grid). */
     --_satz-pad: var(
@@ -375,7 +375,7 @@
   }
   /* whichever of the two trailing items ENDS the row docks it right: the back link on the screens
      that carry one, otherwise Abmelden (archivist chrome, ADR 0018) */
-  header > :is(.back, .abmelden):last-child {
+  header > :is(.back, .logout):last-child {
     margin-left: auto;
   }
   /* no search (the article forms): nothing grows, so the create menu docks the tools right as one
@@ -632,10 +632,10 @@
      Both sides must share the rem unit or a non-default root font size silently breaks the
      margin. */
   @media (min-width: 80rem) /* the pane switch — DERIVED per C9 from the arithmetic above; no token names a composition breakpoint */ {
-    body.vorschau .frame {
+    body.preview .frame {
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
-    body.vorschau .pane {
+    body.preview .pane {
       display: block; /* the pane column exists here (it is a grid item, so this only un-hides it) */
     }
   }

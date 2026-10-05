@@ -102,7 +102,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
     # focus. Archivist-only chrome; the /collections/<ulid>/edit route is independently gated.
     context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
-    # body.vorschau adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
+    # body.preview adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
     context["vorschau"] = pane is not None
     # A Back-button restore swaps the whole body, so only a partial gets the chrome-less region.

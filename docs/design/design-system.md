@@ -267,7 +267,7 @@ monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
 column: a compositions-layer selector may reach a root and never past it. A new component joins
-this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.start`, `.tiles`, `.artikel`,
+this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.start`, `.tiles`, `.article-page`,
 `.record-head`, `.prose`, `.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
 `_trefferzahl` are parts of the filter rail; they are split out only as swap units (law C7).
 
@@ -309,7 +309,7 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Search sentence | `.search-sentence` | `workbench/_suchsatz`, `_filterset` | `layouts.css` search sentence |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
-| Cover Platte | `.platte` | inline (`detail`) | `detail.css` cover Platte |
+| Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte |
 | Plate register | `.filmstrip` | inline (`detail`) | `detail.css` plate register |
 
 ### Roles

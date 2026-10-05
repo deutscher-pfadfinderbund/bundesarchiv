@@ -10,7 +10,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
 {% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="artikel">
+<main id="inhalt" class="article-page">
   <article aria-labelledby="artikel-titel">
     <header>
       <div class="record-head">
@@ -67,7 +67,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     {% comment %}The cover Platte, omitted without media, then the files after it. Every tile links its
     full gated byte route; its download link names the kind and the size.{% endcomment %}
     {% if cover %}
-    <figure class="platte">
+    <figure class="cover">
       {% firstof cover.full_url cover.thumb_url as lead %}
       <a href="{{ cover.file_url }}" target="_blank" rel="noopener">{% if lead %}<img src="{{ lead }}" alt="{% firstof cover.caption cover.name %}">{% else %}{% include "components/blank.html" with kind=cover.kind name=cover.name only %}{% endif %}</a>
       {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}

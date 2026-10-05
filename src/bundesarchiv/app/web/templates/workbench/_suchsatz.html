@@ -5,7 +5,7 @@ menus. The hidden inputs keep every set filter when a new q is typed (GH #21).
 Params: text and filter_params (both optional), and _filterset.html's slots, set_filters,
 filter_checks, clear_all_query; or field_only (the start page): the field and its "Suchen" button, without the slots, label and heading role.
 {% endcomment %}
-<form role="search" class="satz" method="get" action="{% url 'workbench' %}">
+<form role="search" class="search-form" method="get" action="{% url 'workbench' %}">
   <div class="search-sentence"{% if not field_only %} role="heading" aria-level="1"{% endif %}>
     {% if not field_only %}<span class="search-sentence-label">Suche</span>{% endif %}
     <input class="search-sentence-field" type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Autor …" aria-label="Suchbegriff">

@@ -42,5 +42,5 @@ new header button.{% endcomment %}
 {% if zurueck %}<a class="back" href="{% if zurueck_href %}{{ zurueck_href }}{% else %}{% url 'workbench' %}{% endif %}"{% if not zurueck_href %} data-list-link{% endif %}>{% if zurueck_label %}{{ zurueck_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
 {% comment %}A POST form: a logout changes state and carries the CSRF token like every write.{% endcomment %}
 {% if is_signed_in %}
-<form class="abmelden" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit">Abmelden</button></form>
+<form class="logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit">Abmelden</button></form>
 {% endif %}

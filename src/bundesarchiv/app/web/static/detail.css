@@ -4,32 +4,32 @@
 
 @layer compositions {
   /* the page on the page grid (the header's measure and gutter): the record, then its media */
-  .artikel {
+  .article-page {
     width: 100%;
     max-width: var(--measure);
     margin: 0 auto;
     padding: var(--space-8) var(--gutter);
   }
-  .artikel > article {
+  .article-page > article {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
   }
   /* inside the head the stack owns every gap: origin, description and the labelled lines read as
      one block */
-  .artikel > article > header {
+  .article-page > article > header {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
   }
-  .artikel > article > header > * {
+  .article-page > article > header > * {
     margin: 0;
   }
   /* the article's flex gap spaces the media; the figure's own margin would add to it (C4) */
-  .artikel > article > .platte {
+  .article-page > article > .cover {
     margin: 0;
   }
-  .artikel h1 {
+  .article-page h1 {
     max-width: 30ch; /* the title measure (the mock's --measure-title) */
     font: var(--type-page-title);
   }
@@ -63,33 +63,33 @@
   /* The media keep their pre-a3 rendering until the media wave builds the 2026-09-28 rulings
      (lightbox, justified rows of equal height; owner-interview-2026-08.md). */
   /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
-  .platte {
+  .cover {
     padding: var(--space-3);
     border: var(--line-width) solid var(--edge);
   }
   /* a lead is never drawn wider than its own pixels (a 480px thumbnail stays sharp), so the mount
      hugs it; the caption wraps to the picture's width instead of widening it */
-  .platte:has(img) {
+  .cover:has(img) {
     width: fit-content;
   }
-  .platte :is(figcaption, .download) {
+  .cover :is(figcaption, .download) {
     contain: inline-size;
   }
-  .platte img {
+  .cover img {
     display: block;
     max-width: 100%;
     height: auto;
   }
-  .platte .blank {
+  .cover .blank {
     --blank-ratio: 4 / 1; /* a file, not a picture: a band, not the square a photo fills */
   }
   /* The mount is for a photo; the blank draws its own edge (owner 2026-10-01). */
-  .platte:has(.blank) {
+  .cover:has(.blank) {
     padding: 0;
     border: 0;
   }
   /* under a picture: its caption, then the download line, both quiet words */
-  .platte :is(figcaption, .download),
+  .cover :is(figcaption, .download),
   .filmstrip :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);

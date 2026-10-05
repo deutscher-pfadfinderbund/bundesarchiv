@@ -6,8 +6,8 @@ The workbench page. A plain GET renders it whole; an HX-Request GET renders only
 {% endcomment %}
 {% block title %}Archiv — Bundesarchiv{% endblock %}
 {% block head_extra %}<script src="{% static "catalog_bulk.js" %}" defer></script>{% endblock %}
-{% comment %}body.vorschau adds the pane column (the pane switch, layouts.css).{% endcomment %}
-{% block body_class %}workbench{% if vorschau %} vorschau{% endif %}{% endblock %}
+{% comment %}body.preview adds the pane column (the pane switch, layouts.css).{% endcomment %}
+{% block body_class %}workbench{% if vorschau %} preview{% endif %}{% endblock %}
 {% comment %}On this page the search field is the sentence's; the header drops its own.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block skip_ziel %}results{% endblock %}

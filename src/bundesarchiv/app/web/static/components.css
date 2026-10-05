@@ -1086,15 +1086,15 @@
     opacity: 1;
   }
 
-  .ledger td.titel > a:first-child {
+  .ledger td.title > a:first-child {
     font: var(--type-entry);
     color: var(--ink);
     text-decoration: none;
   }
-  .ledger td.titel > a:first-child:hover {
+  .ledger td.title > a:first-child:hover {
     text-decoration: underline;
   }
-  .ledger td:not(.titel, .auswahl) {
+  .ledger td:not(.title, .select) {
     font: var(--type-meta);
     color: var(--ink-2);
     white-space: nowrap;
@@ -1102,23 +1102,23 @@
     text-overflow: ellipsis;
   }
   /* mono aligns a column of values (DESIGN.md "The Mono Column Rule"); their ch counts in it */
-  .ledger td:is(.datierung, .signatur) {
+  .ledger td:is(.date, .ref-code) {
     font: var(--type-mono);
     font-variant-numeric: tabular-nums;
   }
   /* the column sizes, in :where() so the fold at S outranks them (law C13) */
-  .ledger :where(td.datierung) {
+  .ledger :where(td.date) {
     width: var(--measure-date);
   }
-  .ledger :where(td.signatur) {
+  .ledger :where(td.ref-code) {
     width: var(--measure-sig);
   }
   /* the word cells keep one width on every page, so the columns do not jump between results */
-  .ledger :where(td.typ, td.digital, td.bestand) {
+  .ledger :where(td.type, td.digital, td.collection) {
     width: var(--measure-word);
     max-width: var(--measure-word);
   }
-  .ledger :where(th, td):where(.auswahl, :last-child) {
+  .ledger :where(th, td):where(.select, :last-child) {
     width: 1%;
   }
   .ledger :is(th, td):last-child {
@@ -1126,16 +1126,16 @@
   }
   /* a cell that sets its filter reads like the others until hovered (round 11); the link is the
      ellipsizing box, so the cell never clips its focus ring */
-  .ledger td:not(.titel):has(> a) {
+  .ledger td:not(.title):has(> a) {
     overflow: visible;
   }
-  .ledger td:not(.titel) > a {
+  .ledger td:not(.title) > a {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     text-decoration: none;
   }
-  .ledger td:not(.titel) > a:hover {
+  .ledger td:not(.title) > a:hover {
     color: var(--ink);
     text-decoration: underline;
   }
@@ -1166,23 +1166,23 @@
       padding: 0;
       border: 0;
     }
-    .ledger td.titel {
+    .ledger td.title {
       flex-basis: 100%;
       padding-block-end: var(--space-1);
     }
-    .ledger td:not(.titel, .auswahl) {
+    .ledger td:not(.title, .select) {
       flex: 0 1 auto;
       min-width: 0;
       font: var(--type-meta);
     }
-    .ledger td:not(.titel) > a {
+    .ledger td:not(.title) > a {
       display: inline;
     }
-    .ledger td:not(.titel, .auswahl):not(:empty) ~ td:not(:empty)::before {
+    .ledger td:not(.title, .select):not(:empty) ~ td:not(:empty)::before {
       content: "·" / "";
       margin-inline: var(--space-2);
     }
-    .ledger td.auswahl {
+    .ledger td.select {
       display: none;
     }
   }

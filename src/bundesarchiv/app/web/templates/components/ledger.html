@@ -11,7 +11,7 @@ sideways (learning G.24, components.css).
   <table>
     <thead>
       <tr>
-        {% if bulk %}<th scope="col" class="auswahl"><input type="checkbox" name="alle" value="{% for row in ledger.rows %}{% if not forloop.first %} {% endif %}{{ row.ulid }}{% endfor %}" aria-label="Alle auswählen"></th>{% endif %}
+        {% if bulk %}<th scope="col" class="select"><input type="checkbox" name="alle" value="{% for row in ledger.rows %}{% if not forloop.first %} {% endif %}{{ row.ulid }}{% endfor %}" aria-label="Alle auswählen"></th>{% endif %}
         {% for head in ledger.heads %}<th scope="col" class="{{ head.key }}"{% if head.sort %} aria-sort="{{ head.sort }}"{% endif %}>{% if head.query is not None %}<a href="?{{ head.query }}">{{ head.label }}</a>{% else %}{{ head.label }}{% endif %}</th>{% endfor %}
       </tr>
     </thead>

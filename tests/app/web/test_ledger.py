@@ -64,21 +64,21 @@ def test_the_title_leads_the_default_columns_and_each_cell_says_its_fact() -> No
 
 
 def test_a_typ_cell_sets_its_type_filter_and_a_set_type_filter_hides_the_column() -> None:
-    (typ,) = [c for c in _build(params={"q": "sommer"}).rows[0].cells if c.key == "typ"]
+    (typ,) = [c for c in _build(params={"q": "sommer"}).rows[0].cells if c.key == "type"]
     assert parse_qs(typ.query) == {"q": ["sommer"], browse.PARAM_DOCUMENT_TYPE: ["Lagerheft"]}
 
     filtered = _build(params={browse.PARAM_DOCUMENT_TYPE: "Lagerheft"})
-    assert "typ" not in [h.key for h in filtered.heads]
-    assert "typ" not in [c.key for c in filtered.rows[0].cells]
+    assert "type" not in [h.key for h in filtered.heads]
+    assert "type" not in [c.key for c in filtered.rows[0].cells]
 
 
 def test_the_bestand_cell_names_the_records_bestand_or_nothing() -> None:
-    built = _build(_hit(), _hit(collection_id="GONE"), columns=(_column("bestand"),))
+    built = _build(_hit(), _hit(collection_id="GONE"), columns=(_column("collection"),))
     assert [row.cells[0].text for row in built.rows] == ["Gau Wartburg", ""]
 
 
 def test_a_bestand_cell_sets_its_bestand_and_a_set_bestand_hides_the_column() -> None:
-    columns = (_column("bestand"),)
+    columns = (_column("collection"),)
     (cell,) = _build(columns=columns).rows[0].cells
     assert cell.text == "Gau Wartburg"
     assert parse_qs(cell.query) == {browse.PARAM_COLLECTION: [_BESTAND]}  # the ulid, not the name
@@ -110,7 +110,7 @@ def test_a_sortable_head_links_to_its_next_sort_state(
     sortierung: str | None, next_sortierung: str | None, aria_sort: str
 ) -> None:
     params = {browse.PARAM_SORT: sortierung} if sortierung else {}
-    (head,) = [h for h in _build(params=params).heads if h.key == "datierung"]
+    (head,) = [h for h in _build(params=params).heads if h.key == "date"]
     assert head.query is not None
     assert parse_qs(head.query).get(browse.PARAM_SORT) == (
         [next_sortierung] if next_sortierung else None
@@ -135,16 +135,14 @@ def test_every_choice_of_columns_round_trips_through_the_cookie(keys: tuple[str,
 
 def test_the_cookie_holds_only_known_columns() -> None:
     # the delimiter inside one posted key, the empty-choice token, unicode, percent, whitespace
-    posted = ["datierung", "typ.bestand", ledger.cookie_value(()), "Bestand", "digitäl", "%2E"]
-    assert ledger.cookie_value([*posted, " signatur", "signatur "]) == ledger.cookie_value(
-        ["datierung"]
-    )
+    posted = ["date", "type.collection", ledger.cookie_value(()), "Bestand", "digitäl", "%2E"]
+    assert ledger.cookie_value([*posted, " ref-code", "ref-code "]) == ledger.cookie_value(["date"])
 
 
-@pytest.mark.parametrize("raw", [None, "", "garbage", ".", "..", "ä", "%2E", " datierung "])
+@pytest.mark.parametrize("raw", [None, "", "garbage", ".", "..", "ä", "%2E", " date "])
 def test_an_unknown_empty_or_garbage_cookie_falls_back_to_the_default(raw: str | None) -> None:
     assert ledger.chosen(raw) == ledger.DEFAULT_COLUMNS
 
 
 def test_a_cookie_with_one_unknown_column_keeps_the_known_ones() -> None:
-    assert [c.key for c in ledger.chosen("bestand.gone")] == ["bestand"]
+    assert [c.key for c in ledger.chosen("collection.gone")] == ["collection"]

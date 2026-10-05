@@ -77,10 +77,10 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     panel.get_by_role("checkbox", name="Signatur").uncheck()
     panel.locator("button[type=submit]").click()
     page.wait_for_url(lambda url: parse_qs(urlparse(url).query) == parse_qs(query))
-    expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
-    expect(page.locator(".ledger th.signatur")).to_have_count(0)
+    expect(page.locator(".ledger th.collection")).to_have_text("Bestand")
+    expect(page.locator(".ledger th.ref-code")).to_have_count(0)
     page.goto(live_workbench + LIST)
-    expect(page.locator(".ledger th.bestand")).to_have_text("Bestand")
+    expect(page.locator(".ledger th.collection")).to_have_text("Bestand")
 
 
 def test_an_abandoned_panel_change_never_rides_along(
@@ -97,8 +97,8 @@ def test_an_abandoned_panel_change_never_rides_along(
     page.get_by_role("button", name="Spalten …").click()
     expect(spalten.get_by_role("checkbox", name="Bestand")).not_to_be_checked()
     spalten.get_by_role("button", name="Fertig").click()
-    expect(page.locator(".ledger th.signatur")).to_be_visible()
-    expect(page.locator(".ledger th.bestand")).to_have_count(0)
+    expect(page.locator(".ledger th.ref-code")).to_be_visible()
+    expect(page.locator(".ledger th.collection")).to_have_count(0)
 
     feld = page.locator('#feld-aendern select[name="feld"]')
     rendered = feld.input_value()
@@ -1006,7 +1006,7 @@ def _sideways_scroll_defects(
 #: The seeded long row is the only Titel over 60 characters, so it is found by length rather than by
 #: a duplicated literal.
 _LONG_TITEL_LINES_JS = """() => {
-    const link = [...document.querySelectorAll('.ledger td.titel > a:first-child')]
+    const link = [...document.querySelectorAll('.ledger td.title > a:first-child')]
         .find((e) => e.textContent.trim().length > 60);
     if (!link) throw new Error('the long-Titel row is not on this page');
     return link.getClientRects().length;
@@ -1034,7 +1034,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     ):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(live_workbench + path)
-        for col in ("titel", "datierung", "typ", "digital", "signatur"):
+        for col in ("title", "date", "type", "digital", "ref-code"):
             expect(page.locator(f".ledger td.{col}").first).to_be_visible()
 
     def ledger_probes(current: Page) -> list[str]:
@@ -1066,7 +1066,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     page.goto(live_workbench + LIST)
     expect(page.locator(".ledger thead")).to_be_hidden()
     long_row = page.locator(".ledger tbody tr", has_text=_CEILING_REF_CODE)
-    for col in ("datierung", "typ", "signatur"):
+    for col in ("date", "type", "ref-code"):
         expect(long_row.locator(f"td.{col}")).to_be_visible()
 
 
@@ -1117,7 +1117,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main h1")).to_have_text("Sommerfahrt 1962")
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
-    expect(page.locator("main .platte img")).to_be_visible()  # cover Platte
+    expect(page.locator("main .cover img")).to_be_visible()  # cover Platte
     expect(page.locator(".filmstrip figure")).to_have_count(2)  # the two files after the cover
     # a plate links its gated media byte route; the crumbs lead back into the list
     href = page.locator(".filmstrip figure > a").first.get_attribute("href")
@@ -1134,7 +1134,7 @@ def test_herunterladen_saves_the_original_under_its_own_name(
     page = archivist_page
     page.goto(live_workbench + f"/articles/{e2e_corpus.ceiling_ulid}")
     with page.expect_download() as saved:
-        page.locator(".platte").get_by_role("link", name="Herunterladen").click()
+        page.locator(".cover").get_by_role("link", name="Herunterladen").click()
     assert saved.value.suggested_filename == MINUTES_FILENAME
 
 

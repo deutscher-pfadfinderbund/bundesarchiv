@@ -1,9 +1,9 @@
 {% comment %}
-Empty state. Params: title (default "Keine Treffer"); hint (optional second line). The .zeichen
+Empty state. Params: title (default "Keine Treffer"); hint (optional second line). The .emblem
 div is an empty extension slot (spec "Extensions").
 {% endcomment %}
 <div class="empty-state">
-  <div class="zeichen" aria-hidden="true"></div>
+  <div class="emblem" aria-hidden="true"></div>
   <p>{% firstof title "Keine Treffer" %}</p>
   {% if hint %}<p>{{ hint }}</p>{% endif %}
 </div>

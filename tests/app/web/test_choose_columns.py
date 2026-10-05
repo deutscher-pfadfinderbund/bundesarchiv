@@ -26,13 +26,13 @@ def _post(data: dict[str, object], *, enforce_csrf: bool = False) -> HttpRespons
 
 def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() -> None:
     query = "q=Fahrt+%26+Lager&bestand=B1&sortierung=-datierung&auswahl=A1&auswahl=A2&artikel=A1"
-    response = _post({"spalte": ["bestand", "datierung"], "zurueck": query})
+    response = _post({"spalte": ["collection", "date"], "zurueck": query})
     assert response.status_code == 302
     target = urlsplit(response["Location"])
     assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
     assert parse_qs(target.query) == parse_qs(query)
     cookie = response.cookies[ledger.COOKIE]
-    assert cookie.value == ledger.cookie_value(["bestand", "datierung"])
+    assert cookie.value == ledger.cookie_value(["collection", "date"])
     assert cookie["httponly"] is True
     assert cookie["samesite"] == "Lax"
     assert bool(cookie["secure"]) is settings.CSRF_COOKIE_SECURE
@@ -51,13 +51,13 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
     ],
 )
 def test_the_way_back_never_leaves_the_site(zurueck: str) -> None:
-    target = urlsplit(_post({"spalte": ["datierung"], "zurueck": zurueck})["Location"])
+    target = urlsplit(_post({"spalte": ["date"], "zurueck": zurueck})["Location"])
     assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
 
 
 def test_the_cookie_never_holds_a_posted_value_that_names_no_column() -> None:
-    response = _post({"spalte": ["<script>", "typ.bestand", "datierung"], "zurueck": ""})
-    assert response.cookies[ledger.COOKIE].value == ledger.cookie_value(["datierung"])
+    response = _post({"spalte": ["<script>", "type.collection", "date"], "zurueck": ""})
+    assert response.cookies[ledger.COOKIE].value == ledger.cookie_value(["date"])
 
 
 def test_a_get_is_the_plain_404_and_sets_nothing() -> None:

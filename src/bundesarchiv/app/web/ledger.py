@@ -37,12 +37,12 @@ class Column:
 
 
 COLUMNS: tuple[Column, ...] = (
-    Column("datierung", "Datierung", "datierung", None, lambda hit, _: hit.date_edtf or ""),
-    Column("typ", "Typ", None, browse.PARAM_DOCUMENT_TYPE, lambda hit, _: hit.document_type or ""),
+    Column("date", "Datierung", "datierung", None, lambda hit, _: hit.date_edtf or ""),
+    Column("type", "Typ", None, browse.PARAM_DOCUMENT_TYPE, lambda hit, _: hit.document_type or ""),
     Column("digital", "Digital", None, None, lambda hit, _: vocab.file_summary(hit.file_counts)),
-    Column("signatur", "Signatur", "signatur", None, lambda hit, _: hit.ref_code or ""),
+    Column("ref-code", "Signatur", "signatur", None, lambda hit, _: hit.ref_code or ""),
     Column(
-        "bestand",
+        "collection",
         "Bestand",
         None,
         browse.PARAM_COLLECTION,
@@ -52,7 +52,7 @@ COLUMNS: tuple[Column, ...] = (
 )
 
 #: The columns a ledger shows until its viewer chooses (the a2 mock's set).
-DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "bestand")
+DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "collection")
 
 #: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
 #: URL (ruling 2026-09-29). It holds registry keys only, joined by ``_SEP``; ``_NONE`` is the choice
@@ -148,7 +148,7 @@ def build(
     shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
     active = browse.sort_label(parsed.sort)
     heads = (
-        _head("titel", "Titel", "titel", active, parsed.descending, params),
+        _head("title", "Titel", "titel", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
     selection = frozenset(auswahl) if is_archivist else frozenset()
