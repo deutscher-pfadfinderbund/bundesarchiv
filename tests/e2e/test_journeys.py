@@ -234,7 +234,11 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
     };
     const rows = [];
     for (const el of document.querySelectorAll('*')) {
-        if (el.matches('[role=toolbar]') || declaresKnob(el)) rows.push(el);
+        // an overlay panel is a row of its own even when its height equals its trigger row's: it
+        // re-declares the knob either way (components.css), so a value match must not hide it
+        if (el.matches('[role=toolbar]') || el.matches(overlayPanels) || declaresKnob(el)) {
+            rows.push(el);
+        }
     }
     const name = (el) => (el.tagName.toLowerCase()
         + (el.id ? '#' + el.id : '')
@@ -251,7 +255,7 @@ _CONTROL_ROW_WALKER_JS = """(overlayPanels) => {
             // an OVERLAY panel's entries belong to the panel, never to the row the panel hangs from
             // (the law is explicit: a toolbar may own a disclosure, and its dropped contents are
             // overlay contents). The panel is a row in its own right, so its entries are measured
-            // there — counting them twice would demand that a 44px menu entry match a 32px chrome row.
+            // there — counting them twice would tie the panel's height to the chrome row's.
             .filter((el) => {
                 const panel = el.closest(overlayPanels);
                 return panel === null || panel === row;

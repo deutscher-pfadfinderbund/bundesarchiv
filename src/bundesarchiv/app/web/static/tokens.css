@@ -94,11 +94,11 @@
 
     /* Named non-spacing dimensions (design-review-law.md C5). Square corners everywhere: there is
      no radius token. */
-    --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕); also
-     the value each [role=toolbar] row sets as its --control-height (law C8) */
+    --touch-target: 2.75rem; /* minimum hit size for small tap targets (remove ✕, close ✕) and a
+     control outside any row (the skip link) */
     --touch-target-compact: 2rem; /* the licensed COMPACT hit size (owner ruling 2026-08-07, rail
-     round 2), still ≥ the WCAG 2.2 AA 24px floor: the VALUE the header sets as its --control-height
-     row knob. */
+     round 2), still ≥ the WCAG 2.2 AA 24px floor: the one control height of the header, the page
+     action rows, the tool rows and every floating panel (owner 2026-10-05) */
     --bar-weight: 3px; /* a data bar's thickness */
     --line-width: 1px; /* every line; a contrast mode may thicken it globally */
     --focus-width: 3px; /* the focus ring: width and offset */

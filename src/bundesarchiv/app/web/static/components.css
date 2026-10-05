@@ -215,7 +215,7 @@
   /* A toolbar declares its FALLBACK hit size, never the row knob: it cannot know whether it IS the
      control row or sits inside one, and inside one the row owns the height (C8, learning G.45). */
   [role="toolbar"] {
-    --hit-fallback: var(--touch-target);
+    --hit-fallback: var(--touch-target-compact);
   }
   [role="toolbar"] > * {
     --_toolbar-opacity: var(--toolbar-opacity, 1);
@@ -680,11 +680,12 @@
   .popover,
   .toolpanel,
   .autocomplete-list {
-    /* A panel is not part of the row it hangs from, so the row's (possibly compact) knob must not
-       reach into it: RE-DECLARED here, to a real value. Never `initial` — for a custom property
-       that is the guaranteed-invalid value, so each consumer falls back to its OWN default and one
-       knob resolves to two things (learning G.38). */
-    --control-height: var(--touch-target);
+    /* A panel is not part of the row it hangs from, so the row's knob must not reach into it:
+       RE-DECLARED here, to a real value — the compact one, as every page action row (owner
+       2026-10-05: one control height across rows and panels). Never `initial` — for a custom
+       property that is the guaranteed-invalid value, so each consumer falls back to its OWN default
+       and one knob resolves to two things (learning G.38). */
+    --control-height: var(--touch-target-compact);
     --ground: var(--page-ground);
     --ink: var(--page-ink);
     --ink-2: var(--page-ink-2);
