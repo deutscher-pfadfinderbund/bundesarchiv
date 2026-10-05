@@ -146,7 +146,7 @@ def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> No
 
 
 def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus) -> None:
-    # The commonest slip — value typed, Feld left on "— Feld wählen —" — must be re-echoed like any
+    # The commonest slip — value typed, Feld left on "Feld wählen" — must be re-echoed like any
     # other rejected submit (spec §2 C: values preserved verbatim), not silently blanked.
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",

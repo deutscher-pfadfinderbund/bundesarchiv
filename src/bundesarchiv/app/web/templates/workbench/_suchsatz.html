@@ -8,7 +8,7 @@ filter_checks, clear_all_query; or field_only (the start page): the field and it
 <form role="search" class="satz" method="get" action="{% url 'workbench' %}">
   <div class="search-sentence"{% if not field_only %} role="heading" aria-level="1"{% endif %}>
     {% if not field_only %}<span class="search-sentence-label">Suche</span>{% endif %}
-    <input class="search-sentence-field" type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Urheber …" aria-label="Suchbegriff">
+    <input class="search-sentence-field" type="search" name="q" value="{% firstof text %}" placeholder="Titel, Ort, Autor …" aria-label="Suchbegriff">
     {% if field_only %}<button class="primary search-sentence-submit" type="submit">Suchen</button>{% else %}{% include "workbench/_filterset.html" %}{% endif %}
   </div>
   {% for key, value in filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">

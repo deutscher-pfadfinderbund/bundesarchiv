@@ -93,7 +93,7 @@ _SLOTS: tuple[dict[str, object], ...] = (
 )
 _SET_FILTERS = ({"label": "Schlagwort: sommer", "query": "bestand=AKTEN"},)
 _FILTER_CHECKS = (
-    {"label": "Digital (mit Dateien)", "count": "", "query": "digital=1", "active": False},
+    {"label": "mit Dateien", "count": "", "query": "digital=1", "active": False},
     {"label": "Entwürfe", "count": "", "query": "entwuerfe=1", "active": False},
 )
 

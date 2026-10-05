@@ -499,11 +499,11 @@ def _sentence(
         (browse.PARAM_DATE_TO, f"bis {_bound(f.date_to, (12, 31))}" if f.date_to else None),
         # set beside a decade (a hand-made URL) it has no slot left, but must stay removable
         (browse.PARAM_DATELESS, _UNDATED if f.dateless and f.decade is not None else None),
-        (browse.PARAM_DIGITAL, "digital" if f.has_files else None),
+        (browse.PARAM_DIGITAL, "mit Dateien" if f.has_files else None),
         (browse.PARAM_FILE, f.file_kind and vocab.FILE_FILTER_LABELS[f.file_kind]),
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
     )
-    checks = [_toggle(params, browse.PARAM_DIGITAL, "Digital (mit Dateien)", f.has_files)]
+    checks = [_toggle(params, browse.PARAM_DIGITAL, "mit Dateien", f.has_files)]
     checks += _facet_items(
         {**params, browse.PARAM_FILE: f.file_kind.value if f.file_kind else ""},
         browse.PARAM_FILE,

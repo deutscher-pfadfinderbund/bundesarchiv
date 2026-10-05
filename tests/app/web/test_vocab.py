@@ -149,17 +149,22 @@ def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabul
     ("edtf", "expected"),
     [
         ("1962", (("1962", "1962"),)),
-        ("1962-07", (("1962-07", "1962-07"),)),
-        ("1962-07-15", (("1962-07-15", "1962-07-15"),)),
-        ("1963~", (("1963~", "1963"),)),  # the qualifier stays in the text, not in the datetime
-        ("1958-07%", (("1958-07%", "1958-07"),)),
-        ("1984-11-26/1995-03-14", (("1984-11-26", "1984-11-26"), ("1995-03-14", "1995-03-14"))),
-        ("197X", (("197X", ""),)),  # a decade is no HTML date
-        ("1962-21", (("1962-21", ""),)),  # nor is a season
-        ("1965/..", (("1965", "1965"), ("..", ""))),  # an open end has none
+        ("1962-07", (("Juli 1962", "1962-07"),)),
+        ("1962-07-05", (("5. Juli 1962", "1962-07-05"),)),
+        ("1963~", (("um 1963", "1963"),)),  # the qualifier in words, not in the datetime
+        ("1963?", (("1963?", "1963"),)),
+        ("1958-07%", (("um Juli 1958?", "1958-07"),)),
+        (
+            "1984-11-26/1995-03-14",
+            (("26. November 1984", "1984-11-26"), ("14. März 1995", "1995-03-14")),
+        ),
+        ("197X", (("1970er", ""),)),  # a decade is no HTML date
+        ("19XX", (("1900\N{EN DASH}1999", ""),)),
+        ("1962-22", (("Sommer 1962", ""),)),  # nor is a season
+        ("1965/..", (("1965", "1965"), ("…", ""))),  # an open end has none
     ],
 )
-def test_datierung_parts_carry_a_datetime_only_where_html_has_one(
+def test_datierung_parts_speak_german_and_carry_a_datetime_only_where_html_has_one(
     edtf: str, expected: tuple[tuple[str, str], ...]
 ) -> None:
     assert tuple((p.text, p.datetime) for p in vocab.datierung_parts(EdtfDate(edtf))) == expected

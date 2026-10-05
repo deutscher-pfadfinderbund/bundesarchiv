@@ -581,7 +581,7 @@
     color: var(--ink);
   }
   .crumbs a + a::before {
-    content: "›";
+    content: "›" / "";
     display: inline-block;
     margin-inline: var(--space-2);
   }

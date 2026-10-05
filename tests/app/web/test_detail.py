@@ -145,7 +145,7 @@ def test_detail_renders_title_and_origin(corpus: _DetailArchive) -> None:
     assert "von K. Meyer" in body  # Urheber
     assert "Harz" in body  # Ort
     assert "Zeitschrift" in body  # Typ (document_type preferred)
-    assert '<time datetime="1962-07">1962-07</time>' in body  # Datierung
+    assert '<time datetime="1962-07">Juli 1962</time>' in body  # Datierung
     assert "Erste Zeile." in body  # Beschreibung prose
 
 
@@ -250,7 +250,14 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     archivist = _texts(Archivist(), corpus.pub)
     tools = _texts(Archivist(), corpus.markup) - _texts(Member(groups=()), corpus.markup)
     assert member <= archivist
-    assert archivist - member - tools == {"Standort", _STANDORT, _CUSTOM_KEY, _CUSTOM_VALUE}
+    # "intern" marks those labels for the archivist: what a member does not see
+    assert archivist - member - tools == {
+        "Standort",
+        "intern",
+        _STANDORT,
+        _CUSTOM_KEY,
+        _CUSTOM_VALUE,
+    }
 
 
 # --- draft visibility (archivist-only, §9) ----------------------------------------

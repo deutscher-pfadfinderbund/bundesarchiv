@@ -274,9 +274,9 @@ _HTML_DATE = re.compile(r"\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?")
 
 @dataclass(frozen=True, slots=True)
 class DatePart:
-    """One EDTF token of a date as the page prints it: ``text`` verbatim (a qualifier stays in it),
-    ``datetime`` the machine value HTML understands, or ``""`` where there is none (a decade, a
-    season, an open end)."""
+    """One EDTF token of a date as the page prints it: ``text`` the human German spelling ("Juli
+    1962", "um 1963"), ``datetime`` the machine value HTML understands, or ``""`` where there is
+    none (a decade, a season, an open end)."""
 
     text: str
     datetime: str
@@ -286,7 +286,52 @@ def datierung_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
     """The date as ``<time>`` parts: one, or two for an interval. No date → ``()``."""
     if date is None:
         return ()
-    return tuple(DatePart(token, _html_date(token)) for token in date.value.split("/"))
+    return tuple(DatePart(_spoken(token), _html_date(token)) for token in date.value.split("/"))
+
+
+_MONTHS = (
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember",
+)
+_SEASONS = {"21": "Frühling", "22": "Sommer", "23": "Herbst", "24": "Winter"}
+_TOKEN = re.compile(r"(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?")
+
+
+def _spoken(token: str) -> str:
+    """One EDTF token in words: "5. Juli 1962", "Sommer 1962", "1970er", "um 1963", "1963?". A
+    token this does not know reads verbatim."""
+    core = token.rstrip("?~%")
+    qualifier = token[len(core) :]
+    if core == "..":
+        return "…"
+    if core.endswith("XX"):
+        words = f"{core[:2]}00\N{EN DASH}{core[:2]}99"
+    elif core.endswith("X"):
+        words = f"{core[:3]}0er"
+    elif (m := _TOKEN.fullmatch(core)) is None:
+        return token
+    elif (part := m.group(2)) in _SEASONS:
+        words = f"{_SEASONS[part]} {m.group(1)}"
+    else:
+        year, month, day = m.groups()
+        words = " ".join(
+            w
+            for w in (f"{int(day)}." if day else "", _MONTHS[int(month) - 1] if month else "", year)
+            if w
+        )
+    approx = "um " if set(qualifier) & {"~", "%"} else ""
+    uncertain = "?" if set(qualifier) & {"?", "%"} else ""
+    return f"{approx}{words}{uncertain}"
 
 
 def _html_date(token: str) -> str:

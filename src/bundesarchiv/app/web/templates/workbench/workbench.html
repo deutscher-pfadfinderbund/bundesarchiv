@@ -4,7 +4,7 @@
 The workbench page. A plain GET renders it whole; an HX-Request GET renders only _results.html into
 #results, from the same context (browse_views.workbench).
 {% endcomment %}
-{% block title %}Suche — Bundesarchiv{% endblock %}
+{% block title %}Archiv — Bundesarchiv{% endblock %}
 {% block head_extra %}<script src="{% static "catalog_bulk.js" %}" defer></script>{% endblock %}
 {% comment %}body.vorschau adds the pane column (the pane switch, layouts.css).{% endcomment %}
 {% block body_class %}workbench{% if vorschau %} vorschau{% endif %}{% endblock %}

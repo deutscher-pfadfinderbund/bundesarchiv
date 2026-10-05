@@ -84,7 +84,7 @@ _CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_cust
 #: The Feld ``<select>``'s options: the placeholder first (empty, server-rejected with "Bitte ein
 #: Feld wählen."), then every field in spec §1 order.
 _FELD_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("", "— Feld wählen —"),
+    ("", "Feld wählen"),
     *((f.target, f.label) for f in FIELDS),
 )
 

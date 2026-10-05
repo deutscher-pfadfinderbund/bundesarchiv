@@ -46,7 +46,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% include "components/index_lag.html" %}
       <h1 id="artikel-titel">{{ title }}</h1>
       {% if ref_code or typ or datierung or ort or creator %}
-      <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if typ %}<span>{{ typ }}</span>{% endif %}{% if datierung %}<span>{% for part in datierung %}{% if not forloop.first %}/<wbr>{% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if ort %}<span>{{ ort }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
+      <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if typ %}<span>{{ typ }}</span>{% endif %}{% if datierung %}<span>{% for part in datierung %}{% if not forloop.first %} – {% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if ort %}<span>{{ ort }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
       {% endif %}
       {% if body_paragraphs %}
       <div class="prose">{% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}</div>
@@ -82,13 +82,13 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     {% if standort or tags or custom %}
     <div class="facts">
       {% if standort %}
-      <dl class="byline"><div><dt>Standort</dt><dd>{{ standort }}</dd></div></dl>
+      <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ standort }}</dd></div></dl>
       {% endif %}
       {% if tags %}
       <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
       {% endif %}
       {% if custom %}
-      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }} <span class="note">intern</span></dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
       {% endif %}
     </div>
     {% endif %}

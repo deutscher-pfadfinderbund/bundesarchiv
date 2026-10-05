@@ -836,7 +836,8 @@ The owner reviewed the list on the real archive and accepted it as built, includ
   "ohne Datum" (amended 2026-10-05: "Unbekannt", the Zeitleiste's word, and set it fills the
   decade slot instead of a set filter of its own);
 - set filters without a slot of their own read "Medienart: X", "Schlagwort: X", "ab …", "bis …",
-  "digital", "Entwürfe"; a click removes one, with no × glyph;
+  "digital", "Entwürfe"; a click removes one, with no × glyph (amended 2026-10-05: "mit
+  Dateien", as the "+ Filter" entry and its "mit Fotos / mit PDF" siblings read);
 - a person may hide every column but Titel;
 - Signatur in plain quiet mono, not bold;
 - "alle entfernen" in the quiet meta ink; "von" and "bis" count as two filters;
