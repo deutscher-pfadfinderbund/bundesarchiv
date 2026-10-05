@@ -833,7 +833,8 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 The owner reviewed the list on the real archive and accepted it as built, including:
 
 - the slot words "allen Beständen", "alle Jahrzehnte", "jeder Typ"; decades read "1960er", plus
-  "ohne Datum";
+  "ohne Datum" (amended 2026-10-05: "Unbekannt", the Zeitleiste's word, and set it fills the
+  decade slot instead of a set filter of its own);
 - set filters without a slot of their own read "Medienart: X", "Schlagwort: X", "ab …", "bis …",
   "digital", "Entwürfe"; a click removes one, with no × glyph;
 - a person may hide every column but Titel;

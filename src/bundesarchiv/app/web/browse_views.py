@@ -429,6 +429,10 @@ def _bulk_bar_context(
     }
 
 
+#: The undated Articles' word, in the decade slot and its menu (the start page's Zeitleiste too).
+_UNDATED = "Unbekannt"
+
+
 def _sentence(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
@@ -448,7 +452,7 @@ def _sentence(
     )
     if page.dateless_count or f.dateless:
         decade_menu += (
-            _toggle(params, browse.PARAM_DATELESS, "ohne Datum", f.dateless, page.dateless_count),
+            _toggle(params, browse.PARAM_DATELESS, _UNDATED, f.dateless, page.dateless_count),
         )
     slots = (
         _slot(
@@ -463,10 +467,13 @@ def _sentence(
                 label=lambda u: names.get(u, u),
             ),
         ),
+        # the undated are the decade slot's own value, as the start page's Zeitleiste names them
         _slot(
             params,
-            browse.PARAM_DECADE,
-            None if f.decade is None else f"{f.decade}er",
+            browse.PARAM_DECADE
+            if f.decade is not None or not f.dateless
+            else browse.PARAM_DATELESS,
+            f"{f.decade}er" if f.decade is not None else (_UNDATED if f.dateless else None),
             "alle Jahrzehnte",
             decade_menu,
         ),
@@ -483,7 +490,8 @@ def _sentence(
         (browse.PARAM_TAG, f.tag and f"Schlagwort: {f.tag}"),
         (browse.PARAM_DATE_FROM, f"ab {f.date_from.isoformat()}" if f.date_from else None),
         (browse.PARAM_DATE_TO, f"bis {f.date_to.isoformat()}" if f.date_to else None),
-        (browse.PARAM_DATELESS, "ohne Datum" if f.dateless else None),
+        # set beside a decade (a hand-made URL) it has no slot left, but must stay removable
+        (browse.PARAM_DATELESS, _UNDATED if f.dateless and f.decade is not None else None),
         (browse.PARAM_DIGITAL, "digital" if f.has_files else None),
         (browse.PARAM_FILE, f.file_kind and vocab.FILE_FILTER_LABELS[f.file_kind]),
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
@@ -503,6 +511,12 @@ def _sentence(
         if label
     )
     set_count = len(set_filters) + sum(slot.clear_query is not None for slot in slots)
+    # the start page's "Alle ansehen" order has no column head to show it; it is no filter, so
+    # "alle entfernen" keeps it
+    if parsed.sort == "added":
+        set_filters += (
+            _SetFilter("neueste zuerst", browse.without_param(params, browse.PARAM_SORT)),
+        )
     return {
         "slots": slots,
         "set_filters": set_filters,

@@ -11,7 +11,7 @@ up to three drafts, or two and "und n weitere" (the list of Entwürfe).
     <h2>Weiter bearbeiten:</h2>
     <ul>
       {% for title, href in area.drafts %}<li><a href="{{ href }}">{{ title }}</a></li>
-      {% endfor %}{% if area.more %}<li><a href="{{ area.more_href }}">und {{ area.more }} weitere</a></li>{% endif %}
+      {% endfor %}{% if area.more %}<li><a href="{{ area.more_href }}">und {{ area.more }} weitere Entwürfe</a></li>{% endif %}
     </ul>
   </div>
   {% endif %}

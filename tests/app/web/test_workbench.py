@@ -447,6 +447,18 @@ def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corp
         assert {"q": ["Nirgendwo"]} in queries, param
 
 
+def test_the_sentence_names_the_start_pages_undated_and_newest_presets(
+    indexed_corpus: Corpus,
+) -> None:
+    # The start page's "Unbekannt" and "Alle ansehen" land on these; the sentence says what they set.
+    form_html = _search_form_html(
+        _get(Public(), "ohne_datum=1&sortierung=hinzugefuegt").content.decode()
+    )
+    assert re.search(r'popovertarget="slot-2">Unbekannt<', form_html)
+    assert ">neueste zuerst<" in form_html
+    assert "ohne Datum" not in form_html
+
+
 def test_two_set_filters_clear_together_keeping_the_query_and_sort(
     indexed_corpus: Corpus,
 ) -> None:

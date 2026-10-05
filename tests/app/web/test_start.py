@@ -164,7 +164,7 @@ def test_weiter_bearbeiten_folds_more_than_three_drafts_into_a_link_to_the_draft
     indexer.rebuild(indexed_corpus.store)
     main = _get(Archivist(), "/").content.decode().split("<main", 1)[1]
     assert len(re.findall(r'href="/articles/\w+/edit"', main)) == 2
-    assert 'href="/articles?entwuerfe=1">und 3 weitere<' in main
+    assert 'href="/articles?entwuerfe=1">und 3 weitere Entwürfe<' in main
 
 
 @pytest.mark.parametrize(
