@@ -22,8 +22,8 @@ typography:
     fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
     fontSize: "1.5rem"
     fontWeight: 600
-    lineHeight: 1
-    letterSpacing: "0.12em"
+    lineHeight: 1.2
+    letterSpacing: "0.06em"
     fontFeature: "small-caps"
   title:
     fontFamily: "ui-serif, Iowan Old Style, New York, Charter, Georgia, serif"
@@ -55,7 +55,7 @@ typography:
     lineHeight: 1.4
   body:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "1rem"
+    fontSize: "0.95rem"
     fontWeight: 400
     lineHeight: 1.5
   control:
@@ -65,12 +65,12 @@ typography:
     lineHeight: 1
   meta:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "0.9rem"
+    fontSize: "0.85rem"
     fontWeight: 400
     lineHeight: 1.4
   label:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "0.9rem"
+    fontSize: "0.85rem"
     fontWeight: 400
     lineHeight: 1.3
   note:
@@ -80,7 +80,7 @@ typography:
     lineHeight: 1.3
   data:
     fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
-    fontSize: "0.9rem"
+    fontSize: "0.85rem"
     fontWeight: 400
     lineHeight: 1.4
     fontFeature: "tnum"
@@ -138,7 +138,6 @@ components:
     backgroundColor: "{colors.band-black}"
     textColor: "{colors.band-ink}"
     typography: "{typography.meta}"
-    height: "4.25rem"
   note:
     textColor: "{colors.quiet-ink}"
     typography: "{typography.note}"
@@ -232,20 +231,22 @@ removed. Not for warnings, not for emphasis, not for decoration.
 so each appearance means "a new section" or "this record".
 
 ### Hierarchy
-- **Wordmark** (small caps 600, 1.5rem, tracking 0.12em): the top bar's "Bundesarchiv" only.
+- **Wordmark** (small caps 600, 1.5rem, tracking 0.06em): the top bar's "Bundesarchiv" only.
 - **Title** (serif 700, 3rem / S 2rem, 1.08): the page h1: the article title, the start heading.
   On the edit form the title is itself the input (see Components).
-- **Heading** (serif 700, 2rem / S 1.6rem, 1.1): section h2.
+- **Heading** (serif 700, 2rem / S 1.6rem, 1.1): section h2 in the mock system; the app's section
+  heads take the Subhead (tokens.css has no heading token).
 - **Subhead** (serif 700, 1.35rem, 1.25): secondary sections (the form's sections, onward lists).
   A title in a side column takes the heading role.
 - **Entry** (sans 400, 1.1rem, 1.35): the lead of a list row.
 - **Query** (sans 400, 1.25rem / S 1.1rem, 1.4): the search sentence and the large search field.
-- **Body** (sans 400, 1rem, 1.5): running text, inputs; prose at most 65ch.
+- **Body** (sans 400, 0.95rem, 1.5): running text, inputs; prose at most 65ch.
 - **Control** (sans 600, 0.95rem, 1): buttons and pager steps.
-- **Meta** / **Label** (sans 400, 0.9rem): asides, column heads, crumbs, hints / field and fact
+- **Meta** / **Label** (sans 400, 0.85rem): asides, column heads, crumbs, hints / field and fact
   labels, mixed case.
 - **Note** (sans 400, 0.8rem, Quiet Ink): an annotation touching its label or heading.
-- **Data** (mono 400, 0.9rem, tabular): counts, dates, Signaturen, when they stand in a column.
+- **Data** (mono 400, 0.85rem, tabular; a count beside a label 0.78rem): dates, Signaturen, counts,
+  when they stand in a column.
 
 ### Named Rules
 **The Serif Rank Rule.** Serif marks rank: the wordmark, section headings, article titles.
@@ -363,8 +364,10 @@ its tile. There is no bevel, no pill, no circle; the help mark is the text chara
   a link turns red without a variant of its own. There is no danger button.
 
 ### Navigation
-- **Top bar:** Band Black, 4.25rem, its content on the page grid, the wordmark left; right:
-  "+ Neu …" (archivists) and Abmelden, an icon named "Abmelden". No account name, no browse items.
+- **Top bar:** Band Black, one wrapping control row at the compact control height (2rem), its
+  content on the page grid, the wordmark left; right: "+ Neu …" (archivists) and Abmelden, a text
+  link. On S two rows: the tools beside the wordmark, the search below. No account name, no browse
+  items.
 - **Crumbs:** meta type, Secondary Ink, underlined links, "›" between steps, first step "Archiv".
 - **Search sentence:** the list's heading; set filters in ink, open ones quieter, centre dots
   between them.

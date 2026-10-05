@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-27T13:20:31Z",
+  "generatedAt": "2026-10-05T20:00:00Z",
   "title": "Design System: Bundesarchiv",
   "extensions": {
     "colorMeta": {
@@ -197,19 +197,19 @@
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Running text and inputs; prose ≤ 65ch."
+        "purpose": "Running text; prose <= 65ch."
       },
       "control": {
         "displayName": "Control",
-        "purpose": "Buttons and pager steps."
+        "purpose": "Pager steps (600, 0.95rem); buttons themselves use the meta face."
       },
       "meta": {
         "displayName": "Meta",
-        "purpose": "Asides, column heads, crumbs, hints."
+        "purpose": "Asides (.register-aside), column heads, crumbs, hints; also buttons and field text. 0.85rem in the shipped tokens."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Field and fact labels, marks; mixed case."
+        "purpose": "Field and fact labels, marks; mixed case, 0.85rem."
       },
       "note": {
         "displayName": "Note",
@@ -217,17 +217,11 @@
       },
       "data": {
         "displayName": "Data",
-        "purpose": "Counts, dates, Signaturen in columns; tabular."
+        "purpose": "Counts, dates, Signaturen in columns; tabular. 0.85rem, or 0.78rem as the register figure and lead."
       }
     },
     "shadows": [],
-    "motion": [
-      {
-        "name": "motion-grow",
-        "value": "160ms ease-out",
-        "purpose": "The compact search field growing on focus; 0s under prefers-reduced-motion."
-      }
-    ],
+    "motion": [],
     "breakpoints": [
       {
         "name": "S",
@@ -248,17 +242,17 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one committing action per surface (Speichern, Anlegen, Suchen).",
+      "description": "The one committing action per surface (Speichern, Anlegen, Suchen). Meta type, one compact control height (2rem). Dark: outlined in ink, hover lifts to #262626.",
       "html": "<button class=\"ds-btn-primary\">Speichern</button>",
-      "css": ".ds-btn-primary { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.95rem; font-weight: 600; line-height: 1; padding: 0.75rem 1.25rem; color: #fff; background: #000; border: 1px solid #000; border-radius: 0; cursor: pointer; } .ds-btn-primary:hover { color: #000; background: transparent; } .ds-btn-primary:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
+      "css": ".ds-btn-primary { font: 400 0.85rem/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; min-height: 2rem; padding: 0.25rem 0.75rem; display: inline-block; align-content: center; color: #fff; background: #000; border: 1px solid #000; border-radius: 0; cursor: pointer; white-space: nowrap; } .ds-btn-primary:hover { color: #000; background: #fff; } .ds-btn-primary:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "An outline button for a second action.",
+      "description": "Outline button for a second action; same compact height; hover fills with ink (light).",
       "html": "<button class=\"ds-btn\">Bearbeiten</button>",
-      "css": ".ds-btn { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.95rem; font-weight: 600; line-height: 1; padding: 0.75rem 1.25rem; color: #000; background: transparent; border: 1px solid #000; border-radius: 0; cursor: pointer; } .ds-btn:hover { color: #fff; background: #000; } .ds-btn:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
+      "css": ".ds-btn { font: 400 0.85rem/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; min-height: 2rem; padding: 0.25rem 0.75rem; display: inline-block; align-content: center; color: #000; background: #fff; border: 1px solid #000; border-radius: 0; cursor: pointer; white-space: nowrap; } .ds-btn:hover { color: #fff; background: #000; } .ds-btn:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
     },
     {
       "name": "Field",
@@ -266,7 +260,7 @@
       "refersTo": "field-input",
       "description": "Label over a framed control; required '*' and the quiet note 'intern' ride the label line.",
       "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Standort <span class=\"ds-note\">intern</span></span><input value=\"Bund -- Zeitschrift -- Die Kompassnadel\"></label>",
-      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; gap: 0.5rem; } .ds-field-label { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.9rem; color: #595959; } .ds-note { font-size: 0.8rem; color: #767676; } .ds-field input { font: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; color: #000; background: #fff; border: 1px solid #8f8f8f; border-radius: 0; } .ds-field input:hover { border-color: #000; } .ds-field input:focus-visible { outline: 3px solid #000; outline-offset: 3px; }"
+      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: inline-flex; flex-direction: column; gap: 0.25rem; } .ds-field-label { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; line-height: 1.3; color: #595959; } .ds-note { font-size: 0.8rem; color: #767676; } .ds-field input { font: 400 0.85rem/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; min-height: 2rem; padding: 0.25rem 0.5rem; color: #000; background: #fff; border: 1px solid #8f8f8f; border-radius: 0; } .ds-field input:hover { border-color: #000; } .ds-field input:focus-visible { border-color: #000; outline: 3px solid #000; outline-offset: 3px; }"
     },
     {
       "name": "Field in conflict",
@@ -274,7 +268,7 @@
       "refersTo": "field-input",
       "description": "aria-invalid doubles the edge in Correction Red; the stored value sits under the field.",
       "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Datierung</span><input value=\"1960~\" aria-invalid=\"true\"><span class=\"ds-was\">Inzwischen gespeichert: 1960-03</span></label>",
-      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; gap: 0.5rem; } .ds-field-label { font-size: 0.9rem; color: #595959; } .ds-field input { font: inherit; font-size: 1rem; padding: 0.5rem 0.75rem; background: #fff; border: 1px solid #c4000b; box-shadow: inset 0 0 0 1px #c4000b; border-radius: 0; } .ds-was { font-size: 0.9rem; color: #000; }"
+      "css": ".ds-field { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: inline-flex; flex-direction: column; gap: 0.25rem; } .ds-field-label { font-size: 0.85rem; color: #595959; } .ds-field input { font: 400 0.85rem/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; min-height: 2rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #c4000b; box-shadow: inset 0 0 0 1px #c4000b; border-radius: 0; } .ds-was { font-size: 0.85rem; color: #000; }"
     },
     {
       "name": "Autocomplete (multiple)",
@@ -288,25 +282,33 @@
       "name": "Menu",
       "kind": "nav",
       "refersTo": "menu",
-      "description": "A text button ending in '…' opens a native popover list; a destructive entry turns red on hover.",
+      "description": "A text button ending in '...' opens a native popover list: page ground, full-ink edge, 0.5rem padding, entries on the compact 2rem height; a destructive entry turns red on hover.",
       "html": "<div class=\"ds-menu-demo\"><button class=\"ds-menu-button\">Mehr …</button><ul class=\"ds-menu\"><li><a href=\"#\">Zur Artikelseite</a></li><li><a href=\"#\">Duplizieren</a></li><li><a class=\"ds-danger\" href=\"#\">Löschen</a></li></ul></div>",
-      "css": ".ds-menu-demo { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; } .ds-menu-button { font: inherit; background: none; border: 0; cursor: pointer; } .ds-menu { min-width: 12rem; margin: 0; padding: 0.5rem 0; list-style: none; background: #fff; border: 1px solid #8f8f8f; } .ds-menu a { display: block; padding: 0.5rem 1rem; color: #000; text-decoration: none; } .ds-menu a:hover { text-decoration: underline; } .ds-menu .ds-danger:hover { color: #c4000b; }"
+      "css": ".ds-menu-demo { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; } .ds-menu-button { font-size: 0.85rem; line-height: 1.4; min-height: 2rem; padding-inline: 0; background: none; border: 0; cursor: pointer; } .ds-menu-button:hover { text-decoration: underline; } .ds-menu { min-width: 12rem; margin: 0; padding: 0.5rem; list-style: none; background: #fff; color: #000; border: 1px solid #000; } .ds-menu a { display: flex; align-items: center; min-height: 2rem; padding: 0.25rem 0.5rem; white-space: nowrap; color: #000; } .ds-menu a:hover { text-decoration: underline; } .ds-menu .ds-danger:hover { color: #c4000b; }"
     },
     {
       "name": "Top bar",
       "kind": "nav",
       "refersTo": "topbar",
-      "description": "Inverse band: the small-caps wordmark left; '+ Neu …' and Abmelden right.",
+      "description": "Inverse band (page in dark, with an edge): small-caps wordmark left; '+ Neu ...' and Abmelden right. A control row at the compact 2rem height, padding 0.75rem; no fixed bar height.",
       "html": "<header class=\"ds-topbar\"><a class=\"ds-mark\" href=\"#\">Bundesarchiv</a><nav><button>+ Neu …</button><a href=\"#\">Abmelden</a></nav></header>",
-      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; height: 4.25rem; padding: 0 1.5rem; color: #fff; background: #000; font-family: system-ui, sans-serif; font-size: 0.9rem; } .ds-mark { font: small-caps 600 1.5rem/1 ui-serif, Georgia, serif; letter-spacing: 0.12em; color: inherit; text-decoration: none; } .ds-topbar nav { display: flex; gap: 1.5rem; align-items: center; } .ds-topbar button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; } .ds-topbar nav a { color: #b3b3b3; }"
+      "css": ".ds-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding: 0.75rem 1.5rem; color: #fff; background: #000; font: 400 0.85rem/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-mark { font: small-caps 600 1.5rem/1.2 ui-serif, Georgia, serif; letter-spacing: 0.06em; color: inherit; text-decoration: none; white-space: nowrap; } .ds-topbar nav { display: flex; gap: 1rem; align-items: center; } .ds-topbar button { font: inherit; min-height: 2rem; padding-inline: 0; color: inherit; background: none; border: 0; cursor: pointer; } .ds-topbar button:hover { text-decoration: underline; } .ds-topbar nav a { color: #b3b3b3; }"
     },
     {
       "name": "Register",
       "kind": "custom",
       "refersTo": "",
-      "description": "Ruled rows: label left, quiet figure right; a hairline only between two-ended rows.",
-      "html": "<ul class=\"ds-register\"><li><a href=\"#\">Gruppen des DPB</a><span>1.187</span></li><li><a href=\"#\">Bund</a><span>463</span></li><li><a href=\"#\">Überbündisches</a><span>211</span></li></ul>",
-      "css": ".ds-register { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; list-style: none; max-width: 24rem; } .ds-register li { display: flex; justify-content: space-between; padding: 0.75rem 0; } .ds-register li + li { border-top: 1px solid #dcdcdc; } .ds-register a { font-size: 1.1rem; color: #000; } .ds-register span { font: 0.9rem ui-monospace, Menlo, monospace; color: #595959; font-variant-numeric: tabular-nums; }"
+      "description": "Ruled-free list of entries: label left (entry type), figure at the end edge (mono meta, secondary ink), or an aside (meta face, secondary ink) that follows its label.",
+      "html": "<ul class=\"ds-register\"><li><a href=\"#\"><span class=\"ds-label\">Gruppen des DPB</span><span class=\"ds-figure\">1.187</span></a></li><li><a href=\"#\"><span class=\"ds-label\">Kompassnadel 3/1962</span><span class=\"ds-aside\">Bund</span></a></li></ul>",
+      "css": ".ds-register { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; list-style: none; max-width: 26rem; } .ds-register a { display: flex; align-items: baseline; gap: 1rem; padding-block: 0.5rem; text-decoration: none; color: #000; } .ds-register a:hover .ds-label { text-decoration: underline; } .ds-label { flex: 1 1 auto; font-size: 1.1rem; line-height: 1.35; } .ds-label:has(+ .ds-aside) { flex-grow: 0; } .ds-figure { font: 400 0.78rem/1.4 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; color: #595959; } .ds-aside { font-size: 0.85rem; line-height: 1.4; color: #595959; }"
+    },
+    {
+      "name": "Register bar (Zeitleiste)",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "A register row with a <meter> bar between label and figure: ink, 3px thick, never thinner than it is thick.",
+      "html": "<div class=\"ds-rows\"><div class=\"ds-row\"><span class=\"ds-decade\">1960er</span><meter class=\"ds-bar\" min=\"0\" max=\"100\" value=\"70\"></meter><span class=\"ds-figure\">463</span></div><div class=\"ds-row\"><span class=\"ds-decade\">1970er</span><meter class=\"ds-bar\" min=\"0\" max=\"100\" value=\"30\"></meter><span class=\"ds-figure\">211</span></div></div>",
+      "css": ".ds-rows { max-width: 26rem; } .ds-row { display: flex; align-items: center; gap: 1rem; padding-block: 0.25rem; } .ds-decade { flex: 0 0 10ch; font: 400 0.85rem/1.4 ui-monospace, 'SF Mono', Menlo, monospace; } .ds-bar { flex: 1 1 auto; block-size: 3px; appearance: none; border: 0; background: transparent; } .ds-bar::-webkit-meter-bar { background: transparent; border: 0; block-size: 3px; } .ds-bar::-webkit-meter-optimum-value { background: #000; min-inline-size: 3px; } .ds-bar::-moz-meter-bar { background: #000; } .ds-figure { font: 400 0.78rem/1.4 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; color: #595959; }"
     }
   ],
   "narrative": {
@@ -314,7 +316,7 @@
     "overview": "The archive looks like a well-set printed catalogue: black ink on white paper, and nothing a\nprinter would not have. Type carries the order. Alignment and space make the structure, so lines\nare rare: a hairline appears only where a row has two ends that the eye must connect, and a frame\nonly where things have no natural line between them (an input's edge, a chip). There is no second\nhue, no gray fill, no shadow, no rounded corner. Red is the only colour, and it means \"this is\nwrong\" or \"this is about to remove something\".\n\nIt is a working tool first. Archivists, the most important users, catalogue weekly on large\nscreens; members read on phones. The look serves both by being quiet: every element is priced by\nwhat it costs the reader against what it gives them, and anything that signals what the user\nalready knows is cut. The wordmark (small-caps serif) is the one flourish and stays. Dark mode is\ntuned, not inverted: no pure black or white, and lines are quieter because bright lines smear on\nblack.\n\nRejected on purpose: beige or \"warm AI\" palettes, violet, gray chrome and gray fills, scout\ncostume, mono capitals as a label voice, decorative lines, dashes as separators.",
     "keyCharacteristics": [
       "Two inks: black for content, one secondary gray for text only.",
-      "Serif only for the wordmark, section headings and article titles; sans for everything else;",
+      "Serif only for the wordmark, section headings and article titles; sans for everything else; mono only for data in columns.",
       "Square corners everywhere; flat surfaces; one focus ring (3px ink).",
       "Lines connect a row's two ends; they never separate.",
       "Red only for errors, conflicts and removing controls about to act.",
@@ -373,18 +375,18 @@
       }
     ],
     "dos": [
-      "**Do** let alignment and the space scale make the structure; draw a hairline only on a row's two",
+      "**Do** let alignment and the space scale make the structure; draw a hairline only on a row's two ends.",
       "**Do** price every element and every fix per size (S / M / L); cut high cost, low gain.",
-      "**Do** inherit: a part sets only what differs from its context. A marker or icon inside text",
-      "**Do** keep controls with their state: the result range in the pager, the sort direction in the",
-      "**Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows),",
+      "**Do** inherit: a part sets only what differs from its context. A marker or icon inside text takes the text's colour and size.",
+      "**Do** keep controls with their state: the result range in the pager, the sort direction in the column head, the audience in \"Sichtbar für\".",
+      "**Do** keep paired controls visible and disabled when inactive (Zurück / Weiter, the end arrows), drawn in Faint.",
       "**Do** make every icon-only control name itself (`aria-label`); icons come from the one set.",
       "**Do** use centre dots to separate items in a line."
     ],
     "donts": [
       "**Don't** add a second hue, a gray fill, gray chrome, violet, beige or any \"warm\" tint.",
       "**Don't** use shadows, gradients, rounded corners, pills or bevels.",
-      "**Don't** label roles (\"nur Archivare\"), mark what a list title already says, or place off-topic",
+      "**Don't** label roles (\"nur Archivare\"), mark what a list title already says, or place off-topic actions.",
       "**Don't** signal what the user already knows (no highlight for the column they just sorted).",
       "**Don't** hide a control that can become active on this page.",
       "**Don't** set labels in mono capitals, and don't use mono outside columns of data.",
