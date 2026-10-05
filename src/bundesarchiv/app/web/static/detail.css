@@ -59,7 +59,8 @@
 }
 
 @layer components {
-  /* The media keep their pre-a3 rendering until the media wave (owner 2026-09-28). */
+  /* The media keep their pre-a3 rendering until the media wave builds the 2026-09-28 rulings
+     (lightbox, justified rows of equal height; owner-interview-2026-08.md). */
   /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
   .platte {
     padding: var(--space-3);

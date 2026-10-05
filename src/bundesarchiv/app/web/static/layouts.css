@@ -344,6 +344,17 @@
     flex: 1 1 auto;
     min-width: 0;
   }
+  /* S: the tools share the wordmark's line and the search takes the next one whole — two rows,
+     not three (the band spends no third row of a phone on two words) */
+  @media (width < 40rem) /* space budget S (design-system.md) */ {
+    header [role="search"] {
+      order: 1;
+      flex-basis: 100%;
+    }
+    header > .wordmark + [role="search"] ~ .menu-button {
+      margin-left: auto;
+    }
+  }
   /* the return-to-work link; on screens whose header holds nothing else it docks right */
   .back {
     font: var(--type-meta);
