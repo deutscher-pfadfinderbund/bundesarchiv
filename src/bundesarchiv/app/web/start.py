@@ -163,13 +163,13 @@ def zeitleiste(
 def zuletzt_hinzugefuegt(
     viewer: Viewer, _request: HttpRequest, _counts: Counts, bestand: BestandChooser
 ) -> Mapping[str, object]:
-    """The newest Articles by ``added_at`` the viewer may see: date, title, Bestand."""
+    """The newest Articles by ``added_at`` the viewer may see: the day added, title, Bestand."""
     hits = search(viewer, sort="added", page_size=_RECENT, facets=()).hits
     known = bestand.by_ulid()
     return {
         "rows": tuple(
             (
-                h.date_edtf,
+                vocab.day(h.added_at) if h.added_at else "",
                 h.title,
                 reverse("artikel-detail", args=[h.ulid]),
                 known[h.collection_id].name if h.collection_id in known else "",

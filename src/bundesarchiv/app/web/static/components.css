@@ -318,7 +318,7 @@
 
   /* ---- register-row — one entry of a list that leads somewhere: the label, its figure (a count)
      at the end edge. The whole row is the link; only the label underlines, on hover (row 20; no
-     mark on the figure, row 6). Parts: .register-label, .register-figure. ---- */
+     mark on the figure, row 6). Parts: .register-label, .register-figure or .register-aside. ---- */
   .register-row {
     display: flex;
     align-items: baseline;
@@ -338,6 +338,13 @@
   .register-figure {
     font: var(--type-mono-meta);
     font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+
+  /* a name at the end edge where a count would stand (the Bestand in Zuletzt hinzugefügt): words,
+     so the meta face, not the data face */
+  .register-aside {
+    font: var(--type-meta);
     color: var(--ink-2);
   }
 

@@ -5,6 +5,7 @@ Bestand's count is what THIS viewer may see, and a Bestand with nothing the view
 named at all.
 """
 
+import datetime
 import re
 from collections.abc import Callable
 from typing import Any, cast
@@ -177,3 +178,16 @@ def test_zuletzt_hinzugefuegt_lists_only_what_the_viewer_may_see(
     area = start.zuletzt_hinzugefuegt(viewer, RequestFactory().get("/"), {}, bestand)
     rows = cast("tuple[tuple[str, str, str, str], ...]", area["rows"])
     assert {title for _, title, _, _ in rows} == titles
+
+
+def test_zuletzt_hinzugefuegt_leads_with_the_day_it_was_added(indexed_corpus: Corpus) -> None:
+    added = datetime.datetime(2017, 6, 26, 23, 30, tzinfo=datetime.UTC)
+    indexed_corpus.add_article(
+        make_article("01KX8A00000000000000000NEU", title="Neu", collection_id=_BUND, added_at=added)
+    )
+    indexer.rebuild(indexed_corpus.store)
+    bestand = BestandChooser.of(Archive.canonical())
+    area = start.zuletzt_hinzugefuegt(Member(groups=()), RequestFactory().get("/"), {}, bestand)
+    rows = cast("tuple[tuple[str, str, str, str], ...]", area["rows"])
+    # the day as the archive lives it (Berlin), not the Article's Datierung
+    assert rows[0][:2] == ("27.06.2017", "Neu")

@@ -497,6 +497,7 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "file_counts",
         "deleted_at",  # only archivist_only rows carry the mark (test_leaks_papierkorb.py)
         "deleted_by",
+        "added_at",  # a fact of the record, not floored (CONTEXT.md "Date added")
     }
     for floored in (
         "physical_location",

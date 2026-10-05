@@ -138,6 +138,7 @@ class SearchHit:
     # The Papierkorb mark (ADR 0022); None on a live row. Only archivist_only rows carry one.
     deleted_at: datetime.datetime | None = None
     deleted_by: str | None = None
+    added_at: datetime.datetime | None = None  # None = unknown
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +182,7 @@ _HIT_COLUMNS = (
     "file_counts",
     "deleted_at",
     "deleted_by",
+    "added_at",
 )
 
 
