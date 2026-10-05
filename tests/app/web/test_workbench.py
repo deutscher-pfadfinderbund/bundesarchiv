@@ -425,6 +425,22 @@ def test_the_slots_offer_the_bestand_decade_type_and_dateless_values(
     assert any(set(q) == {"jahrzehnt"} for q in queries)
 
 
+def test_the_decade_menu_reads_in_time_order(indexed_corpus: Corpus) -> None:
+    # as the start page's Zeitleiste does, not by count (the menu shows twice: slot and phone fold)
+    links = [q["jahrzehnt"][0] for q in _sentence_queries(Archivist()) if set(q) == {"jahrzehnt"}]
+    decades = list(dict.fromkeys(links))
+    assert len(decades) >= 2
+    assert decades == sorted(decades, key=int)
+
+
+def test_zero_hits_without_a_filter_point_only_at_the_search_text(indexed_corpus: Corpus) -> None:
+    body = _get(Public(), "q=Nirgendwo").content.decode()
+    assert "Ändere den Suchbegriff." in body
+    assert "Entferne einzelne Filter" not in body  # there is none to remove
+    # a slot the index offers nothing for is words, not a menu that opens empty
+    assert not re.search(r'popovertarget="slot-\d"', _search_form_html(body))
+
+
 def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corpus) -> None:
     # Nothing the URL filters by may be invisible on the page: each set filter, a slot's or not,
     # links to the same search without it, also on a page with no hits (no facet counts it).

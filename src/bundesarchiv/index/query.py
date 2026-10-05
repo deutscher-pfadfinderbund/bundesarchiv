@@ -527,12 +527,15 @@ def _ordered(
             if query is None or signatur is None:
                 return qs.order_by("ulid")  # browse: deterministic, no rank to sort by
             # rank desc, over the viewer's matched vector (combined for an Archivist, general_tsv
-            # otherwise — same expression the @@ match used), ``ulid`` breaking ties.
-            # An exact Signatur hit outranks every text rank.
+            # otherwise — same expression the @@ match used); equal ranks read in numeric title
+            # order (a run of issues: Nr. 1, 2, 10), ``ulid`` last. An exact Signatur hit outranks
+            # every text rank.
             exact = Case(When(signatur, then=1), default=0, output_field=IntegerField())
             return qs.annotate(
-                _exact=exact, _rank=SearchRank(_matched_vector(viewer), query)
-            ).order_by("-_exact", "-_rank", "ulid")
+                _exact=exact,
+                _rank=SearchRank(_matched_vector(viewer), query),
+                _t=Collate("title", _DE_NUMERIC),
+            ).order_by("-_exact", "-_rank", "_t", "ulid")
         case "ref_code":
             rc = Collate("ref_code", _DE_NUMERIC)
             primary = (

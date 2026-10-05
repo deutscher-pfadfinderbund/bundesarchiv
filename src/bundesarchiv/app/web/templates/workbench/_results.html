@@ -47,7 +47,11 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
     {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
   </div>
   {% else %}
+  {% if any_filter_set %}
   {% include "components/empty_state.html" with hint="Entferne einzelne Filter oder ändere den Suchbegriff." only %}
+  {% else %}
+  {% include "components/empty_state.html" with hint="Ändere den Suchbegriff." only %}
+  {% endif %}
   {% endif %}
   {% endif %}
 

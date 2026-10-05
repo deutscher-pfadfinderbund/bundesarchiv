@@ -451,7 +451,11 @@ def _sentence(
     facets = page.facets
     names = bestand.names()
     decade_menu = _facet_items(
-        params, browse.PARAM_DECADE, facets.get("decades", ()), label=lambda d: f"{d}er"
+        params,
+        browse.PARAM_DECADE,
+        # in time order, as the start page's Zeitleiste reads (the index counts most first)
+        tuple(sorted(facets.get("decades", ()), key=lambda fc: int(fc.value))),
+        label=lambda d: f"{d}er",
     )
     if page.dateless_count or f.dateless:
         decade_menu += (
@@ -526,6 +530,7 @@ def _sentence(
         "filter_checks": tuple(checks),
         # two or more set filters clear together (owner 2026-09-30); q and the sort stay
         "clear_all_query": browse.clear_filters_query(params) if set_count >= 2 else None,
+        "any_filter_set": set_count > 0,
     }
 
 

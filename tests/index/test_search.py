@@ -261,6 +261,25 @@ def test_sort_date_ascending_nulls_last(corpus: None) -> None:
     assert ulids[-1] == "ART_UNDATED"
 
 
+@pytest.mark.django_db
+def test_equal_ranks_read_in_numeric_title_order(corpus: None) -> None:
+    """A run of issues matches a search equally well; it then reads Nr. 1, 2, 10, not by ulid."""
+    fixtures.index_beside_corpus(
+        Collection(ulid="REIHE", name="Reihe", parent_id=None),
+        *(
+            make_article(
+                ulid,
+                title=f"Rundbrief Nr. {n}",
+                collection_id="REIHE",
+                audience=Audience(AudienceTier.PUBLIC),
+            )
+            for ulid, n in (("ART_RB_A", 10), ("ART_RB_B", 2), ("ART_RB_C", 1))
+        ),
+    )
+    titles = [h.title for h in search(PUBLIC, text="Rundbrief").hits]
+    assert titles == ["Rundbrief Nr. 1", "Rundbrief Nr. 2", "Rundbrief Nr. 10"]
+
+
 # ===========================================================================
 # Facets — keys, counts per viewer, exclude-own-dimension.
 # ===========================================================================

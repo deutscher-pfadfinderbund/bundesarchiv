@@ -12,11 +12,13 @@ counts; a set filter no slot shows is a link that removes it. While a Bestand is
     {% for slot in slots %}
     <div class="{% if slot.clear_query is not None %}is-set{% else %}is-minor{% endif %}">
       {% if forloop.first %}<span>in</span>{% endif %}
+      {% if slot.items or slot.clear_query is not None %}
       <button class="menu-button" type="button" popovertarget="slot-{{ forloop.counter }}">{{ slot.label }}</button>
       <ul class="menu" id="slot-{{ forloop.counter }}" popover>
         {% if slot.clear_query is not None %}<li><a href="?{{ slot.clear_query }}">{{ slot.unset_label }}</a></li>{% endif %}
         {% for item in slot.items %}{% include "workbench/_facet_item.html" with item=item only %}{% endfor %}
       </ul>
+      {% else %}<span>{{ slot.label }}</span>{% endif %}
     </div>
     {% endfor %}
     {% for set_filter in set_filters %}<div class="is-set"><a href="?{{ set_filter.query }}" aria-label="{{ set_filter.label }} entfernen">{{ set_filter.label }}</a></div>{% endfor %}
@@ -24,7 +26,7 @@ counts; a set filter no slot shows is a link that removes it. While a Bestand is
   <div class="search-sentence-more">
     <button class="menu-button" type="button" popovertarget="slot-more">Filter</button>
     <div class="toolpanel" id="slot-more" popover>
-      {% for slot in slots %}{% if not forloop.first and slot.clear_query is None %}<ul class="menu" aria-label="{{ slot.label }}">
+      {% for slot in slots %}{% if not forloop.first and slot.clear_query is None and slot.items %}<ul class="menu" aria-label="{{ slot.label }}">
         {% for item in slot.items %}{% include "workbench/_facet_item.html" with item=item only %}{% endfor %}
       </ul>{% endif %}{% endfor %}
       <ul>
