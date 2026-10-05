@@ -51,6 +51,17 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% if body_paragraphs %}
       <div class="prose">{% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}</div>
       {% endif %}
+      {% comment %}The labelled facts stay in the head, before the media: they are the record's
+      context, which the files need to be read.{% endcomment %}
+      {% if standort %}
+      <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ standort }}</dd></div></dl>
+      {% endif %}
+      {% if tags %}
+      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
+      {% endif %}
+      {% if custom %}
+      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }} <span class="note">intern</span></dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+      {% endif %}
     </header>
 
     {% comment %}The cover Platte, omitted without media, then the files after it. Every tile links its
@@ -76,21 +87,6 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
         {% endfor %}
       </div>
     </section>
-    {% endif %}
-    {% comment %}The labelled facts after the media: on a phone the cover is not pushed below a long
-    Schlagwort list, and a keyboard reaches the files first.{% endcomment %}
-    {% if standort or tags or custom %}
-    <div class="facts">
-      {% if standort %}
-      <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ standort }}</dd></div></dl>
-      {% endif %}
-      {% if tags %}
-      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
-      {% endif %}
-      {% if custom %}
-      <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }} <span class="note">intern</span></dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
-      {% endif %}
-    </div>
     {% endif %}
   </article>
 </main>

@@ -16,12 +16,12 @@
   }
   /* inside the head the stack owns every gap: origin, description and the labelled lines read as
      one block */
-  .artikel > article > :is(header, .facts) {
+  .artikel > article > header {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
   }
-  .artikel > article > :is(header, .facts) > * {
+  .artikel > article > header > * {
     margin: 0;
   }
   /* the article's flex gap spaces the media; the figure's own margin would add to it (C4) */
