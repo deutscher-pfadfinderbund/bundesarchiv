@@ -415,10 +415,15 @@
   .start {
     --section-head-type: var(--type-subhead);
     --satz-pad: 0;
-    --start-column-min: 18rem; /* the narrowest column: the mock's --column-min */
+    --start-column-min: 15rem; /* the narrowest column: three still fit at M (~900px) */
     container-type: inline-size;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(var(--start-column-min), 100%), 1fr));
+    /* at most three columns: a track never narrower than a third, so a wide page adds no empty
+       fourth track beside a row-spanning area */
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(min(max(var(--start-column-min), (100% - 2 * var(--space-8)) / 3), 100%), 1fr)
+      );
     align-items: start;
     gap: var(--space-8);
     padding: var(--space-6) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter))
@@ -462,6 +467,12 @@
   /* a list the template marks as rows (Zuletzt hinzugefügt): one full-width row per entry */
   .tiles[data-rows] {
     --tiles-min: 100%;
+  }
+
+  /* a list of bar rows (the Zeitleiste) starts its first baseline on its neighbours': its rows are
+     tighter and its face smaller */
+  .tiles:has(.register-bar) {
+    margin-block-start: var(--space-2);
   }
 
   .tiles > .register-apart {

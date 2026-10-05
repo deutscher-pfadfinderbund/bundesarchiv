@@ -457,6 +457,9 @@ def test_the_sentence_names_the_start_pages_undated_and_newest_presets(
     assert re.search(r'popovertarget="slot-2">Unbekannt<', form_html)
     assert ">neueste zuerst<" in form_html
     assert "ohne Datum" not in form_html
+    # the folded early decades ("bis 1919") land on a whole-year bound that reads the same
+    bound = _search_form_html(_get(Public(), "bis=1919-12-31&von=1920-01-01").content.decode())
+    assert ">bis 1919<" in bound and ">ab 1920<" in bound
 
 
 def test_two_set_filters_clear_together_keeping_the_query_and_sort(

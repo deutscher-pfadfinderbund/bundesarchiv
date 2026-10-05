@@ -347,6 +347,10 @@
     font: var(--type-meta);
     color: var(--ink-2);
   }
+  /* the aside follows its label, not the far edge: a name belongs to what it names */
+  .register-label:has(+ .register-aside) {
+    flex-grow: 0;
+  }
 
   /* the entry of a dated list: its date before the label (Zuletzt hinzugefügt) */
   .register-lead {

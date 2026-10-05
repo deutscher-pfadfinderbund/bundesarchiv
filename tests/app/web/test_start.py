@@ -109,9 +109,11 @@ def test_the_root_is_the_start_page_and_an_old_list_link_lands_on_the_list(
 
 
 def _preset_counts(response: Any, param: str) -> dict[str, str]:
-    """Each link of the list preset ``param`` in ``<main>`` and the count it carries."""
+    """Each link of the list preset ``param`` in ``<main>`` and the count its name carries."""
     main = response.content.decode().split("<main", 1)[1]
-    found = re.findall(rf'href="/articles\?{param}=([^"]+)".*?<data value="(\d+)"', main)
+    found = re.findall(
+        rf'href="/articles\?{param}=([^"]+)" aria-label="[^"]*: (\d+) Artikel"', main
+    )
     return {unquote(value): count for value, count in found}
 
 
@@ -186,9 +188,31 @@ def test_zuletzt_hinzugefuegt_leads_with_the_day_it_was_added(indexed_corpus: Co
     indexed_corpus.add_article(
         make_article("01KX8A00000000000000000NEU", title="Neu", collection_id=_BUND, added_at=added)
     )
+    indexed_corpus.add_article(
+        make_article(
+            "01KX8A00000000000000000NEV",
+            title="Gleicher Tag",
+            collection_id=_BUND,
+            added_at=added - datetime.timedelta(hours=1),
+        )
+    )
     indexer.rebuild(indexed_corpus.store)
     bestand = BestandChooser.of(Archive.canonical())
     area = start.zuletzt_hinzugefuegt(Member(groups=()), RequestFactory().get("/"), {}, bestand)
     rows = cast("tuple[tuple[str, str, str, str], ...]", area["rows"])
     # the day as the archive lives it (Berlin), not the Article's Datierung
     assert rows[0][:2] == ("27.06.2017", "Neu")
+    # a day repeated by the next row is printed once, as a ditto
+    assert rows[1][:2] == ("", "Gleicher Tag")
+
+
+def test_the_zeitleiste_folds_two_or_more_sparse_leading_decades_into_one_row() -> None:
+    def labels(*counts: tuple[str, int]) -> list[tuple[str, int]]:
+        folded = start.fold_sparse([FacetCount(d, n) for d, n in counts])
+        return [(fc.value, fc.count) for fc in folded]
+
+    dense = [("1920", 14), ("1980", 550)]
+    assert labels(("1860", 1), ("1890", 1), ("1910", 2), *dense) == [("bis 1919", 4), *dense]
+    # one sparse decade alone is not worth a fold; an archive of only sparse decades keeps them
+    assert labels(("1910", 2), *dense) == [("1910", 2), *dense]
+    assert labels(("1860", 1), ("1890", 1)) == [("1860", 1), ("1890", 1)]

@@ -17,6 +17,7 @@ The workbench + the detail view are production routes (mounted in ``web.urls``).
 Article, so archivist-only fields are floored before render — no member/archivist fork.
 """
 
+import datetime
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -488,8 +489,8 @@ def _sentence(
     unslotted = (
         (browse.PARAM_MEDIA_TYPE, f.media_type and f"Medienart: {f.media_type}"),
         (browse.PARAM_TAG, f.tag and f"Schlagwort: {f.tag}"),
-        (browse.PARAM_DATE_FROM, f"ab {f.date_from.isoformat()}" if f.date_from else None),
-        (browse.PARAM_DATE_TO, f"bis {f.date_to.isoformat()}" if f.date_to else None),
+        (browse.PARAM_DATE_FROM, f"ab {_bound(f.date_from, (1, 1))}" if f.date_from else None),
+        (browse.PARAM_DATE_TO, f"bis {_bound(f.date_to, (12, 31))}" if f.date_to else None),
         # set beside a decade (a hand-made URL) it has no slot left, but must stay removable
         (browse.PARAM_DATELESS, _UNDATED if f.dateless and f.decade is not None else None),
         (browse.PARAM_DIGITAL, "digital" if f.has_files else None),
@@ -524,6 +525,11 @@ def _sentence(
         # two or more set filters clear together (owner 2026-09-30); q and the sort stay
         "clear_all_query": browse.clear_filters_query(params) if set_count >= 2 else None,
     }
+
+
+def _bound(day: datetime.date, year_edge: tuple[int, int]) -> str:
+    """A date bound's words: the year alone when it sits on the year's edge ("bis 1919")."""
+    return str(day.year) if (day.month, day.day) == year_edge else day.isoformat()
 
 
 def _slot(
