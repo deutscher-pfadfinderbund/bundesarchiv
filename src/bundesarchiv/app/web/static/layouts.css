@@ -4,7 +4,11 @@
    (C14). */
 
 @layer elements {
+  /* at least the viewport tall, a column: the page footer sits at the bottom even on a short page */
   body {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100dvh;
     margin: 0;
     background: var(--ground);
     color: var(--ink);
@@ -332,6 +336,7 @@
   .page-footer:not([hidden]) {
     --control-height: var(--touch-target-compact);
     display: flex;
+    margin-block-start: auto;
     justify-content: flex-end;
     padding: var(--space-8) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter));
   }
@@ -524,6 +529,8 @@
      the column's own knob (law C3): 52rem default, .narrow, .wide. ---- */
   .column {
     --column-width: 52rem;
+    /* full width up to its own: a flex item centred by auto margins would shrink to its content */
+    width: 100%;
     max-width: var(--column-width);
     margin: 0 auto;
     padding: var(--space-6) var(--space-4) var(--space-8);
@@ -540,7 +547,7 @@
     place-content: center;
     justify-items: center;
     gap: var(--space-6);
-    min-block-size: 100dvh;
+    flex: 1 0 auto; /* the viewport's height the page footer leaves */
     padding: var(--space-4);
   }
   .door .wordmark {
@@ -647,6 +654,7 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "lead" "meta" "body";
     gap: var(--space-8);
+    width: 100%;
     max-width: var(--measure);
     margin: 0 auto;
     padding: var(--space-6) var(--gutter) var(--space-8);

@@ -5,6 +5,7 @@
 @layer compositions {
   /* the page on the page grid (the header's measure and gutter): the record, then its media */
   .artikel {
+    width: 100%;
     max-width: var(--measure);
     margin: 0 auto;
     padding: var(--space-8) var(--gutter);
