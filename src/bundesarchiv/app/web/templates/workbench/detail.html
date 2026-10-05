@@ -71,7 +71,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% firstof cover.full_url cover.thumb_url as lead %}
       <a href="{{ cover.file_url }}" target="_blank" rel="noopener">{% if lead %}<img src="{{ lead }}" alt="{% firstof cover.caption cover.name %}">{% else %}{% include "components/blank.html" with kind=cover.kind name=cover.name only %}{% endif %}</a>
       {% if cover.caption %}<figcaption>{{ cover.caption }}</figcaption>{% endif %}
-      {% include "workbench/_herunterladen.html" with tile=cover only %}
+      {% include "workbench/_download.html" with tile=cover only %}
     </figure>
     {% endif %}
     {% if weitere %}
@@ -82,7 +82,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
         <figure>
           <a href="{{ plate.file_url }}" target="_blank" rel="noopener">{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{% firstof plate.caption plate.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
           {% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}
-          {% include "workbench/_herunterladen.html" with tile=plate only %}
+          {% include "workbench/_download.html" with tile=plate only %}
         </figure>
         {% endfor %}
       </div>
