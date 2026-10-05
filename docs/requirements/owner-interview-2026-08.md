@@ -743,8 +743,10 @@ screen jobs in its `SCREEN-JOBS.md`, rules draft in `RULES-DRAFT.md`.
 - **Screen sizes:** archivists work mostly on large screens, members and link-holders mostly on
   small ones — balance each size for its users. Three container sizes; each component declares
   per size full / compact / folded / absent. **Phone start page: search plus "Meine Entwürfe"
-  only**; browsing (Bestände, Zeitleiste) moves to the Archiv page's folded filter. The round-2
-  phone layouts were all rejected: they ignored the smaller space budget.
+  only** (amended 2026-10-05: plus "Zuletzt hinzugefügt" as titles only, so a member without drafts
+  is not left with a lone field; its "Alle ansehen" is the way into the list); browsing (Bestände,
+  Zeitleiste) moves to the Archiv page's folded filter. The round-2 phone layouts were all
+  rejected: they ignored the smaller space budget.
 - **Divide and conquer:** strict design rules first, then tokens, composable components and
   layouts, then pages.
 - **Edit-form recompose:** section order E1 (Kerndaten → Beschreibung → Einordnung → Herkunft →

@@ -354,6 +354,13 @@
     font: var(--type-mono-meta);
     color: var(--ink-2);
   }
+  /* a narrow list keeps only the titles: the date and the aside would squeeze them */
+  @container tiles (width < 40rem) /* S (DESIGN.md space budget) */ {
+    .register-lead,
+    .register-aside {
+      display: none;
+    }
+  }
   /* a row with a bar (the Zeitleiste): label, then the bar between it and the figure. The bar is a
      <meter> (a style attribute is blocked by the CSP): its value out of its max, never thinner
      than the bar is thick. Browsers draw a meter through vendor pseudo-elements only. */

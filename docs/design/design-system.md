@@ -200,8 +200,8 @@ Destinations are few: **start · one list · article · forms (edit, new, bulk) 
   jeder Typ + Filter". Set filters ink, open ones quieter, centre dots between them; no chevrons,
   no chip row. S: the field takes its own line, one filter stays, the rest fold behind "Filter".
 - Start compartments: search · "Weiter bearbeiten" (archivists, one quiet line) · Bestände ·
-  Nach Art · Zeitleiste (L) · Zuletzt hinzugefügt · later Highlights. Phone start: search and
-  "Weiter bearbeiten" only.
+  Nach Art · Zeitleiste (L) · Zuletzt hinzugefügt · later Highlights. Phone start: search,
+  "Weiter bearbeiten" and Zuletzt hinzugefügt (titles only).
 - Article page: media left, facts right when a square preview exists (a PDF or scan gets its first
   page rendered as preview); otherwise one column, no placeholder frame.
 - Edit form: sections Kerndaten → Beschreibung → Einordnung → Herkunft → Medien → Weitere
