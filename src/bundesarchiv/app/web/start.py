@@ -55,7 +55,7 @@ class Tile:
 
 #: How many titles "Weiter bearbeiten" names before it folds the rest into "und n weitere".
 _RESUME_TITLES = 3
-#: How many Medienarten "Nach Art" names before it sums the rest.
+#: How many Medienarten "Nach Art" names.
 _MEDIA_TYPES = 7
 #: How many Articles "Zuletzt hinzugefügt" lists.
 _RECENT = 5
@@ -109,9 +109,8 @@ def bestaende(
 def nach_art(
     _viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
 ) -> Mapping[str, object]:
-    """The most-used Medienarten as tiles (``counts`` is viewer-scoped, most first); the rest are
-    summed as "Weitere Arten", which opens the whole list."""
-    ranked = counts["media_type"]
+    """The most-used Medienarten as tiles (``counts`` is viewer-scoped, most first). The rest get
+    no row: the list has no Medienart slot, so a catch-all could only open the whole list."""
     tiles = tuple(
         Tile(
             fc.value,
@@ -119,11 +118,8 @@ def nach_art(
             vocab.count(fc.count),
             preset_url(browse.PARAM_MEDIA_TYPE, fc.value),
         )
-        for fc in ranked[:_MEDIA_TYPES]
+        for fc in counts["media_type"][:_MEDIA_TYPES]
     )
-    rest = sum(fc.count for fc in ranked[_MEDIA_TYPES:])
-    if rest:
-        tiles += (Tile("Weitere Arten", rest, vocab.count(rest), reverse("workbench")),)
     return {"tiles": tiles}
 
 

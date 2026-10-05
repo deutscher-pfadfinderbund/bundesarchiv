@@ -136,11 +136,12 @@ def test_nach_art_and_zeitleiste_count_what_the_viewer_may_see(
     assert _preset_counts(response, "ohne_datum") == {"1": undated}
 
 
-def test_weitere_arten_sums_what_the_top_arten_leave() -> None:
+def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
     counts = {"media_type": tuple(FacetCount(f"Art {n}", 10 - n) for n in range(9))}
     area = start.nach_art(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
     tiles = cast("tuple[start.Tile, ...]", area["tiles"])
-    assert [(t.label, t.count) for t in tiles][-2:] == [("Art 6", 4), ("Weitere Arten", 3 + 2)]
+    assert [t.label for t in tiles] == [f"Art {n}" for n in range(7)]
+    assert all("medienart=" in t.href for t in tiles)
 
 
 def test_weiter_bearbeiten_names_the_drafts_to_an_archivist_and_nothing_to_a_member(
