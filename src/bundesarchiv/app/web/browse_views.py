@@ -432,10 +432,6 @@ def _bulk_bar_context(
     }
 
 
-#: The undated Articles' word, in the decade slot and its menu (the start page's Zeitleiste too).
-_UNDATED = "Unbekannt"
-
-
 def _sentence(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
@@ -459,8 +455,9 @@ def _sentence(
     )
     if page.dateless_count or f.dateless:
         decade_menu += (
-            _toggle(params, browse.PARAM_DATELESS, _UNDATED, f.dateless, page.dateless_count),
+            _toggle(params, browse.PARAM_DATELESS, vocab.UNDATED, f.dateless, page.dateless_count),
         )
+    undated_slot = f.dateless and f.decade is None  # set beside a decade, it stays a set filter
     slots = (
         _slot(
             params,
@@ -477,10 +474,8 @@ def _sentence(
         # the undated are the decade slot's own value, as the start page's Zeitleiste names them
         _slot(
             params,
-            browse.PARAM_DECADE
-            if f.decade is not None or not f.dateless
-            else browse.PARAM_DATELESS,
-            f"{f.decade}er" if f.decade is not None else (_UNDATED if f.dateless else None),
+            browse.PARAM_DATELESS if undated_slot else browse.PARAM_DECADE,
+            vocab.UNDATED if undated_slot else (None if f.decade is None else f"{f.decade}er"),
             "alle Jahrzehnte",
             decade_menu,
         ),
@@ -498,7 +493,7 @@ def _sentence(
         (browse.PARAM_DATE_FROM, f"ab {_bound(f.date_from, (1, 1))}" if f.date_from else None),
         (browse.PARAM_DATE_TO, f"bis {_bound(f.date_to, (12, 31))}" if f.date_to else None),
         # set beside a decade (a hand-made URL) it has no slot left, but must stay removable
-        (browse.PARAM_DATELESS, _UNDATED if f.dateless and f.decade is not None else None),
+        (browse.PARAM_DATELESS, vocab.UNDATED if f.dateless and not undated_slot else None),
         (browse.PARAM_DIGITAL, "mit Dateien" if f.has_files else None),
         (browse.PARAM_FILE, f.file_kind and vocab.FILE_FILTER_LABELS[f.file_kind]),
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),

@@ -209,10 +209,16 @@ def test_zuletzt_hinzugefuegt_leads_with_the_day_it_was_added(indexed_corpus: Co
 def test_the_zeitleiste_folds_two_or_more_sparse_leading_decades_into_one_row() -> None:
     def labels(*counts: tuple[str, int]) -> list[tuple[str, int]]:
         folded = start.fold_sparse([FacetCount(d, n) for d, n in counts])
-        return [(fc.value, fc.count) for fc in folded]
+        return [(t.label, t.count) for t in folded]
 
     dense = [("1920", 14), ("1980", 550)]
-    assert labels(("1860", 1), ("1890", 1), ("1910", 2), *dense) == [("bis 1919", 4), *dense]
+    rows = [("1920er", 14), ("1980er", 550)]
+    assert labels(("1860", 1), ("1890", 1), ("1910", 2), *dense) == [("bis 1919", 4), *rows]
     # one sparse decade alone is not worth a fold; an archive of only sparse decades keeps them
-    assert labels(("1910", 2), *dense) == [("1910", 2), *dense]
-    assert labels(("1860", 1), ("1890", 1)) == [("1860", 1), ("1890", 1)]
+    assert labels(("1910", 2), *dense) == [("1910er", 2), *rows]
+    assert labels(("1860", 1), ("1890", 1)) == [("1860er", 1), ("1890er", 1)]
+    # the folded row opens the list up to that year's end
+    (folded, *_) = start.fold_sparse(
+        [FacetCount(d, n) for d, n in (("1860", 1), ("1890", 1), *dense)]
+    )
+    assert "bis=1919-12-31" in folded.href

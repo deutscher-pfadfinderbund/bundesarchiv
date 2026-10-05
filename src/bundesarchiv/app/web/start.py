@@ -9,7 +9,7 @@ gets, in which order, is the role's tuple below and nowhere else.
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from itertools import takewhile
+from itertools import pairwise, takewhile
 
 from django.http import HttpRequest, HttpResponse, HttpResponsePermanentRedirect
 from django.urls import reverse
@@ -137,46 +137,50 @@ class Row:
 _SPARSE_SHARE = 50
 
 
-def fold_sparse(decades: Sequence[FacetCount]) -> tuple[FacetCount, ...]:
-    """The decades (oldest first) with a sparse leading run, two decades or more, folded into one
-    "bis <year before the first dense decade>" count. An archive of only sparse decades keeps them."""
+def fold_sparse(decades: Sequence[FacetCount]) -> tuple[Tile, ...]:
+    """The decades (oldest first) as tiles. A sparse leading run, two decades or more, folds into
+    one "bis <year>" tile that opens the list up to the end of the year before the first dense
+    decade. An archive of only sparse decades keeps them."""
     limit = max((fc.count for fc in decades), default=0) / _SPARSE_SHARE
     lead = tuple(takewhile(lambda fc: fc.count < limit, decades))
-    if len(lead) < 2 or len(lead) == len(decades):
-        return tuple(decades)
-    last_year = int(decades[len(lead)].value) - 1
-    return (FacetCount(f"bis {last_year}", sum(fc.count for fc in lead)), *decades[len(lead) :])
-
-
-def zeitleiste(
-    viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
-) -> Mapping[str, object]:
-    """The decades, oldest first (a sparse start folded, ``fold_sparse``), then "Unbekannt" (the
-    undated Articles) set apart. Bars are proportional to the largest row."""
-    decades = fold_sparse(sorted(counts["decades"], key=lambda fc: int(fc.value)))
-    undated = dateless_count(viewer)
-    tiles = [
-        Tile(fc.value, fc.count, vocab.count(fc.count), _date_to_preset(fc.value))
-        if fc.value.startswith("bis ")
-        else Tile(
+    folded = len(lead) if 2 <= len(lead) < len(decades) else 0
+    tiles = tuple(
+        Tile(
             f"{fc.value}er",
             fc.count,
             vocab.count(fc.count),
             preset_url(browse.PARAM_DECADE, fc.value),
         )
-        for fc in decades
-    ]
-    if undated:
-        tiles.append(
-            Tile("Unbekannt", undated, vocab.count(undated), preset_url(browse.PARAM_DATELESS, "1"))
+        for fc in decades[folded:]
+    )
+    if not folded:
+        return tiles
+    year = int(decades[folded].value) - 1
+    count = sum(fc.count for fc in lead)
+    to_year_end = preset_url(browse.PARAM_DATE_TO, f"{year}-12-31")
+    return (Tile(f"bis {year}", count, vocab.count(count), to_year_end), *tiles)
+
+
+def zeitleiste(
+    viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
+) -> Mapping[str, object]:
+    """The decades, oldest first (a sparse start folded, ``fold_sparse``), then the undated
+    Articles set apart. Bars are proportional to the largest row."""
+    tiles = fold_sparse(sorted(counts["decades"], key=lambda fc: int(fc.value)))
+    undated = dateless_count(viewer)
+    apart = (
+        (
+            Tile(
+                vocab.UNDATED, undated, vocab.count(undated), preset_url(browse.PARAM_DATELESS, "1")
+            ),
         )
-    top = max((t.count for t in tiles), default=1)
-    return {"rows": tuple(Row(t, top, apart=t.label == "Unbekannt") for t in tiles)}
-
-
-def _date_to_preset(label: str) -> str:
-    """The list up to the end of the year a folded "bis <year>" row names."""
-    return preset_url(browse.PARAM_DATE_TO, f"{label.removeprefix('bis ')}-12-31")
+        if undated
+        else ()
+    )
+    top = max((t.count for t in (*tiles, *apart)), default=1)
+    return {
+        "rows": (*(Row(t, top) for t in tiles), *(Row(t, top, apart=True) for t in apart)),
+    }
 
 
 def zuletzt_hinzugefuegt(
@@ -186,15 +190,17 @@ def zuletzt_hinzugefuegt(
     hits = search(viewer, sort="added", page_size=_RECENT, facets=()).hits
     known = bestand.by_ulid()
     days = [vocab.day(h.added_at) if h.added_at else "" for h in hits]
+    # a repeated day is printed once, as a ditto
+    shown = [day if day != previous else "" for previous, day in pairwise(["", *days])]
     return {
         "rows": tuple(
             (
-                day if day != previous else "",  # a repeated day printed once, as a ditto
+                day,
                 h.title,
                 reverse("artikel-detail", args=[h.ulid]),
                 known[h.collection_id].name if h.collection_id in known else "",
             )
-            for h, day, previous in zip(hits, days, ["", *days], strict=False)
+            for h, day in zip(hits, shown, strict=True)
         ),
         "all_href": preset_url(browse.PARAM_SORT, browse.sort_label("added")),
     }

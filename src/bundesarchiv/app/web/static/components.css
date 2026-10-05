@@ -1014,7 +1014,6 @@
   .toolpanel > ul:not(.menu) a[aria-current]::before {
     background: currentColor;
   }
-  /* the set entry of a menu or check list in bold */
   /* the head over one list of the phone's "Filter" fold: which slot its entries set */
   .toolpanel > .toolpanel-head {
     margin: var(--space-3) 0 var(--space-1);
@@ -1024,6 +1023,7 @@
   .toolpanel > .toolpanel-head:first-child {
     margin-block-start: 0;
   }
+  /* the set entry of a menu or check list in bold */
   :is(.menu li > a, .toolpanel > ul a)[aria-current] {
     font-weight: 600;
   }

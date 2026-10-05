@@ -366,6 +366,9 @@ def file_summary(counts: tuple[tuple[FileKind, int], ...]) -> str:
 
 
 #: The article page's plate register, headed by what it holds.
+#: The undated Articles' word: the start page's Zeitleiste row and the list's decade slot.
+UNDATED = "Unbekannt"
+
 FURTHER_IMAGES = "Weitere Aufnahmen"
 FURTHER_FILES = "Weitere Dateien"
 

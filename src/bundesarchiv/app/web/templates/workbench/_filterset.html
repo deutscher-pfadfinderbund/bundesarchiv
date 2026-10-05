@@ -10,7 +10,7 @@ counts; a set filter no slot shows is a link that removes it.
   <div class="search-sentence-slots">
     {% for slot in slots %}
     <div class="{% if slot.clear_query is not None %}is-set{% else %}is-minor{% endif %}">
-      {% if forloop.first %}<span>in</span>{% endif %}
+      {% if forloop.first %}<span class="search-sentence-in">in</span>{% endif %}
       {% if slot.items or slot.clear_query is not None %}
       <button class="menu-button" type="button" popovertarget="slot-{{ forloop.counter }}">{{ slot.label }}</button>
       <ul class="menu" id="slot-{{ forloop.counter }}" popover>

@@ -116,7 +116,7 @@
   }
   @container (width < 40rem) /* S (DESIGN.md space budget); no token names a container width */ {
     .search-sentence-label,
-    .search-sentence-slots > :first-child > span:first-child,
+    .search-sentence-in,
     .search-sentence-slots > .is-minor:not(:first-child),
     .search-sentence-add {
       display: none;

@@ -87,11 +87,9 @@
     padding: 0;
     border: 0;
   }
+  /* under a picture: its caption, then the download line, both quiet words */
   .platte :is(figcaption, .download),
   .filmstrip :is(figcaption, .download) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 var(--space-3);
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
@@ -122,9 +120,5 @@
   }
   .filmstrip :is(figcaption, .download) {
     margin-top: var(--space-1);
-  }
-  /* one run of words (a link and its size), not a row of parts */
-  :is(.platte, .filmstrip) .download {
-    display: block;
   }
 }
