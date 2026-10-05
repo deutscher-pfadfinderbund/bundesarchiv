@@ -76,6 +76,7 @@ _SORT_BY_LABEL: dict[str, SortOrder] = {
     "signatur": "ref_code",
     "datierung": "date",
     "titel": "title",
+    "hinzugefuegt": "added",
 }
 _DEFAULT_SORT: SortOrder = "relevance"
 

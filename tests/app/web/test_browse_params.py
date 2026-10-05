@@ -10,9 +10,10 @@ mapping, so the whole URL-as-state contract is pinned here, fast, in isolation.
 """
 
 import datetime
+from typing import get_args
 
-from bundesarchiv.app.web.browse import ParsedQuery, parse_query
-from bundesarchiv.index.query import FileKind, SearchFilters
+from bundesarchiv.app.web.browse import ParsedQuery, parse_query, sort_label
+from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
 
 
 def _parse(**params: str) -> ParsedQuery:
@@ -84,6 +85,13 @@ def test_sort_maps_from_german_and_defaults_on_garbage() -> None:
     assert _parse(sortierung="titel").sort == "title"
     assert _parse(sortierung="relevanz").sort == "relevance"
     assert _parse(sortierung="woven-nonsense").sort == "relevance"
+
+
+def test_every_sort_order_survives_its_url_label() -> None:
+    # A preset link (the start page's "Alle ansehen") carries its order through sort_label; an
+    # order without a label would fall to relevance on arrival.
+    for order in get_args(SortOrder.__value__):
+        assert _parse(sortierung=sort_label(order)).sort == order
 
 
 def test_sort_direction_from_minus_prefix() -> None:
