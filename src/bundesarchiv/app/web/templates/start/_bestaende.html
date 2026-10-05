@@ -3,7 +3,7 @@
 <section data-absent="s" aria-labelledby="start-bestaende">
   <header class="section-head"><h2 id="start-bestaende">Bestände</h2></header>
   <ul class="tiles">
-    {% for tile in area.tiles %}<li><a class="register-row" href="{{ tile.href }}"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
+    {% for tile in area.tiles %}<li><a class="register-row" href="{{ tile.href }}" aria-label="{{ tile.label }}: {{ tile.count_label }} Artikel"><span class="register-label">{{ tile.label }}</span><span class="register-figure"><data value="{{ tile.count }}">{{ tile.count_label }}</data></span></a></li>
     {% endfor %}
   </ul>
 </section>

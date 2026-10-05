@@ -47,6 +47,12 @@
     max-inline-size: var(--_field-max);
     padding: var(--_field-pad);
     font: inherit;
+    /* what was typed is content, in ink; the sentence around it and the placeholder stay quieter */
+    color: var(--ink);
+  }
+  /* the native clear button draws in the browser's own blue, a second hue; Esc still clears */
+  .search-sentence-field::-webkit-search-cancel-button {
+    appearance: none;
   }
   /* "Suchen", beside the field where the field is the whole sentence (the start page): as tall as
      the field, wide in its label */

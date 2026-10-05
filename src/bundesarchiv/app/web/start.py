@@ -180,7 +180,6 @@ _SEARCH = Area("start/_search.html", search_area)
 _BESTAENDE = Area("start/_bestaende.html", bestaende)
 _NACH_ART = Area("start/_nach_art.html", nach_art)
 _ZEITLEISTE = Area("start/_zeitleiste.html", zeitleiste)
-#: Built, in no tuple yet: the owner rules whether it shows (one name added to a role's tuple).
 _ZULETZT = Area("start/_zuletzt.html", zuletzt_hinzugefuegt)
 
 ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)

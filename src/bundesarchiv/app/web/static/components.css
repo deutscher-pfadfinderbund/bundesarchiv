@@ -385,11 +385,11 @@
     block-size: var(--bar-weight);
   }
   .register-bar::-webkit-meter-optimum-value {
-    background: var(--ink-2);
+    background: var(--ink);
     min-inline-size: var(--bar-weight);
   }
   .register-bar::-moz-meter-bar {
-    background: var(--ink-2);
+    background: var(--ink);
   }
   /* an entry in quieter ink (a context: it re-points the ink its parts read); the list sets it apart */
   .register-apart {
