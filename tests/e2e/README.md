@@ -70,9 +70,11 @@ mise run test:gallery-diff -- <ref>   # any git ref
 ```
 
 Renders the ref (in a throwaway worktree under `var/`, removed afterwards) and the working
-tree into `var/gallery-diff/{ref,tree}`, then prints each PNG as `identical`, `changed`, `new`
-or `missing` and exits 1 if any is not identical. It is the proof for a refactor you claim is
-pixel-neutral (~5 min: two full renders).
+tree, then prints each PNG that is `changed`, `new` or `missing` and exits 1 if any is. It is the
+proof for a refactor you claim is pixel-neutral. The ref's render is cached per commit and
+Playwright version under `var/gallery-diff/ref-cache/` (the 3 most recently used stay), so only
+the first diff against a commit pays for two full renders (~5 min); later ones render the tree
+alone.
 
 ## Add a journey
 

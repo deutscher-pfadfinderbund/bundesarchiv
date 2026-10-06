@@ -3,10 +3,15 @@
 Usage: mise run test:gallery-diff [-- REF]      (REF defaults to main)
 
 The ref is checked out into a throwaway worktree under var/ (removed afterwards), both trees render
-with `pytest -m gallery` into var/gallery-diff/{ref,tree}, and every PNG is reported identical,
-changed, new (only in the tree) or missing (only in the ref). Exits 1 on any difference.
+with `pytest -m gallery`, and every PNG that is changed, new (only in the tree) or missing (only in
+the ref) is reported. Exits 1 on any difference.
+
+The ref's render is cached under var/gallery-diff/ref-cache/<commit>-pw<playwright>: a commit renders
+the same with the same browser build, so every diff against one main renders it once. Only the
+KEEP most recently used renders stay.
 """
 
+import importlib.metadata
 import os
 import shutil
 import subprocess
@@ -17,6 +22,8 @@ from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK = ROOT / "var" / "gallery-diff"
+CACHE = WORK / "ref-cache"
+KEEP = 3
 
 
 def render(cwd: Path, out: Path) -> None:
@@ -45,25 +52,52 @@ def compare(ref: Path, tree: Path) -> int:
                 )
             verdict = "identical" if same else "changed"
         bad += verdict != "identical"
-        print(f"{verdict:9} {name}")
+        if verdict != "identical":
+            print(f"{verdict:9} {name}")
     print(f"{len(names)} PNGs, {bad} differ")
     return int(bad > 0)
 
 
-def git(*args: str, check: bool = True) -> None:
-    subprocess.run(["git", *args], cwd=ROOT, check=check)  # noqa: S603, S607 — fixed command
+def git(*args: str, check: bool = True) -> str:
+    done = subprocess.run(  # noqa: S603 — fixed command
+        ["git", *args],  # noqa: S607
+        cwd=ROOT,
+        check=check,
+        capture_output=True,
+        text=True,
+    )
+    return done.stdout.strip()
+
+
+def ref_render(ref: str) -> Path:
+    """The ref's gallery, rendered once per commit and browser build."""
+    sha = git("rev-parse", "--verify", f"{ref}^{{commit}}")
+    cached = CACHE / f"{sha}-pw{importlib.metadata.version('playwright')}"
+    if not cached.exists():
+        # Named after this checkout: the test database is named after the directory (tests/conftest.py),
+        # so two worktrees diffing at once must not share one.
+        checkout = WORK / f"checkout-{ROOT.name}"
+        git("worktree", "prune")
+        git("worktree", "add", "--detach", "--force", str(checkout), sha)
+        try:
+            render(checkout, WORK / "ref-partial")
+        finally:
+            git("worktree", "remove", "--force", str(checkout), check=False)
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        (WORK / "ref-partial").rename(cached)  # only a finished render enters the cache
+    else:
+        print(f"reusing {cached.name}", flush=True)
+    cached.touch()
+    for stale in sorted(CACHE.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]:
+        shutil.rmtree(stale)
+    return cached
 
 
 def main(argv: list[str]) -> int:
-    checkout = WORK / "checkout"
-    git("worktree", "prune")
-    git("worktree", "add", "--detach", "--force", str(checkout), argv[0] if argv else "main")
-    try:
-        render(checkout, WORK / "ref")
-    finally:
-        git("worktree", "remove", "--force", str(checkout), check=False)
+    shutil.rmtree(WORK / "ref", ignore_errors=True)  # the uncached layout's leftover
+    ref = ref_render(argv[0] if argv else "main")
     render(ROOT, WORK / "tree")
-    return compare(WORK / "ref", WORK / "tree")
+    return compare(ref, WORK / "tree")
 
 
 if __name__ == "__main__":
