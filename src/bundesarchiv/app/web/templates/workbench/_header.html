@@ -12,9 +12,6 @@ Params (all optional; an empty value renders less):
                     while a Bestand is in focus) are opened by a button of the page
   without_search  — drops the search form: on the article forms a search invites leaving unsaved
                     edits (a1 NOTES, "Top bar")
-  back            — renders the back link, for screens whose body offers no way back
-  back_href       — the back link's target; defaults to the workbench
-  back_label      — the back link's words; defaults to "Zurück zur Suche"
 
 The header is one control row: its controls share layouts.css's --control-height (law C8).
 
@@ -39,7 +36,6 @@ new header button.{% endcomment %}
 </ul>
 {% for panel in panels %}{% include "workbench/_formpanel.html" %}{% endfor %}
 {% endwith %}{% endif %}
-{% if back %}<a class="back" href="{% if back_href %}{{ back_href }}{% else %}{% url 'workbench' %}{% endif %}"{% if not back_href %} data-list-link{% endif %}>{% if back_label %}{{ back_label }}{% else %}Zurück zur Suche{% endif %}</a>{% endif %}
 {% comment %}A POST form: a logout changes state and carries the CSRF token like every write.{% endcomment %}
 {% if is_signed_in %}
 <form class="logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit">Abmelden</button></form>
