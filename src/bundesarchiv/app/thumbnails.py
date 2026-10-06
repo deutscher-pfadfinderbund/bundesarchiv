@@ -112,6 +112,16 @@ def is_cached(thumbnail_root: Path, content_hash: str, size: Size = Size.TILE) -
         return False
 
 
+def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None:
+    """The width and height of the cached tile, read from its header (no decode) — the ratio of the
+    file as a browser shows it; None while the cache holds no tile."""
+    try:
+        with Image.open(thumbnail_path(thumbnail_root, content_hash)) as tile:
+            return tile.size
+    except OSError:
+        return None
+
+
 def generate_thumbnail(
     store: ObjectStore, ulid: Ulid, content_hash: str, thumbnail_root: Path
 ) -> bool:

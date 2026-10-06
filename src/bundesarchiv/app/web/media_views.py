@@ -63,6 +63,12 @@ def thumbnail_url(ulid: str, content_hash: str) -> str:
     return f"{media_url(ulid, content_hash)}/thumb"
 
 
+def display_url(ulid: str, content_hash: str) -> str:
+    """The public wire URL of an image's display version: ``/media/<ulid>/<content_hash>/display``
+    (the ``media-display`` route). Same single-source rule as :func:`media_url`."""
+    return f"{media_url(ulid, content_hash)}/display"
+
+
 def _is_valid_hash(value: str) -> bool:
     """True iff ``value`` is a well-formed sha256 content hash (64 lowercase hex chars). Total: a
     malformed route param yields False, never an exception — it floors to the shared 404."""

@@ -31,7 +31,7 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import generate_thumbnail
-from bundesarchiv.app.web.media_views import media_url, thumbnail_url
+from bundesarchiv.app.web.media_views import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
@@ -191,6 +191,42 @@ def test_a_pdf_leads_the_page_with_its_first_page_once_derived(
         assert generate_thumbnail(Archive.canonical().store, ulid, pdf.content_hash, thumbs)
         images = re.findall(r'<img [^>]*src="([^"]*)"', _body(Public(), ulid))
     assert images[0] == thumbnail_url(ulid, pdf.content_hash)
+
+
+def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
+    make_corpus: Callable[[], Corpus], tmp_path: Path
+) -> None:
+    """The ratio is the image's as shown (its tile's), unknown until the tile exists; only an image
+    has a display version."""
+    from PIL import Image
+
+    def encoded(size: tuple[int, int], format: str) -> io.BytesIO:
+        buf = io.BytesIO()
+        Image.new("RGB", size, (240, 240, 230)).save(buf, format=format)
+        buf.seek(0)
+        return buf
+
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ulid = new_ulid()
+    photo = archive.articles.add_media(ulid, "a.png", encoded((960, 640), "PNG"), "image/png")
+    pdf = archive.articles.add_media(ulid, "b.pdf", encoded((60, 80), "PDF"), "application/pdf")
+    untiled = archive.articles.add_media(ulid, "c.png", encoded((50, 50), "PNG"), "image/png")
+    archive.add_article(make_article(ulid, collection_id=FOTOS, media=(photo, pdf, untiled)))
+    thumbs = tmp_path / "thumbs"
+    with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
+        for ref in (photo, pdf):
+            assert generate_thumbnail(Archive.canonical().store, ulid, ref.content_hash, thumbs)
+        context = client_as(Public()).get(f"/articles/{ulid}").context
+    tiles = (context["cover"], *context["weitere"])
+    assert [t.aspect[0] / t.aspect[1] if t.aspect else None for t in tiles] == [1.5, 0.75, None]
+    assert [t.display_url for t in tiles] == [
+        display_url(ulid, photo.content_hash),
+        "",
+        display_url(ulid, untiled.content_hash),
+    ]
 
 
 def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive) -> None:

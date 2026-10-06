@@ -26,6 +26,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 from django.test import override_settings
+from PIL import Image
 from tests.app.web._asserts import assert_denied
 from tests.app.web._fixtures import (
     Corpus,
@@ -554,7 +555,7 @@ def test_a_file_row_shows_a_thumbnail_only_once_the_cache_holds_one(
     thumbs = tmp_path / "thumbs"
     cached = thumbnail_path(thumbs, corpus.ref_a.content_hash)
     cached.parent.mkdir()
-    cached.write_bytes(b"webp")
+    Image.new("RGB", (4, 3)).save(cached, format="AVIF")
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     drawer = _medien_drawer_region(body)

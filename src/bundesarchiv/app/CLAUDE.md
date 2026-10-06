@@ -18,7 +18,7 @@ Every write service that writes a version takes `changed_by`, who is acting; the
 - `tasks.py` — worker jobs (ADR 0014) · interface: `reindex_article`/`reindex_subtree`/`generate_thumbnail`/`reconcile`/`verify`/`mirror_push`/`mirror_delete_article`/`mirror_reconcile` · tests: `tests/app/test_tasks.py`
 - `jsonlog.py` — the log format: one JSON object per record, `extra` merged in; wired through `LOGGING` · interface: `JsonFormatter` · tests: `tests/app/test_jsonlog.py`
 - `stats.py` — the operator statistics the hourly reconcile logs: archive-wide, never per user · interface: `log_archive_stats` · tests: `tests/app/test_stats.py`
-- `thumbnails.py` — AVIF tile/display versions, local hash-keyed cache · interface: `Size`, `generate_thumbnail`, `cached`, `thumbnail_path`, `renders` · tests: `tests/app/test_thumbnails.py`
+- `thumbnails.py` — AVIF tile/display versions, local hash-keyed cache · interface: `Size`, `generate_thumbnail`, `cached`, `is_cached`, `tile_size`, `thumbnail_path`, `renders` · tests: `tests/app/test_thumbnails.py`
 - `pdf_preview.py` — a PDF's first page as a picture; the only `pypdfium2` importer, swap the backend here · interface: `first_page` · tests: `tests/app/test_thumbnails.py`
 - `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`
 - `legacy.py` — the legacy CSV → Article mapping for the one-time import; pure, no IO · interface: `ITEM_COLUMNS`, `bestand_names`, `map_item`, `plan`, `unknown_vocabulary`, `Report` · tests: `tests/app/test_legacy.py`

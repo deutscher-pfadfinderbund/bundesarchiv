@@ -28,12 +28,13 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.urls import reverse
 
+from bundesarchiv.app import thumbnails
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.bestand import BestandChooser
-from bundesarchiv.app.web.media_views import media_url, not_found, thumbnail_url
+from bundesarchiv.app.web.media_views import display_url, media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain
@@ -181,9 +182,10 @@ _DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 class MediaTile:
     """One file as the pane, the article page and the edit form show it: its kind word, name and
     caption, the gated URL of the original, ``full_url`` (the same URL, only when a browser draws
-    the original as an image), and the gated thumbnail URL, empty while the local cache holds no
-    thumbnail for it (the tile then shows kind and name). The URLs re-authorize per request; a page
-    never inlines bytes."""
+    the original as an image), the gated display URL (images only, derived on its first request),
+    and the gated thumbnail URL with the tile's ``aspect`` (width, height), both empty while the
+    local cache holds no tile for it (the tile then shows kind and name). The URLs re-authorize per
+    request; a page never inlines bytes."""
 
     kind: str
     name: str
@@ -191,28 +193,31 @@ class MediaTile:
     file_url: str
     full_url: str
     thumb_url: str
+    display_url: str = ""
+    aspect: tuple[int, int] | None = None
     size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
 
 
 def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
-    """``media`` as tiles, in its order (cover first, ADR 0015). One stat per file: the thumbnail
-    cache is local (ADR 0017)."""
+    """``media`` as tiles, in its order (cover first, ADR 0015). One tile header read per file: the
+    thumbnail cache is local (ADR 0017)."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
-    return tuple(
-        MediaTile(
-            kind=vocab.file_word(file_kind(ref)),
-            name=ref.filename,
-            size=vocab.human_size(ref.byte_size),
-            caption=ref.caption or "",
-            file_url=media_url(ulid, ref.content_hash),
-            full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
-            thumb_url=(
-                thumbnail_url(ulid, ref.content_hash)
-                if thumbnail_path(root, ref.content_hash).is_file()
-                else ""
-            ),
-        )
-        for ref in media
+    return tuple(_tile(ulid, ref, thumbnails.tile_size(root, ref.content_hash)) for ref in media)
+
+
+def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
+    return MediaTile(
+        kind=vocab.file_word(file_kind(ref)),
+        name=ref.filename,
+        size=vocab.human_size(ref.byte_size),
+        caption=ref.caption or "",
+        file_url=media_url(ulid, ref.content_hash),
+        full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
+        display_url=(
+            display_url(ulid, ref.content_hash) if thumbnails.renders(ref, Size.DISPLAY) else ""
+        ),
+        thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
+        aspect=aspect,
     )
 
 
