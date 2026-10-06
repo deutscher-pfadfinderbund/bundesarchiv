@@ -28,21 +28,13 @@ HX_OWNER = "bundesarchiv/app/web/viewers.py"
 #: module outside the owner -> (number of ``HX-`` header names, finding id).
 HX_READS: dict[str, tuple[int, str]] = {}
 
-#: Public top-level ``module:name`` that nothing in ``src/`` references -> reason.
+_DOTTED = re.compile(r"bundesarchiv(\.\w+)+")
+
+#: Public top-level ``module:name`` that nothing in ``src/`` references -> reason. A dotted-path
+#: string (settings) counts as a reference, and Django finds a management command's ``Command``.
 UNREFERENCED: dict[str, str] = {
     "bundesarchiv/app/apps.py:AppServicesConfig": "Django app config, named by INSTALLED_APPS",
-    "bundesarchiv/app/jsonlog.py:JsonFormatter": "named by the LOGGING setting",
     "bundesarchiv/index/apps.py:IndexConfig": "Django app config, named by INSTALLED_APPS",
-    "bundesarchiv/app/web/anonymous_gate.py:AnonymousGateMiddleware": "named by MIDDLEWARE",
-    "bundesarchiv/app/web/slow_requests.py:SlowRequestMiddleware": "named by MIDDLEWARE",
-    "bundesarchiv/app/web/viewers.py:TokenCookieMiddleware": "named by MIDDLEWARE",
-    "bundesarchiv/app/web/viewers.py:vary_on_request_kind": "named by MIDDLEWARE",
-    "bundesarchiv/app/web/theme.py:theme": "context processor, named by TEMPLATES",
-    "bundesarchiv/app/management/commands/ensure_index_current.py:Command": "Django command",
-    "bundesarchiv/app/management/commands/import_legacy.py:Command": "Django command",
-    "bundesarchiv/app/management/commands/rebuild_index.py:Command": "Django command",
-    "bundesarchiv/app/management/commands/rebuild_thumbnails.py:Command": "Django command",
-    "bundesarchiv/app/management/commands/verify.py:Command": "Django command",
     "bundesarchiv/app/push_record.py:InMemoryPushRecord": "test fake",
     "bundesarchiv/persistence/adapters/memory.py:InMemoryObjectStore": "test fake",
     "bundesarchiv/app/tasks.py:mirror_reconcile": "Procrastinate task, run by name",
@@ -125,6 +117,9 @@ def _referenced() -> set[str]:
                 names.add(node.attr)
             elif isinstance(node, ast.alias):
                 names.add(node.name.split(".")[-1])
+            elif isinstance(node, ast.Constant) and _DOTTED.fullmatch(str(node.value)):
+                # a dotted path in settings (MIDDLEWARE, LOGGING, TEMPLATES) names its last part
+                names.add(str(node.value).rsplit(".", 1)[-1])
     return names
 
 
@@ -137,6 +132,7 @@ def _unreferenced() -> set[str]:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
         and not node.name.startswith("_")
         and node.name not in referenced
+        and not (node.name == "Command" and "/management/commands/" in module)  # Django finds it
     }
 
 
