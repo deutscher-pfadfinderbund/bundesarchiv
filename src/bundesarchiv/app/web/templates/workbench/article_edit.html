@@ -113,6 +113,13 @@ save gets HX-Redirect.{% endcomment %}
             <span>Bildunterschrift</span>
             <input type="text" name="caption[{{ row.content_hash }}]" value="{{ row.caption }}" form="edit-form">
           </label>
+          {% if row.tile.is_image %}
+          <div class="field">
+            <label for="alt-{{ row.content_hash }}">Bildbeschreibung</label>
+            <input type="text" id="alt-{{ row.content_hash }}" name="alt[{{ row.content_hash }}]" value="{{ row.description }}" form="edit-form" aria-describedby="alt-hint-{{ row.content_hash }}">
+            <small class="hint" id="alt-hint-{{ row.content_hash }}">Für Menschen, die das Bild nicht sehen. Leer: die Bildunterschrift wird vorgelesen.</small>
+          </div>
+          {% endif %}
           {% comment %}The end rows' arrows are natively disabled. The no-JS two-step remove keeps its
           words: a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}

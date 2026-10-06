@@ -1,6 +1,7 @@
 """README codec — Article ⇄ front-matter bytes, tested directly (no store, no repo)."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -538,3 +539,55 @@ def test_a_half_or_broken_mark_is_corrupt(mark: str, why: str) -> None:
 def test_a_hand_saved_readme_decodes_like_its_lf_twin(saved: Callable[[str], bytes]) -> None:
     text = readme.encode(_article(body="\n\nAbsatz eins\n\n---\n\nzwei\n"), 1, _CHANGE)
     assert readme.decode("01J0", text_of("01J0", saved(text))) == readme.decode("01J0", text)
+
+
+# --- media alt text (additive key beside the caption) -----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "alt",
+    [
+        "Zwei Frauen vor dem Zelt",
+        "a: b",
+        "# kein Kommentar",
+        "- a",
+        "---",
+        "null",
+        "123",
+        "'",
+        '"',
+        "zeile eins\nzeile zwei\n",
+        "a\u2028b",
+        "a\x85b",
+        " führend",
+        "x" * 20_000,
+    ],
+)
+def test_media_alt_round_trips_any_text(alt: str) -> None:
+    article = _article(media=(MediaRef("a.jpg", "a" * 64, caption="Unterschrift", alt=alt),))
+    decoded = readme.decode("01J0", readme.encode(article, 1, _CHANGE))[0]
+    assert decoded == article
+
+
+def test_media_without_alt_omits_the_key_and_is_byte_identical_to_before() -> None:
+    plain = readme.encode(_article(media=(MediaRef("a.jpg", "a" * 64, caption="c"),)), 1, _CHANGE)
+    assert "alt:" not in plain
+    article = readme.decode("01J0", plain)[0]
+    assert article.media[0].alt is None
+    assert readme.encode(article, 1, _CHANGE) == plain
+
+
+def test_writing_alt_leaves_the_other_keys_alone() -> None:
+    base = MediaRef("a.jpg", "a" * 64, "image/jpeg", 12, caption="c")
+    without = readme.encode(_article(media=(base,)), 1, _CHANGE)
+    with_alt = readme.encode(_article(media=(replace(base, alt="Bild"),)), 1, _CHANGE)
+    assert [ln for ln in with_alt.splitlines() if ln != "  alt: Bild"] == without.splitlines()
+
+
+def test_non_scalar_media_alt_rejected_as_archive_error() -> None:
+    text = (
+        "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\nlifecycle: draft\n"
+        "media:\n- filename: a.jpg\n  content_hash: abc\n  alt:\n  - a\n---\nbody"
+    )
+    with pytest.raises(ArchiveError):
+        readme.decode("x", text)

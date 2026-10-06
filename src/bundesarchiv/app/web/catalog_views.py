@@ -420,7 +420,7 @@ class EditSurface:
                 drop_custom_row=drop_custom_row,
                 add_custom_row=add_custom_row,
             ),
-            media=catalog.apply_captions(post, self.stored.media),
+            media=catalog.apply_media_fields(post, self.stored.media),
         )
 
     def first_empty_field(self) -> str:
@@ -492,6 +492,7 @@ class _MediaRow:
     content_hash: str
     size: str
     caption: str
+    description: str  # the stored Bildbeschreibung (the form value), not the page's alt
     is_cover: bool
     is_first: bool
     is_last: bool
@@ -506,7 +507,8 @@ def _media_rows(ulid: str, media: tuple[MediaRef, ...], remove_hash: str) -> tup
             tile=tile,
             content_hash=ref.content_hash,
             size=vocab.human_size(ref.byte_size),
-            caption=ref.caption or "",
+            caption=catalog.none_if_blank(ref.caption or "") or "",
+            description=catalog.none_if_blank(ref.alt or "") or "",
             is_cover=i == 0,
             is_first=i == 0,
             is_last=i == last,
@@ -964,7 +966,7 @@ def _media_surface(
     held = None if raw is None else catalog.parse_version(raw)
     shown = version if held is None or (own_save and version == held + 1) else held
     surface = EditSurface.of(article, shown, chooser)
-    return replace(surface, media=catalog.apply_captions(request.POST, article.media))
+    return replace(surface, media=catalog.apply_media_fields(request.POST, article.media))
 
 
 def _reordered(

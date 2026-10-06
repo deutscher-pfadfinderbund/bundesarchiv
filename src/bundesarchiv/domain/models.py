@@ -95,6 +95,9 @@ class MediaRef:
     media_type: str | None = None  # MIME-ish, optional
     byte_size: int | None = None
     caption: str | None = None
+    alt: str | None = (
+        None  # an image's description for people who cannot see it; the caption stands in
+    )
     stored_name: str | None = None
 
 

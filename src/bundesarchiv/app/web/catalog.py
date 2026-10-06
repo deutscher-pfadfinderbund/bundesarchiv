@@ -26,9 +26,10 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from bundesarchiv.app import articles
+from bundesarchiv.app import articles, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import SaveResult
+from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
@@ -99,15 +100,16 @@ def _get(post: Mapping[str, object], key: str) -> str:
 
 
 def one_line(raw: str) -> str:
-    """A single-line field's value: every run of line breaks (and the spaces around it) becomes one
-    space, then the ends are stripped. The Titel is a textarea, which keeps a pasted or typed break;
-    the server drops it, with and without JS."""
-    return re.sub(r"\s*[\r\n]+\s*", " ", raw).strip()
+    """A single-line field's value: every run of line breaks (CR, LF, NEL, LS, PS) and the spaces
+    around it becomes one space, then the ends are stripped. The Titel is a textarea, which keeps a
+    pasted or typed break; the server drops it, with and without JS."""
+    return re.sub(r"\s*[\r\n\x85\u2028\u2029]+\s*", " ", raw).strip()
 
 
-def _none_if_blank(raw: str) -> str | None:
+def none_if_blank(raw: str) -> str | None:
     """The ``"" → None`` boundary for an optional scalar: a blank or whitespace-only value becomes
-    ``None``; otherwise the stripped value. Pinned by the leak-sensitive form contract (spec §8)."""
+    ``None``; otherwise the stripped value. Pinned by the leak-sensitive form contract (spec §8).
+    Public: the pages read a stored caption or alt through it too, so blank is absent everywhere."""
     stripped = raw.strip()
     return stripped or None
 
@@ -149,12 +151,12 @@ def parse_edit_form(
     if not chooser.accepts(collection_id):
         errors["collection_id"] = chooser.error()
 
-    media_type = _none_if_blank(_get(post, "media_type"))
+    media_type = none_if_blank(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():
         errors["media_type"] = "Medienart ist erforderlich."
         media_type = None
 
-    document_type = _none_if_blank(_get(post, "document_type"))
+    document_type = none_if_blank(_get(post, "document_type"))
     if document_type is not None and not vocab.is_valid_pair(media_type, document_type):
         errors["document_type"] = (
             "Bitte zuerst eine Medienart wählen."
@@ -187,15 +189,17 @@ def parse_edit_form(
         body=_get(post, "body").replace("\r\n", "\n"),  # body stays a str ("" → "")
         lifecycle=lifecycle,  # the state the caller handed us — see the docstring
         audience=audience,
-        ref_code=_none_if_blank(_get(post, "ref_code")),
+        ref_code=none_if_blank(_get(post, "ref_code")),
         media_type=media_type,
         document_type=document_type,
         tags=parse_lines(_get(post, "tags")),
-        physical_location=_none_if_blank(_get(post, "physical_location")),
-        media=apply_captions(post, current_media),  # preserve media; update captions (spec §6.3)
+        physical_location=none_if_blank(_get(post, "physical_location")),
+        media=apply_media_fields(
+            post, current_media
+        ),  # preserve media; update captions (spec §6.3)
         date=date,
-        creator=_none_if_blank(_get(post, "creator")),
-        subject_place=_none_if_blank(_get(post, "subject_place")),
+        creator=none_if_blank(_get(post, "creator")),
+        subject_place=none_if_blank(_get(post, "subject_place")),
         custom=custom,
         added_at=added_at,
         deleted=deleted,
@@ -203,23 +207,41 @@ def parse_edit_form(
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 
 
-def apply_captions(
+def _edited(raw: str | None, current: str | None) -> str | None:
+    """The form's value (``"" → None``), or ``current`` when the form sent none or the value is the
+    one ``current`` already shows (so a save without edits changes no README byte)."""
+    if raw is None:
+        return current
+    edited = none_if_blank(raw)
+    return current if edited == none_if_blank(current or "") else edited
+
+
+def apply_media_fields(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
-    """Return ``current_media`` with each entry's caption replaced by the form's ``caption[<hash>]``
-    value (``"" → None``, spec §6.3/§8). Order is preserved (reorder is a separate structural POST);
-    an absent field leaves the caption unchanged (defensive — the form always renders one per row).
+    """Return ``current_media`` with each entry's caption and alt text replaced by the form's
+    ``caption[<hash>]`` / ``alt[<hash>]`` values (``"" → None``, spec §6.3/§8). Order is preserved
+    (reorder is a separate structural POST); an absent field leaves the stored value unchanged
+    (defensive — the form always renders one per row). The alt is one line and only an image has one
+    (the kind that gets a display version); a forged ``alt[<pdf hash>]`` is ignored.
 
     Public because the edit surface re-renders the register from the SAME rule the save applies, so a
-    re-render cannot show a caption the next Speichern would not write."""
-    updated: list[MediaRef] = []
-    for ref in current_media:
-        field = f"caption[{ref.content_hash}]"
-        if field in post:
-            updated.append(replace(ref, caption=_none_if_blank(_get(post, field))))
-        else:
-            updated.append(ref)
-    return tuple(updated)
+    re-render cannot show a value the next Speichern would not write."""
+
+    def field(name: str, key: str) -> str | None:
+        values = _getlist(post, f"{name}[{key}]")
+        return values[0] if values else None
+
+    def alt(ref: MediaRef) -> str | None:
+        raw = field("alt", ref.content_hash)
+        if raw is None or not thumbnails.renders(ref, Size.DISPLAY):
+            return ref.alt
+        return _edited(one_line(raw), ref.alt)
+
+    return tuple(
+        replace(ref, caption=_edited(field("caption", ref.content_hash), ref.caption), alt=alt(ref))
+        for ref in current_media
+    )
 
 
 def parse_version(raw: str) -> Version:

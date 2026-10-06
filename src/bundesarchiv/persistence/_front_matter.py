@@ -25,10 +25,27 @@ def text_of(name: str, data: bytes) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
+class _Dumper(yaml.SafeDumper):
+    """``safe_dump`` with a NEL (U+0085) kept intact: the emitter would otherwise fold it as a line
+    break inside a plain or single-quoted scalar and read back as spaces."""
+
+
+def _represent_str(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
+    style = '"' if "\x85" in value else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value, style=style)
+
+
+_Dumper.add_representer(str, _represent_str)
+
+
 def dump(front_matter: dict[str, Any], body: str) -> str:
     """README text: the marker, `front_matter` in key order between the fences, then `body`."""
-    yaml_block = yaml.safe_dump(
-        front_matter, sort_keys=False, allow_unicode=True, default_flow_style=False
+    yaml_block = yaml.dump(
+        front_matter,
+        Dumper=_Dumper,
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
     ).rstrip("\n")
     return f"{MARKER}\n{FENCE}\n{yaml_block}\n{FENCE}\n{body}"
 

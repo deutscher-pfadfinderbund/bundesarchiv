@@ -44,6 +44,12 @@ reindex) assumes an Article is a leaf.
    the changes log, mirror/backup and the visibility model all cover them
    with zero new machinery.
 
+   Its sibling is `MediaRef.alt` (an optional `alt:` key on the same
+   entry, images only): the description read aloud for people who cannot
+   see the image. Same storage, same visibility. The page renders alt,
+   else caption, else file name (`MediaTile.alt`). Old READMEs lack the
+   key and stay valid.
+
 ## Reference shape
 
 ```yaml

@@ -83,7 +83,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
 
 def _media_entry(media: MediaRef) -> dict[str, Any]:
     """One media entry for the front matter: always filename + content_hash; the optional
-    stored_name / media_type / byte_size / caption are emitted only when set (ADR 0015 omit-empty,
+    stored_name / media_type / byte_size / caption / alt are emitted only when set (ADR 0015 omit-empty,
     ADR 0019)."""
     entry: dict[str, Any] = {"filename": media.filename}
     if media.stored_name is not None:
@@ -95,6 +95,8 @@ def _media_entry(media: MediaRef) -> dict[str, Any]:
         entry["byte_size"] = media.byte_size
     if media.caption is not None:
         entry["caption"] = media.caption
+    if media.alt is not None:
+        entry["alt"] = media.alt
     return entry
 
 
@@ -227,6 +229,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
                 media_type=_as_opt_str(m.get("media_type")),
                 byte_size=_as_opt_int(m.get("byte_size")),
                 caption=_as_opt_str(m.get("caption")),
+                alt=_as_opt_str(m.get("alt")),
                 stored_name=_as_opt_str(m.get("stored_name")),
             )
             for m in media

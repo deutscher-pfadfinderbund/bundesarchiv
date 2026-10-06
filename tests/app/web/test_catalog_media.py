@@ -18,6 +18,7 @@ import io
 import re
 import tracemalloc
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,7 @@ from tests.app.web._fixtures import (
 )
 
 from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.app.web.browse_views import media_tiles
 from bundesarchiv.app.web.media_views import media_url, thumbnail_url
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
@@ -645,3 +647,156 @@ def test_custom_remove_keeps_media_register_and_typed_caption(corpus: _MediaCorp
     assert 'value="Frisch getippt"' in drawer  # and carries the typed caption
     # nothing saved (removal is a re-render, not a save)
     assert corpus.media() == (corpus.ref_a, corpus.ref_b)
+
+
+# --- alt text rides the same save as the caption ---------------------------------------
+
+
+def _edit(corpus: _MediaCorpus, **fields: str) -> int:
+    return (
+        client_as(Archivist())
+        .post(
+            f"/articles/{_ULID}/edit",
+            {
+                "title": "Lagerchronik",
+                "collection_id": "PUB",
+                "media_type": "Foto(s)",
+                "expected_version": str(corpus.version),
+                **fields,
+            },
+        )
+        .status_code
+    )
+
+
+def test_alt_saved_via_edit_form_round_trips_and_leaves_the_caption(corpus: _MediaCorpus) -> None:
+    a, b = corpus.ref_a.content_hash, corpus.ref_b.content_hash
+    assert (
+        _edit(
+            corpus,
+            **{
+                f"caption[{a}]": "Titelbild",
+                f"alt[{a}]": "  Eine Frau am Zelt ",
+                f"alt[{b}]": "  ",
+            },
+        )
+        == 302
+    )
+    by_hash = {m.content_hash: m for m in corpus.media()}
+    assert by_hash[a].alt == "Eine Frau am Zelt"  # stripped
+    assert by_hash[a].caption == "Titelbild"
+    assert by_hash[b].alt is None  # whitespace-only is absent
+
+
+def test_an_absent_alt_field_leaves_the_stored_alt(corpus: _MediaCorpus) -> None:
+    a = corpus.ref_a.content_hash
+    assert _edit(corpus, **{f"alt[{a}]": "Erst"}) == 302
+    corpus.version += 1
+    assert _edit(corpus, **{f"caption[{a}]": "Neu"}) == 302
+    assert corpus.media()[0].alt == "Erst"
+
+
+def test_only_an_image_row_offers_the_alt_field(make_corpus: Callable[[], Corpus]) -> None:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+    )
+    photo = archive.articles.add_media(_ULID, "a.jpg", io.BytesIO(b"jpg"), "image/jpeg")
+    pdf = archive.articles.add_media(_ULID, "b.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")
+    archive.add_article(
+        make_article(
+            _ULID,
+            collection_id="PUB",
+            lifecycle=Lifecycle.DRAFT,
+            media=(photo, pdf),
+            added_at=_ADDED_AT,
+        )
+    )
+    drawer = _media_drawer_region(
+        client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
+    )
+    assert re.findall(r'name="alt\[([0-9a-f]+)\]"', drawer) == [photo.content_hash]
+    assert "Für Menschen, die das Bild nicht sehen." in drawer
+
+
+def _pdf_article(
+    make_corpus: Callable[[], Corpus], alt: str | None = None
+) -> tuple[Corpus, MediaRef]:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+    )
+    pdf = replace(
+        archive.articles.add_media(_ULID, "b.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf"),
+        alt=alt,
+    )
+    archive.add_article(
+        make_article(
+            _ULID,
+            collection_id="PUB",
+            lifecycle=Lifecycle.DRAFT,
+            title="Lagerchronik",
+            media_type="Foto(s)",
+            media=(pdf,),
+            added_at=_ADDED_AT,
+        )
+    )
+    return archive, pdf
+
+
+def test_a_forged_alt_for_a_non_image_stores_nothing(make_corpus: Callable[[], Corpus]) -> None:
+    archive, pdf = _pdf_article(make_corpus)
+    corpus = _MediaCorpus.__new__(_MediaCorpus)
+    corpus.articles, corpus.version = archive.articles, 1
+    assert _edit(corpus, **{f"alt[{pdf.content_hash}]": "Eingeschmuggelt"}) == 302
+    assert corpus.media()[0].alt is None
+
+
+def test_a_stored_alt_on_a_non_image_is_never_rendered(make_corpus: Callable[[], Corpus]) -> None:
+    _pdf_article(make_corpus, alt="Versteckt")
+    client = client_as(Archivist())
+    assert "Versteckt" not in client.get(f"/articles/{_ULID}").content.decode()
+    assert "Versteckt" not in client.get(f"/articles/{_ULID}/edit").content.decode()
+
+
+def test_an_alt_is_one_line(corpus: _MediaCorpus) -> None:
+    a = corpus.ref_a.content_hash
+    assert _edit(corpus, **{f"alt[{a}]": "eins\r\nzwei\x85drei\u2028vier"}) == 302
+    assert corpus.media()[0].alt == "eins zwei drei vier"
+
+
+def test_blank_values_are_absent_and_a_save_without_edits_changes_nothing(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection("PUB", "Öffentlich", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ref = replace(
+        archive.articles.add_media(_ULID, "a.jpg", io.BytesIO(b"jpg"), "image/jpeg"),
+        alt="  ",
+        caption=" ",
+    )
+    version = archive.add_article(
+        make_article(
+            _ULID,
+            collection_id="PUB",
+            lifecycle=Lifecycle.DRAFT,
+            title="Lagerchronik",
+            media_type="Foto(s)",
+            media=(ref,),
+            added_at=_ADDED_AT,
+        )
+    )
+    edit = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
+    assert re.search(r'name="alt\[[0-9a-f]+\]" value=""', edit)
+    corpus = _MediaCorpus.__new__(_MediaCorpus)
+    corpus.articles, corpus.version = archive.articles, version
+    key = ref.content_hash
+    assert _edit(corpus, **{f"alt[{key}]": "", f"caption[{key}]": ""}) == 302
+    assert corpus.media() == (ref,)
+
+
+def test_a_non_images_tile_never_carries_a_stored_alt(make_corpus: Callable[[], Corpus]) -> None:
+    _, pdf = _pdf_article(make_corpus, alt="Versteckt")
+    assert [t.alt for t in media_tiles(_ULID, (pdf,))] == ["b.pdf"]

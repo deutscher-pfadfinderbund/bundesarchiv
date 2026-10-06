@@ -401,3 +401,38 @@ def test_markup_bearing_fields_render_escaped(corpus: _DetailArchive) -> None:
     # … and NEVER as executable markup.
     assert "<script>alert" not in body
     assert "<img src=x onerror=1>" not in body
+
+
+def test_an_images_alt_is_its_description_else_its_caption_else_its_file_name(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    """One rule for the cover, the row tiles and the lightbox; a blank stored alt counts as none."""
+    from dataclasses import replace
+
+    from PIL import Image
+
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ulid = new_ulid()
+
+    def add(name: str, shade: int, alt: str | None = None, caption: str | None = None) -> MediaRef:
+        buf = io.BytesIO()
+        Image.new("RGB", (8, 8), (shade, 0, 0)).save(buf, format="PNG")
+        buf.seek(0)
+        return replace(
+            archive.articles.add_media(ulid, name, buf, "image/png"), alt=alt, caption=caption
+        )
+
+    refs = (
+        add("a.png", 1, alt="Beschreibung", caption="Unterschrift"),
+        add("b.png", 2, caption="Nur Unterschrift"),
+        add("c.png", 3, alt="  "),
+        add("d.png", 4, alt="  ", caption=" \n"),
+    )
+    archive.add_article(make_article(ulid, collection_id=FOTOS, media=refs))
+    body = client_as(Public()).get(f"/articles/{ulid}").content.decode()
+    alts = re.findall(r'<img [^>]*alt="([^"]*)"', body)
+    # the cover (drawn from its original) and the lightbox (one figure per image)
+    assert sorted(alts) == ["Beschreibung", "Beschreibung", "Nur Unterschrift", "c.png", "d.png"]

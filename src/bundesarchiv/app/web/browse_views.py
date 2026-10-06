@@ -33,6 +33,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
+from bundesarchiv.app.web.catalog import none_if_blank
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import display_url, media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
@@ -197,6 +198,7 @@ class MediaTile:
     aspect: tuple[int, int] | None = None
     size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
     slot: int = -1  # an image's place in the article page's lightbox (-1: not in it)
+    alt: str = ""  # an image's accessible name: its description, else caption, else file name
 
     @property
     def is_image(self) -> bool:
@@ -212,16 +214,17 @@ def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]
 
 
 def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile:
+    image = thumbnails.renders(ref, Size.DISPLAY)
+    caption = none_if_blank(ref.caption or "") or ""
     return MediaTile(
         kind=vocab.file_word(file_kind(ref)),
         name=ref.filename,
         size=vocab.human_size(ref.byte_size),
-        caption=ref.caption or "",
+        caption=caption,
+        alt=(image and none_if_blank(ref.alt or "")) or caption or ref.filename,
         file_url=media_url(ulid, ref.content_hash),
         full_url=media_url(ulid, ref.content_hash) if mime_type(ref) in _DRAWN else "",
-        display_url=(
-            display_url(ulid, ref.content_hash) if thumbnails.renders(ref, Size.DISPLAY) else ""
-        ),
+        display_url=(display_url(ulid, ref.content_hash) if image else ""),
         thumb_url=thumbnail_url(ulid, ref.content_hash) if aspect else "",
         aspect=aspect,
     )

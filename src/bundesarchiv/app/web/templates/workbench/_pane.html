@@ -26,7 +26,7 @@ The layout demo includes this file too.
     <ul>
       {% for m in pane.media %}
       <li>
-        <a href="{{ m.file_url }}" target="_blank" rel="noopener">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="{% firstof m.caption m.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=m.kind name=m.name only %}{% endif %}</a>
+        <a href="{{ m.file_url }}" target="_blank" rel="noopener">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="{{ m.alt }}" loading="lazy">{% else %}{% include "components/blank.html" with kind=m.kind name=m.name only %}{% endif %}</a>
         <p>{% if m.caption %}<span>{{ m.caption }}</span>{% endif %}<a href="{{ m.file_url }}" download>Herunterladen</a></p>
       </li>
       {% endfor %}

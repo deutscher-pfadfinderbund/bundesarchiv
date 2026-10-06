@@ -8,7 +8,7 @@ the tiles with a display version, cover first. Closes on Esc, the black (closedb
   <div class="lightbox-strip">
     {% for tile in lightbox %}
     <figure>
-      <img src="{{ tile.display_url }}" alt="{% firstof tile.caption tile.name %}" {% if tile.aspect %} width="{{ tile.aspect.0 }}" height="{{ tile.aspect.1 }}"{% endif %} loading="lazy">
+      <img src="{{ tile.display_url }}" alt="{{ tile.alt }}" {% if tile.aspect %} width="{{ tile.aspect.0 }}" height="{{ tile.aspect.1 }}"{% endif %} loading="lazy">
       <figcaption>{% if tile.caption %}<span>{{ tile.caption }}</span>{% endif %}{% include "workbench/_download.html" with tile=tile only %}</figcaption>
     </figure>
     {% endfor %}
