@@ -437,24 +437,26 @@ def render_state(
     color modes. One full-page PNG per (mode, width), named ``<state>.<mode>.<width>.png`` (stable
     so a review brief can reference a shot). Returns the paths.
 
-    A context fixes the color scheme + viewport + cookie, so each shot gets its own; a reach that
-    raises fails this state alone (the context is closed either way)."""
+    One reach per width: the colour modes switch in place (the theme is ``light-dark()`` tokens), so
+    a state's page loads twice, not four times. A reach that raises fails this state alone (the
+    context is closed either way)."""
     out = out_dir if out_dir is not None else gallery_dir()
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for mode in MODES:
-        for width in WIDTHS:
-            context = browser.new_context(
-                color_scheme=mode, viewport={"width": width, "height": 900}
-            )
-            try:
-                if state.archivist:
-                    context.add_cookies([archivist_cookie])  # type: ignore[list-item]
-                page = context.new_page()
-                state.reach(page, base_url, corpus)
+    for width in WIDTHS:
+        context = browser.new_context(
+            color_scheme=MODES[0], viewport={"width": width, "height": 900}
+        )
+        try:
+            if state.archivist:
+                context.add_cookies([archivist_cookie])  # type: ignore[list-item]
+            page = context.new_page()
+            state.reach(page, base_url, corpus)
+            for mode in MODES:
+                page.emulate_media(color_scheme=mode)
                 target = out / f"{state.name}.{mode}.{width}.png"
                 page.screenshot(path=str(target), full_page=True)
                 written.append(target)
-            finally:
-                context.close()
+        finally:
+            context.close()
     return written
