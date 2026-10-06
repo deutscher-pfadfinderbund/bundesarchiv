@@ -117,11 +117,10 @@ class ArticleIndex(models.Model):
     )
 
     class Meta:
-        # GIN on both tsvectors (FTS); btree on the two most-filtered facets (ADR 0011 / brief).
+        # GIN on both tsvectors (FTS); btree on the date and added_at sorts/filters (ADR 0011 / brief).
         indexes: ClassVar[list[Index]] = [
             GinIndex(fields=["general_tsv"], name="index_general_tsv_gin"),
             GinIndex(fields=["archivist_tsv"], name="index_archivist_tsv_gin"),
-            Index(fields=["collection_id"], name="index_collection_id_btree"),
             Index(fields=["date_earliest"], name="index_date_earliest_btree"),
             Index(fields=["added_at"], name="index_added_at_btree"),
         ]
