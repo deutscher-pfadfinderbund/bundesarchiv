@@ -11,7 +11,7 @@ Two archivist-only routes, both methods gated to the plain 404 (existence-hiding
   they can move descendants' visibility and need the over-exposure machinery a rename does not.
 
 The Sichtbarkeit option vocabulary + the GROUPS-iff audience parse are the SAME single source the 4.7
-article form uses (``vocab.SICHTBARKEIT_OPTIONS`` / ``catalog.parse_audience``) — the
+article form uses (``vocab.AUDIENCE_OPTIONS`` / ``catalog.parse_audience``) — the
 GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-implemented.
 """
 
@@ -23,16 +23,16 @@ from django.http.response import HttpResponseBase
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import landing
-from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse import PARAM_COLLECTION
-from bundesarchiv.app.web.browse_views import bestand_crumbs, preset_url
+from bundesarchiv.app.web.browse_views import collection_crumbs, preset_url
 from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import (
     FormPanel,
-    bestand_bearbeiten_panel,
-    bestand_rows,
-    neu_bestand_panel,
+    collection_rows,
+    edit_collection_panel,
+    new_collection_panel,
 )
 from bundesarchiv.app.web.viewers import (
     is_partial,
@@ -58,14 +58,14 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     if not isinstance(archivist, Archivist):
         return not_found()
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         parent_id = request.POST.get("parent_id", "").strip()
-        sichtbarkeit = request.POST.get("sichtbarkeit", "")
-        gruppen = request.POST.get("gruppen", "")
-        audience, audience_error = parse_audience(sichtbarkeit, gruppen)
-        errors = _create_errors(name, parent_id, bestand, audience_error)
+        audience_choice = request.POST.get("sichtbarkeit", "")
+        groups_text = request.POST.get("gruppen", "")
+        audience, audience_error = parse_audience(audience_choice, groups_text)
+        errors = _create_errors(name, parent_id, chooser, audience_error)
         if not errors:
             result = create_collection(
                 archive,
@@ -76,25 +76,25 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             )
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
             # (create→catalog is one flow, design-gate blocker 2).
-            return redirect_to(request, landing.bestand_created_url(result.ulid))
-        rows = bestand_rows(bestand, name, parent_id, sichtbarkeit, gruppen, errors)
+            return redirect_to(request, landing.created_collection_url(result.ulid))
+        rows = collection_rows(chooser, name, parent_id, audience_choice, groups_text, errors)
         if is_partial(request):
-            return panel_response(request, neu_bestand_panel(rows))
+            return panel_response(request, new_collection_panel(rows))
         return render_screen(
-            request, "workbench/collection_new.html", {"felder": rows}, bestand=bestand
+            request, "workbench/collection_new.html", {"felder": rows}, chooser=chooser
         )
     return render_screen(
         request,
         "workbench/collection_new.html",
-        {"felder": bestand_rows(bestand, "", "", "", "", {})},
-        bestand=bestand,
+        {"felder": collection_rows(chooser, "", "", "", "", {})},
+        chooser=chooser,
     )
 
 
 def _create_errors(
     name: str,
     parent_id: str,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     audience_error: str | None,
 ) -> FormErrors:
     """The create-Bestand validations (verbatim German). Name required; a non-empty parent must be a
@@ -104,7 +104,7 @@ def _create_errors(
     errors: FormErrors = {}
     if not name:
         errors["name"] = "Name ist erforderlich."
-    if parent_id and not bestand.accepts(parent_id):
+    if parent_id and not chooser.accepts(parent_id):
         errors["parent_id"] = "Bitte einen gültigen Eltern-Bestand wählen."
     if audience_error is not None:
         errors["sichtbarkeit"] = audience_error
@@ -125,7 +125,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None:
         return not_found()
     archive, stored, archivist = gated
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         expected_version = parse_version(request.POST.get("expected_version", ""))
@@ -133,9 +133,9 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return _render_edit(
                 request,
                 ulid,
-                bestand,
-                bestand_bearbeiten_panel(
-                    bestand, stored, name, {"name": "Name ist erforderlich."}, expected_version
+                chooser,
+                edit_collection_panel(
+                    chooser, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
             )
         # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
@@ -152,36 +152,36 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
             return _render_edit(
                 request,
                 ulid,
-                bestand,
-                bestand_bearbeiten_panel(
-                    bestand, winner, name, {}, winner.version, conflict_name=winner.collection.name
+                chooser,
+                edit_collection_panel(
+                    chooser, winner, name, {}, winner.version, conflict_name=winner.collection.name
                 ),
             )
         return redirect_to(request, preset_url(PARAM_COLLECTION, ulid))
     return _render_edit(
         request,
         ulid,
-        bestand,
-        bestand_bearbeiten_panel(bestand, stored, stored.collection.name, {}, stored.version),
+        chooser,
+        edit_collection_panel(chooser, stored, stored.collection.name, {}, stored.version),
     )
 
 
 def _render_edit(
-    request: HttpRequest, ulid: str, bestand: BestandChooser, panel: FormPanel
+    request: HttpRequest, ulid: str, chooser: CollectionChooser, panel: FormPanel
 ) -> HttpResponseBase:
     """The rename form: in place as its tool panel when htmx asked, else as the page."""
     if is_partial(request):
         return panel_response(request, panel)
-    chain = bestand.chain_of(ulid)
+    chain = chooser.chain_of(ulid)
     return render_screen(
         request,
         "workbench/collection_edit.html",
         {
             "panel": panel,
             "abbrechen": preset_url(PARAM_COLLECTION, ulid),
-            "crumbs": () if chain is None else bestand_crumbs(chain),
+            "crumbs": () if chain is None else collection_crumbs(chain),
         },
-        bestand=bestand,
+        chooser=chooser,
     )
 
 

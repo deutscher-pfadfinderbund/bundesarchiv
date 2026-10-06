@@ -255,7 +255,7 @@ def _unreadable_row(ulid: Ulid, *, cap_year: int) -> dict[str, object]:
     return _fail_closed_row(stand_in, cap_year=cap_year)
 
 
-def _bestand_lookup(store: ObjectStore) -> tuple[dict[Ulid, Collection], tuple[Ulid, ...]]:
+def _collection_lookup(store: ObjectStore) -> tuple[dict[Ulid, Collection], tuple[Ulid, ...]]:
     """Every saved Collection by ulid, the lookup ``resolve_chain`` takes, and the ulids of those
     left out because their README does not decode."""
     scan = CollectionRepository(store).scan()
@@ -279,7 +279,7 @@ def rebuild(store: ObjectStore) -> RebuildReport:
 
     with transaction.atomic():
         _take_writer_lock()
-        lookup, unreadable_collections = _bestand_lookup(store)
+        lookup, unreadable_collections = _collection_lookup(store)
         scan = articles.scan()
         built = [(a.ulid, *_row_for(a, lookup, cap_year=cap_year)) for a in scan.readable]
         rows = [row for _, row, _ in built]
@@ -317,7 +317,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
         except UnreadableReadme:
             row = _unreadable_row(ulid, cap_year=cap_year)
         else:
-            lookup, _ = _bestand_lookup(store)
+            lookup, _ = _collection_lookup(store)
             row, _failed = _row_for(article, lookup, cap_year=cap_year)
         ArticleIndex.objects.update_or_create(ulid=ulid, defaults=row)
 
@@ -342,7 +342,7 @@ def index_subtree(
 
     with transaction.atomic():
         _take_writer_lock(lock_timeout_ms)
-        lookup, _ = _bestand_lookup(store)
+        lookup, _ = _collection_lookup(store)
         for article in articles.scan().readable:
             if _in_subtree(article, collection_ulid, lookup):
                 row, _failed = _row_for(article, lookup, cap_year=cap_year)

@@ -12,7 +12,7 @@ import pytest
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import bulk
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import Article, Collection
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.errors import Conflict
@@ -35,10 +35,10 @@ def test_allowlisted_fields_are_the_nine() -> None:
 
 
 @pytest.mark.parametrize(
-    "feld", ["lifecycle", "audience", "ulid", "__class__", "title", "sichtbarkeit"]
+    "field", ["lifecycle", "audience", "ulid", "__class__", "title", "sichtbarkeit"]
 )
-def test_forbidden_field_is_rejected(feld: str) -> None:
-    assert not bulk.is_allowed_field(feld)
+def test_forbidden_field_is_rejected(field: str) -> None:
+    assert not bulk.is_allowed_field(field)
 
 
 def test_allowed_field_accepted() -> None:
@@ -80,22 +80,22 @@ def test_apply_media_type_keeps_valid_document_type() -> None:
 # --- confirm-page display of the new value (spec §2 D) -----------------------------
 
 
-def _bestand(*collections: Collection) -> BestandChooser:
-    return BestandChooser(lambda: collections)
+def _chooser(*collections: Collection) -> CollectionChooser:
+    return CollectionChooser(lambda: collections)
 
 
 def test_field_display_value_collection_uses_name() -> None:
     # the confirm page shows the collection NAME, not the ulid (spec §2 D)
-    label = bulk.field_display("collection_id", "C1", _bestand(Collection(ulid="C1", name="Fotos")))
+    label = bulk.field_display("collection_id", "C1", _chooser(Collection(ulid="C1", name="Fotos")))
     assert label == "Fotos"
 
 
 def test_field_display_value_emptied() -> None:
-    assert bulk.field_display("creator", "", _bestand()) == "(geleert)"
+    assert bulk.field_display("creator", "", _chooser()) == "(geleert)"
 
 
 def test_field_display_scalar() -> None:
-    assert bulk.field_display("creator", "K. Meyer", _bestand()) == "K. Meyer"
+    assert bulk.field_display("creator", "K. Meyer", _chooser()) == "K. Meyer"
 
 
 # --- dependent-pair validation for Dokumenttyp-alone (spec §3) ---------------------

@@ -15,7 +15,7 @@ from tests.app.web._fixtures import DEV_KEY, PUB, Corpus, make_article, make_col
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import _DEV_VIEWER_SALT, encode_viewer
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier
@@ -52,7 +52,7 @@ def _request(viewer: Viewer):  # type: ignore[no-untyped-def]
 
 def _resolve(viewer: Viewer, ulid: str) -> DetailResolution | None:
     archive = Archive.canonical()
-    return resolve_visible_detail(_request(viewer), ulid, archive, BestandChooser.of(archive))
+    return resolve_visible_detail(_request(viewer), ulid, archive, CollectionChooser.of(archive))
 
 
 def test_resolves_the_projected_article(archive: Corpus) -> None:

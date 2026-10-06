@@ -28,7 +28,7 @@ from django.utils.cache import patch_vary_headers
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import landing, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.keycloak import Tokens, refresh, verify_access
 from bundesarchiv.app.web.oidc import viewer_from_claims
 from bundesarchiv.app.web.panels import FormPanel, header_panels
@@ -214,7 +214,7 @@ def render_screen(
     template: str,
     context: dict[str, object],
     *,
-    bestand: BestandChooser | None = None,
+    chooser: CollectionChooser | None = None,
 ) -> HttpResponse:
     """Render a screen with ``is_archivist`` and ``is_signed_in`` resolved HERE, from ``viewer_of``.
 
@@ -234,8 +234,8 @@ def render_screen(
     This helper is the SINGLE authority for both keys: they are stamped over ``context``, so no
     caller can assert chrome the viewer has not earned. ``index_lag`` is the same kind of fact: the
     request says a redirect found the search index behind (``landing``), shown to archivists, who made the write.
-    For an archivist it also stamps ``neu``, the
-    header's create panels, built from the view's own ``bestand`` chooser where it has one, so a
+    For an archivist it also stamps ``new``, the
+    header's create panels, built from the view's own ``chooser`` where it has one, so a
     request reads the Bestände once."""
     viewer = viewer_of(request)
     is_archivist = isinstance(viewer, Archivist)
@@ -246,11 +246,11 @@ def render_screen(
         "index_lag": vocab.INDEX_LAG if is_archivist and landing.index_lagging(request) else "",
     }
     if is_archivist:
-        aktiver = context.get("aktiver_bestand")
+        active = context.get("aktiver_bestand")
         # a callable: the template calls it where the header prints the menu, so a partial pays nothing
         chrome["neu"] = lambda: header_panels(
-            bestand or BestandChooser.of(Archive.canonical()),
-            aktiver=aktiver if isinstance(aktiver, str) else None,
+            chooser or CollectionChooser.of(Archive.canonical()),
+            active=active if isinstance(active, str) else None,
         )
     return render(request, template, {**context, **chrome})
 

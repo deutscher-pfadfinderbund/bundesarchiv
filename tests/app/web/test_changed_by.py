@@ -32,7 +32,7 @@ def _created_bestand(response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.collections.load(ulid).change
 
 
-def _bestand(_response: HttpResponse, corpus: Corpus) -> Change | None:
+def _chooser(_response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.collections.load(PUB).change
 
 
@@ -50,7 +50,7 @@ _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-media-remove": _article(DRAFT_ULID),
     "article-bulk-edit": _article(DRAFT_ULID),
 }
-_BESTAND_CHANGED = {"collection-create": _created_bestand, "collection-edit": _bestand}
+_BESTAND_CHANGED = {"collection-create": _created_bestand, "collection-edit": _chooser}
 
 
 @pytest.mark.parametrize("route", _CHANGED)

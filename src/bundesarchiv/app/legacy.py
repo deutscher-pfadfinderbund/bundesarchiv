@@ -29,7 +29,7 @@ from bundesarchiv.persistence.repository import cleaned_name
 type Vocabulary = Collection[str]
 
 #: The Bestand for the rows whose `collection` is empty — a real, visible place, not a null.
-UNSORTIERT = "Unsortiert"
+UNSORTED = "Unsortiert"
 
 #: The custom key under which an unreadable date keeps its original words.
 DATE_TEMPLATE_KEY = "Datum (Vorlage)"
@@ -139,7 +139,7 @@ class MappedItem:
     empty — the blobs are stored first), the Bestand it belongs to, and its files in slot order."""
 
     legacy_id: str
-    bestand: str
+    collection: str
     article: Article
     media: tuple[MediaFile, ...]
 
@@ -152,7 +152,7 @@ class Report:
 
     items: int
     without_media: int
-    per_bestand: tuple[tuple[str, int], ...]
+    per_collection: tuple[tuple[str, int], ...]
     unparseable_date_count: int
     unparseable_dates: tuple[tuple[str, str], ...]
     unreadable_added_count: int
@@ -183,7 +183,7 @@ class Report:
             f"Articles: {self.items}",
             f"of which without a file: {self.without_media}",
             "Collections:",
-            *(f"  {name}: {count}" for name, count in self.per_bestand),
+            *(f"  {name}: {count}" for name, count in self.per_collection),
             f"Document type disagreements (free text vs lookup table): {self.doctype_disagreements}",
             f"Unparseable dates: {self.unparseable_date_count}",
             *(f"  {legacy_id}: {raw}" for legacy_id, raw in self.unparseable_dates),
@@ -210,17 +210,17 @@ class Plan:
     report: Report
 
 
-def bestand_name(row: Mapping[str, str]) -> str:
+def collection_name(row: Mapping[str, str]) -> str:
     """The Bestand this row belongs to — its `collection`, or ``Unsortiert`` when it has none."""
-    return row["collection"].strip() or UNSORTIERT
+    return row["collection"].strip() or UNSORTED
 
 
-def bestand_names(rows: Iterable[Mapping[str, str]]) -> tuple[str, ...]:
+def collection_names(rows: Iterable[Mapping[str, str]]) -> tuple[str, ...]:
     """Every Bestand the export needs, in first-seen order with ``Unsortiert`` last — the order the
     command creates them in, so a re-read of the tree reads like the export."""
-    names = dict.fromkeys(bestand_name(row) for row in rows)
-    names.pop(UNSORTIERT, None)
-    return (*names, UNSORTIERT)
+    names = dict.fromkeys(collection_name(row) for row in rows)
+    names.pop(UNSORTED, None)
+    return (*names, UNSORTED)
 
 
 def map_item(
@@ -261,7 +261,7 @@ def map_item(
     )
     return MappedItem(
         legacy_id=row["id"],
-        bestand=bestand_name(row),
+        collection=collection_name(row),
         article=replace(created, added_at=_added_at(row["pub_date"])),
         media=_media(media_rows),
     )
@@ -274,14 +274,16 @@ def plan(
 ) -> Plan:
     """Map every row against the already-created Bestände and report over the result.
 
-    ``collection_ids`` maps Bestand NAME → ULID (what ``bestand_names`` asked the command to
+    ``collection_ids`` maps Bestand NAME → ULID (what ``collection_names`` asked the command to
     create); a name it does not know is a ``KeyError`` here rather than a mis-filed Article.
     """
     by_item: dict[str, list[Mapping[str, str]]] = {}
     for media_row in media_rows:
         by_item.setdefault(media_row["item_id"], []).append(media_row)
     items = tuple(
-        map_item(row, by_item.get(row["id"], ()), collection_id=collection_ids[bestand_name(row)])
+        map_item(
+            row, by_item.get(row["id"], ()), collection_id=collection_ids[collection_name(row)]
+        )
         for row in rows
     )
     unreadable = tuple(
@@ -304,7 +306,7 @@ def plan(
         report=Report(
             items=len(items),
             without_media=sum(1 for item in items if not item.media),
-            per_bestand=tuple(Counter(item.bestand for item in items).items()),
+            per_collection=tuple(Counter(item.collection for item in items).items()),
             unparseable_date_count=len(unreadable),
             unparseable_dates=unreadable[:MAX_SAMPLES],
             unreadable_added_count=len(unreadable_added),

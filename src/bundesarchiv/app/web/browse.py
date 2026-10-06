@@ -11,7 +11,7 @@ Two halves:
 - ``parse_query`` — strict-but-total: every field parses to its typed value or falls to that field's
   default (garbage never raises, never 500s — plan §4.5). Text comes from ``q``; the rest build a
   ``SearchFilters`` + sort + page.
-- The link helpers (``with_param`` / ``without_param`` / ``page_query_with_auswahl``) — pure
+- The link helpers (``with_param`` / ``without_param`` / ``page_query_with_selection``) — pure
   query-string algebra the templates emit for facet clicks, filter removal and pagination. Adding
   or removing a facet resets ``seite`` (the result set changed, so the old page number is stale).
 
@@ -259,30 +259,36 @@ def clear_filters_query(params: Mapping[str, str]) -> str:
 #: The bulk-edit selection param. Multi-valued (one per selected ulid); preserved across pagination
 #: so a no-JS selection survives page moves (spec §2/§3). NOT a search param — stripped from facet/
 #: sort links elsewhere, threaded only through the pagination + select-page links below.
-PARAM_AUSWAHL = "auswahl"
+PARAM_SELECTION = "auswahl"
 
 
-def page_query_with_auswahl(params: Mapping[str, str], auswahl: Sequence[str], page: int) -> str:
+def page_query_with_selection(
+    params: Mapping[str, str], selection: Sequence[str], page: int
+) -> str:
     """The pagination query string at ``page`` PLUS the multi-valued ``auswahl`` selection (spec §2).
     Preserves every filter, text and sort; only ``seite`` moves — URL-as-state, back-button-honest,
     no infinite scroll. Re-attaches every selected ulid (``doseq``) so paging never drops the
     selection. An empty selection omits the param entirely."""
-    pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
+    pairs: list[tuple[str, str]] = [
+        (k, v) for k, v in _clean(params).items() if k != PARAM_SELECTION
+    ]
     pairs = [(k, v) for k, v in pairs if k != PARAM_PAGE]
     pairs.append((PARAM_PAGE, str(page)))
-    pairs.extend((PARAM_AUSWAHL, u) for u in auswahl)
+    pairs.extend((PARAM_SELECTION, u) for u in selection)
     return urlencode(pairs)
 
 
 def select_page_query(
-    params: Mapping[str, str], auswahl: Sequence[str], page_ulids: Sequence[str]
+    params: Mapping[str, str], selection: Sequence[str], page_ulids: Sequence[str]
 ) -> str:
     """A workbench query in selection mode: the current state with ``page_ulids`` ADDED to the
     selection (deduped, order-preserving), staying on the current page (spec §2). The way back
     from the bulk confirm and result pages."""
-    merged = list(dict.fromkeys([*auswahl, *page_ulids]))
-    pairs: list[tuple[str, str]] = [(k, v) for k, v in _clean(params).items() if k != PARAM_AUSWAHL]
-    pairs.extend((PARAM_AUSWAHL, u) for u in merged)
+    merged = list(dict.fromkeys([*selection, *page_ulids]))
+    pairs: list[tuple[str, str]] = [
+        (k, v) for k, v in _clean(params).items() if k != PARAM_SELECTION
+    ]
+    pairs.extend((PARAM_SELECTION, u) for u in merged)
     return urlencode(pairs)
 
 

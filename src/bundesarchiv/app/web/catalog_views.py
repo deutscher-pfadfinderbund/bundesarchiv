@@ -35,11 +35,10 @@ from bundesarchiv.app import articles as article_services
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import Conflicted, Missing, SaveResult, Updated
 from bundesarchiv.app.web import catalog, landing, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import (
-    BestandCrumb,
+    CollectionCrumb,
     MediaTile,
-    bestand_crumbs,
+    collection_crumbs,
     media_tiles,
 )
 from bundesarchiv.app.web.card import (
@@ -50,8 +49,9 @@ from bundesarchiv.app.web.card import (
     first_empty_field,
     first_error_field,
 )
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import not_found
-from bundesarchiv.app.web.panels import artikel_rows, neu_artikel_panel
+from bundesarchiv.app.web.panels import article_rows, new_article_panel
 from bundesarchiv.app.web.viewers import (
     is_partial,
     panel_response,
@@ -76,7 +76,7 @@ from bundesarchiv.persistence.repository import Stored, cleaned_name
 
 #: The refusal when Veröffentlichen arrives for a record whose Bestand chain the domain cannot
 #: resolve, said as a field error on the Bestand.
-_EINBLICK_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
+_PUBLISH_UNRESOLVABLE = "Der Bestand lässt sich nicht auflösen — Veröffentlichen ist gesperrt."
 
 
 def _load_gated(
@@ -120,11 +120,11 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     if not isinstance(archivist, Archivist):
         return not_found()
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     if request.method == "POST":
         title = catalog.one_line(request.POST.get("title", ""))
         collection_id = request.POST.get("collection_id", "").strip()
-        errors = _create_errors(title, collection_id, bestand)
+        errors = _create_errors(title, collection_id, chooser)
         if not errors:
             created = article_services.create_article(
                 archive, changed_by=archivist.username, title=title, collection_id=collection_id
@@ -134,13 +134,13 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         if is_partial(request):
             return panel_response(
                 request,
-                neu_artikel_panel(bestand, title=title, collection_id=collection_id, errors=errors),
+                new_article_panel(chooser, title=title, collection_id=collection_id, errors=errors),
             )
         return render_screen(
             request,
             "workbench/article_new.html",
-            _create_context(bestand, title=title, collection_id=collection_id, errors=errors),
-            bestand=bestand,
+            _create_context(chooser, title=title, collection_id=collection_id, errors=errors),
+            chooser=chooser,
         )
     # GET: pre-select the Bestand only if it is a real collection (else ignore — no oracle); the
     # "Bestand … angelegt." line shows the name of a real Bestand, never text from the URL.
@@ -148,39 +148,41 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
         request,
         "workbench/article_new.html",
         _create_context(
-            bestand,
+            chooser,
             title="",
-            collection_id=landing.preselected_bestand(request, bestand),
+            collection_id=landing.preselected_collection(request, chooser),
             errors={},
-            angelegt=landing.created_bestand_name(request, bestand),
+            just_created=landing.created_collection_name(request, chooser),
         ),
-        bestand=bestand,
+        chooser=chooser,
     )
 
 
-def _create_errors(title: str, collection_id: str, bestand: BestandChooser) -> catalog.FormErrors:
+def _create_errors(
+    title: str, collection_id: str, chooser: CollectionChooser
+) -> catalog.FormErrors:
     """The two create-step validations (spec §2), verbatim strings — the same two rules the full
     parse layer applies, kept minimal here because the create step has only these two fields."""
     errors: catalog.FormErrors = {}
     if not title:
         errors["title"] = "Titel ist erforderlich."
-    if not bestand.accepts(collection_id):
-        errors["collection_id"] = bestand.error()
+    if not chooser.accepts(collection_id):
+        errors["collection_id"] = chooser.error()
     return errors
 
 
 def _create_context(
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     *,
     title: str,
     collection_id: str,
     errors: catalog.FormErrors,
-    angelegt: str = "",
+    just_created: str = "",
 ) -> dict[str, object]:
     """The create page's template context: its two fields and ``angelegt``, the just-created
     Bestand's name for the success hinweis (empty on the plain create step)."""
-    titel, bestand_feld = artikel_rows(bestand, title, collection_id, errors)
-    return {"titel": titel, "bestand_feld": bestand_feld, "angelegt": angelegt}
+    title_field, collection_field = article_rows(chooser, title, collection_id, errors)
+    return {"titel": title_field, "bestand_feld": collection_field, "angelegt": just_created}
 
 
 # --- /articles/<ulid>/edit — the full edit form (Slice B) ---------------------
@@ -195,13 +197,13 @@ def article_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None:
         return not_found()
     archive, stored, archivist = gated
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     if request.method == "POST":
-        return _handle_edit_post(request, archive, ulid, stored, bestand, archivist.username)
+        return _handle_edit_post(request, archive, ulid, stored, chooser, archivist.username)
     # After Duplizieren the copy lands with the just-cleared Signatur focused (spec §5).
-    fokus = "ref_code" if landing.focus_signatur(request) else ""
-    surface = EditSurface.of(stored.article, stored.version, bestand)
-    return surface.render(request, autofocus=fokus or surface.first_empty_field())
+    focus = "ref_code" if landing.focus_ref_code(request) else ""
+    surface = EditSurface.of(stored.article, stored.version, chooser)
+    return surface.render(request, autofocus=focus or surface.first_empty_field())
 
 
 def _handle_edit_post(
@@ -209,7 +211,7 @@ def _handle_edit_post(
     archive: Archive,
     ulid: Ulid,
     stored: Stored,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     changed_by: str,
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
@@ -222,7 +224,7 @@ def _handle_edit_post(
     404 with no mutation; draft → published is REFUSED when the exposure cannot be computed (the
     branch below)."""
     current = stored.article
-    surface = EditSurface.of(current, stored.version, bestand)
+    surface = EditSurface.of(current, stored.version, chooser)
     adding = "custom_neu" in request.POST
     if adding or "custom_entfernen" in request.POST:
         # spec §5: drop the named row or add an empty one, preserve everything else, save nothing.
@@ -240,7 +242,7 @@ def _handle_edit_post(
     result = catalog.parse_edit_form(
         request.POST,
         ulid=ulid,
-        bestand=bestand,
+        chooser=chooser,
         current_media=current.media,
         lifecycle=lifecycle,
         added_at=current.added_at,
@@ -250,7 +252,7 @@ def _handle_edit_post(
         result.article is not None
         and current.lifecycle is Lifecycle.DRAFT
         and lifecycle is Lifecycle.PUBLISHED
-        and bestand.chain_of(result.article.collection_id) is None
+        and chooser.chain_of(result.article.collection_id) is None
     ):
         # FAIL-CLOSED, server-side (learning G.43/G.48). The Status select drops Veröffentlicht when
         # the chain does not resolve, but that is the client half only, and the state is reachable with
@@ -264,7 +266,7 @@ def _handle_edit_post(
         result = replace(
             result,
             article=None,
-            errors={**result.errors, "collection_id": _EINBLICK_UNRESOLVABLE},
+            errors={**result.errors, "collection_id": _PUBLISH_UNRESOLVABLE},
         )
     if result.article is None:
         return surface.submitted(request.POST, result.expected_version).render(
@@ -282,7 +284,7 @@ def _handle_edit_post(
             # The surface is the WINNER's: crumbs, media and the refreshed expected_version come from
             # the record as it now stands; the form keeps the archivist's own values.
             return (
-                EditSurface.of(conflict.winner, conflict.current_version, bestand)
+                EditSurface.of(conflict.winner, conflict.current_version, chooser)
                 .submitted(request.POST, conflict.current_version)
                 .render(request, overlay=Conflict(conflict.submitted))
             )
@@ -376,18 +378,18 @@ class EditSurface:
 
     stored: Article
     version: Version
-    bestand: BestandChooser
+    chooser: CollectionChooser
     values: dict[str, object]
     media: tuple[MediaRef, ...]
 
     @classmethod
-    def of(cls, stored: Article, version: Version, bestand: BestandChooser) -> EditSurface:
+    def of(cls, stored: Article, version: Version, chooser: CollectionChooser) -> EditSurface:
         """The surface as saved: the form seeded from the stored Article, the register showing its
         media, the hidden version the one to save against."""
         return cls(
             stored=stored,
             version=version,
-            bestand=bestand,
+            chooser=chooser,
             values=_article_to_form_values(stored),
             media=stored.media,
         )
@@ -434,7 +436,7 @@ class EditSurface:
         conflict_rows = (
             _conflict_rows(overlay.submitted, self.stored) if isinstance(overlay, Conflict) else []
         )
-        inherited = _exposure_audience(replace(self.stored, audience=None), self.bestand)
+        inherited = _exposure_audience(replace(self.stored, audience=None), self.chooser)
         confirm = overlay.content_hash if isinstance(overlay, RemoveConfirm) else ""
         return render_screen(
             request,
@@ -446,11 +448,11 @@ class EditSurface:
                 "autofocus": autofocus,
                 "card_fields": card_fields(
                     self.values,
-                    self.bestand,
+                    self.chooser,
                     errors=errors,
                     autofocus=autofocus,
                     conflicts={row.name: row.stored for row in conflict_rows},
-                    sichtbarkeit_options=_sichtbarkeit_options(inherited),
+                    audience_options=_audience_options(inherited),
                     lifecycle_options=(
                         LIFECYCLE_OPTIONS[1:]
                         if inherited is None and self.stored.lifecycle is Lifecycle.DRAFT
@@ -459,21 +461,21 @@ class EditSurface:
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
                 "loeschen": vocab.TRASH_CONFIRM,
-                "crumbs": _crumbs(self.stored, self.bestand),
+                "crumbs": _crumbs(self.stored, self.chooser),
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
                 "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
                 "drawer_index_lag": vocab.INDEX_LAG if isinstance(overlay, DrawerIndexLag) else "",
             },
-            bestand=self.bestand,
+            chooser=self.chooser,
         )
 
 
-def _crumbs(article: Article, bestand: BestandChooser) -> tuple[BestandCrumb, ...]:
+def _crumbs(article: Article, chooser: CollectionChooser) -> tuple[CollectionCrumb, ...]:
     """The saved article's Bestand chain as crumbs, root first — the detail page's own builder. A
     chain the domain cannot resolve yields none: the crumbs show a place, and there is none."""
-    chain = bestand.chain_of(article.collection_id)
-    return () if chain is None else bestand_crumbs(chain)
+    chain = chooser.chain_of(article.collection_id)
+    return () if chain is None else collection_crumbs(chain)
 
 
 @dataclass(frozen=True, slots=True)
@@ -492,9 +494,7 @@ class _MediaRow:
     confirm_remove: bool
 
 
-def _media_rows(
-    ulid: str, media: tuple[MediaRef, ...], entfernen_hash: str
-) -> tuple[_MediaRow, ...]:
+def _media_rows(ulid: str, media: tuple[MediaRef, ...], remove_hash: str) -> tuple[_MediaRow, ...]:
     """The media register view-models, cover-first (the tuple's order is meaning, ADR 0015)."""
     last = len(media) - 1
     return tuple(
@@ -506,7 +506,7 @@ def _media_rows(
             is_cover=i == 0,
             is_first=i == 0,
             is_last=i == last,
-            confirm_remove=ref.content_hash == entfernen_hash,
+            confirm_remove=ref.content_hash == remove_hash,
         )
         for i, (ref, tile) in enumerate(zip(media, media_tiles(ulid, media), strict=True))
     )
@@ -592,13 +592,13 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
     page = reverse("article-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
         return redirect_to(request, page)
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
 
     def publish(article: Article) -> Article:
         if (
             article != stored.article
             or article.lifecycle is not Lifecycle.DRAFT
-            or bestand.chain_of(article.collection_id) is None
+            or chooser.chain_of(article.collection_id) is None
         ):
             raise _PublishRefused
         return replace(article, lifecycle=Lifecycle.PUBLISHED)
@@ -682,7 +682,7 @@ def _confirmed_delete(
     if gated is None:
         return not_found()
     archive, stored, archivist = gated
-    veraltet = ""
+    stale = ""
     if request.method == "POST":
         # The gate's load is what was checked, so it must be the version the CAS bets on.
         if stored.version == catalog.parse_version(request.POST.get("expected_version", "")):
@@ -699,13 +699,13 @@ def _confirmed_delete(
         if reloaded is None:
             return not_found()
         stored = reloaded
-        veraltet = _LOESCHEN_VERALTET
+        stale = _DELETE_STALE
     confirm = (
         vocab.delete_permanently_confirm(len(stored.article.media))
         if marked
         else vocab.TRASH_CONFIRM
     )
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     return render_screen(
         request,
         # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
@@ -714,10 +714,10 @@ def _confirmed_delete(
             "id": "endgueltig-loeschen" if marked else "loeschen",
             "ulid": ulid,
             "version": stored.version,
-            "veraltet": veraltet,
+            "veraltet": stale,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
-            "crumbs": _crumbs(stored.article, bestand),
+            "crumbs": _crumbs(stored.article, chooser),
             "lead": confirm.question,
             "consequence": confirm.consequence,
             "button": confirm.button,
@@ -728,12 +728,12 @@ def _confirmed_delete(
             "in_place": True,
             "action": request.get_full_path(),
         },
-        bestand=bestand,
+        chooser=chooser,
     )
 
 
 #: Why a delete asked again: the record was saved after its confirm was shown.
-_LOESCHEN_VERALTET = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
+_DELETE_STALE = "Jemand hat diesen Artikel inzwischen gespeichert. Prüfe, was gelöscht wird, und bestätige erneut."
 
 
 def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -760,21 +760,21 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
 # --- who would see it once published (G.34) ----------------------------------------
 
 
-def _exposure_audience(article: Article, bestand: BestandChooser) -> str | None:
+def _exposure_audience(article: Article, chooser: CollectionChooser) -> str | None:
     """Who would see ``article`` once published, in German, computed by the domain ``preview()``
     over the resolved collection chain so the who-sees decision stays in the domain. ``None`` when
     the chain cannot resolve (fail-closed: no statement rather than a misleading one)."""
-    chain = bestand.chain_of(article.collection_id)
+    chain = chooser.chain_of(article.collection_id)
     return None if chain is None else vocab.exposure_label(preview(article, chain))
 
 
-def _sichtbarkeit_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
+def _audience_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
     """The Sichtbarkeit options with the inherit caption naming the rung it inherits, so the form
     always says who will see the record (owner ruling 5; a1 round 3). ``inherited`` is the
     audience with the article's own setting cleared; unresolvable, the plain caption stays."""
     if inherited is None:
-        return vocab.SICHTBARKEIT_OPTIONS
-    return (("", f"{inherited} (wie Bestand)"), *vocab.SICHTBARKEIT_OPTIONS[1:])
+        return vocab.AUDIENCE_OPTIONS
+    return (("", f"{inherited} (wie Bestand)"), *vocab.AUDIENCE_OPTIONS[1:])
 
 
 # --- media manager: structural POSTs (spec §6.3 + ADR 0015) -----------------------
@@ -789,10 +789,10 @@ def _sichtbarkeit_options(inherited: str | None) -> tuple[tuple[str, str], ...]:
 _STRUCTURAL_SAVE_RETRIES = 2
 
 #: The German hinweis shown when a structural media change lost every race (see _structural_change).
-_MEDIEN_KONFLIKT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
+_MEDIA_CONFLICT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 
 #: The refusal of an upload whose name cleans to nothing (ADR 0019 "Media names").
-_DATEINAME_LEER = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
+_FILENAME_EMPTY = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
 
 
 def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
@@ -805,12 +805,12 @@ def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return not_found()
     archive, _, archivist = gated
     content_hash = request.POST.get("hash", "")
-    richtung = request.POST.get("richtung", "")
+    direction = request.POST.get("richtung", "")
     return _structural_change(
         request,
         archive,
         ulid,
-        lambda media: _reordered(media, content_hash, richtung),
+        lambda media: _reordered(media, content_hash, direction),
         changed_by=archivist.username,
     )
 
@@ -836,7 +836,7 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
     # step 1: show the inline confirm for this row (no mutation yet — the gated Stored is still
     # current, so no re-load here either)
     return _media_surface(
-        request, stored.article, stored.version, BestandChooser.of(archive)
+        request, stored.article, stored.version, CollectionChooser.of(archive)
     ).render(request, overlay=RemoveConfirm(content_hash))
 
 
@@ -857,10 +857,10 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     unnamed = any(cleaned_name(f.name or "") is None for f in files)
     if oversize or unnamed:
         message = (
-            "Datei zu groß. Bitte kleinere Dateien hochladen." if oversize else _DATEINAME_LEER
+            "Datei zu groß. Bitte kleinere Dateien hochladen." if oversize else _FILENAME_EMPTY
         )
         return _media_surface(
-            request, stored.article, stored.version, BestandChooser.of(archive)
+            request, stored.article, stored.version, CollectionChooser.of(archive)
         ).render(request, overlay=MediaError(message))
     repo = archive.articles
     new_refs = [
@@ -876,7 +876,7 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
         )
     # no files posted — plain re-render of the gated Stored
     return _media_surface(
-        request, stored.article, stored.version, BestandChooser.of(archive)
+        request, stored.article, stored.version, CollectionChooser.of(archive)
     ).render(request)
 
 
@@ -923,7 +923,7 @@ def _structural_change(
         changed_by=changed_by,
         retries=_STRUCTURAL_SAVE_RETRIES,
     )
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     match outcome:
         case Missing():
             return not_found()
@@ -932,11 +932,11 @@ def _structural_change(
                 stored = archive.articles.load(ulid)
             except ArchiveError:
                 return not_found()  # hard-deleted between the lost race and this re-load
-            return _media_surface(request, stored.article, stored.version, bestand).render(
-                request, overlay=MediaError(_MEDIEN_KONFLIKT)
+            return _media_surface(request, stored.article, stored.version, chooser).render(
+                request, overlay=MediaError(_MEDIA_CONFLICT)
             )
         case Updated(article=article, version=version, index_updated=index_updated):
-            return _media_surface(request, article, version, bestand, own_save=True).render(
+            return _media_surface(request, article, version, chooser, own_save=True).render(
                 request, overlay=_NO_OVERLAY if index_updated else DrawerIndexLag()
             )
 
@@ -945,7 +945,7 @@ def _media_surface(
     request: HttpRequest,
     article: Article,
     version: Version,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     *,
     own_save: bool = False,
 ) -> EditSurface:
@@ -958,19 +958,19 @@ def _media_surface(
     raw = request.POST.get("expected_version")
     held = None if raw is None else catalog.parse_version(raw)
     shown = version if held is None or (own_save and version == held + 1) else held
-    surface = EditSurface.of(article, shown, bestand)
+    surface = EditSurface.of(article, shown, chooser)
     return replace(surface, media=catalog.apply_captions(request.POST, article.media))
 
 
 def _reordered(
-    media: tuple[MediaRef, ...], content_hash: str, richtung: str
+    media: tuple[MediaRef, ...], content_hash: str, direction: str
 ) -> tuple[MediaRef, ...]:
     """Move the entry named by ``content_hash`` one step ``hoch`` (earlier) or ``runter`` (later). A
     missing hash, an unknown direction, or a move past an edge is a no-op (returns the tuple as-is)."""
     index = next((i for i, r in enumerate(media) if r.content_hash == content_hash), None)
     if index is None:
         return media
-    target = index - 1 if richtung == "hoch" else index + 1 if richtung == "runter" else index
+    target = index - 1 if direction == "hoch" else index + 1 if direction == "runter" else index
     if not (0 <= target < len(media)) or target == index:
         return media
     items = list(media)

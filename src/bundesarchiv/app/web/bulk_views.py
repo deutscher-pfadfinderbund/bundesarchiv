@@ -9,7 +9,7 @@ from django.http.response import HttpResponseBase
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, bulk, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -25,23 +25,23 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     if not isinstance(archivist, Archivist) or request.method != "POST":
         return not_found()
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     # the ledger's ticked head box ("alle") carries the rows of the page it was rendered on
-    alle = request.POST.get("alle", "").split()
-    auswahl = _distinct_valid_ulids([*request.POST.getlist("auswahl"), *alle])
-    feld = request.POST.get("feld", "")
-    # Read the value for ANY feld, allowed or not: a refused field never mutates (``_validate``
+    all_ulids = request.POST.get("alle", "").split()
+    selection = _distinct_valid_ulids([*request.POST.getlist("auswahl"), *all_ulids])
+    field = request.POST.get("feld", "")
+    # Read the value for ANY field, allowed or not: a refused field never mutates (``_validate``
     # gates that), and the reject page must echo what was typed — gating the read here blanked the
     # value whenever the placeholder was submitted.
-    wert = request.POST.get(bulk.value_input_of(feld), "")
+    value = request.POST.get(bulk.value_input_of(field), "")
 
-    error = _validate(auswahl, feld, archive, bestand, wert)
+    error = _validate(selection, field, archive, chooser, value)
     if error is not None:
-        return _reject(request, bestand, auswahl, feld, wert, error)
+        return _reject(request, chooser, selection, field, value, error)
 
     if request.POST.get("bestaetigt") == "1":
-        return _commit(request, archive, bestand, auswahl, feld, wert, archivist.username)
-    return _confirm(request, archive, bestand, auswahl, feld, wert)
+        return _commit(request, archive, chooser, selection, field, value, archivist.username)
+    return _confirm(request, archive, chooser, selection, field, value)
 
 
 def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
@@ -72,22 +72,22 @@ def _distinct_valid_ulids(raw: list[str]) -> list[str]:
 
 
 def _validate(
-    auswahl: list[str], feld: str, archive: Archive, bestand: BestandChooser, wert: str
+    selection: list[str], field: str, archive: Archive, chooser: CollectionChooser, value: str
 ) -> str | None:
     """The verbatim German refusal of an apply, or ``None`` when it may proceed."""
-    if not auswahl:
+    if not selection:
         return "Keine Artikel ausgewählt."
-    if not feld or not bulk.is_allowed_field(feld):
+    if not field or not bulk.is_allowed_field(field):
         return "Bitte ein Feld wählen."
-    if feld == "media_type" and (wert.strip() not in vocab.media_types()):
+    if field == "media_type" and (value.strip() not in vocab.media_types()):
         return "Medienart ist erforderlich."
-    if feld == "collection_id" and not bestand.accepts(wert):
-        return bestand.error()
-    if feld == "document_type" and wert.strip():
-        loaded = _load_all(archive, auswahl)
-        if not bulk.document_type_fits_all(wert.strip(), loaded):
+    if field == "collection_id" and not chooser.accepts(value):
+        return chooser.error()
+    if field == "document_type" and value.strip():
+        loaded = _load_all(archive, selection)
+        if not bulk.document_type_fits_all(value.strip(), loaded):
             return (
-                f"„{wert.strip()}“ gehört nicht zur Medienart aller ausgewählten Artikel. "
+                f"„{value.strip()}“ gehört nicht zur Medienart aller ausgewählten Artikel. "
                 "Bitte zuerst die Medienart angleichen oder die Auswahl einschränken."
             )
     return None
@@ -96,67 +96,67 @@ def _validate(
 def _confirm(
     request: HttpRequest,
     archive: Archive,
-    bestand: BestandChooser,
-    auswahl: list[str],
-    feld: str,
-    wert: str,
+    chooser: CollectionChooser,
+    selection: list[str],
+    field: str,
+    value: str,
 ) -> HttpResponseBase:
     """The check page (state D). An absent article is left out; the commit buckets it ``missing``, so
     the page reveals nothing about why it is gone."""
-    articles = _load_all(archive, auswahl)
-    orphans = {a.ulid for a in _orphans(articles, feld, wert)}
+    articles = _load_all(archive, selection)
+    orphans = {a.ulid for a in _orphans(articles, field, value)}
     return render_screen(
         request,
         "workbench/bulk_edit_review.html",
         {
             "auswahl": [a.ulid for a in articles],
-            "feld": feld,
-            "wert": wert,
-            "wert_field": bulk.value_input_of(feld),
-            "feld_label": bulk.label_of(feld),
-            "wert_display": bulk.field_display(feld, wert, bestand),
+            "feld": field,
+            "wert": value,
+            "wert_field": bulk.value_input_of(field),
+            "feld_label": bulk.label_of(field),
+            "wert_display": bulk.field_display(field, value, chooser),
             "anzahl": len(articles),
-            "betroffen": bulk.counted(feld, len(articles)),
+            "betroffen": bulk.counted(field, len(articles)),
             "geleert": bulk.counted("document_type", len(orphans)) if orphans else "",
             "zeilen": [
                 {
                     "ref_code": a.ref_code or "",
                     "title": a.title,
-                    "bisher": bulk.current_display(a, feld, bestand),
+                    "bisher": bulk.current_display(a, field, chooser),
                     "dokumenttyp": (a.document_type or "") if a.ulid in orphans else "",
                 }
                 for a in articles
             ],
             "abbrechen_query": browse.select_page_query({}, [a.ulid for a in articles], []),
         },
-        bestand=bestand,
+        chooser=chooser,
     )
 
 
 def _commit(
     request: HttpRequest,
     archive: Archive,
-    bestand: BestandChooser,
-    auswahl: list[str],
-    feld: str,
-    wert: str,
+    chooser: CollectionChooser,
+    selection: list[str],
+    field: str,
+    value: str,
     changed_by: str,
 ) -> HttpResponseBase:
     """The commit and its result page (state R). A Medienart change that clears a Dokumenttyp needs
     ``dokumenttyp_leeren=1``; without it the check page comes back and nothing is written."""
     if (
-        feld == "media_type"
+        field == "media_type"
         and request.POST.get("dokumenttyp_leeren") != "1"
-        and _orphans(_load_all(archive, auswahl), feld, wert)
+        and _orphans(_load_all(archive, selection), field, value)
     ):
-        return _confirm(request, archive, bestand, auswahl, feld, wert)  # re-confirm, no write
-    outcome = bulk.apply_bulk(archive, auswahl, feld, wert, changed_by=changed_by)
+        return _confirm(request, archive, chooser, selection, field, value)  # re-confirm, no write
+    outcome = bulk.apply_bulk(archive, selection, field, value, changed_by=changed_by)
     return render_screen(
         request,
         "workbench/bulk_edit_result.html",
         {
-            "feld_label": bulk.label_of(feld),
-            "wert_display": bulk.field_display(feld, wert, bestand),
+            "feld_label": bulk.label_of(field),
+            "wert_display": bulk.field_display(field, value, chooser),
             "saved": outcome.saved,
             "total": outcome.saved + len(outcome.conflicted) + len(outcome.missing),
             "conflicted": outcome.conflicted,
@@ -165,16 +165,16 @@ def _commit(
             "bulk_index_lag": vocab.BULK_INDEX_LAG if outcome.index_lagged else "",
             "erneut_query": browse.select_page_query({}, [], [r.ulid for r in outcome.conflicted]),
         },
-        bestand=bestand,
+        chooser=chooser,
     )
 
 
 def _reject(
     request: HttpRequest,
-    bestand: BestandChooser,
-    auswahl: list[str],
-    feld: str,
-    wert: str,
+    chooser: CollectionChooser,
+    selection: list[str],
+    field: str,
+    value: str,
     error: str,
 ) -> HttpResponseBase:
     """A refused apply (spec §2 C): the check page with the Feld chooser, what was sent and the
@@ -183,25 +183,25 @@ def _reject(
         request,
         "workbench/bulk_edit_review.html",
         {
-            "auswahl": auswahl,
+            "auswahl": selection,
             "fehler": error,
-            "anzahl": len(auswahl),
-            "abbrechen_query": browse.select_page_query({}, auswahl, []),
-            **bulk.feldwahl_context(bestand, feld=feld, wert=wert),
+            "anzahl": len(selection),
+            "abbrechen_query": browse.select_page_query({}, selection, []),
+            **bulk.field_picker_context(chooser, field=field, value=value),
         },
-        bestand=bestand,
+        chooser=chooser,
     )
 
 
-def _orphans(articles: list[Article], feld: str, wert: str) -> list[Article]:
+def _orphans(articles: list[Article], field: str, value: str) -> list[Article]:
     """The articles whose Dokumenttyp would be cleared by a Medienart change (spec §3) — a non-empty
-    current document_type that does not fit the new media_type. Empty for any non-media_type feld."""
-    if feld != "media_type":
+    current document_type that does not fit the new media_type. Empty for any non-media_type field."""
+    if field != "media_type":
         return []
     return [
         a
         for a in articles
-        if a.document_type is not None and not vocab.is_valid_pair(wert.strip(), a.document_type)
+        if a.document_type is not None and not vocab.is_valid_pair(value.strip(), a.document_type)
     ]
 
 

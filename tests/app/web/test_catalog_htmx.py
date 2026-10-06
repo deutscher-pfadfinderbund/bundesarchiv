@@ -37,7 +37,7 @@ def test_dokumenttypen_unknown_media_type_yields_only_empty_option(corpus: Corpu
     assert response.status_code == 200
     body = response.content.decode()
     assert "kein Dokumenttyp" in body
-    every_type = {t for types in vocab.MEDIENART_DOKUMENTTYP.values() for t in types}
+    every_type = {t for types in vocab.MEDIA_TYPE_DOCUMENT_TYPES.values() for t in types}
     assert not {t for t in every_type if f'value="{t}"' in body}
 
 

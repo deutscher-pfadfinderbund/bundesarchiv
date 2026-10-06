@@ -30,7 +30,7 @@ from tests.app.web._fixtures import (
     page_forms,
 )
 
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -508,7 +508,7 @@ def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> 
     from bundesarchiv.app.web.card import card_fields
 
     sections = card_fields(
-        {"ulid": _ULID}, BestandChooser(lambda: ()), errors=errors or {}, autofocus=autofocus
+        {"ulid": _ULID}, CollectionChooser(lambda: ()), errors=errors or {}, autofocus=autofocus
     )
     return [row for group in sections.values() for row in group]
 
@@ -657,7 +657,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
 
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
     marked = {str(c["name"]) for c in _controls(body) if c.get("aria-required") == "true"}
-    chooser = BestandChooser(lambda: (make_collection("PUB"),))
+    chooser = CollectionChooser(lambda: (make_collection("PUB"),))
     refused = {
         registered.name
         for registered in FIELDS
@@ -666,7 +666,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
         in catalog.parse_edit_form(
             {**_valid_post(corpus), registered.name: ""},
             ulid=_ULID,
-            bestand=chooser,
+            chooser=chooser,
             added_at=None,
             deleted=None,
         ).errors

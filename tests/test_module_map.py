@@ -131,7 +131,7 @@ INTERFACE_ALLOW: dict[str, str] = {
     "app/articles.py:delete_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
     "app/articles.py:restore_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",
     **{
-        f"app/web/bestand.py:{m}": _BESTAND
+        f"app/web/collection_chooser.py:{m}": _BESTAND
         for m in ("options", "accepts", "error", "name_of", "names", "by_ulid", "chain_of")
     },
     **{

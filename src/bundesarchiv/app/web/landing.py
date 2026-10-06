@@ -9,26 +9,26 @@ from urllib.parse import urlencode
 from django.http import HttpRequest
 from django.urls import reverse
 
-from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse import PARAM_COLLECTION
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 
-_ANGELEGT, _FOKUS, _INDEX = "angelegt", "fokus", "index"
-_YES, _SIGNATUR, _LAGGING = "1", "signatur", "lagging"
+_CREATED, _FOCUS, _INDEX = "angelegt", "fokus", "index"
+_YES, _REF_CODE, _LAGGING = "1", "signatur", "lagging"
 
 #: The keys that hand state to ONE page: no link built from that page's address may carry them on.
-FLAG_KEYS = frozenset({_ANGELEGT, _FOKUS, _INDEX})
+FLAG_KEYS = frozenset({_CREATED, _FOCUS, _INDEX})
 #: What the address-clearing script (``list_address.js``) spells; pinned by a test.
 LAG_FLAG = (_INDEX, _LAGGING)
 
 
-def bestand_created_url(ulid: str) -> str:
+def created_collection_url(ulid: str) -> str:
     """The create-article form with the just-created Bestand pre-selected and announced."""
-    return f"{reverse('article-create')}?{urlencode({PARAM_COLLECTION: ulid, _ANGELEGT: _YES})}"
+    return f"{reverse('article-create')}?{urlencode({PARAM_COLLECTION: ulid, _CREATED: _YES})}"
 
 
 def copy_url(ulid: str) -> str:
     """The edit form of a fresh copy, with the cleared Signatur focused."""
-    return f"{reverse('article-edit', args=[ulid])}?{urlencode({_FOKUS: _SIGNATUR})}"
+    return f"{reverse('article-edit', args=[ulid])}?{urlencode({_FOCUS: _REF_CODE})}"
 
 
 def noting_lag(url: str, index_updated: bool) -> str:
@@ -38,21 +38,21 @@ def noting_lag(url: str, index_updated: bool) -> str:
     return f"{url}{'&' if '?' in url else '?'}{urlencode({_INDEX: _LAGGING})}"
 
 
-def preselected_bestand(request: HttpRequest, bestand: BestandChooser) -> str:
+def preselected_collection(request: HttpRequest, chooser: CollectionChooser) -> str:
     """The pre-selected Bestand's ulid if it is a real one, else "" (a bogus id is no oracle)."""
     ulid = request.GET.get(PARAM_COLLECTION, "").strip()
-    return ulid if bestand.accepts(ulid) else ""
+    return ulid if chooser.accepts(ulid) else ""
 
 
-def created_bestand_name(request: HttpRequest, bestand: BestandChooser) -> str:
+def created_collection_name(request: HttpRequest, chooser: CollectionChooser) -> str:
     """The name to announce as just created: the pre-selected real Bestand's, or "" without one."""
-    if request.GET.get(_ANGELEGT) != _YES:
+    if request.GET.get(_CREATED) != _YES:
         return ""
-    return bestand.name_of(preselected_bestand(request, bestand)) or ""
+    return chooser.name_of(preselected_collection(request, chooser)) or ""
 
 
-def focus_signatur(request: HttpRequest) -> bool:
-    return request.GET.get(_FOKUS) == _SIGNATUR
+def focus_ref_code(request: HttpRequest) -> bool:
+    return request.GET.get(_FOCUS) == _REF_CODE
 
 
 def index_lagging(request: HttpRequest) -> bool:

@@ -10,7 +10,7 @@ import pytest
 from tests.app.web._fixtures import make_collection
 
 from bundesarchiv.app.web import browse, ledger
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.index.query import FileKind, SearchHit
 
 _ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
@@ -46,10 +46,10 @@ def _build(
         columns=columns,
         parsed=replace(parsed, filters=replace(parsed.filters, drafts_only=drafts_only)),
         params=query,
-        auswahl=(),
+        selection=(),
         is_archivist=is_archivist,
         selected_ulid=None,
-        bestand=BestandChooser(lambda: (make_collection(_BESTAND, "Gau Wartburg"),)),
+        chooser=CollectionChooser(lambda: (make_collection(_BESTAND, "Gau Wartburg"),)),
     )
 
 

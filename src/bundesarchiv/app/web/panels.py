@@ -10,9 +10,9 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import vocab
-from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
 from bundesarchiv.app.web.card import CardRow, card_fields
 from bundesarchiv.app.web.catalog import FormErrors
+from bundesarchiv.app.web.collection_chooser import TOP_LEVEL_LABEL, CollectionChooser
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Version
 from bundesarchiv.persistence.collections import StoredCollection
@@ -42,22 +42,22 @@ class FormPanel:
         return tuple(row.in_panel(self.id) for row in self.rows)
 
 
-def header_panels(bestand: BestandChooser, *, aktiver: str | None) -> tuple[FormPanel, ...]:
+def header_panels(chooser: CollectionChooser, *, active: str | None) -> tuple[FormPanel, ...]:
     """The header's forms as tool panels: Neuer Artikel (the Bestand ``aktiver`` preselected, while the
     list is scoped to one) and Neuer Bestand in the "+ Neu …" menu, and in that case Bestand
     bearbeiten, which the list's own button opens. Archivist chrome — the caller
     (``viewers.render_screen``) builds it for archivists only; the routes stay gated on their own."""
     panels = [
-        neu_artikel_panel(bestand, collection_id=aktiver or ""),
-        neu_bestand_panel(bestand_rows(bestand, "", "", "", "", {})),
+        new_article_panel(chooser, collection_id=active or ""),
+        new_collection_panel(collection_rows(chooser, "", "", "", "", {})),
     ]
-    if aktiver is not None and is_valid_ulid(aktiver):
+    if active is not None and is_valid_ulid(active):
         try:
-            stored = Archive.canonical().collections.load(aktiver)
+            stored = Archive.canonical().collections.load(active)
         except ArchiveError:
             return tuple(panels)
         panels.append(
-            bestand_bearbeiten_panel(bestand, stored, stored.collection.name, {}, stored.version)
+            edit_collection_panel(chooser, stored, stored.collection.name, {}, stored.version)
         )
     return tuple(panels)
 
@@ -65,8 +65,8 @@ def header_panels(bestand: BestandChooser, *, aktiver: str | None) -> tuple[Form
 # --- Neuer Artikel ---------------------------------------------------------------------
 
 
-def neu_artikel_panel(
-    bestand: BestandChooser,
+def new_article_panel(
+    chooser: CollectionChooser,
     *,
     title: str = "",
     collection_id: str = "",
@@ -77,20 +77,20 @@ def neu_artikel_panel(
         id="neu-artikel",
         label="Neuer Artikel …",
         action=reverse("article-create"),
-        rows=artikel_rows(bestand, title, collection_id, errors or {}),
+        rows=article_rows(chooser, title, collection_id, errors or {}),
         button="Anlegen",
     )
 
 
-def artikel_rows(
-    bestand: BestandChooser, title: str, collection_id: str, errors: FormErrors
+def article_rows(
+    chooser: CollectionChooser, title: str, collection_id: str, errors: FormErrors
 ) -> tuple[CardRow, CardRow]:
     """Titel and Bestand from the registry, with the preserved values, the field errors, and the
     server-computed autofocus target (Titel unless it already has a value)."""
     autofocus = "collection_id" if title and "title" not in errors else "title"
     fields = card_fields(
         {"title": title, "collection_id": collection_id},
-        bestand,
+        chooser,
         errors=errors,
         autofocus=autofocus,
         only=("title", "collection_id"),
@@ -101,7 +101,7 @@ def artikel_rows(
 # --- Neuer Bestand ---------------------------------------------------------------------
 
 
-def neu_bestand_panel(rows: tuple[CardRow, ...]) -> FormPanel:
+def new_collection_panel(rows: tuple[CardRow, ...]) -> FormPanel:
     """The create form as the header's "Neuer Bestand" tool panel."""
     return FormPanel(
         id="neu-bestand",
@@ -112,12 +112,12 @@ def neu_bestand_panel(rows: tuple[CardRow, ...]) -> FormPanel:
     )
 
 
-def bestand_rows(
-    bestand: BestandChooser,
+def collection_rows(
+    chooser: CollectionChooser,
     name: str,
     parent_id: str,
-    sichtbarkeit: str,
-    gruppen: str,
+    audience_choice: str,
+    groups_text: str,
     errors: FormErrors,
 ) -> tuple[CardRow, ...]:
     """The create form's fields: preserved values, the parent + Sichtbarkeit options, field errors,
@@ -138,22 +138,22 @@ def bestand_rows(
             control="select",
             value=parent_id,
             error=errors.get("parent_id", ""),
-            options=bestand.parent_options(),
+            options=chooser.parent_options(),
             autofocus=autofocus == "parent_id",
         ),
         CardRow(
             "sichtbarkeit",
             "Sichtbarkeit",
             control="select",
-            value=sichtbarkeit,
+            value=audience_choice,
             error=errors.get("sichtbarkeit", ""),
-            options=vocab.SICHTBARKEIT_OPTIONS,
+            options=vocab.AUDIENCE_OPTIONS,
         ),
         CardRow(
             "gruppen",
             "Gruppen",
             control="textarea",
-            value=gruppen,
+            value=groups_text,
             hint="Eine Gruppe pro Zeile (nur bei Sichtbarkeit „Gruppe(n)“)",
         ),
     )
@@ -162,8 +162,8 @@ def bestand_rows(
 # --- Bestand bearbeiten ----------------------------------------------------------------
 
 
-def bestand_bearbeiten_panel(
-    bestand: BestandChooser,
+def edit_collection_panel(
+    chooser: CollectionChooser,
     stored: StoredCollection,
     name: str,
     errors: FormErrors,
@@ -195,9 +195,9 @@ def bestand_bearbeiten_panel(
         fakten=(
             (
                 "Eltern-Bestand",
-                TOP_LEVEL_LABEL if parent_id is None else bestand.name_of(parent_id) or parent_id,
+                TOP_LEVEL_LABEL if parent_id is None else chooser.name_of(parent_id) or parent_id,
             ),
-            ("Sichtbarkeit", vocab.sichtbarkeit_label(collection.audience)),
+            ("Sichtbarkeit", vocab.audience_label(collection.audience)),
         ),
         hinweis="Verschieben und Sichtbarkeit ändern folgen später.",
         jetzt=conflict_name,

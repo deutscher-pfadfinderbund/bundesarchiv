@@ -70,12 +70,12 @@ def test_bulk_get_is_404(two_drafts: Corpus) -> None:
 
 
 @pytest.mark.parametrize(
-    "feld", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit", "added_at"]
+    "field", ["lifecycle", "audience", "ulid", "__class__", "sichtbarkeit", "added_at"]
 )
-def test_forbidden_feld_writes_nothing(two_drafts: Corpus, feld: str) -> None:
+def test_forbidden_feld_writes_nothing(two_drafts: Corpus, field: str) -> None:
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
-        {"auswahl": [_A], "feld": feld, "wert_text": "x", "bestaetigt": "1"},
+        {"auswahl": [_A], "feld": field, "wert_text": "x", "bestaetigt": "1"},
     )
     assert response.status_code == 200  # re-renders the confirm frame with the field error
     assert "Bitte ein Feld wählen." in response.content.decode()
@@ -111,23 +111,23 @@ _ECHOED_VALUE = {
 }
 
 
-@pytest.mark.parametrize("feld", [f.target for f in bulk.FIELDS])
-def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, feld: str) -> None:
+@pytest.mark.parametrize("field", [f.target for f in bulk.FIELDS])
+def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -> None:
     # Values-preserved-verbatim (spec §2 C) for EVERY bulk field: the rejected submit comes back with
     # the field pre-selected and the value in that field's own widget. The empty auswahl is what
     # rejects, so the field/value pair itself is always well-formed and reaches the re-render.
-    widget = bulk.value_input_of(feld)
-    wert = _ECHOED_VALUE[widget]
+    widget = bulk.value_input_of(field)
+    value = _ECHOED_VALUE[widget]
     response = client_as(Archivist()).post(
-        "/articles/bulk-edit", {"feld": feld, widget: wert, "bestaetigt": "1"}
+        "/articles/bulk-edit", {"feld": field, widget: value, "bestaetigt": "1"}
     )
     body = response.content.decode()
     assert "Keine Artikel ausgewählt." in body  # verbatim error
-    assert f'<option value="{feld}" selected>' in body  # the chosen Feld stays chosen
+    assert f'<option value="{field}" selected>' in body  # the chosen Feld stays chosen
     echoed = (
-        f'name="{widget}" value="{wert}"'
+        f'name="{widget}" value="{value}"'
         if widget == "wert_text"
-        else f'<option value="{wert}" selected>'
+        else f'<option value="{value}" selected>'
     )
     assert echoed in body
 
@@ -174,12 +174,12 @@ def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
 # --- confirm phase (no bestaetigt) -------------------------------------------------
 
 
-@pytest.mark.parametrize("feld", ["creator", ""])
-def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, feld: str) -> None:
+@pytest.mark.parametrize("field", ["creator", ""])
+def test_the_check_page_leads_back_to_the_selection(two_drafts: Corpus, field: str) -> None:
     # both modes (the check, and a refusal): the way back is the list with the selection kept
     body = (
         client_as(Archivist())
-        .post("/articles/bulk-edit", {"auswahl": [_A, _B], "feld": feld, "wert_text": "X"})
+        .post("/articles/bulk-edit", {"auswahl": [_A, _B], "feld": field, "wert_text": "X"})
         .content.decode()
     )
     back = f"{reverse('workbench')}?{browse.select_page_query({}, [_A, _B], [])}"
@@ -199,7 +199,7 @@ def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpu
 
 
 @pytest.mark.parametrize(
-    ("feld", "widget", "wert", "bisher", "saved_as"),
+    ("field", "widget", "value", "bisher", "saved_as"),
     [
         ("creator", "wert_text", "Neu", "Alt-Autor", {"creator": "Alt-Autor"}),
         ("Quelle", "wert_text", "Neu", "Alt-Quelle", {"custom": (("Quelle", "Alt-Quelle"),)}),
@@ -207,7 +207,12 @@ def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpu
     ],
 )
 def test_the_check_page_shows_each_value_it_replaces(
-    two_drafts: Corpus, feld: str, widget: str, wert: str, bisher: str, saved_as: dict[str, object]
+    two_drafts: Corpus,
+    field: str,
+    widget: str,
+    value: str,
+    bisher: str,
+    saved_as: dict[str, object],
 ) -> None:
     # the value a record loses reaches the page before the commit; a Bestand by its name
     two_drafts.articles.save(
@@ -219,7 +224,7 @@ def test_the_check_page_shows_each_value_it_replaces(
     )
     body = (
         client_as(Archivist())
-        .post("/articles/bulk-edit", {"auswahl": [_A], "feld": feld, widget: wert})
+        .post("/articles/bulk-edit", {"auswahl": [_A], "feld": field, widget: value})
         .content.decode()
     )
     assert bisher in body.split("<main", 1)[1]  # the header's panels list every Bestand

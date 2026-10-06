@@ -3,15 +3,15 @@
 Pure presentation helpers, IO-free and request-free so the form controller and its tests read
 one source with no database:
 
-- ``MEDIENART_DOKUMENTTYP`` — the Medienart→Dokumenttyp vocabulary. The words are the ARCHIVISTS'
-  data, not a design decision: ``MEDIENARTEN`` and ``DOKUMENTTYPEN`` are the legacy archive's own
+- ``MEDIA_TYPE_DOCUMENT_TYPES`` — the Medienart→Dokumenttyp vocabulary. The words are the ARCHIVISTS'
+  data, not a design decision: ``MEDIA_TYPES`` and ``DOCUMENT_TYPES`` are the legacy archive's own
   lists, verbatim and in legacy order, so the imported records keep the terms their catalogers
   wrote. Every Medienart offers the whole Dokumenttyp list until the archivists narrow it; the
   mapping, not the accessors, is what changes then. It sits behind ``media_types`` /
   ``document_types_for`` / ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set
   so the dependent-select render (no-JS baseline), the server-side pair re-validation, and the HTMX
   ``/document-types`` endpoint never derive the vocabulary twice.
-- ``datierung_parts`` / ``human_size`` — how the article page spells a date (``<time>`` parts) and
+- ``date_parts`` / ``human_size`` — how the article page spells a date (``<time>`` parts) and
   the edit form a file's size. Display helpers: they never validate, so they cannot be an error surface.
 """
 
@@ -26,7 +26,7 @@ from bundesarchiv.domain.models import Audience, AudienceTier
 from bundesarchiv.index.query import FileKind
 
 #: The Medienarten, verbatim and in the legacy archive's order — the words its catalogers used.
-MEDIENARTEN: tuple[str, ...] = (
+MEDIA_TYPES: tuple[str, ...] = (
     "Audiodatei",
     "Buch",
     "CD / DVD",
@@ -47,7 +47,7 @@ MEDIENARTEN: tuple[str, ...] = (
 )
 
 #: The Dokumenttypen, verbatim and in the legacy lookup table's order.
-DOKUMENTTYPEN: tuple[str, ...] = (
+DOCUMENT_TYPES: tuple[str, ...] = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
     "Fahrtenbericht",
@@ -69,15 +69,15 @@ DOKUMENTTYPEN: tuple[str, ...] = (
 #: Medienart → the Dokumenttypen it offers. Insertion order is the render order of the Medienart
 #: select. Uniform today: narrowing a Medienart is the archivists' call, and until they make it no
 #: legacy pair can be refused by a narrowing nobody asked for.
-MEDIENART_DOKUMENTTYP: dict[str, tuple[str, ...]] = dict.fromkeys(MEDIENARTEN, DOKUMENTTYPEN)
+MEDIA_TYPE_DOCUMENT_TYPES: dict[str, tuple[str, ...]] = dict.fromkeys(MEDIA_TYPES, DOCUMENT_TYPES)
 
 #: The single optgroup's label while every Medienart shares one Dokumenttyp list.
-ALLE_MEDIENARTEN = "Alle Medienarten"
+ALL_MEDIA_TYPES = "Alle Medienarten"
 
 
 def media_types() -> tuple[str, ...]:
     """The Medienart values the select offers, in vocabulary order (the mapping's keys)."""
-    return tuple(MEDIENART_DOKUMENTTYP)
+    return tuple(MEDIA_TYPE_DOCUMENT_TYPES)
 
 
 def media_type_options() -> tuple[tuple[str, str], ...]:
@@ -89,7 +89,7 @@ def media_type_options() -> tuple[tuple[str, str], ...]:
 
 def document_types_for(media_type: str) -> tuple[str, ...]:
     """The Dokumenttyp values belonging to ``media_type``, or ``()`` for an unknown/empty one."""
-    return MEDIENART_DOKUMENTTYP.get(media_type, ())
+    return MEDIA_TYPE_DOCUMENT_TYPES.get(media_type, ())
 
 
 def is_valid_pair(media_type: str | None, document_type: str | None) -> bool:
@@ -111,12 +111,12 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
     While every Medienart offers the same list there is ONE group: 17 identical optgroups would be
     noise, not guidance. Once the archivists narrow a Medienart the grouping is per Medienart again.
     """
-    offered = set(MEDIENART_DOKUMENTTYP.values())
+    offered = set(MEDIA_TYPE_DOCUMENT_TYPES.values())
     if len(offered) == 1:
-        return ((ALLE_MEDIENARTEN, tuple((t, t) for t in offered.pop())),)
+        return ((ALL_MEDIA_TYPES, tuple((t, t) for t in offered.pop())),)
     return tuple(
         (media_type, tuple((t, t) for t in types))
-        for media_type, types in MEDIENART_DOKUMENTTYP.items()
+        for media_type, types in MEDIA_TYPE_DOCUMENT_TYPES.items()
     )
 
 
@@ -125,27 +125,27 @@ def grouped_document_type_options() -> tuple[tuple[str, tuple[tuple[str, str], .
 #: The German Sichtbarkeit rung captions — the ONE source for the ladder's user-facing words. Every
 #: audience-label helper across the web slice (the archivist ledger, the CAS diff, the publish
 #: preview, the read-only Bestand row) formats from these, so a wording change is a one-place edit and
-#: the strings can never drift between screens. ``SICHTBARKEIT_ERBEN`` is the ADR-0001 inherit default.
-SICHTBARKEIT_ERBEN = "Vom Bestand erben"
-SICHTBARKEIT_PUBLIC = "Öffentlich"
-SICHTBARKEIT_MEMBERS = "Alle Mitglieder"
+#: the strings can never drift between screens. ``AUDIENCE_INHERIT`` is the ADR-0001 inherit default.
+AUDIENCE_INHERIT = "Vom Bestand erben"
+AUDIENCE_PUBLIC = "Öffentlich"
+AUDIENCE_MEMBERS = "Alle Mitglieder"
 #: The GROUPS rung's caption where no group NAMES are known yet — the Sichtbarkeit ``<select>``'s own
 #: option, chosen together with the Gruppen field. ``groups_label`` spells the same rung once the
 #: names exist; both live here so the form's option list is not a second source (law C7).
-SICHTBARKEIT_GRUPPEN = "Gruppe(n)"
+AUDIENCE_GROUPS = "Gruppe(n)"
 
 
 #: The Sichtbarkeit select options: (value, caption). The empty value is the inherit default (ADR
 #: 0001); the rest map to the audience rungs. GROUPS is chosen together with the Gruppen field.
-SICHTBARKEIT_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("", SICHTBARKEIT_ERBEN),
-    ("public", SICHTBARKEIT_PUBLIC),
-    ("members", SICHTBARKEIT_MEMBERS),
-    ("groups", SICHTBARKEIT_GRUPPEN),
+AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("", AUDIENCE_INHERIT),
+    ("public", AUDIENCE_PUBLIC),
+    ("members", AUDIENCE_MEMBERS),
+    ("groups", AUDIENCE_GROUPS),
 )
 
 
-def sichtbarkeit_value(audience: Audience | None) -> str:
+def audience_value(audience: Audience | None) -> str:
     """The Sichtbarkeit select value for a stored audience: empty (inherit) for ``None``, else the
     rung's value."""
     if audience is None:
@@ -163,11 +163,11 @@ def exposure_label(result: VisibilityPreview) -> str:
     """Who gains sight once the record is published (spec §6.2): the widest rung ``preview()``
     reports, as its rung caption."""
     if result.public:
-        return SICHTBARKEIT_PUBLIC
+        return AUDIENCE_PUBLIC
     if result.groups:
         return groups_label(result.groups)
     if result.members:
-        return SICHTBARKEIT_MEMBERS
+        return AUDIENCE_MEMBERS
     return "Niemand (kein Bestand-Zugriff)"
 
 
@@ -177,9 +177,9 @@ def publish_statement(result: VisibilityPreview) -> str:
     if result.public:
         return "Nach dem Veröffentlichen ist dieser Artikel öffentlich."
     if result.groups:
-        gruppe = "Gruppe" if len(result.groups) == 1 else "Gruppen"
+        group_word = "Gruppe" if len(result.groups) == 1 else "Gruppen"
         return (
-            f"Nach dem Veröffentlichen sehen nur Mitglieder der {gruppe} "
+            f"Nach dem Veröffentlichen sehen nur Mitglieder der {group_word} "
             f"{', '.join(result.groups)} diesen Artikel."
         )
     if result.members:
@@ -212,7 +212,7 @@ TRASH_CONFIRM = DeleteConfirm(
 
 def delete_permanently_confirm(files: int) -> DeleteConfirm:
     """The Papierkorb's final confirm for a record with ``files`` files."""
-    dateien = numbered(files, *_FILE_WORDS[FileKind.OTHER])
+    files_text = numbered(files, *_FILE_WORDS[FileKind.OTHER])
     gone = (
         "Gelöscht werden der Katalogeintrag mit allen Angaben und seine "
         f"{_files(FileKind.OTHER, files)}."
@@ -222,7 +222,9 @@ def delete_permanently_confirm(files: int) -> DeleteConfirm:
     return DeleteConfirm(
         question="Endgültig löschen?",
         consequence=f"{gone} Das lässt sich nicht rückgängig machen.",
-        button=f"Artikel und {dateien} endgültig löschen" if files else "Artikel endgültig löschen",
+        button=f"Artikel und {files_text} endgültig löschen"
+        if files
+        else "Artikel endgültig löschen",
     )
 
 
@@ -239,17 +241,17 @@ def groups_label(groups: tuple[str, ...]) -> str:
     return "Gruppe: " + ", ".join(groups)
 
 
-def sichtbarkeit_label(audience: Audience | None) -> str:
+def audience_label(audience: Audience | None) -> str:
     """An ``Audience`` (or ``None`` = inherit) as its human-German Sichtbarkeit caption. Shared by the
     4.7 CAS diff and the 4.8 read-only Bestand row (both hold an ``Audience | None``); the ledger and
     the publish preview, which start from other shapes, reuse the same rung strings above."""
     if audience is None:
-        return SICHTBARKEIT_ERBEN
+        return AUDIENCE_INHERIT
     match audience.tier:
         case AudienceTier.PUBLIC:
-            return SICHTBARKEIT_PUBLIC
+            return AUDIENCE_PUBLIC
         case AudienceTier.MEMBERS:
-            return SICHTBARKEIT_MEMBERS
+            return AUDIENCE_MEMBERS
         case AudienceTier.GROUPS:
             return groups_label(audience.groups)
 
@@ -257,11 +259,11 @@ def sichtbarkeit_label(audience: Audience | None) -> str:
 # --- EDTF: the two spellings, one renderer each (law C7) ---------------------------
 
 
-def datierung_mono(date: EdtfDate | None) -> str:
+def date_mono(date: EdtfDate | None) -> str:
     """The MACHINE date: the EDTF value verbatim, or ``""`` when absent. The ONE renderer for the
     mono machine spelling — the ledger's date column, the preview pane's meta line, the CAS diff and
     the Datierung field's own value all print it, so a single spelling of the fact cannot fork into
-    inline copies of ``date.value if date is not None else ""``. Its sibling is ``datierung_parts``,
+    inline copies of ``date.value if date is not None else ""``. Its sibling is ``date_parts``,
     the same text split for ``<time>``."""
     return date.value if date is not None else ""
 
@@ -282,7 +284,7 @@ class DatePart:
     datetime: str
 
 
-def datierung_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
+def date_parts(date: EdtfDate | None) -> tuple[DatePart, ...]:
     """The date as ``<time>`` parts: one, or two for an interval. No date → ``()``."""
     if date is None:
         return ()

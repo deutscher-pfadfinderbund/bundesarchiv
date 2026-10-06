@@ -28,13 +28,13 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `panels.py` — the small forms as tool panels; a leaf, so the header builds them (debt #24) · interface: `FormPanel`, `header_panels`, the three `*_panel` builders · tests: `test_collection_entrypoints.py`
 - `catalog_views.py` — cataloging routes, the card on ONE `EditSurface` · interface: `article_create`/`_edit`/`_copy`/`_delete`/`_delete_permanently`/`_restore`, `tag_suggestions` · tests: `test_catalog_*.py`
 - `collection_views.py` — Bestand management routes · interface: `collection_create`, `collection_edit` · tests: `tests/app/web/test_collection_*.py`
-- `bulk.py` — bulk-edit core: allowlist, Feld-chooser context, per-article CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `feldwahl_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
+- `bulk.py` — bulk-edit core: allowlist, field-picker context, CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `field_picker_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, derived versions from the local cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
-- `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `SICHTBARKEIT_OPTIONS`, `exposure_label`, `datierung_parts`, `human_size` · tests: `test_vocab.py`
-- `landing.py` — state a redirect hands on · interface: `noting_lag`, `index_lagging`, `copy_url`, `bestand_created_url`, `preselected_bestand`, `created_bestand_name` · tests: `test_index_lag.py`, `test_collection_*.py`
-- `bestand.py` — per-request Bestand chooser: one ordering, one refusal · interface: `BestandChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
+- `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `AUDIENCE_OPTIONS`, `exposure_label`, `date_parts`, `human_size` · tests: `test_vocab.py`
+- `landing.py` — state a redirect hands on · interface: `noting_lag`, `index_lagging`, `created_collection_url`, `preselected_collection`, `created_collection_name` · tests: `test_index_lag.py`, `test_collection_*.py`
+- `collection_chooser.py` — per-request Collection chooser · interface: `CollectionChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
 - `theme.py` — the viewer's light/dark choice: the "theme" cookie (theme.js) as the render's scheme · interface: `theme` (context processor), `COOKIE` · tests: `tests/app/web/test_theme.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

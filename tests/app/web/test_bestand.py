@@ -8,7 +8,7 @@ that gives an unknown ulid the same answer as an empty value.
 
 import pytest
 
-from bundesarchiv.app.web.bestand import TOP_LEVEL_LABEL, BestandChooser
+from bundesarchiv.app.web.collection_chooser import TOP_LEVEL_LABEL, CollectionChooser
 from bundesarchiv.domain.models import Collection
 
 #: Two Bestände whose load order (the store lists by ulid) is the REVERSE of their name order, so
@@ -19,8 +19,8 @@ _LOAD_ORDER = (
 )
 
 
-def _chooser(*collections: Collection) -> BestandChooser:
-    return BestandChooser(lambda: collections)
+def _chooser(*collections: Collection) -> CollectionChooser:
+    return CollectionChooser(lambda: collections)
 
 
 # --- the option lists --------------------------------------------------------------

@@ -46,8 +46,8 @@ def _door(request: HttpRequest) -> HttpResponse:
     nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
     if request_kind(request) is not RequestKind.PAGE:
         return htmx_redirect(login_redirect(request.get_full_path()))
-    anmelden = login_redirect(safe_next(request.get_full_path()) or "/")
-    return render(request, "workbench/door.html", {"anmelden": anmelden})
+    sign_in = login_redirect(safe_next(request.get_full_path()) or "/")
+    return render(request, "workbench/door.html", {"anmelden": sign_in})
 
 
 def _passes(request: HttpRequest) -> bool:

@@ -19,7 +19,7 @@ from django.shortcuts import render
 from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.index.query import FileKind, SearchHit
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
@@ -84,10 +84,10 @@ def _demo_ledger() -> ledger.Ledger:
         columns=ledger.DEFAULT_COLUMNS,
         parsed=browse.parse_query(_LEDGER_QUERY),
         params=_LEDGER_QUERY,
-        auswahl=(),
+        selection=(),
         is_archivist=True,
         selected_ulid=None,
-        bestand=BestandChooser(lambda: ()),
+        chooser=CollectionChooser(lambda: ()),
     )
 
 

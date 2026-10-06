@@ -17,7 +17,7 @@ from tests.app.web._fixtures import Corpus, client_as, list_url, make_article, m
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import start
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Viewer
@@ -140,7 +140,7 @@ def test_nach_art_and_zeitleiste_count_what_the_viewer_may_see(
 
 def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
     counts = {"media_type": tuple(FacetCount(f"Art {n}", 10 - n) for n in range(9))}
-    area = start.nach_art(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
+    area = start.by_media_type_area(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
     tiles = cast("tuple[start.Tile, ...]", area["tiles"])
     assert [t.label for t in tiles] == [f"Art {n}" for n in range(7)]
     assert all("medienart=" in t.href for t in tiles)
@@ -177,8 +177,8 @@ def test_weiter_bearbeiten_folds_more_than_three_drafts_into_a_link_to_the_draft
 def test_zuletzt_hinzugefuegt_lists_only_what_the_viewer_may_see(
     indexed_corpus: Corpus, viewer: Viewer, titles: set[str]
 ) -> None:
-    bestand = BestandChooser.of(Archive.canonical())
-    area = start.zuletzt_hinzugefuegt(viewer, RequestFactory().get("/"), {}, bestand)
+    chooser = CollectionChooser.of(Archive.canonical())
+    area = start.recent_area(viewer, RequestFactory().get("/"), {}, chooser)
     rows = cast("tuple[tuple[str, str, str, str], ...]", area["rows"])
     assert {title for _, title, _, _ in rows} == titles
 
@@ -197,8 +197,8 @@ def test_zuletzt_hinzugefuegt_leads_with_the_day_it_was_added(indexed_corpus: Co
         )
     )
     indexer.rebuild(indexed_corpus.store)
-    bestand = BestandChooser.of(Archive.canonical())
-    area = start.zuletzt_hinzugefuegt(Member(groups=()), RequestFactory().get("/"), {}, bestand)
+    chooser = CollectionChooser.of(Archive.canonical())
+    area = start.recent_area(Member(groups=()), RequestFactory().get("/"), {}, chooser)
     rows = cast("tuple[tuple[str, str, str, str], ...]", area["rows"])
     # the day as the archive lives it (Berlin), not the Article's Datierung
     assert rows[0][:2] == ("27.06.2017", "Neu")

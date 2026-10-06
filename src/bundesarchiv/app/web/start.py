@@ -1,6 +1,6 @@
 """The start page (``GET /``): areas on one neutral grid, each a preset of the one list.
 
-An area is a function ``(viewer, request, counts, bestand) -> context`` plus one template partial
+An area is a function ``(viewer, request, counts, chooser) -> context`` plus one template partial
 (``start/_<area>.html``). It builds its data from ``counts``, the page's ONE viewer-scoped
 ``facet_counts`` call, and its links are list presets (``preset_url``). The grid places what an area's
 root declares (``data-span``, ``data-absent``) and knows nothing else about it. Which areas a role
@@ -16,8 +16,8 @@ from django.urls import reverse
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import browse, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.browse_views import preset_url
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import render_screen, viewer_of
 from bundesarchiv.domain.viewer import Archivist, Viewer
 from bundesarchiv.index.query import (
@@ -30,7 +30,7 @@ from bundesarchiv.index.query import (
 )
 
 type Counts = Mapping[str, tuple[FacetCount, ...]]
-type Build = Callable[[Viewer, HttpRequest, Counts, BestandChooser], Mapping[str, object]]
+type Build = Callable[[Viewer, HttpRequest, Counts, CollectionChooser], Mapping[str, object]]
 
 #: Every facet any area reads, so the page asks the index once.
 _FACETS: tuple[Facet, ...] = ("collection", "media_type", "decades")
@@ -59,11 +59,11 @@ _RESUME_TITLES = 3
 #: How many Medienarten "Nach Art" names.
 _MEDIA_TYPES = 7
 #: How many Articles "Zuletzt hinzugefügt" lists.
-_RECENT = 5
+_RECENT_COUNT = 5
 
 
 def search_area(
-    viewer: Viewer, _request: HttpRequest, _counts: Counts, _bestand: BestandChooser
+    viewer: Viewer, _request: HttpRequest, _counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The list's own search field, without its filter slots: it submits to the list. For an
     Archivist it carries "Weiter bearbeiten" under it: every draft, newest ``added_at`` first (the
@@ -85,12 +85,12 @@ def search_area(
     }
 
 
-def bestaende(
-    _viewer: Viewer, _request: HttpRequest, counts: Counts, bestand: BestandChooser
+def collections_area(
+    _viewer: Viewer, _request: HttpRequest, counts: Counts, chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The top-level Bestände the viewer has Articles in, most first. ``counts`` is already
     viewer-scoped, and a Bestand it does not count is not named."""
-    top = {c.ulid: c.name for c in bestand.by_ulid().values() if c.parent_id is None}
+    top = {c.ulid: c.name for c in chooser.by_ulid().values() if c.parent_id is None}
     tiles = sorted(
         (
             Tile(
@@ -107,8 +107,8 @@ def bestaende(
     return {"tiles": tuple(tiles)}
 
 
-def nach_art(
-    _viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
+def by_media_type_area(
+    _viewer: Viewer, _request: HttpRequest, counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The most-used Medienarten as tiles (``counts`` is viewer-scoped, most first). The rest get
     no row: the list has no Medienart slot, so a catch-all could only open the whole list."""
@@ -161,8 +161,8 @@ def fold_sparse(decades: Sequence[FacetCount]) -> tuple[Tile, ...]:
     return (Tile(f"bis {year}", count, vocab.count(count), to_year_end), *tiles)
 
 
-def zeitleiste(
-    viewer: Viewer, _request: HttpRequest, counts: Counts, _bestand: BestandChooser
+def timeline_area(
+    viewer: Viewer, _request: HttpRequest, counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The decades, oldest first (a sparse start folded, ``fold_sparse``), then the undated
     Articles set apart. Bars are proportional to the largest row."""
@@ -183,12 +183,12 @@ def zeitleiste(
     }
 
 
-def zuletzt_hinzugefuegt(
-    viewer: Viewer, _request: HttpRequest, _counts: Counts, bestand: BestandChooser
+def recent_area(
+    viewer: Viewer, _request: HttpRequest, _counts: Counts, chooser: CollectionChooser
 ) -> Mapping[str, object]:
     """The newest Articles by ``added_at`` the viewer may see: the day added, title, Bestand."""
-    hits = search(viewer, sort="added", page_size=_RECENT, facets=()).hits
-    known = bestand.by_ulid()
+    hits = search(viewer, sort="added", page_size=_RECENT_COUNT, facets=()).hits
+    known = chooser.by_ulid()
     days = [vocab.day(h.added_at) if h.added_at else "" for h in hits]
     # a repeated day is printed once, as a ditto
     shown = [day if day != previous else "" for previous, day in pairwise(["", *days])]
@@ -207,13 +207,13 @@ def zuletzt_hinzugefuegt(
 
 
 _SEARCH = Area("start/_search.html", search_area)
-_BESTAENDE = Area("start/_collections.html", bestaende)
-_NACH_ART = Area("start/_by_media_type.html", nach_art)
-_ZEITLEISTE = Area("start/_timeline.html", zeitleiste)
-_ZULETZT = Area("start/_recent.html", zuletzt_hinzugefuegt)
+_COLLECTIONS = Area("start/_collections.html", collections_area)
+_BY_MEDIA_TYPE = Area("start/_by_media_type.html", by_media_type_area)
+_TIMELINE = Area("start/_timeline.html", timeline_area)
+_RECENT = Area("start/_recent.html", recent_area)
 
-ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)
-MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)
+ARCHIVIST: tuple[Area, ...] = (_SEARCH, _COLLECTIONS, _BY_MEDIA_TYPE, _TIMELINE, _RECENT)
+MEMBER: tuple[Area, ...] = (_SEARCH, _COLLECTIONS, _BY_MEDIA_TYPE, _TIMELINE, _RECENT)
 
 
 def start(request: HttpRequest) -> HttpResponse:
@@ -225,9 +225,9 @@ def start(request: HttpRequest) -> HttpResponse:
         return HttpResponsePermanentRedirect(f"{reverse('workbench')}?{query}")
     viewer = viewer_of(request)
     counts = facet_counts(viewer, _FACETS)
-    bestand = BestandChooser.of(Archive.canonical())
+    chooser = CollectionChooser.of(Archive.canonical())
     areas = ARCHIVIST if isinstance(viewer, Archivist) else MEMBER
     context: dict[str, object] = {
-        "areas": tuple((a.partial, a.build(viewer, request, counts, bestand)) for a in areas)
+        "areas": tuple((a.partial, a.build(viewer, request, counts, chooser)) for a in areas)
     }
-    return render_screen(request, "start/start.html", context, bestand=bestand)
+    return render_screen(request, "start/start.html", context, chooser=chooser)

@@ -907,9 +907,9 @@ def test_a_rename_and_a_new_bestand_leave_the_index_as_it_is(
         created = create_collection(archive, name="Neu", parent_id="FOTOS", changed_by="t")
 
     assert (renamed.index_updated, created.index_updated, enqueued) == (True, True, [])
-    for bestand in ("FOTOS", "ROOT"):
-        hits = search(PUBLIC, filters=SearchFilters(collection=bestand)).hits
-        assert [hit.ulid for hit in hits] == ["01FOTO"], bestand
+    for collection_ulid in ("FOTOS", "ROOT"):
+        hits = search(PUBLIC, filters=SearchFilters(collection=collection_ulid)).hits
+        assert [hit.ulid for hit in hits] == ["01FOTO"], collection_ulid
 
 
 @pytest.mark.django_db

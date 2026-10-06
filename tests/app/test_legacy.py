@@ -35,7 +35,7 @@ _KNOWN_DOKUMENTTYPEN = ("Zeitschrift", "Lagerheft", "Chronik / Dokumentation", "
 _COLLECTIONS = {
     "Bund": "01BUND0000000000000000000",
     "Orden St. Georg": "01ORDEN000000000000000000",
-    legacy.UNSORTIERT: "01UNSORTIERT00000000000000"[:26],
+    legacy.UNSORTED: "01UNSORTIERT00000000000000"[:26],
 }
 
 
@@ -74,7 +74,7 @@ def _file(**overrides: str) -> dict[str, str]:
 
 
 def _map(row: dict[str, str], *files: dict[str, str]) -> legacy.MappedItem:
-    return legacy.map_item(row, files, collection_id=_COLLECTIONS[legacy.bestand_name(row)])
+    return legacy.map_item(row, files, collection_id=_COLLECTIONS[legacy.collection_name(row)])
 
 
 def _plan_of(rows: list[dict[str, str]], files: list[dict[str, str]] | None = None) -> legacy.Plan:
@@ -140,7 +140,7 @@ def _rendered(mapped: legacy.MappedItem) -> str:
     article = mapped.article
     return " | ".join(
         (
-            mapped.bestand,
+            mapped.collection,
             article.title,
             article.ref_code or "",
             article.creator or "",
@@ -238,12 +238,12 @@ def test_no_document_type_at_all_is_absent() -> None:
 
 
 def test_an_empty_collection_lands_in_unsortiert() -> None:
-    assert legacy.bestand_name(_row(collection="")) == legacy.UNSORTIERT
+    assert legacy.collection_name(_row(collection="")) == legacy.UNSORTED
 
 
 def test_the_bestand_names_are_the_legacy_ones_plus_unsortiert() -> None:
     rows = [_row(collection="Bund"), _row(collection=""), _row(collection="Orden St. Georg")]
-    assert legacy.bestand_names(rows) == ("Bund", "Orden St. Georg", legacy.UNSORTIERT)
+    assert legacy.collection_names(rows) == ("Bund", "Orden St. Georg", legacy.UNSORTED)
 
 
 # --- keywords -> tags ---------------------------------------------------------------
@@ -458,7 +458,7 @@ def test_the_report_counts_what_the_archivist_must_decide_about() -> None:
     report = _plan().report
     assert report.items == 3
     assert report.without_media == 2
-    assert dict(report.per_bestand) == {"Bund": 2, legacy.UNSORTIERT: 1}
+    assert dict(report.per_collection) == {"Bund": 2, legacy.UNSORTED: 1}
     assert report.doctype_disagreements == 1
     assert report.unparseable_dates == (("2", "Pfingsten 1985"),)
 
@@ -589,7 +589,7 @@ def test_the_import_is_a_dry_run_a_real_run_and_then_a_refusal(tmp_path: Path) -
         ulids = list(archive.articles.list_ulids())
         assert len(ulids) == 3
         bestände = {c.name for c in archive.collections.load_all()}
-        assert bestände == {"Bund", legacy.UNSORTIERT}
+        assert bestände == {"Bund", legacy.UNSORTED}
         with_file = next(
             archive.articles.load(u).article
             for u in ulids
@@ -690,7 +690,7 @@ def test_the_dry_run_names_what_the_edit_form_would_refuse(tmp_path: Path) -> No
     # Where `app.legacy` meets the form's vocabulary: the pure module only takes the two lists as
     # arguments, so the command is the one place that can spot a value the form will not re-save.
     stranger = "Papier"
-    assert stranger not in vocab.MEDIENARTEN
+    assert stranger not in vocab.MEDIA_TYPES
     csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
     _write_export(csv_dir, media_root, _row(id="4", collection="Bund", medartanalog=stranger))
     with _roots(tmp_path):

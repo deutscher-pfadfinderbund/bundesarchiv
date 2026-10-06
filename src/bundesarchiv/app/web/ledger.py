@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from django.urls import reverse
 
 from bundesarchiv.app.web import browse, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.index.query import SearchHit
 
 
@@ -32,7 +32,7 @@ class Column:
     label: str
     sort: str | None
     filter: str | None
-    value: Callable[[SearchHit, BestandChooser], str]
+    value: Callable[[SearchHit, CollectionChooser], str]
     filter_value: Callable[[SearchHit], str] | None = None
 
 
@@ -137,13 +137,13 @@ def build(
     columns: Sequence[Column],
     parsed: browse.ParsedQuery,
     params: Mapping[str, str],
-    auswahl: Sequence[str],
+    selection: Sequence[str],
     is_archivist: bool,
     selected_ulid: str | None,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
 ) -> Ledger:
     """The ledger for one page of hits. ``params`` is the search state every link builds from
-    (the pane and selection params already dropped); ``columns`` the chosen ones, printed in
+    (the pane and selected_ulids params already dropped); ``columns`` the chosen ones, printed in
     registry order."""
     shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
     active = browse.sort_label(parsed.sort)
@@ -151,7 +151,7 @@ def build(
         _head("title", "Titel", "titel", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
-    selection = frozenset(auswahl) if is_archivist else frozenset()
+    selected_ulids = frozenset(selection) if is_archivist else frozenset()
     mark_drafts = is_archivist and not parsed.filters.drafts_only
     rows = tuple(
         Row(
@@ -160,8 +160,8 @@ def build(
             href=reverse("article-detail", args=[hit.ulid]),
             draft=mark_drafts and hit.is_draft,
             selected=hit.ulid == selected_ulid,
-            gewaehlt=hit.ulid in selection,
-            cells=tuple(_cell(c, hit, bestand, params) for c in shown),
+            gewaehlt=hit.ulid in selected_ulids,
+            cells=tuple(_cell(c, hit, chooser, params) for c in shown),
         )
         for hit in hits
     )
@@ -174,9 +174,9 @@ def _filtered(column: Column, params: Mapping[str, str]) -> bool:
 
 
 def _cell(
-    column: Column, hit: SearchHit, bestand: BestandChooser, params: Mapping[str, str]
+    column: Column, hit: SearchHit, chooser: CollectionChooser, params: Mapping[str, str]
 ) -> Cell:
-    text = column.value(hit, bestand)
+    text = column.value(hit, chooser)
     if column.filter is None or not text:
         return Cell(column.key, text)
     value = column.filter_value(hit) if column.filter_value else text

@@ -33,7 +33,7 @@ from django.template.loader import render_to_string
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import media
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import can_view
 from bundesarchiv.domain.identity import is_valid_ulid
@@ -118,7 +118,7 @@ def _authorize(
     except ArchiveError:
         return None  # no such article (or an unreadable one) → 404 (existence-hiding)
     viewer = viewer_of(request)
-    chain = BestandChooser.of(archive).chain_of(article.collection_id)
+    chain = CollectionChooser.of(archive).chain_of(article.collection_id)
     if chain is None:
         return None  # broken/unresolvable chain → deny everyone (fail closed)
     if not can_view(viewer, article, chain):

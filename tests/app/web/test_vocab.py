@@ -30,7 +30,9 @@ def narrowed_vocabulary(monkeypatch: pytest.MonkeyPatch) -> str:
     list, so the pair rule has no pair left to refuse. This supplies the narrowed vocabulary the
     rule exists for, keeping it proven against the day the archivists narrow for real.
     """
-    monkeypatch.setitem(vocab.MEDIENART_DOKUMENTTYP, _NARROWED_MEDIENART, (_NARROWED_DOKUMENTTYP,))
+    monkeypatch.setitem(
+        vocab.MEDIA_TYPE_DOCUMENT_TYPES, _NARROWED_MEDIENART, (_NARROWED_DOKUMENTTYP,)
+    )
     return _NARROWED_MEDIENART
 
 
@@ -83,7 +85,7 @@ def test_medienarten_are_the_legacy_vocabulary_verbatim() -> None:
 
 
 def test_dokumenttypen_are_the_legacy_vocabulary_verbatim() -> None:
-    assert vocab.DOKUMENTTYPEN == _LEGACY_DOKUMENTTYPEN
+    assert vocab.DOCUMENT_TYPES == _LEGACY_DOKUMENTTYPEN
 
 
 def test_every_medienart_offers_the_whole_document_type_list() -> None:
@@ -99,7 +101,7 @@ def test_document_types_for_unknown_media_type_is_empty() -> None:
 
 
 def test_is_valid_pair_accepts_a_type_belonging_to_its_media_type() -> None:
-    for media_type, types in vocab.MEDIENART_DOKUMENTTYP.items():
+    for media_type, types in vocab.MEDIA_TYPE_DOCUMENT_TYPES.items():
         for document_type in types:
             assert vocab.is_valid_pair(media_type, document_type)
 
@@ -110,7 +112,7 @@ def test_is_valid_pair_rejects_a_type_the_medienart_does_not_offer(
     # The pair rule is a real gate, not a vacuous True: against a narrowed Medienart a foreign
     # Dokumenttyp is refused.
     offered = vocab.document_types_for(narrowed_vocabulary)
-    foreign = next(t for t in vocab.DOKUMENTTYPEN if t not in offered)
+    foreign = next(t for t in vocab.DOCUMENT_TYPES if t not in offered)
     assert not vocab.is_valid_pair(narrowed_vocabulary, foreign)
 
 
@@ -130,7 +132,7 @@ def test_grouped_options_are_one_group_while_every_medienart_shares_one_list() -
     groups = vocab.grouped_document_type_options()
     assert len(groups) == 1
     label, options = groups[0]
-    assert label == vocab.ALLE_MEDIENARTEN
+    assert label == vocab.ALL_MEDIA_TYPES
     assert options == tuple((t, t) for t in _LEGACY_DOKUMENTTYPEN)
 
 
@@ -167,11 +169,11 @@ def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabul
 def test_datierung_parts_speak_german_and_carry_a_datetime_only_where_html_has_one(
     edtf: str, expected: tuple[tuple[str, str], ...]
 ) -> None:
-    assert tuple((p.text, p.datetime) for p in vocab.datierung_parts(EdtfDate(edtf))) == expected
+    assert tuple((p.text, p.datetime) for p in vocab.date_parts(EdtfDate(edtf))) == expected
 
 
 def test_datierung_parts_of_no_date_are_empty() -> None:
-    assert vocab.datierung_parts(None) == ()
+    assert vocab.date_parts(None) == ()
 
 
 @pytest.mark.parametrize(

@@ -30,7 +30,7 @@ from bundesarchiv.app import articles
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import SaveResult
 from bundesarchiv.app.web import vocab
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -49,7 +49,7 @@ type FormErrors = dict[str, str]
 
 # The Sichtbarkeit select values → the audience rung they set. The empty value ("") is the inherit
 # default (audience=None, ADR 0001) and is handled before this map is consulted.
-_SICHTBARKEIT_TIER: dict[str, AudienceTier] = {
+_AUDIENCE_TIER: dict[str, AudienceTier] = {
     "public": AudienceTier.PUBLIC,
     "members": AudienceTier.MEMBERS,
     "groups": AudienceTier.GROUPS,
@@ -115,16 +115,16 @@ def parse_edit_form(
     post: Mapping[str, object],
     *,
     ulid: Ulid,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     current_media: tuple[MediaRef, ...] = (),
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     added_at: datetime | None,
     deleted: Change | None,
 ) -> ParseResult:
     """Parse + validate an edit-form POST into an ``Article`` (with the given ``ulid``) or a field
-    error map. Total: malformed input never raises, it becomes a field error. ``bestand`` is the
+    error map. Total: malformed input never raises, it becomes a field error. ``chooser`` is the
     chooser the form offered; it decides which collection values are fileable and words the refusal
-    (``bestand.accepts`` / ``bestand.error``).
+    (``chooser.accepts`` / ``chooser.error``).
 
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
@@ -143,8 +143,8 @@ def parse_edit_form(
         errors["title"] = "Titel ist erforderlich."
 
     collection_id = _get(post, "collection_id").strip()
-    if not bestand.accepts(collection_id):
-        errors["collection_id"] = bestand.error()
+    if not chooser.accepts(collection_id):
+        errors["collection_id"] = chooser.error()
 
     media_type = _none_if_blank(_get(post, "media_type"))
     if media_type is None or media_type not in vocab.media_types():
@@ -248,17 +248,17 @@ def _parse_date(raw: str) -> tuple[EdtfDate | None, str | None]:
         return None, f"Datierung: {err}."
 
 
-def parse_audience(sichtbarkeit: str, gruppen: str) -> tuple[Audience | None, str | None]:
+def parse_audience(audience_choice: str, groups_text: str) -> tuple[Audience | None, str | None]:
     """The Sichtbarkeit group: empty → inherit (``audience=None``); otherwise the chosen rung. The
     GROUPS rung REQUIRES at least one group (the model's GROUPS-iff invariant, server-enforced);
     groups named on a non-GROUPS rung are dropped (naming them there is a silent over-exposure the
     model forbids)."""
-    tier = _SICHTBARKEIT_TIER.get(sichtbarkeit)
+    tier = _AUDIENCE_TIER.get(audience_choice)
     if tier is None:
         return None, None  # empty / unknown → inherit default (ADR 0001)
     if tier is not AudienceTier.GROUPS:
         return Audience(tier=tier), None
-    groups = parse_lines(gruppen)
+    groups = parse_lines(groups_text)
     if not groups:
         return None, "Bitte mindestens eine Gruppe angeben."
     return Audience(tier=AudienceTier.GROUPS, groups=groups), None

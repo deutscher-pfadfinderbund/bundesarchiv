@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from django.http import HttpRequest
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.viewers import viewer_of
 from bundesarchiv.domain.access import visible
 from bundesarchiv.domain.collections import ResolvedChain
@@ -40,11 +40,11 @@ class DetailResolution:
 
 
 def resolve_visible_detail(
-    request: HttpRequest, ulid: str, archive: Archive, bestand: BestandChooser
+    request: HttpRequest, ulid: str, archive: Archive, chooser: CollectionChooser
 ) -> DetailResolution | None:
     """The full-Article render pipeline (spec §8): load ONCE, resolve the chain, ``visible``-project —
     returning the projection + chain + is_archivist, or ``None`` on any
-    deny/absence/malformed/broken-chain. ``archive`` and ``bestand`` are the request's own (the chooser reads through
+    deny/absence/malformed/broken-chain. ``archive`` and ``chooser`` are the request's own (the chooser reads through
     that archive).
 
     The ONE resolution path for a rendered full Article — the 4.6 detail view and the preview pane.
@@ -58,7 +58,7 @@ def resolve_visible_detail(
     except ArchiveError:
         return None
     viewer = viewer_of(request)
-    chain = bestand.chain_of(loaded.article.collection_id)
+    chain = chooser.chain_of(loaded.article.collection_id)
     if chain is None:
         return None
     projected = visible(viewer, loaded.article, chain)

@@ -12,7 +12,7 @@ from bundesarchiv.app.web import browse
 
 
 def test_page_query_with_auswahl_preserves_selection() -> None:
-    q = browse.page_query_with_auswahl({"q": "fahrt"}, ["01A", "01B"], 2)
+    q = browse.page_query_with_selection({"q": "fahrt"}, ["01A", "01B"], 2)
     parsed = parse_qs(q)
     assert parsed["seite"] == ["2"]
     assert parsed["q"] == ["fahrt"]
@@ -20,7 +20,7 @@ def test_page_query_with_auswahl_preserves_selection() -> None:
 
 
 def test_page_query_with_empty_auswahl_omits_it() -> None:
-    q = browse.page_query_with_auswahl({"q": "fahrt"}, [], 2)
+    q = browse.page_query_with_selection({"q": "fahrt"}, [], 2)
     assert "auswahl" not in parse_qs(q)
 
 
@@ -39,7 +39,7 @@ def test_select_page_query_from_empty_selection() -> None:
 
 def test_auswahl_algebra_ignores_blank_params() -> None:
     # blank filter values never ride into the built URL (same _clean rule as the other helpers)
-    q = browse.page_query_with_auswahl({"q": "", "medienart": "Foto"}, ["01A"], 1)
+    q = browse.page_query_with_selection({"q": "", "medienart": "Foto"}, ["01A"], 1)
     parsed = parse_qs(q)
     assert "q" not in parsed
     assert parsed["medienart"] == ["Foto"]

@@ -13,14 +13,14 @@ from dataclasses import dataclass, replace
 from django.urls import reverse
 
 from bundesarchiv.app.web import catalog, vocab
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.models import Article, Lifecycle
 
 
 def _audience_label(article: Article) -> str:
     """The stored audience as a human-German label for the CAS diff (inherit / rung / groups) — the
     shared ``vocab`` formatter fed the article's own audience."""
-    return vocab.sichtbarkeit_label(article.audience)
+    return vocab.audience_label(article.audience)
 
 
 def _seed_tags(article: Article) -> str:
@@ -28,10 +28,10 @@ def _seed_tags(article: Article) -> str:
 
 
 def _seed_date(article: Article) -> str:
-    return vocab.datierung_mono(article.date)
+    return vocab.date_mono(article.date)
 
 
-def _seed_gruppen(article: Article) -> str:
+def _seed_groups(article: Article) -> str:
     return "\n".join(article.audience.groups) if article.audience is not None else ""
 
 
@@ -167,7 +167,7 @@ FIELDS: tuple[_Field, ...] = (
         section="margin",
         options="sichtbarkeit_options",
         diff="Sichtbarkeit",
-        seed=lambda article: vocab.sichtbarkeit_value(article.audience),
+        seed=lambda article: vocab.audience_value(article.audience),
         shown=_audience_label,
     ),
     _Field(
@@ -178,7 +178,7 @@ FIELDS: tuple[_Field, ...] = (
         hint="Eine Gruppe pro Zeile",
         shows_with="groups",
         focusable=True,
-        seed=_seed_gruppen,
+        seed=_seed_groups,
     ),
     # Bestand has no diff row: a bulk/CAS diff of collection MOVES is its own surface, not this one.
     _Field(
@@ -367,12 +367,12 @@ class CardRow:
 
 def card_fields(
     values: Mapping[str, object],
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     *,
     errors: catalog.FormErrors,
     autofocus: str,
     conflicts: Mapping[str, str] | None = None,
-    sichtbarkeit_options: _Options = vocab.SICHTBARKEIT_OPTIONS,
+    audience_options: _Options = vocab.AUDIENCE_OPTIONS,
     lifecycle_options: _Options = LIFECYCLE_OPTIONS,
     only: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[CardRow, ...]]:
@@ -382,10 +382,10 @@ def card_fields(
     Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
     focuses nothing rather than nothing-visible."""
     option_lists: dict[str, Callable[[], _Options]] = {
-        "collection_options": bestand.options,
+        "collection_options": chooser.options,
         "media_type_options": vocab.media_type_options,
         "document_type_groups": vocab.grouped_document_type_options,
-        "sichtbarkeit_options": lambda: sichtbarkeit_options,
+        "sichtbarkeit_options": lambda: audience_options,
         "lifecycle_options": lambda: lifecycle_options,
     }
     ulid = str(values.get("ulid") or "")

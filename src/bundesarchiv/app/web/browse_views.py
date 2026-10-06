@@ -33,7 +33,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import display_url, media_url, not_found, thumbnail_url
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
@@ -77,25 +77,25 @@ def workbench(request: HttpRequest) -> HttpResponse:
         facets=("collection", "decades", "document_type", "file_kind"),
     )
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
+    chooser = CollectionChooser.of(archive)
     # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
-    pane = _resolve_pane(request, archive, bestand, is_archivist=is_archivist)
+    pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
     # Bulk-edit selection (archivist-only chrome, spec §2): any ?auswahl= is selection mode
     # ("Auswählen"; a bare ``auswahl=`` is the mode with nothing ticked), and its values carry the
-    # selected ulids across pages. Non-archivists never get the mode, so their auswahl is dropped
+    # selected ulids across pages. Non-archivists never get the mode, so their selection is dropped
     # entirely (defence-in-depth — the POST route is independently gated too).
-    waehlen = is_archivist and browse.PARAM_AUSWAHL in request.GET
-    auswahl = [u for u in request.GET.getlist(browse.PARAM_AUSWAHL) if u] if waehlen else []
+    selecting = is_archivist and browse.PARAM_SELECTION in request.GET
+    selection = [u for u in request.GET.getlist(browse.PARAM_SELECTION) if u] if selecting else []
     context = _results_context(
         request,
         parsed,
         page,
         is_archivist=is_archivist,
         selected_ulid=pane.ulid if pane is not None else None,
-        waehlen=waehlen,
-        auswahl=auswahl,
-        bestand=bestand,
+        selecting=selecting,
+        selection=selection,
+        chooser=chooser,
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
@@ -111,8 +111,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
         # The search sentence sits outside the #results swap target, so the partial prepends its
         # out-of-band fragments (oob gates them: the full page renders the sentence once).
         context["oob"] = True
-        return render_screen(request, "workbench/_results.html", context, bestand=bestand)
-    return render_screen(request, "workbench/workbench.html", context, bestand=bestand)
+        return render_screen(request, "workbench/_results.html", context, chooser=chooser)
+    return render_screen(request, "workbench/workbench.html", context, chooser=chooser)
 
 
 def choose_columns(request: HttpRequest) -> HttpResponseBase:
@@ -240,7 +240,7 @@ class _Pane:
 
 
 def _resolve_pane(
-    request: HttpRequest, archive: Archive, bestand: BestandChooser, *, is_archivist: bool
+    request: HttpRequest, archive: Archive, chooser: CollectionChooser, *, is_archivist: bool
 ) -> _Pane | None:
     """Resolve the ``?artikel`` param to a preview-pane view-model, or ``None`` when there is no
     pane to show. Fail-closed by delegating to the ONE render-resolution path
@@ -250,7 +250,7 @@ def _resolve_pane(
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
-    resolution = resolve_visible_detail(request, ulid, archive, bestand)
+    resolution = resolve_visible_detail(request, ulid, archive, chooser)
     article = resolution.article if resolution is not None else None
     if article is None or article.deleted is not None:
         # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
@@ -264,7 +264,7 @@ def _resolve_pane(
         ulid=article.ulid,
         title=article.title,
         ref_code=article.ref_code or "",
-        datierung=vocab.datierung_mono(article.date),
+        datierung=vocab.date_mono(article.date),
         typ=article.document_type or "",
         media=media_tiles(article.ulid, article.media),
         oeffnen_href=reverse("article-detail", args=[article.ulid]),
@@ -297,9 +297,9 @@ def _results_context(
     *,
     is_archivist: bool,
     selected_ulid: str | None,
-    waehlen: bool,
-    auswahl: list[str],
-    bestand: BestandChooser,
+    selecting: bool,
+    selection: list[str],
+    chooser: CollectionChooser,
 ) -> dict[str, object]:
     """The template context shared by the full page and the results partial. Every link the
     sentence/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
@@ -309,13 +309,13 @@ def _results_context(
 
     ``artikel`` (pane) and ``auswahl`` (bulk selection) are STRIPPED from the link-building
     ``params``: neither is search state, so no facet/sort link may carry them. In selection mode
-    (``waehlen``) the PAGINATION links re-attach a bare ``auswahl=`` plus every selected ulid, so
+    (``selecting``) the PAGINATION links re-attach a bare ``auswahl=`` plus every selected ulid, so
     paging keeps both the mode and the selection. Pane selection is tracked separately via
     ``selected_ulid``."""
     params = {
         k: v
         for k, v in request.GET.dict().items()
-        if k not in (_PANE_PARAM, browse.PARAM_AUSWAHL) and k not in landing.FLAG_KEYS
+        if k not in (_PANE_PARAM, browse.PARAM_SELECTION) and k not in landing.FLAG_KEYS
     }
     here = request.GET.copy()
     for key in landing.FLAG_KEYS:
@@ -332,23 +332,25 @@ def _results_context(
             columns=ledger.chosen(request.COOKIES.get(ledger.COOKIE)),
             parsed=parsed,
             params=params,
-            auswahl=auswahl,
+            selection=selection,
             is_archivist=is_archivist,
             selected_ulid=selected_ulid,
-            bestand=bestand,
+            chooser=chooser,
         ),
-        "pager": _pager(parsed, page, params, ["", *auswahl] if waehlen else []) if total else None,
+        "pager": _pager(parsed, page, params, ["", *selection] if selecting else [])
+        if total
+        else None,
         # "Spalten …" returns to this very list, pane and selection included
         "spalten_zurueck": here.urlencode(),
         "total": vocab.count(total),
         # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
         # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
         # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
-        "leerer_bestand": _only_bestand_filter(parsed) if total == 0 else None,
+        "leerer_bestand": _only_collection_filter(parsed) if total == 0 else None,
     }
-    context.update(_sentence(params, parsed, page, bestand, is_archivist=is_archivist))
+    context.update(_sentence(params, parsed, page, chooser, is_archivist=is_archivist))
     if is_archivist:
-        context.update(_bulk_bar_context(params, page, waehlen, auswahl, bestand))
+        context.update(_bulk_bar_context(params, page, selecting, selection, chooser))
     return context
 
 
@@ -370,7 +372,7 @@ class _Pager:
 
 
 def _pager(
-    parsed: browse.ParsedQuery, page: SearchPage, params: Mapping[str, str], auswahl: list[str]
+    parsed: browse.ParsedQuery, page: SearchPage, params: Mapping[str, str], selection: list[str]
 ) -> _Pager:
     """The pager's steps carry the selection (``auswahl``), so paging never drops it."""
     n, hits = parsed.page, len(page.hits)
@@ -385,8 +387,8 @@ def _pager(
         noun = "Entwurf" if page.total == 1 else "Entwürfe"
     return _Pager(
         stepped=has_prev or has_next,
-        prev_query=browse.page_query_with_auswahl(params, auswahl, n - 1) if has_prev else None,
-        next_query=browse.page_query_with_auswahl(params, auswahl, n + 1) if has_next else None,
+        prev_query=browse.page_query_with_selection(params, selection, n - 1) if has_prev else None,
+        next_query=browse.page_query_with_selection(params, selection, n + 1) if has_next else None,
         first=first,
         shown=shown,
         total=page.total,
@@ -395,7 +397,7 @@ def _pager(
     )
 
 
-def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
+def _only_collection_filter(parsed: browse.ParsedQuery) -> str | None:
     """The Bestand ulid when the search's ONLY constraint is that collection (no text, no other
     facet) — else ``None``. Used to pick the Bestand-specific empty state over the generic one."""
     f = parsed.filters
@@ -406,9 +408,9 @@ def _only_bestand_filter(parsed: browse.ParsedQuery) -> str | None:
 def _bulk_bar_context(
     params: dict[str, str],
     page: SearchPage,
-    waehlen: bool,
-    auswahl: list[str],
-    bestand: BestandChooser,
+    selecting: bool,
+    selection: list[str],
+    chooser: CollectionChooser,
 ) -> dict[str, object]:
     """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11, owner 2026-09-30),
     archivist-only: "Auswählen" outside selection mode; in it "Abbrechen", the count and the Feld
@@ -422,18 +424,18 @@ def _bulk_bar_context(
     if not hits:
         return {}
     search = [(k, v) for k, v in params.items() if v]
-    if not waehlen:
+    if not selecting:
         return {
             "waehlen": False,
-            "auswaehlen_query": urlencode([*search, (browse.PARAM_AUSWAHL, "")]),
+            "auswaehlen_query": urlencode([*search, (browse.PARAM_SELECTION, "")]),
         }
     on_page = {h.ulid for h in hits}
     return {
         "waehlen": True,
-        "auswahl_count": len(auswahl),
-        "auswahl_offpage_count": sum(1 for u in auswahl if u not in on_page),
+        "auswahl_count": len(selection),
+        "auswahl_offpage_count": sum(1 for u in selection if u not in on_page),
         "abbrechen_query": urlencode(search),
-        **bulk.feldwahl_context(bestand),
+        **bulk.field_picker_context(chooser),
     }
 
 
@@ -441,7 +443,7 @@ def _sentence(
     params: dict[str, str],
     parsed: browse.ParsedQuery,
     page: SearchPage,
-    bestand: BestandChooser,
+    chooser: CollectionChooser,
     *,
     is_archivist: bool,
 ) -> dict[str, object]:
@@ -450,7 +452,7 @@ def _sentence(
     every filter once two or more are set (else ``None``)."""
     f = parsed.filters
     facets = page.facets
-    names = bestand.names()
+    names = chooser.names()
     decade_menu = _facet_items(
         params,
         browse.PARAM_DECADE,
@@ -597,12 +599,12 @@ def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
     on ``is_archivist``. A write whose index update lagged lands here with the index-lag hint
     (``landing.noting_lag``); ``render_screen`` shows it."""
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
-    resolution = resolve_visible_detail(request, ulid, archive, bestand)
+    chooser = CollectionChooser.of(archive)
+    resolution = resolve_visible_detail(request, ulid, archive, chooser)
     if resolution is None:
         return not_found()
     return render_screen(
-        request, "workbench/detail.html", _detail_context(resolution), bestand=bestand
+        request, "workbench/detail.html", _detail_context(resolution), chooser=chooser
     )
 
 
@@ -612,17 +614,17 @@ def preset_url(param: str, value: str) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class BestandCrumb:
+class CollectionCrumb:
     """One Bestand breadcrumb hop: the collection name + the workbench link into its facet."""
 
     name: str
     href: str
 
 
-def bestand_crumbs(chain: ResolvedChain) -> tuple[BestandCrumb, ...]:
+def collection_crumbs(chain: ResolvedChain) -> tuple[CollectionCrumb, ...]:
     """The chain as crumbs, root first (the chain is leaf-first), each opening the scoped list."""
     return tuple(
-        BestandCrumb(
+        CollectionCrumb(
             name=c.name,
             href=preset_url(browse.PARAM_COLLECTION, c.ulid),
         )
@@ -670,7 +672,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         ),
         "title": article.title,
         "ref_code": article.ref_code or "",
-        "datierung": vocab.datierung_parts(article.date),
+        "datierung": vocab.date_parts(article.date),
         "typ": article.document_type or article.media_type or "",
         "creator": article.creator or "",
         "ort": article.subject_place or "",
@@ -681,9 +683,9 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "body_paragraphs": _body_paragraphs(article.body),
         # a marked Article's place is the Papierkorb
         "crumbs": (
-            bestand_crumbs(resolution.chain)
+            collection_crumbs(resolution.chain)
             if mark is None
-            else (BestandCrumb("Papierkorb", reverse("trash")),)
+            else (CollectionCrumb("Papierkorb", reverse("trash")),)
         ),
         "tags": tags,
         "loeschen": vocab.TRASH_CONFIRM
@@ -716,13 +718,13 @@ def trash(request: HttpRequest) -> HttpResponseBase:
         page_size=browse.PAGE_SIZE,
     )
     archive = Archive.canonical()
-    bestand = BestandChooser.of(archive)
-    rows = tuple(row for hit in page.hits if (row := _trash_row(archive, hit.ulid, bestand)))
+    chooser = CollectionChooser.of(archive)
+    rows = tuple(row for hit in page.hits if (row := _trash_row(archive, hit.ulid, chooser)))
     context: dict[str, object] = {
         "rows": rows,
         "pager": _pager(parsed, page, {}, []) if page.total else None,
     }
-    return render_screen(request, "workbench/trash.html", context, bestand=bestand)
+    return render_screen(request, "workbench/trash.html", context, chooser=chooser)
 
 
 @dataclass(frozen=True, slots=True)
@@ -738,7 +740,7 @@ class _TrashRow:
     version: Version
 
 
-def _trash_row(archive: Archive, ulid: str, bestand: BestandChooser) -> _TrashRow | None:
+def _trash_row(archive: Archive, ulid: str, chooser: CollectionChooser) -> _TrashRow | None:
     """The row for ``ulid``, or ``None`` once it has left the Papierkorb since the index was
     written (restored, or deleted for good)."""
     try:
@@ -752,7 +754,7 @@ def _trash_row(archive: Archive, ulid: str, bestand: BestandChooser) -> _TrashRo
         ulid=ulid,
         title=article.title,
         ref_code=article.ref_code or "",
-        bestand=bestand.name_of(article.collection_id) or "",
+        bestand=chooser.name_of(article.collection_id) or "",
         geloescht_am=vocab.day(mark.at),
         geloescht_von=mark.by,
         version=stored.version,

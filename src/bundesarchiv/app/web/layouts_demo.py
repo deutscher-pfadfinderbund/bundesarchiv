@@ -21,7 +21,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from bundesarchiv.app.web import browse, ledger
-from bundesarchiv.app.web.bestand import BestandChooser
+from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.panels import header_panels
 from bundesarchiv.index.query import FileKind, SearchHit
 
@@ -115,22 +115,22 @@ _PREVIEW = {
 def layout_demo(request: HttpRequest) -> HttpResponse:
     """GET ``/_dev/layouts/split-narrow/`` — the full workbench layout demo. ``?vorschau=1`` opens
     the preview pane; anything else closes it. Never mounted in production."""
-    vorschau = request.GET.get("vorschau") == "1"
+    preview = request.GET.get("vorschau") == "1"
     # The two state-switch links keep every other param; here the only state is vorschau.
     return render(
         request,
         "layouts_demo.html",
         {
-            "vorschau": vorschau,
+            "vorschau": preview,
             "ledger": ledger.build(
                 _HITS,
                 columns=ledger.DEFAULT_COLUMNS,
                 parsed=browse.parse_query(_LEDGER_QUERY),
                 params=_LEDGER_QUERY,
-                auswahl=(),
+                selection=(),
                 is_archivist=True,
                 selected_ulid=None,
-                bestand=BestandChooser(lambda: ()),
+                chooser=CollectionChooser(lambda: ()),
             ),
             "slots": _SLOTS,
             "set_filters": _SET_FILTERS,
@@ -143,6 +143,6 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
                 "noun": "Artikel",
             },
             "preview": _PREVIEW,
-            "neu": header_panels(BestandChooser(lambda: ()), aktiver=None),
+            "neu": header_panels(CollectionChooser(lambda: ()), active=None),
         },
     )

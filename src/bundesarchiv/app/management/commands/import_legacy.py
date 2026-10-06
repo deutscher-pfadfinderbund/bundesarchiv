@@ -80,7 +80,7 @@ class Command(BaseCommand):
                 "For another run, choose an empty BUNDESARCHIV_CANONICAL_ROOT."
             )
 
-        plan = legacy.plan(items, files, self._create_bestaende(archive, items))
+        plan = legacy.plan(items, files, self._create_collections(archive, items))
         missing, thumbnail_count = self._write(archive, plan, media_root)
         self.stdout.write(f"Thumbnails generated: {thumbnail_count}")
         self.stdout.write("Rebuilding the index …")
@@ -91,7 +91,7 @@ class Command(BaseCommand):
 
     # --- the writes ---------------------------------------------------------------
 
-    def _create_bestaende(
+    def _create_collections(
         self, archive: Archive, items: Sequence[dict[str, str]]
     ) -> dict[str, Ulid]:
         """Create every Bestand the export needs as a top-level Collection, idempotently BY NAME.
@@ -104,7 +104,7 @@ class Command(BaseCommand):
         if scan.unreadable:
             raise CommandError(f"Bestand unreadable: {', '.join(scan.unreadable)}")
         existing = {c.name: c.ulid for c in scan.readable}
-        for name in legacy.bestand_names(items):
+        for name in legacy.collection_names(items):
             if name in existing:
                 continue
             collection = Collection(ulid=identity.new_ulid(), name=name, parent_id=None)
@@ -179,8 +179,8 @@ class Command(BaseCommand):
         )
         strangers = legacy.unknown_vocabulary(
             rows,
-            known_media_types=vocab.MEDIENARTEN,
-            known_document_types=vocab.DOKUMENTTYPEN,
+            known_media_types=vocab.MEDIA_TYPES,
+            known_document_types=vocab.DOCUMENT_TYPES,
         )
         report = plan.report.with_missing_blobs(paths).with_unknown_vocabulary(*strangers)
         for line in report.lines():
@@ -227,4 +227,4 @@ def _refuse_a_media_root_without_the_files(
 
 def _dry_ids(items: Sequence[dict[str, str]]) -> dict[str, Ulid]:
     """Throwaway Bestand ULIDs for the dry run, which creates nothing but still maps every row."""
-    return {name: identity.new_ulid() for name in legacy.bestand_names(items)}
+    return {name: identity.new_ulid() for name in legacy.collection_names(items)}

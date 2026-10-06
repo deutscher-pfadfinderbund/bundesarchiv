@@ -211,17 +211,17 @@ def search(
     query = _search_query(text)
 
     base = _scoped(viewer, deleted=filters.deleted)
-    signatur = _signatur_hit(text)
-    if signatur is not None:
-        base = base.annotate(_signatur_key=_SIGNATUR_KEY)
-    matched = _apply_text(base, query, viewer, signatur)
+    ref_code_match = _ref_code_hit(text)
+    if ref_code_match is not None:
+        base = base.annotate(_ref_code_key=_REF_CODE_KEY)
+    matched = _apply_text(base, query, viewer, ref_code_match)
     filtered = _apply_filters(matched, filters)
 
     total = filtered.count()
     hits = _page_of_hits(
         filtered,
         query=query,
-        signatur=signatur,
+        ref_code_match=ref_code_match,
         viewer=viewer,
         sort=sort,
         descending=descending,
@@ -367,19 +367,19 @@ def _matched_vector(viewer: Viewer) -> F | Func:
 
 
 def _apply_text(
-    qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, signatur: Q | None
+    qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, ref_code_match: Q | None
 ) -> QuerySet[ArticleIndex]:
     """Restrict ``qs`` to rows whose matched vector matches ``query``, or whose Signatur equals the
-    text (``signatur``). A ``None`` query is a browse — the queryset is returned unchanged."""
+    text (``ref_code_match``). A ``None`` query is a browse — the queryset is returned unchanged."""
     if query is None:
         return qs
-    hit = Q(_vector=query) | signatur if signatur else Q(_vector=query)
+    hit = Q(_vector=query) | ref_code_match if ref_code_match else Q(_vector=query)
     return qs.annotate(_vector=_matched_vector(viewer)).filter(hit)
 
 
 # ``ref_code`` with case and whitespace removed: "BA 10", "ba10" and "BA10" share one key. A
 # sequential scan over the scoped rows; an expression index only pays at far more than the corpus.
-_SIGNATUR_KEY = Lower(
+_REF_CODE_KEY = Lower(
     Func(
         F("ref_code"),
         Value(r"\s+"),
@@ -391,11 +391,11 @@ _SIGNATUR_KEY = Lower(
 )
 
 
-def _signatur_hit(text: str | None) -> Q | None:
+def _ref_code_hit(text: str | None) -> Q | None:
     """The predicate "this row's Signatur is what the user typed", or ``None`` for a blank text.
     The row side needs the ``_signatur_key`` annotation (see ``_SIGNATUR_KEY``)."""
     key = "".join((text or "").split()).lower()
-    return Q(_signatur_key=key) if key else None
+    return Q(_ref_code_key=key) if key else None
 
 
 # ---------------------------------------------------------------------------
@@ -474,7 +474,7 @@ def _page_of_hits(
     qs: QuerySet[ArticleIndex],
     *,
     query: SearchQuery | None,
-    signatur: Q | None,
+    ref_code_match: Q | None,
     viewer: Viewer,
     sort: SortOrder,
     descending: bool,
@@ -487,7 +487,12 @@ def _page_of_hits(
     columns leave the ORM, and they map 1:1 onto ``SearchHit``.
     """
     ordered = _ordered(
-        qs, query=query, signatur=signatur, viewer=viewer, sort=sort, descending=descending
+        qs,
+        query=query,
+        ref_code_match=ref_code_match,
+        viewer=viewer,
+        sort=sort,
+        descending=descending,
     )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
@@ -506,7 +511,7 @@ def _ordered(
     qs: QuerySet[ArticleIndex],
     *,
     query: SearchQuery | None,
-    signatur: Q | None,
+    ref_code_match: Q | None,
     viewer: Viewer,
     sort: SortOrder,
     descending: bool = False,
@@ -524,13 +529,13 @@ def _ordered(
     """
     match sort:
         case "relevance":
-            if query is None or signatur is None:
+            if query is None or ref_code_match is None:
                 return qs.order_by("ulid")  # browse: deterministic, no rank to sort by
             # rank desc, over the viewer's matched vector (combined for an Archivist, general_tsv
             # otherwise — same expression the @@ match used); equal ranks read in numeric title
             # order (a run of issues: Nr. 1, 2, 10), ``ulid`` last. An exact Signatur hit outranks
             # every text rank.
-            exact = Case(When(signatur, then=1), default=0, output_field=IntegerField())
+            exact = Case(When(ref_code_match, then=1), default=0, output_field=IntegerField())
             return qs.annotate(
                 _exact=exact,
                 _rank=SearchRank(_matched_vector(viewer), query),

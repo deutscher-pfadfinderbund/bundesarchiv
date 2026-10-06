@@ -183,7 +183,7 @@ def test_the_edit_forms_small_swap_lands_its_own_partial(
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
     dokumenttyp = page.locator("#dokumenttyp-select")
-    expect(dokumenttyp.locator("option")).to_have_count(len(vocab.DOKUMENTTYPEN) + 1)  # + "kein"
+    expect(dokumenttyp.locator("option")).to_have_count(len(vocab.DOCUMENT_TYPES) + 1)  # + "kein"
     expect(dokumenttyp).to_contain_text("Zeitschrift")
     # ...and it is the SWAPPED list, not the no-JS baseline: both offer the same 16 words while no
     # Medienart narrows the vocabulary, so the only thing that tells them apart is the baseline's
@@ -923,7 +923,7 @@ _LONG_TITLE = (
     "Werbeplakat zur Bundesfahrt in die Rhön mit Aufruf zur Teilnahme"
     " am Pfingstlager des Gaues Hochland"
 )
-_LONG_TYP = max(vocab.DOKUMENTTYPEN, key=len)  # derived: the vocabulary IS the ceiling here
+_LONG_TYP = max(vocab.DOCUMENT_TYPES, key=len)  # derived: the vocabulary IS the ceiling here
 #: Long HERKUNFT values: an institutional author and a full place name.
 _LONG_CREATOR = "Bundesleitung des Bundes Deutscher Pfadfinderinnen, Referat Öffentlichkeitsarbeit"
 _LONG_PLACE = "Burg Rieneck im Sinntal, Unterfranken"
@@ -1848,11 +1848,11 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     # "focused" are browser facts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehler am Rand")
-    gruppen = page.locator('main textarea[name="gruppen"]')
-    expect(gruppen).to_be_hidden()  # not at the GROUPS rung
+    groups_text = page.locator('main textarea[name="gruppen"]')
+    expect(groups_text).to_be_hidden()  # not at the GROUPS rung
     # Gruppen stays empty -> invalid
     page.select_option('main select[name="sichtbarkeit"]', "groups")
-    expect(gruppen).to_be_visible()
+    expect(groups_text).to_be_visible()
     page.click('main button:has-text("Speichern")')
     error = page.locator(".record-meta .error")
     expect(error).to_have_text("Bitte mindestens eine Gruppe angeben.")

@@ -37,7 +37,7 @@ _REFUSAL = "Bitte einen Bestand wählen."
 type Options = tuple[tuple[str, str], ...]
 
 
-class BestandChooser:
+class CollectionChooser:
     """The Bestände offered to a form, and the rules for choosing one."""
 
     __slots__ = ("_load", "_loaded")
@@ -49,7 +49,7 @@ class BestandChooser:
         self._loaded: dict[Ulid, Collection] | None = None
 
     @classmethod
-    def of(cls, archive: Archive) -> BestandChooser:
+    def of(cls, archive: Archive) -> CollectionChooser:
         """This request's chooser over the archive's Collections."""
         return cls(archive.collections.load_all)
 
