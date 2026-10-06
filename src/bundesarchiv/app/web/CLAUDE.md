@@ -21,7 +21,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `legacy_params.py` — a GET or HEAD naming an old German query param or value gets a 301 to its English URL · interface: `LegacyParamsMiddleware` · tests: `tests/app/web/test_legacy_params.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_detail`, `DetailResolution` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
 - `browse.py` — pure URL-as-state algebra (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
-- `browse_views.py` — the list, detail and Papierkorb routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
+- `browse_views.py` — the list, detail and Trash routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`
 - `catalog.py` — the edit form's leak-sensitive parse + save · interface: `parse_edit_form`, `audience_choice`, `parse_audience`, `parse_lines`, `save_catalog_form`, `apply_captions` · tests: `test_catalog_form.py`

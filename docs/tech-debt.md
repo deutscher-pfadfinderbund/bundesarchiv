@@ -26,7 +26,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 30. Who may read a Bestand's name is unruled — Worth exploring
 - **Indicator:** 1 site shows any Bestand's name, or an unknown ulid, to a Member: the list's Bestand slot (2026-10-01)
-- **Evidence:** `browse_views.py` slot label from `bestand.names()` (all Collections); `article_auth.py` asserts "names are member-safe" without a ruling. Owner 2026-10-01: OK for now, revisit
+- **Evidence:** `browse_views.py` slot label from `collection_chooser.names()` (all Collections); `article_auth.py` asserts "names are member-safe" without a ruling. Owner 2026-10-01: OK for now, revisit
 - **Deletion test:** n/a — a missing rule, not a module
 - **Sketch:** decide with group access / the policy rework; if names are scoped, the slot label comes from the viewer-scoped facet only
 
@@ -127,7 +127,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ### 2. Record card field registry — done
 - **Indicator:** the 17-field list declared 6× → 1 (2026-09-02)
 - **Evidence:** `9dfa4d0`; `_FIELDS` in `catalog_views.py` now carries label, control, section, seed
-  and diff spelling, and the card is a loop over `workbench/_feld.html`.
+  and diff spelling, and the card is a loop over `workbench/_field.html`.
 - **Residue:** `catalog.parse_edit_form` keeps its own enumeration on purpose (ADR 0008: the pure
   leak-sensitive layer must not import the view module).
 
@@ -155,17 +155,17 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   its Article, and `media_key` takes the ref, not a bare hash.
 
 ### 6. FeldWahl — one bulk chooser — done
-- **Indicator:** chooser copies 2 → 1, context vocabularies 2 → 1, `data-bulk-wert` hand-typed 8 → 0;
+- **Indicator:** chooser copies 2 → 1, context vocabularies 2 → 1, `data-bulk-value` hand-typed 8 → 0;
   the placeholder-blanks-the-value bug fixed (2026-09-02)
-- **Evidence:** `bulk.feldwahl_context` + `workbench/_feldwahl.html`; `browse_views._BULK_FELD_OPTIONS`
+- **Evidence:** `bulk.field_picker_context` + `workbench/_field_picker.html`; `browse_views._BULK_FELD_OPTIONS`
   / `_bulk_collection_options` and `_reject`'s four option keys are gone, and the echo tests are one
   parametrization over `bulk.FIELDS`.
 - **Residue:** `layouts.css` still enumerates the 9 targets in its `.chooser:has(…)` rules — CSS
   cannot derive them; the widget-token gate covers the HTML half only.
 
-### 7. BestandChooser — done
+### 7. CollectionChooser — done
 - **Indicator:** chooser spelled 3× → 1, orderings 2 → 1 (name-sorted), the refusal string 3 → 1 (2026-09-02)
-- **Evidence:** `app/web/bestand.py`; the article form, the Bestand form's parent select, the bulk
+- **Evidence:** `app/web/collection_chooser.py`; the article form, the Bestand form's parent select, the bulk
   drawer and the rail's name lookups now hold one chooser per request.
 - **Residue:** two placeholders survive by design — `options()` refuses its empty value,
   `parent_options()` accepts it (a top-level Bestand has no parent).
@@ -181,11 +181,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   the security-spine and HTMX render-fork tests stay on the route per the testing razor.
 
 ### 9. CollectionTree — deepen the resolver's input — Worth exploring
-- **Indicator:** `resolve_chain` called at 5 sites in 4 modules (2026-10-01, better; 6 on 2026-09-01);
-  the 2 web `_collections` copies now go through `BestandChooser.chain_of` (Wave CLEAN, 2026-10-01);
-  the indexer builds it through one helper, `_bestand_lookup` (Wave CANON, 2026-10-01)
-- **Evidence:** `article_auth`, `media_views`, `index/indexer` (the web forms now resolve through
-  `bestand.by_ulid`). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
+- **Indicator:** `resolve_chain` called at 3 sites in 2 modules (2026-10-06, better; 5 in 4 on 2026-10-01, 6 on 2026-09-01);
+  the 2 web `_collections` copies now go through `CollectionChooser.chain_of` (Wave CLEAN, 2026-10-01);
+  the indexer builds it through one helper, `_collection_lookup` (Wave CANON, 2026-10-01)
+- **Evidence:** `collection_chooser` and `index/indexer` hold the copies (the web forms resolve through
+  `collection_chooser.by_ulid`; `article_auth` and `media_views` no longer copy). ADR 0001's one-pure-function contract holds; it is the ceremony around it that
   is copied. `media_views` re-reads every Collection README per byte-range.
 - **Evidence** (Caution, 2026-08-22 attempt, branch `arch/pure-store`, abandoned):
   removing a constructor `mkdir` opened a bootstrap gap (virgin deploy 500s).
@@ -236,26 +236,25 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `components.css:244-245` repeats a 3-level fallback twice in one rule; law C3 (amended 2026-10-01). Bites: G.38 (23px hit areas), G.45
 - **Sketch:** pixel-neutral wave: each component resolves its knobs into `--_name` at the top of its section (proof: `test:gallery-diff`); then a lint in `test_design_lint.py`: a `var(--_x)` needs a `--_x:` in the same section, a public knob is read only on that line
 
-### 50. A missing thumbnail stays missing until someone runs a command — Speculative
-- **Indicator:** 2 deploys in a row needed `manage.py rebuild_thumbnails` by hand (2026-10-01: 577, then ~2,300 PDFs)
-- **Evidence:** thumbnails are made at save time (`tasks.generate_thumbnail`); a miss is a plain 404 (`media_views.serve_thumbnail`). Owner 2026-10-01 night: a bulk build is fine (~40 MB for the corpus); `rebuild_thumbnails` after a deploy is a normal step
-- **Sketch:** on a miss for a viewer who may see the file, enqueue `generate_thumbnail` and show the placeholder; the next request serves the cached file. Gain is robustness only (a lost cache heals), not disk
+### 50. A missing thumbnail stays missing until someone runs a command — done (Wave MEDIA M1, 2026-10-06)
+- **Indicator:** done: the route heals a miss, so a deploy no longer needs `manage.py rebuild_thumbnails` for correctness (2026-10-06). Not yet measured: deploys that still run it, and first-request latency of a healed miss. Was 2 deploys in a row needing it (2026-10-01: 577, then ~2,300 PDFs)
+- **Evidence:** `media_views.serve_thumbnail` derives a missing tile or display version on the first authorized request (`thumbnails.cached`); the page links a tile only once it exists, so a lost cache still shows the placeholder until one request heals it
+- **Residue:** `rebuild_thumbnails` stays the bulk build after a deploy; owner 2026-10-01: a normal step
 
-### 27. The thumbnail root is resolved in five places — Worth exploring
-- **Indicator:** 5 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-01, stable)
-- **Evidence:** `app/tasks.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
-- **Deletion test:** one `thumbnails.root()` removes four copies of the settings lookup
+### 27. The thumbnail root is resolved in six places — Worth exploring
+- **Indicator:** 6 `Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)` sites (2026-10-06; 5 on 2026-10-01 — `app/stats.py` joined)
+- **Evidence:** `app/tasks.py`, `app/stats.py`, `app/web/media.py`, `import_legacy`, `browse_views`, `rebuild_thumbnails`
+- **Deletion test:** one `thumbnails.root()` removes five copies of the settings lookup
 - **Sketch:** `thumbnails.root() -> Path`; callers pass nothing
 
-### 28. Thumbnails decode a whole image before downscaling — Speculative
-- **Indicator:** up to ~179M px decoded per image (Pillow's bomb limit) (2026-10-01, stable; still no `draft`)
-- **Evidence:** `app/thumbnails.py::_picture`; JPEG could decode reduced via `Image.draft`
-- **Deletion test:** `draft` cuts worker memory on large scans; no change to the output
-- **Sketch:** `image.draft("RGB", (side, side))` before `load()` for JPEG
+### 28. Thumbnails decode a whole image before downscaling — done (Wave MEDIA M1, 2026-10-06)
+- **Indicator:** a decode is capped at 80 M px (`_MAX_PIXELS`); a JPEG decodes reduced via `Image.draft` (2026-10-06); was ~179M px per image (2026-10-01)
+- **Evidence:** `app/thumbnails.py::_picture`; the corpus' largest file is a 58.7 MP JPEG, the cap sits below Pillow's bomb warning
+- **Residue:** a non-JPEG near the cap still decodes whole; the cap bounds it
 
 ### 43. Landing state rides in four hand-spelled query params — done (Wave LANDING, 2026-10-02: `landing.py`)
 - **Indicator:** 4 params, 3 written in one module and read in another (2026-10-01, W3). Raised: the start page comes soon.
-- **Evidence:** `collection_views.py:74,186`, `catalog_views.py:151,198,635`, `browse_views.py:582`. `?angelegt=` echoes any text from the URL.
+- **Evidence:** `collection_views.py:74,186`, `catalog_views.py:151,198,635`, `browse_views.py:582`. `?created=` echoes any text from the URL.
 - **Sketch:** one landing vocabulary (encode/decode pair); the delete feedback would be a 5th param.
 
 ### 44. "What kind of htmx request" is read raw in 8 places — done (Wave LANDING, 2026-10-02: `viewers.request_kind`)
@@ -296,7 +295,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   registry landed)
 - **Evidence:** routes, the field registry, the structural-save retry, the media drawer and the
   Bestand chooser all live here. Accreted.
-- **Sketch:** no separate fix — #3 (EditSurface), #4 (CAS lift) and #7 (BestandChooser) each carve
+- **Sketch:** no separate fix — #3 (EditSurface), #4 (CAS lift) and #7 (CollectionChooser) each carve
   out a piece. Re-measure the line count after each.
 
 ### 15. Archivist route gate spelled many ways — Strong
@@ -396,9 +395,14 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   `mise run test:gallery-diff` (a ref vs the tree, per-PNG verdict).
 - **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
+### 52. German FTS ranking is untuned — Speculative
+- **Indicator:** 0 relevance judgements on real queries; config `german` fixed by ADR 0011 (2026-10-06)
+- **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
+- **Sketch:** collect misranked queries, then weights, a synonym or unaccent dictionary, or a trigram fallback
+
 ## Process law
 
-- **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (bestand.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
+- **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (collection_chooser.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
 
 - **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49, #31, #33–37, #43–44). Adopted: writer-brief "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
 
@@ -412,6 +416,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 ## Build & CI
 
 CI runs under 60s with no caching machinery (owner ruling); keep it that way.
+
+### 53. No dependency update policy — Speculative
+- **Indicator:** 0 written cadence for Django LTS or the `uv.lock` refresh (2026-10-06); parked on GH #19
+- **Evidence:** `pyproject.toml`, `uv.lock`, `docs/django6-notes.md`; a bump moves the Playwright chromium build (`CLAUDE.md`)
+- **Sketch:** a rule in `docs/runbook.md`: Django follows its LTS, lock refresh on a fixed rhythm, gate green before merge
 
 ### 22. Parallel worktrees share one test database — done
 - **Indicator:** 1 collision (2026-09-28): a gate in one worktree failed 1743 setups with
