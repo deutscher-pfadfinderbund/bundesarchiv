@@ -124,13 +124,13 @@ def choose_columns(request: HttpRequest) -> HttpResponseBase:
     if request.method != "POST":
         return not_found()
     # the fixed path is the guard: whatever was posted can only ever be this list's query
-    back = request.POST.get("zurueck", "")
+    back = request.POST.get("back", "")
     response = HttpResponseRedirect(
         f"{reverse('workbench')}?{back}" if back else reverse("workbench")
     )
     response.set_cookie(
         ledger.COOKIE,
-        ledger.cookie_value(request.POST.getlist("spalte")),
+        ledger.cookie_value(request.POST.getlist("column")),
         max_age=ledger.COOKIE_MAX_AGE,
         httponly=True,
         # https-only wherever the CSRF cookie is: dev's plain http cannot carry a Secure cookie

@@ -277,8 +277,8 @@ _BLANK_FORM = dict.fromkeys(
         "subject_place",
         "physical_location",
         "body",
-        "sichtbarkeit",
-        "gruppen",
+        "audience",
+        "groups",
     ),
     "",
 )
@@ -334,30 +334,28 @@ def _restore(client: Client, corpus: Corpus) -> Any:
 
 def _upload(client: Client, corpus: Corpus) -> Any:
     upload = SimpleUploadedFile("scan.pdf", b"%PDF-1.4", content_type="application/pdf")
-    return client.post(f"/articles/{DRAFT_ULID}/media/upload", {"dateien": upload})
+    return client.post(f"/articles/{DRAFT_ULID}/media/upload", {"files": upload})
 
 
 def _reorder(client: Client, corpus: Corpus) -> Any:
     first, _ = with_two_media(corpus)
-    return client.post(f"/articles/{DRAFT_ULID}/media/move", {"hash": first, "richtung": "runter"})
+    return client.post(f"/articles/{DRAFT_ULID}/media/move", {"hash": first, "direction": "down"})
 
 
 def _remove(client: Client, corpus: Corpus) -> Any:
     first, _ = with_two_media(corpus)
-    return client.post(
-        f"/articles/{DRAFT_ULID}/media/remove", {"entfernen": first, "bestaetigt": "1"}
-    )
+    return client.post(f"/articles/{DRAFT_ULID}/media/remove", {"remove": first, "confirmed": "1"})
 
 
 def _bulk(client: Client, corpus: Corpus) -> Any:
     return client.post(
         "/articles/bulk-edit",
-        {"selection": [DRAFT_ULID], "feld": "creator", "wert_text": "Kurt", "bestaetigt": "1"},
+        {"selection": [DRAFT_ULID], "field": "creator", "value_text": "Kurt", "confirmed": "1"},
     )
 
 
 def _create_bestand(client: Client, corpus: Corpus) -> Any:
-    return client.post("/collections/new", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""})
+    return client.post("/collections/new", {"name": "Karten", "parent_id": "", "audience": ""})
 
 
 def _rename_bestand(client: Client, corpus: Corpus) -> Any:

@@ -198,7 +198,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     # error in the margin — a visible cue needs a render to be judged on (learning G.7), and this shot
     # is also the C13 error-border state.
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
-    page.select_option('main select[name="sichtbarkeit"]', "groups")
+    page.select_option('main select[name="audience"]', "groups")
     page.click('main button:has-text("Speichern")')
     page.wait_for_selector(".record-meta .error")
 
@@ -238,8 +238,8 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
-    page.select_option('select[name="feld"]', "media_type")
-    page.select_option('select[name="wert_media_type"]', "")
+    page.select_option('select[name="field"]', "media_type")
+    page.select_option('select[name="value_media_type"]', "")
     page.click('button:has-text("Änderung prüfen")')
     page.wait_for_selector(".column .error")
 

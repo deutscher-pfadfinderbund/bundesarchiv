@@ -219,8 +219,8 @@ def _handle_edit_post(
     changed_by: str,
 ) -> HttpResponseBase:
     """Parse + save the edit POST: state F on a validation error (first errored field autofocused),
-    302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_entfernen``
-    or ``custom_neu`` submit removes or adds a custom row — a re-render, no save (spec §5).
+    302 on success, state G on ``Conflict`` with the submitted values preserved. A ``custom_remove``
+    or ``custom_add`` submit removes or adds a custom row — a re-render, no save (spec §5).
 
     SAVING IS PART OF PUBLISHING (owner decision 2026-08-08; a1 round 4): the margin's Status select
     rides the form, so the ONE CAS save commits the metadata and the Status together — Speichern
@@ -229,8 +229,8 @@ def _handle_edit_post(
     branch below)."""
     current = stored.article
     surface = EditSurface.of(current, stored.version, chooser)
-    adding = "custom_neu" in request.POST
-    if adding or "custom_entfernen" in request.POST:
+    adding = "custom_add" in request.POST
+    if adding or "custom_remove" in request.POST:
         # spec §5: drop the named row or add an empty one, preserve everything else, save nothing.
         return surface.submitted(
             request.POST,
@@ -248,6 +248,7 @@ def _handle_edit_post(
         ulid=ulid,
         chooser=chooser,
         current_media=current.media,
+        current_audience=current.audience,
         lifecycle=lifecycle,
         added_at=current.added_at,
         deleted=current.deleted,
@@ -298,10 +299,10 @@ def _handle_edit_post(
 
 
 def _named_custom_row(post: QueryDict) -> int:
-    """The custom row the ``custom_entfernen`` submit names — a position in the RAW POST lists. A
+    """The custom row the ``custom_remove`` submit names — a position in the RAW POST lists. A
     non-numeric value yields ``-1``, which drops nothing."""
     try:
-        return int(post.get("custom_entfernen", ""))
+        return int(post.get("custom_remove", ""))
     except ValueError:
         return -1
 
@@ -415,8 +416,7 @@ class EditSurface:
             version=version,
             values=_post_to_form_values(
                 post,
-                self.stored.ulid,
-                self.stored.lifecycle,
+                self.stored,
                 drop_custom_row=drop_custom_row,
                 add_custom_row=add_custom_row,
             ),
@@ -529,15 +529,14 @@ def _article_to_form_values(article: Article) -> dict[str, object]:
 
 def _post_to_form_values(
     post: QueryDict,
-    ulid: Ulid,
-    lifecycle: Lifecycle,
+    stored: Article,
     *,
     drop_custom_row: int | None = None,
     add_custom_row: bool = False,
 ) -> dict[str, object]:
     """The raw POST → the flat form-value dict (state B/F/G re-render). Values are preserved verbatim
     so the archivist never loses input; blank custom pairs drop, and ``add_custom_row`` appends one.
-    ``lifecycle`` is the article's actual current lifecycle (the caller holds it), never assumed.
+    A Status or Sichtbarkeit the POST does not name shows ``stored``'s, as the save keeps it.
 
     ``drop_custom_row`` names a position in the RAW lists, so it is popped BEFORE the blank rows are
     filtered — popping after would shift positions and drop the wrong row whenever an earlier one was
@@ -545,13 +544,17 @@ def _post_to_form_values(
     raw = list(zip(post.getlist("custom_key"), post.getlist("custom_value"), strict=False))
     if drop_custom_row is not None and 0 <= drop_custom_row < len(raw):
         raw.pop(drop_custom_row)
-    values: dict[str, object] = {"ulid": ulid}
+    values: dict[str, object] = {"ulid": stored.ulid}
     for registered in FIELDS:
         if registered.control:
             values[registered.name] = post.get(registered.name, "")
     if values["lifecycle"] not in LIFECYCLE_VALUES:
         # Veröffentlicht is the first option, so a value matching none would show a draft as published
-        values["lifecycle"] = lifecycle.value
+        values["lifecycle"] = stored.lifecycle.value
+    if catalog.audience_choice(post) is None:
+        # "" would re-render as inherit, and the next Speichern would post it
+        seeded = _article_to_form_values(stored)
+        values["audience"], values["groups"] = seeded["audience"], seeded["groups"]
     rows = [pair for pair in raw if pair != ("", "")]
     values["custom_rows"] = [*rows, ("", "")] if add_custom_row else rows
     return values
@@ -798,8 +801,8 @@ _FILENAME_EMPTY = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die
 
 
 def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/media/move`` — reorder one media entry up/down (``richtung`` =
-    ``hoch``/``runter``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
+    """``POST /articles/<ulid>/media/move`` — reorder one media entry up/down (``direction`` =
+    ``up``/``down``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
     §6.3). Archivist-only, POST-only → plain 404 otherwise. Structural, non-CAS: re-render
     the edit form afterwards. A bad hash / edge move is a no-op (never raises)."""
     gated = _load_gated(request, ulid)
@@ -807,7 +810,7 @@ def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
         return not_found()
     archive, _, archivist = gated
     content_hash = request.POST.get("hash", "")
-    direction = request.POST.get("richtung", "")
+    direction = request.POST.get("direction", "")
     return _structural_change(
         request,
         archive,
@@ -819,15 +822,15 @@ def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/remove`` — the two-step no-JS remove (spec §6.3). First POST
-    (``entfernen``=hash) re-renders the edit form with that row in the "Wirklich entfernen? [Ja]
-    [Nein]" confirm state — NO removal yet. The [Ja] POST (``bestaetigt``=1) actually drops the ref
+    (``remove``=hash) re-renders the edit form with that row in the "Wirklich entfernen? [Ja]
+    [Nein]" confirm state — NO removal yet. The [Ja] POST (``confirmed``=1) actually drops the ref
     (the blob is write-once and stays, recoverable). Archivist-only, POST-only → 404 otherwise."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "POST":
         return not_found()
     archive, stored, archivist = gated
-    content_hash = request.POST.get("entfernen", "")
-    if request.POST.get("bestaetigt") == "1":
+    content_hash = request.POST.get("remove", "")
+    if request.POST.get("confirmed") == "1":
         return _structural_change(
             request,
             archive,
@@ -843,7 +846,7 @@ def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
 
 
 def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``POST /articles/<ulid>/media/upload`` — attach one or more files (multipart ``dateien``).
+    """``POST /articles/<ulid>/media/upload`` — attach one or more files (multipart ``files``).
     Each file is stored under its own name (write-once, ADR 0019) and its ref appended at the END
     (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404 otherwise. An oversize
     file or one whose name cleans to nothing → a clean German error, not a 500, and no file of the
@@ -853,7 +856,7 @@ def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None or request.method != "POST":
         return not_found()
     archive, stored, archivist = gated
-    files = request.FILES.getlist("dateien")
+    files = request.FILES.getlist("files")
     ceiling = settings.BUNDESARCHIV_MAX_UPLOAD_BYTES
     oversize = any(f.size is not None and f.size > ceiling for f in files)
     unnamed = any(cleaned_name(f.name or "") is None for f in files)
@@ -967,12 +970,12 @@ def _media_surface(
 def _reordered(
     media: tuple[MediaRef, ...], content_hash: str, direction: str
 ) -> tuple[MediaRef, ...]:
-    """Move the entry named by ``content_hash`` one step ``hoch`` (earlier) or ``runter`` (later). A
+    """Move the entry named by ``content_hash`` one step ``up`` (earlier) or ``down`` (later). A
     missing hash, an unknown direction, or a move past an edge is a no-op (returns the tuple as-is)."""
     index = next((i for i, r in enumerate(media) if r.content_hash == content_hash), None)
     if index is None:
         return media
-    target = index - 1 if direction == "hoch" else index + 1 if direction == "runter" else index
+    target = index - 1 if direction == "up" else index + 1 if direction == "down" else index
     if not (0 <= target < len(media)) or target == index:
         return media
     items = list(media)

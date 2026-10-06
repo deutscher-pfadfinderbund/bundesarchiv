@@ -187,18 +187,18 @@
   .chooser [data-bulk-wert] {
     --field-display: none;
   }
-  .chooser:has([name="feld"] option:checked[value="physical_location"])
+  .chooser:has([name="field"] option:checked[value="physical_location"])
     [data-bulk-wert~="physical_location"],
-  .chooser:has([name="feld"] option:checked[value="creator"]) [data-bulk-wert~="creator"],
-  .chooser:has([name="feld"] option:checked[value="subject_place"])
+  .chooser:has([name="field"] option:checked[value="creator"]) [data-bulk-wert~="creator"],
+  .chooser:has([name="field"] option:checked[value="subject_place"])
     [data-bulk-wert~="subject_place"],
-  .chooser:has([name="feld"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"],
-  .chooser:has([name="feld"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"],
-  .chooser:has([name="feld"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"],
-  .chooser:has([name="feld"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"],
-  .chooser:has([name="feld"] option:checked[value="document_type"])
+  .chooser:has([name="field"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"],
+  .chooser:has([name="field"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"],
+  .chooser:has([name="field"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"],
+  .chooser:has([name="field"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"],
+  .chooser:has([name="field"] option:checked[value="document_type"])
     [data-bulk-wert~="document_type"],
-  .chooser:has([name="feld"] option:checked[value="collection_id"])
+  .chooser:has([name="field"] option:checked[value="collection_id"])
     [data-bulk-wert~="collection_id"] {
     --field-display: inherit; /* whatever display the context gives every other field */
   }

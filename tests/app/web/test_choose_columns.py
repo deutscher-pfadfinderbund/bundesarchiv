@@ -26,7 +26,7 @@ def _post(data: dict[str, object], *, enforce_csrf: bool = False) -> HttpRespons
 
 def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() -> None:
     query = "q=Fahrt+%26+Lager&collection=B1&sort=-date&selection=A1&selection=A2&article=A1"
-    response = _post({"spalte": ["collection", "date"], "zurueck": query})
+    response = _post({"column": ["collection", "date"], "back": query})
     assert response.status_code == 302
     target = urlsplit(response["Location"])
     assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
@@ -51,12 +51,12 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
     ],
 )
 def test_the_way_back_never_leaves_the_site(zurueck: str) -> None:
-    target = urlsplit(_post({"spalte": ["date"], "zurueck": zurueck})["Location"])
+    target = urlsplit(_post({"column": ["date"], "back": zurueck})["Location"])
     assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
 
 
 def test_the_cookie_never_holds_a_posted_value_that_names_no_column() -> None:
-    response = _post({"spalte": ["<script>", "type.collection", "date"], "zurueck": ""})
+    response = _post({"column": ["<script>", "type.collection", "date"], "back": ""})
     assert response.cookies[ledger.COOKIE].value == ledger.cookie_value(["date"])
 
 
@@ -67,6 +67,6 @@ def test_a_get_is_the_plain_404_and_sets_nothing() -> None:
 
 
 def test_a_cross_site_post_is_refused_and_sets_nothing() -> None:
-    response = _post({"spalte": ["collection"], "zurueck": ""}, enforce_csrf=True)
+    response = _post({"column": ["collection"], "back": ""}, enforce_csrf=True)
     assert response.status_code == 403
     assert ledger.COOKIE not in response.cookies

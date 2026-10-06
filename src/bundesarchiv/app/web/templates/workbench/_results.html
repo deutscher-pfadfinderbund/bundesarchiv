@@ -25,7 +25,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% include "components/index_lag.html" %}
   {% if page.hits %}
   <form id="spalten-form" method="post" action="{% url 'columns' %}" hidden>
-    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ columns_back }}">
+    {% csrf_token %}<input type="hidden" name="back" value="{{ columns_back }}">
   </form>
   {% if is_archivist %}
   <form method="post" action="{% url 'article-bulk-edit' %}">

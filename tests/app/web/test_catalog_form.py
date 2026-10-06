@@ -9,14 +9,16 @@ with no database and no request cycle — the view stays a thin Conflict-catch s
 The leak-sensitive contract (spec §8, the "" → None boundary) is pinned here: EVERY optional scalar
 empties to ``None`` (``ref_code``, ``media_type``, ``document_type``, ``physical_location``,
 ``creator``, ``subject_place``, ``date``, each ``custom_value[]``); empty custom rows drop; ``body``
-stays a ``str``; inheriting Sichtbarkeit yields ``audience=None``.
+stays a ``str``; inheriting Sichtbarkeit yields ``audience=None``; a POST naming no Sichtbarkeit keeps the stored one.
 """
 
 from datetime import UTC, datetime
 
+import pytest
+
 from bundesarchiv.app.web import catalog
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.domain.models import AudienceTier, Change, Collection
+from bundesarchiv.domain.models import Audience, AudienceTier, Change, Collection
 
 
 def _post(**overrides: object) -> dict[str, list[str]]:
@@ -33,8 +35,8 @@ def _post(**overrides: object) -> dict[str, list[str]]:
         "subject_place": [""],
         "physical_location": [""],
         "body": [""],
-        "sichtbarkeit": [""],
-        "gruppen": [""],
+        "audience": [""],
+        "groups": [""],
         "custom_key": [""],
         "custom_value": [""],
         "expected_version": ["3"],
@@ -50,9 +52,14 @@ _BESTAND = CollectionChooser(
 )
 
 
-def _parse(post: dict[str, list[str]]) -> catalog.ParseResult:
+def _parse(post: dict[str, list[str]], *, stored: Audience | None = None) -> catalog.ParseResult:
     return catalog.parse_edit_form(
-        post, ulid="01ARTICLEULID0000000000000", chooser=_BESTAND, added_at=None, deleted=None
+        post,
+        ulid="01ARTICLEULID0000000000000",
+        chooser=_BESTAND,
+        current_audience=stored,
+        added_at=None,
+        deleted=None,
     )
 
 
@@ -71,7 +78,12 @@ def test_minimal_valid_form_builds_an_article() -> None:
 def test_an_edit_keeps_the_papierkorb_mark() -> None:
     mark = Change(at=datetime(2026, 9, 30, 12, 0, tzinfo=UTC), by="bert")
     result = catalog.parse_edit_form(
-        _post(), ulid="01ARTICLEULID0000000000000", chooser=_BESTAND, added_at=None, deleted=mark
+        _post(),
+        ulid="01ARTICLEULID0000000000000",
+        chooser=_BESTAND,
+        current_audience=None,
+        added_at=None,
+        deleted=mark,
     )
     assert result.article is not None and result.article.deleted == mark
 
@@ -216,20 +228,20 @@ def test_valid_edtf_round_trips() -> None:
 
 
 def test_inherit_visibility_yields_none_audience() -> None:
-    art = _parse(_post(sichtbarkeit="")).article
+    art = _parse(_post(audience="")).article
     assert art is not None
     assert art.audience is None
 
 
 def test_public_visibility() -> None:
-    art = _parse(_post(sichtbarkeit="public")).article
+    art = _parse(_post(audience="public")).article
     assert art is not None
     assert art.audience is not None
     assert art.audience.tier is AudienceTier.PUBLIC
 
 
 def test_members_visibility() -> None:
-    art = _parse(_post(sichtbarkeit="members")).article
+    art = _parse(_post(audience="members")).article
     assert art is not None
     assert art.audience is not None
     assert art.audience.tier is AudienceTier.MEMBERS
@@ -237,7 +249,7 @@ def test_members_visibility() -> None:
 
 def test_groups_visibility_with_groups() -> None:
     # one group per line, as the Schlagworte: a group name may carry a comma
-    art = _parse(_post(sichtbarkeit="groups", gruppen="Gau Wartburg, Nord\r\n kasse ")).article
+    art = _parse(_post(audience="groups", groups="Gau Wartburg, Nord\r\n kasse ")).article
     assert art is not None
     assert art.audience is not None
     assert art.audience.tier is AudienceTier.GROUPS
@@ -245,17 +257,61 @@ def test_groups_visibility_with_groups() -> None:
 
 
 def test_groups_visibility_without_groups_is_a_field_error() -> None:
-    result = _parse(_post(sichtbarkeit="groups", gruppen=""))
-    assert result.errors["gruppen"] == "Bitte mindestens eine Gruppe angeben."
+    result = _parse(_post(audience="groups", groups=""))
+    assert result.errors["groups"] == "Bitte mindestens eine Gruppe angeben."
 
 
 def test_gruppen_ignored_when_not_groups_tier() -> None:
     # Naming groups on a MEMBERS rung must not smuggle a GROUPS audience (illegal per the model).
-    art = _parse(_post(sichtbarkeit="members", gruppen="vorstand")).article
+    art = _parse(_post(audience="members", groups="vorstand")).article
     assert art is not None
     assert art.audience is not None
     assert art.audience.tier is AudienceTier.MEMBERS
     assert art.audience.groups == ()
+
+
+#: The stored audience the contract below edits: the narrowest rung, so any change widens it.
+_STORED = Audience(AudienceTier.GROUPS, groups=("vorstand",))
+
+
+def _without(post: dict[str, list[str]], *keys: str) -> dict[str, list[str]]:
+    return {k: v for k, v in post.items() if k not in keys}
+
+
+@pytest.mark.parametrize(
+    "post",
+    [
+        _without(_post(), "audience", "groups"),  # a form from before a rename
+        _without(_post(groups="alle"), "audience"),  # groups without a rung
+        _post(audience="bogus"),
+        _post(audience="Public"),
+        _post(audience=" public"),
+        _post(audience=["bogus", "public"]),  # only the first value counts
+    ],
+    ids=["absent", "groups-only", "unknown", "case", "whitespace", "unknown-first"],
+)
+def test_a_post_naming_no_rung_keeps_the_stored_audience(post: dict[str, list[str]]) -> None:
+    # inheriting would widen a GROUPS record to its Bestand's rung, public included
+    art = _parse(post, stored=_STORED).article
+    assert art is not None
+    assert art.audience == _STORED
+
+
+@pytest.mark.parametrize(
+    "post",
+    [_without(_post(audience="groups"), "groups"), _post(audience="groups", groups=" \n ")],
+    ids=["groups-absent", "groups-blank"],
+)
+def test_the_groups_rung_naming_no_group_saves_nothing(post: dict[str, list[str]]) -> None:
+    result = _parse(post, stored=_STORED)
+    assert result.article is None
+    assert "groups" in result.errors
+
+
+def test_the_explicit_inherit_choice_drops_the_stored_audience() -> None:
+    art = _parse(_post(audience=""), stored=_STORED).article
+    assert art is not None
+    assert art.audience is None
 
 
 # --- custom bag (Gruppe 7) ---------------------------------------------------------

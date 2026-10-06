@@ -56,7 +56,7 @@ def test_a_signed_public_cookie_is_still_anonymous(gated: Corpus) -> None:
 def test_an_anonymous_post_gets_the_door_too(gated: Corpus) -> None:
     """The gate is method-blind: one check, no route- or verb-specific holes."""
     path = f"/articles/{PUBLISHED_ULID}/delete"
-    assert_door(client_as(None).post(path, {"bestaetigt": "1"}), path)
+    assert_door(client_as(None).post(path, {"confirmed": "1"}), path)
 
 
 def test_the_door_never_carries_a_foreign_login_target(gated: Corpus) -> None:

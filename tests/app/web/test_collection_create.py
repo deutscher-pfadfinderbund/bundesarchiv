@@ -48,6 +48,21 @@ def test_non_archivist_post_creates_nothing(corpus: Corpus) -> None:
     assert {c.ulid for c in corpus.collections.load_all()} == before  # nothing created
 
 
+@pytest.mark.parametrize(
+    "post",
+    [{}, {"audience": "bogus", "groups": "x"}, {"groups": "vorstand"}],
+    ids=["absent", "unknown", "groups-only"],
+)
+def test_a_create_naming_no_rung_is_denied_and_creates_nothing(
+    corpus: Corpus, post: dict[str, str]
+) -> None:
+    # a create has no stored audience to keep, and no rung is narrow enough to assume
+    before = {c.ulid for c in corpus.collections.load_all()}
+    response = client_as(Archivist()).post("/collections/new", {"name": "Karten", **post})
+    assert_denied(response)
+    assert {c.ulid for c in corpus.collections.load_all()} == before
+
+
 # --- GET renders the form ---------------------------------------------------------
 
 
@@ -69,7 +84,7 @@ def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> Non
     # BLOCKER 2: create → land on /articles/new with the new Bestand pre-selected + a success hinweis
     # (create→catalog is one flow).
     response = client_as(Archivist()).post(
-        "/collections/new", {"name": "Karten", "parent_id": "", "sichtbarkeit": ""}
+        "/collections/new", {"name": "Karten", "parent_id": "", "audience": ""}
     )
     assert response.status_code == 302
     created = [c for c in corpus.collections.load_all() if c.name == "Karten"]
@@ -114,7 +129,7 @@ def test_catalog_form_ignores_a_bogus_preselect(fotos: Corpus) -> None:
 def test_post_creates_under_parent_with_members_audience(fotos: Corpus) -> None:
     client_as(Archivist()).post(
         "/collections/new",
-        {"name": "Interna", "parent_id": "FOTOS", "sichtbarkeit": "members"},
+        {"name": "Interna", "parent_id": "FOTOS", "audience": "members"},
     )
     created = [c for c in fotos.collections.load_all() if c.name == "Interna"]
     assert len(created) == 1
@@ -129,8 +144,8 @@ def test_post_creates_groups_audience_with_gruppen(corpus: Corpus) -> None:
         {
             "name": "Vorstand",
             "parent_id": "",
-            "sichtbarkeit": "groups",
-            "gruppen": "vorstand\r\narchiv",
+            "audience": "groups",
+            "groups": "vorstand\r\narchiv",
         },
     )
     created = [c for c in corpus.collections.load_all() if c.name == "Vorstand"]
@@ -143,7 +158,9 @@ def test_post_creates_groups_audience_with_gruppen(corpus: Corpus) -> None:
 @pytest.mark.django_db
 def test_post_blank_name_re_renders_with_error_and_creates_nothing(corpus: Corpus) -> None:
     before = {c.ulid for c in corpus.collections.load_all()}
-    response = client_as(Archivist()).post("/collections/new", {"name": "", "parent_id": ""})
+    response = client_as(Archivist()).post(
+        "/collections/new", {"name": "", "parent_id": "", "audience": ""}
+    )
     assert response.status_code == 200  # re-render, not redirect
     assert "Name ist erforderlich." in response.content.decode()
     assert {c.ulid for c in corpus.collections.load_all()} == before  # nothing created
@@ -154,7 +171,7 @@ def test_post_groups_without_gruppen_re_renders_with_error(corpus: Corpus) -> No
     before = {c.ulid for c in corpus.collections.load_all()}
     response = client_as(Archivist()).post(
         "/collections/new",
-        {"name": "Leer", "parent_id": "", "sichtbarkeit": "groups", "gruppen": ""},
+        {"name": "Leer", "parent_id": "", "audience": "groups", "groups": ""},
     )
     assert response.status_code == 200
     assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
@@ -167,7 +184,7 @@ def test_post_unknown_parent_re_renders_and_creates_nothing(corpus: Corpus) -> N
     # oracle) — nothing created.
     before = {c.ulid for c in corpus.collections.load_all()}
     response = client_as(Archivist()).post(
-        "/collections/new", {"name": "Waise", "parent_id": "NOSUCH"}
+        "/collections/new", {"name": "Waise", "parent_id": "NOSUCH", "audience": ""}
     )
     assert response.status_code == 200
     assert {c.ulid for c in corpus.collections.load_all()} == before
@@ -181,12 +198,12 @@ def test_the_panel_answers_a_refusal_in_place_then_creates(corpus: Corpus) -> No
     before = len(corpus.collections.load_all())
     refused = client.post(
         "/collections/new",
-        {"name": "", "parent_id": "", "sichtbarkeit": "groups", "gruppen": "Rover"},
+        {"name": "", "parent_id": "", "audience": "groups", "groups": "Rover"},
         headers={"HX-Request": "true"},
     )
     [(action, fields)] = page_forms(refused.content.decode())
     assert action == "/collections/new"
-    assert (fields["sichtbarkeit"], fields["gruppen"]) == ("groups", "Rover")
+    assert (fields["audience"], fields["groups"]) == ("groups", "Rover")
     assert len(corpus.collections.load_all()) == before
     created = client.post(action, {**fields, "name": "Rover"}, headers={"HX-Request": "true"})
     assert created["HX-Redirect"].startswith("/articles/new?collection=")

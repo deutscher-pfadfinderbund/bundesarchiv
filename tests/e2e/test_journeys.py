@@ -101,7 +101,7 @@ def test_an_abandoned_panel_change_never_rides_along(
     expect(page.locator(".ledger th.ref-code")).to_be_visible()
     expect(page.locator(".ledger th.collection")).to_have_count(0)
 
-    feld = page.locator('#feld-aendern select[name="feld"]')
+    feld = page.locator('#feld-aendern select[name="field"]')
     rendered = feld.input_value()
     page.click('[popovertarget="feld-aendern"]')
     feld.select_option("creator")
@@ -1614,17 +1614,17 @@ def test_bulk_select_confirm_apply(
     page.wait_for_url("**auswahl=**")
     # the head box ticks every row on the page and unticks them again
     rows = page.locator('input[name="selection"]')
-    page.check('input[name="alle"]')
+    page.check('input[name="all"]')
     expect(page.locator('input[name="selection"]:checked')).to_have_count(rows.count())
-    page.uncheck('input[name="alle"]')
+    page.uncheck('input[name="all"]')
     expect(page.locator('input[name="selection"]:checked')).to_have_count(0)
     page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
     page.click('[popovertarget="feld-aendern"]')
     expect(page.locator("#feld-aendern")).to_be_visible()
-    page.select_option('select[name="feld"]', "creator")
-    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.select_option('select[name="field"]', "creator")
+    page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     # the confirm page lists the field + count; apply → the result page
     expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
@@ -1644,15 +1644,15 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
     )
     page.click('[popovertarget="feld-aendern"]')
     widgets = page.locator("[data-bulk-wert]:visible")
-    page.select_option('select[name="feld"]', "media_type")
+    page.select_option('select[name="field"]', "media_type")
     expect(widgets).to_have_count(1)
-    page.select_option('select[name="wert_media_type"]', "")
+    page.select_option('select[name="value_media_type"]', "")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.locator(".column .error")).to_be_visible()
     expect(widgets).to_have_count(1)
-    page.select_option('select[name="feld"]', "creator")
+    page.select_option('select[name="field"]', "creator")
     expect(widgets).to_have_count(1)
-    expect(page.locator('input[name="wert_text"]')).to_be_visible()
+    expect(page.locator('input[name="value_text"]')).to_be_visible()
 
 
 def test_bulk_url_seeded_selection_still_works(
@@ -1668,8 +1668,8 @@ def test_bulk_url_seeded_selection_still_works(
     expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
     page.click('[popovertarget="feld-aendern"]')
-    page.select_option('select[name="feld"]', "creator")
-    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.select_option('select[name="field"]', "creator")
+    page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
 
@@ -1850,15 +1850,15 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     # "focused" are browser facts.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Fehler am Rand")
-    groups_text = page.locator('main textarea[name="gruppen"]')
+    groups_text = page.locator('main textarea[name="groups"]')
     expect(groups_text).to_be_hidden()  # not at the GROUPS rung
     # Gruppen stays empty -> invalid
-    page.select_option('main select[name="sichtbarkeit"]', "groups")
+    page.select_option('main select[name="audience"]', "groups")
     expect(groups_text).to_be_visible()
     page.click('main button:has-text("Speichern")')
     error = page.locator(".record-meta .error")
     expect(error).to_have_text("Bitte mindestens eine Gruppe angeben.")
-    expect(page.locator('main textarea[name="gruppen"]')).to_be_focused()
+    expect(page.locator('main textarea[name="groups"]')).to_be_focused()
 
 
 def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
@@ -2037,11 +2037,11 @@ def test_no_js_bulk_flow_completes(
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")  # selection mode is URL state
     rows = page.locator('input[name="selection"]').count()
-    page.check('input[name="alle"]')
+    page.check('input[name="all"]')
     expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # no JS ticks them
     page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
-    page.select_option('select[name="feld"]', "creator")
-    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.select_option('select[name="field"]', "creator")
+    page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
     # the confirm page carries every row of the page the head box sat on

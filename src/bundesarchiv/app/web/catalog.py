@@ -6,7 +6,7 @@ Conflict-catch site (ADR 0013) is a thin shell:
 - ``parse_edit_form`` — a total function over a QueryDict-shaped mapping: it either builds a valid
   ``Article`` (ready for ``save_article``) or returns a ``FormErrors`` map keyed by field name with
   the verbatim German strings (spec §3). It owns the ``"" → None`` boundary for EVERY optional
-  scalar (spec §8) and the GROUPS-iff-gruppen invariant. IO-free, request-free.
+  scalar (spec §8) and the GROUPS-iff-groups invariant. IO-free, request-free.
 - ``save_catalog_form`` — the thin controller that is the ONLY place ``Conflict`` is caught for a
   form save (ADR 0013): it calls ``save_article(archive, article, expected_version)`` directly (never
   the retrying ``update_article``), and on ``Conflict`` re-loads the winner and returns a
@@ -47,13 +47,14 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 #: A field-name → verbatim German error map (spec §3). Empty means the form validated.
 type FormErrors = dict[str, str]
 
-# The Sichtbarkeit select values → the audience rung they set. The empty value ("") is the inherit
-# default (audience=None, ADR 0001) and is handled before this map is consulted.
+# The Sichtbarkeit select values → the audience rung they set. The empty value ("") is the explicit
+# inherit choice (audience=None, ADR 0001), the one choice missing from this map.
 _AUDIENCE_TIER: dict[str, AudienceTier] = {
     "public": AudienceTier.PUBLIC,
     "members": AudienceTier.MEMBERS,
     "groups": AudienceTier.GROUPS,
 }
+_AUDIENCE_CHOICES = frozenset({"", *_AUDIENCE_TIER})
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +118,7 @@ def parse_edit_form(
     ulid: Ulid,
     chooser: CollectionChooser,
     current_media: tuple[MediaRef, ...] = (),
+    current_audience: Audience | None,
     lifecycle: Lifecycle = Lifecycle.DRAFT,
     added_at: datetime | None,
     deleted: Change | None,
@@ -129,6 +131,7 @@ def parse_edit_form(
     ``current_media`` is the article's media as stored: the metadata save PRESERVES it (never wipes
     it) and only updates each entry's caption from the form's ``caption[<hash>]`` field (spec §6.3 —
     captions ride the metadata CAS save; reorder/remove/upload are separate structural POSTs).
+    ``current_audience`` is the stored audience, kept when the POST names no rung (``parse_audience``).
     ``lifecycle`` is the state the saved Article carries. The caller passes the article's CURRENT
     lifecycle when the submit carried no Status — or the Status the archivist chose, so publishing
     from the edit screen saves the form and transitions in ONE CAS write (owner decision 2026-08-08).
@@ -163,9 +166,9 @@ def parse_edit_form(
     if date_error is not None:
         errors["date"] = date_error
 
-    audience, audience_error = parse_audience(_get(post, "sichtbarkeit"), _get(post, "gruppen"))
+    audience, audience_error = parse_audience(post, keep=current_audience)
     if audience_error is not None:
-        errors["gruppen"] = audience_error
+        errors["groups"] = audience_error
 
     custom, custom_error = _parse_custom(
         _getlist(post, "custom_key"), _getlist(post, "custom_value")
@@ -248,17 +251,32 @@ def _parse_date(raw: str) -> tuple[EdtfDate | None, str | None]:
         return None, f"Datierung: {err}."
 
 
-def parse_audience(audience_choice: str, groups_text: str) -> tuple[Audience | None, str | None]:
-    """The Sichtbarkeit group: empty → inherit (``audience=None``); otherwise the chosen rung. The
-    GROUPS rung REQUIRES at least one group (the model's GROUPS-iff invariant, server-enforced);
-    groups named on a non-GROUPS rung are dropped (naming them there is a silent over-exposure the
-    model forbids)."""
-    tier = _AUDIENCE_TIER.get(audience_choice)
+def audience_choice(post: Mapping[str, object]) -> str | None:
+    """The Sichtbarkeit choice ``post`` names, or ``None`` when it names none the form offers: the
+    field absent (a form from before a rename) or an unknown value. ``""`` is the explicit inherit
+    choice. An absent field never means a value: ``None`` keeps a stored audience and refuses a
+    create, never inherits — inheriting can widen."""
+    values = _getlist(post, "audience")
+    return values[0] if values and values[0] in _AUDIENCE_CHOICES else None
+
+
+def parse_audience(
+    post: Mapping[str, object], *, keep: Audience | None
+) -> tuple[Audience | None, str | None]:
+    """The Sichtbarkeit group: no choice (``audience_choice``) → ``keep``; ``""`` → inherit
+    (``audience=None``); otherwise the chosen rung. The GROUPS rung REQUIRES at least one group (the
+    model's GROUPS-iff invariant, server-enforced) — an absent ``groups`` field names none; groups
+    named on a non-GROUPS rung are dropped (naming them there is a silent over-exposure the model
+    forbids)."""
+    choice = audience_choice(post)
+    if choice is None:
+        return keep, None
+    tier = _AUDIENCE_TIER.get(choice)
     if tier is None:
-        return None, None  # empty / unknown → inherit default (ADR 0001)
+        return None, None  # the explicit inherit choice (ADR 0001)
     if tier is not AudienceTier.GROUPS:
         return Audience(tier=tier), None
-    groups = parse_lines(groups_text)
+    groups = parse_lines(_get(post, "groups"))
     if not groups:
         return None, "Bitte mindestens eine Gruppe angeben."
     return Audience(tier=AudienceTier.GROUPS, groups=groups), None

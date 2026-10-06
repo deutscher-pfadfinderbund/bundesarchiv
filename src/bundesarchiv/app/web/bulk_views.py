@@ -1,6 +1,6 @@
 """The bulk-edit (Sammelbearbeitung) check and commit route (spec §2 D/R, §4, §6).
 
-``/articles/bulk-edit`` checks first and commits only with ``bestaetigt=1`` (spec §0.1). No
+``/articles/bulk-edit`` checks first and commits only with ``confirmed=1`` (spec §0.1). No
 server-side session state: the selection rides as hidden ``selection`` inputs into the commit.
 """
 
@@ -19,17 +19,17 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 
 def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
-    """``POST /articles/bulk-edit`` — confirm (no ``bestaetigt``) or commit (``bestaetigt=1``).
+    """``POST /articles/bulk-edit`` — confirm (no ``confirmed``) or commit (``confirmed=1``).
     Archivist-only, POST-only → the plain 404 otherwise (spec §6.1/§6.2)."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or request.method != "POST":
         return not_found()
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
-    # the ledger's ticked head box ("alle") carries the rows of the page it was rendered on
-    all_ulids = request.POST.get("alle", "").split()
+    # the ledger's ticked head box ("all") carries the rows of the page it was rendered on
+    all_ulids = request.POST.get("all", "").split()
     selection = _distinct_valid_ulids([*request.POST.getlist("selection"), *all_ulids])
-    field = request.POST.get("feld", "")
+    field = request.POST.get("field", "")
     # Read the value for ANY field, allowed or not: a refused field never mutates (``_validate``
     # gates that), and the reject page must echo what was typed — gating the read here blanked the
     # value whenever the placeholder was submitted.
@@ -39,7 +39,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     if error is not None:
         return _reject(request, chooser, selection, field, value, error)
 
-    if request.POST.get("bestaetigt") == "1":
+    if request.POST.get("confirmed") == "1":
         return _commit(request, archive, chooser, selection, field, value, archivist.username)
     return _confirm(request, archive, chooser, selection, field, value)
 
@@ -139,10 +139,10 @@ def _commit(
     changed_by: str,
 ) -> HttpResponseBase:
     """The commit and its result page (state R). A Medienart change that clears a Dokumenttyp needs
-    ``dokumenttyp_leeren=1``; without it the check page comes back and nothing is written."""
+    ``clear_document_type=1``; without it the check page comes back and nothing is written."""
     if (
         field == "media_type"
-        and request.POST.get("dokumenttyp_leeren") != "1"
+        and request.POST.get("clear_document_type") != "1"
         and _orphans(_load_all(archive, selection), field, value)
     ):
         return _confirm(request, archive, chooser, selection, field, value)  # re-confirm, no write

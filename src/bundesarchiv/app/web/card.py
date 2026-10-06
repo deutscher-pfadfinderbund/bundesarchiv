@@ -161,7 +161,7 @@ FIELDS: tuple[_Field, ...] = (
         shown=_lifecycle_label,
     ),
     _Field(
-        "sichtbarkeit",
+        "audience",
         label="Sichtbar für",
         control="select",
         section="margin",
@@ -171,7 +171,7 @@ FIELDS: tuple[_Field, ...] = (
         shown=_audience_label,
     ),
     _Field(
-        "gruppen",
+        "groups",
         label="Gruppen",
         control="textarea",
         section="margin",

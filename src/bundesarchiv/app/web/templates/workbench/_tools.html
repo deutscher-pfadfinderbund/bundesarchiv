@@ -31,7 +31,7 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
   <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>
   <div class="toolpanel" id="spalten" popover data-reset-on-close>
     <ul>
-      {% for choice in choices %}<li><label><input type="checkbox" name="spalte" value="{{ choice.key }}" form="spalten-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
+      {% for choice in choices %}<li><label><input type="checkbox" name="column" value="{{ choice.key }}" form="spalten-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
     </ul>
     <div class="actions">
       <button class="primary" type="submit" form="spalten-form">Fertig</button>

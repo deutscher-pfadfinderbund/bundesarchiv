@@ -142,15 +142,15 @@ def collection_rows(
             autofocus=autofocus == "parent_id",
         ),
         CardRow(
-            "sichtbarkeit",
+            "audience",
             "Sichtbarkeit",
             control="select",
             value=audience_choice,
-            error=errors.get("sichtbarkeit", ""),
+            error=errors.get("audience", ""),
             options=vocab.AUDIENCE_OPTIONS,
         ),
         CardRow(
-            "gruppen",
+            "groups",
             "Gruppen",
             control="textarea",
             value=groups_text,

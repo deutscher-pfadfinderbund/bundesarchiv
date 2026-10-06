@@ -5,7 +5,7 @@ Two layers, split so the leak-sensitive rules are pure and unit-testable and the
 shell over the real ``update_article`` service:
 
 - ``ALLOWED_FIELDS`` / ``is_allowed_field`` — the fixed 9-field allowlist (spec §1). ``audience``,
-  ``lifecycle``, ``sichtbarkeit`` are deliberately ABSENT (visibility changes must pass the per-item
+  ``lifecycle``, ``audience`` are deliberately ABSENT (visibility changes must pass the per-item
   over-exposure gate, spec §0.7); an unknown ``field`` mutates nothing.
 - ``apply_field`` — apply one allowed field to one Article, pure: ``"" → None`` for scalars; a
   custom-bag key upserts (or removes on empty); setting ``media_type`` clears a now-orphaned
@@ -55,19 +55,19 @@ class BulkField:
 
 
 #: The 9 bulk-editable fields in spec §1 order — the ONE source of truth. audience / lifecycle /
-#: sichtbarkeit are deliberately absent (visibility must pass the per-item over-exposure gate, §0.7).
-#: The plain scalars + custom keys share the one text widget (wert_text); the three selects have
+#: audience are deliberately absent (visibility must pass the per-item over-exposure gate, §0.7).
+#: The plain scalars + custom keys share the one text widget (value_text); the three selects have
 #: their own. Everything below (ALLOWED_FIELDS, labels, options, value-input map) derives from this.
 FIELDS: tuple[BulkField, ...] = (
-    BulkField("physical_location", "Standort", "Standorte", "wert_text", False),
-    BulkField("creator", "Autor", "Autoren", "wert_text", False),
-    BulkField("subject_place", "Ort", "Orte", "wert_text", False),
-    BulkField("media_type", "Medienart", "Medienarten", "wert_media_type", False),
-    BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "wert_document_type", False),
-    BulkField("Quelle", "Quelle", "Quellen", "wert_text", True),
-    BulkField("collection_id", "Bestand", "Bestände", "wert_collection_id", False),
-    BulkField("Querverweis", "Querverweis", "Querverweise", "wert_text", True),
-    BulkField("Besitzer", "Besitzer", "Besitzer", "wert_text", True),
+    BulkField("physical_location", "Standort", "Standorte", "value_text", False),
+    BulkField("creator", "Autor", "Autoren", "value_text", False),
+    BulkField("subject_place", "Ort", "Orte", "value_text", False),
+    BulkField("media_type", "Medienart", "Medienarten", "value_media_type", False),
+    BulkField("document_type", "Dokumenttyp", "Dokumenttypen", "value_document_type", False),
+    BulkField("Quelle", "Quelle", "Quellen", "value_text", True),
+    BulkField("collection_id", "Bestand", "Bestände", "value_collection_id", False),
+    BulkField("Querverweis", "Querverweis", "Querverweise", "value_text", True),
+    BulkField("Besitzer", "Besitzer", "Besitzer", "value_text", True),
 )
 
 _BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
@@ -130,7 +130,7 @@ def value_input_of(field: str) -> str:
     """The POST field name the drawer posts this field's value under (spec §2 C). Unknown → the text
     input (harmless; an unknown field is refused before the value is read)."""
     f = _BY_TARGET.get(field)
-    return f.value_input if f is not None else "wert_text"
+    return f.value_input if f is not None else "value_text"
 
 
 def is_allowed_field(field: str) -> bool:
@@ -274,7 +274,7 @@ class _FieldApplication:
 def apply_bulk(
     archive: Archive, ulids: Sequence[Ulid], field: str, value: str, *, changed_by: str
 ) -> BulkOutcome:
-    """Apply ``feld=wert`` to each of ``ulids`` independently (spec §4), each through
+    """Apply ``field=value`` to each of ``ulids`` independently (spec §4), each through
     ``update_article`` with NO retries — a lost race must reach the human, not be re-applied to the
     winner. A refused pair (spec §3), a lost race and any other ``ArchiveError`` from the save all
     bucket ``conflicted`` without writing; an article the service cannot load buckets ``missing``.

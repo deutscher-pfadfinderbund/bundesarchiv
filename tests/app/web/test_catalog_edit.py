@@ -30,6 +30,7 @@ from tests.app.web._fixtures import (
     page_forms,
 )
 
+from bundesarchiv.app.web import vocab
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -96,8 +97,8 @@ def _valid_post(corpus: _EditCorpus, **overrides: str) -> dict[str, str]:
         "subject_place": "",
         "physical_location": "",
         "body": "",
-        "sichtbarkeit": "",
-        "gruppen": "",
+        "audience": "",
+        "groups": "",
         "expected_version": str(corpus.version),
     }
     base.update(overrides)
@@ -187,6 +188,22 @@ def test_edit_post_saves_and_redirects_to_read_view(corpus: _EditCorpus) -> None
     assert stored.article.title == "Neuer Titel"
     assert stored.article.creator == "Kurt Meyer"
     assert stored.version == corpus.version + 1
+
+
+def test_an_edit_naming_no_rung_keeps_the_stored_audience(corpus: _EditCorpus) -> None:
+    # the stored rung is the narrowest; inheriting would widen the record to PUB's public rung
+    stored = Audience(AudienceTier.GROUPS, groups=("vorstand",))
+    ulid = "01KX7YT9E3VX0CP3A5Q49RZMWM"
+    version = corpus.add_article(make_article(ulid, collection_id="PUB", audience=stored))
+    post = {k: v for k, v in _valid_post(corpus).items() if k not in ("audience", "groups")}
+    edit = client_as(Archivist()).post
+    # a re-render (custom_add) shows the stored rung, so the next Speichern posts it back
+    body = edit(f"/articles/{ulid}/edit", {**post, "custom_add": ""}).content.decode()
+    main = body[body.index("<main") :]  # the header's new-Bestand panel has a Sichtbarkeit too
+    assert _status(main, "audience").selected == [vocab.audience_value(stored)]
+    saved = edit(f"/articles/{ulid}/edit", {**post, "expected_version": str(version)})
+    assert saved.status_code == 302
+    assert corpus.articles.load(ulid).article.audience == stored
 
 
 def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
@@ -341,7 +358,7 @@ def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> N
             **_valid_post(corpus),
             "custom_key": ["Fotograf", "Auflage"],
             "custom_value": ["Meyer", "500"],
-            "custom_entfernen": "0",
+            "custom_remove": "0",
         },
     )
     assert response.status_code == 200
@@ -365,7 +382,7 @@ def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorp
             **_valid_post(corpus),
             "custom_key": ["Fotograf"],
             "custom_value": ["Meyer"],
-            "custom_neu": "",
+            "custom_add": "",
         },
     )
     assert response.status_code == 200
@@ -389,7 +406,7 @@ def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
             **_valid_post(corpus),
             "custom_key": ["", "Bkey", "Ckey", ""],
             "custom_value": ["", "Bval", "Cval", ""],
-            "custom_entfernen": "1",
+            "custom_remove": "1",
         },
     )
     assert response.status_code == 200
@@ -539,7 +556,7 @@ def test_only_a_focusable_field_can_carry_the_autofocus() -> None:
     for name in focusable:
         focused = [row.name for row in _card_rows(autofocus=name) if row.autofocus]
         assert focused == [name], f"autofocus on {name} landed on {focused}"
-    unfocusable = [row.name for row in _card_rows(autofocus="sichtbarkeit") if row.autofocus]
+    unfocusable = [row.name for row in _card_rows(autofocus="audience") if row.autofocus]
     assert not unfocusable, "„sichtbarkeit“ is not focusable but took the caret"
 
 
@@ -579,8 +596,8 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "subject_place": "Bonn",
         "physical_location": "Regal 3",
         "body": "Ein Text.",
-        "sichtbarkeit": "groups",
-        "gruppen": "vorstand\narchiv",
+        "audience": "groups",
+        "groups": "vorstand\narchiv",
         "custom_rows": [("Fotograf", "Meyer")],
     }
 
@@ -591,9 +608,14 @@ def test_every_card_field_echoes_the_post_verbatim() -> None:
     from bundesarchiv.app.web.card import FIELDS
     from bundesarchiv.app.web.catalog_views import _post_to_form_values
 
-    # the Status echoes only a Status (the fallback is its own test), so it types the other one
-    typed = {f.name: f"getippt {f.name}" for f in FIELDS if f.control} | {"lifecycle": "published"}
-    values = _post_to_form_values(QueryDict(urlencode(typed)), _ULID, Lifecycle.DRAFT)
+    # the Status and the Sichtbarkeit echo only a choice they offer (the fallbacks are their own
+    # tests), so each types one the stored record does not hold
+    typed = {f.name: f"getippt {f.name}" for f in FIELDS if f.control} | {
+        "lifecycle": "published",
+        "audience": "groups",
+    }
+    stored = make_article(_ULID, lifecycle=Lifecycle.DRAFT)
+    values = _post_to_form_values(QueryDict(urlencode(typed)), stored)
     assert len(typed) >= 13, f"only {sorted(typed)} typed — the walk proves nothing"
     for name, text in typed.items():
         assert values[name] == text, f"{name} echoed {values.get(name)!r}, not {text!r}"
@@ -627,7 +649,7 @@ def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> No
 
     scanned = {f.name for f in FIELDS if f.scanned}
     focusable = {f.name for f in FIELDS if f.focusable}
-    assert scanned == focusable - {"gruppen"}, f"spine {sorted(scanned)} vs {sorted(focusable)}"
+    assert scanned == focusable - {"groups"}, f"spine {sorted(scanned)} vs {sorted(focusable)}"
 
 
 def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
@@ -667,6 +689,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
             {**_valid_post(corpus), registered.name: ""},
             ulid=_ULID,
             chooser=chooser,
+            current_audience=None,
             added_at=None,
             deleted=None,
         ).errors
@@ -714,7 +737,7 @@ def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpu
         "subject_place": "Anderer Ort",
         "physical_location": "Anderes Regal",
         "body": "Andere Beschreibung",
-        "sichtbarkeit": "members",
+        "audience": "members",
     }
     winner = archivist.post(f"/articles/{_ULID}/edit", _valid_post(corpus, **changed))
     assert winner.status_code == 302
@@ -798,7 +821,7 @@ def _conflict(body: str) -> _ConflictScanner:
 
 def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
-        f"/articles/{_ULID}/edit", _valid_post(corpus, sichtbarkeit="groups", gruppen="")
+        f"/articles/{_ULID}/edit", _valid_post(corpus, audience="groups", groups="")
     )
     assert response.status_code == 200
     assert "Bitte mindestens eine Gruppe angeben." in response.content.decode()
@@ -834,10 +857,12 @@ def _published(corpus: _EditCorpus) -> Version:
 
 
 class _StatusScanner(HTMLParser):
-    """The Status select's options (value, caption) and the selected value, as rendered."""
+    """A select's options (value, caption) and the selected value, as rendered — the Status's by
+    default."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str) -> None:
         super().__init__()
+        self._name = name
         self.options: list[tuple[str, str]] = []
         self.selected: list[str] = []
         self._in_select = False
@@ -845,7 +870,7 @@ class _StatusScanner(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if tag == "select" and values.get("name") == "lifecycle":
+        if tag == "select" and values.get("name") == self._name:
             self._in_select = True
         elif tag == "option" and self._in_select:
             self._value = values.get("value") or ""
@@ -862,8 +887,8 @@ class _StatusScanner(HTMLParser):
             self._value = None
 
 
-def _status(body: str) -> _StatusScanner:
-    scanner = _StatusScanner()
+def _status(body: str, name: str = "lifecycle") -> _StatusScanner:
+    scanner = _StatusScanner(name)
     scanner.feed(body)
     return scanner
 
@@ -957,7 +982,7 @@ def test_a_re_render_without_a_valid_status_shows_the_stored_one(corpus: _EditCo
     for posted in ({}, {"lifecycle": "sabotage"}):
         response = client_as(Archivist()).post(
             f"/articles/{_ULID}/edit",
-            {**_valid_post(corpus), **posted, "custom_neu": ""},
+            {**_valid_post(corpus), **posted, "custom_add": ""},
         )
         assert response.status_code == 200
         assert _status(response.content.decode()).selected == ["draft"], posted

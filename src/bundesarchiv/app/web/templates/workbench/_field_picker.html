@@ -6,20 +6,20 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cance
 <div class="chooser">
   <label class="field">
     <span>Feld</span>
-    <select name="feld">
+    <select name="field">
       {% for value, caption in field_picker_field_options %}
       <option value="{{ value }}"{% if value == field_picker_field %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </select>
   </label>
 
-  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_text }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.value_text }}">
     <span>Neuer Wert</span>
-    <input type="text" name="wert_text" value="{{ field_picker_value }}">
+    <input type="text" name="value_text" value="{{ field_picker_value }}">
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_media_type }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.value_media_type }}">
     <span>Neuer Wert</span>
-    <select name="wert_media_type"
+    <select name="value_media_type"
             hx-get="{% url 'article-bulk-edit-document-types' %}"
             hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
       {% for value, caption in field_picker_media_type_options %}
@@ -27,9 +27,9 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cance
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_document_type }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.value_document_type }}">
     <span>Neuer Wert</span>
-    <select name="wert_document_type" id="bulk-dokumenttyp-select">
+    <select name="value_document_type" id="bulk-dokumenttyp-select">
       <option value="">— kein Dokumenttyp —</option>
       {% for group_label, group_options in field_picker_document_type_groups %}
       <optgroup label="{{ group_label }}">
@@ -40,9 +40,9 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cance
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_collection_id }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.value_collection_id }}">
     <span>Neuer Wert</span>
-    <select name="wert_collection_id">
+    <select name="value_collection_id">
       {% for value, caption in field_picker_collection_options %}
       <option value="{{ value }}"{% if value == field_picker_value %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}

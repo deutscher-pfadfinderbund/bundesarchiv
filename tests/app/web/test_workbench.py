@@ -918,17 +918,17 @@ def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_f
     # Feld chooser, and "Spalten …" posts only its own choice, although both sit in one tool row.
     fields, nested = _form_fields(_get(Archivist(), query).content.decode())
     assert nested == 0
-    assert {"selection", "feld", "csrfmiddlewaretoken"} <= fields["/articles/bulk-edit"]
-    assert "spalte" not in fields["/articles/bulk-edit"]
-    assert {"spalte", "zurueck", "csrfmiddlewaretoken"} <= fields["/columns"]
-    assert not {"selection", "feld"} & fields["/columns"]
+    assert {"selection", "field", "csrfmiddlewaretoken"} <= fields["/articles/bulk-edit"]
+    assert "column" not in fields["/articles/bulk-edit"]
+    assert {"column", "back", "csrfmiddlewaretoken"} <= fields["/columns"]
+    assert not {"selection", "field"} & fields["/columns"]
 
 
 def test_the_head_box_submits_the_rows_of_its_page(indexed_corpus: Corpus) -> None:
     # without JS a ticked head box means "every row on this page" (bulk_views reads it)
     body = _get(Archivist(), "selection=").content.decode()
     rows = re.findall(r'name="selection" value="([^"]+)"', body)
-    [all_ulids] = re.findall(r'name="alle" value="([^"]*)"', body)
+    [all_ulids] = re.findall(r'name="all" value="([^"]*)"', body)
     assert rows and all_ulids.split() == rows
 
 

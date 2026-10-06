@@ -32,9 +32,9 @@
   function wire(form) {
     const rowBoxes = () => Array.from(form.querySelectorAll('input[name="selection"]'));
 
-    // 1. Live count + selection-carrying links on every tick/untick. The head box ("alle") ticks
+    // 1. Live count + selection-carrying links on every tick/untick. The head box ("all") ticks
     // or unticks every row on the page, and shows ticked while every row is.
-    const head = form.querySelector('input[name="alle"]');
+    const head = form.querySelector('input[name="all"]');
     form.addEventListener("change", (event) => {
       if (event.target === head) {
         rowBoxes().forEach((b) => {

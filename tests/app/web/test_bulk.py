@@ -34,9 +34,7 @@ def test_allowlisted_fields_are_the_nine() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    "field", ["lifecycle", "audience", "ulid", "__class__", "title", "sichtbarkeit"]
-)
+@pytest.mark.parametrize("field", ["lifecycle", "audience", "ulid", "__class__", "title"])
 def test_forbidden_field_is_rejected(field: str) -> None:
     assert not bulk.is_allowed_field(field)
 

@@ -389,7 +389,7 @@ _CONTRACT: dict[str, Route] = {
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
-        post_arch=OK,  # empty POST → validation re-render (200)
+        post_arch=FOUR_OH_FOUR,  # empty POST names no Sichtbarkeit (catalog.audience_choice)
     ),
     "collection-edit": Route(
         build_path=_p_bestand_bearbeiten,
@@ -543,7 +543,7 @@ _CONTRACT: dict[str, Route] = {
 def _sammel_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """A valid confirm-phase bulk POST: one real ulid selected + a field + its value → the confirm
     page (200) for an archivist. Non-archivists never reach validation (gate denies first)."""
-    return {"selection": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
+    return {"selection": [c.article_ulid], "field": "creator", "value_creator": "Jemand"}
 
 
 def _loeschen_post_data(c: _MatrixCorpus) -> dict[str, object]:
@@ -679,12 +679,12 @@ _MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, o
     "article-media-move": (
         "POST",
         "/articles/{}/media/move",
-        lambda c: {"hash": c.marked_hash, "richtung": "runter"},
+        lambda c: {"hash": c.marked_hash, "direction": "down"},
     ),
     "article-media-remove": (
         "POST",
         "/articles/{}/media/remove",
-        lambda c: {"entfernen": c.marked_hash},
+        lambda c: {"remove": c.marked_hash},
     ),
     "article-media-upload": ("POST", "/articles/{}/media/upload", lambda _c: {}),
     "upload-gate": ("GET", "/upload-gate/{}", lambda _c: {}),
@@ -742,7 +742,7 @@ def test_bulk_edit_leaves_a_marked_article_out(
         {
             **_sammel_post_data(matrix_corpus),
             "selection": [matrix_corpus.marked_ulid],
-            "bestaetigt": bestaetigt,
+            "confirmed": bestaetigt,
         },
     )
     assert response.status_code == OK

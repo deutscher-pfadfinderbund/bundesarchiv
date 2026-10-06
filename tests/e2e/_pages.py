@@ -104,7 +104,7 @@ def _at(path: str) -> Reach:
 
 
 #: The bulk check page's commit: the one submit of the form that carries ``bestaetigt``.
-BULK_COMMIT = 'main form:has(input[name="bestaetigt"]) button[type="submit"]'
+BULK_COMMIT = 'main form:has(input[name="confirmed"]) button[type="submit"]'
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -115,8 +115,8 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
-    page.select_option('select[name="feld"]', "creator")
-    page.fill('input[name="wert_text"]', "Sammel-Autor")
+    page.select_option('select[name="field"]', "creator")
+    page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     page.wait_for_load_state("networkidle")
 

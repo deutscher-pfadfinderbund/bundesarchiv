@@ -46,10 +46,10 @@ it loses. Hidden inputs carry selection, field and value into the commit (no ser
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
     {% for ulid in selection %}<input type="hidden" name="selection" value="{{ ulid }}">{% endfor %}
-    <input type="hidden" name="feld" value="{{ field }}">
+    <input type="hidden" name="field" value="{{ field }}">
     <input type="hidden" name="{{ value_field }}" value="{{ value }}">
-    <input type="hidden" name="bestaetigt" value="1">
-    {% if cleared %}<input type="hidden" name="dokumenttyp_leeren" value="1">{% endif %}
+    <input type="hidden" name="confirmed" value="1">
+    {% if cleared %}<input type="hidden" name="clear_document_type" value="1">{% endif %}
     <footer>
       <button class="primary" type="submit">{{ affected }} überschreiben{% if cleared %}, {{ cleared }} leeren{% endif %}</button>
       <a class="button" href="{% url 'workbench' %}?{{ cancel_query }}">Abbrechen</a>

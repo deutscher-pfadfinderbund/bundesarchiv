@@ -25,7 +25,12 @@ from bundesarchiv.app.collections import create_collection, save_collection
 from bundesarchiv.app.web import landing
 from bundesarchiv.app.web.browse import PARAM_COLLECTION
 from bundesarchiv.app.web.browse_views import collection_crumbs, preset_url
-from bundesarchiv.app.web.catalog import FormErrors, parse_audience, parse_version
+from bundesarchiv.app.web.catalog import (
+    FormErrors,
+    audience_choice,
+    parse_audience,
+    parse_version,
+)
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.panels import (
@@ -51,7 +56,8 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 def collection_create(request: HttpRequest) -> HttpResponseBase:
     """``GET/POST /collections/new`` — create a Bestand. Archivist-only (non-archivist → the byte-identical
-    404, both methods). POST validates (Name required; parent must be the top-level option or a real
+    404, both methods). A POST naming no Sichtbarkeit choice (``audience_choice``) is the 404 too:
+    a create has no stored audience to keep. POST validates (Name required; parent must be the top-level option or a real
     collection; GROUPS-iff), creates, and 302s to the workbench filtered to the new Bestand; a
     validation failure re-renders with the verbatim error + preserved values."""
     archivist = viewer_of(request)
@@ -60,11 +66,14 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     if request.method == "POST":
+        choice = audience_choice(request.POST)
+        if choice is None:
+            # no rung named: the form always posts one, and none is narrow enough to assume
+            return not_found()
         name = request.POST.get("name", "").strip()
         parent_id = request.POST.get("parent_id", "").strip()
-        audience_choice = request.POST.get("sichtbarkeit", "")
-        groups_text = request.POST.get("gruppen", "")
-        audience, audience_error = parse_audience(audience_choice, groups_text)
+        groups_text = request.POST.get("groups", "")
+        audience, audience_error = parse_audience(request.POST, keep=None)
         errors = _create_errors(name, parent_id, chooser, audience_error)
         if not errors:
             result = create_collection(
@@ -77,7 +86,7 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
             # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
             # (create→catalog is one flow, design-gate blocker 2).
             return redirect_to(request, landing.created_collection_url(result.ulid))
-        rows = collection_rows(chooser, name, parent_id, audience_choice, groups_text, errors)
+        rows = collection_rows(chooser, name, parent_id, choice, groups_text, errors)
         if is_partial(request):
             return panel_response(request, new_collection_panel(rows))
         return render_screen(
@@ -107,7 +116,7 @@ def _create_errors(
     if parent_id and not chooser.accepts(parent_id):
         errors["parent_id"] = "Bitte einen gültigen Eltern-Bestand wählen."
     if audience_error is not None:
-        errors["sichtbarkeit"] = audience_error
+        errors["audience"] = audience_error
     return errors
 
 
