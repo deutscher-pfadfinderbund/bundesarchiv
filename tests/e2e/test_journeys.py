@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from playwright.sync_api import Browser, Dialog, FilePayload, Page, Route, expect
+from playwright.sync_api import Browser, Dialog, FilePayload, Locator, Page, Route, expect
 from pytest_django.plugin import DjangoDbBlocker
 from tests.app.web._asserts import assert_login_target
 from tests.e2e._corpus import MINUTES_FILENAME, CorpusHandles, _png
@@ -757,7 +757,7 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # (#hit-count), refreshed out-of-band. It is silent on a full page load: nothing changed.
     page = archivist_page
     page.goto(live_workbench + LIST)
-    expect(page.locator(".pager")).to_have_text("4 Artikel")  # the canonical corpus, one page
+    expect(page.locator(".pager")).to_have_text("5 Artikel")  # the canonical corpus, one page
     count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
@@ -1122,12 +1122,121 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     expect(page.locator("main time")).to_have_attribute("datetime", "1962-07")
     expect(page.get_by_text("F12")).to_be_visible()  # Signatur (no spaces — the domain fact)
     expect(page.locator("main .cover img")).to_be_visible()  # cover Platte
-    expect(page.locator(".filmstrip figure")).to_have_count(2)  # the two files after the cover
+    expect(page.locator(".media-rows figure")).to_have_count(2)  # the two files after the cover
     # a plate links its gated media byte route; the crumbs lead back into the list
-    href = page.locator(".filmstrip figure > a").first.get_attribute("href")
+    href = page.locator(".media-rows figure > a").first.get_attribute("href")
     assert href is not None and href.startswith("/media/")
     page.get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url(lambda url: url.endswith(LIST))
+
+
+def test_an_image_tile_opens_the_lightbox_and_esc_returns_to_it(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    # the second row tile is the lightbox's third image (the cover leads)
+    tile = page.locator(".media-rows figure > a").nth(1)
+    tile.click()
+    box = page.locator(".lightbox")
+    expect(box).to_be_visible()
+    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    page.keyboard.press("ArrowRight")
+    expect(box.locator(".lightbox-count")).to_have_text("4 / 7")
+    box.get_by_role("button", name="Vorheriges Bild").click()
+    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    box.locator("figure img").nth(2).click()  # the picture is not the black
+    expect(box).to_be_visible()
+    shown = box.locator("figure img").nth(2).bounding_box()
+    assert shown is not None
+    page.mouse.click(shown["x"] / 2, shown["y"] + shown["height"] / 2)  # beside it: the black
+    expect(box).to_be_hidden()
+    expect(tile).to_be_focused()
+    tile.click()
+    page.keyboard.press("Escape")
+    expect(box).to_be_hidden()
+    expect(tile).to_be_focused()
+
+
+def _open_lightbox_at_third(page: Page, live_workbench: str, e2e_corpus: CorpusHandles) -> Locator:
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    page.locator(".media-rows figure > a").nth(1).click()
+    box = page.locator(".lightbox")
+    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    page.wait_for_timeout(500)  # the opening transition ends; until then the page takes the pointer
+    return box
+
+
+def test_the_lightbox_counter_skips_nothing_and_focus_stays_in_it_at_the_ends(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    count = box.locator(".lightbox-count")
+    count.evaluate(
+        "el => { window.seen = []; new MutationObserver(() => window.seen.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true }); }"
+    )
+    page.keyboard.press("ArrowRight")
+    page.keyboard.press("ArrowRight")  # a second step while the first still scrolls
+    expect(count).to_have_text("5 / 7")
+    page.wait_for_timeout(600)  # the scroll ends; the observer must not have rewritten the counter
+    assert page.evaluate("window.seen") == ["4 / 7", "5 / 7"]
+    expect(count).to_have_text("5 / 7")
+    # a resize re-aligns the strip to the shown image
+    page.set_viewport_size({"width": 900, "height": 700})
+    page.wait_for_timeout(200)
+    shown = box.locator("figure img").nth(4).bounding_box()
+    assert shown is not None
+    assert abs(shown["x"] + shown["width"] / 2 - 450) < 2
+    box.get_by_role("button", name="Nächstes Bild").focus()
+    page.keyboard.press("Enter")
+    page.keyboard.press("Enter")
+    expect(count).to_have_text("7 / 7")
+    page.wait_for_timeout(100)  # past the browser's own focus fix-up of a dead button
+    assert box.evaluate("el => el.contains(document.activeElement)")
+
+
+def test_the_lightbox_closes_on_the_black_only_when_press_and_click_both_land_there(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    # a selection that starts on text and ends on the black (an image drag would be the browser's
+    # own drag-and-drop, which never clicks)
+    text = box.locator(".lightbox-count").bounding_box()
+    assert text is not None
+    middle = text["y"] + text["height"] / 2
+    page.mouse.move(text["x"] + text["width"] / 2, middle)
+    page.mouse.down()
+    page.mouse.move(text["x"] + 300, middle)
+    page.mouse.up()
+    page.wait_for_timeout(400)  # past the exit fade
+    assert box.evaluate("d => d.open")
+
+
+def test_modifier_keys_leave_the_lightbox_and_its_tiles_to_the_browser(
+    public_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = public_page
+    box = _open_lightbox_at_third(page, live_workbench, e2e_corpus)
+    page.keyboard.press("Shift+ArrowRight")
+    page.keyboard.press("Alt+ArrowLeft")
+    page.wait_for_timeout(300)
+    expect(box.locator(".lightbox-count")).to_have_text("3 / 7")
+    page.keyboard.press("Escape")
+    page.locator(".media-rows figure > a").nth(1).click(modifiers=["Shift"])
+    expect(box).to_be_hidden()
+
+
+def test_a_tile_is_a_plain_link_to_its_file_without_script(
+    no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = no_js_archivist_page
+    page.goto(live_workbench + f"/articles/{e2e_corpus.many_ulid}")
+    tile = page.locator(".media-rows figure > a").first
+    assert (tile.get_attribute("href") or "").startswith("/media/")
+    assert tile.get_attribute("target") == "_blank"
+    expect(page.locator(".lightbox")).to_be_hidden()
 
 
 def test_download_saves_the_original_under_its_own_name(

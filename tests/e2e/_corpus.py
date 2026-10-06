@@ -57,6 +57,7 @@ SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
 CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # sorts last in browse order (ulid), so it renders last
 MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or search shows it
+MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"  # seven photos of mixed shape: rows and the lightbox
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
@@ -65,6 +66,22 @@ CEILING_REF_CODE = "F12/3-b2"
 # state: /collections/<ulid>/edit validates a real ULID (real collections created via the app get
 # one), so the rename state needs a genuine ULID, not a literal.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
+
+#: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
+MANY_PHOTOS = (
+    ("zelte.png", "Zeltplatz am Morgen", (1600, 1067)),
+    ("kochen.png", "Kochen am Feuer", (1067, 1600)),
+    ("gruppe.png", "Gruppenbild vor der Hütte", (1400, 1400)),
+    (
+        "wanderung.png",
+        "Wanderung durch das Moor, am dritten Tag, bei strömendem Regen",
+        (1800, 900),
+    ),
+    ("fahne.png", "", (900, 1200)),
+    ("see.png", "Der See", (1600, 1067)),
+    ("abend.png", "Abendrunde", (1500, 1000)),
+)
+_PHOTO_COLORS = ((90, 120, 70), (160, 110, 60), (70, 110, 150), (120, 90, 130))
 
 #: The one file of the ceiling record: a PDF, so its article page leads with its first page.
 MINUTES_FILENAME = "Protokoll_1958.pdf"
@@ -80,6 +97,7 @@ class CorpusHandles:
     renamable_ulid: str
     marked_ulid: str
     ceiling_ulid: str
+    many_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -211,6 +229,33 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         changed_by="tester",
     )
 
+    many = tuple(
+        articles.add_media(
+            MANY_ULID,
+            name,
+            BytesIO(_png(_PHOTO_COLORS[n % len(_PHOTO_COLORS)], size=size)),
+            media_type="image/png",
+        )
+        for n, (name, _, size) in enumerate(MANY_PHOTOS)
+    )
+    articles.save(
+        Article(
+            ulid=MANY_ULID,
+            title="Pfingstlager 1964",
+            collection_id="FOTOS",
+            lifecycle=Lifecycle.PUBLISHED,
+            ref_code="F14",
+            media_type="Foto(s)",
+            date=EdtfDate("1964-05"),
+            media=tuple(
+                MediaRef(ref.filename, ref.content_hash, caption=caption)
+                for ref, (_, caption, _) in zip(many, MANY_PHOTOS, strict=True)
+            ),
+        ),
+        0,
+        changed_by="tester",
+    )
+
     winterlager = Article(
         ulid=MARKED_ULID,
         title="Winterlager 1961",
@@ -232,6 +277,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             (PUBLISHED_ULID, plate),
             (PUBLISHED_ULID, report),
             (CEILING_ULID, minutes),
+            *((MANY_ULID, ref) for ref in many),
         ):
             thumbnails.generate_thumbnail(store, ulid, ref.content_hash, thumbnail_root)
     return CorpusHandles(
@@ -241,4 +287,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         renamable_ulid=RENAMABLE_ULID,
         marked_ulid=MARKED_ULID,
         ceiling_ulid=CEILING_ULID,
+        many_ulid=MANY_ULID,
     )

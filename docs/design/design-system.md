@@ -310,7 +310,8 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
 | Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte |
-| Plate register | `.filmstrip` | inline (`detail`) | `detail.css` plate register |
+| Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover |
+| Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox |
 
 ### Roles
 

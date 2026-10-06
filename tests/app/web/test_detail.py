@@ -234,7 +234,35 @@ def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive
     originals = {media_url(corpus.pub, h) for h in (corpus.cover_hash, corpus.second_hash)}
     assert originals <= set(page_hrefs(body))
     assert set(download_hrefs(body)) == originals
-    assert len(download_hrefs(body)) == 2  # the cover under the Platte, the second in the strip
+
+
+def test_every_file_on_the_page_has_a_download_link(
+    make_corpus: Callable[[], Corpus],
+) -> None:
+    """A PDF or audio tile in the rows carries its own line; an image's lives in the lightbox."""
+    from PIL import Image
+
+    archive = make_corpus()
+    archive.add_collection(
+        make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
+    )
+    ulid = new_ulid()
+
+    def png(color: int) -> io.BytesIO:
+        buf = io.BytesIO()
+        Image.new("RGB", (40, 30), (color, 0, 0)).save(buf, format="PNG")
+        buf.seek(0)
+        return buf
+
+    files = (
+        archive.articles.add_media(ulid, "a.png", png(10), "image/png"),
+        archive.articles.add_media(ulid, "b.pdf", io.BytesIO(b"%PDF-1.4 b"), "application/pdf"),
+        archive.articles.add_media(ulid, "c.mp3", io.BytesIO(b"ID3 c"), "audio/mpeg"),
+        archive.articles.add_media(ulid, "d.png", png(20), "image/png"),
+    )
+    archive.add_article(make_article(ulid, collection_id=FOTOS, media=files))
+    body = _body(Public(), ulid)
+    assert set(download_hrefs(body)) == {media_url(ulid, f.content_hash) for f in files}
 
 
 # --- projection / per-tier (the leak surface, §9) ---------------------------------
@@ -322,7 +350,7 @@ def test_published_record_offers_no_publish_to_archivist(corpus: _DetailArchive)
 
 
 def test_the_files_after_the_cover_leave_the_cover_out(corpus: _DetailArchive) -> None:
-    strip = _body(Public(), corpus.pub).split('class="filmstrip"', 1)[1]
+    strip = _body(Public(), corpus.pub).split('class="media-rows"', 1)[1].split("</section>", 1)[0]
     assert media_url(corpus.pub, corpus.second_hash) in strip
     assert media_url(corpus.pub, corpus.cover_hash) not in strip
 

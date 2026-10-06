@@ -1,5 +1,5 @@
 /* The article page (a3 mock, docs/design/explorations/2026-09-26-monochrome/a3-artikel): its
-   composition and, until the media wave, the old Platte and plate register. Role tokens only.
+   composition, the cover Platte, the rows of files and the lightbox. Role tokens only.
    Loads after tokens.css + components.css + layouts.css. */
 
 @layer compositions {
@@ -60,8 +60,6 @@
 }
 
 @layer components {
-  /* The media keep their pre-a3 rendering until the media wave builds the 2026-09-28 rulings
-     (lightbox, justified rows of equal height; owner-interview-2026-08.md). */
   /* ---- cover Platte — the focal point: a mounted photo with an edge ---- */
   .cover {
     padding: var(--space-3);
@@ -90,36 +88,201 @@
   }
   /* under a picture: its caption, then the download line, both quiet words */
   .cover :is(figcaption, .download),
-  .filmstrip :is(figcaption, .download) {
+  .media-rows :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
   }
 
-  /* ---- the files after the cover (filmstrip): a horizontal strip that scrolls inside its own
-     box — the page never scrolls sideways. Its heading ranks as a section's (serif). ---- */
-  .filmstrip h2 {
+  /* ---- the lightbox: the article's images one at a time on the band's black. A scroll-snap
+     strip, so a swipe or the arrow keys move natively; media.js keeps the counter and the
+     buttons. Opening and closing fade (the top layer needs overlay and display in the
+     transition; without overlay support it appears and goes at once). ---- */
+  .lightbox {
+    --ink: var(--band-ink);
+    --ink-2: var(--band-ink-2);
+    --edge: var(--band-edge);
+    inset: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    background: var(--band-ground);
+    color: var(--ink);
+    opacity: 0;
+    transition:
+      opacity 0.18s ease-out,
+      overlay 0.18s allow-discrete,
+      display 0.18s allow-discrete; /* the fade lengths: no token names a duration */
+    &[open] {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      opacity: 1;
+      @starting-style {
+        opacity: 0;
+      }
+    }
+    &::backdrop {
+      background: var(--band-ground);
+    }
+  }
+  html:has(.lightbox[open]) {
+    overflow: hidden; /* the page behind stays where it is */
+  }
+  .lightbox-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--gutter);
+    color: var(--ink-2);
+    font: var(--type-meta);
+  }
+  .lightbox button {
+    display: grid;
+    place-items: center;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    padding: 0;
+    border: var(--line-width) solid var(--edge);
+    background: var(--band-ground);
+    color: var(--ink);
+    cursor: pointer;
+    &:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+  }
+  .lightbox-bar button {
+    border-color: transparent;
+  }
+  .lightbox-prev,
+  .lightbox-next {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .lightbox-prev {
+    left: var(--gutter);
+  }
+  .lightbox-next {
+    right: var(--gutter);
+  }
+  .lightbox-strip {
+    display: flex;
+    min-height: 0;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    & figure {
+      flex: 0 0 100%;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-height: 0;
+      margin: 0;
+      padding: 0 calc(var(--gutter) + var(--touch-target));
+      scroll-snap-align: center;
+    }
+    & img {
+      place-self: center;
+      width: auto; /* the width/height attributes only hold the ratio before the load */
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      min-height: 0;
+      object-fit: contain;
+    }
+    & figcaption {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-4);
+      padding: var(--space-3) 0;
+      font: var(--type-meta);
+      & > * {
+        margin: 0;
+      }
+      & a {
+        color: var(--ink-2);
+      }
+      & .download {
+        white-space: nowrap; /* the caption text wraps, the download stays one line */
+      }
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .lightbox-strip {
+      scroll-behavior: smooth;
+    }
+  }
+  @media (width < 40rem) /* S (DESIGN.md space budget) */ {
+    .lightbox-strip figure {
+      padding: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lightbox {
+      transition-duration: 0.01s;
+    }
+  }
+
+  /* ---- the files after the cover: rows of equal height, each image in its own shape. Without
+     script the rows end ragged; media.js sets each figure's --r (its width over its height) and
+     marks the row [data-justified], and every row then fills the width. A caption is one line and
+     never widens its tile. ---- */
+  .media-rows h2 {
     margin: 0 0 var(--space-3);
     font: var(--type-subhead);
   }
-  .filmstrip > div {
+  .media-rows > div {
+    --_row-height: 13.5rem; /* the mocks' row: no token names a picture height */
     display: flex;
-    gap: var(--space-3);
-    overflow-x: auto;
-    padding-bottom: var(--space-2);
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-3);
   }
-  .filmstrip figure {
-    flex: 0 0 auto;
-    width: 9rem; /* one plate width — the strip's own rhythm, no token fits */
+  @media (width < 40rem) /* S (DESIGN.md space budget) */ {
+    .media-rows > div {
+      --_row-height: 7.5rem; /* the phone's row (the mocks) */
+    }
+  }
+  .media-rows figure {
+    min-width: 0;
     margin: 0;
   }
-  .filmstrip img {
+  .media-rows figure > a {
     display: block;
-    width: 100%;
-    height: auto;
+  }
+  .media-rows img,
+  .media-rows .blank {
+    display: block;
+    height: var(--_row-height);
+    width: auto;
+  }
+  .media-rows img {
     border: var(--line-width) solid var(--edge);
   }
-  .filmstrip :is(figcaption, .download) {
-    margin-top: var(--space-1);
+  .media-rows figcaption {
+    overflow: hidden;
+    contain: inline-size;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .media-rows .kind {
+    color: var(--ink-3);
+  }
+  .media-rows > [data-justified] {
+    &::after {
+      content: ""; /* soaks up the last row's slack: it keeps the row height, not the full width */
+      flex: 999 1 0;
+    }
+    & figure {
+      flex: var(--r) 1 calc(var(--r) * var(--_row-height));
+    }
+    & :is(img, .blank) {
+      width: 100%;
+      height: auto;
+    }
   }
 }

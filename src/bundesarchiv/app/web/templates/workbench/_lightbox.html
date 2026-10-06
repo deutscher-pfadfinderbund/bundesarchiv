@@ -1,0 +1,18 @@
+{% comment %}The article's images, one at a time (media.js opens it at the clicked tile). Param: lightbox,
+the tiles with a display version, cover first. Closes on Esc, the black (closedby, plus media.js: the dialog is full-bleed) and ✕.{% endcomment %}
+<dialog class="lightbox" closedby="any" aria-label="Bilder">
+  <div class="lightbox-bar">
+    <span class="lightbox-count" aria-live="polite"></span>
+    <button type="button" aria-label="Schließen" autofocus>{% include "components/icon.html" with name="x" only %}</button>
+  </div>
+  <div class="lightbox-strip">
+    {% for tile in lightbox %}
+    <figure>
+      <img src="{{ tile.display_url }}" alt="{% firstof tile.caption tile.name %}" {% if tile.aspect %} width="{{ tile.aspect.0 }}" height="{{ tile.aspect.1 }}"{% endif %} loading="lazy">
+      <figcaption>{% if tile.caption %}<span>{{ tile.caption }}</span>{% endif %}{% include "workbench/_download.html" with tile=tile only %}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  <button class="lightbox-prev" type="button" aria-label="Vorheriges Bild">{% include "components/icon.html" with name="chevron-left" only %}</button>
+  <button class="lightbox-next" type="button" aria-label="Nächstes Bild">{% include "components/icon.html" with name="chevron-right" only %}</button>
+</dialog>

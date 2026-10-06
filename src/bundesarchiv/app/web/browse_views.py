@@ -196,6 +196,12 @@ class MediaTile:
     display_url: str = ""
     aspect: tuple[int, int] | None = None
     size: str = ""  # the original's size in words ("1,8 MB"), empty when unknown
+    slot: int = -1  # an image's place in the article page's lightbox (-1: not in it)
+
+    @property
+    def is_image(self) -> bool:
+        """The file gets a display version and enters the lightbox."""
+        return bool(self.display_url)
 
 
 def media_tiles(ulid: str, media: tuple[MediaRef, ...]) -> tuple[MediaTile, ...]:
@@ -655,7 +661,11 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     archive's browsing loop)."""
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
-    media = media_tiles(article.ulid, article.media)
+    slots = iter(range(len(article.media)))
+    media = tuple(
+        replace(tile, slot=next(slots)) if tile.is_image else tile
+        for tile in media_tiles(article.ulid, article.media)
+    )
     tags = tuple(_DetailTag(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
     mark = article.deleted
     return {
@@ -693,6 +703,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         else vocab.delete_permanently_confirm(len(media)),
         "cover": media[0] if media else None,
         "more_media": media[1:],
+        "lightbox": tuple(tile for tile in media if tile.is_image),
         "plates_heading": (
             vocab.FURTHER_IMAGES
             if all(file_kind(ref) is FileKind.IMAGE for ref in article.media)

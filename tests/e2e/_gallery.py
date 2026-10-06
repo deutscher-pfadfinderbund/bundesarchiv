@@ -44,6 +44,9 @@ class GalleryState:
     what: str
     archivist: bool
     reach: Callable[[Page, str, CorpusHandles], None]
+    full_page: bool = (
+        True  # False for a full-viewport overlay: the shot is the viewport, not the page
+    )
 
 
 def _goto(path: str) -> Callable[[Page, str, CorpusHandles], None]:
@@ -175,6 +178,17 @@ def _reach_detail_publish_open(page: Page, base: str, corpus: CorpusHandles) -> 
 def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.marked_ulid}", wait_until="networkidle")
     page.click('[popovertarget="delete-permanently"]')
+
+
+def _reach_detail_lightbox_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.many_ulid}", wait_until="networkidle")
+    page.locator(".media-rows a").nth(2).click()
+    page.locator(".lightbox").wait_for(state="visible")
+    # the shown picture is the fourth: cover, then the third row tile
+    page.wait_for_function(
+        "() => document.querySelectorAll('.lightbox-strip img')[3].naturalWidth > 0"
+    )
+    page.evaluate("() => Promise.all(document.getAnimations().map((a) => a.finished))")
 
 
 def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -339,6 +353,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_detail_actions_open,
     ),
     GalleryState(
+        "detail-lightbox-open",
+        "the article page of seven photos, the lightbox open on the third row tile",
+        False,
+        _reach_detail_lightbox_open,
+        full_page=False,
+    ),
+    GalleryState(
         "detail-delete-open",
         "the article page, the delete confirm open from the menu (what goes, the one red button)",
         True,
@@ -455,7 +476,7 @@ def render_state(
             for mode in MODES:
                 page.emulate_media(color_scheme=mode)
                 target = out / f"{state.name}.{mode}.{width}.png"
-                page.screenshot(path=str(target), full_page=True)
+                page.screenshot(path=str(target), full_page=state.full_page)
                 written.append(target)
         finally:
             context.close()
