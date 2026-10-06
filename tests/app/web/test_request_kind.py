@@ -2,7 +2,7 @@
 read as a partial, whether htmx 4 (restore header alone) or htmx 2 (both headers) sent it."""
 
 import pytest
-from django.test import RequestFactory
+from django.test import Client, RequestFactory, override_settings
 
 from bundesarchiv.app.web.viewers import RequestKind, request_kind
 
@@ -21,3 +21,13 @@ from bundesarchiv.app.web.viewers import RequestKind, request_kind
 )
 def test_request_kind(headers: dict[str, str], kind: RequestKind) -> None:
     assert request_kind(RequestFactory().get("/", headers=headers)) is kind
+
+
+@pytest.mark.parametrize("gate", [False, True], ids=["page", "door"])
+@pytest.mark.parametrize("headers", [{}, {"HX-Request": "true"}], ids=["plain", "htmx"])
+def test_every_response_varies_on_the_request_kind(gate: bool, headers: dict[str, str]) -> None:
+    with override_settings(ANONYMOUS_GATE_ENABLED=gate):
+        response = Client().get("/nichts-dergleichen", headers=headers)
+    vary = response.headers["Vary"]
+    assert "HX-Request" in vary
+    assert "HX-History-Restore-Request" in vary

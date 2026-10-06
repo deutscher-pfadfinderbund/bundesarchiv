@@ -24,6 +24,7 @@ from django.core import signing
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.http.response import HttpResponseBase
 from django.shortcuts import render
+from django.utils.cache import patch_vary_headers
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.web import landing, vocab
@@ -254,6 +255,10 @@ def render_screen(
     return render(request, template, {**context, **chrome})
 
 
+_HX_RESTORE = "HX-History-Restore-Request"
+_HX_REQUEST = "HX-Request"
+
+
 class RequestKind(StrEnum):
     """What the browser asked for — the closed answer ``request_kind`` gives."""
 
@@ -268,11 +273,27 @@ def request_kind(request: HttpRequest) -> RequestKind:
     A restore is checked first: htmx 4 sends ``HX-History-Restore-Request`` without ``HX-Request``
     and htmx 2 sent both, so a restore can never be mistaken for a swap that takes the
     chrome-less partial."""
-    if request.headers.get("HX-History-Restore-Request"):
+    if request.headers.get(_HX_RESTORE):
         return RequestKind.RESTORE
-    if request.headers.get("HX-Request"):
+    if request.headers.get(_HX_REQUEST):
         return RequestKind.PARTIAL
     return RequestKind.PAGE
+
+
+def vary_on_request_kind(
+    get_response: Callable[[HttpRequest], HttpResponse],
+) -> Callable[[HttpRequest], HttpResponse]:
+    """Name the headers ``request_kind`` reads in ``Vary`` on every response. One URL answers a
+    fragment or a whole page by those headers, and the workbench pushes it as a page URL: without
+    this the browser cache serves the fragment on Back. Sits above ``AnonymousGateMiddleware`` so
+    the door is covered too."""
+
+    def middleware(request: HttpRequest) -> HttpResponse:
+        response = get_response(request)
+        patch_vary_headers(response, (_HX_REQUEST, _HX_RESTORE))
+        return response
+
+    return middleware
 
 
 def is_partial(request: HttpRequest) -> bool:
