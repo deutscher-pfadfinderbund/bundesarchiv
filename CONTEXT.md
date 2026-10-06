@@ -88,9 +88,12 @@ The derived, disposable Postgres table rebuilt from the canonical `README.md` fi
 An Article's workflow state. In v1: **Draft** (*Entwurf*) → **Published** (*Veröffentlicht*). Anything not Published is Archivist-only regardless of Audience.
 _Avoid_: status, state.
 
-**Papierkorb** (*Papierkorb*) — code field `deleted`, URL `/trash`:
-Where a deleted Article waits (ADR 0022). "Löschen" marks the Article with who deleted it and when; its folder, media and history stay. A marked Article is Archivist-only and shows only in the Papierkorb, never in the list or search; it cannot be edited until it is restored. *Wiederherstellen* takes the mark off; *Endgültig löschen* removes the Article for good. Emptied by hand.
-_Avoid_: trash or bin in UI copy, soft delete, archived (the whole thing is the archive).
+**Trash** (*Papierkorb*) — code field `deleted`, URL `/trash`:
+Where a deleted Article waits (ADR 0022). "Löschen" marks the Article with who deleted it and when; its folder, media and history stay. A marked Article is Archivist-only and shows only in the Trash, never in the list or search; it cannot be edited until it is restored. *Wiederherstellen* takes the mark off; *Endgültig löschen* removes the Article for good. Emptied by hand.
+_Avoid_: bin, soft delete, archived (the whole thing is the archive). German UI copy says *Papierkorb*, never "Trash" or "bin".
+
+**Start page areas** — code names `timeline` (*Zeitleiste*, decades), `by_media_type` (*Nach Art*), `recent` (*Zuletzt hinzugefügt*):
+The start page's blocks, each a preset of the one list (`app/web/start.py`); `collections` (*Bestände*) and `search` are the others.
 
 **Submission** (*Einreichung*) — _deferred, not in v1_:
 Material a Member sends to the archive; lands as a **Submitted** (*Eingereicht*) Article in the Archivist inbox, never visible to anyone but Archivists until reviewed and Published.
