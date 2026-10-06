@@ -135,7 +135,7 @@ def reach_door(page: Page, base: str, corpus: CorpusHandles) -> None:
         page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
 
 
-def reach_schlagwort_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
+def reach_tag_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The second Article's edit form (it carries "lager") with "r" typed on a new last line of the
     Schlagworte, the suggestion list open."""
     page.goto(f"{base}/articles/{corpus.second_ulid}/edit", wait_until="networkidle")
@@ -199,7 +199,7 @@ SCREENS: tuple[Screen, ...] = (
         control_rows=("header",),
     ),
     Screen(
-        "workbench-typ",
+        "workbench-type",
         "workbench, a type filter set: the Typ column steps back (a2 round 11)",
         True,
         _at(f"{LIST}?document_type=Zeitschrift"),
@@ -243,7 +243,7 @@ SCREENS: tuple[Screen, ...] = (
         control_rows=("header", "div.record-meta-actions"),
     ),
     Screen(
-        "bestand-neu",
+        "collection-create",
         "create a Bestand",
         True,
         _at("/collections/new"),
@@ -251,7 +251,7 @@ SCREENS: tuple[Screen, ...] = (
         overlays=1,
     ),
     Screen(
-        "bestand-bearbeiten",
+        "collection-edit",
         "rename a Bestand (Name only)",
         True,
         _goto(lambda c: f"/collections/{c.renamable_ulid}/edit"),
@@ -259,7 +259,7 @@ SCREENS: tuple[Screen, ...] = (
         overlays=1,
     ),
     Screen(
-        "bestand-landing",
+        "collection-landing",
         "create-article form after a new Bestand (pre-selected + hinweis)",
         True,
         _goto(lambda c: f"/articles/new?collection={c.renamable_ulid}&created=1"),

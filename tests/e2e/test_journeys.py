@@ -29,7 +29,7 @@ from tests.e2e._pages import (
     OVERLAY_TRIGGERS,
     SCREENS,
     reach_door,
-    reach_schlagwort_suggestions,
+    reach_tag_suggestions,
     screens_for,
 )
 
@@ -1347,7 +1347,7 @@ def test_a_schlagwort_is_taken_from_the_suggestions_with_the_keyboard(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
+    reach_tag_suggestions(page, live_workbench, e2e_corpus)
     field = page.locator("main #field-tags")
     options = page.locator('.autocomplete-list [role="option"]')
     # "lager" is on the field already, so only the corpus's other two
@@ -1378,7 +1378,7 @@ def test_moving_the_caret_off_the_line_ends_the_offer_and_changes_nothing(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
+    reach_tag_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
     field = page.locator("main #field-tags")
     page.locator('.autocomplete-list [role="option"]').first.wait_for()
     # a click into line 1: the list closes, so Enter is a plain newline and nothing is replaced
@@ -1401,7 +1401,7 @@ def test_a_suggestion_is_not_taken_into_a_line_whose_text_changed(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
+    reach_tag_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
     field = page.locator("main #field-tags")
     page.keyboard.press("ArrowDown")  # an option is marked
     # the line changes under the open list without a key (a script, an extension)
@@ -1415,7 +1415,7 @@ def test_the_live_region_speaks_only_for_matches(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
+    reach_tag_suggestions(page, live_workbench, e2e_corpus)
     status = page.locator("#field-tags-suggestions-status")
     expect(status).to_have_text("2 Vorschläge")
     page.locator("main #field-tags").press_sequentially("zzzq")
@@ -1432,7 +1432,7 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "r" on the last line
+    reach_tag_suggestions(page, live_workbench, e2e_corpus)  # "r" on the last line
 
     held: list[Route] = []
 

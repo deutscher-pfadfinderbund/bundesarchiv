@@ -26,7 +26,7 @@ from typing import Literal
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import CorpusHandles
-from tests.e2e._pages import LIST, SCREENS, Screen, reach_schlagwort_suggestions
+from tests.e2e._pages import LIST, SCREENS, Screen, reach_tag_suggestions
 
 #: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
 #: ``light-dark()`` tokens, resolved by ``prefers-color-scheme`` — no JS toggle). Every state is
@@ -74,7 +74,7 @@ def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> No
     triggers.filter(visible=True).click()
 
 
-def _reach_header_neu_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+def _reach_header_new_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the header's "+ Neu …" create menu open (Mock B, owner 2026-08-07) — the floating
     # overlay panel with "Neuer Artikel …" / "Neuer Bestand …"
     page.goto(f"{base}/articles", wait_until="networkidle")
@@ -87,11 +87,11 @@ def _reach_header_panel(page: Page, base: str, path: str, entry: str) -> None:
     page.get_by_role("button", name=entry).click()
 
 
-def _reach_neu_artikel_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     _reach_header_panel(page, base, LIST, "Neuer Artikel …")
 
 
-def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
+def _reach_new_collection_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # Anlegen with a blank Name: htmx answers in the panel itself, the error under the field. Spaces,
     # because the browser's `required` stops an empty Name before the server sees it.
     _reach_header_panel(page, base, LIST, "Neuer Bestand …")
@@ -100,18 +100,18 @@ def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) ->
     page.wait_for_selector("#new-collection .error")
 
 
-def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_collection_edit_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}{LIST}?collection={corpus.renamable_ulid}", wait_until="networkidle")
     page.get_by_role("button", name="Bestand bearbeiten …").click()
 
 
-def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
+def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
     # the list's "Spalten …" check list open (ruling 2026-09-29: five columns, kept in a cookie)
     page.goto(f"{base}/articles", wait_until="networkidle")
     page.get_by_role("button", name="Spalten …").click()
 
 
-def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_selection(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a URL-seeded selection: the tool row shows the count and its tools
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
@@ -121,7 +121,7 @@ def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the same selection with "Feld ändern …" open (the chooser in its toolpanel)
-    _reach_auswahl(page, base, corpus)
+    _reach_selection(page, base, corpus)
     page.click('[popovertarget="field-change"]')
 
 
@@ -146,28 +146,28 @@ def _reach_not_found(page: Page, base: str, _corpus: CorpusHandles) -> None:
     page.goto(f"{base}/gibt-es-nicht", wait_until="networkidle")
 
 
-def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_edit_more_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.click(".record-meta .menu-button")
 
 
-def _reach_edit_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    _reach_edit_mehr_open(page, base, corpus)
+def _reach_edit_delete_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    _reach_edit_more_open(page, base, corpus)
     page.click('[popovertarget="delete"]')
 
 
-def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_detail_actions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
 
 
-def _reach_detail_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_detail_delete_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
     page.click('[popovertarget="delete"]')
 
 
-def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_detail_publish_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.draft_ulid}", wait_until="networkidle")
     page.click('button:has-text("Veröffentlichen")')
 
@@ -188,7 +188,7 @@ def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
         page.wait_for_url("**/trash")
 
 
-def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_edit_date_help(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.click("#field-date-hint .help")
 
@@ -203,7 +203,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.wait_for_selector(".record-meta .error")
 
 
-def _reach_edit_weitere_angaben(page: Page, base: str, corpus: CorpusHandles) -> None:
+def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the corpus holds no custom row; "+ Angabe hinzufügen" re-renders one without saving
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.click('button:has-text("+ Angabe hinzufügen")')
@@ -261,16 +261,16 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_plus_filter_open,
     ),
     GalleryState(
-        "header-neu-open",
+        "header-new-open",
         "workbench, header '+ Neu …' create menu open (Mock B popover)",
         True,
-        _reach_header_neu_open,
+        _reach_header_new_open,
     ),
     GalleryState(
-        "workbench-spalten-open",
+        "workbench-columns-open",
         "workbench, the 'Spalten …' check list open at the tool row's end edge",
         True,
-        _reach_spalten_open,
+        _reach_columns_open,
     ),
     GalleryState(
         "workbench-bulk-cold",
@@ -280,18 +280,18 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _goto(LIST),
     ),
     GalleryState(
-        "workbench-waehlen",
+        "workbench-selecting",
         "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
         " checkbox column with its select-all head",
         True,
         _goto(f"{LIST}?selection="),
     ),
     GalleryState(
-        "workbench-auswahl",
+        "workbench-selection",
         "workbench, two rows picked: 'Abbrechen', the count and 'Feld ändern …' at the tool row's"
         " start",
         True,
-        _reach_auswahl,
+        _reach_selection,
     ),
     GalleryState(
         "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
@@ -303,52 +303,52 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_bulk_confirm_error,
     ),
     GalleryState(
-        "edit-mehr-open",
+        "edit-more-open",
         "the edit surface, the margin's 'Mehr …' menu open (a draft)",
         True,
-        _reach_edit_mehr_open,
+        _reach_edit_more_open,
     ),
     GalleryState(
-        "edit-loeschen-open",
+        "edit-delete-open",
         "the edit surface, a draft's Löschen confirm open from 'Mehr …' (the margin's own panel)",
         True,
-        _reach_edit_loeschen_open,
+        _reach_edit_delete_open,
     ),
     GalleryState(
-        "neu-artikel-open",
+        "new-article-open",
         "the header's 'Neuer Artikel …' panel open from '+ Neu …' (Titel and Bestand)",
         True,
-        _reach_neu_artikel_open,
+        _reach_new_article_open,
     ),
     GalleryState(
-        "neu-bestand-refused",
+        "new-collection-refused",
         "the header's 'Neuer Bestand …' panel after Anlegen without a Name: the error in place",
         True,
-        _reach_neu_bestand_refused,
+        _reach_new_collection_refused,
     ),
     GalleryState(
-        "bestand-bearbeiten-open",
+        "collection-edit-open",
         "the list scoped to one Bestand, its 'Bestand bearbeiten …' panel open (the rename)",
         True,
-        _reach_bestand_bearbeiten_open,
+        _reach_collection_edit_open,
     ),
     GalleryState(
-        "detail-aktionen-open",
+        "detail-actions-open",
         "the article page, the split button's menu open (Duplizieren, Löschen)",
         True,
-        _reach_detail_aktionen_open,
+        _reach_detail_actions_open,
     ),
     GalleryState(
-        "detail-loeschen-open",
+        "detail-delete-open",
         "the article page, the delete confirm open from the menu (what goes, the one red button)",
         True,
-        _reach_detail_loeschen_open,
+        _reach_detail_delete_open,
     ),
     GalleryState(
-        "detail-veroeffentlichen-open",
+        "detail-publish-open",
         "the article page, a draft's Veröffentlichen confirmation open (who will see it)",
         True,
-        _reach_detail_veroeffentlichen_open,
+        _reach_detail_publish_open,
     ),
     GalleryState(
         "detail-in-trash-confirm-open",
@@ -363,16 +363,16 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_trash_emptied,
     ),
     GalleryState(
-        "edit-datierung-help",
+        "edit-date-help",
         "the edit surface, the Datierung hint's ⓘ popover open (the notation list)",
         True,
-        _reach_edit_datierung_help,
+        _reach_edit_date_help,
     ),
     GalleryState(
-        "edit-schlagwort-suggestions",
+        "edit-tag-suggestions",
         "the edit surface, the Schlagworte field suggesting for the line being typed",
         True,
-        reach_schlagwort_suggestions,
+        reach_tag_suggestions,
     ),
     GalleryState(
         "edit-rejected",
@@ -387,10 +387,10 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_edit_conflict,
     ),
     GalleryState(
-        "edit-weitere-angaben",
+        "edit-more-details",
         "the edit surface, one Weitere Angaben row added and filled (unsaved)",
         True,
-        _reach_edit_weitere_angaben,
+        _reach_edit_more_details,
     ),
     GalleryState(
         "csrf-refused",
