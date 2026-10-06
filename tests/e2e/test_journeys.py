@@ -10,6 +10,7 @@ loop · Löschen → Papierkorb → restore / delete permanently · one-click pu
 """
 
 import json
+import time
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -1210,6 +1211,31 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     expect(page.get_by_text("E2E-1")).to_be_visible()  # Enter saved the form...
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
+
+
+def test_a_double_clicked_speichern_sends_one_save(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # htmx's default hx-sync is "queue first": the second click's POST would follow the first and
+    # carry the same expected_version, a CAS conflict against the archivist's own save.
+    page = archivist_page
+    _create_draft(page, live_workbench, "E2E Doppelklick Speichern")
+    page.fill('input[name="ref_code"]', "E2E-DK")
+    saves: list[str] = []
+
+    def hold_post(route: Route) -> None:
+        # the first save stays in flight while the second click lands
+        if route.request.method == "POST":
+            saves.append(route.request.url)
+            time.sleep(0.4)
+        route.continue_()
+
+    page.route("**/edit", hold_post)
+    page.dblclick('button:has-text("Speichern")')
+    page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
+    page.wait_for_timeout(500)  # a queued second POST would be sent by now
+    assert len(saves) == 1
+    expect(page.locator(".conflict-notice")).to_have_count(0)
 
 
 def test_failed_save_banner_leaves_speichern_clickable(

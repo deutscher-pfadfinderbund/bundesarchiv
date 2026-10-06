@@ -54,7 +54,7 @@ save gets HX-Redirect.{% endcomment %}
   which hold no #form-region (G.27).{% endcomment %}
   <form id="bearbeiten-form" method="post"
         action="{% url 'artikel-bearbeiten' values.ulid %}"
-        hx-post="{% url 'artikel-bearbeiten' values.ulid %}"
+        hx-post="{% url 'artikel-bearbeiten' values.ulid %}" hx-sync="this:drop"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" id="expected-version" name="expected_version" value="{{ version }}">
@@ -149,25 +149,25 @@ save gets HX-Redirect.{% endcomment %}
       {% for row in media_rows %}
       <form id="verschieben-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}" hidden>
+            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-frage-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}"
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop"
             hx-confirm="{{ row.tile.name }} entfernen? Die Datei wird gelöscht; das lässt sich nicht rückgängig machen."
             hx-vals='{"bestaetigt": "1"}' hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-ja-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
         <input type="hidden" name="bestaetigt" value="1">
       </form>
       <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
             action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hidden>
+            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}
       </form>
       {% endfor %}
@@ -177,7 +177,7 @@ save gets HX-Redirect.{% endcomment %}
       update 2026-09-25).{% endcomment %}
       <form id="medien-upload" method="post" enctype="multipart/form-data"
             action="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hx-browser-indicator hidden>
+            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hx-sync="this:drop" hx-browser-indicator hidden>
         {% csrf_token %}
       </form>
     </section>
