@@ -4,9 +4,8 @@
 # aside when a runtime is available. Safe to re-run any time — including mid-session when the
 # sandbox reclaimed the server ("connection refused ... 5434" from the test guard).
 #
-# What it builds: the same thing docker/postgres/ builds — a Postgres with the German Hunspell
-# dictionary installed as de_de.{affix,dict} — except from the distro Postgres (whatever major
-# version the sandbox image ships) instead of the pinned 18.4 image. Good enough for tests;
+# What it builds: the same thing docker/postgres/ builds — a plain Postgres — except from the distro Postgres
+# (whatever major version the sandbox image ships) instead of the pinned image. Good enough for tests;
 # the pinned version is a VPS-deploy concern.
 set -euo pipefail
 
@@ -15,7 +14,7 @@ PGDATA=/var/lib/postgresql/bundesarchiv-pgdata
 
 PGBIN=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)
 if [ -z "$PGBIN" ]; then
-    apt-get update -qq && apt-get install -y -qq postgresql hunspell-de-de
+    apt-get update -qq && apt-get install -y -qq postgresql
     PGBIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)
 fi
 
@@ -29,16 +28,6 @@ fi
 if command -v container >/dev/null 2>&1 || docker info >/dev/null 2>&1; then
     echo "Container runtime available — start bundesarchiv-pg instead (see README)."
     exit 0
-fi
-
-# German Hunspell dictionary → Postgres tsearch_data (mirrors docker/postgres/Dockerfile).
-if [ ! -f /usr/share/hunspell/de_DE.aff ]; then
-    apt-get update -qq && apt-get install -y -qq hunspell-de-de
-fi
-SHAREDIR=$("$PGBIN/pg_config" --sharedir)
-if [ ! -f "$SHAREDIR/tsearch_data/de_de.affix" ]; then
-    cp /usr/share/hunspell/de_DE.aff "$SHAREDIR/tsearch_data/de_de.affix"
-    cp /usr/share/hunspell/de_DE.dic "$SHAREDIR/tsearch_data/de_de.dict"
 fi
 
 as_postgres() {

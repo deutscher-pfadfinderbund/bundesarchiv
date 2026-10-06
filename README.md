@@ -17,7 +17,7 @@ archivists only).
 uv sync   # install all dependencies
 ```
 
-Start the search database (a Postgres with a German dictionary) and create its tables:
+Start the search database (a Postgres) and create its tables:
 
 ```sh
 container build -t bundesarchiv-postgres docker/postgres/

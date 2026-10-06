@@ -58,7 +58,7 @@ services:
       - /home/admin/bundesarchiv/thumbnails:/thumbnails
     restart: unless-stopped
 
-  # Postgres with the German Hunspell dictionary baked in (docker/postgres/, published by
+  # Postgres image (docker/postgres/, published by
   # .github/workflows/postgres-image.yml). NO published port: it is reachable only from this
   # stack's default network.
   postgres:

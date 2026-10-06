@@ -254,8 +254,7 @@ The index is **derived and disposable** — canonical truth is the files store
 time. The **database is not** the index: it also holds the worker's job tables,
 and later admin data nothing can rebuild from the files (ADR 0003, update
 2026-08-30). Rebuild the index; drop the database only in an emergency.
-Postgres 18 with the German Hunspell dictionary baked in
-(`docker/postgres/`). `compose.yml` is the VPS deploy stack ("Deploy" below);
+Postgres 18 (`docker/postgres/`). `compose.yml` is the VPS deploy stack ("Deploy" below);
 local dev uses Apple's `container` CLI (README).
 
 The VPS pulls `ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest`,

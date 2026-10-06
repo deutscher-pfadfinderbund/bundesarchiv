@@ -6,8 +6,8 @@
 #
 # `db` runs the Postgres-backed tests and does NOT go through mise: the mise pg
 # tasks drive Apple's `container` CLI, which the runners do not have — they have
-# docker. The Postgres image (docker/postgres/Dockerfile, Postgres with the
-# German Hunspell dictionary baked in) is built and published to GHCR by
+# docker. The Postgres image (docker/postgres/Dockerfile, plain
+# Postgres 18) is built and published to GHCR by
 # postgres-image.yml and only pulled here, so CI runs the same bytes as the VPS.
 # The pytest marker expressions are the shared source of truth, so this job and
 # mise's `test:db` select the same tests. The job is skipped when no DB-relevant
@@ -88,7 +88,7 @@ jobs:
 
       # Retries because a docker/postgres change triggers postgres-image.yml in
       # parallel: the new :latest may still be publishing when this job starts.
-      - name: Pull Postgres image (German Hunspell dict)
+      - name: Pull Postgres image
         run: |
           for i in $(seq 1 30); do
             if docker pull ghcr.io/deutscher-pfadfinderbund/bundesarchiv-postgres:latest; then

@@ -21,3 +21,5 @@ survive total loss (owner, 2026-08-30). Rebuilding the index is routine;
 dropping the database is an emergency measure and takes everything else with it.
 
 **Update 2026-07-04:** The Hunspell ispell dict splits **0 / 28** real compounds (Postgres implements only the legacy `compoundwords controlled` mechanism; the baked `hunspell-de-de` uses modern `COMPOUNDBEGIN/END` directives). v1 ships `unaccent + german_stem` only — no compound decomposition. See ADR 0011 for measurements and the final SQL config.
+
+**Update 2026-10-06:** the Hunspell dictionary is no longer baked into the Postgres image (GH #33); the index engine is `to_tsvector` + `unaccent` + `german_stem` and ICU collation.

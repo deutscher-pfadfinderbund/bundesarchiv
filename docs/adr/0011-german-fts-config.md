@@ -219,6 +219,8 @@ lexeme, cast back to `tsquery`. Proven: `websearch_to_tsquery('Berliner Lieder')
 - **The baked `hunspell-de-de` dictionary is unused by the FTS config.** Task 4's dictionary
   files stay in the image (harmless, ~1 MB) and remain available if a future PG-compatible
   compound format appears. No Dockerfile change is needed for this decision.
+  **Update 2026-10-06:** the dictionary is no longer in the image (GH #33). The Postgres
+  image is plain `postgres`; a future compound-capable dictionary is installed afresh.
 - **The index is derived and disposable** ([ADR 0003](0003-search-index.md)), so the config is
   swappable. If prefix-plus-stemming recall proves too coarse in real use, Meilisearch remains
   the escape hatch — no data migration, just a different index build.
