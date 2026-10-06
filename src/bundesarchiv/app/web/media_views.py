@@ -9,12 +9,13 @@ never web-root reachable").
 Denial semantics (BINDING, plan §4.3):
 
 - Everything that is not a served byte is a **plain 404** via ``not_found()``: no such
-  article, no such blob on the article, not permitted, malformed ulid, malformed hash, missing
-  thumbnail — all the SAME status, body and header set. Existence never leaks; a forbidden article
-  is indistinguishable from a nonexistent one, and a not-yet-thumbnailed image from a forbidden one.
+  article, no such blob on the article, not permitted, malformed ulid, malformed hash, a file that
+  yields no version of the asked size (a PDF has no display version) — all the SAME status, body
+  and header set. Existence never leaks; a forbidden article is indistinguishable from a
+  nonexistent one, and an unrenderable file from a forbidden one.
 - **Authorization runs and denies BEFORE any blob-existence lookup.** The blob/thumbnail is only
   ever touched inside the seam, which is reached only after ``can_view`` passed — so a denied
-  request never probes the filesystem (no timing/metadata oracle). The one existence check that
+  request never probes the filesystem (no timing/metadata oracle) and never derives a version. The one existence check that
   DOES gate a 404 is purely in-memory: the hash must belong to the article's ``media`` list (a valid
   hash on the WRONG article → 404).
 
@@ -22,6 +23,7 @@ This is a bytes-or-404 endpoint: it NEVER calls the domain ``project()`` and nev
 fields. Nothing but blob bytes (or the constant 404 page) leaves.
 """
 
+import logging
 from functools import cache
 
 from django.http import HttpRequest, HttpResponse
@@ -29,6 +31,7 @@ from django.http.response import HttpResponseBase
 from django.template.loader import render_to_string
 
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import media
 from bundesarchiv.app.web.bestand import BestandChooser
 from bundesarchiv.app.web.viewers import viewer_of
@@ -36,6 +39,8 @@ from bundesarchiv.domain.access import can_view
 from bundesarchiv.domain.identity import is_valid_ulid
 from bundesarchiv.domain.models import Article, MediaRef
 from bundesarchiv.persistence.errors import ArchiveError
+
+logger = logging.getLogger(__name__)
 
 #: A content_hash is a sha256 hex digest: exactly 64 lowercase hex characters. Anything else is
 #: malformed → the same 404 (a route param that can't name a blob must not be distinguishable from
@@ -133,18 +138,24 @@ def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpRespo
         return not_found()  # blob absent in the store (not-yet-mirrored/pruned) → the same 404
 
 
-def serve_thumbnail(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
-    """``GET /media/<ulid>/<content_hash>/thumb`` — the WebP thumbnail, SAME authorization as the
-    original (a thumbnail leaks the image). A not-yet-generated thumbnail → the same plain
-    404 as a forbidden one (a not-yet-thumbnailed image must be indistinguishable from a denial)."""
+def serve_thumbnail(
+    request: HttpRequest, ulid: str, content_hash: str, size: Size = Size.TILE
+) -> HttpResponseBase:
+    """``GET /media/<ulid>/<content_hash>/thumb`` (the tile) and ``…/display`` (``size`` from the
+    urlconf) — SAME authorization as the original (a derived version leaks the image). A missing
+    version is derived on this request; a file that yields none, or a derive that fails for any
+    reason → the same plain 404 as a forbidden one."""
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
         return not_found()
-    _, article, media_ref = authorized
+    archive, article, media_ref = authorized
     try:
-        return media.thumbnail_response(article, media_ref, request)
-    except FileNotFoundError, OSError:
-        return not_found()  # thumbnail not (yet) generated → the same 404
+        return media.thumbnail_response(archive, article, media_ref, size)
+    except FileNotFoundError:
+        return not_found()  # no such version for this file → the same 404
+    except Exception:
+        logger.exception("serving the %s version of %s failed", size.name, content_hash)
+        return not_found()
 
 
 def _media_ref_for(article: Article, content_hash: str) -> MediaRef | None:

@@ -85,7 +85,7 @@ class CorpusHandles:
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
     """Build + index the canonical corpus at ``root``. Idempotent per fresh temp dir.
 
-    When ``thumbnail_root`` is given, the media blobs' WebP thumbnails are pre-generated into it —
+    When ``thumbnail_root`` is given, the media blobs' AVIF tiles are pre-generated into it —
     the worker-side generation the live e2e run has no worker for — so the detail cover + filmstrip
     <img>s (which point at the /media/.../thumb route) actually render instead of 404ing."""
     store = LocalFsObjectStore(root)

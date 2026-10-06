@@ -155,7 +155,7 @@ def test_generate_thumbnail_task_derives_from_canonical(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The Procrastinate thumbnail task is a reference over an Article's ulid and a content-hash: it
-    re-reads the file from the store the factory builds and writes the WebP into the configured
+    re-reads the file from the store the factory builds and writes the AVIF tile into the configured
     THUMBNAIL_ROOT. Runs the task's underlying function directly (no DB needed)."""
     import bundesarchiv.app.tasks as tasks_mod
 
@@ -170,7 +170,7 @@ def test_generate_thumbnail_task_derives_from_canonical(
     out = thumbnail_path(thumbs, ref.content_hash)
     assert out.is_file()
     with Image.open(out) as im:
-        assert im.format == "WEBP"
+        assert im.format == "AVIF"
 
 
 def _png_bytes() -> bytes:

@@ -62,9 +62,8 @@ class _MatrixCorpus:
     names ``vorstand`` so a matching-group Member is distinguishable from a non-matching one; the
     frozen standard corpus is PUBLIC and media-free, so the matrix builds its own content."""
 
-    def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
+    def __init__(self, base: Corpus) -> None:
         self.base = base
-        self.thumbnail_root = thumbnail_root
         self._build()
 
     def _build(self) -> None:
@@ -121,22 +120,16 @@ class _MatrixCorpus:
         )
         self.marked_hash = marked_ref.content_hash
 
-    def generate_thumbnail(self, ulid: str, content_hash: str) -> None:
-        from bundesarchiv.app import thumbnails
-
-        thumbnails.generate_thumbnail(self.base.store, ulid, content_hash, self.thumbnail_root)
-
 
 @pytest.fixture
 def matrix_corpus(make_corpus: Callable[[], Corpus], tmp_path: Path) -> Iterator[_MatrixCorpus]:
     # The two settings ``settings_for`` does not carry stay local: the thumbnail root (per-test tmp
     # dir) and the X-Accel prefix (None = Django serves the bytes, so the media probes read a body).
-    # No thumbnail is generated here: only the media-thumb route's allowed probes read it (the test
-    # generates it for that route alone) — everything else would pay the PIL round-trip for nothing.
+    # No version is generated here: an allowed probe of a version route derives it on the miss.
     # Build BEFORE entering the override — ``make_corpus`` enters a settings context of its own that
     # tears down last, so this one has to nest inside it to unwind in order.
     thumbnail_root = tmp_path / "thumbnails"
-    built = _MatrixCorpus(make_corpus(), thumbnail_root)
+    built = _MatrixCorpus(make_corpus())
     with override_settings(
         BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbnail_root), BUNDESARCHIV_X_ACCEL_PREFIX=None
     ):
@@ -310,6 +303,10 @@ def _p_media(c: _MatrixCorpus) -> str:
 
 def _p_media_thumb(c: _MatrixCorpus) -> str:
     return f"/media/{c.article_ulid}/{c.content_hash}/thumb"
+
+
+def _p_media_display(c: _MatrixCorpus) -> str:
+    return f"/media/{c.article_ulid}/{c.content_hash}/display"
 
 
 # The exhaustive contract — ONE entry per prod route name. Keeping it a dict keyed by route name lets
@@ -532,6 +529,14 @@ _CONTRACT: dict[str, Route] = {
         post_arch=OK,
         tier_sensitive=True,
     ),
+    "media-display": Route(
+        build_path=_p_media_display,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=OK,
+        tier_sensitive=True,
+    ),
 }
 
 
@@ -607,8 +612,6 @@ def test_route_tier_matrix(
 ) -> None:
     route = _CONTRACT[name]
     expected = _expected_for(route, tier, method)
-    if name == "media-thumb":
-        matrix_corpus.generate_thumbnail(matrix_corpus.article_ulid, matrix_corpus.content_hash)
     path = route.build_path(matrix_corpus)
     data: dict[str, object] = route.post_data
     if name in _POST_DATA_BUILDERS:
@@ -649,6 +652,7 @@ _MARKED_PATHS: dict[str, Callable[[_MatrixCorpus], str]] = {
     "artikel-detail": lambda c: f"/articles/{c.marked_ulid}",
     "media": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}",
     "media-thumb": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/thumb",
+    "media-display": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/display",
 }
 
 
@@ -657,8 +661,6 @@ _MARKED_PATHS: dict[str, Callable[[_MatrixCorpus], str]] = {
 def test_a_marked_article_answers_the_archivist_alone(
     matrix_corpus: _MatrixCorpus, name: str, tier: str
 ) -> None:
-    if name == "media-thumb":
-        matrix_corpus.generate_thumbnail(matrix_corpus.marked_ulid, matrix_corpus.marked_hash)
     response = client_as(_TIERS[tier]).get(_MARKED_PATHS[name](matrix_corpus))
     if tier == "archivist":
         assert response.status_code == OK, f"{name} of a marked article as the archivist"

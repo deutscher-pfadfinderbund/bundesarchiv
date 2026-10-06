@@ -8,12 +8,13 @@ and thumbnail byte is served ONLY where ``can_view`` allows, and every denial/ab
 Structure:
 - A fixture corpus of Articles across every tier (public / members / groups / draft /
   archivist-only), each carrying one real image blob, on a ``LocalFsObjectStore`` under a tmp root.
-- The per-tier grid: original + thumb URLs against [Public, Member(wrong group), Member(right
+- The per-tier grid: original, tile and display URLs against [Public, Member(wrong group), Member(right
   group), Archivist] -> 200 iff ``can_view`` says so, everything else 404.
-- A 404 for each of six distinct denial/absence reasons.
+- A 404 for each distinct denial/absence reason, none of which writes a derived version.
 - Authz-before-existence: a forbidden request is denied before any blob or thumbnail probe.
 - X-Accel mode and dev-streaming mode.
 - The thumbnail job (JPEG/PNG generate, text no-op, idempotent, output location).
+- A derived version is made on the first permitted request (the grids run with an empty cache).
 """
 
 import io
@@ -49,6 +50,12 @@ def _png_bytes(color: tuple[int, int, int] = (200, 40, 60)) -> bytes:
     return buf.getvalue()
 
 
+def _pdf_bytes() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (600, 800), (240, 240, 230)).save(buf, format="PDF")
+    return buf.getvalue()
+
+
 def _jpeg_bytes() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (640, 480), (10, 120, 200)).save(buf, format="JPEG")
@@ -68,6 +75,7 @@ class _TierCorpus:
         self.hash_by_tier: dict[str, str] = {}
         self.ulid_by_tier: dict[str, str] = {}
         self.ref_by_tier: dict[str, MediaRef] = {}
+        self._base = base
         self._build(base)
 
     def _build(self, base: Corpus) -> None:
@@ -110,22 +118,22 @@ class _TierCorpus:
             self.ulid_by_tier[tier] = ulid
             self.ref_by_tier[tier] = ref
 
-    def url(self, tier: str, *, thumb: bool = False) -> str:
+    def url(self, tier: str, version: str = "") -> str:
+        """The original's URL, or with ``version`` (``thumb``, ``display``) that version's."""
         base = f"/media/{self.ulid_by_tier[tier]}/{self.hash_by_tier[tier]}"
-        return base + "/thumb" if thumb else base
+        return f"{base}/{version}" if version else base
+
+    def add_public_file(self, filename: str, data: bytes, media_type: str) -> str:
+        """A new public Article carrying one file; that file's URL."""
+        ulid = new_ulid()
+        ref = self.articles.add_media(ulid, filename, io.BytesIO(data), media_type=media_type)
+        self._base.add_article(make_article(ulid, collection_id="PUB", media=(ref,)))
+        return f"/media/{ulid}/{ref.content_hash}"
 
     def blob_key(self, tier: str) -> str:
         """This tier's file key, from the repository that owns the layout — a byte comparison
         proves the right bytes, never the key scheme (which the X-Accel test pins verbatim)."""
         return self.articles.media_key(self.ulid_by_tier[tier], self.ref_by_tier[tier])
-
-    def generate_thumbnails(self) -> None:
-        from bundesarchiv.app import thumbnails
-
-        for tier, ulid in self.ulid_by_tier.items():
-            thumbnails.generate_thumbnail(
-                self.store, ulid, self.hash_by_tier[tier], self.thumbnail_root
-            )
 
 
 @pytest.fixture
@@ -196,18 +204,19 @@ def test_original_per_tier_grid(
         assert_denied(response, f"{tier}/{viewer_name}")
 
 
+@pytest.mark.parametrize("version", ["thumb", "display"])
 @pytest.mark.parametrize(("tier", "viewer_name", "allowed"), list(_grid()))
-def test_thumbnail_per_tier_grid(
-    corpus: _TierCorpus, tier: str, viewer_name: str, allowed: bool
+def test_version_per_tier_grid(
+    corpus: _TierCorpus, tier: str, viewer_name: str, allowed: bool, version: str
 ) -> None:
-    # Generate every thumbnail first so a 404 for a denied viewer is authorization, not absence.
-    corpus.generate_thumbnails()
-    response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier, thumb=True))
+    response = client_as(_VIEWERS[viewer_name]).get(corpus.url(tier, version))
     if allowed:
-        assert response.status_code == 200, f"thumb {tier}/{viewer_name} should be served"
-        assert response["Content-Type"] == "image/webp"
+        assert response.status_code == 200, f"{version} {tier}/{viewer_name} should be served"
+        assert response["Content-Type"] == "image/avif"
+        with Image.open(io.BytesIO(_body(response))) as derived:
+            assert derived.format == "AVIF"
     else:
-        assert_denied(response, f"thumb {tier}/{viewer_name}")
+        assert_denied(response, f"{version} {tier}/{viewer_name}")
 
 
 # --- 404 across every deny reason ---------------------------------------------------
@@ -227,10 +236,40 @@ def test_404_across_all_deny_reasons(corpus: _TierCorpus) -> None:
             f"/media/{real_ulid}/{corpus.hash_by_tier['public']}"
         ),
         "malformed_ulid": client_as(Archivist()).get(f"/media/not-a-ulid/{good_hash}"),
-        "missing_thumb": client_as(Archivist()).get(corpus.url("members", thumb=True)),
     }
     for reason, response in responses.items():
         assert_denied(response, reason)
+
+
+def test_404_across_all_version_deny_reasons(corpus: _TierCorpus) -> None:
+    real_ulid = corpus.ulid_by_tier["members"]
+    pdf = corpus.add_public_file("brief.pdf", _pdf_bytes(), "application/pdf")
+    broken = corpus.add_public_file("kaputt.png", b"not a png", "image/png")
+    responses = {
+        "forbidden": client_as(Public()).get(corpus.url("members", "display")),
+        "wrong_article": client_as(Archivist()).get(
+            f"/media/{real_ulid}/{corpus.hash_by_tier['public']}/display"
+        ),
+        "unknown_hash": client_as(Archivist()).get(f"/media/{real_ulid}/{'0' * 64}/display"),
+        "pdf_display": client_as(Archivist()).get(f"{pdf}/display"),
+        "unrenderable_thumb": client_as(Archivist()).get(f"{broken}/thumb"),
+        "unrenderable_display": client_as(Archivist()).get(f"{broken}/display"),
+    }
+    for reason, response in responses.items():
+        assert_denied(response, reason)
+    assert list(corpus.thumbnail_root.glob("*")) == [], "a deny wrote a derived version"
+
+
+def test_a_failed_derive_is_the_same_404(
+    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure past the file's content (here the cache write) never surfaces as a 500."""
+
+    def failing_write(destination: Path, data: bytes) -> None:
+        raise RuntimeError("the cache write failed")
+
+    monkeypatch.setattr("bundesarchiv.app.thumbnails._write_atomically", failing_write)
+    assert_denied(client_as(Public()).get(corpus.url("public", "display")))
 
 
 # --- authz-before-existence -------------------------------------------------------
@@ -265,10 +304,10 @@ def test_authz_denies_before_any_blob_lookup(
     assert corpus.blob_key("members") not in recording_store.keys, "the blob was probed first"
 
 
-def test_authz_denies_before_lookup_for_thumbnail(
-    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("version", ["thumb", "display"])
+def test_authz_denies_before_lookup_for_a_version(
+    corpus: _TierCorpus, monkeypatch: pytest.MonkeyPatch, version: str
 ) -> None:
-    corpus.generate_thumbnails()
     root = _WatchedRoot(corpus.thumbnail_root)
     reached: list[str] = []
 
@@ -278,7 +317,7 @@ def test_authz_denies_before_lookup_for_thumbnail(
 
     monkeypatch.setattr("bundesarchiv.app.web.media.thumbnail_response", recorder)
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=root):
-        response = client_as(Public()).get(corpus.url("members", thumb=True))
+        response = client_as(Public()).get(corpus.url("members", version))
     assert_denied(response)
     assert reached == []
     assert root.touched == 0, "the thumbnail cache was probed before the deny"
@@ -384,8 +423,7 @@ def test_permitted_media_is_privately_cacheable_forever(
 
 
 def test_permitted_thumbnail_is_privately_cacheable_forever(corpus: _TierCorpus) -> None:
-    corpus.generate_thumbnails()
-    response = client_as(Public()).get(corpus.url("public", thumb=True))
+    response = client_as(Public()).get(corpus.url("public", "thumb"))
     assert response.status_code == 200
     assert response["Cache-Control"] == _EXPECTED_CACHE_CONTROL
 
@@ -402,17 +440,15 @@ def test_permitted_media_runs_no_script(corpus: _TierCorpus, x_accel_prefix: str
 
 
 def test_permitted_thumbnail_runs_no_script(corpus: _TierCorpus) -> None:
-    corpus.generate_thumbnails()
-    response = client_as(Public()).get(corpus.url("public", thumb=True))
+    response = client_as(Public()).get(corpus.url("public", "thumb"))
     assert response.status_code == 200
     assert response["Content-Security-Policy"] == "sandbox"
 
 
-@pytest.mark.parametrize("thumb", [False, True], ids=["original", "thumbnail"])
-def test_permitted_media_is_not_readable_by_another_site(corpus: _TierCorpus, thumb: bool) -> None:
+@pytest.mark.parametrize("version", ["", "thumb"], ids=["original", "thumbnail"])
+def test_permitted_media_is_not_readable_by_another_site(corpus: _TierCorpus, version: str) -> None:
     # ADR 0017.
-    corpus.generate_thumbnails()
-    response = client_as(Public()).get(corpus.url("public", thumb=thumb))
+    response = client_as(Public()).get(corpus.url("public", version))
     assert response.status_code == 200
     assert response["Cross-Origin-Resource-Policy"] == "same-origin"
 
@@ -458,8 +494,9 @@ def test_a_failed_media_answer_is_never_cached() -> None:
 def test_deny_is_never_cached(corpus: _TierCorpus) -> None:
     # Caching a deny would pin a viewer to a 404 for a year after their access is granted.
     forbidden = client_as(Public()).get(corpus.url("members"))
-    missing_thumb = client_as(Archivist()).get(corpus.url("members", thumb=True))
-    for name, response in (("forbidden", forbidden), ("missing_thumb", missing_thumb)):
+    broken = corpus.add_public_file("kaputt.png", b"not a png", "image/png")
+    unrenderable = client_as(Archivist()).get(f"{broken}/thumb")
+    for name, response in (("forbidden", forbidden), ("unrenderable", unrenderable)):
         assert_denied(response, name)
         assert "Cache-Control" not in response, name
 
@@ -485,7 +522,7 @@ def test_thumbnail_job_generates_for_jpeg_and_png(tmp_path: Path) -> None:
         out = thumbnails.thumbnail_path(thumbs, ref.content_hash)
         assert out.is_file()
         with Image.open(out) as im:
-            assert im.format == "WEBP"
+            assert im.format == "AVIF"
             assert max(im.size) <= 480
 
 

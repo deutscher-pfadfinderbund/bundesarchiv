@@ -101,7 +101,7 @@ def reindex_subtree(collection_ulid: str) -> None:
 
 @app.task(name="generate_thumbnail")
 def generate_thumbnail(ulid: str, content_hash: str) -> None:
-    """Reference job (Part 4.3): derive the WebP thumbnail for the media file with ``content_hash``
+    """Reference job (Part 4.3): derive the AVIF tile for the media file with ``content_hash``
     on Article ``ulid``, re-reading it from current canonical and writing to the LOCAL derived
     thumbnail cache (``BUNDESARCHIV_THUMBNAIL_ROOT``). A no-op for a file without a renderer or one no
     longer on the Article; idempotent. The thumbnail is a prunable cache, never archive truth (README

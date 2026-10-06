@@ -83,7 +83,7 @@ def _e2e_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture
 def _e2e_thumbs(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The LOCAL derived-thumbnail cache root for ONE journey. Per-test so the corpus builder can
-    pre-generate thumbnail WebPs into it (the worker-side generation the live e2e run has no worker
+    pre-generate AVIF tiles into it (the worker-side generation the live e2e run has no worker
     for) and the live server reads the same dir through the settings override — so a detail/pane
     thumbnail actually renders in the gallery instead of 404ing to a broken <img>."""
     return tmp_path_factory.mktemp("e2e-thumbs")

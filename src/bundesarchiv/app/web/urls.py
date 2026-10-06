@@ -10,6 +10,7 @@ The public URL namespace never encodes filesystem paths (plan §4.3): media is a
 
 from django.urls import URLPattern, path
 
+from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web.auth_views import login, logout, oidc_callback
 from bundesarchiv.app.web.browse_views import article_detail, choose_columns, trash, workbench
 from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
@@ -94,6 +95,12 @@ urlpatterns = [
     path("articles/<str:ulid>", article_detail, name="artikel-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),
+    path(
+        "media/<str:ulid>/<str:content_hash>/display",
+        serve_thumbnail,
+        {"size": Size.DISPLAY},
+        name="media-display",
+    ),
 ]
 
 

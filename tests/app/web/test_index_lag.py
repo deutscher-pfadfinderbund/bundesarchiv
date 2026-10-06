@@ -74,6 +74,7 @@ _READS = {
     "artikel-detail",
     "media",
     "media-thumb",
+    "media-display",
 }
 
 

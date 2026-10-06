@@ -11,12 +11,13 @@ storage + a size-capped local read-through cache behind a ``TieredObjectStore``)
 blob not resident locally → stream/Range-proxy from cold storage — grows HERE, behind this same
 signature. No caller changes. Where the bytes physically live is the store's business, never this
 module's: a blob is named and opened through ``ArticleRepository`` (ADR 0005). The one local path
-served here is the THUMBNAIL cache, which is deliberately not the ObjectStore (derived, prunable).
+served here is the THUMBNAIL cache (tile and display versions), which is deliberately not the
+ObjectStore (derived, prunable).
 
 Denial is NEVER expressed here — the view owns 404s (see ``media_views.not_found``). These
 functions are only ever reached for an authorized (article, media_ref) pair; if the blob is
-unexpectedly absent they raise, which the view turns into the same 404 (a not-yet-mirrored /
-pruned-thumbnail blob is indistinguishable from a forbidden one).
+unexpectedly absent they raise, which the view turns into the same 404 (a not-yet-mirrored blob
+or one that yields no version is indistinguishable from a forbidden one).
 """
 
 from pathlib import Path
@@ -28,7 +29,7 @@ from django.http.response import HttpResponseBase
 from django.utils.http import content_disposition_header
 
 from bundesarchiv.app.archive import Archive
-from bundesarchiv.app.thumbnails import thumbnail_path
+from bundesarchiv.app.thumbnails import Size, cached
 from bundesarchiv.domain.models import Article, MediaRef
 
 #: Default MIME when a MediaRef carries no media_type — the safe generic (never text/html, which a
@@ -85,22 +86,25 @@ def media_response(
 
 
 def thumbnail_response(
-    article: Article, media_ref: MediaRef, request: HttpRequest
+    archive: Archive, article: Article, media_ref: MediaRef, size: Size
 ) -> HttpResponseBase:
-    """Serve the WebP thumbnail derived from ``media_ref``'s blob — same authorization contract as
-    ``media_response`` (a thumbnail leaks the image, so it is gated identically). The thumbnail is a
-    LOCAL derived cache keyed by content-hash (``thumbnails.thumbnail_path``): not
-    canonical, not the ObjectStore, prunable. A not-yet-generated thumbnail raises absence, which
-    the view turns into the same 404 (indistinguishable from a forbidden one).
+    """Serve the AVIF version of ``size`` derived from ``media_ref``'s blob — same authorization
+    contract as ``media_response`` (a derived version leaks the image, so it is gated identically).
+    It comes from the LOCAL derived cache (``thumbnails.cached``), made first on a miss: not
+    canonical, not the ObjectStore, prunable. A file that yields no such version raises absence,
+    which the view turns into the same 404 (indistinguishable from a forbidden one).
 
     Served straight from the local thumbnail cache: no X-Accel path (the thumbnail root is not the
-    canonical media tree nginx fronts, and thumbnails are tiny — dev-style streaming is fine in prod
-    too). Range is not supported (thumbnails are small; same dev-FileResponse caveat as above)."""
-    path = thumbnail_path(Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT), media_ref.content_hash)
+    canonical media tree nginx fronts, and versions are small — dev-style streaming is fine in prod
+    too). Range is not supported (same dev-FileResponse caveat as above)."""
+    root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
+    path = cached(archive.articles, article.ulid, media_ref, root, size)
+    if path is None:
+        raise FileNotFoundError(media_ref.content_hash)
     return _stamped(
         FileResponse(
             path.open("rb"),
-            content_type="image/webp",
+            content_type="image/avif",
             as_attachment=False,
             filename=path.name,
         )

@@ -1,5 +1,6 @@
-"""``manage.py rebuild_thumbnails``: every missing thumbnail derived from the canonical tree, and
-one file that yields none never stops the run."""
+"""``manage.py rebuild_thumbnails``: every missing thumbnail derived from the canonical tree, one
+file that yields none never stops the run, an empty one is derived again, and a cache file of a
+retired format or a crashed write is removed."""
 
 import re
 from io import BytesIO, StringIO
@@ -58,6 +59,11 @@ def test_it_derives_the_missing_skips_the_present_and_a_second_run_derives_nothi
         kept = thumbnail_path(thumbs, present.content_hash)
         kept.parent.mkdir()
         kept.write_bytes(b"already here")
+        thumbnail_path(thumbs, missing.content_hash).write_bytes(b"")
+        retired = thumbs / f"{missing.content_hash}.webp"
+        retired.write_bytes(b"old format")
+        crashed = thumbs / "tmpk3x9.tmp"
+        crashed.write_bytes(b"half a version")
         first, second = StringIO(), StringIO()
         with monkeypatch.context() as bombs_refused:
             bombs_refused.setattr(Image, "MAX_IMAGE_PIXELS", 10_000)
@@ -67,6 +73,8 @@ def test_it_derives_the_missing_skips_the_present_and_a_second_run_derives_nothi
     assert kept.read_bytes() == b"already here"
     for derived in (missing, pdf):
         with Image.open(thumbnail_path(thumbs, derived.content_hash)) as thumbnail:
-            assert thumbnail.format == "WEBP"
+            assert thumbnail.format == "AVIF"
     assert not thumbnail_path(thumbs, bomb.content_hash).exists()
+    assert not retired.exists()
+    assert not crashed.exists()
     assert (_generated(first), _generated(second)) == (["2"], ["0"])
