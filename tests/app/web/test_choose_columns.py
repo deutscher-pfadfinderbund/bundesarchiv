@@ -25,7 +25,7 @@ def _post(data: dict[str, object], *, enforce_csrf: bool = False) -> HttpRespons
 
 
 def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() -> None:
-    query = "q=Fahrt+%26+Lager&bestand=B1&sortierung=-datierung&auswahl=A1&auswahl=A2&artikel=A1"
+    query = "q=Fahrt+%26+Lager&collection=B1&sort=-date&selection=A1&selection=A2&article=A1"
     response = _post({"spalte": ["collection", "date"], "zurueck": query})
     assert response.status_code == 302
     target = urlsplit(response["Location"])
@@ -67,6 +67,6 @@ def test_a_get_is_the_plain_404_and_sets_nothing() -> None:
 
 
 def test_a_cross_site_post_is_refused_and_sets_nothing() -> None:
-    response = _post({"spalte": ["bestand"], "zurueck": ""}, enforce_csrf=True)
+    response = _post({"spalte": ["collection"], "zurueck": ""}, enforce_csrf=True)
     assert response.status_code == 403
     assert ledger.COOKIE not in response.cookies

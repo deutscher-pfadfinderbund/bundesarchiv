@@ -23,7 +23,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 @pytest.fixture
 def fotos(make_corpus: Callable[[], Corpus]) -> Corpus:
     """An archive holding one named Bestand — the parent option the create form offers, and the
-    collection the catalog form's ``?bestand=`` preselect resolves against."""
+    collection the catalog form's ``?collection=`` preselect resolves against."""
     corpus = make_corpus()
     corpus.add_collection(
         make_collection("FOTOS", "Fotografien", audience=Audience(AudienceTier.PUBLIC))
@@ -79,13 +79,13 @@ def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> Non
     # lands on the create-article form, pre-selecting the new Bestand + carrying its name
     location = response["Location"]
     assert location.startswith("/articles/new?")
-    assert f"bestand={created[0].ulid}" in location
-    assert "angelegt=1" in location
+    assert f"collection={created[0].ulid}" in location
+    assert "created=1" in location
 
 
 @pytest.mark.django_db
 def test_catalog_form_preselects_bestand_and_shows_hinweis(fotos: Corpus) -> None:
-    body = client_as(Archivist()).get("/articles/new?bestand=FOTOS&angelegt=1").content.decode()
+    body = client_as(Archivist()).get("/articles/new?collection=FOTOS&created=1").content.decode()
     assert 'value="FOTOS" selected' in body  # the Bestand pre-selected in the collection select
     assert "Bestand „Fotografien“ angelegt." in body  # the name is looked up, not read from the URL
 
@@ -93,7 +93,7 @@ def test_catalog_form_preselects_bestand_and_shows_hinweis(fotos: Corpus) -> Non
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "query",
-    ["angelegt=<b>Geheim</b>", "angelegt=Fotografien", "angelegt=1", "bestand=NOSUCH&angelegt=1"],
+    ["created=<b>Geheim</b>", "created=Fotografien", "created=1", "collection=NOSUCH&created=1"],
 )
 def test_angelegt_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
     body = client_as(Archivist()).get(f"/articles/new?{query}").content.decode()
@@ -105,7 +105,7 @@ def test_angelegt_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
 def test_catalog_form_ignores_a_bogus_preselect(fotos: Corpus) -> None:
     # a ?bestand outside the real set is ignored (no oracle) — no REAL collection is pre-selected
     # (the empty placeholder stays selected, as when no ?bestand is given at all).
-    body = client_as(Archivist()).get("/articles/new?bestand=NOSUCH").content.decode()
+    body = client_as(Archivist()).get("/articles/new?collection=NOSUCH").content.decode()
     assert 'value="FOTOS" selected' not in body
     assert 'value="" selected' in body  # the placeholder is the selected option
 
@@ -189,5 +189,5 @@ def test_the_panel_answers_a_refusal_in_place_then_creates(corpus: Corpus) -> No
     assert (fields["sichtbarkeit"], fields["gruppen"]) == ("groups", "Rover")
     assert len(corpus.collections.load_all()) == before
     created = client.post(action, {**fields, "name": "Rover"}, headers={"HX-Request": "true"})
-    assert created["HX-Redirect"].startswith("/articles/new?bestand=")
+    assert created["HX-Redirect"].startswith("/articles/new?collection=")
     assert len(corpus.collections.load_all()) == before + 1

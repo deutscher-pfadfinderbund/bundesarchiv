@@ -65,7 +65,7 @@ def test_kopieren_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corp
     assert len(new) == 1
     new_ulid = new.pop()
     # 302 to the copy's edit form with the Signatur autofocus hint (spec §5)
-    assert response["Location"] == f"/articles/{new_ulid}/edit?fokus=signatur"
+    assert response["Location"] == f"/articles/{new_ulid}/edit?focus=ref_code"
     copy = corpus.articles.load(new_ulid).article
     assert copy.ref_code is None  # Signatur cleared (spec §7)
     assert copy.lifecycle is Lifecycle.DRAFT

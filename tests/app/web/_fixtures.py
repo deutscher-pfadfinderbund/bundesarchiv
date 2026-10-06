@@ -352,7 +352,7 @@ def _remove(client: Client, corpus: Corpus) -> Any:
 def _bulk(client: Client, corpus: Corpus) -> Any:
     return client.post(
         "/articles/bulk-edit",
-        {"auswahl": [DRAFT_ULID], "feld": "creator", "wert_text": "Kurt", "bestaetigt": "1"},
+        {"selection": [DRAFT_ULID], "feld": "creator", "wert_text": "Kurt", "bestaetigt": "1"},
     )
 
 

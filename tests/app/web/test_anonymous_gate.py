@@ -26,7 +26,7 @@ def gated(corpus: Corpus) -> Iterator[Corpus]:
 
 _PATHS = (
     "/",
-    "/?q=sommer&seite=2",
+    "/?q=sommer&page=2",
     f"/articles/{PUBLISHED_ULID}",
     "/articles/does-not-exist",
     "/articles/new",

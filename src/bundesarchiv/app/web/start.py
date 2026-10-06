@@ -202,7 +202,7 @@ def recent_area(
             )
             for h, day in zip(hits, shown, strict=True)
         ),
-        "all_href": preset_url(browse.PARAM_SORT, browse.sort_label("added")),
+        "all_href": preset_url(browse.PARAM_SORT, "added"),
     }
 
 

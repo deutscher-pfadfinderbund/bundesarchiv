@@ -69,7 +69,7 @@ def _get(viewer: Viewer, path: str) -> Any:
 def _bestand_counts(response: Any) -> dict[str, str]:
     """Each Bestand link in ``<main>`` and the count it carries."""
     main = response.content.decode().split("<main", 1)[1]
-    return dict(re.findall(r'href="/articles\?bestand=(\w+)".*?<data value="(\d+)"', main))
+    return dict(re.findall(r'href="/articles\?collection=(\w+)".*?<data value="(\d+)"', main))
 
 
 def _screen(response: Any) -> str:
@@ -95,7 +95,7 @@ def test_a_bestand_link_lands_on_the_list_with_as_many_articles_as_it_counts(
 ) -> None:
     member = Member(groups=())
     counts = _bestand_counts(_get(member, "/"))
-    listed = _get(member, list_url(bestand=_BUND))
+    listed = _get(member, list_url(collection=_BUND))
     assert _screen(listed) == "workbench/workbench.html"
     assert listed.context["total"] == counts[_BUND]
 
@@ -104,8 +104,8 @@ def test_the_root_is_the_start_page_and_an_old_list_link_lands_on_the_list(
     indexed_corpus: Corpus,
 ) -> None:
     assert _screen(_get(Archivist(), "/")) == "start/start.html"
-    old = client_as(Archivist()).get(f"/?bestand={_BUND}&auswahl=")
-    assert (old.status_code, old["Location"]) == (301, f"/articles?bestand={_BUND}&auswahl=")
+    old = client_as(Archivist()).get(f"/?collection={_BUND}&selection=")
+    assert (old.status_code, old["Location"]) == (301, f"/articles?collection={_BUND}&selection=")
 
 
 def _preset_counts(response: Any, param: str) -> dict[str, str]:
@@ -133,9 +133,9 @@ def test_nach_art_and_zeitleiste_count_what_the_viewer_may_see(
     undated: str,
 ) -> None:
     response = _get(viewer, "/")
-    assert _preset_counts(response, "medienart") == art
-    assert _preset_counts(response, "jahrzehnt") == decades
-    assert _preset_counts(response, "ohne_datum") == {"1": undated}
+    assert _preset_counts(response, "media_type") == art
+    assert _preset_counts(response, "decade") == decades
+    assert _preset_counts(response, "dateless") == {"1": undated}
 
 
 def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
@@ -143,7 +143,7 @@ def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
     area = start.by_media_type_area(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
     tiles = cast("tuple[start.Tile, ...]", area["tiles"])
     assert [t.label for t in tiles] == [f"Art {n}" for n in range(7)]
-    assert all("medienart=" in t.href for t in tiles)
+    assert all("media_type=" in t.href for t in tiles)
 
 
 def test_weiter_bearbeiten_names_the_drafts_to_an_archivist_and_nothing_to_a_member(
@@ -166,7 +166,7 @@ def test_weiter_bearbeiten_folds_more_than_three_drafts_into_a_link_to_the_draft
     indexer.rebuild(indexed_corpus.store)
     main = _get(Archivist(), "/").content.decode().split("<main", 1)[1]
     assert len(re.findall(r'href="/articles/\w+/edit"', main)) == 2
-    assert 'href="/articles?entwuerfe=1">und 3 weitere Entwürfe<' in main
+    assert 'href="/articles?drafts=1">und 3 weitere Entwürfe<' in main
 
 
 @pytest.mark.parametrize(
@@ -221,4 +221,4 @@ def test_the_zeitleiste_folds_two_or_more_sparse_leading_decades_into_one_row() 
     (folded, *_) = start.fold_sparse(
         [FacetCount(d, n) for d, n in (("1860", 1), ("1890", 1), *dense)]
     )
-    assert "bis=1919-12-31" in folded.href
+    assert "date_to=1919-12-31" in folded.href

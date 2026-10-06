@@ -159,9 +159,9 @@ components; this storyboard updates in lockstep with them.
       <input type="search" name="q" placeholder="Titel, Ort, Autor …" aria-label="Suche">
       <label class="field"><span>Titel</span><input type="text" name="titel" value="Sommerfahrt 1962"></label>
       <label class="field"><span>Sortierung</span>
-        <select name="sortierung">
+        <select name="sort">
           {% for value, caption in sort_options %}
-          <option value="{{ value }}"{% if value == "relevanz" %} selected{% endif %}>{{ caption }}</option>
+          <option value="{{ value }}"{% if value == "relevance" %} selected{% endif %}>{{ caption }}</option>
           {% endfor %}
         </select>
       </label>

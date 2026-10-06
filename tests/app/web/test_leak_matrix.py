@@ -543,7 +543,7 @@ _CONTRACT: dict[str, Route] = {
 def _sammel_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """A valid confirm-phase bulk POST: one real ulid selected + a field + its value → the confirm
     page (200) for an archivist. Non-archivists never reach validation (gate denies first)."""
-    return {"auswahl": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
+    return {"selection": [c.article_ulid], "feld": "creator", "wert_creator": "Jemand"}
 
 
 def _loeschen_post_data(c: _MatrixCorpus) -> dict[str, object]:
@@ -741,7 +741,7 @@ def test_bulk_edit_leaves_a_marked_article_out(
         "/articles/bulk-edit",
         {
             **_sammel_post_data(matrix_corpus),
-            "auswahl": [matrix_corpus.marked_ulid],
+            "selection": [matrix_corpus.marked_ulid],
             "bestaetigt": bestaetigt,
         },
     )

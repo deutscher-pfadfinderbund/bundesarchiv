@@ -121,6 +121,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "bundesarchiv.app.web.viewers.TokenCookieMiddleware",  # outside everything that calls viewer_of
     "bundesarchiv.app.web.viewers.vary_on_request_kind",  # above the gate: the door varies too
+    "bundesarchiv.app.web.legacy_params.LegacyParamsMiddleware",  # old German params: 301 to English
     "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware",
 ]
 

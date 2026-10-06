@@ -46,7 +46,7 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 #: The preview-pane selection param. NOT a search param — it is stripped from every search link so
 #: a denied/absent/malformed value leaves the page byte-identical to no pane (existence-hiding).
-_PANE_PARAM = "artikel"
+_PANE_PARAM = "article"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
@@ -78,11 +78,11 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
-    # The preview pane: ?artikel=<ulid> resolved fail-closed through the ONE render path. None when
+    # The preview pane: ?article=<ulid> resolved fail-closed through the ONE render path. None when
     # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
     pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
-    # Bulk-edit selection (archivist-only chrome, spec §2): any ?auswahl= is selection mode
-    # ("Auswählen"; a bare ``auswahl=`` is the mode with nothing ticked), and its values carry the
+    # Bulk-edit selection (archivist-only chrome, spec §2): any ?selection= is selection mode
+    # ("Auswählen"; a bare ``selection=`` is the mode with nothing ticked), and its values carry the
     # selected ulids across pages. Non-archivists never get the mode, so their selection is dropped
     # entirely (defence-in-depth — the POST route is independently gated too).
     selecting = is_archivist and browse.PARAM_SELECTION in request.GET
@@ -242,11 +242,11 @@ class _Pane:
 def _resolve_pane(
     request: HttpRequest, archive: Archive, chooser: CollectionChooser, *, is_archivist: bool
 ) -> _Pane | None:
-    """Resolve the ``?artikel`` param to a preview-pane view-model, or ``None`` when there is no
+    """Resolve the ``?article`` param to a preview-pane view-model, or ``None`` when there is no
     pane to show. Fail-closed by delegating to the ONE render-resolution path
     (``resolve_visible_detail`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
     all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
-    existence oracle). An absent ``artikel`` param is simply no pane."""
+    existence oracle). An absent ``article`` param is simply no pane."""
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
@@ -255,9 +255,9 @@ def _resolve_pane(
     if article is None or article.deleted is not None:
         # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
         return None
-    # The ✕ close target: the SAME search minus only the pane selection (artikel). Strip artikel like
+    # The ✕ close target: the SAME search minus only the pane selection (article). Strip article like
     # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
-    # query (a bare "?" would). artikel is pane state, not search state.
+    # query (a bare "?" would). article is pane state, not search state.
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
     return _Pane(
@@ -277,7 +277,7 @@ def _resolve_pane(
 #: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
 #: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the sentence's
 #: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
-#: live input, never duplicated as hidden) and ``seite`` (a new search deliberately resets to
+#: live input, never duplicated as hidden) and ``page`` (a new search deliberately resets to
 #: page 1 — kept as-is).
 _FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
@@ -307,9 +307,9 @@ def _results_context(
     template. No visibility logic — that already happened in ``search``; the ledger's archivist
     chrome is a presentation gate off ``is_archivist``.
 
-    ``artikel`` (pane) and ``auswahl`` (bulk selection) are STRIPPED from the link-building
+    ``article`` (pane) and ``selection`` (bulk selection) are STRIPPED from the link-building
     ``params``: neither is search state, so no facet/sort link may carry them. In selection mode
-    (``selecting``) the PAGINATION links re-attach a bare ``auswahl=`` plus every selected ulid, so
+    (``selecting``) the PAGINATION links re-attach a bare ``selection=`` plus every selected ulid, so
     paging keeps both the mode and the selection. Pane selection is tracked separately via
     ``selected_ulid``."""
     params = {
@@ -374,7 +374,7 @@ class _Pager:
 def _pager(
     parsed: browse.ParsedQuery, page: SearchPage, params: Mapping[str, str], selection: list[str]
 ) -> _Pager:
-    """The pager's steps carry the selection (``auswahl``), so paging never drops it."""
+    """The pager's steps carry the selection (``selection``), so paging never drops it."""
     n, hits = parsed.page, len(page.hits)
     first = (n - 1) * browse.PAGE_SIZE + 1
     has_prev = n > 1
@@ -414,7 +414,7 @@ def _bulk_bar_context(
 ) -> dict[str, object]:
     """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11, owner 2026-09-30),
     archivist-only: "Auswählen" outside selection mode; in it "Abbrechen", the count and the Feld
-    chooser. Both links keep the search (params already exclude auswahl and artikel): a bare "?"
+    chooser. Both links keep the search (params already exclude selection and article): a bare "?"
     would wipe the filters.
 
     The client adds its live checkbox count to ``selection_offpage_count``, the part of the URL-borne

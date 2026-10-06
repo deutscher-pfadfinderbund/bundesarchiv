@@ -3,7 +3,7 @@
 {% comment %}
 The bulk check page (a2 pruefen.html) and its error mode (pruefen-fehler.html). Archivist-only (the
 view gates it). The consequence disclosure: the new value once, one row per record with the value
-it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server session state).
+it loses. Hidden inputs carry selection, field and value into the commit (no server session state).
 {% endcomment %}
 {% block title %}Änderung prüfen{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
@@ -16,7 +16,7 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
   <p>{{ count }} ausgewählt</p>
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
-    {% for ulid in selection %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    {% for ulid in selection %}<input type="hidden" name="selection" value="{{ ulid }}">{% endfor %}
     <p class="error" role="alert">{{ error }}</p>
     {% include "workbench/_field_picker.html" %}
   </form>
@@ -45,7 +45,7 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
 
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
-    {% for ulid in selection %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    {% for ulid in selection %}<input type="hidden" name="selection" value="{{ ulid }}">{% endfor %}
     <input type="hidden" name="feld" value="{{ field }}">
     <input type="hidden" name="{{ value_field }}" value="{{ value }}">
     <input type="hidden" name="bestaetigt" value="1">

@@ -113,8 +113,8 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     plain 404, both methods). POST creates a DRAFT with just Titel + Bestand and 302s to the
     edit form; a validation failure re-renders state B with the verbatim error + preserved values.
 
-    On GET, a ``?bestand=<ulid>`` param pre-selects that Bestand (validated against the real set,
-    ignored if bogus — no oracle) and ``?angelegt=1`` announces it as just created — the
+    On GET, a ``?collection=<ulid>`` param pre-selects that Bestand (validated against the real set,
+    ignored if bogus — no oracle) and ``?created=1`` announces it as just created — the
     landing after creating a Bestand (4.8), so create-Bestand → catalog-an-article is one flow."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
@@ -993,15 +993,13 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
 
 
 def article_document_types(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /articles/<ulid>/document-types?medienart=`` — the Dokumenttyp option list for one
+    """``GET /articles/<ulid>/document-types?media_type=`` — the Dokumenttyp option list for one
     Medienart (spec §5). Archivist-only, GET-only. The no-JS baseline renders all types grouped by
     Medienart; this returns just the chosen Medienart's options for an HTMX inner-swap."""
     gated = _load_gated(request, ulid)
     if gated is None or request.method != "GET":
         return not_found()
-    # htmx sends the <select name="media_type"> value under that name; accept ?medienart= too so the
-    # endpoint is callable directly with the German param name.
-    media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
+    media_type = request.GET.get("media_type", "")
     return render_screen(
         request,
         "workbench/_document_type_options.html",

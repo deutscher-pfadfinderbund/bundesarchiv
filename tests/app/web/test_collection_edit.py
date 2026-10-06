@@ -88,8 +88,8 @@ def test_get_renders_name_field_and_readonly_rows(archive: Corpus) -> None:
 def test_the_page_shows_the_parent_chain_as_crumbs(archive: Corpus) -> None:
     body = client_as(Archivist()).get(f"/collections/{FOTOS}/edit").content.decode()
     crumbs = body.split('class="crumbs"')[1].split("</nav>")[0]
-    assert f"?bestand={ROOT}" in crumbs
-    assert f"?bestand={FOTOS}" in crumbs
+    assert f"?collection={ROOT}" in crumbs
+    assert f"?collection={FOTOS}" in crumbs
 
 
 # --- POST renames -----------------------------------------------------------------
@@ -174,7 +174,7 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
         {"name": "Lichtbilder", "expected_version": version},
     )
     assert response.status_code == 302
-    assert response["Location"] == f"/articles?bestand={FOTOS}"
+    assert response["Location"] == f"/articles?collection={FOTOS}"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
 
 
@@ -195,5 +195,5 @@ def test_the_panel_answers_a_race_in_place_then_saves(archive: Corpus) -> None:
     assert fields["expected_version"] == "2"
     assert _name_of(archive, FOTOS) == "Lichtbilder"
     saved = client.post(action, fields, headers={"HX-Request": "true"})
-    assert saved["HX-Redirect"] == f"/articles?bestand={FOTOS}"
+    assert saved["HX-Redirect"] == f"/articles?collection={FOTOS}"
     assert _name_of(archive, FOTOS) == "Meins"

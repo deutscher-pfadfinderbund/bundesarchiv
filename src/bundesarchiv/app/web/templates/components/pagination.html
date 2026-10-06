@@ -3,7 +3,7 @@ The pager — the result range between its steps, one group at the end edge (a2 
 pager — browse_views._Pager, or nothing on a zero-hit page (the empty state speaks there). A step
 that cannot move yet stays, disabled: it becomes active on this list. A one-page list shows only its
 count and, with no steps, is no navigation (round 9). On the workbench, catalog_bulk.js (GH #22)
-rewrites ONLY the ?auswahl= params of the rel=prev/next links, so an unsubmitted bulk selection
+rewrites ONLY the ?selection= params of the rel=prev/next links, so an unsubmitted bulk selection
 survives paging.
 {% endcomment %}
 {% if pager.stepped %}

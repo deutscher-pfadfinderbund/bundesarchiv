@@ -101,9 +101,9 @@ def test_the_entwurf_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
 @pytest.mark.parametrize(
     ("sortierung", "next_sortierung", "aria_sort"),
     [
-        (None, "datierung", ""),
-        ("datierung", "-datierung", "ascending"),
-        ("-datierung", None, "descending"),
+        (None, "date", ""),
+        ("date", "-date", "ascending"),
+        ("-date", None, "descending"),
     ],
 )
 def test_a_sortable_head_links_to_its_next_sort_state(

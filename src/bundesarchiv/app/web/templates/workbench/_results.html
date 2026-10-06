@@ -4,8 +4,8 @@ an HX-Request and inside the full page otherwise. Every hit is already viewer-sc
 the archivist chrome is a presentation gate on is_archivist.
 
 Bulk edit (archivist-only): the tool row and the ledger share ONE form that POSTs to
-/artikel/sammelbearbeitung; the ledger's checkbox column shows only in selection mode (?auswahl=).
-The selection survives paging: the view bakes the URL's ?auswahl= into the pager links, and
+/artikel/sammelbearbeitung; the ledger's checkbox column shows only in selection mode (?selection=).
+The selection survives paging: the view bakes the URL's ?selection= into the pager links, and
 catalog_bulk.js (GH #22) folds unsubmitted ticks into them. Without JS a fresh tick needs a submit
 first.
 {% endcomment %}

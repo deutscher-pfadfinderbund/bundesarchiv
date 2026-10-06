@@ -101,7 +101,7 @@ def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) ->
 
 
 def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
-    page.goto(f"{base}{LIST}?bestand={corpus.renamable_ulid}", wait_until="networkidle")
+    page.goto(f"{base}{LIST}?collection={corpus.renamable_ulid}", wait_until="networkidle")
     page.get_by_role("button", name="Bestand bearbeiten …").click()
 
 
@@ -114,7 +114,7 @@ def _reach_spalten_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
 def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
     # a URL-seeded selection: the tool row shows the count and its tools
     page.goto(
-        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
     )
 
@@ -234,7 +234,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
     # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
     # message, which must show exactly one "Neuer Wert" widget
     page.goto(
-        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
@@ -284,7 +284,7 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench in selection mode, nothing ticked: 'Abbrechen', 'Feld ändern …' and the"
         " checkbox column with its select-all head",
         True,
-        _goto(f"{LIST}?auswahl="),
+        _goto(f"{LIST}?selection="),
     ),
     GalleryState(
         "workbench-auswahl",

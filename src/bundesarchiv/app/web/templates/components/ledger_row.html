@@ -5,7 +5,7 @@ its page, one click away. Every other cell is one fact, printed without surround
 absent value is :empty.
 {% endcomment %}
 <tr{% if row.selected %} aria-current="true"{% endif %}>
-  {% if bulk %}<td class="select"><input type="checkbox" name="auswahl" value="{{ row.ulid }}"{% if row.in_selection %} checked{% endif %} aria-label="{{ row.title }} auswählen"></td>{% endif %}
+  {% if bulk %}<td class="select"><input type="checkbox" name="selection" value="{{ row.ulid }}"{% if row.in_selection %} checked{% endif %} aria-label="{{ row.title }} auswählen"></td>{% endif %}
   <td class="title"><a href="{{ row.href }}">{{ row.title }}</a>{% if row.draft %} {% include "components/mark_lifecycle.html" with draft=True only %}{% endif %}</td>
   {% for cell in row.cells %}<td class="{{ cell.key }}">{% if cell.query %}<a href="?{{ cell.query }}">{{ cell.text }}</a>{% else %}{{ cell.text }}{% endif %}</td>{% endfor %}
 </tr>

@@ -1,7 +1,7 @@
 {% load static %}
 {% comment %}
 Dev-only layout demo (/_dev/layouts/split-narrow/, layouts_demo.py): the workbench composition built from
-the real partials over static German demo context. English dev chrome. ?vorschau=0|1 switches the
+the real partials over static German demo context. English dev chrome. ?preview=0|1 switches the
 pane column.
 {% endcomment %}<!doctype html>
 <html lang="de">
@@ -45,8 +45,8 @@ pane column.
 {% comment %} English dev chrome: pane-state toggle + back to the component library. {% endcomment %}
 <nav class="devbar" aria-label="Dev navigation">
   <b>split-narrow</b>
-  <a href="?vorschau=0"{% if not with_preview %} aria-current="page"{% endif %}>Vorschau zu</a>
-  <a href="?vorschau=1"{% if with_preview %} aria-current="page"{% endif %}>Vorschau auf</a>
+  <a href="?preview=0"{% if not with_preview %} aria-current="page"{% endif %}>Vorschau zu</a>
+  <a href="?preview=1"{% if with_preview %} aria-current="page"{% endif %}>Vorschau auf</a>
   <span>·</span>
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>

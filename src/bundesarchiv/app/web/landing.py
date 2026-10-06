@@ -12,8 +12,8 @@ from django.urls import reverse
 from bundesarchiv.app.web.browse import PARAM_COLLECTION
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 
-_CREATED, _FOCUS, _INDEX = "angelegt", "fokus", "index"
-_YES, _REF_CODE, _LAGGING = "1", "signatur", "lagging"
+_CREATED, _FOCUS, _INDEX = "created", "focus", "index"
+_YES, _REF_CODE, _LAGGING = "1", "ref_code", "lagging"
 
 #: The keys that hand state to ONE page: no link built from that page's address may carry them on.
 FLAG_KEYS = frozenset({_CREATED, _FOCUS, _INDEX})

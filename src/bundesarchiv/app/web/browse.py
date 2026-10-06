@@ -1,7 +1,7 @@
 """Pure URL-as-state layer for the archivist workbench (Part 4.5-MVP).
 
 The workbench is ONE form whose complete state lives in the query string (plan §4.5, ideas §1.1):
-German param keys map to the English ``SearchFilters`` the index layer understands. This module is
+Param keys map to the English ``SearchFilters`` the index layer understands. This module is
 deliberately IO-free and request-free — it is a total function over a plain string mapping — so the
 whole URL-as-state contract (parse, link-build, filter removal, pagination) is unit-testable without a
 database or a request cycle, and the views stay thin.
@@ -13,7 +13,7 @@ Two halves:
   ``SearchFilters`` + sort + page.
 - The link helpers (``with_param`` / ``without_param`` / ``page_query_with_selection``) — pure
   query-string algebra the templates emit for facet clicks, filter removal and pagination. Adding
-  or removing a facet resets ``seite`` (the result set changed, so the old page number is stale).
+  or removing a facet resets ``page`` (the result set changed, so the old page number is stale).
 
 No visibility logic lives here (that is ``search`` / ``can_view``); this module only shuffles
 strings between the URL and ``SearchFilters``.
@@ -22,29 +22,30 @@ strings between the URL and ``SearchFilters``.
 import datetime
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import cast
 from urllib.parse import urlencode
 
 from bundesarchiv.index.query import FileKind, SearchFilters, SortOrder
 
-# German query-string keys, mapped to what they mean. The template, the parser and the chip builder
+# Query-string keys. The template, the parser and the chip builder
 # all read this ONE vocabulary so a rename can't drift between them.
 PARAM_Q = "q"
-PARAM_COLLECTION = "bestand"
-PARAM_MEDIA_TYPE = "medienart"
-PARAM_DOCUMENT_TYPE = "dokumenttyp"
-PARAM_TAG = "schlagwort"
-PARAM_DECADE = "jahrzehnt"
-PARAM_DATELESS = "ohne_datum"
-PARAM_DATE_FROM = "von"
-PARAM_DATE_TO = "bis"
+PARAM_COLLECTION = "collection"
+PARAM_MEDIA_TYPE = "media_type"
+PARAM_DOCUMENT_TYPE = "document_type"
+PARAM_TAG = "tag"
+PARAM_DECADE = "decade"
+PARAM_DATELESS = "dateless"
+PARAM_DATE_FROM = "date_from"
+PARAM_DATE_TO = "date_to"
 PARAM_DIGITAL = "digital"
 PARAM_FILE = "file"
-PARAM_DRAFTS = "entwuerfe"
-PARAM_SORT = "sortierung"
-PARAM_PAGE = "seite"
+PARAM_DRAFTS = "drafts"
+PARAM_SORT = "sort"
+PARAM_PAGE = "page"
 
 #: The SEARCH-state query keys — the full set the workbench URL carries as its state. Deliberately
-#: excludes ``artikel`` (pane selection) and ``auswahl`` (bulk selection): neither is search state.
+#: excludes ``article`` (pane selection) and ``selection`` (bulk selection): neither is search state.
 _SEARCH_PARAMS: frozenset[str] = frozenset(
     {
         PARAM_Q,
@@ -69,15 +70,9 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
 #: ``has_next_page``, so the pager arithmetic can never drift from the window actually fetched.
 PAGE_SIZE = 50
 
-#: German sort labels -> the ``SortOrder`` the index understands. An unknown value falls to the
+#: The ``sort`` values the index understands (``SortOrder``). An unknown value falls to the
 #: default (relevance), so a hand-edited URL can never 500 the sort.
-_SORT_BY_LABEL: dict[str, SortOrder] = {
-    "relevanz": "relevance",
-    "signatur": "ref_code",
-    "datierung": "date",
-    "titel": "title",
-    "hinzugefuegt": "added",
-}
+_SORTS: frozenset[str] = frozenset({"relevance", "ref_code", "date", "title", "added"})
 _DEFAULT_SORT: SortOrder = "relevance"
 
 #: Truthy spellings for the boolean toggles (Ohne Datum, Digital, Entwürfe). Anything else (incl.
@@ -97,29 +92,22 @@ class ParsedQuery:
     page: int
 
 
-#: Descending is encoded as a ``-`` prefix on the German ``sortierung`` label ("-signatur"), so the
-#: whole sort state stays in one URL param. An unknown/blank label falls to the default (relevance),
+#: Descending is encoded as a ``-`` prefix on the ``sort`` value ("-ref_code"), so the
+#: whole sort state stays in one URL param. An unknown/blank value falls to the default (relevance),
 #: which has no direction — the header cycle only ever sets a column label ± the prefix.
 _SORT_DESC_PREFIX = "-"
 
 
 def _parse_sort(raw: str | None) -> tuple[SortOrder, bool]:
-    """Parse ``sortierung`` into (SortOrder, descending). A leading ``-`` means descending; the rest
-    maps through ``_SORT_BY_LABEL``. An unknown label -> (default, ascending) — garbage never 500s."""
+    """Parse ``sort`` into (SortOrder, descending). A leading ``-`` means descending; the rest
+    must be a ``SortOrder``. An unknown value -> (default, ascending) — garbage never 500s."""
     value = (raw or "").strip().lower()
     descending = value.startswith(_SORT_DESC_PREFIX)
-    label = value[1:] if descending else value
-    sort = _SORT_BY_LABEL.get(label, _DEFAULT_SORT)
-    # relevance has no direction; a stray "-relevanz" collapses to plain relevance (not descending).
-    if sort == _DEFAULT_SORT:
+    name = value[1:] if descending else value
+    # relevance has no direction; a stray "-relevance" collapses to plain relevance (not descending).
+    if name not in _SORTS or name == _DEFAULT_SORT:
         return _DEFAULT_SORT, False
-    return sort, descending
-
-
-def sort_label(sort: SortOrder) -> str:
-    """The German ``sortierung`` label of a ``SortOrder`` — the inverse of the parse; an order
-    the URL cannot carry reads as the default."""
-    return next((label for label, order in _SORT_BY_LABEL.items() if order == sort), "relevanz")
+    return cast(SortOrder, name), descending
 
 
 def parse_query(params: Mapping[str, str]) -> ParsedQuery:
@@ -204,13 +192,13 @@ def _page(raw: str | None) -> int:
 
 def _clean(params: Mapping[str, str]) -> dict[str, str]:
     """A mutable copy with blank values dropped — the base every link helper edits. Keeping only
-    non-blank keys means a built URL never carries an empty ``medienart=`` that reads as a filter."""
+    non-blank keys means a built URL never carries an empty ``media_type=`` that reads as a filter."""
     return {k: v for k, v in params.items() if v != ""}
 
 
 def with_param(params: Mapping[str, str], key: str, value: str) -> str:
     """The query string for the current state PLUS ``key=value`` (a facet click). Replaces any
-    existing value for ``key`` and resets ``seite`` — the result set changed, so page 1 is honest."""
+    existing value for ``key`` and resets ``page`` — the result set changed, so page 1 is honest."""
     updated = _clean(params)
     updated[key] = value
     updated.pop(PARAM_PAGE, None)
@@ -219,7 +207,7 @@ def with_param(params: Mapping[str, str], key: str, value: str) -> str:
 
 def without_param(params: Mapping[str, str], key: str) -> str:
     """The query string for the current state MINUS ``key`` (a chip ✕ / facet un-click). Resets
-    ``seite`` for the same reason ``with_param`` does — the narrowing changed."""
+    ``page`` for the same reason ``with_param`` does — the narrowing changed."""
     updated = _clean(params)
     updated.pop(key, None)
     updated.pop(PARAM_PAGE, None)
@@ -249,7 +237,7 @@ FILTER_PARAMS: tuple[str, ...] = (
 def clear_filters_query(params: Mapping[str, str]) -> str:
     """The query string for the current state MINUS every filter param — the search
     sentence's clear-all (owner 2026-09-30). Keeps the text query + sort (a set filter's own link
-    removes one filter and keeps ``q``; this removes them all) and resets ``seite`` for the
+    removes one filter and keeps ``q``; this removes them all) and resets ``page`` for the
     same reason ``without_param`` does — the narrowing changed."""
     updated = {k: v for k, v in _clean(params).items() if k not in FILTER_PARAMS}
     updated.pop(PARAM_PAGE, None)
@@ -259,14 +247,14 @@ def clear_filters_query(params: Mapping[str, str]) -> str:
 #: The bulk-edit selection param. Multi-valued (one per selected ulid); preserved across pagination
 #: so a no-JS selection survives page moves (spec §2/§3). NOT a search param — stripped from facet/
 #: sort links elsewhere, threaded only through the pagination + select-page links below.
-PARAM_SELECTION = "auswahl"
+PARAM_SELECTION = "selection"
 
 
 def page_query_with_selection(
     params: Mapping[str, str], selection: Sequence[str], page: int
 ) -> str:
-    """The pagination query string at ``page`` PLUS the multi-valued ``auswahl`` selection (spec §2).
-    Preserves every filter, text and sort; only ``seite`` moves — URL-as-state, back-button-honest,
+    """The pagination query string at ``page`` PLUS the multi-valued ``selection`` selection (spec §2).
+    Preserves every filter, text and sort; only ``page`` moves — URL-as-state, back-button-honest,
     no infinite scroll. Re-attaches every selected ulid (``doseq``) so paging never drops the
     selection. An empty selection omits the param entirely."""
     pairs: list[tuple[str, str]] = [

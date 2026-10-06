@@ -10,7 +10,7 @@ The layout iterates the PAGE FRAME (header + search sentence + ledger + preview 
 ``split-narrow``: the search sentence spans the top (a2); when the preview pane is open the ledger
 re-densifies by itself (it is a size container).
 
-Both pane states are SERVER-RENDERED, zero JS: ``?vorschau=1`` opens the pane, ``?vorschau=0``
+Both pane states are SERVER-RENDERED, zero JS: ``?preview=1`` opens the pane, ``?preview=0``
 (default) closes it; the demo chrome links switch them. Below 1280px a media query hides the pane
 and returns the ledger to full/no-pane — the layout css owns that, the view does not branch on width.
 
@@ -58,7 +58,7 @@ _HITS = tuple(
 )
 
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
-_LEDGER_QUERY = {"sortierung": "signatur"}
+_LEDGER_QUERY = {"sort": "ref_code"}
 
 
 #: The search sentence's parts -- the demo mirror of browse_views._sentence: a set Bestand, two
@@ -67,9 +67,9 @@ _SLOTS: tuple[dict[str, object], ...] = (
     {
         "label": "Aktenbestand",
         "unset_label": "allen Beständen",
-        "clear_query": "schlagwort=sommer",
+        "clear_query": "tag=sommer",
         "items": (
-            {"label": "Fotografien", "count": "24", "query": "bestand=FOTOS", "active": False},
+            {"label": "Fotografien", "count": "24", "query": "collection=FOTOS", "active": False},
             {"label": "Aktenbestand", "count": "8", "query": "", "active": True},
         ),
     },
@@ -78,8 +78,8 @@ _SLOTS: tuple[dict[str, object], ...] = (
         "unset_label": "alle Jahrzehnte",
         "clear_query": None,
         "items": (
-            {"label": "1950er", "count": "6", "query": "jahrzehnt=1950", "active": False},
-            {"label": "1960er", "count": "14", "query": "jahrzehnt=1960", "active": False},
+            {"label": "1950er", "count": "6", "query": "decade=1950", "active": False},
+            {"label": "1960er", "count": "14", "query": "decade=1960", "active": False},
         ),
     },
     {
@@ -87,14 +87,14 @@ _SLOTS: tuple[dict[str, object], ...] = (
         "unset_label": "jeder Typ",
         "clear_query": None,
         "items": (
-            {"label": "Bericht", "count": "12", "query": "dokumenttyp=Bericht", "active": False},
+            {"label": "Bericht", "count": "12", "query": "document_type=Bericht", "active": False},
         ),
     },
 )
-_SET_FILTERS = ({"label": "Schlagwort: sommer", "query": "bestand=AKTEN"},)
+_SET_FILTERS = ({"label": "Schlagwort: sommer", "query": "collection=AKTEN"},)
 _FILTER_CHECKS = (
     {"label": "mit Dateien", "count": "", "query": "digital=1", "active": False},
-    {"label": "Entwürfe", "count": "", "query": "entwuerfe=1", "active": False},
+    {"label": "Entwürfe", "count": "", "query": "drafts=1", "active": False},
 )
 
 #: The static preview shown in the pane (the first result) — the REAL ``workbench/_pane.html``
@@ -106,17 +106,17 @@ _PREVIEW = {
     "date": "1962",
     "doc_type": "Foto",
     "media": (),
-    "close_href": "?vorschau=0",
+    "close_href": "?preview=0",
     "open_href": "#demo-detail",
     "edit_href": "#demo-edit",
 }
 
 
 def layout_demo(request: HttpRequest) -> HttpResponse:
-    """GET ``/_dev/layouts/split-narrow/`` — the full workbench layout demo. ``?vorschau=1`` opens
+    """GET ``/_dev/layouts/split-narrow/`` — the full workbench layout demo. ``?preview=1`` opens
     the preview pane; anything else closes it. Never mounted in production."""
-    with_preview = request.GET.get("vorschau") == "1"
-    # The two state-switch links keep every other param; here the only state is ``vorschau``.
+    with_preview = request.GET.get("preview") == "1"
+    # The two state-switch links keep every other param; here the only state is ``preview``.
     return render(
         request,
         "layouts_demo.html",

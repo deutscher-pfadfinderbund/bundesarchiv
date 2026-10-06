@@ -37,10 +37,10 @@ class Column:
 
 
 COLUMNS: tuple[Column, ...] = (
-    Column("date", "Datierung", "datierung", None, lambda hit, _: hit.date_edtf or ""),
+    Column("date", "Datierung", "date", None, lambda hit, _: hit.date_edtf or ""),
     Column("type", "Typ", None, browse.PARAM_DOCUMENT_TYPE, lambda hit, _: hit.document_type or ""),
     Column("digital", "Digital", None, None, lambda hit, _: vocab.file_summary(hit.file_counts)),
-    Column("ref-code", "Signatur", "signatur", None, lambda hit, _: hit.ref_code or ""),
+    Column("ref-code", "Signatur", "ref_code", None, lambda hit, _: hit.ref_code or ""),
     Column(
         "collection",
         "Bestand",
@@ -146,9 +146,9 @@ def build(
     (the pane and selected_ulids params already dropped); ``columns`` the chosen ones, printed in
     registry order."""
     shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
-    active = browse.sort_label(parsed.sort)
+    active = parsed.sort
     heads = (
-        _head("title", "Titel", "titel", active, parsed.descending, params),
+        _head("title", "Titel", "title", active, parsed.descending, params),
         *(_head(c.key, c.label, c.sort, active, parsed.descending, params) for c in shown),
     )
     selected_ulids = frozenset(selection) if is_archivist else frozenset()

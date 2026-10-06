@@ -1,5 +1,5 @@
 // Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
-// baseline works without it (selection mode is the ?auswahl= URL; paging carries the URL-borne
+// baseline works without it (selection mode is the ?selection= URL; paging carries the URL-borne
 // selection, so fresh ticks need a submit first — this file lifts that limit, GH #22). It keeps
 // the live count: the live checkboxes here PLUS the off-page URL-borne selection the server hands
 // over in data-bulk-offpage (learning G.25). Self-contained, same-origin, no framework (dormancy
@@ -30,7 +30,7 @@
   }
 
   function wire(form) {
-    const rowBoxes = () => Array.from(form.querySelectorAll('input[name="auswahl"]'));
+    const rowBoxes = () => Array.from(form.querySelectorAll('input[name="selection"]'));
 
     // 1. Live count + selection-carrying links on every tick/untick. The head box ("alle") ticks
     // or unticks every row on the page, and shows ticked while every row is.
@@ -40,7 +40,7 @@
         rowBoxes().forEach((b) => {
           b.checked = head.checked;
         });
-      } else if (event.target.name !== "auswahl") {
+      } else if (event.target.name !== "selection") {
         return;
       }
       syncHead();
@@ -74,8 +74,8 @@
     // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
     // links on every change, so unsubmitted ticks/unticks survive paging while the URL stays the
     // canonical shareable state. Per link, from its own href: drop this page's ulids from
-    // ?auswahl= (fresh unticks stick), keep the rest (other pages' selections and the bare
-    // auswahl= that keeps selection mode), append the added set. "Abbrechen" is NEVER rewritten —
+    // ?selection= (fresh unticks stick), keep the rest (other pages' selections and the bare
+    // selection= that keeps selection mode), append the added set. "Abbrechen" is NEVER rewritten —
     // its purpose is leaving the mode.
     function rewriteSelectionLinks() {
       const boxes = rowBoxes();
@@ -88,16 +88,16 @@
       });
     }
 
-    // Rewrite ONLY the auswahl params of one link, from its own href: every non-auswahl param
+    // Rewrite ONLY the selection params of one link, from its own href: every non-selection param
     // keeps its place and decoded value (re-serialization may normalize percent-encoding — the
-    // server parses both spellings identically), the auswahl list becomes
+    // server parses both spellings identically), the selection list becomes
     // (href's list − this page's ulids) + add.
     function rewriteAuswahl(link, pageUlids, add) {
       const url = new URL(link.getAttribute("href"), globalThis.location.href);
-      const kept = url.searchParams.getAll("auswahl").filter((u) => pageUlids.indexOf(u) === -1);
-      url.searchParams.delete("auswahl");
+      const kept = url.searchParams.getAll("selection").filter((u) => pageUlids.indexOf(u) === -1);
+      url.searchParams.delete("selection");
       kept.concat(add).forEach((u) => {
-        url.searchParams.append("auswahl", u);
+        url.searchParams.append("selection", u);
       });
       link.setAttribute("href", `?${url.searchParams.toString()}`);
     }

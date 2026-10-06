@@ -320,7 +320,7 @@ def test_a_hostile_next_never_becomes_the_landing_page(
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/articles/new", "/?q=sommer&seite=2", "/articles/01KX7YT9E3VX0CP3A5Q49RZMWK"]
+    "path", ["/", "/articles/new", "/?q=sommer&page=2", "/articles/01KX7YT9E3VX0CP3A5Q49RZMWK"]
 )
 def test_a_same_origin_next_is_kept(keycloak: _FakeKeycloak, path: str) -> None:
     assert safe_next(path) == path

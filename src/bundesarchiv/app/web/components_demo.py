@@ -26,10 +26,10 @@ from bundesarchiv.index.query import FileKind, SearchHit
 _MODES = ("light", "dark")
 
 _SORT_OPTIONS = (
-    ("relevanz", "Relevanz"),
-    ("signatur", "Signatur"),
-    ("datierung", "Datierung"),
-    ("titel", "Titel"),
+    ("relevance", "Relevanz"),
+    ("ref_code", "Signatur"),
+    ("date", "Datierung"),
+    ("title", "Titel"),
 )
 
 #: Ledger sample hits — the known demo set, printed through the REAL ``ledger.build``. The draft
@@ -75,7 +75,7 @@ _LEDGER_HITS = tuple(
 )
 
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
-_LEDGER_QUERY = {"sortierung": "signatur"}
+_LEDGER_QUERY = {"sort": "ref_code"}
 
 
 def _demo_ledger() -> ledger.Ledger:
@@ -104,8 +104,8 @@ _PAGERS = tuple(
         "noun": "Artikel",
     }
     for prev, nxt, first, shown, total, label in (
-        ("seite=1", "seite=3", 51, "51\N{EN DASH}100", 2506, "2.506"),
-        (None, "seite=2", 1, "1\N{EN DASH}50", 2506, "2.506"),
+        ("page=1", "page=3", 51, "51\N{EN DASH}100", 2506, "2.506"),
+        (None, "page=2", 1, "1\N{EN DASH}50", 2506, "2.506"),
         (None, None, 1, "1\N{EN DASH}4", 4, "4"),
     )
 )

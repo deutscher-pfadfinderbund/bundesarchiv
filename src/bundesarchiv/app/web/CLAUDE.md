@@ -18,8 +18,9 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `oidc.py` — validated OIDC claims → Viewer, least privilege on an unknown shape · interface: `viewer_from_claims`, `ARCHIVIST_REALM_ROLE` · tests: `tests/app/web/test_oidc_claims.py`
 - `anonymous_gate.py` — the anonymous gate: one middleware check, never a per-view decorator (ADR 0018) · interface: `AnonymousGateMiddleware` · tests: `tests/app/web/test_anonymous_gate.py`
 - `slow_requests.py` — one WARNING record per request over `BUNDESARCHIV_SLOW_REQUEST_MS`, by route name · interface: `SlowRequestMiddleware` · tests: `tests/app/web/test_slow_requests.py`
+- `legacy_params.py` — a GET or HEAD naming an old German query param or value gets a 301 to its English URL · interface: `LegacyParamsMiddleware` · tests: `tests/app/web/test_legacy_params.py`
 - `article_auth.py` — Article-level authorization for full-Article render paths · interface: `resolve_visible_detail`, `DetailResolution` · tests: `tests/app/web/test_detail_resolver.py`, `test_detail.py`
-- `browse.py` — pure URL-as-state algebra for the workbench (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
+- `browse.py` — pure URL-as-state algebra (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — the list, detail and Papierkorb routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
 - `ledger.py` — the ledger's columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `build`, `chosen`, `cookie_value` · tests: `tests/app/web/test_ledger.py`

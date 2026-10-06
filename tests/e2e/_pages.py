@@ -111,7 +111,7 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
     """The bulk CONFIRM surface: a URL-seeded selection, open "Feld ändern …", choose a field and a
     value, submit. POST-only — no path reaches it, which is why it needs a reach."""
     page.goto(
-        f"{base}{LIST}?auswahl={corpus.published_ulid}&auswahl={corpus.second_ulid}",
+        f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
     )
     page.click('[popovertarget="feld-aendern"]')
@@ -184,7 +184,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-filtered",
         "workbench, tag filter applied (a set filter in the search sentence)",
         True,
-        _at(f"{LIST}?schlagwort=sommer"),
+        _at(f"{LIST}?tag=sommer"),
         "workbench",
         overlays=3,
         control_rows=("header",),
@@ -193,7 +193,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-facets",
         "workbench, two filters applied, both set in the search sentence",
         True,
-        _at(f"{LIST}?schlagwort=sommer&medienart=Foto(s)"),
+        _at(f"{LIST}?tag=sommer&media_type=Foto(s)"),
         "workbench",
         overlays=5,
         control_rows=("header",),
@@ -202,7 +202,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-typ",
         "workbench, a type filter set: the Typ column steps back (a2 round 11)",
         True,
-        _at(f"{LIST}?dokumenttyp=Zeitschrift"),
+        _at(f"{LIST}?document_type=Zeitschrift"),
         "workbench",
         overlays=3,
         control_rows=("header", "div[toolbar]"),
@@ -211,7 +211,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-pane",
         "workbench, preview pane open",
         True,
-        _goto(lambda c: f"{LIST}?artikel={c.published_ulid}"),
+        _goto(lambda c: f"{LIST}?article={c.published_ulid}"),
         "workbench",
         overlays=2,
         control_rows=("header", "div[toolbar]"),
@@ -220,7 +220,7 @@ SCREENS: tuple[Screen, ...] = (
         "workbench-bulk-url",
         "workbench, URL-seeded bulk selection",
         True,
-        _goto(lambda c: f"{LIST}?auswahl={c.published_ulid}&auswahl={c.second_ulid}"),
+        _goto(lambda c: f"{LIST}?selection={c.published_ulid}&selection={c.second_ulid}"),
         "workbench",
         overlays=2,
         control_rows=("header",),
@@ -262,7 +262,7 @@ SCREENS: tuple[Screen, ...] = (
         "bestand-landing",
         "create-article form after a new Bestand (pre-selected + hinweis)",
         True,
-        _goto(lambda c: f"/articles/new?bestand={c.renamable_ulid}&angelegt=1"),
+        _goto(lambda c: f"/articles/new?collection={c.renamable_ulid}&created=1"),
         "article-create",
         overlays=1,
     ),

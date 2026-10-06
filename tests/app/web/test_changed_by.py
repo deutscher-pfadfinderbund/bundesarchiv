@@ -28,7 +28,7 @@ def _landed_article(response: HttpResponse, corpus: Corpus) -> Change | None:
 
 
 def _created_bestand(response: HttpResponse, corpus: Corpus) -> Change | None:
-    [ulid] = parse_qs(urlparse(response["Location"]).query)["bestand"]
+    [ulid] = parse_qs(urlparse(response["Location"]).query)["collection"]
     return corpus.collections.load(ulid).change
 
 

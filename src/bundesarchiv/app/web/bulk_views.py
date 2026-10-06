@@ -1,7 +1,7 @@
 """The bulk-edit (Sammelbearbeitung) check and commit route (spec §2 D/R, §4, §6).
 
 ``/articles/bulk-edit`` checks first and commits only with ``bestaetigt=1`` (spec §0.1). No
-server-side session state: the selection rides as hidden ``auswahl`` inputs into the commit.
+server-side session state: the selection rides as hidden ``selection`` inputs into the commit.
 """
 
 from django.http import HttpRequest
@@ -28,7 +28,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     chooser = CollectionChooser.of(archive)
     # the ledger's ticked head box ("alle") carries the rows of the page it was rendered on
     all_ulids = request.POST.get("alle", "").split()
-    selection = _distinct_valid_ulids([*request.POST.getlist("auswahl"), *all_ulids])
+    selection = _distinct_valid_ulids([*request.POST.getlist("selection"), *all_ulids])
     field = request.POST.get("feld", "")
     # Read the value for ANY field, allowed or not: a refused field never mutates (``_validate``
     # gates that), and the reject page must echo what was typed — gating the read here blanked the
@@ -45,19 +45,15 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 
 
 def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
-    """``GET /articles/bulk-edit/document-types?medienart=`` — the dependent Dokumenttyp option
+    """``GET /articles/bulk-edit/document-types?media_type=`` — the dependent Dokumenttyp option
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
     GET-only → the plain 404 otherwise. The no-JS baseline renders all optgroups + the
     server re-validates per-article; this only removes a round-trip on Medienart change."""
     if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
         return not_found()
-    # htmx sends the drawer's <select name="wert_media_type"> value under that name; accept the plain
-    # media_type / medienart names too so the endpoint is callable directly.
-    media_type = (
-        request.GET.get("wert_media_type")
-        or request.GET.get("media_type")
-        or request.GET.get("medienart", "")
-    )
+    # htmx sends the drawer's <select name="value_media_type"> value under that name; accept the plain
+    # media_type name too so the endpoint is callable directly.
+    media_type = request.GET.get("value_media_type") or request.GET.get("media_type", "")
     return render_screen(
         request,
         "workbench/_document_type_options.html",

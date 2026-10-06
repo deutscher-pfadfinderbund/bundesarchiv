@@ -140,7 +140,7 @@ def test_only_an_archivist_is_told_of_the_lag(corpus: Corpus) -> None:
 @pytest.mark.django_db
 def test_no_list_link_carries_the_flag_on(corpus: Corpus) -> None:
     client = client_as(Archivist("anna"))
-    page = client.get(list_url(index="lagging", bestand=PUB))
+    page = client.get(list_url(index="lagging", collection=PUB))
     assert page.context["index_lag"]
     assert "index=" not in page.content.decode()
     assert "index=" not in page.context["columns_back"]

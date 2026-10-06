@@ -37,7 +37,7 @@ from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-# The detail page only PRINTS the Bestand id (as a ?bestand= facet link) and never routes on it, so
+# The detail page only PRINTS the Bestand id (as a ?collection= facet link) and never routes on it, so
 # a mnemonic reads better here than a ULID.
 FOTOS = "FOTOS"
 
@@ -349,13 +349,13 @@ def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) 
 def test_bestand_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
     assert "Fotografien" in body  # leaf collection name
-    assert "?bestand=FOTOS" in body  # links into the collection facet
+    assert "?collection=FOTOS" in body  # links into the collection facet
 
 
 def test_schlagworte_link_into_tag_facet(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
-    assert "?schlagwort=fahrt" in body
-    assert "?schlagwort=sommer" in body
+    assert "?tag=fahrt" in body
+    assert "?tag=sommer" in body
 
 
 # --- escaping: free-text values round-trip inert (the leak-surface pin) -------------

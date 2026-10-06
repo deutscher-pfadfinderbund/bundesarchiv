@@ -50,17 +50,17 @@ def test_search_filter_and_open_pane(
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # filter by a tag facet (Schlagworte: sommer) narrows to the one article
-    page.goto(live_workbench + f"{LIST}?schlagwort=sommer")
+    page.goto(live_workbench + f"{LIST}?tag=sommer")
     expect(page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(page.get_by_text("Herbstlager 1963")).not_to_be_visible()
     # the preview is paused (owner 2026-09-30): only its address opens the pane, beside the search
-    page.goto(live_workbench + f"{LIST}?schlagwort=sommer&artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?tag=sommer&article={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".pane h2")).to_have_text("Sommerfahrt 1962")
     # ✕ closes the pane and keeps the filter
     page.get_by_label("Vorschau schließen").click()
     expect(page.locator(".pane")).not_to_be_visible()
-    assert "schlagwort=sommer" in page.url
+    assert "tag=sommer" in page.url
 
 
 def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
@@ -70,7 +70,7 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     # in a cookie and redirects back to the SAME list (PRG) — query, pane and selection intact — so
     # the next visit still shows it. The address never carries it.
     page = no_js_archivist_page
-    query = f"schlagwort=sommer&sortierung=-datierung&auswahl={e2e_corpus.published_ulid}"
+    query = f"tag=sommer&sort=-date&selection={e2e_corpus.published_ulid}"
     page.goto(f"{live_workbench}{LIST}?{query}")
     page.get_by_role("button", name="Spalten …").click()
     panel = page.locator("#spalten")
@@ -90,7 +90,7 @@ def test_an_abandoned_panel_change_never_rides_along(
     # Abbrechen, Esc and a click outside put "Spalten …" and "Feld ändern …" back as rendered, so a
     # later Fertig / Änderung prüfen submits only what the archivist kept.
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?auswahl={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?selection={e2e_corpus.published_ulid}")
     spalten = page.locator("#spalten")
     page.get_by_role("button", name="Spalten …").click()
     spalten.get_by_role("checkbox", name="Bestand").check()
@@ -482,7 +482,7 @@ def test_the_primary_toolbar_button_keeps_its_button_roles_under_the_pointer(
     # exactly like a live one. Under the pointer the primary turns to its outline (DESIGN.md).
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}")
     primary = page.locator(".pane [role=toolbar] a.button.primary")
     expect(primary).to_be_visible()
     primary.hover()
@@ -503,7 +503,7 @@ def test_the_control_row_walk_sees_what_the_screens_compose(
     # "span.file-row-tools[toolbar]" — keying rows by name once collapsed 50 such rows into one entry
     # and the walk proved a SINGLE toolbar while reporting green, G.37).
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?schlagwort=sommer")
+    page.goto(live_workbench + f"{LIST}?tag=sommer")
     filtered = _walk_control_rows(page)
     header = next(n for n in filtered if n.startswith("header"))
     assert filtered[header]  # the "+ Neu …" button (the search field is the sentence's here)
@@ -779,7 +779,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     # Filter by a decade and a file type (through "+ Filter"), open an article: "Archiv" leads to
     # the list as it was left. Editing and saving the article changes nothing about that.
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?jahrzehnt=1960", wait_until="networkidle")
+    page.goto(live_workbench + f"{LIST}?decade=1960", wait_until="networkidle")
     page.locator(".search-sentence-add .menu-button").click()
     page.locator("#plus-filter").get_by_role("link", name="mit Fotos").click()
     page.wait_for_url("**file=image**")
@@ -787,7 +787,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     page.wait_for_url("**/articles/**")
     page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url("**file=image**")
-    assert "jahrzehnt=1960" in page.url
+    assert "decade=1960" in page.url
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
     page.get_by_role("link", name="Bearbeiten", exact=True).click()
     page.wait_for_url("**/edit**")
@@ -796,7 +796,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
     page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
     page.wait_for_url("**file=image**")
-    assert "jahrzehnt=1960" in page.url
+    assert "decade=1960" in page.url
 
 
 def test_a_start_page_bestand_opens_the_list_the_crumb_returns_to(
@@ -807,11 +807,11 @@ def test_a_start_page_bestand_opens_the_list_the_crumb_returns_to(
     page = archivist_page
     page.goto(live_workbench + "/", wait_until="networkidle")
     page.locator("main").get_by_role("link", name="Bundesarchiv").click()
-    page.wait_for_url(f"**{LIST}?bestand=ROOT")
+    page.wait_for_url(f"**{LIST}?collection=ROOT")
     page.get_by_role("link", name="Sommerfahrt 1962", exact=True).click()
     page.wait_for_url("**/articles/**")
     page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True).click()
-    page.wait_for_url(f"**{LIST}?bestand=ROOT")
+    page.wait_for_url(f"**{LIST}?collection=ROOT")
     page.locator(".wordmark").click()
     page.wait_for_url(lambda url: url.rstrip("/") == live_workbench.rstrip("/"))
 
@@ -822,7 +822,7 @@ def test_each_start_page_area_opens_the_list_with_its_preset(
     # Nach Art, Zeitleiste and Weiter bearbeiten each lead somewhere: a preset of the list, or the
     # draft's edit page.
     page = archivist_page
-    for name, url_part in (("Foto(s)", "medienart="), ("1960er", "jahrzehnt=1960")):
+    for name, url_part in (("Foto(s)", "media_type="), ("1960er", "decade=1960")):
         page.goto(live_workbench + "/", wait_until="networkidle")
         page.locator("main").get_by_role("link", name=name).first.click()
         page.wait_for_url(f"**{LIST}?*{url_part}*")
@@ -837,7 +837,7 @@ def test_an_old_list_link_lands_on_the_list_and_its_clear_links_stay_there(
     # The list's links are relative ("?…"): rendered at "/", closing the pane (an empty query)
     # would have led to the start page.
     page = archivist_page
-    page.goto(f"{live_workbench}/?artikel={e2e_corpus.published_ulid}", wait_until="networkidle")
+    page.goto(f"{live_workbench}/?article={e2e_corpus.published_ulid}", wait_until="networkidle")
     assert urlparse(page.url).path == LIST
     page.get_by_role("link", name="Vorschau schließen").click()
     page.wait_for_url(lambda url: urlparse(url).path == LIST and "artikel" not in url)
@@ -849,7 +849,7 @@ def test_a_way_back_remembered_before_the_list_moved_is_not_followed(
     # A tab that remembered the list at "/" (before it moved to LIST) keeps the crumb on the list.
     page = archivist_page
     page.goto(f"{live_workbench}/articles/{e2e_corpus.published_ulid}", wait_until="networkidle")
-    page.evaluate("() => sessionStorage.setItem('list-address', '/?jahrzehnt=1960')")
+    page.evaluate("() => sessionStorage.setItem('list-address', '/?decade=1960')")
     page.reload(wait_until="networkidle")
     crumb = page.locator(".crumbs").get_by_role("link", name="Archiv", exact=True)
     expect(crumb).to_have_attribute("href", LIST)
@@ -865,7 +865,7 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
     # has. Both set filters here are ones no slot shows, so each is its own removing link.
     page = archivist_page
     for nth in (0, 1):
-        page.goto(live_workbench + f"{LIST}?schlagwort=sommer&medienart=Foto(s)")
+        page.goto(live_workbench + f"{LIST}?tag=sommer&media_type=Foto(s)")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
         expect(page.locator("#trefferzahl")).not_to_be_empty()
@@ -887,7 +887,7 @@ def test_on_a_phone_the_folded_slots_stay_reachable(
     # reach them, or a phone cannot filter by decade or type at all.
     page = archivist_page
     page.set_viewport_size({"width": 390, "height": 900})
-    for param in ("jahrzehnt", "dokumenttyp"):
+    for param in ("decade", "document_type"):
         page.goto(live_workbench + LIST)
         page.locator(".search-sentence-more .menu-button").click()
         entry = page.locator(f'.search-sentence-more .menu a[href*="{param}="]').first
@@ -905,7 +905,7 @@ def test_pane_open_never_folds_the_ledger(
     # the only state that hides it) and the tracks merely tighten (law C11 — no column drops).
     page = archivist_page
     page.set_viewport_size({"width": 1280, "height": 900})
-    page.goto(live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}")
+    page.goto(live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}")
     expect(page.locator(".pane")).to_be_visible()
     expect(page.locator(".ledger thead")).to_be_visible()  # the fold's signature is hidden heads
 
@@ -1031,7 +1031,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
     page = archivist_page
     for width, path in (
         (680, LIST),
-        (1280, f"{LIST}?artikel={e2e_corpus.published_ulid}"),
+        (1280, f"{LIST}?article={e2e_corpus.published_ulid}"),
     ):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(live_workbench + path)
@@ -1054,7 +1054,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
             (560, live_workbench + LIST),
             (640, live_workbench + LIST),
             (800, live_workbench + LIST),
-            (1280, live_workbench + f"{LIST}?artikel={e2e_corpus.published_ulid}"),
+            (1280, live_workbench + f"{LIST}?article={e2e_corpus.published_ulid}"),
         ),
         ledger_probes,
     )
@@ -1079,7 +1079,7 @@ def test_public_never_sees_a_draft(public_page: Page, live_workbench: str) -> No
     expect(public_page.get_by_text("Sommerfahrt 1962")).to_be_visible()
     expect(public_page.get_by_text("Lagerchronik")).not_to_be_visible()  # the draft's title
     expect(public_page.get_by_role("button", name="+ Neu …")).to_have_count(0)
-    expect(public_page.locator('input[name="auswahl"]')).to_have_count(0)
+    expect(public_page.locator('input[name="selection"]')).to_have_count(0)
 
 
 def test_an_anonymous_visitor_signs_in_through_the_door(
@@ -1609,17 +1609,17 @@ def test_bulk_select_confirm_apply(
     # live count → "Feld ändern …" → choose a field → Änderung prüfen posts the checked boxes →
     # confirm → apply.
     page.goto(live_workbench + LIST)
-    expect(page.locator('input[name="auswahl"]')).to_have_count(0)
+    expect(page.locator('input[name="selection"]')).to_have_count(0)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")
     # the head box ticks every row on the page and unticks them again
-    rows = page.locator('input[name="auswahl"]')
+    rows = page.locator('input[name="selection"]')
     page.check('input[name="alle"]')
-    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(rows.count())
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(rows.count())
     page.uncheck('input[name="alle"]')
-    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)
+    page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
     page.click('[popovertarget="feld-aendern"]')
     expect(page.locator("#feld-aendern")).to_be_visible()
@@ -1640,7 +1640,7 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
     # The confirm page's error mode sits in a .column, whose field rule once outranked the hide.
     page.goto(
         live_workbench
-        + f"{LIST}?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
+        + f"{LIST}?selection={e2e_corpus.published_ulid}&selection={e2e_corpus.second_ulid}"
     )
     page.click('[popovertarget="feld-aendern"]')
     widgets = page.locator("[data-bulk-wert]:visible")
@@ -1659,11 +1659,11 @@ def test_bulk_url_seeded_selection_still_works(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
-    # The pagination-persistence path: a selection seeded in the URL (?auswahl=) renders the
+    # The pagination-persistence path: a selection seeded in the URL (?selection=) renders the
     # selection mode with the count + confirm flow.
     page.goto(
         live_workbench
-        + f"{LIST}?auswahl={e2e_corpus.published_ulid}&auswahl={e2e_corpus.second_ulid}"
+        + f"{LIST}?selection={e2e_corpus.published_ulid}&selection={e2e_corpus.second_ulid}"
     )
     expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
@@ -1683,9 +1683,9 @@ def test_bulk_enhancement_survives_a_history_restore(
     # (the same htmx instance). (Under htmx 2 the restore came from a localStorage snapshot that
     # carried the enhancement's stale leftovers — the defect this journey was born from.)
     page = archivist_page
-    page.goto(live_workbench + f"{LIST}?auswahl=")
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    page.goto(live_workbench + f"{LIST}?selection=")
+    page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()
     # a live search pushes a history entry
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
@@ -1696,10 +1696,10 @@ def test_bulk_enhancement_survives_a_history_restore(
     # the restore is a server GET that swaps the body; judge nothing before the full ledger is back
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the restored page states the URL's selection (none), never the snapshot's stale count
-    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)
     expect(page.get_by_text("ausgewählt")).to_have_count(0)
     # ...and the enhancement is WIRED again: a fresh tick moves the live count
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # the TYPE-TO-SEARCH enhancement has to survive the same restore: it lives on #results (the
     # region it swaps), which the restore replaces, so the new #results must be processed (H.8/G.25).
@@ -1741,7 +1741,7 @@ def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
 
 
 def _auswahl_in_url(page: Page) -> list[str]:
-    return parse_qs(urlparse(page.url).query).get("auswahl", [])
+    return parse_qs(urlparse(page.url).query).get("selection", [])
 
 
 def test_bulk_fresh_ticks_survive_paging(
@@ -1757,11 +1757,11 @@ def test_bulk_fresh_ticks_survive_paging(
     _seed_second_page(_e2e_root, django_db_blocker)
     page = archivist_page
     # land with a URL-seeded selection (the no-JS-persisted baseline state)
-    page.goto(live_workbench + f"{LIST}?auswahl={e2e_corpus.published_ulid}")
-    seeded = page.locator(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+    page.goto(live_workbench + f"{LIST}?selection={e2e_corpus.published_ulid}")
+    seeded = page.locator(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     expect(seeded).to_be_checked()
     # a fresh tick + a fresh UNTICK of the URL-seeded item — both unsubmitted, DOM-only
-    page.check(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')
+    page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     seeded.uncheck()
     # "Abbrechen" is NEVER rewritten — its purpose is leaving selection mode
     abbrechen_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
@@ -1774,25 +1774,27 @@ def test_bulk_fresh_ticks_survive_paging(
     # ...and the archivist can SEE it here. Learning G.25: the progressive-visibility JS counted
     # only THIS page's checkboxes, so an off-page selection (nothing ticked on page 2) was hidden
     # at wire time, stranding the selection. Asserted BEFORE any tick on this page.
-    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # none of it is here
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # none of it is here
     expect(page.get_by_text("1 ausgewählt")).to_be_visible()
     # tick an item on page 2, go back — the rewritten Zurück link preserves BOTH pages' selections
-    page2_box = page.locator('input[name="auswahl"]').first
+    page2_box = page.locator('input[name="selection"]').first
     page2_ulid = page2_box.get_attribute("value")
     page2_box.check()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # off-page 1 + this page's fresh tick
     page.click('a[rel="prev"]')
     page.wait_for_url("**seite=1**")
     # page 1 re-renders the selection from the URL alone: tick survived, untick survived
-    expect(page.locator(f'input[name="auswahl"][value="{e2e_corpus.second_ulid}"]')).to_be_checked()
     expect(
-        page.locator(f'input[name="auswahl"][value="{e2e_corpus.published_ulid}"]')
+        page.locator(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
+    ).to_be_checked()
+    expect(
+        page.locator(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     ).not_to_be_checked()
     assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
     # "Abbrechen" leaves selection mode from either page and drops both pages' ulids
     page.get_by_role("link", name="Abbrechen").click()
-    expect(page.locator('input[name="auswahl"]')).to_have_count(0)
+    expect(page.locator('input[name="selection"]')).to_have_count(0)
     assert "auswahl" not in urlparse(page.url).query
 
 
@@ -2034,16 +2036,16 @@ def test_no_js_bulk_flow_completes(
     page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Auswählen").click()
     page.wait_for_url("**auswahl=**")  # selection mode is URL state
-    rows = page.locator('input[name="auswahl"]').count()
+    rows = page.locator('input[name="selection"]').count()
     page.check('input[name="alle"]')
-    expect(page.locator('input[name="auswahl"]:checked')).to_have_count(0)  # no JS ticks them
+    expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # no JS ticks them
     page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
     page.select_option('select[name="feld"]', "creator")
     page.fill('input[name="wert_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
     expect(page.locator(BULK_COMMIT)).to_be_visible()  # the check page
     # the confirm page carries every row of the page the head box sat on
-    expect(page.locator('input[name="auswahl"]')).to_have_count(rows)
+    expect(page.locator('input[name="selection"]')).to_have_count(rows)
     page.click(BULK_COMMIT)
     expect(page.locator(BULK_COMMIT)).to_have_count(0)  # the result page
 
