@@ -39,9 +39,9 @@ flowchart TD
     WB -->|"rail filter click (?schlagwort=, ?bestand=, …)"| WB
     WB -->|"chip ✕ (filter removed)"| WB
     WB -->|"pagination (?seite=)"| WB
-    WB -->|"Titel click"| DET["Detail (artikel-detail)"]
+    WB -->|"Titel click"| DET["Detail (article-detail)"]
     WB -.->|"address only (?artikel=<ulid>)\npane visible ≥1280px"| PANE["Workbench + preview pane\n(workbench)"]
-    WB -->|"row Bearbeiten (pencil, archivist)"| EDIT["Edit form (artikel-bearbeiten)"]
+    WB -->|"row Bearbeiten (pencil, archivist)"| EDIT["Edit form (article-edit)"]
     PANE -->|"Öffnen"| DET
     PANE -->|"Bearbeiten"| EDIT
     PANE -->|"✕ close (URL drops ?artikel)"| WB
@@ -61,24 +61,24 @@ cataloging (Kopieren) restarts the loop.
 
 ```mermaid
 flowchart TD
-    WB["Workbench"] -->|"+ Neuer Artikel"| NEU["Create step (artikel-neu)"]
-    LAND["Create step, Bestand pre-selected\n(artikel-neu?bestand=…&angelegt=…)"] --> NEU
-    NEU -->|"POST: draft created"| EDIT["Edit form (artikel-bearbeiten)"]
-    EDIT -.->|"Medienart change (artikel-dokumenttypen)"| EDIT
+    WB["Workbench"] -->|"+ Neuer Artikel"| NEU["Create step (article-create)"]
+    LAND["Create step, Bestand pre-selected\n(article-create?collection=…&created=…)"] --> NEU
+    NEU -->|"POST: draft created"| EDIT["Edit form (article-edit)"]
+    EDIT -.->|"Medienart change (article-document-types)"| EDIT
     EDIT -->|"media upload / caption / reorder / remove"| EDIT
     EDIT -->|"Speichern"| SAVE{"CAS check"}
-    SAVE -->|"clean"| READ["Read view (artikel-detail)"]
+    SAVE -->|"clean"| READ["Read view (article-detail)"]
     SAVE -->|"'Inzwischen geändert' conflict"| EDIT
     SAVE -->|"validation error"| EDIT
     READ -->|"Bearbeiten"| EDIT
-    READ -->|"Kopieren (artikel-kopieren)\nnew draft, Signatur focused"| EDIT
+    READ -->|"Kopieren (article-copy)\nnew draft, Signatur focused"| EDIT
 ```
 
 Journeys: `test_create_draft_lands_on_edit_form`,
 `test_edit_and_save_redirects_to_read_view`,
 `test_cas_conflict_second_saver_sees_panel`,
-`test_kopieren_creates_draft_copy_signatur_focused`,
-`test_failed_save_banner_leaves_speichern_clickable`,
+`test_copy_creates_draft_copy_ref_code_focused`,
+`test_failed_save_banner_leaves_save_clickable`,
 `test_no_js_create_and_save_baseline` (the whole loop works without JS).
 
 ## 3. Publish (lifecycle)
@@ -93,7 +93,7 @@ is binary.
 ```mermaid
 flowchart TD
     EDIT["Edit surface (draft)"] -->|"Status: Veröffentlicht, Speichern\n(the edit form's own POST + CAS)"| READ["Read view, published"]
-    DET["Detail (draft)"] -->|"Veröffentlichen → confirmation\n→ Jetzt veröffentlichen (artikel-veroeffentlichen, CAS)"| READ
+    DET["Detail (draft)"] -->|"Veröffentlichen → confirmation\n→ Jetzt veröffentlichen (article-publish, CAS)"| READ
     READ -->|"Als Entwurf zurückziehen"| EDIT
 ```
 
@@ -103,12 +103,12 @@ submits Speichern, so it publishes exactly when the archivist set
 Veröffentlicht. The article page has its own route (owner, 2026-09-27, a3 round
 7 in `explorations/2026-09-26-monochrome/REVIEW-ARCHIVIST.md`):
 "Veröffentlichen" opens a confirmation that says who will see the record, and
-"Jetzt veröffentlichen" posts to `artikel-veroeffentlichen` with the page's
+"Jetzt veröffentlichen" posts to `article-publish` with the page's
 version. A stale page or a record that is no longer a draft writes nothing and
 returns to the page. Withdrawing still goes through the edit form.
 
 Draft → published is the one gated transition, on both paths, and the gate is
-one decision: `BestandChooser.chain_of(...) is None`. When the Bestand chain
+one decision: `CollectionChooser.chain_of(...) is None`. When the Bestand chain
 does not resolve, the select offers no Veröffentlicht and the server refuses it
 with a German error on Bestand; the article-page route refuses it inside its
 write, against the record actually written.
@@ -121,27 +121,27 @@ Journeys: `test_publish_by_status_saves_the_form`,
 
 ```mermaid
 flowchart TD
-    DET["Detail (artikel-detail)"] -->|"Löschen"| CONF["Confirm page (artikel-loeschen)"]
+    DET["Detail (article-detail)"] -->|"Löschen"| CONF["Confirm page (article-delete)"]
     CONF -->|"POST: delete"| WB["Workbench"]
     CONF -->|"abort (back link)"| DET
 ```
 
-Journey: `test_loeschen_confirm_then_delete`.
+Journey: `test_a_deleted_article_waits_in_the_trash_and_comes_back`.
 
 ## 5. Bulk edit (Sammelbearbeitung)
 
-"Auswählen" turns on selection mode (`?auswahl=`, the checkbox column);
+"Auswählen" turns on selection mode (`?selection=`, the checkbox column);
 "Abbrechen" leaves it and drops the selection. The selection is URL-borne
-(`?auswahl=<ulid>&auswahl=…`) so it survives navigation and can be seeded by
+(`?selection=<ulid>&selection=…`) so it survives navigation and can be seeded by
 a link; DOM ticks are merged into the URL set as the archivist pages. One
 field + one value per pass.
 
 ```mermaid
 flowchart TD
-    WB["Workbench, rows ticked\n(?auswahl=…)"] -->|"Feld + Wert wählen,\nÄnderung prüfen (POST)"| PRUEF["Confirm page\n(artikel-sammelbearbeitung)"]
+    WB["Workbench, rows ticked\n(?selection=…)"] -->|"Feld + Wert wählen,\nÄnderung prüfen (POST)"| PRUEF["Confirm page\n(article-bulk-edit)"]
     PRUEF -->|"validation error\n(selection carried in hidden inputs)"| PRUEF
     PRUEF -->|"Anwenden (POST)"| ERG["Result page\nper-article outcome list"]
-    PRUEF -->|"Zurück (keeps ?auswahl)"| WB
+    PRUEF -->|"Zurück (keeps ?selection)"| WB
     ERG -->|"back to workbench"| WB
 ```
 
@@ -156,14 +156,14 @@ the full rework of this flow is parked until after the UI wave (#25).
 
 ```mermaid
 flowchart TD
-    WB["Workbench"] -->|"+ Neuer Bestand"| BNEU["Create Bestand (bestand-neu)"]
+    WB["Workbench"] -->|"+ Neuer Bestand"| BNEU["Create Bestand (collection-create)"]
     BNEU -->|"POST: created"| LAND["Create-article step,\nnew Bestand pre-selected + Hinweis"]
     LAND -->|"file the first article"| EDIT["Edit form"]
-    WB -->|"(from Bestand context)"| BED["Rename Bestand\n(bestand-bearbeiten, Name only)"]
+    WB -->|"(from Bestand context)"| BED["Rename Bestand\n(collection-edit, Name only)"]
     BED -->|"POST: renamed"| WB
 ```
 
-Journey: `test_create_bestand_then_file_an_article_under_it`.
+Journey: `test_create_collection_then_file_an_article_under_it`.
 
 ## 7. Arrival and access
 

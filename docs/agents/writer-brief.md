@@ -120,7 +120,7 @@ button.link`.
 ## Includes that inherit the page context
 
 An include without `only` sees the whole page context, so an optional param it tests
-(`{% if zurueck %}`) turns on when a page happens to use the same key. Give a page's own keys names
+(`{% if back %}`) turns on when a page happens to use the same key. Give a page's own keys names
 no include takes, or pass the include `only` with its params.
 
 Controls that exist on every page (the header's tool panels) also match a non-strict Playwright
@@ -175,6 +175,9 @@ field must save unchanged. Values from the legacy import count as external (Schl
 commas: 245 of 2506 records, 2026-10-01). A pair older than this rule that you touch without such a
 test gets the test in your commit.
 
+An absent field never means a value: a visibility-relevant field missing from a request keeps the
+stored value (a stale pre-deploy form posts old names) — Wave ENGLISH U4.
+
 ## Tests assert derived values, never re-derived ones
 
 A test asserting an encoding, a URL or a key layout gets the value from the
@@ -207,8 +210,10 @@ listings, and facet counts.
 ## UI work
 
 Before building a UI feature in HTML, CSS or JS, search the `modern-web-guidance` skill for a
-standard pattern (`npx -y modern-web-guidance@latest search "<what you build>"`). Its guides assume
-Baseline widely available; this project's tiers are law section F of `design-review-law.md`, which wins.
+standard pattern (`npx -y modern-web-guidance@latest search "<what you build>"`). Browser support: Baseline widely
+available is the floor for anything essential; newer features ship as progressive enhancement — used
+where supported, no polyfill, no fallback script (owner, 2026-10-06). The tiers are law section F of
+`design-review-law.md`, which wins.
 
 UI is built under the Construction law in `docs/design/design-system.md`
 (owner, 2026-08-05): semantic HTML first, compose existing components

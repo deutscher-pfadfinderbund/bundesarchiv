@@ -126,7 +126,7 @@ Binding constraints regardless of prototype outcome:
   statement on the edit surface and publishing is one click — the separate
   `artikel-vorschau` route, its panel and its `geprueft` confirm checkbox are
   gone. (Since 2026-09-27, a3 round 7, the article page also publishes, through
-  a confirmation stating who will see the record — `artikel-veroeffentlichen`.)
+  a confirmation stating who will see the record — `article-publish`.)
   Collection move still REQUIRES an over-exposure preview before commit
   (roadmap, subtree scope). The widget is **Archivist-only** (`preview()`
   surfaces group names by design and bypasses the lifecycle gate), so its only

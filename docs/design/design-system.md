@@ -98,7 +98,7 @@ rulings (binding; source: `docs/requirements/owner-interview-2026-08.md`):
    toggle. One look; the papier experiment is over.
 3. **Dissolve bare-element wrapper components** (`button.html`,
    `input.html`, `select.html`) into plain semantic HTML styled by the
-   cascade. Structural atoms stay (signatur_tab, ledger_row,
+   cascade. Structural atoms stay (ref_code_tab, ledger_row,
    pagination, …).
 4. **Demo pages are the storyboard.** `components_demo` / `layouts_demo`
    stay, and every component change updates them in the same wave —
@@ -269,14 +269,14 @@ Every owned component (law C1), its root and its one CSS section. The design lin
 column: a compositions-layer selector may reach a root and never past it. A new component joins
 this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.start`, `.tiles`, `.article-page`,
 `.record-head`, `.prose`, `.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
-`_trefferzahl` are parts of the filter rail; they are split out only as swap units (law C7).
+`_hit_count` are parts of the filter rail; they are split out only as swap units (law C7).
 
 | Component | Root | Template | CSS section |
 |---|---|---|---|
 | Action row | `.actions` | inline | `components.css` action rows |
 | Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
-| Note | `.note` | inline (`_feld`, the edit form's Weitere Angaben) | `components.css` note |
-| Help | `.help` | inline (`_feld`) | `components.css` help |
+| Note | `.note` | inline (`_field`, the edit form's Weitere Angaben) | `components.css` note |
+| Help | `.help` | inline (`_field`) | `components.css` help |
 | Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field |
 | Crumbs | `.crumbs` | inline (edit form, article page) | `components.css` crumbs |
 | Section head | `.section-head` | inline (edit form) | `components.css` section-head |
@@ -284,16 +284,16 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register |
-| Register row | `.register-row` | `start/_bestaende`, `_nach_art`, `_zeitleiste` (bar: `.register-bar`), `_zuletzt` (`.register-lead`, `.register-aside`) | `components.css` register-row |
+| Register row | `.register-row` | `start/_collections`, `_by_media_type`, `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row |
 | Resume | `.resume` | `start/_search` ("Weiter bearbeiten") | `components.css` resume |
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row |
 | Upload | `.upload` | inline (edit form) | `components.css` upload |
-| Popover | `.popover` | inline (`_feld`), `workbench/_hilfe_datierung` | `components.css` popover |
-| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_schlagwort_vorschlaege` | `components.css` autocomplete-list |
+| Popover | `.popover` | inline (`_field`), `workbench/_date_help` | `components.css` popover |
+| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_tag_suggestions` | `components.css` autocomplete-list |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark |
-| Signatur mark | `.c-sig` | `components/signatur_tab` | `components.css` Signatur mark |
-| Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_duplizieren` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu |
-| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_werkzeuge`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_abbrechen` | `components.css` toolpanel |
+| Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark |
+| Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu |
+| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines) | `components.css` byline |
 | Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
@@ -301,12 +301,12 @@ this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.col
 | Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
 | Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank |
 | Icon | `.icon` | `components/icon` | none |
-| Field | `.field` | `workbench/_feld` (the edit form, the create step, the Bestand forms) | `components.css` field |
+| Field | `.field` | `workbench/_field` (the edit form, the create step, the Bestand forms) | `components.css` field |
 | Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected |
 | Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice |
-| Feld chooser | `.chooser` | `workbench/_feldwahl` | `layouts.css` Feld chooser |
-| Selection tools | `.bulk` | `workbench/_werkzeuge` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |
-| Search sentence | `.search-sentence` | `workbench/_suchsatz`, `_filterset` | `layouts.css` search sentence |
+| Feld chooser | `.chooser` | `workbench/_field_picker` | `layouts.css` Feld chooser |
+| Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |
+| Search sentence | `.search-sentence` | `workbench/_search_field`, `_filterset` | `layouts.css` search sentence |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
 | Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
 | Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte |
@@ -333,7 +333,7 @@ Composition precedents the critique round confirmed as this product's voice.
 Not cues (nothing here needs a register row) — precedent-rule targets: a new
 surface with the same job copies these, not a fresh invention.
 
-- **Consequence disclosure** (`sammelbearbeitung_pruefen.html`, a2 `pruefen.html`):
+- **Consequence disclosure** (`bulk_edit_review.html`, a2 `pruefen.html`):
   what an action overwrites is enumerated at the record level — the new value
   stated once, then one quiet row (`.affected`) per record with the value it
   loses, one tier quieter, no loud color; a side effect (a cleared Dokumenttyp)
@@ -341,7 +341,7 @@ surface with the same job copies these, not a fresh invention.
   ("3 Standorte überschreiben, 1 Dokumenttyp leeren"). Any surface that
   destroys or overwrites data per-record renders this grammar; a bare count
   is not a disclosure.
-- **A bulk outcome is not an error** (`sammelbearbeitung_ergebnis.html`): a CAS
+- **A bulk outcome is not an error** (`bulk_edit_result.html`): a CAS
   race or stale-selection outcome in the bulk result renders as quiet register rows — no red,
   no alert tone — each row carrying its own onward action ("Diesen Artikel
   bearbeiten"), plus one collective recovery ("Diese N erneut auswählen").
