@@ -1611,7 +1611,7 @@ def test_bulk_select_confirm_apply(
     page.goto(live_workbench + LIST)
     expect(page.locator('input[name="selection"]')).to_have_count(0)
     page.get_by_role("link", name="Auswählen").click()
-    page.wait_for_url("**auswahl=**")
+    page.wait_for_url("**selection=**")
     # the head box ticks every row on the page and unticks them again
     rows = page.locator('input[name="selection"]')
     page.check('input[name="all"]')
@@ -1767,7 +1767,7 @@ def test_bulk_fresh_ticks_survive_paging(
     abbrechen_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
     assert "auswahl" not in (abbrechen_href or "")
     page.click('a[rel="next"]')
-    page.wait_for_url("**seite=2**")
+    page.wait_for_url("**page=2**")
     # the URL carries the fresh state: the tick travelled, the untick stuck
     assert e2e_corpus.second_ulid in _auswahl_in_url(page)
     assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
@@ -1782,7 +1782,7 @@ def test_bulk_fresh_ticks_survive_paging(
     page2_box.check()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # off-page 1 + this page's fresh tick
     page.click('a[rel="prev"]')
-    page.wait_for_url("**seite=1**")
+    page.wait_for_url("**page=1**")
     # page 1 re-renders the selection from the URL alone: tick survived, untick survived
     expect(
         page.locator(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
@@ -2035,7 +2035,7 @@ def test_no_js_bulk_flow_completes(
     # → "Feld ändern …" → choose a field → prüfen → anwenden.
     page.goto(live_workbench + LIST)
     page.get_by_role("link", name="Auswählen").click()
-    page.wait_for_url("**auswahl=**")  # selection mode is URL state
+    page.wait_for_url("**selection=**")  # selection mode is URL state
     rows = page.locator('input[name="selection"]').count()
     page.check('input[name="all"]')
     expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # no JS ticks them
