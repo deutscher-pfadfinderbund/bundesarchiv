@@ -962,3 +962,15 @@ missing records; "N von M gespeichert"; the error pages' wording.
 ## Ruling of 2026-10-02 (logs)
 
 - **Everything the app logs to the console is English** — messages and field names. German stays UI copy only.
+
+## Rulings of 2026-10-06 (English in code)
+
+- **Everything in code and files is English; German is UI copy only.** That covers template file
+  names, URL names, Python names, template context keys, HTML ids and data attributes, CSS custom
+  properties, POST field names, cookie names and test names.
+- **URLs are technical, so query parameters are English too** — names and fixed values such as sort
+  labels. Vocabulary values in a filter (a Medienart, a Bestand name) are content and stay as stored.
+  As with the paths (2026-10-01), the old German parameter names and sort labels keep working.
+- The list's column cookie becomes `columns`; saved column choices reset once.
+- The Papierkorb's English term is **Trash**. The start page's areas are `timeline`, `by_media_type`
+  and `recent`.
