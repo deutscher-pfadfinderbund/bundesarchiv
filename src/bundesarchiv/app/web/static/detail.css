@@ -170,6 +170,13 @@
   .lightbox-next {
     right: var(--gutter);
   }
+  /* Touch-only devices page by swiping; there the arrows would only cover the image (owner, 2026-10-06).
+     Clipped away (unpainted, taps pass through) but kept for screen readers; a keyboard focus shows them. */
+  @media not (any-pointer: fine) {
+    .lightbox :is(.lightbox-prev, .lightbox-next):not(:focus-visible) {
+      clip-path: inset(50%);
+    }
+  }
   .lightbox-strip {
     display: flex;
     min-height: 0;
