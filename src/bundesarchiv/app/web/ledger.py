@@ -57,7 +57,7 @@ DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "coll
 #: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
 #: URL (ruling 2026-09-29). It holds registry keys only, joined by ``_SEP``; ``_NONE`` is the choice
 #: of no column at all, which an empty value could not tell apart from no choice.
-COOKIE = "spalten"
+COOKIE = "columns"
 COOKIE_MAX_AGE = 365 * 24 * 60 * 60
 _SEP = "."
 _NONE = "-"
