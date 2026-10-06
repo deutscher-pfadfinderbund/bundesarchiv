@@ -1766,7 +1766,7 @@ def test_bulk_fresh_ticks_survive_paging(
     seeded.uncheck()
     # "Abbrechen" is NEVER rewritten — its purpose is leaving selection mode
     cancel_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
-    assert "auswahl" not in (cancel_href or "")
+    assert "selection" not in (cancel_href or "")
     page.click('a[rel="next"]')
     page.wait_for_url("**page=2**")
     # the URL carries the fresh state: the tick travelled, the untick stuck
@@ -1796,7 +1796,7 @@ def test_bulk_fresh_ticks_survive_paging(
     # "Abbrechen" leaves selection mode from either page and drops both pages' ulids
     page.get_by_role("link", name="Abbrechen").click()
     expect(page.locator('input[name="selection"]')).to_have_count(0)
-    assert "auswahl" not in urlparse(page.url).query
+    assert "selection" not in urlparse(page.url).query
 
 
 # --- edit form guards ----------------------------------------------------------------

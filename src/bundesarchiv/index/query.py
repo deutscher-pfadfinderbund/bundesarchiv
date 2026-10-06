@@ -393,7 +393,7 @@ _REF_CODE_KEY = Lower(
 
 def _ref_code_hit(text: str | None) -> Q | None:
     """The predicate "this row's Signatur is what the user typed", or ``None`` for a blank text.
-    The row side needs the ``_signatur_key`` annotation (see ``_SIGNATUR_KEY``)."""
+    The row side needs the ``_ref_code_key`` annotation (see ``_REF_CODE_KEY``)."""
     key = "".join((text or "").split()).lower()
     return Q(_ref_code_key=key) if key else None
 

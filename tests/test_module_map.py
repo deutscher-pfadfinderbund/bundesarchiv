@@ -125,7 +125,7 @@ def test_every_row_is_one_line_within_budget() -> None:
 
 
 _PREFIX = "interface spelling that is not a name: "
-_COLLECTION = "method of BestandChooser, listed bare after `BestandChooser.of`"
+_COLLECTION = "method of CollectionChooser, listed bare after `CollectionChooser.of`"
 #: ``pkg/module.py:spelling`` -> reason: interface spellings that are not importable names.
 INTERFACE_ALLOW: dict[str, str] = {
     "app/articles.py:delete_": _PREFIX + "`delete_`/`restore_`/`hard_delete_article` prefixes",

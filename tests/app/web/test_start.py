@@ -125,7 +125,7 @@ def _preset_counts(response: Any, param: str) -> dict[str, str]:
     ],
     ids=["member", "archivist"],
 )
-def test_by_media_type_and_zeitleiste_count_what_the_viewer_may_see(
+def test_by_media_type_and_timeline_count_what_the_viewer_may_see(
     indexed_corpus: Corpus,
     viewer: Viewer,
     art: dict[str, str],
@@ -206,7 +206,7 @@ def test_recently_added_leads_with_the_day_it_was_added(indexed_corpus: Corpus) 
     assert rows[1][:2] == ("", "Gleicher Tag")
 
 
-def test_the_zeitleiste_folds_two_or_more_sparse_leading_decades_into_one_row() -> None:
+def test_the_timeline_folds_two_or_more_sparse_leading_decades_into_one_row() -> None:
     def labels(*counts: tuple[str, int]) -> list[tuple[str, int]]:
         folded = start.fold_sparse([FacetCount(d, n) for d, n in counts])
         return [(t.label, t.count) for t in folded]

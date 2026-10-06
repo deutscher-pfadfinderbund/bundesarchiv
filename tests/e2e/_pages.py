@@ -103,7 +103,7 @@ def _at(path: str) -> Reach:
     return _goto(lambda _corpus: path)
 
 
-#: The bulk check page's commit: the one submit of the form that carries ``bestaetigt``.
+#: The bulk check page's commit: the one submit of the form that carries ``confirmed``.
 BULK_COMMIT = 'main form:has(input[name="confirmed"]) button[type="submit"]'
 
 

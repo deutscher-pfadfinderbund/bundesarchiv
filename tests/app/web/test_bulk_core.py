@@ -73,7 +73,7 @@ def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
 def test_apply_bulk_property_holds_across_pair_mismatch_and_archive_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # saved + conflicted + missing == distinct auswahl even with both new guards firing at once.
+    # saved + conflicted + missing == distinct selection even with both new guards firing at once.
     from bundesarchiv.app import articles as articles_mod
 
     archive = _archive_with(

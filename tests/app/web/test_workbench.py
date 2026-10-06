@@ -33,7 +33,7 @@ from tests.app.web._fixtures import (
     page_hrefs,
 )
 
-from bundesarchiv.app.web import browse, ledger
+from bundesarchiv.app.web import browse, ledger, vocab
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
 from bundesarchiv.app.web.media_views import media_url
 from bundesarchiv.domain.edtf import EdtfDate
@@ -376,15 +376,19 @@ def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
     # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
     arch = page[page.index("<table") : page.index("</table>")]
     assert "Sichtbarkeit" not in arch
-    assert "Gruppe: vorstand" not in arch
-    assert "Alle Mitglieder" not in arch
+    # no audience caption of any rung, and no group name, in any spelling
+    assert "vorstand" not in arch
+    for caption in (vocab.AUDIENCE_PUBLIC, vocab.AUDIENCE_MEMBERS, vocab.AUDIENCE_GROUPS):
+        assert f">{caption}<" not in arch, caption
     # the quiet default: no ÖFFENTLICH badge string in the ledger (">Öffentlich<" as a text node;
     # the corpus title "Öffentliches Foto…" legitimately contains the bare substring)
     assert ">Öffentlich<" not in arch
     for viewer, label in _NON_ARCHIVIST:
         body = _get(viewer).content.decode()
         assert "Sichtbarkeit" not in body, f"[{label}] SICHTBARKEIT column header leaked"
-        assert "Gruppe: vorstand" not in body, f"[{label}] group-name visibility string leaked"
+        assert "Gruppe:" not in body, f"[{label}] group-name visibility string leaked"
+        if "vorstand" not in label:  # a group member legitimately sees the group's own record
+            assert "vorstand" not in body, f"[{label}] group name leaked"
 
 
 def test_draft_mark_and_edit_only_for_archivist(indexed_corpus: Corpus) -> None:
@@ -469,7 +473,7 @@ def test_the_sentence_names_the_start_pages_undated_and_newest_presets(
     form_html = _search_form_html(_get(Public(), "dateless=1&sort=added").content.decode())
     assert re.search(r'popovertarget="slot-2">Unbekannt<', form_html)
     assert ">neueste zuerst<" in form_html
-    assert "ohne Datum" not in form_html
+    assert vocab.UNDATED in form_html and ">bis " not in form_html and ">ab " not in form_html
     # the folded early decades ("bis 1919") land on a whole-year bound that reads the same
     bound = _search_form_html(
         _get(Public(), "date_to=1919-12-31&date_from=1920-01-01").content.decode()
@@ -493,7 +497,7 @@ def test_the_drafts_filter_is_offered_to_the_archivist_only(indexed_corpus: Corp
     assert all("entwuerfe" not in q for q in _sentence_queries(Member(groups=())))
 
 
-def test_without_date_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
+def test_dateless_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
     body = _get(Public(), "dateless=1").content.decode()
     assert "Undatiertes Liederheft" in body
     assert "Öffentliches Foto" not in body  # a dated article is excluded
@@ -543,7 +547,8 @@ def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection
     # all; AKTEN has records, just none with files.
     body = _get(Archivist(), "collection=AKTEN&digital=1").content.decode()
     assert _listed(body) == set()
-    assert "/articles/new?collection=AKTEN" not in body
+    assert "Noch keine Artikel in diesem Bestand" not in body
+    assert 'popovertarget="collection-edit"' not in body  # the empty state's own button
 
 
 # --- facet click → filtered results + removable chip -----------------------------
@@ -878,7 +883,7 @@ def _form_fields(body: str) -> tuple[dict[str, set[str]], int]:
 
 
 def _queries(body: str) -> list[dict[str, list[str]]]:
-    """Every in-page link's query, blank values kept: ``auswahl=`` alone is selection mode."""
+    """Every in-page link's query, blank values kept: ``selection=`` alone is selection mode."""
     hrefs = re.findall(r'href="\?([^"]*)"', body)
     return [parse_qs(unescape(q), keep_blank_values=True) for q in hrefs]
 
@@ -907,7 +912,7 @@ def test_non_archivists_never_get_the_selection(
     body = _get(viewer, query).content.decode()
     assert 'name="selection"' not in body
     assert "/articles/bulk-edit" not in _form_fields(body)[0]
-    assert not [q for q in _queries(body) if "auswahl" in q]
+    assert not [q for q in _queries(body) if "selection" in q]
 
 
 @pytest.mark.parametrize("query", ["selection=", f"selection={PANE_PUB_ULID}"])

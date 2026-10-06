@@ -397,7 +397,7 @@ def test_custom_remove_index_survives_an_earlier_row_blanked_in_browser(
     corpus: _EditCorpus,
 ) -> None:
     # A blanked-out earlier row shifts positions once `_post_to_form_values` drops it — but
-    # `custom_entfernen` names a position in the RAW POST lists (what the row's remove cross
+    # `custom_remove` names a position in the RAW POST lists (what the row's remove cross
     # actually submitted), not in that filtered result. Rows A/B/C, A blanked, the cross on B (raw
     # index 1) must drop B and keep C — not drop C because the filtered list only has two left.
     response = client_as(Archivist()).post(

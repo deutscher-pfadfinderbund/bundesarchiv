@@ -45,7 +45,7 @@ def test_document_types_unknown_media_type_yields_only_empty_option(corpus: Corp
 def test_document_types_denied_is_404_never_content(corpus: Corpus, viewer: Viewer) -> None:
     response = client_as(viewer).get(f"/articles/{DRAFT_ULID}/document-types?media_type=Foto(s)")
     assert_denied(response)
-    assert b"Portr" not in response.content  # no partial content leaked
+    assert b'value="Zeitschrift"' not in response.content  # no partial content leaked
 
 
 def test_document_types_post_is_404(corpus: Corpus) -> None:

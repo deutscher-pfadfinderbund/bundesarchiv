@@ -2,11 +2,11 @@
 
 Pure presentation helpers:
 
-- ``MEDIENART_DOKUMENTTYP`` behind ``document_types_for`` / ``is_valid_pair`` — the archivists'
+- ``MEDIA_TYPE_DOCUMENT_TYPES`` behind ``document_types_for`` / ``is_valid_pair`` — the archivists'
   vocabulary. The legacy lists are pinned verbatim here (a silent edit to a Medienart the legacy
   archive already uses would orphan records); the pair rule itself is proven against a NARROWED
   vocabulary, because every Medienart currently offers the full Dokumenttyp list.
-- ``datierung_parts`` / ``human_size`` — how the article page spells a date and the edit form a
+- ``date_parts`` / ``human_size`` — how the article page spells a date and the edit form a
   file size.
 """
 

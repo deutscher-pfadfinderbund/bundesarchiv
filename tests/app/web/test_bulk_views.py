@@ -1,9 +1,9 @@
 """Bulk-edit confirm + commit route (Sammelbearbeitung, spec §2/§4/§6).
 
-POST /articles/bulk-edit: archivist-gated, POST-only. Phase 1 (no bestaetigt) → confirm page;
+POST /articles/bulk-edit: archivist-gated, POST-only. Phase 1 (no confirmed) → confirm page;
 phase 2 (confirmed=1) → apply + result page. The deny suite (spec §6) is the load-bearing part
 (mutation-tested): non-archivist → 404 with ZERO writes; GET → 404; feld allowlist;
-dependent-pair server-enforced; orphan dokumenttyp_leeren server-enforced. The write path is real;
+dependent-pair server-enforced; orphan clear_document_type server-enforced. The write path is real;
 only index + queue seams are stubbed (conftest.py).
 """
 
@@ -83,7 +83,7 @@ def test_forbidden_field_writes_nothing(two_drafts: Corpus, field: str) -> None:
 
 def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts: Corpus) -> None:
     # Design-gate blocker: a validation error must NOT dead-end and drop the selection (spec §2 C).
-    # It re-renders the chooser drawer + the verbatim error, carrying every auswahl ulid as a hidden
+    # It re-renders the chooser drawer + the verbatim error, carrying every selection ulid as a hidden
     # input so the archivist fixes the value and re-submits from here — selection intact.
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
@@ -112,7 +112,7 @@ _ECHOED_VALUE = {
 @pytest.mark.parametrize("field", [f.target for f in bulk.FIELDS])
 def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -> None:
     # Values-preserved-verbatim (spec §2 C) for EVERY bulk field: the rejected submit comes back with
-    # the field pre-selected and the value in that field's own widget. The empty auswahl is what
+    # the field pre-selected and the value in that field's own widget. The empty selection is what
     # rejects, so the field/value pair itself is always well-formed and reaches the re-render.
     widget = bulk.value_input_of(field)
     value = _ECHOED_VALUE[widget]
@@ -169,7 +169,7 @@ def test_collection_value_outside_set_same_as_empty(two_drafts: Corpus) -> None:
     assert _stored(two_drafts, _A).collection_id == "PUB"  # unchanged
 
 
-# --- confirm phase (no bestaetigt) -------------------------------------------------
+# --- confirm phase (no confirmed) -------------------------------------------------
 
 
 @pytest.mark.parametrize("field", ["creator", ""])
@@ -355,7 +355,7 @@ def _give_a_schriftgut_brief_pair(corpus: Corpus) -> None:
 
 
 def test_media_type_orphan_requires_clear_flag(two_drafts: Corpus) -> None:
-    # A commit WITHOUT dokumenttyp_leeren must NOT write — it re-confirms (server-enforced, spec §3).
+    # A commit WITHOUT clear_document_type must NOT write — it re-confirms (server-enforced, spec §3).
     _give_a_schriftgut_brief_pair(two_drafts)
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",

@@ -21,7 +21,7 @@ def test_page_query_with_selection_preserves_selection() -> None:
 
 def test_page_query_with_empty_selection_omits_it() -> None:
     q = browse.page_query_with_selection({"q": "fahrt"}, [], 2)
-    assert "auswahl" not in parse_qs(q)
+    assert "selection" not in parse_qs(q)
 
 
 def test_select_page_query_appends_page_ulids_deduped() -> None:

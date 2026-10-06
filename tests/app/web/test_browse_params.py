@@ -1,8 +1,9 @@
 """Pure param-parsing for the archivist workbench (Part 4.5-MVP).
 
-``browse.parse_query`` is the ONE strict-but-total parser: it turns the raw GET params (German
-keys ``q, bestand, medienart, dokumenttyp, schlagwort, jahrzehnt, ohne_datum, von, bis,
-sortierung, seite``) into a ``ParsedQuery`` (text + ``SearchFilters`` + sort + page). Garbage in
+``browse.parse_query`` is the ONE strict-but-total parser: it turns the raw GET params (English
+keys ``q, collection, media_type, document_type, tag, decade, dateless, date_from, date_to,
+digital, file, drafts, sort, page``) into a ``ParsedQuery`` (text + ``SearchFilters`` + sort +
+page). Garbage in
 any field falls to that field's default — never a 500 (plan §4.5: strict parse, never crash).
 
 These tests need NO database and NO request cycle: the parser is a pure function over a plain

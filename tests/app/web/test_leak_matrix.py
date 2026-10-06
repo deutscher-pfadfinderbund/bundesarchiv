@@ -421,7 +421,7 @@ _CONTRACT: dict[str, Route] = {
         post_data=None,  # filled at probe time (the confirm's version) — see _POST_DATA_BUILDERS
     ),
     # The Papierkorb's two routes, probed on the marked article (ADR 0022); an unmarked one is
-    # refused to the Archivist too — see test_a_papierkorb_route_refuses_an_unmarked_article.
+    # refused to the Archivist too — see test_a_trash_route_refuses_an_unmarked_article.
     "article-delete-permanently": Route(
         build_path=_p_delete_permanently,
         get_nonarch=FOUR_OH_FOUR,
@@ -494,7 +494,7 @@ _CONTRACT: dict[str, Route] = {
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # confirm page for a real selection + field
-        post_data=None,  # filled at probe time (needs the corpus ulid) — see _sammel_post_data
+        post_data=None,  # filled at probe time (needs the corpus ulid) — see _bulk_post_data
     ),
     "article-bulk-edit-document-types": Route(
         build_path=_p_bulk_doctype,
