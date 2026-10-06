@@ -7,7 +7,7 @@ this Protocol and the conformance suite. Keys are "/"-separated paths.
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import BinaryIO, Protocol, runtime_checkable
+from typing import BinaryIO, Protocol
 
 from bundesarchiv.persistence.errors import ArchiveError
 
@@ -58,7 +58,6 @@ class ObjectEntry:
     version: str
 
 
-@runtime_checkable
 class ObjectStore(Protocol):
     """A blob store keyed by "/"-separated paths.
 
