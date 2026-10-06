@@ -959,7 +959,7 @@
 
   /* ---- toolpanel — one action's own small panel, a native [popover] opened by its button: a
      sentence (or labelled controls), then its one action beside "Abbrechen"
-     (components/toolpanel_abbrechen; a3: the Veröffentlichen confirmation).
+     (components/toolpanel_cancel; a3: the Veröffentlichen confirmation).
      Its surface is the floating-panel rule's (register row 12); it hangs under its button like a
      menu. Light dismiss and Esc cancel; without popover support it shows inline. ---- */
   .toolpanel {

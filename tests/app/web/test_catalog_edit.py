@@ -132,7 +132,7 @@ def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus)
         make_article(no_sig, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Unbetitelt")
     )
     body = client_as(Archivist()).get(f"/articles/{no_sig}/edit").content.decode()
-    # the sr-only "Ohne Signatur" text (rendered by the hollow-slot signatur_tab) must NOT appear —
+    # the sr-only "Ohne Signatur" text (rendered by the hollow-slot ref_code_tab) must NOT appear —
     # the edit header omits the slot entirely; the Signatur input carries absence instead
     assert "Ohne Signatur" not in body
     # the Signatur input is present and empty

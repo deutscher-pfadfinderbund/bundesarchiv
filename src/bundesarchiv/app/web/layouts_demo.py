@@ -3,7 +3,7 @@
 Referenced ONLY from ``dev_urls`` (the same discipline as the component library and the viewer
 switcher): production settings never mount this, so it is unreachable in prod by absence of a code
 path, not by a flag. It renders a FULL archivist-workbench layout composed from the REAL
-partials (workbench/_suchsatz, components/ledger, workbench/_pane) over static German demo
+partials (workbench/_search_field, components/ledger, workbench/_pane) over static German demo
 context defined here — no store, no index, no viewer; lockstep with the live app by construction.
 The layout iterates the PAGE FRAME (header + search sentence + ledger + preview pane).
 
