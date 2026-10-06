@@ -23,7 +23,7 @@ from bundesarchiv.persistence.errors import ArchiveError
 class FormPanel:
     """A small form as a tool panel (``workbench/_formpanel.html``), opened from the header's
     "+ Neu …" by the entry ``label`` (or, with ``in_menu`` off, by a button of the page's own): its fields, its one button, and for a form over a stored record
-    the version it was shown for, the record's facts and the conflict notice's ``jetzt``."""
+    the version it was shown for, the record's facts and the conflict notice's ``current_name``."""
 
     id: str
     label: str
@@ -31,13 +31,13 @@ class FormPanel:
     rows: tuple[CardRow, ...]
     button: str
     version: Version | None = None
-    fakten: tuple[tuple[str, str], ...] = ()
-    hinweis: str = ""
-    jetzt: str | None = None
+    facts: tuple[tuple[str, str], ...] = ()
+    notice: str = ""
+    current_name: str | None = None
     in_menu: bool = True
 
     @property
-    def felder(self) -> tuple[CardRow, ...]:
+    def fields(self) -> tuple[CardRow, ...]:
         """The rows as this panel prints them, with the panel's ids."""
         return tuple(row.in_panel(self.id) for row in self.rows)
 
@@ -95,7 +95,7 @@ def article_rows(
         autofocus=autofocus,
         only=("title", "collection_id"),
     )
-    return fields["lead"][0], fields["kerndaten"][0]
+    return fields["lead"][0], fields["core"][0]
 
 
 # --- Neuer Bestand ---------------------------------------------------------------------
@@ -192,14 +192,14 @@ def edit_collection_panel(
         ),
         button="Speichern",
         version=version,
-        fakten=(
+        facts=(
             (
                 "Eltern-Bestand",
                 TOP_LEVEL_LABEL if parent_id is None else chooser.name_of(parent_id) or parent_id,
             ),
             ("Sichtbarkeit", vocab.audience_label(collection.audience)),
         ),
-        hinweis="Verschieben und Sichtbarkeit ändern folgen später.",
-        jetzt=conflict_name,
+        notice="Verschieben und Sichtbarkeit ändern folgen später.",
+        current_name=conflict_name,
         in_menu=False,
     )

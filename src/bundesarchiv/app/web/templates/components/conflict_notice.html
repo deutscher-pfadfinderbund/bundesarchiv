@@ -1,9 +1,9 @@
 {% comment %}
 The CAS conflict notice (ADR 0013): someone saved the record while it was open here, and the form
 now holds the winner's version. Params: what — "Artikel" or "Bestand"; rows — the changed fields as
-links (catalog_views._conflict_rows), or jetzt — the winner's name.
+links (catalog_views._conflict_rows), or current_name — the winner's name.
 {% endcomment %}
 <div class="conflict-notice" role="alert">
   <p class="conflict-notice-head">Inzwischen geändert</p>
-  <p>Ein anderer Bearbeiter hat diesen {{ what }} gespeichert, während du ihn bearbeitet hast{% if jetzt %} (jetzt „{{ jetzt }}“){% endif %}. {% if rows %}Prüfe {% for row in rows %}{% if not forloop.first %}{% if forloop.last %} und {% else %}, {% endif %}{% endif %}<a href="#{{ row.target }}">{{ row.label }}</a>{% endfor %} und speichere erneut.{% else %}Bitte prüfen und erneut speichern.{% endif %}</p>
+  <p>Ein anderer Bearbeiter hat diesen {{ what }} gespeichert, während du ihn bearbeitet hast{% if current_name %} (jetzt „{{ current_name }}“){% endif %}. {% if rows %}Prüfe {% for row in rows %}{% if not forloop.first %}{% if forloop.last %} und {% else %}, {% endif %}{% endif %}<a href="#{{ row.target }}">{{ row.label }}</a>{% endfor %} und speichere erneut.{% else %}Bitte prüfen und erneut speichern.{% endif %}</p>
 </div>

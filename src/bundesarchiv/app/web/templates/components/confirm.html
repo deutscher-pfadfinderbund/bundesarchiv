@@ -1,11 +1,11 @@
 {% comment %}
-Params: id, action, lead, consequence, button, tone (the button's role class), version, veraltet,
+Params: id, action, lead, consequence, button, tone (the button's role class), version, stale,
 in_place (a refusal swaps in as this partial).
 {% endcomment %}
 <form class="toolpanel" id="{{ id }}" popover method="post" action="{{ action }}"{% if in_place %}
       hx-post="{{ action }}" hx-target="this" hx-select="form > *" hx-swap="innerHTML" hx-sync="this:drop"{% endif %}>
   <p>{{ lead }}</p>
-  {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
+  {% if stale %}<p role="alert">{{ stale }}</p>{% endif %}
   {% if consequence %}<p>{{ consequence }}</p>{% endif %}
   <div class="actions">
     <button class="{{ tone }}" type="submit">{{ button }}</button>

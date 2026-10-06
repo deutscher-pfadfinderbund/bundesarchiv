@@ -18,7 +18,7 @@ needs no third column. "Endgültig löschen …" opens the confirm page, which n
       {% for row in rows %}
       <tr>
         <td><a href="{% url 'article-detail' row.ulid %}">{{ row.title }}</a> {% include "components/ref_code_tab.html" with ref_code=row.ref_code only %}<br>
-          <span class="affected-old">{% if row.bestand %}{{ row.bestand }} · {% endif %}gelöscht am {{ row.geloescht_am }} von {{ row.geloescht_von }}</span></td>
+          <span class="affected-old">{% if row.collection %}{{ row.collection }} · {% endif %}gelöscht am {{ row.deleted_at }} von {{ row.deleted_by }}</span></td>
         <td>
           <div class="actions">
             <form method="post" action="{% url 'article-restore' row.ulid %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ row.version }}"><button type="submit" aria-label="Wiederherstellen: {{ row.title }}">Wiederherstellen</button></form>

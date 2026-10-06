@@ -6,18 +6,18 @@ verbatim error and the values kept. The composition is the edit form's form-shee
 neu.html): no crumbs, the article has no place until a Bestand is chosen.
 {% endcomment %}
 {% block title %}Neuer Artikel{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt">
 <form class="form-sheet" method="post" action="{% url 'article-create' %}">
   {% csrf_token %}
   <header>
-    {% include "workbench/_field_title.html" with feld=titel only %}
+    {% include "workbench/_field_title.html" with field=title_field only %}
   </header>
 
   <aside class="record-meta" aria-label="Status und Aktionen">
     <p class="record-meta-state">Neuer Artikel</p>
-    {% if angelegt %}<p class="hint" role="status">Bestand „{{ angelegt }}“ angelegt.</p>{% endif %}
+    {% if created %}<p class="hint" role="status">Bestand „{{ created }}“ angelegt.</p>{% endif %}
     <p class="record-meta-line">Wird als Entwurf angelegt; die übrigen Angaben folgen danach.</p>
     <div class="record-meta-actions">
       <button class="primary" type="submit">Anlegen</button>
@@ -28,7 +28,7 @@ neu.html): no crumbs, the article has no place until a Bestand is chosen.
     {% comment %}One field: a section heading would cost more than it tells (a1 NOTES).{% endcomment %}
     <section aria-label="Kerndaten">
       <div class="field-grid">
-        {% include "workbench/_field.html" with feld=bestand_feld only %}
+        {% include "workbench/_field.html" with field=collection_field only %}
       </div>
     </section>
   </div>

@@ -7,13 +7,13 @@ creation is safe: a fresh Bestand is empty, so nothing is over-exposed.
 {% endcomment %}
 {% block title %}Neuer Bestand{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <h1>Neuer Bestand</h1>
   <form method="post" action="{% url 'collection-create' %}">
     {% csrf_token %}
-    {% for feld in felder %}{% include "workbench/_field.html" with feld=feld only %}{% endfor %}
+    {% for field in fields %}{% include "workbench/_field.html" with field=field only %}{% endfor %}
     <footer>
       <button class="primary" type="submit">Anlegen</button>
       <a class="button" href="{% url 'workbench' %}">Abbrechen</a>

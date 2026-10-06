@@ -42,12 +42,12 @@ _LEDGER_HITS = tuple(
         ref_code=ref or None,
         date_edtf=date or None,
         media_type=None,
-        document_type=typ or None,
+        document_type=doc_type or None,
         is_draft=draft,
         collection_id="",
         file_counts=files,
     )
-    for n, (title, ref, date, typ, draft, files) in enumerate(
+    for n, (title, ref, date, doc_type, draft, files) in enumerate(
         (
             ("Sommerfahrt 1962", "F12", "1962", "Fahrtenbericht", False, ((FileKind.IMAGE, 2),)),
             ("Jahresbericht 1974", "B3/1974a", "1974", "Chronik / Dokumentation", False, ()),

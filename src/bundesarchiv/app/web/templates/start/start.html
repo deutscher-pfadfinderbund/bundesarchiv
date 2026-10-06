@@ -6,7 +6,7 @@ it out of a small container.
 {% endcomment %}
 {% block title %}Bundesarchiv{% endblock %}
 {% comment %}The search sentence below is the page's search; the header drops its own.{% endcomment %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="start">
   {% for partial, area in areas %}{% include partial with area=area only %}

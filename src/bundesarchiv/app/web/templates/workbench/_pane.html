@@ -13,13 +13,13 @@ The layout demo includes this file too.
       <a href="{{ pane.close_href }}" aria-label="Vorschau schließen" title="Vorschau schließen">{% include "components/icon.html" with name="x" only %}</a>
     </header>
     <div role="toolbar" aria-label="Artikelaktionen">
-      <a class="button primary" href="{{ pane.oeffnen_href }}">Öffnen</a>
-      {% if pane.bearbeiten_href %}<a class="button" href="{{ pane.bearbeiten_href }}">Bearbeiten</a>{% endif %}
+      <a class="button primary" href="{{ pane.open_href }}">Öffnen</a>
+      {% if pane.edit_href %}<a class="button" href="{{ pane.edit_href }}">Bearbeiten</a>{% endif %}
     </div>
-    {% if pane.datierung or pane.typ %}
+    {% if pane.date or pane.doc_type %}
     <p class="meta">
-      {% if pane.datierung %}<span>{{ pane.datierung }}</span>{% endif %}
-      {% if pane.typ %}<span>{{ pane.typ }}</span>{% endif %}
+      {% if pane.date %}<span>{{ pane.date }}</span>{% endif %}
+      {% if pane.doc_type %}<span>{{ pane.doc_type }}</span>{% endif %}
     </p>
     {% endif %}
     {% if pane.media %}

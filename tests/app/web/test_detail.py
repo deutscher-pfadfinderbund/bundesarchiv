@@ -220,7 +220,7 @@ def test_each_tile_brings_its_ratio_and_an_image_its_display_url_to_the_page(
         for ref in (photo, pdf):
             assert generate_thumbnail(Archive.canonical().store, ulid, ref.content_hash, thumbs)
         context = client_as(Public()).get(f"/articles/{ulid}").context
-    tiles = (context["cover"], *context["weitere"])
+    tiles = (context["cover"], *context["more_media"])
     assert [t.aspect[0] / t.aspect[1] if t.aspect else None for t in tiles] == [1.5, 0.75, None]
     assert [t.display_url for t in tiles] == [
         display_url(ulid, photo.content_hash),

@@ -242,13 +242,13 @@ def render_screen(
     chrome: dict[str, object] = {
         "is_archivist": is_archivist,
         "is_signed_in": not isinstance(viewer, Public),
-        "neu": (),
+        "new": (),
         "index_lag": vocab.INDEX_LAG if is_archivist and landing.index_lagging(request) else "",
     }
     if is_archivist:
-        active = context.get("aktiver_bestand")
+        active = context.get("active_collection")
         # a callable: the template calls it where the header prints the menu, so a partial pays nothing
-        chrome["neu"] = lambda: header_panels(
+        chrome["new"] = lambda: header_panels(
             chooser or CollectionChooser.of(Archive.canonical()),
             active=active if isinstance(active, str) else None,
         )

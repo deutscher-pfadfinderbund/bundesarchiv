@@ -7,7 +7,7 @@ without JS when it was older than the record. Archivist-only (the view gates it)
 {% endcomment %}
 {% block title %}{{ lead }}{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
@@ -16,14 +16,14 @@ without JS when it was older than the record. Archivist-only (the view gates it)
     <strong><a href="{% url 'article-detail' ulid %}">{{ title }}</a></strong>
     {% include "components/ref_code_tab.html" with ref_code=ref_code only %}
   </header>
-  {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
+  {% if stale %}<p role="alert">{{ stale }}</p>{% endif %}
   <p>{{ consequence }}</p>
   <footer>
     <form method="post" action="{{ action }}">
       {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
       <button class="{{ tone }}" type="submit">{{ button }}</button>
     </form>
-    <a class="button" href="{{ abbrechen_href }}">Abbrechen</a>
+    <a class="button" href="{{ cancel_href }}">Abbrechen</a>
   </footer>
 </main>
 {% endblock %}

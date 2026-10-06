@@ -81,12 +81,12 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         if is_partial(request):
             return panel_response(request, new_collection_panel(rows))
         return render_screen(
-            request, "workbench/collection_new.html", {"felder": rows}, chooser=chooser
+            request, "workbench/collection_new.html", {"fields": rows}, chooser=chooser
         )
     return render_screen(
         request,
         "workbench/collection_new.html",
-        {"felder": collection_rows(chooser, "", "", "", "", {})},
+        {"fields": collection_rows(chooser, "", "", "", "", {})},
         chooser=chooser,
     )
 
@@ -178,7 +178,7 @@ def _render_edit(
         "workbench/collection_edit.html",
         {
             "panel": panel,
-            "abbrechen": preset_url(PARAM_COLLECTION, ulid),
+            "cancel_href": preset_url(PARAM_COLLECTION, ulid),
             "crumbs": () if chain is None else collection_crumbs(chain),
         },
         chooser=chooser,

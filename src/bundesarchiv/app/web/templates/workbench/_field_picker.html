@@ -1,56 +1,56 @@
 {% comment %}The Feld chooser (spec §2 C): the Feld select plus EVERY value widget, of which the CSS
 shows only the one matching the chosen Feld (layouts.css .chooser, via the select's own checked
 option — no JS, and the server reads only the matching widget either way). Rendered by the workbench
-bulk bar and by the confirm page's error mode from one context (bulk.feldwahl_context); the
-data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: abbrechen_panel — the tool panel it sits in, which its Abbrechen closes.{% endcomment %}
+bulk bar and by the confirm page's error mode from one context (bulk.field_picker_context); the
+data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cancel_panel — the tool panel it sits in, which its Abbrechen closes.{% endcomment %}
 <div class="chooser">
   <label class="field">
     <span>Feld</span>
     <select name="feld">
-      {% for value, caption in feldwahl_feld_options %}
-      <option value="{{ value }}"{% if value == feldwahl_feld %} selected{% endif %}>{{ caption }}</option>
+      {% for value, caption in field_picker_field_options %}
+      <option value="{{ value }}"{% if value == field_picker_field %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </select>
   </label>
 
-  <label class="field" data-bulk-wert="{{ feldwahl_targets.wert_text }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_text }}">
     <span>Neuer Wert</span>
-    <input type="text" name="wert_text" value="{{ feldwahl_wert }}">
+    <input type="text" name="wert_text" value="{{ field_picker_value }}">
   </label>
-  <label class="field" data-bulk-wert="{{ feldwahl_targets.wert_media_type }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_media_type }}">
     <span>Neuer Wert</span>
     <select name="wert_media_type"
             hx-get="{% url 'article-bulk-edit-document-types' %}"
             hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
-      {% for value, caption in feldwahl_media_type_options %}
-      <option value="{{ value }}"{% if value == feldwahl_wert %} selected{% endif %}>{{ caption }}</option>
+      {% for value, caption in field_picker_media_type_options %}
+      <option value="{{ value }}"{% if value == field_picker_value %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ feldwahl_targets.wert_document_type }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_document_type }}">
     <span>Neuer Wert</span>
     <select name="wert_document_type" id="bulk-dokumenttyp-select">
       <option value="">— kein Dokumenttyp —</option>
-      {% for group_label, group_options in feldwahl_document_type_groups %}
+      {% for group_label, group_options in field_picker_document_type_groups %}
       <optgroup label="{{ group_label }}">
         {% for value, caption in group_options %}
-        <option value="{{ value }}"{% if value == feldwahl_wert %} selected{% endif %}>{{ caption }}</option>
+        <option value="{{ value }}"{% if value == field_picker_value %} selected{% endif %}>{{ caption }}</option>
         {% endfor %}
       </optgroup>
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ feldwahl_targets.wert_collection_id }}">
+  <label class="field" data-bulk-wert="{{ field_picker_targets.wert_collection_id }}">
     <span>Neuer Wert</span>
     <select name="wert_collection_id">
-      {% for value, caption in feldwahl_collection_options %}
-      <option value="{{ value }}"{% if value == feldwahl_wert %} selected{% endif %}>{{ caption }}</option>
+      {% for value, caption in field_picker_collection_options %}
+      <option value="{{ value }}"{% if value == field_picker_value %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </select>
   </label>
 
   <div class="actions">
     <button class="primary" type="submit">Änderung prüfen</button>
-    {% if abbrechen_panel %}{% include "components/toolpanel_cancel.html" with panel=abbrechen_panel only %}{% endif %}
+    {% if cancel_panel %}{% include "components/toolpanel_cancel.html" with panel=cancel_panel only %}{% endif %}
   </div>
 </div>

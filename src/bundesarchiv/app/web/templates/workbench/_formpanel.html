@@ -1,10 +1,10 @@
 {% comment %}Param: panel — a panels.FormPanel.{% endcomment %}
 <form class="toolpanel" id="{{ panel.id }}" popover method="post" action="{{ panel.action }}"
       hx-post="{{ panel.action }}" hx-target="this" hx-select="form > *" hx-swap="innerHTML" hx-sync="this:drop">
-  {% if panel.jetzt %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=panel.jetzt only %}{% endif %}
-  {% for feld in panel.felder %}{% include "workbench/_field.html" with feld=feld only %}{% endfor %}
-  {% if panel.fakten %}<dl class="byline">{% for label, wert in panel.fakten %}<div><dt>{{ label }}</dt><dd>{{ wert }}</dd></div>{% endfor %}</dl>{% endif %}
-  {% if panel.hinweis %}<p class="hint">{{ panel.hinweis }}</p>{% endif %}
+  {% if panel.current_name %}{% include "components/conflict_notice.html" with what="Bestand" current_name=panel.current_name only %}{% endif %}
+  {% for field in panel.fields %}{% include "workbench/_field.html" with field=field only %}{% endfor %}
+  {% if panel.facts %}<dl class="byline">{% for label, value in panel.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+  {% if panel.notice %}<p class="hint">{{ panel.notice }}</p>{% endif %}
   <div class="actions">
     <button class="primary" type="submit">{{ panel.button }}</button>
     {% include "components/toolpanel_cancel.html" with panel=panel.id only %}

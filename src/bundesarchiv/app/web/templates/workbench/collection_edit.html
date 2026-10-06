@@ -8,29 +8,29 @@ visibility move descendants' visibility and need the over-exposure machinery a r
 {% endcomment %}
 {% block title %}Bestand bearbeiten{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column narrow">
   <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
   <h1>Bestand bearbeiten</h1>
   {% comment %}A racing rename (ADR 0013): the form below carries the refreshed version and the name
   just typed.{% endcomment %}
-  {% if panel.jetzt %}{% include "components/conflict_notice.html" with what="Bestand" jetzt=panel.jetzt only %}{% endif %}
+  {% if panel.current_name %}{% include "components/conflict_notice.html" with what="Bestand" current_name=panel.current_name only %}{% endif %}
   <form method="post" action="{{ panel.action }}">
     {% csrf_token %}
     <input type="hidden" name="expected_version" value="{{ panel.version }}">
-    {% for feld in panel.rows %}{% include "workbench/_field.html" with feld=feld only %}{% endfor %}
+    {% for field in panel.rows %}{% include "workbench/_field.html" with field=field only %}{% endfor %}
     <dl class="quiet">
-      {% for label, wert in panel.fakten %}<div>
+      {% for label, value in panel.facts %}<div>
         <dt>{{ label }}</dt>
-        <dd>{{ wert }}</dd>
+        <dd>{{ value }}</dd>
       </div>
       {% endfor %}
     </dl>
-    <p class="hint">{{ panel.hinweis }}</p>
+    <p class="hint">{{ panel.notice }}</p>
     <footer>
       <button class="primary" type="submit">{{ panel.button }}</button>
-      <a class="button" href="{{ abbrechen }}">Abbrechen</a>
+      <a class="button" href="{{ cancel_href }}">Abbrechen</a>
     </footer>
   </form>
 </main>

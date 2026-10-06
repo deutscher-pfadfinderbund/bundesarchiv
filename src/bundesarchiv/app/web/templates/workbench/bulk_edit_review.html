@@ -7,37 +7,37 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
 {% endcomment %}
 {% block title %}Änderung prüfen{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
   <h1>Änderung prüfen</h1>
 
-  {% if fehler %}
-  <p>{{ anzahl }} ausgewählt</p>
+  {% if error %}
+  <p>{{ count }} ausgewählt</p>
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
-    {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
-    <p class="error" role="alert">{{ fehler }}</p>
+    {% for ulid in selection %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    <p class="error" role="alert">{{ error }}</p>
     {% include "workbench/_field_picker.html" %}
   </form>
-  <p><a href="{% url 'workbench' %}?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
+  <p><a href="{% url 'workbench' %}?{{ cancel_query }}">Zurück zur Auswahl</a></p>
   {% else %}
-  <p>{{ feld_label }} für {{ anzahl }} Artikel: <strong>{{ wert_display }}</strong></p>
+  <p>{{ field_label }} für {{ count }} Artikel: <strong>{{ value_display }}</strong></p>
 
   <table class="affected">
     <thead>
       <tr>
         <th scope="col">Artikel</th>
-        <th scope="col">{{ feld_label }} bisher (wird ersetzt)</th>
-        {% if geleert %}<th scope="col">Dokumenttyp (wird geleert)</th>{% endif %}
+        <th scope="col">{{ field_label }} bisher (wird ersetzt)</th>
+        {% if cleared %}<th scope="col">Dokumenttyp (wird geleert)</th>{% endif %}
       </tr>
     </thead>
     <tbody>
-      {% for row in zeilen %}
+      {% for row in rows %}
       <tr>
         <td>{{ row.title }} {% include "components/ref_code_tab.html" with ref_code=row.ref_code only %}</td>
-        <td class="affected-old">{% firstof row.bisher "(leer)" %}</td>
-        {% if geleert %}<td class="affected-old">{{ row.dokumenttyp }}</td>{% endif %}
+        <td class="affected-old">{% firstof row.previous "(leer)" %}</td>
+        {% if cleared %}<td class="affected-old">{{ row.document_type }}</td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -45,14 +45,14 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
 
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
-    {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
-    <input type="hidden" name="feld" value="{{ feld }}">
-    <input type="hidden" name="{{ wert_field }}" value="{{ wert }}">
+    {% for ulid in selection %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
+    <input type="hidden" name="feld" value="{{ field }}">
+    <input type="hidden" name="{{ value_field }}" value="{{ value }}">
     <input type="hidden" name="bestaetigt" value="1">
-    {% if geleert %}<input type="hidden" name="dokumenttyp_leeren" value="1">{% endif %}
+    {% if cleared %}<input type="hidden" name="dokumenttyp_leeren" value="1">{% endif %}
     <footer>
-      <button class="primary" type="submit">{{ betroffen }} überschreiben{% if geleert %}, {{ geleert }} leeren{% endif %}</button>
-      <a class="button" href="{% url 'workbench' %}?{{ abbrechen_query }}">Abbrechen</a>
+      <button class="primary" type="submit">{{ affected }} überschreiben{% if cleared %}, {{ cleared }} leeren{% endif %}</button>
+      <a class="button" href="{% url 'workbench' %}?{{ cancel_query }}">Abbrechen</a>
     </footer>
   </form>
   {% endif %}

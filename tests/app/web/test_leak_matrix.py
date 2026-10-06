@@ -749,7 +749,7 @@ def test_bulk_edit_leaves_a_marked_article_out(
     if bestaetigt:
         assert (response.context["saved"], response.context["missing_count"]) == (0, 1)
     else:
-        assert response.context["auswahl"] == []
+        assert response.context["selection"] == []
     assert _unchanged(matrix_corpus) == before
 
 

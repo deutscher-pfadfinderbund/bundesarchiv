@@ -143,7 +143,7 @@ def test_no_list_link_carries_the_flag_on(corpus: Corpus) -> None:
     page = client.get(list_url(index="lagging", bestand=PUB))
     assert page.context["index_lag"]
     assert "index=" not in page.content.decode()
-    assert "index=" not in page.context["spalten_zurueck"]
+    assert "index=" not in page.context["columns_back"]
 
 
 def test_the_script_that_clears_the_flag_spells_what_landing_writes() -> None:

@@ -5,33 +5,33 @@ owning form's id where the control sits outside it. The edit form's sections loo
 the registry is the only place a field exists; the Bestand forms print rows of their own.
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
-{% endcomment %}{% with base=feld.base %}{% with control_id=feld.control_id %}<div class="field"{% if feld.span %} data-span="all"{% endif %}{% if feld.shows_with %} data-shows-with="{{ feld.shows_with }}"{% endif %}>
-  <label id="{{ base }}-label" for="{{ control_id }}">{{ feld.label }}{% if feld.required %} <span aria-hidden="true">*</span>{% endif %}{% if feld.archivist_only %} <span class="note">intern</span>{% endif %}</label>
-  {% if feld.control == "select" %}
-  <select id="{{ control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
-    {% for value, caption in feld.options %}
-    <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
+{% endcomment %}{% with base=field.base %}{% with control_id=field.control_id %}<div class="field"{% if field.span %} data-span="all"{% endif %}{% if field.shows_with %} data-shows-with="{{ field.shows_with }}"{% endif %}>
+  <label id="{{ base }}-label" for="{{ control_id }}">{{ field.label }}{% if field.required %} <span aria-hidden="true">*</span>{% endif %}{% if field.archivist_only %} <span class="note">intern</span>{% endif %}</label>
+  {% if field.control == "select" %}
+  <select id="{{ control_id }}" name="{{ field.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in field.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if field.autofocus %} autofocus{% endif %}>
+    {% for value, caption in field.options %}
+    <option value="{{ value }}"{% if value == field.value %} selected{% endif %}>{{ caption }}</option>
     {% endfor %}
   </select>
-  {% elif feld.control == "groups" %}
-  <select id="{{ control_id }}" name="{{ feld.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>
-    <option value="">{{ feld.blank }}</option>
-    {% for group_label, group_options in feld.options %}
+  {% elif field.control == "groups" %}
+  <select id="{{ control_id }}" name="{{ field.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if field.autofocus %} autofocus{% endif %}>
+    <option value="">{{ field.blank }}</option>
+    {% for group_label, group_options in field.options %}
     <optgroup label="{{ group_label }}">
       {% for value, caption in group_options %}
-      <option value="{{ value }}"{% if value == feld.value %} selected{% endif %}>{{ caption }}</option>
+      <option value="{{ value }}"{% if value == field.value %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </optgroup>
     {% endfor %}
   </select>
-  {% elif feld.control == "textarea" %}
-  <textarea id="{{ control_id }}" name="{{ feld.name }}" rows="3"{% if form %} form="{{ form }}"{% endif %}{% if feld.suggest %} data-suggest="{{ feld.suggest }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if feld.autofocus %} autofocus{% endif %}>{{ feld.value }}</textarea>
+  {% elif field.control == "textarea" %}
+  <textarea id="{{ control_id }}" name="{{ field.name }}" rows="3"{% if form %} form="{{ form }}"{% endif %}{% if field.suggest %} data-suggest="{{ field.suggest }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if field.autofocus %} autofocus{% endif %}>{{ field.value }}</textarea>
   {% else %}
-  <input type="text" id="{{ control_id }}" name="{{ feld.name }}" value="{{ feld.value }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in feld.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if feld.autofocus %} autofocus{% endif %}>
+  <input type="text" id="{{ control_id }}" name="{{ field.name }}" value="{{ field.value }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in field.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if field.autofocus %} autofocus{% endif %}>
   {% endif %}
   {% include "workbench/_field_saved.html" %}
-  {% if feld.hint %}<span class="hint" id="{{ base }}-hinweis">{{ feld.hint }}{% if feld.help %}<button class="help" type="button" popovertarget="{{ base }}-hilfe" aria-label="Schreibweise: {{ feld.label }}">ⓘ</button>{% endif %}</span>{% endif %}
-  {% if feld.error %}<span class="error" id="{{ base }}-fehler">{{ feld.error }}</span>{% endif %}
-  {% if feld.help %}<div class="popover" id="{{ base }}-hilfe" popover>{% include feld.help %}</div>{% endif %}
+  {% if field.hint %}<span class="hint" id="{{ base }}-hinweis">{{ field.hint }}{% if field.help %}<button class="help" type="button" popovertarget="{{ base }}-hilfe" aria-label="Schreibweise: {{ field.label }}">ⓘ</button>{% endif %}</span>{% endif %}
+  {% if field.error %}<span class="error" id="{{ base }}-fehler">{{ field.error }}</span>{% endif %}
+  {% if field.help %}<div class="popover" id="{{ base }}-hilfe" popover>{% include field.help %}</div>{% endif %}
 </div>
 {% endwith %}{% endwith %}

@@ -102,10 +102,10 @@ def workbench(request: HttpRequest) -> HttpResponse:
     # The active Bestand filter (if any) — the archivist's focused collection. Drives the workbench's
     # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
     # focus. Archivist-only chrome; the /collections/<ulid>/edit route is independently gated.
-    context["aktiver_bestand"] = parsed.filters.collection if is_archivist else None
+    context["active_collection"] = parsed.filters.collection if is_archivist else None
     # body.preview adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
-    context["vorschau"] = pane is not None
+    context["preview"] = pane is not None
     # A Back-button restore swaps the whole body, so only a partial gets the chrome-less region.
     if is_partial(request):
         # The search sentence sits outside the #results swap target, so the partial prepends its
@@ -231,11 +231,11 @@ class _Pane:
     ulid: str
     title: str
     ref_code: str
-    datierung: str
-    typ: str
+    date: str
+    doc_type: str
     media: tuple[MediaTile, ...]
-    oeffnen_href: str
-    bearbeiten_href: str
+    open_href: str
+    edit_href: str
     close_href: str
 
 
@@ -264,12 +264,12 @@ def _resolve_pane(
         ulid=article.ulid,
         title=article.title,
         ref_code=article.ref_code or "",
-        datierung=vocab.date_mono(article.date),
-        typ=article.document_type or "",
+        date=vocab.date_mono(article.date),
+        doc_type=article.document_type or "",
         media=media_tiles(article.ulid, article.media),
-        oeffnen_href=reverse("article-detail", args=[article.ulid]),
+        open_href=reverse("article-detail", args=[article.ulid]),
         # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
-        bearbeiten_href=reverse("article-edit", args=[article.ulid]) if is_archivist else "",
+        edit_href=reverse("article-edit", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
@@ -341,12 +341,12 @@ def _results_context(
         if total
         else None,
         # "Spalten …" returns to this very list, pane and selection included
-        "spalten_zurueck": here.urlencode(),
+        "columns_back": here.urlencode(),
         "total": vocab.count(total),
         # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
         # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
         # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
-        "leerer_bestand": _only_collection_filter(parsed) if total == 0 else None,
+        "empty_collection": _only_collection_filter(parsed) if total == 0 else None,
     }
     context.update(_sentence(params, parsed, page, chooser, is_archivist=is_archivist))
     if is_archivist:
@@ -417,7 +417,7 @@ def _bulk_bar_context(
     chooser. Both links keep the search (params already exclude auswahl and artikel): a bare "?"
     would wipe the filters.
 
-    The client adds its live checkbox count to ``auswahl_offpage_count``, the part of the URL-borne
+    The client adds its live checkbox count to ``selection_offpage_count``, the part of the URL-borne
     selection NOT on this page, which it cannot otherwise see (learning G.25).
     """
     hits = page.hits
@@ -426,15 +426,15 @@ def _bulk_bar_context(
     search = [(k, v) for k, v in params.items() if v]
     if not selecting:
         return {
-            "waehlen": False,
-            "auswaehlen_query": urlencode([*search, (browse.PARAM_SELECTION, "")]),
+            "selecting": False,
+            "select_query": urlencode([*search, (browse.PARAM_SELECTION, "")]),
         }
     on_page = {h.ulid for h in hits}
     return {
-        "waehlen": True,
-        "auswahl_count": len(selection),
-        "auswahl_offpage_count": sum(1 for u in selection if u not in on_page),
-        "abbrechen_query": urlencode(search),
+        "selecting": True,
+        "selection_count": len(selection),
+        "selection_offpage_count": sum(1 for u in selection if u not in on_page),
+        "cancel_query": urlencode(search),
         **bulk.field_picker_context(chooser),
     }
 
@@ -662,7 +662,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "ulid": article.ulid,
         "is_draft": is_draft,
         # only an Archivist reaches a marked Article (ADR 0022): its page shows the Papierkorb state
-        "geloescht": None if mark is None else {"am": vocab.day(mark.at), "von": mark.by},
+        "deleted": None if mark is None else {"at": vocab.day(mark.at), "by": mark.by},
         "version": resolution.version,
         # preview() names groups and ignores the lifecycle: archivists only (part-4-web.md)
         "publish_statement": (
@@ -672,10 +672,10 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         ),
         "title": article.title,
         "ref_code": article.ref_code or "",
-        "datierung": vocab.date_parts(article.date),
-        "typ": article.document_type or article.media_type or "",
+        "date": vocab.date_parts(article.date),
+        "doc_type": article.document_type or article.media_type or "",
         "creator": article.creator or "",
-        "ort": article.subject_place or "",
+        "place": article.subject_place or "",
         # Beschreibung: split the Markdown body into paragraphs on blank lines and render each as an
         # escaped <p> (spec §3 — no Markdown dependency in this minimal slice; the template autoescapes,
         # so no markup is interpreted). Flagged to the owner as §11: rich Markdown rendering is a later
@@ -688,17 +688,17 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
             else (CollectionCrumb("Papierkorb", reverse("trash")),)
         ),
         "tags": tags,
-        "loeschen": vocab.TRASH_CONFIRM
+        "delete_confirm": vocab.TRASH_CONFIRM
         if mark is None
         else vocab.delete_permanently_confirm(len(media)),
         "cover": media[0] if media else None,
-        "weitere": media[1:],
+        "more_media": media[1:],
         "plates_heading": (
             vocab.FURTHER_IMAGES
             if all(file_kind(ref) is FileKind.IMAGE for ref in article.media)
             else vocab.FURTHER_FILES
         ),
-        "standort": article.physical_location or "",
+        "location": article.physical_location or "",
         "custom": article.custom,
     }
 
@@ -734,9 +734,9 @@ class _TrashRow:
     ulid: str
     title: str
     ref_code: str
-    bestand: str
-    geloescht_am: str
-    geloescht_von: str
+    collection: str
+    deleted_at: str
+    deleted_by: str
     version: Version
 
 
@@ -754,8 +754,8 @@ def _trash_row(archive: Archive, ulid: str, chooser: CollectionChooser) -> _Tras
         ulid=ulid,
         title=article.title,
         ref_code=article.ref_code or "",
-        bestand=chooser.name_of(article.collection_id) or "",
-        geloescht_am=vocab.day(mark.at),
-        geloescht_von=mark.by,
+        collection=chooser.name_of(article.collection_id) or "",
+        deleted_at=vocab.day(mark.at),
+        deleted_by=mark.by,
         version=stored.version,
     )

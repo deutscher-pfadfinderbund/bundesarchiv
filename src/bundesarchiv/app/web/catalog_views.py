@@ -179,10 +179,14 @@ def _create_context(
     errors: catalog.FormErrors,
     just_created: str = "",
 ) -> dict[str, object]:
-    """The create page's template context: its two fields and ``angelegt``, the just-created
+    """The create page's template context: its two fields and ``created``, the just-created
     Bestand's name for the success hinweis (empty on the plain create step)."""
     title_field, collection_field = article_rows(chooser, title, collection_id, errors)
-    return {"titel": title_field, "bestand_feld": collection_field, "angelegt": just_created}
+    return {
+        "title_field": title_field,
+        "collection_field": collection_field,
+        "created": just_created,
+    }
 
 
 # --- /articles/<ulid>/edit — the full edit form (Slice B) ---------------------
@@ -460,11 +464,11 @@ class EditSurface:
                     ),
                 ),
                 "media_rows": _media_rows(self.stored.ulid, self.media, confirm),
-                "loeschen": vocab.TRASH_CONFIRM,
+                "delete_confirm": vocab.TRASH_CONFIRM,
                 "crumbs": _crumbs(self.stored, self.chooser),
                 "conflict": isinstance(overlay, Conflict),
                 "conflict_rows": conflict_rows,
-                "medien_fehler": overlay.message if isinstance(overlay, MediaError) else "",
+                "media_error": overlay.message if isinstance(overlay, MediaError) else "",
                 "drawer_index_lag": vocab.INDEX_LAG if isinstance(overlay, DrawerIndexLag) else "",
             },
             chooser=self.chooser,
@@ -714,7 +718,7 @@ def _confirmed_delete(
             "id": "endgueltig-loeschen" if marked else "loeschen",
             "ulid": ulid,
             "version": stored.version,
-            "veraltet": stale,
+            "stale": stale,
             "title": stored.article.title,
             "ref_code": stored.article.ref_code or "",
             "crumbs": _crumbs(stored.article, chooser),
@@ -722,9 +726,7 @@ def _confirmed_delete(
             "consequence": confirm.consequence,
             "button": confirm.button,
             "tone": "danger" if marked else "primary",
-            "abbrechen_href": reverse("trash")
-            if marked
-            else reverse("article-detail", args=[ulid]),
+            "cancel_href": reverse("trash") if marked else reverse("article-detail", args=[ulid]),
             "in_place": True,
             "action": request.get_full_path(),
         },

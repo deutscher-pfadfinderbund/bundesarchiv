@@ -7,11 +7,11 @@ listed, each leading to its edit form, plus one collective recovery.
 {% endcomment %}
 {% block title %}{{ saved }} von {{ total }} gespeichert{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 <main id="inhalt" class="column">
   <h1>{{ saved }} von {{ total }} gespeichert</h1>
-  <p>{{ feld_label }} → {{ wert_display }}</p>
+  <p>{{ field_label }} → {{ value_display }}</p>
   {% include "components/index_lag.html" with index_lag=bulk_index_lag only %}
   {% if doctype_cleared_count %}<p>Bei {{ doctype_cleared_count }} Artikel{{ doctype_cleared_count|pluralize:"n" }} wurde der Dokumenttyp geleert.</p>{% endif %}
   {% if missing_count %}<p>{{ missing_count }} Artikel gibt es nicht mehr.</p>{% endif %}
@@ -29,7 +29,7 @@ listed, each leading to its edit form, plus one collective recovery.
   {% endif %}
 
   <footer>
-    {% if conflicted %}<a class="button" href="{% url 'workbench' %}?{{ erneut_query }}">Diese {{ conflicted|length }} erneut auswählen</a>{% endif %}
+    {% if conflicted %}<a class="button" href="{% url 'workbench' %}?{{ retry_query }}">Diese {{ conflicted|length }} erneut auswählen</a>{% endif %}
     <a class="button" href="{% url 'workbench' %}" data-list-link>Zurück zur Suche</a>
   </footer>
 </main>

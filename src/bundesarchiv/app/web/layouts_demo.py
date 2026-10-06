@@ -49,12 +49,12 @@ _HITS = tuple(
         ref_code=ref or None,
         date_edtf=date or None,
         media_type=None,
-        document_type=typ or None,
+        document_type=doc_type or None,
         is_draft=draft,
         collection_id="",
         file_counts=files,
     )
-    for n, (title, ref, date, typ, draft, files) in enumerate(_ROWS)
+    for n, (title, ref, date, doc_type, draft, files) in enumerate(_ROWS)
 )
 
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
@@ -103,25 +103,25 @@ _FILTER_CHECKS = (
 _PREVIEW = {
     "title": "Sommerfahrt 1962",
     "ref_code": "F12",
-    "datierung": "1962",
-    "typ": "Foto",
+    "date": "1962",
+    "doc_type": "Foto",
     "media": (),
     "close_href": "?vorschau=0",
-    "oeffnen_href": "#demo-detail",
-    "bearbeiten_href": "#demo-edit",
+    "open_href": "#demo-detail",
+    "edit_href": "#demo-edit",
 }
 
 
 def layout_demo(request: HttpRequest) -> HttpResponse:
     """GET ``/_dev/layouts/split-narrow/`` — the full workbench layout demo. ``?vorschau=1`` opens
     the preview pane; anything else closes it. Never mounted in production."""
-    preview = request.GET.get("vorschau") == "1"
-    # The two state-switch links keep every other param; here the only state is vorschau.
+    with_preview = request.GET.get("vorschau") == "1"
+    # The two state-switch links keep every other param; here the only state is ``vorschau``.
     return render(
         request,
         "layouts_demo.html",
         {
-            "vorschau": preview,
+            "with_preview": with_preview,
             "ledger": ledger.build(
                 _HITS,
                 columns=ledger.DEFAULT_COLUMNS,
@@ -143,6 +143,6 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
                 "noun": "Artikel",
             },
             "preview": _PREVIEW,
-            "neu": header_panels(CollectionChooser(lambda: ()), active=None),
+            "new": header_panels(CollectionChooser(lambda: ()), active=None),
         },
     )

@@ -10,7 +10,7 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">
 <script src="{% static "catalog_form.js" %}" defer></script>
 <script src="{% static "hx-browser-indicator.min.js" %}" defer></script>{% endblock %}
-{% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
+{% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
 {% comment %}#form-region wraps the whole sheet; the save swaps exactly this out of the same full-page render
 (hx-select), so a re-render moves every part and the refreshed expected_version together. A media
@@ -21,7 +21,7 @@ save gets HX-Redirect.{% endcomment %}
 
   <header>
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-    {% include "workbench/_field_title.html" with feld=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
+    {% include "workbench/_field_title.html" with field=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
   </header>
 
   {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
@@ -33,17 +33,17 @@ save gets HX-Redirect.{% endcomment %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% include "components/index_lag.html" %}
-    {% for feld in card_fields.margin %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}
+    {% for field in card_fields.margin %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}
     <div class="record-meta-actions">
       <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
       <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
       <ul class="menu" id="mehr-menu" popover>
         <li><a href="{% url 'article-detail' values.ulid %}">Zur Artikelseite</a></li>
         <li>{% include "workbench/_copy.html" with ulid=values.ulid %}</li>
-        {% url 'article-delete' values.ulid as loeschen_href %}
+        {% url 'article-delete' values.ulid as delete_href %}
         <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
       </ul>
-      {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="primary" in_place=True %}
+      {% include "components/confirm.html" with id="loeschen" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
     </div>
   </aside>
 
@@ -61,26 +61,26 @@ save gets HX-Redirect.{% endcomment %}
 
     <section aria-labelledby="h-kerndaten">
       <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
-      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for field in card_fields.core %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
-    {% with feld=card_fields.beschreibung.0 base="feld-body" %}
+    {% with field=card_fields.description.0 base="feld-body" %}
     <section aria-labelledby="feld-body-label">
-      <header class="section-head"><h2 id="feld-body-label">{{ feld.label }}</h2></header>
-      <div class="field"><textarea id="{{ feld.control_id }}" name="{{ feld.name }}" rows="6" {% include "workbench/_field_aria.html" %}>{{ feld.value }}</textarea>
+      <header class="section-head"><h2 id="feld-body-label">{{ field.label }}</h2></header>
+      <div class="field"><textarea id="{{ field.control_id }}" name="{{ field.name }}" rows="6" {% include "workbench/_field_aria.html" %}>{{ field.value }}</textarea>
         {% include "workbench/_field_saved.html" %}</div>
     </section>
     {% endwith %}
 
     <section aria-labelledby="h-einordnung">
       <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
-      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for field in card_fields.filing %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     <section aria-labelledby="h-herkunft">
       <header class="section-head"><h2 id="h-herkunft">Herkunft</h2></header>
-      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for field in card_fields.provenance %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
   </form>
 
@@ -98,7 +98,7 @@ save gets HX-Redirect.{% endcomment %}
              hx-swap:inherited="outerHTML"
              hx-include:inherited="#expected-version, #medien-drawer input[form=bearbeiten-form]" hx-select-oob:inherited="#expected-version">
       <header class="section-head"><h2 id="h-medien">Medien</h2></header>
-      {% if medien_fehler %}<p class="error" role="alert">{{ medien_fehler }}</p>{% endif %}
+      {% if media_error %}<p class="error" role="alert">{{ media_error }}</p>{% endif %}
       {% include "components/index_lag.html" with index_lag=drawer_index_lag only %}
       {% if media_rows %}
       <ul class="register">

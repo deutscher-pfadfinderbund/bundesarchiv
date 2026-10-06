@@ -47,7 +47,7 @@ def _door(request: HttpRequest) -> HttpResponse:
     if request_kind(request) is not RequestKind.PAGE:
         return htmx_redirect(login_redirect(request.get_full_path()))
     sign_in = login_redirect(safe_next(request.get_full_path()) or "/")
-    return render(request, "workbench/door.html", {"anmelden": sign_in})
+    return render(request, "workbench/door.html", {"sign_in_href": sign_in})
 
 
 def _passes(request: HttpRequest) -> bool:

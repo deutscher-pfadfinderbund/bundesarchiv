@@ -15,13 +15,13 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
     <header>
       <div class="record-head">
         <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-        {% if is_archivist and geloescht %}
+        {% if is_archivist and deleted %}
         <div class="actions">
-          <span class="mark">Gelöscht am {{ geloescht.am }} von {{ geloescht.von }}</span>
+          <span class="mark">Gelöscht am {{ deleted.at }} von {{ deleted.by }}</span>
           <form method="post" action="{% url 'article-restore' ulid %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}"><button class="primary" type="submit">Wiederherstellen</button></form>
           <button class="danger" type="button" popovertarget="endgueltig-loeschen">Endgültig löschen …</button>
-          {% url 'article-delete-permanently' ulid as endgueltig_href %}
-          {% include "components/confirm.html" with id="endgueltig-loeschen" action=endgueltig_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="danger" in_place=True %}
+          {% url 'article-delete-permanently' ulid as permanent_delete_href %}
+          {% include "components/confirm.html" with id="endgueltig-loeschen" action=permanent_delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="danger" in_place=True %}
         </div>
         {% elif is_archivist %}
         <div class="actions">
@@ -30,31 +30,31 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
             <ul class="menu" id="aktionen-menu" popover>
               <li>{% include "workbench/_copy.html" %}</li>
-              {% url 'article-delete' ulid as loeschen_href %}
+              {% url 'article-delete' ulid as delete_href %}
               <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
             </ul>
-            {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="primary" in_place=True %}
+            {% include "components/confirm.html" with id="loeschen" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
           </div>
           {% if is_draft %}
           <button class="primary" type="button" popovertarget="veroeffentlichen">Veröffentlichen</button>
-          {% url 'article-publish' ulid as veroeffentlichen_href %}
-          {% include "components/confirm.html" with id="veroeffentlichen" action=veroeffentlichen_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
+          {% url 'article-publish' ulid as publish_href %}
+          {% include "components/confirm.html" with id="veroeffentlichen" action=publish_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
           {% endif %}
         </div>
         {% endif %}
       </div>
       {% include "components/index_lag.html" %}
       <h1 id="artikel-titel">{{ title }}</h1>
-      {% if ref_code or typ or datierung or ort or creator %}
-      <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if typ %}<span>{{ typ }}</span>{% endif %}{% if datierung %}<span>{% for part in datierung %}{% if not forloop.first %} – {% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if ort %}<span>{{ ort }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
+      {% if ref_code or doc_type or date or place or creator %}
+      <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if doc_type %}<span>{{ doc_type }}</span>{% endif %}{% if date %}<span>{% for part in date %}{% if not forloop.first %} – {% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if place %}<span>{{ place }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
       {% endif %}
       {% if body_paragraphs %}
-      <div class="prose">{% for absatz in body_paragraphs %}<p>{{ absatz }}</p>{% endfor %}</div>
+      <div class="prose">{% for paragraph in body_paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>
       {% endif %}
       {% comment %}The labelled facts stay in the head, before the media: they are the record's
       context, which the files need to be read.{% endcomment %}
-      {% if standort %}
-      <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ standort }}</dd></div></dl>
+      {% if location %}
+      <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ location }}</dd></div></dl>
       {% endif %}
       {% if tags %}
       <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
@@ -74,11 +74,11 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       {% include "workbench/_download.html" with tile=cover only %}
     </figure>
     {% endif %}
-    {% if weitere %}
+    {% if more_media %}
     <section class="filmstrip">
       <h2>{{ plates_heading }}</h2>
       <div>
-        {% for plate in weitere %}
+        {% for plate in more_media %}
         <figure>
           <a href="{{ plate.file_url }}" target="_blank" rel="noopener">{% if plate.thumb_url %}<img src="{{ plate.thumb_url }}" alt="{% firstof plate.caption plate.name %}" loading="lazy">{% else %}{% include "components/blank.html" with kind=plate.kind name=plate.name only %}{% endif %}</a>
           {% if plate.caption %}<figcaption>{{ plate.caption }}</figcaption>{% endif %}

@@ -104,13 +104,13 @@ def field_picker_context(
     ``field``/``value`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
     ``chooser`` supplies the Collection widget's options."""
     return {
-        "feldwahl_feld": field,
-        "feldwahl_wert": value,
-        "feldwahl_feld_options": _FIELD_OPTIONS,
-        "feldwahl_targets": _WIDGET_TARGETS,
-        "feldwahl_media_type_options": vocab.media_type_options(),
-        "feldwahl_document_type_groups": vocab.grouped_document_type_options(),
-        "feldwahl_collection_options": chooser.options(),
+        "field_picker_field": field,
+        "field_picker_value": value,
+        "field_picker_field_options": _FIELD_OPTIONS,
+        "field_picker_targets": _WIDGET_TARGETS,
+        "field_picker_media_type_options": vocab.media_type_options(),
+        "field_picker_document_type_groups": vocab.grouped_document_type_options(),
+        "field_picker_collection_options": chooser.options(),
     }
 
 

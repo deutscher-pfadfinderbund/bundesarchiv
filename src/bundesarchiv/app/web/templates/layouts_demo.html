@@ -40,13 +40,13 @@ pane column.
     }
   </style>
 </head>
-<body class="workbench{% if vorschau %} preview{% endif %}">
+<body class="workbench{% if with_preview %} preview{% endif %}">
 
 {% comment %} English dev chrome: pane-state toggle + back to the component library. {% endcomment %}
 <nav class="devbar" aria-label="Dev navigation">
   <b>split-narrow</b>
-  <a href="?vorschau=0"{% if not vorschau %} aria-current="page"{% endif %}>Vorschau zu</a>
-  <a href="?vorschau=1"{% if vorschau %} aria-current="page"{% endif %}>Vorschau auf</a>
+  <a href="?vorschau=0"{% if not with_preview %} aria-current="page"{% endif %}>Vorschau zu</a>
+  <a href="?vorschau=1"{% if with_preview %} aria-current="page"{% endif %}>Vorschau auf</a>
   <span>·</span>
   <a href="{% url 'dev-components' %}">← Component library</a>
 </nav>
@@ -55,7 +55,7 @@ pane column.
 the demo. {% endcomment %}
 <header>
   <a class="wordmark" href="{% url 'dev-layout' %}">Bundesarchiv</a>
-  {% include "workbench/_header.html" with is_archivist=True is_signed_in=True ohne_suche=True %}
+  {% include "workbench/_header.html" with is_archivist=True is_signed_in=True without_search=True %}
 </header>
 
 {% comment %} The search sentence — the REAL workbench partial over demo context. {% endcomment %}
@@ -69,7 +69,7 @@ the demo. {% endcomment %}
     {% include "components/pagination.html" with pager=pager only %}
   </main>
 
-  {% if vorschau %}{% include "workbench/_pane.html" with pane=preview only %}{% endif %}
+  {% if with_preview %}{% include "workbench/_pane.html" with pane=preview only %}{% endif %}
 
 </div>
 </body>

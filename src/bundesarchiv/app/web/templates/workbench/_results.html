@@ -25,13 +25,13 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% include "components/index_lag.html" %}
   {% if page.hits %}
   <form id="spalten-form" method="post" action="{% url 'columns' %}" hidden>
-    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ spalten_zurueck }}">
+    {% csrf_token %}<input type="hidden" name="zurueck" value="{{ columns_back }}">
   </form>
   {% if is_archivist %}
   <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
     {% include "workbench/_tools.html" with choices=ledger.choices bulk=True %}
-    {% include "components/ledger.html" with ledger=ledger bulk=waehlen only %}
+    {% include "components/ledger.html" with ledger=ledger bulk=selecting only %}
   </form>
   {% else %}
   {% include "workbench/_tools.html" with choices=ledger.choices bulk=False %}
@@ -40,13 +40,13 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   {% else %}
   {% comment %}Zero hits with a Bestand as the only filter: that Bestand's own empty state, with an
   archivist create button, which opens the header's "Neuer Artikel" panel with that Bestand preselected (4.8).{% endcomment %}
-  {% if leerer_bestand %}
+  {% if empty_collection %}
   <div class="empty-state">
     <div class="emblem" aria-hidden="true"></div>
     <p>Noch keine Artikel in diesem Bestand.</p>
     {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
     {% comment %}no rows, so no tool row: the rename stays reachable here{% endcomment %}
-    {% if aktiver_bestand %}<p><button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button></p>{% endif %}
+    {% if active_collection %}<p><button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button></p>{% endif %}
   </div>
   {% else %}
   {% if any_filter_set %}
