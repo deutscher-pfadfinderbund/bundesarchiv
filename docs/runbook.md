@@ -376,7 +376,7 @@ Always present: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`. Every 
   `task_name`, `attempts`), `duration`.
 - **Archive statistics** (logger `bundesarchiv.app.stats`, INFO, hourly after the reconcile rebuild;
   archive-wide, never per user). `archive stats`: `articles`, `collections`, `media_files`,
-  `media_bytes`, `in_papierkorb`, `articles_without_media`, `audience_public`, `audience_members`,
+  `media_bytes`, `in_trash`, `articles_without_media`, `audience_public`, `audience_members`,
   `audience_groups`, `audience_archivist_only` (drafts, Papierkorb and broken chains included),
   `articles_without_date`, `articles_without_description`, `articles_without_tags`,
   `media_without_thumbnail` (distinct files of a kind with a renderer), `index_rows`, `index_drift`

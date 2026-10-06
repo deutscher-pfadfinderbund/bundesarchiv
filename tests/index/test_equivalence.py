@@ -54,8 +54,8 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# The two group names the grid turns on. A viewer holding ``GRUPPE_A`` clears a GROUPS(a) or
-# GROUPS(a,b) rung; ``GRUPPE_B`` clears GROUPS(a,b) or a GROUPS(b) parent rung.
+# The two group names the grid turns on. A viewer holding ``GROUP_A`` clears a GROUPS(a) or
+# GROUPS(a,b) rung; ``GROUP_B`` clears GROUPS(a,b) or a GROUPS(b) parent rung.
 GROUP_A = "gruppe-a"
 GROUP_B = "gruppe-b"
 

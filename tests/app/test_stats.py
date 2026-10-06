@@ -51,7 +51,7 @@ def test_the_stats_record_and_one_record_per_media_type(
             "collections": 1,
             "media_files": 2,
             "media_bytes": 13,
-            "in_papierkorb": 0,
+            "in_trash": 0,
             "articles_without_media": 1,
             "audience_public": 1,
             "audience_archivist_only": 1,

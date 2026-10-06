@@ -47,7 +47,7 @@ def log_archive_stats(store: ObjectStore, *, index_rows_before: int | None = Non
         "collections": len(CollectionRepository(store).scan().readable),
         "media_files": len(refs),
         "media_bytes": sum(bytes_per_type.values()),
-        "in_papierkorb": sum(a.deleted is not None for a in articles),
+        "in_trash": sum(a.deleted is not None for a in articles),
         "articles_without_media": sum(not a.media for a in articles),
         **{name: levels.get(tier, 0) for tier, name in _LEVELS.items()},
         "audience_archivist_only": levels.get(None, 0),
