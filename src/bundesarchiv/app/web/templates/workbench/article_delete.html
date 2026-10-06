@@ -13,8 +13,8 @@ without JS when it was older than the record. Archivist-only (the view gates it)
   <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
   <h1>{{ lead }}</h1>
   <header>
-    <strong><a href="{% url 'artikel-detail' ulid %}">{{ title }}</a></strong>
-    {% include "components/signatur_tab.html" with ref_code=ref_code only %}
+    <strong><a href="{% url 'article-detail' ulid %}">{{ title }}</a></strong>
+    {% include "components/ref_code_tab.html" with ref_code=ref_code only %}
   </header>
   {% if veraltet %}<p role="alert">{{ veraltet }}</p>{% endif %}
   <p>{{ consequence }}</p>

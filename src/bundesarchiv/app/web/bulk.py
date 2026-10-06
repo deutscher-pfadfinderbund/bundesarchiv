@@ -99,7 +99,7 @@ _WIDGET_TARGETS: dict[str, str] = {
 def feldwahl_context(
     bestand: BestandChooser, *, feld: str = "", wert: str = ""
 ) -> dict[str, object]:
-    """The whole Feld-chooser context behind ``workbench/_feldwahl.html`` (spec §2 C) — ONE builder
+    """The whole Feld-chooser context behind ``workbench/_field_picker.html`` (spec §2 C) — ONE builder
     for the workbench bulk bar and the confirm page's error mode, so the two renders cannot drift.
     ``feld``/``wert`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
     ``bestand`` supplies the Bestand widget's options."""

@@ -129,7 +129,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             created = article_services.create_article(
                 archive, changed_by=archivist.username, title=title, collection_id=collection_id
             )
-            edit = reverse("artikel-bearbeiten", args=[created.ulid])
+            edit = reverse("article-edit", args=[created.ulid])
             return redirect_to(request, landing.noting_lag(edit, created.index_updated))
         if is_partial(request):
             return panel_response(
@@ -138,7 +138,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
             )
         return render_screen(
             request,
-            "workbench/artikel_neu.html",
+            "workbench/article_new.html",
             _create_context(bestand, title=title, collection_id=collection_id, errors=errors),
             bestand=bestand,
         )
@@ -146,7 +146,7 @@ def article_create(request: HttpRequest) -> HttpResponseBase:
     # "Bestand … angelegt." line shows the name of a real Bestand, never text from the URL.
     return render_screen(
         request,
-        "workbench/artikel_neu.html",
+        "workbench/article_new.html",
         _create_context(
             bestand,
             title="",
@@ -276,7 +276,7 @@ def _handle_edit_post(
     match outcome:
         case catalog.SavedOutcome(result=save_result):
             # a lagging index (ADR 0014) is said on the page it lands on
-            page = reverse("artikel-detail", args=[ulid])
+            page = reverse("article-detail", args=[ulid])
             return redirect_to(request, landing.noting_lag(page, save_result.index_updated))
         case catalog.ConflictOutcome() as conflict:
             # The surface is the WINNER's: crumbs, media and the refreshed expected_version come from
@@ -313,7 +313,7 @@ class _ConflictRow:
 
 # --- THE EDIT SURFACE --------------------------------------------------------------
 #
-# ONE value object per request and ONE render of workbench/artikel_bearbeiten.html: the template's
+# ONE value object per request and ONE render of workbench/article_edit.html: the template's
 # whole context is built in one expression below, and every panel that can sit over the form is a
 # member of the Overlay union (debt #3).
 
@@ -438,7 +438,7 @@ class EditSurface:
         confirm = overlay.content_hash if isinstance(overlay, RemoveConfirm) else ""
         return render_screen(
             request,
-            "workbench/artikel_bearbeiten.html",
+            "workbench/article_edit.html",
             {
                 "values": self.values,
                 "version": self.version,
@@ -589,7 +589,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None or request.method != "POST":
         return not_found()
     archive, stored, archivist = gated
-    page = reverse("artikel-detail", args=[ulid])
+    page = reverse("article-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
         return redirect_to(request, page)
     bestand = BestandChooser.of(archive)
@@ -693,7 +693,7 @@ def _confirmed_delete(
                 elif result.index_updated:
                     left = reverse("workbench")
                 else:  # the list still shows a mark the index has not caught up with
-                    left = reverse("artikel-detail", args=[ulid])
+                    left = reverse("article-detail", args=[ulid])
                 return redirect_to(request, landing.noting_lag(left, result.index_updated))
         reloaded = _load(archive, ulid, marked=marked)
         if reloaded is None:
@@ -709,7 +709,7 @@ def _confirmed_delete(
     return render_screen(
         request,
         # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
-        "components/confirm.html" if is_partial(request) else "workbench/artikel_loeschen.html",
+        "components/confirm.html" if is_partial(request) else "workbench/article_delete.html",
         {
             "id": "endgueltig-loeschen" if marked else "loeschen",
             "ulid": ulid,
@@ -724,7 +724,7 @@ def _confirmed_delete(
             "tone": "danger" if marked else "primary",
             "abbrechen_href": reverse("trash")
             if marked
-            else reverse("artikel-detail", args=[ulid]),
+            else reverse("article-detail", args=[ulid]),
             "in_place": True,
             "action": request.get_full_path(),
         },
@@ -745,7 +745,7 @@ def article_restore(request: HttpRequest, ulid: str) -> HttpResponseBase:
     if gated is None or request.method != "POST":
         return not_found()
     archive, stored, archivist = gated
-    page = reverse("artikel-detail", args=[ulid])
+    page = reverse("article-detail", args=[ulid])
     if stored.version != catalog.parse_version(request.POST.get("expected_version", "")):
         return redirect_to(request, page)
     try:
@@ -795,7 +795,7 @@ _MEDIEN_KONFLIKT = "Konnte nicht gespeichert werden — bitte erneut versuchen."
 _DATEINAME_LEER = "Dateiname besteht nur aus Punkten oder Leerzeichen. Bitte die Datei umbenennen."
 
 
-def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseBase:
+def article_media_move(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/move`` — reorder one media entry up/down (``richtung`` =
     ``hoch``/``runter``, ``hash`` = the entry). Order defines the cover, so reorder = re-cover (spec
     §6.3). Archivist-only, POST-only → plain 404 otherwise. Structural, non-CAS: re-render
@@ -815,7 +815,7 @@ def article_medien_verschieben(request: HttpRequest, ulid: str) -> HttpResponseB
     )
 
 
-def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+def article_media_remove(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/remove`` — the two-step no-JS remove (spec §6.3). First POST
     (``entfernen``=hash) re-renders the edit form with that row in the "Wirklich entfernen? [Ja]
     [Nein]" confirm state — NO removal yet. The [Ja] POST (``bestaetigt``=1) actually drops the ref
@@ -840,7 +840,7 @@ def article_medien_entfernen(request: HttpRequest, ulid: str) -> HttpResponseBas
     ).render(request, overlay=RemoveConfirm(content_hash))
 
 
-def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+def article_media_upload(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``POST /articles/<ulid>/media/upload`` — attach one or more files (multipart ``dateien``).
     Each file is stored under its own name (write-once, ADR 0019) and its ref appended at the END
     (never displacing the cover, ADR 0015). Archivist-only, POST-only → 404 otherwise. An oversize
@@ -882,7 +882,7 @@ def article_medien_hochladen(request: HttpRequest, ulid: str) -> HttpResponseBas
 
 def upload_gate(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /upload-gate/<ulid>`` — nginx's ``auth_request`` for the upload route
-    (``deploy/nginx/nginx.conf``): 204 exactly when ``article_medien_hochladen`` would take the
+    (``deploy/nginx/nginx.conf``): 204 exactly when ``article_media_upload`` would take the
     files from a same-origin page, so nginx refuses everyone else before it reads the body (ADR
     0017). Same-origin is ``Sec-Fetch-Site``, else ``Origin``, else the ``Referer``: the order
     Django's CSRF check falls back in. Otherwise the plain 404."""
@@ -990,7 +990,7 @@ def _without(media: tuple[MediaRef, ...], content_hash: str) -> tuple[MediaRef, 
 # Gated via _load_gated -> 404 for anyone else and NEVER partial content (the 4.10 leak suite).
 
 
-def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
+def article_document_types(request: HttpRequest, ulid: str) -> HttpResponseBase:
     """``GET /articles/<ulid>/document-types?medienart=`` — the Dokumenttyp option list for one
     Medienart (spec §5). Archivist-only, GET-only. The no-JS baseline renders all types grouped by
     Medienart; this returns just the chosen Medienart's options for an HTMX inner-swap."""
@@ -1002,7 +1002,7 @@ def article_dokumenttypen(request: HttpRequest, ulid: str) -> HttpResponseBase:
     media_type = request.GET.get("media_type") or request.GET.get("medienart", "")
     return render_screen(
         request,
-        "workbench/_dokumenttyp_options.html",
+        "workbench/_document_type_options.html",
         {"document_types": vocab.document_types_for(media_type)},
     )
 
@@ -1017,6 +1017,6 @@ def tag_suggestions(request: HttpRequest) -> HttpResponseBase:
     on_field = frozenset(catalog.parse_lines(request.GET.get("tags", "")))
     return render_screen(
         request,
-        "workbench/_schlagwort_vorschlaege.html",
+        "workbench/_tag_suggestions.html",
         {"suggestions": suggest_tags(viewer, request.GET.get("q", ""), exclude=on_field)},
     )

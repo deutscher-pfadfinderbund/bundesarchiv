@@ -79,7 +79,7 @@ def search_area(
     )
     shown = page.hits if page.total <= _RESUME_TITLES else page.hits[: _RESUME_TITLES - 1]
     return {
-        "drafts": tuple((h.title, reverse("artikel-bearbeiten", args=[h.ulid])) for h in shown),
+        "drafts": tuple((h.title, reverse("article-edit", args=[h.ulid])) for h in shown),
         "more": page.total - len(shown),
         "more_href": preset_url(browse.PARAM_DRAFTS, "1"),
     }
@@ -197,7 +197,7 @@ def zuletzt_hinzugefuegt(
             (
                 day,
                 h.title,
-                reverse("artikel-detail", args=[h.ulid]),
+                reverse("article-detail", args=[h.ulid]),
                 known[h.collection_id].name if h.collection_id in known else "",
             )
             for h, day in zip(hits, shown, strict=True)
@@ -207,10 +207,10 @@ def zuletzt_hinzugefuegt(
 
 
 _SEARCH = Area("start/_search.html", search_area)
-_BESTAENDE = Area("start/_bestaende.html", bestaende)
-_NACH_ART = Area("start/_nach_art.html", nach_art)
-_ZEITLEISTE = Area("start/_zeitleiste.html", zeitleiste)
-_ZULETZT = Area("start/_zuletzt.html", zuletzt_hinzugefuegt)
+_BESTAENDE = Area("start/_collections.html", bestaende)
+_NACH_ART = Area("start/_by_media_type.html", nach_art)
+_ZEITLEISTE = Area("start/_timeline.html", zeitleiste)
+_ZULETZT = Area("start/_recent.html", zuletzt_hinzugefuegt)
 
 ARCHIVIST: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)
 MEMBER: tuple[Area, ...] = (_SEARCH, _BESTAENDE, _NACH_ART, _ZEITLEISTE, _ZULETZT)

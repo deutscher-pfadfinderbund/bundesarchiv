@@ -37,7 +37,7 @@ def test_a_slow_request_logs_its_route_name_not_its_path(
     (record,) = caplog.records
     fields = vars(record)
     assert (fields["route"], fields["method"], fields["status"], fields["duration_ms"]) == (
-        "bestand-bearbeiten",
+        "collection-edit",
         "GET",
         200,
         1500,

@@ -14,11 +14,11 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
 
   {% if fehler %}
   <p>{{ anzahl }} ausgewählt</p>
-  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
+  <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
     <p class="error" role="alert">{{ fehler }}</p>
-    {% include "workbench/_feldwahl.html" %}
+    {% include "workbench/_field_picker.html" %}
   </form>
   <p><a href="{% url 'workbench' %}?{{ abbrechen_query }}">Zurück zur Auswahl</a></p>
   {% else %}
@@ -35,7 +35,7 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
     <tbody>
       {% for row in zeilen %}
       <tr>
-        <td>{{ row.title }} {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}</td>
+        <td>{{ row.title }} {% include "components/ref_code_tab.html" with ref_code=row.ref_code only %}</td>
         <td class="affected-old">{% firstof row.bisher "(leer)" %}</td>
         {% if geleert %}<td class="affected-old">{{ row.dokumenttyp }}</td>{% endif %}
       </tr>
@@ -43,7 +43,7 @@ it loses. Hidden inputs carry auswahl, feld and wert into the commit (no server 
     </tbody>
   </table>
 
-  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
+  <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
     {% for ulid in auswahl %}<input type="hidden" name="auswahl" value="{{ ulid }}">{% endfor %}
     <input type="hidden" name="feld" value="{{ feld }}">

@@ -39,18 +39,18 @@ def _bestand(_response: HttpResponse, corpus: Corpus) -> Change | None:
 #: Per write route: the version it wrote. Hard delete leaves none; the route-list test is
 #: ``test_index_lag.py``'s.
 _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
-    "artikel-neu": _landed_article,
-    "artikel-bearbeiten": _article(DRAFT_ULID),
-    "artikel-kopieren": _landed_article,
-    "artikel-veroeffentlichen": _article(DRAFT_ULID),
-    "artikel-loeschen": _article(PUBLISHED_ULID),
+    "article-create": _landed_article,
+    "article-edit": _article(DRAFT_ULID),
+    "article-copy": _landed_article,
+    "article-publish": _article(DRAFT_ULID),
+    "article-delete": _article(PUBLISHED_ULID),
     "article-restore": _article(PUBLISHED_ULID),
-    "artikel-medien-hochladen": _article(DRAFT_ULID),
-    "artikel-medien-verschieben": _article(DRAFT_ULID),
-    "artikel-medien-entfernen": _article(DRAFT_ULID),
-    "artikel-sammelbearbeitung": _article(DRAFT_ULID),
+    "article-media-upload": _article(DRAFT_ULID),
+    "article-media-move": _article(DRAFT_ULID),
+    "article-media-remove": _article(DRAFT_ULID),
+    "article-bulk-edit": _article(DRAFT_ULID),
 }
-_BESTAND_CHANGED = {"bestand-neu": _created_bestand, "bestand-bearbeiten": _bestand}
+_BESTAND_CHANGED = {"collection-create": _created_bestand, "collection-edit": _bestand}
 
 
 @pytest.mark.parametrize("route", _CHANGED)

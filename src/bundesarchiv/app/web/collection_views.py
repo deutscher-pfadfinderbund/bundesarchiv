@@ -81,11 +81,11 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
         if is_partial(request):
             return panel_response(request, neu_bestand_panel(rows))
         return render_screen(
-            request, "workbench/bestand_neu.html", {"felder": rows}, bestand=bestand
+            request, "workbench/collection_new.html", {"felder": rows}, bestand=bestand
         )
     return render_screen(
         request,
-        "workbench/bestand_neu.html",
+        "workbench/collection_new.html",
         {"felder": bestand_rows(bestand, "", "", "", "", {})},
         bestand=bestand,
     )
@@ -175,7 +175,7 @@ def _render_edit(
     chain = bestand.chain_of(ulid)
     return render_screen(
         request,
-        "workbench/bestand_bearbeiten.html",
+        "workbench/collection_edit.html",
         {
             "panel": panel,
             "abbrechen": preset_url(PARAM_COLLECTION, ulid),

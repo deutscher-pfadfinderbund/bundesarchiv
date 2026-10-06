@@ -19,13 +19,13 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
     <span role="status" data-bulk-zahl>{% if auswahl_count %}{{ auswahl_count }} ausgewählt{% endif %}</span>
     <button class="menu-button" type="button" popovertarget="feld-aendern">Feld ändern …</button>
     <div class="toolpanel" id="feld-aendern" popover data-reset-on-close>
-      {% include "workbench/_feldwahl.html" with abbrechen_panel="feld-aendern" %}
+      {% include "workbench/_field_picker.html" with abbrechen_panel="feld-aendern" %}
     </div>
   </div>
   {% else %}
   <div class="bulk"><a href="?{{ auswaehlen_query }}">Auswählen</a></div>
   {% endif %}
-  {% if aktiver_bestand %}<button class="menu-button" type="button" popovertarget="bestand-bearbeiten">Bestand bearbeiten …</button>{% endif %}
+  {% if aktiver_bestand %}<button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button>{% endif %}
   <a href="{% url 'trash' %}">Papierkorb</a>
   {% endif %}
   <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>
@@ -35,7 +35,7 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
     </ul>
     <div class="actions">
       <button class="primary" type="submit" form="spalten-form">Fertig</button>
-      {% include "components/toolpanel_abbrechen.html" with panel="spalten" only %}
+      {% include "components/toolpanel_cancel.html" with panel="spalten" only %}
     </div>
   </div>
 </div>

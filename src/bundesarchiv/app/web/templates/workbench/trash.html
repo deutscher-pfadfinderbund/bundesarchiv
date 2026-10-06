@@ -17,7 +17,7 @@ needs no third column. "Endgültig löschen …" opens the confirm page, which n
     <tbody>
       {% for row in rows %}
       <tr>
-        <td><a href="{% url 'artikel-detail' row.ulid %}">{{ row.title }}</a> {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}<br>
+        <td><a href="{% url 'article-detail' row.ulid %}">{{ row.title }}</a> {% include "components/ref_code_tab.html" with ref_code=row.ref_code only %}<br>
           <span class="affected-old">{% if row.bestand %}{{ row.bestand }} · {% endif %}gelöscht am {{ row.geloescht_am }} von {{ row.geloescht_von }}</span></td>
         <td>
           <div class="actions">

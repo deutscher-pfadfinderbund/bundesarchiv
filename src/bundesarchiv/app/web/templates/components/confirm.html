@@ -9,7 +9,7 @@ in_place (a refusal swaps in as this partial).
   {% if consequence %}<p>{{ consequence }}</p>{% endif %}
   <div class="actions">
     <button class="{{ tone }}" type="submit">{{ button }}</button>
-    {% include "components/toolpanel_abbrechen.html" with panel=id only %}
+    {% include "components/toolpanel_cancel.html" with panel=id only %}
   </div>
   {% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}">
 </form>

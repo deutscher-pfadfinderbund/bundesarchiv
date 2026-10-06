@@ -157,7 +157,7 @@ def build(
         Row(
             ulid=hit.ulid,
             title=hit.title,
-            href=reverse("artikel-detail", args=[hit.ulid]),
+            href=reverse("article-detail", args=[hit.ulid]),
             draft=mark_drafts and hit.is_draft,
             selected=hit.ulid == selected_ulid,
             gewaehlt=hit.ulid in selection,

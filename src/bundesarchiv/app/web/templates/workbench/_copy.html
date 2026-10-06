@@ -1,0 +1,2 @@
+{% comment %}The rare-actions menus' "Duplizieren": a POST, so a form, never a link. Param: ulid.{% endcomment %}
+<form class="menu-form" method="post" action="{% url 'article-copy' ulid %}">{% csrf_token %}<button class="link" type="submit">Duplizieren</button></form>

@@ -21,7 +21,7 @@ save gets HX-Redirect.{% endcomment %}
 
   <header>
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-    {% include "workbench/_feld_titel.html" with feld=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
+    {% include "workbench/_field_title.html" with feld=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
   </header>
 
   {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
@@ -33,14 +33,14 @@ save gets HX-Redirect.{% endcomment %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% include "components/index_lag.html" %}
-    {% for feld in card_fields.margin %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}
+    {% for feld in card_fields.margin %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}
     <div class="record-meta-actions">
       <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
       <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
       <ul class="menu" id="mehr-menu" popover>
-        <li><a href="{% url 'artikel-detail' values.ulid %}">Zur Artikelseite</a></li>
-        <li>{% include "workbench/_duplizieren.html" with ulid=values.ulid %}</li>
-        {% url 'artikel-loeschen' values.ulid as loeschen_href %}
+        <li><a href="{% url 'article-detail' values.ulid %}">Zur Artikelseite</a></li>
+        <li>{% include "workbench/_copy.html" with ulid=values.ulid %}</li>
+        {% url 'article-delete' values.ulid as loeschen_href %}
         <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
       </ul>
       {% include "components/confirm.html" with id="loeschen" action=loeschen_href lead=loeschen.question consequence=loeschen.consequence button=loeschen.button tone="primary" in_place=True %}
@@ -53,34 +53,34 @@ save gets HX-Redirect.{% endcomment %}
   triple must stay NOT :inherited — the two GET enhancements inside answer with their own partials,
   which hold no #form-region (G.27).{% endcomment %}
   <form id="bearbeiten-form" method="post"
-        action="{% url 'artikel-bearbeiten' values.ulid %}"
-        hx-post="{% url 'artikel-bearbeiten' values.ulid %}" hx-sync="this:drop"
+        action="{% url 'article-edit' values.ulid %}"
+        hx-post="{% url 'article-edit' values.ulid %}" hx-sync="this:drop"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" id="expected-version" name="expected_version" value="{{ version }}">
 
     <section aria-labelledby="h-kerndaten">
       <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
-      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.kerndaten %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
     {% with feld=card_fields.beschreibung.0 base="feld-body" %}
     <section aria-labelledby="feld-body-label">
       <header class="section-head"><h2 id="feld-body-label">{{ feld.label }}</h2></header>
-      <div class="field"><textarea id="{{ feld.control_id }}" name="{{ feld.name }}" rows="6" {% include "workbench/_feld_aria.html" %}>{{ feld.value }}</textarea>
-        {% include "workbench/_feld_gespeichert.html" %}</div>
+      <div class="field"><textarea id="{{ feld.control_id }}" name="{{ feld.name }}" rows="6" {% include "workbench/_field_aria.html" %}>{{ feld.value }}</textarea>
+        {% include "workbench/_field_saved.html" %}</div>
     </section>
     {% endwith %}
 
     <section aria-labelledby="h-einordnung">
       <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
-      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.einordnung %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     <section aria-labelledby="h-herkunft">
       <header class="section-head"><h2 id="h-herkunft">Herkunft</h2></header>
-      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_feld.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+      <div class="field-grid">{% for feld in card_fields.herkunft %}{% include "workbench/_field.html" with feld=feld form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
     </section>
   </form>
 
@@ -148,26 +148,26 @@ save gets HX-Redirect.{% endcomment %}
       bestaetigt itself; without JS it asks through the server's two-step.{% endcomment %}
       {% for row in media_rows %}
       <form id="verschieben-{{ row.content_hash }}" method="post"
-            action="{% url 'artikel-medien-verschieben' values.ulid %}"
-            hx-post="{% url 'artikel-medien-verschieben' values.ulid %}" hx-sync="this:drop" hidden>
+            action="{% url 'article-media-move' values.ulid %}"
+            hx-post="{% url 'article-media-move' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-frage-{{ row.content_hash }}" method="post"
-            action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop"
+            action="{% url 'article-media-remove' values.ulid %}"
+            hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop"
             hx-confirm="{{ row.tile.name }} entfernen? Die Datei wird gelöscht; das lässt sich nicht rückgängig machen."
             hx-vals='{"bestaetigt": "1"}' hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
       </form>
       <form id="entfernen-ja-{{ row.content_hash }}" method="post"
-            action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop" hidden>
+            action="{% url 'article-media-remove' values.ulid %}"
+            hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="entfernen" value="{{ row.content_hash }}">
         <input type="hidden" name="bestaetigt" value="1">
       </form>
       <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
-            action="{% url 'artikel-medien-entfernen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-entfernen' values.ulid %}" hx-sync="this:drop" hidden>
+            action="{% url 'article-media-remove' values.ulid %}"
+            hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}
       </form>
       {% endfor %}
@@ -176,8 +176,8 @@ save gets HX-Redirect.{% endcomment %}
       Appends at the end, write-once dedupe. The browser's own tab spinner is the busy state (ADR 0004,
       update 2026-09-25).{% endcomment %}
       <form id="medien-upload" method="post" enctype="multipart/form-data"
-            action="{% url 'artikel-medien-hochladen' values.ulid %}"
-            hx-post="{% url 'artikel-medien-hochladen' values.ulid %}" hx-sync="this:drop" hx-browser-indicator hidden>
+            action="{% url 'article-media-upload' values.ulid %}"
+            hx-post="{% url 'article-media-upload' values.ulid %}" hx-sync="this:drop" hx-browser-indicator hidden>
         {% csrf_token %}
       </form>
     </section>

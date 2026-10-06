@@ -1,4 +1,4 @@
-"""The visibility gate on the article detail route (``/articles/<ulid>``, ``artikel-detail``).
+"""The visibility gate on the article detail route (``/articles/<ulid>``, ``article-detail``).
 
 The route loads the article, resolves its chain and asks ``can_view``. Every deny — forbidden
 article, missing article, malformed ulid, broken chain — is a plain 404 that leaks nothing, the

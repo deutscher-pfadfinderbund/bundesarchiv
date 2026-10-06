@@ -267,9 +267,9 @@ def _resolve_pane(
         datierung=vocab.datierung_mono(article.date),
         typ=article.document_type or "",
         media=media_tiles(article.ulid, article.media),
-        oeffnen_href=reverse("artikel-detail", args=[article.ulid]),
+        oeffnen_href=reverse("article-detail", args=[article.ulid]),
         # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
-        bearbeiten_href=reverse("artikel-bearbeiten", args=[article.ulid]) if is_archivist else "",
+        bearbeiten_href=reverse("article-edit", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
@@ -722,7 +722,7 @@ def trash(request: HttpRequest) -> HttpResponseBase:
         "rows": rows,
         "pager": _pager(parsed, page, {}, []) if page.total else None,
     }
-    return render_screen(request, "workbench/papierkorb.html", context, bestand=bestand)
+    return render_screen(request, "workbench/trash.html", context, bestand=bestand)
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,7 +20,7 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: abbre
   <label class="field" data-bulk-wert="{{ feldwahl_targets.wert_media_type }}">
     <span>Neuer Wert</span>
     <select name="wert_media_type"
-            hx-get="{% url 'artikel-sammelbearbeitung-dokumenttypen' %}"
+            hx-get="{% url 'article-bulk-edit-document-types' %}"
             hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
       {% for value, caption in feldwahl_media_type_options %}
       <option value="{{ value }}"{% if value == feldwahl_wert %} selected{% endif %}>{{ caption }}</option>
@@ -51,6 +51,6 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: abbre
 
   <div class="actions">
     <button class="primary" type="submit">Änderung prüfen</button>
-    {% if abbrechen_panel %}{% include "components/toolpanel_abbrechen.html" with panel=abbrechen_panel only %}{% endif %}
+    {% if abbrechen_panel %}{% include "components/toolpanel_cancel.html" with panel=abbrechen_panel only %}{% endif %}
   </div>
 </div>

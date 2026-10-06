@@ -23,12 +23,12 @@ LAG_FLAG = (_INDEX, _LAGGING)
 
 def bestand_created_url(ulid: str) -> str:
     """The create-article form with the just-created Bestand pre-selected and announced."""
-    return f"{reverse('artikel-neu')}?{urlencode({PARAM_COLLECTION: ulid, _ANGELEGT: _YES})}"
+    return f"{reverse('article-create')}?{urlencode({PARAM_COLLECTION: ulid, _ANGELEGT: _YES})}"
 
 
 def copy_url(ulid: str) -> str:
     """The edit form of a fresh copy, with the cleared Signatur focused."""
-    return f"{reverse('artikel-bearbeiten', args=[ulid])}?{urlencode({_FOKUS: _SIGNATUR})}"
+    return f"{reverse('article-edit', args=[ulid])}?{urlencode({_FOKUS: _SIGNATUR})}"
 
 
 def noting_lag(url: str, index_updated: bool) -> str:

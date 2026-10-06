@@ -2,7 +2,7 @@
 
 The form's fields, declared ONCE, in DOM/tab order: what each one is called, where it sits, how it
 renders, how it is seeded from an Article and how the CAS diff spells it. Every derivation is a
-filter over it, and so is the form's own markup (``card_fields`` → ``workbench/_feld.html``), so the
+filter over it, and so is the form's own markup (``card_fields`` → ``workbench/_field.html``), so the
 template holds no second enumeration. The columns are guarded against the real render or the real
 behaviour — tests/app/web/test_catalog_edit.py, "the field registry's columns".
 """
@@ -227,7 +227,7 @@ FIELDS: tuple[_Field, ...] = (
         options="media_type_options",
         # On change, swap in the dependent Dokumenttyp options. No-JS baseline unchanged: the full
         # grouped optgroup list + server pairing re-validation still stand.
-        hx_get="artikel-dokumenttypen",
+        hx_get="article-document-types",
         hx=(
             ("hx-trigger", "change"),
             ("hx-target", "#dokumenttyp-select"),
@@ -286,7 +286,7 @@ FIELDS: tuple[_Field, ...] = (
         control="text",
         section="herkunft",
         hint="z. B. 1962, 1984/1995, 1970~",
-        help="workbench/_hilfe_datierung.html",
+        help="workbench/_date_help.html",
         scanned=True,
         focusable=True,
         diff="Datierung",
@@ -324,7 +324,7 @@ type _Options = tuple[tuple[str, str], ...] | tuple[tuple[str, tuple[tuple[str, 
 @dataclass(frozen=True, slots=True)
 class CardRow:
     """One field of the form, ready to render: the registry's declaration joined to THIS render's
-    value, error, conflict and focus. ``workbench/_feld.html`` prints it and nothing else, so a field
+    value, error, conflict and focus. ``workbench/_field.html`` prints it and nothing else, so a field
     is on the form exactly when the registry says so. ``was`` is the winner's stored value when a
     CAS conflict touches the field, else ``None``. A row built outside the registry (the Bestand
     forms) sets only what it uses."""

@@ -27,8 +27,8 @@ _DB = pytest.mark.django_db  # the landing page runs a search
 
 #: Neither Bestand route syncs the index: a new Bestand holds no Article, and the rename route
 #: changes the name only, which moves no Article's visibility.
-_NEEDS_DB = {"article-delete-permanently", "bestand-bearbeiten"}
-_NO_SYNC = {"bestand-neu", "bestand-bearbeiten"}
+_NEEDS_DB = {"article-delete-permanently", "collection-edit"}
+_NO_SYNC = {"collection-create", "collection-edit"}
 
 
 def _media(corpus: Corpus) -> tuple[str, ...]:
@@ -41,37 +41,37 @@ def _titles(corpus: Corpus) -> list[str]:
 
 #: What the canonical write left behind, per route: the lag never undoes the write (ADR 0014).
 _STOOD: dict[str, Callable[[Corpus], bool]] = {
-    "artikel-neu": lambda c: "Neu" in _titles(c),
-    "artikel-bearbeiten": lambda c: c.articles.load(DRAFT_ULID).article.title == "Umbenannt",
-    "artikel-kopieren": lambda c: len(_titles(c)) == 3,
-    "artikel-veroeffentlichen": lambda c: (
+    "article-create": lambda c: "Neu" in _titles(c),
+    "article-edit": lambda c: c.articles.load(DRAFT_ULID).article.title == "Umbenannt",
+    "article-copy": lambda c: len(_titles(c)) == 3,
+    "article-publish": lambda c: (
         c.articles.load(DRAFT_ULID).article.lifecycle is Lifecycle.PUBLISHED
     ),
-    "artikel-loeschen": lambda c: c.articles.load(PUBLISHED_ULID).article.deleted is not None,
+    "article-delete": lambda c: c.articles.load(PUBLISHED_ULID).article.deleted is not None,
     "article-delete-permanently": lambda c: PUBLISHED_ULID not in set(c.articles.list_ulids()),
     "article-restore": lambda c: c.articles.load(PUBLISHED_ULID).article.deleted is None,
-    "artikel-medien-hochladen": lambda c: _media(c) == ("scan.pdf",),
-    "artikel-medien-verschieben": lambda c: _media(c) == ("b.pdf", "a.pdf"),
-    "artikel-medien-entfernen": lambda c: _media(c) == ("b.pdf",),
-    "artikel-sammelbearbeitung": lambda c: c.articles.load(DRAFT_ULID).article.creator == "Kurt",
-    "bestand-neu": lambda c: "Karten" in {x.name for x in c.collections.load_all()},
-    "bestand-bearbeiten": lambda c: c.collections.load(PUB).collection.name == "Umbenannt",
+    "article-media-upload": lambda c: _media(c) == ("scan.pdf",),
+    "article-media-move": lambda c: _media(c) == ("b.pdf", "a.pdf"),
+    "article-media-remove": lambda c: _media(c) == ("b.pdf",),
+    "article-bulk-edit": lambda c: c.articles.load(DRAFT_ULID).article.creator == "Kurt",
+    "collection-create": lambda c: "Karten" in {x.name for x in c.collections.load_all()},
+    "collection-edit": lambda c: c.collections.load(PUB).collection.name == "Umbenannt",
 }
 
 #: Every route that writes nothing to the archive.
 _READS = {
     "start",
     "workbench",
-    "spalten",
+    "columns",
     "trash",
     "login",
     "oidc-callback",
     "logout",
-    "artikel-sammelbearbeitung-dokumenttypen",
+    "article-bulk-edit-document-types",
     "upload-gate",
-    "artikel-dokumenttypen",
+    "article-document-types",
     "tag-suggestions",
-    "artikel-detail",
+    "article-detail",
     "media",
     "media-thumb",
     "media-display",

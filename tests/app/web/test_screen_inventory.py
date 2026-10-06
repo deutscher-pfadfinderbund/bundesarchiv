@@ -37,8 +37,8 @@ _NOT_A_SCREEN: dict[str, str] = {
     "media": "media BYTES, not a page",
     "media-thumb": "a derived thumbnail, not a page",
     "media-display": "an image's derived display version, not a page",
-    "artikel-dokumenttypen": "an HTMX fragment (an <option> list swapped into a screen)",
-    "artikel-sammelbearbeitung-dokumenttypen": "an HTMX fragment (the bulk chooser's options)",
+    "article-document-types": "an HTMX fragment (an <option> list swapped into a screen)",
+    "article-bulk-edit-document-types": "an HTMX fragment (the bulk chooser's options)",
     "tag-suggestions": "a fragment (the <li> options of the Schlagworte field's list)",
 }
 
@@ -72,7 +72,7 @@ def test_no_screen_names_a_route_the_urlconf_lacks() -> None:
 
 def test_the_inventory_has_not_shrunk() -> None:
     # The count pin. The route join above cannot see a shrink, because several screens share one route
-    # (eight on `workbench`, four on `artikel-detail`, two on `artikel-bearbeiten`) — so deleting one
+    # (eight on `workbench`, four on `article-detail`, two on `article-edit`) — so deleting one
     # of them leaves the join green while four walkers quietly stop covering it.
     assert len(SCREENS) == SCREEN_COUNT, (
         f"the inventory holds {len(SCREENS)} screens, pinned at {SCREEN_COUNT}. Adding one? Raise the"

@@ -44,7 +44,7 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     return _confirm(request, archive, bestand, auswahl, feld, wert)
 
 
-def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
+def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
     """``GET /articles/bulk-edit/document-types?medienart=`` — the dependent Dokumenttyp option
     list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
     GET-only → the plain 404 otherwise. The no-JS baseline renders all optgroups + the
@@ -60,7 +60,7 @@ def bulk_dokumenttypen(request: HttpRequest) -> HttpResponseBase:
     )
     return render_screen(
         request,
-        "workbench/_dokumenttyp_options.html",
+        "workbench/_document_type_options.html",
         {"document_types": vocab.document_types_for(media_type)},
     )
 
@@ -107,7 +107,7 @@ def _confirm(
     orphans = {a.ulid for a in _orphans(articles, feld, wert)}
     return render_screen(
         request,
-        "workbench/sammelbearbeitung_pruefen.html",
+        "workbench/bulk_edit_review.html",
         {
             "auswahl": [a.ulid for a in articles],
             "feld": feld,
@@ -153,7 +153,7 @@ def _commit(
     outcome = bulk.apply_bulk(archive, auswahl, feld, wert, changed_by=changed_by)
     return render_screen(
         request,
-        "workbench/sammelbearbeitung_ergebnis.html",
+        "workbench/bulk_edit_result.html",
         {
             "feld_label": bulk.label_of(feld),
             "wert_display": bulk.field_display(feld, wert, bestand),
@@ -181,7 +181,7 @@ def _reject(
     selection kept. Not the list: this POST does not carry the search query."""
     return render_screen(
         request,
-        "workbench/sammelbearbeitung_pruefen.html",
+        "workbench/bulk_edit_review.html",
         {
             "auswahl": auswahl,
             "fehler": error,

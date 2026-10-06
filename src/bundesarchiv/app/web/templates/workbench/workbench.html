@@ -12,8 +12,8 @@ The workbench page. A plain GET renders it whole; an HX-Request GET renders only
 {% block header %}{% include "workbench/_header.html" with ohne_suche=True %}{% endblock %}
 {% block skip_ziel %}results{% endblock %}
 {% block body %}
-{% include "workbench/_suchsatz.html" %}
-{% include "workbench/_trefferzahl.html" with total=total only %}
+{% include "workbench/_search_field.html" %}
+{% include "workbench/_hit_count.html" with total=total only %}
 <div class="frame">
   {% include "workbench/_results.html" %}
   {% if pane %}{% include "workbench/_pane.html" %}{% endif %}

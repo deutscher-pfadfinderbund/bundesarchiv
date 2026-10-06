@@ -10,7 +10,7 @@ one source with no database:
   mapping, not the accessors, is what changes then. It sits behind ``media_types`` /
   ``document_types_for`` / ``is_valid_pair`` / ``grouped_document_type_options`` — ONE accessor set
   so the dependent-select render (no-JS baseline), the server-side pair re-validation, and the HTMX
-  ``/dokumenttypen`` endpoint never derive the vocabulary twice.
+  ``/document-types`` endpoint never derive the vocabulary twice.
 - ``datierung_parts`` / ``human_size`` — how the article page spells a date (``<time>`` parts) and
   the edit form a file's size. Display helpers: they never validate, so they cannot be an error surface.
 """

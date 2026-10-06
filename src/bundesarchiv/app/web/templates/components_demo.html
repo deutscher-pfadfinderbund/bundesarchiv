@@ -277,15 +277,15 @@ components; this storyboard updates in lockstep with them.
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
     <div class="row">
-      {% include "components/signatur_tab.html" with ref_code="F12" only %}
-      {% include "components/signatur_tab.html" with ref_code="F12/3-b2" only %}
-      <span class="sig-narrow">{% include "components/signatur_tab.html" with ref_code="F12/3-b2" only %}</span>
-      {% include "components/signatur_tab.html" only %}
+      {% include "components/ref_code_tab.html" with ref_code="F12" only %}
+      {% include "components/ref_code_tab.html" with ref_code="F12/3-b2" only %}
+      <span class="sig-narrow">{% include "components/ref_code_tab.html" with ref_code="F12/3-b2" only %}</span>
+      {% include "components/ref_code_tab.html" only %}
     </div>
   </div>
   {% endfor %}
 </div>
-<code class="doc">components/signatur_tab.html · ref_code=… — quiet mono, everywhere (as the ledger column); absent → nothing visible (screen-reader "Ohne Signatur"); long codes ellipsize</code>
+<code class="doc">components/ref_code_tab.html · ref_code=… — quiet mono, everywhere (as the ledger column); absent → nothing visible (screen-reader "Ohne Signatur"); long codes ellipsize</code>
 
 <h2>Icons — the one vendored set (register row 9)</h2>
 <div class="probe">

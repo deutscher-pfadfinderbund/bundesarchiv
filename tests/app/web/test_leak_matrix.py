@@ -68,7 +68,7 @@ class _MatrixCorpus:
 
     def _build(self) -> None:
         # The editable collection carries a REAL ULID — ``collection_edit`` validates the ulid in-view
-        # (a literal like "GRP" would 404 as malformed), so ``bestand-bearbeiten`` needs a valid one.
+        # (a literal like "GRP" would 404 as malformed), so ``collection-edit`` needs a valid one.
         self.collection_ulid = new_ulid()
         self.base.add_collection(
             make_collection(
@@ -332,7 +332,7 @@ _CONTRACT: dict[str, Route] = {
     ),
     # The "Spalten …" choice: a viewer's own preference, kept in a cookie — every tier may make it
     # (302 back to the list), and GET is the plain 404. It reads and writes no record.
-    "spalten": Route(
+    "columns": Route(
         build_path=_p_spalten,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,
@@ -377,42 +377,42 @@ _CONTRACT: dict[str, Route] = {
     ),
     # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.
-    "artikel-neu": Route(
+    "article-create": Route(
         build_path=_p_artikel_neu,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # empty POST → validation re-render (200)
     ),
-    "bestand-neu": Route(
+    "collection-create": Route(
         build_path=_p_bestand_neu,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # empty POST → validation re-render (200)
     ),
-    "bestand-bearbeiten": Route(
+    "collection-edit": Route(
         build_path=_p_bestand_bearbeiten,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # blank-name POST → error re-render (200)
     ),
-    "artikel-bearbeiten": Route(
+    "article-edit": Route(
         build_path=_p_edit,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # invalid POST → validation re-render (200)
     ),
-    "artikel-kopieren": Route(
+    "article-copy": Route(
         build_path=_p_kopieren,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed → 404 even for archivist
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # copy → 302 to the copy's edit form
     ),
-    "artikel-loeschen": Route(
+    "article-delete": Route(
         build_path=_p_loeschen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # GET = confirm page
@@ -436,28 +436,28 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # restored → 302 to its page
     ),
-    "artikel-veroeffentlichen": Route(
+    "article-publish": Route(
         build_path=_p_veroeffentlichen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # the corpus article is published: refused, back to its page
     ),
-    "artikel-medien-verschieben": Route(
+    "article-media-move": Route(
         build_path=_p_medien_verschieben,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # re-render edit form
     ),
-    "artikel-medien-entfernen": Route(
+    "article-media-remove": Route(
         build_path=_p_medien_entfernen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # confirm step / re-render
     ),
-    "artikel-medien-hochladen": Route(
+    "article-media-upload": Route(
         build_path=_p_medien_hochladen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
@@ -472,7 +472,7 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
-    "artikel-dokumenttypen": Route(
+    "article-document-types": Route(
         build_path=_p_dokumenttypen,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # options partial
@@ -488,7 +488,7 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
-    "artikel-sammelbearbeitung": Route(
+    "article-bulk-edit": Route(
         build_path=_p_sammel,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
@@ -496,7 +496,7 @@ _CONTRACT: dict[str, Route] = {
         post_arch=OK,  # confirm page for a real selection + field
         post_data=None,  # filled at probe time (needs the corpus ulid) — see _sammel_post_data
     ),
-    "artikel-sammelbearbeitung-dokumenttypen": Route(
+    "article-bulk-edit-document-types": Route(
         build_path=_p_sammel_dok,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # ULID-free options partial
@@ -505,7 +505,7 @@ _CONTRACT: dict[str, Route] = {
     ),
     # Read routes — group-sensitive. Non-matching tiers get a 404; the matching-group Member and
     # Archivist get 200. Method-blind (POST runs the GET path).
-    "artikel-detail": Route(
+    "article-detail": Route(
         build_path=_p_detail,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
@@ -599,8 +599,8 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 
 #: Routes whose POST payload needs the corpus (a real ulid / version), filled at probe time.
 _POST_DATA_BUILDERS = {
-    "artikel-sammelbearbeitung": _sammel_post_data,
-    "artikel-loeschen": _loeschen_post_data,
+    "article-bulk-edit": _sammel_post_data,
+    "article-delete": _loeschen_post_data,
     "article-delete-permanently": _marked_post_data,
     "article-restore": _marked_post_data,
 }
@@ -649,7 +649,7 @@ def test_route_tier_matrix(
 
 #: Method-blind like the rows above, so GET probes each.
 _MARKED_PATHS: dict[str, Callable[[_MatrixCorpus], str]] = {
-    "artikel-detail": lambda c: f"/articles/{c.marked_ulid}",
+    "article-detail": lambda c: f"/articles/{c.marked_ulid}",
     "media": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}",
     "media-thumb": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/thumb",
     "media-display": lambda c: f"/media/{c.marked_ulid}/{c.marked_hash}/display",
@@ -672,23 +672,23 @@ def test_a_marked_article_answers_the_archivist_alone(
 #: first), writing nothing. Each probe is one that answers something other than the 404 without
 #: the refusal, so it bites.
 _MARKED_REFUSED: dict[str, tuple[str, str, Callable[[_MatrixCorpus], dict[str, object]]]] = {
-    "artikel-bearbeiten": ("POST", "/articles/{}/edit", _marked_post_data),
-    "artikel-kopieren": ("POST", "/articles/{}/copy", lambda _c: {}),
-    "artikel-loeschen": ("POST", "/articles/{}/delete", _marked_post_data),
-    "artikel-veroeffentlichen": ("POST", "/articles/{}/publish", lambda _c: {}),
-    "artikel-medien-verschieben": (
+    "article-edit": ("POST", "/articles/{}/edit", _marked_post_data),
+    "article-copy": ("POST", "/articles/{}/copy", lambda _c: {}),
+    "article-delete": ("POST", "/articles/{}/delete", _marked_post_data),
+    "article-publish": ("POST", "/articles/{}/publish", lambda _c: {}),
+    "article-media-move": (
         "POST",
         "/articles/{}/media/move",
         lambda c: {"hash": c.marked_hash, "richtung": "runter"},
     ),
-    "artikel-medien-entfernen": (
+    "article-media-remove": (
         "POST",
         "/articles/{}/media/remove",
         lambda c: {"entfernen": c.marked_hash},
     ),
-    "artikel-medien-hochladen": ("POST", "/articles/{}/media/upload", lambda _c: {}),
+    "article-media-upload": ("POST", "/articles/{}/media/upload", lambda _c: {}),
     "upload-gate": ("GET", "/upload-gate/{}", lambda _c: {}),
-    "artikel-dokumenttypen": ("GET", "/articles/{}/document-types", lambda _c: {}),
+    "article-document-types": ("GET", "/articles/{}/document-types", lambda _c: {}),
 }
 
 

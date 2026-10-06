@@ -22,7 +22,7 @@ listed, each leading to its edit form, plus one collective recovery.
   <table class="affected">
     <tbody>
       {% for row in conflicted %}
-      <tr><td><a href="{% url 'artikel-bearbeiten' row.ulid %}">{{ row.title }}</a> {% include "components/signatur_tab.html" with ref_code=row.ref_code only %}</td></tr>
+      <tr><td><a href="{% url 'article-edit' row.ulid %}">{{ row.title }}</a> {% include "components/ref_code_tab.html" with ref_code=row.ref_code only %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

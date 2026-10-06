@@ -180,12 +180,12 @@
     z-index: var(--z-banner);
   }
 
-  /* ---- field (workbench/_feld.html, every form; inline in the Feld chooser, the
+  /* ---- field (workbench/_field.html, every form; inline in the Feld chooser, the
      file-row's caption and the pairs): the label over its control, then its hint and error. Knob:
      --field-display, plus the control type knob (elements layer).
      A MESSAGE (.error/.hint) inside a label element would join the control's accessible name, so a
      field carrying one is a <div> with an explicit <label for>, or its control names itself via
-     aria-labelledby (_feld.html). ---- */
+     aria-labelledby (_field.html). ---- */
   .field {
     --_field-display: var(--field-display, inline-flex);
     display: var(--_field-display);

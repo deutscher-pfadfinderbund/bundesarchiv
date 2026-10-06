@@ -76,7 +76,7 @@ def neu_artikel_panel(
     return FormPanel(
         id="neu-artikel",
         label="Neuer Artikel …",
-        action=reverse("artikel-neu"),
+        action=reverse("article-create"),
         rows=artikel_rows(bestand, title, collection_id, errors or {}),
         button="Anlegen",
     )
@@ -106,7 +106,7 @@ def neu_bestand_panel(rows: tuple[CardRow, ...]) -> FormPanel:
     return FormPanel(
         id="neu-bestand",
         label="Neuer Bestand …",
-        action=reverse("bestand-neu"),
+        action=reverse("collection-create"),
         rows=rows,
         button="Anlegen",
     )
@@ -177,9 +177,9 @@ def bestand_bearbeiten_panel(
     collection = stored.collection
     parent_id = collection.parent_id
     return FormPanel(
-        id="bestand-bearbeiten",
+        id="collection-edit",
         label="Bestand bearbeiten …",
-        action=reverse("bestand-bearbeiten", args=[collection.ulid]),
+        action=reverse("collection-edit", args=[collection.ulid]),
         rows=(
             CardRow(
                 "name",

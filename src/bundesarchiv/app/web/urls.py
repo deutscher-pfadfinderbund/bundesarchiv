@@ -13,17 +13,17 @@ from django.urls import URLPattern, path
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web.auth_views import login, logout, oidc_callback
 from bundesarchiv.app.web.browse_views import article_detail, choose_columns, trash, workbench
-from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_dokumenttypen
+from bundesarchiv.app.web.bulk_views import article_bulk_edit, bulk_document_types
 from bundesarchiv.app.web.catalog_views import (
     article_copy,
     article_create,
     article_delete,
     article_delete_permanently,
-    article_dokumenttypen,
+    article_document_types,
     article_edit,
-    article_medien_entfernen,
-    article_medien_hochladen,
-    article_medien_verschieben,
+    article_media_move,
+    article_media_remove,
+    article_media_upload,
     article_publish,
     article_restore,
     tag_suggestions,
@@ -40,12 +40,12 @@ handler404 = page_not_found
 #: converter that 404'd on shape would be a distinguishable failure mode (a different 404 body), so
 #: validation stays in the view where every reject collapses to one shape.
 #:
-#: ``artikel-neu`` is registered BEFORE ``artikel-detail`` so the literal ``new`` path wins over the
+#: ``article-create`` is registered BEFORE ``article-detail`` so the literal ``new`` path wins over the
 #: ``<str:ulid>`` capture (``new`` is not a valid ULID anyway, but ordering makes intent explicit).
 urlpatterns = [
     path("", start, name="start"),
     path("articles", workbench, name="workbench"),
-    path("columns", choose_columns, name="spalten"),
+    path("columns", choose_columns, name="columns"),
     path("trash", trash, name="trash"),
     # The login surface (ADR 0018). English paths: these are protocol endpoints, not UI — the
     # callback path is registered in the realm client, and /login is what the anonymous gate points
@@ -54,18 +54,18 @@ urlpatterns = [
     path("oidc/callback", oidc_callback, name="oidc-callback"),
     path("logout", logout, name="logout"),
     # /static/* is served by WhiteNoise middleware (ADR 0016), not the urlconf — hence no route here.
-    path("articles/new", article_create, name="artikel-neu"),
-    path("collections/new", collection_create, name="bestand-neu"),
-    path("collections/<str:ulid>/edit", collection_edit, name="bestand-bearbeiten"),
+    path("articles/new", article_create, name="article-create"),
+    path("collections/new", collection_create, name="collection-create"),
+    path("collections/<str:ulid>/edit", collection_edit, name="collection-edit"),
     path(
         "articles/bulk-edit/document-types",
-        bulk_dokumenttypen,
-        name="artikel-sammelbearbeitung-dokumenttypen",
+        bulk_document_types,
+        name="article-bulk-edit-document-types",
     ),
-    path("articles/bulk-edit", article_bulk_edit, name="artikel-sammelbearbeitung"),
-    path("articles/<str:ulid>/edit", article_edit, name="artikel-bearbeiten"),
-    path("articles/<str:ulid>/copy", article_copy, name="artikel-kopieren"),
-    path("articles/<str:ulid>/delete", article_delete, name="artikel-loeschen"),
+    path("articles/bulk-edit", article_bulk_edit, name="article-bulk-edit"),
+    path("articles/<str:ulid>/edit", article_edit, name="article-edit"),
+    path("articles/<str:ulid>/copy", article_copy, name="article-copy"),
+    path("articles/<str:ulid>/delete", article_delete, name="article-delete"),
     # English paths: owner-interview-2026-08.md, "Ruling of 2026-10-01 (URLs)".
     path(
         "articles/<str:ulid>/delete-permanently",
@@ -73,26 +73,28 @@ urlpatterns = [
         name="article-delete-permanently",
     ),
     path("articles/<str:ulid>/restore", article_restore, name="article-restore"),
-    path("articles/<str:ulid>/publish", article_publish, name="artikel-veroeffentlichen"),
+    path("articles/<str:ulid>/publish", article_publish, name="article-publish"),
     path(
         "articles/<str:ulid>/media/move",
-        article_medien_verschieben,
-        name="artikel-medien-verschieben",
+        article_media_move,
+        name="article-media-move",
     ),
     path(
         "articles/<str:ulid>/media/remove",
-        article_medien_entfernen,
-        name="artikel-medien-entfernen",
+        article_media_remove,
+        name="article-media-remove",
     ),
     path(
         "articles/<str:ulid>/media/upload",
-        article_medien_hochladen,
-        name="artikel-medien-hochladen",
+        article_media_upload,
+        name="article-media-upload",
     ),
     path("upload-gate/<str:ulid>", upload_gate, name="upload-gate"),
-    path("articles/<str:ulid>/document-types", article_dokumenttypen, name="artikel-dokumenttypen"),
+    path(
+        "articles/<str:ulid>/document-types", article_document_types, name="article-document-types"
+    ),
     path("tags/suggestions", tag_suggestions, name="tag-suggestions"),
-    path("articles/<str:ulid>", article_detail, name="artikel-detail"),
+    path("articles/<str:ulid>", article_detail, name="article-detail"),
     path("media/<str:ulid>/<str:content_hash>", serve_media, name="media"),
     path("media/<str:ulid>/<str:content_hash>/thumb", serve_thumbnail, name="media-thumb"),
     path(

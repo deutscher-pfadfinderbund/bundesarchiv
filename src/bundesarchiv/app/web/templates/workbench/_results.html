@@ -14,7 +14,7 @@ two out-of-band fragments BEFORE #results: the sentence's slots (the field keeps
 new count into its surviving aria-live node (the pager shows it; the node announces it).
 {% endcomment %}
 {% if oob %}{% include "workbench/_filterset.html" with slots=slots set_filters=set_filters filter_checks=filter_checks clear_all_query=clear_all_query oob=True only %}
-{% include "workbench/_trefferzahl.html" with total=total oob=True only %}{% endif %}
+{% include "workbench/_hit_count.html" with total=total oob=True only %}{% endif %}
 {% comment %}Type-to-search (spec §5) sits on the region it swaps, so it exists exactly where its
 target does. It listens on the sentence's q input, sends the whole search form (q plus the
 active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter navigates.{% endcomment %}
@@ -24,17 +24,17 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% include "components/index_lag.html" %}
   {% if page.hits %}
-  <form id="spalten-form" method="post" action="{% url 'spalten' %}" hidden>
+  <form id="spalten-form" method="post" action="{% url 'columns' %}" hidden>
     {% csrf_token %}<input type="hidden" name="zurueck" value="{{ spalten_zurueck }}">
   </form>
   {% if is_archivist %}
-  <form method="post" action="{% url 'artikel-sammelbearbeitung' %}">
+  <form method="post" action="{% url 'article-bulk-edit' %}">
     {% csrf_token %}
-    {% include "workbench/_werkzeuge.html" with choices=ledger.choices bulk=True %}
+    {% include "workbench/_tools.html" with choices=ledger.choices bulk=True %}
     {% include "components/ledger.html" with ledger=ledger bulk=waehlen only %}
   </form>
   {% else %}
-  {% include "workbench/_werkzeuge.html" with choices=ledger.choices bulk=False %}
+  {% include "workbench/_tools.html" with choices=ledger.choices bulk=False %}
   {% include "components/ledger.html" with ledger=ledger bulk=False only %}
   {% endif %}
   {% else %}
@@ -46,7 +46,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
     <p>Noch keine Artikel in diesem Bestand.</p>
     {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
     {% comment %}no rows, so no tool row: the rename stays reachable here{% endcomment %}
-    {% if aktiver_bestand %}<p><button class="menu-button" type="button" popovertarget="bestand-bearbeiten">Bestand bearbeiten …</button></p>{% endif %}
+    {% if aktiver_bestand %}<p><button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button></p>{% endif %}
   </div>
   {% else %}
   {% if any_filter_set %}

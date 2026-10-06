@@ -31,7 +31,7 @@ counts; a set filter no slot shows is a link that removes it.
       <ul>
         {% for check in filter_checks %}{% include "workbench/_facet_item.html" with item=check only %}{% endfor %}
       </ul>
-      {% include "components/toolpanel_abbrechen.html" with panel="slot-more" only %}
+      {% include "components/toolpanel_cancel.html" with panel="slot-more" only %}
     </div>
   </div>
   <div class="search-sentence-add">
@@ -40,7 +40,7 @@ counts; a set filter no slot shows is a link that removes it.
       <ul>
         {% for check in filter_checks %}{% include "workbench/_facet_item.html" with item=check only %}{% endfor %}
       </ul>
-      {% include "components/toolpanel_abbrechen.html" with panel="plus-filter" only %}
+      {% include "components/toolpanel_cancel.html" with panel="plus-filter" only %}
     </div>
   </div>
   {% if clear_all_query is not None %}<a class="search-sentence-clear" href="?{{ clear_all_query }}">alle entfernen</a>{% endif %}

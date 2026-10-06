@@ -368,17 +368,17 @@ def _rename_bestand(client: Client, corpus: Corpus) -> Any:
 
 
 WRITES: dict[str, Callable[[Client, Corpus], Any]] = {
-    "artikel-neu": _create,
-    "artikel-bearbeiten": _edit,
-    "artikel-kopieren": _copy,
-    "artikel-veroeffentlichen": _publish,
-    "artikel-loeschen": _delete,
+    "article-create": _create,
+    "article-edit": _edit,
+    "article-copy": _copy,
+    "article-publish": _publish,
+    "article-delete": _delete,
     "article-delete-permanently": _delete_permanently,
     "article-restore": _restore,
-    "artikel-medien-hochladen": _upload,
-    "artikel-medien-verschieben": _reorder,
-    "artikel-medien-entfernen": _remove,
-    "artikel-sammelbearbeitung": _bulk,
-    "bestand-neu": _create_bestand,
-    "bestand-bearbeiten": _rename_bestand,
+    "article-media-upload": _upload,
+    "article-media-move": _reorder,
+    "article-media-remove": _remove,
+    "article-bulk-edit": _bulk,
+    "collection-create": _create_bestand,
+    "collection-edit": _rename_bestand,
 }
