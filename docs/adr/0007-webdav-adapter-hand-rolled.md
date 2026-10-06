@@ -42,5 +42,7 @@ that breaks no convention — but it ships **no `py.typed`** (forcing an
   protocol that slots into the existing PUT+MOVE shape and the `put_large(stream, size)`
   signature (the `size` hint exists for exactly this) in ~30–50 lines, zero new deps —
   build it inside the adapter when large-media volume justifies it.
+  **Update 2026-10-06:** `put_large` is gone (GH #33); the streamed write is now
+  `create_large(key, stream, size)`, which keeps the `size` hint for this.
 - **Reconsider `webdav4`** only the day it ships both a `py.typed` marker and Nextcloud
   chunked upload; until then the hand-rolled adapter is the better trade.

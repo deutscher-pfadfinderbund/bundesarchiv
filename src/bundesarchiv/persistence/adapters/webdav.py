@@ -28,7 +28,7 @@ from bundesarchiv.persistence.objectstore import (
     validate_prefix,
 )
 
-_CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
+_CHUNK = 1024 * 1024  # 1 MiB streaming chunk for create_large
 _RETRY_DELAYS = (0.25, 0.5, 1.0, 2.0)  # seconds before each retry; 5 attempts in all
 _PUT_FIRST_MAX = 1024 * 1024  # a larger body gets its parents made first, so it is sent once
 _MISSING_PARENT = (httpx2.codes.NOT_FOUND, httpx2.codes.CONFLICT)
@@ -89,9 +89,6 @@ class WebDavObjectStore(ObjectStore):
 
     def write_atomic(self, key: str, data: bytes) -> str:
         return self._put(key, data, len(data), create=False)
-
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        return self._put(key, stream, size, create=False)
 
     def create(self, key: str, data: bytes) -> str:
         return self._put(key, data, len(data), create=True)
@@ -290,7 +287,7 @@ def _replayable(
     source: bytes | BinaryIO,
 ) -> tuple[Callable[[], bytes | Iterator[bytes]], tuple[float, ...]]:
     """A body factory for each attempt, and the retry delays it allows, as
-    `ObjectStore.put_large` promises."""
+    `ObjectStore.create_large` promises."""
     if isinstance(source, bytes):
         return (lambda: source), _RETRY_DELAYS
     if not source.seekable():

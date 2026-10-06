@@ -81,23 +81,20 @@ class ObjectStore(Protocol):
         ...
 
     def create_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        """`create`, streamed like `put_large`."""
+        """`create`, streamed, with the same all-or-nothing finalize as `write_atomic`: a
+        failed or aborted stream leaves no key. `size` is the expected byte length (a hint
+        for backends that need it, e.g. multipart upload). An adapter that retries rewinds
+        `stream` to where it stood at the call before each attempt; a non-seekable stream
+        gets one attempt."""
         ...
 
     def open_stream(self, key: str) -> BinaryIO:
         """Return a readable binary stream over the object at `key`, which the caller
         closes. Raise `NotFound` if absent.
 
-        The read counterpart of `put_large`: the stream hands the bytes out as they are read
+        The read counterpart of `create_large`: the stream hands the bytes out as they are read
         and never holds the whole object in memory, so a caller that passes them on (an HTTP
         response, a copy to another store) stays small for any object size."""
-        ...
-
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        """Stream a large object into `key`, with the same all-or-nothing finalize
-        as `write_atomic`. `size` is the expected byte length (a hint for backends
-        that need it, e.g. multipart upload). An adapter that retries rewinds `stream` to where
-        it stood at the call before each attempt; a non-seekable stream gets one attempt."""
         ...
 
     def list(self, prefix: str = "") -> Iterable[str]:

@@ -35,20 +35,31 @@ class _KillAfterFirstChunk:
         return b"partial bytes that must never reach the final key"
 
 
+def _kill_self(*_: object) -> None:
+    os.kill(os.getpid(), signal.SIGKILL)
+
+
 @pytest.mark.skipif(not hasattr(os, "fork"), reason="requires POSIX fork")
 @pytest.mark.parametrize("prior", [b"old", None], ids=["replace", "create"])
-def test_sigkill_mid_write_keeps_prior_value(tmp_path: Path, prior: bytes | None) -> None:
+def test_sigkill_mid_write_keeps_prior_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, prior: bytes | None
+) -> None:
     # A create-only key is never written again, so a partial one would stay for good.
     store = LocalFsObjectStore(tmp_path)
     if prior is not None:
         store.write_atomic("k", prior)
 
     pid = os.fork()
-    if pid == 0:  # child: write through the real adapter, get SIGKILLed before rename
+    if pid == 0:  # child: write through the real adapter, get SIGKILLed before the bytes land
         try:
             child = LocalFsObjectStore(tmp_path)
-            write = child.put_large if prior is not None else child.create_large
-            write("k", cast(BinaryIO, _KillAfterFirstChunk()), 0)
+            if prior is None:
+                child.create_large("k", cast(BinaryIO, _KillAfterFirstChunk()), 0)
+            else:
+                # write_atomic takes bytes, so die at the rename instead: the last instant
+                # before the new bytes are placed, after anything a commit does first.
+                monkeypatch.setattr(os, "replace", _kill_self)
+                child.write_atomic("k", b"new bytes that must never replace the prior")
         finally:
             os._exit(1)  # unreachable if the SIGKILL fired, as it must
     _, status = os.waitpid(pid, 0)

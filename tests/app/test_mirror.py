@@ -53,10 +53,6 @@ class _Remote:
         self._sending(key)
         return self.store.write_atomic(key, data)
 
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        self._sending(key)
-        return self.store.put_large(key, stream, size)
-
     def create(self, key: str, data: bytes) -> str:
         self._sending(key)
         return self.store.create(key, data)

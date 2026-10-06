@@ -33,7 +33,7 @@ from bundesarchiv.persistence.objectstore import (
     validate_prefix,
 )
 
-_CHUNK = 1024 * 1024  # 1 MiB streaming chunk for put_large
+_CHUNK = 1024 * 1024  # 1 MiB streaming chunk for create_large
 
 
 class LocalFsObjectStore(ObjectStore):
@@ -78,11 +78,6 @@ class LocalFsObjectStore(ObjectStore):
 
     def write_atomic(self, key: str, data: bytes) -> str:
         return self._commit(key, _bytes(data), replace=True)
-
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        # `size` is a hint for multipart backends (S3/WebDAV); a streamed local write
-        # has no use for it, but the ObjectStore port requires the parameter.
-        return self._commit(key, _chunks(stream), replace=True)
 
     def create(self, key: str, data: bytes) -> str:
         return self._commit(key, _bytes(data), replace=False)

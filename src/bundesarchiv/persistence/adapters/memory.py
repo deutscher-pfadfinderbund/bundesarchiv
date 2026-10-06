@@ -41,9 +41,6 @@ class InMemoryObjectStore(ObjectStore):
         validate_key(key)
         return self._store(key, data)
 
-    def put_large(self, key: str, stream: BinaryIO, size: int) -> str:
-        return self.write_atomic(key, stream.read())
-
     def create(self, key: str, data: bytes) -> str:
         validate_key(key)
         with self._create_lock:

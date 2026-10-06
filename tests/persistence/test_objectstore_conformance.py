@@ -5,11 +5,13 @@ WebDAV (against a real in-process server, and opt-in against a live one) — so 
 suite is the shared contract.
 
 Scope note: ADR 0005's atomicity claims — a crash mid-write leaves
-prior-object-or-nothing at the final key, and `put_large`'s finalize is
+prior-object-or-nothing at the final key, and `create_large`'s finalize is
 all-or-nothing — hold trivially for the in-memory fake (a single dict assignment),
-so they are not stressed here. They are exercised for real by the SIGKILL crash test
-in test_localfs.py, which kills a process mid-write (driving the atomic commit path
-every local-FS write shares) and inspects what survived on disk.
+so the crash half is not stressed here. The SIGKILL crash tests in test_localfs.py
+exercise it for real: a process killed mid-stream in `create_large` leaves no key, and
+one killed at the rename of a `write_atomic` replace leaves the prior value. What a
+concurrent reader may see (old or new bytes, or NotFound before a create lands, never
+a prefix) is raced here against both `write_atomic` and `create_large`.
 """
 
 import io
@@ -192,7 +194,6 @@ def test_list_by_prefix(store: ObjectStore) -> None:
 def test_every_write_returns_the_version_the_listing_reports(store: ObjectStore) -> None:
     written = [
         ObjectEntry("art/1/a", 3, store.write_atomic("art/1/a", b"one")),
-        ObjectEntry("art/1/b", 4, store.put_large("art/1/b", io.BytesIO(b"four"), 4)),
         ObjectEntry("art/10/c", 5, store.create("art/10/c", b"fives")),
         ObjectEntry("art/1/d", 6, store.create_large("art/1/d", io.BytesIO(b"sixsix"), 6)),
     ]
@@ -205,7 +206,7 @@ def test_the_version_changes_whenever_the_bytes_change(store: ObjectStore) -> No
     versions = [
         store.write_atomic("k", b"one"),
         store.write_atomic("k", b"two"),
-        store.put_large("k", io.BytesIO(b"one"), 3),
+        store.write_atomic("k", b"one"),
         store.write_atomic("k", b"six"),
     ]
     assert [before != after for before, after in pairwise(versions)] == [True] * 3, versions
@@ -234,15 +235,15 @@ def test_list_is_lexicographically_ordered(store: ObjectStore) -> None:
     assert list(store.list("art/")) == ["art/1", "art/2", "art/3"]
 
 
-def test_put_large_round_trip(store: ObjectStore) -> None:
+def test_create_large_round_trip(store: ObjectStore) -> None:
     data = b"x" * 10_000
-    store.put_large("media/big.bin", io.BytesIO(data), len(data))
+    store.create_large("media/big.bin", io.BytesIO(data), len(data))
     assert store.read("media/big.bin") == data
 
 
 def test_open_stream_round_trip(store: ObjectStore) -> None:
     data = b"x" * 10_000
-    store.put_large("media/big.bin", io.BytesIO(data), len(data))
+    store.create_large("media/big.bin", io.BytesIO(data), len(data))
     with store.open_stream("media/big.bin") as stream:
         assert stream.read() == data
 
@@ -255,7 +256,7 @@ def test_a_reader_never_sees_a_partial_write(store: ObjectStore) -> None:
 
     def replace_repeatedly() -> None:
         for n in range(1, 9):
-            store.put_large("media/big.bin", io.BytesIO(versions[n % 2]), size)
+            store.write_atomic("media/big.bin", versions[n % 2])
 
     writer = threading.Thread(target=replace_repeatedly)
     writer.start()
@@ -267,7 +268,7 @@ def test_a_reader_never_sees_a_partial_write(store: ObjectStore) -> None:
 
 def test_a_streamed_read_does_not_hold_the_object_in_memory(store: ObjectStore) -> None:
     size = 16 * 1024 * 1024
-    store.put_large("media/big.bin", io.BytesIO(bytes(size)), size)
+    store.create_large("media/big.bin", io.BytesIO(bytes(size)), size)
     tracemalloc.start()
     try:
         with store.open_stream("media/big.bin") as stream:
@@ -319,8 +320,6 @@ def test_invalid_keys_are_rejected(store: ObjectStore, bad: str) -> None:
         store.read(bad)
     with pytest.raises(ArchiveError, match="invalid key"):
         store.write_atomic(bad, b"x")
-    with pytest.raises(ArchiveError, match="invalid key"):
-        store.put_large(bad, io.BytesIO(b"x"), 1)
     with pytest.raises(ArchiveError, match="invalid key"):
         store.create(bad, b"x")
     with pytest.raises(ArchiveError, match="invalid key"):

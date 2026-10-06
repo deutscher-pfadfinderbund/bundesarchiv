@@ -24,7 +24,7 @@ def test_transport_failure_surfaces_as_archive_error() -> None:
     operations = (
         lambda: store.read("k"),
         lambda: store.write_atomic("k", b"x"),
-        lambda: store.put_large("k", io.BytesIO(b"data"), 4),
+        lambda: store.create_large("k", io.BytesIO(b"data"), 4),
         lambda: store.create("k", b"x"),
         lambda: store.exists("k"),
         lambda: store.delete("k"),
@@ -115,7 +115,7 @@ def test_a_retried_streamed_write_resends_the_stream_from_where_it_stood() -> No
     data = b"x" * (3 * 1024 * 1024 + 7)
     stream = io.BytesIO(b"hdr" + data)
     stream.seek(3)
-    store.put_large("articles/01J0/media/scan.pdf", stream, len(data))
+    store.create_large("articles/01J0/media/scan.pdf", stream, len(data))
     assert bodies == [data, data]
 
 
@@ -128,7 +128,7 @@ class _Unseekable(io.BytesIO):
 def test_a_stream_that_cannot_rewind_gets_one_attempt() -> None:
     store, bodies = _scripted_store([423])
     with pytest.raises(Busy):
-        store.put_large("articles/01J0/media/scan.pdf", _Unseekable(b"data"), 4)
+        store.create_large("articles/01J0/media/scan.pdf", _Unseekable(b"data"), 4)
     assert bodies == [b"data"]
 
 
