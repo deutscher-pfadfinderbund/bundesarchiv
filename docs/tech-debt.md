@@ -400,6 +400,11 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 - **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
 - **Sketch:** collect misranked queries, then weights, a synonym or unaccent dictionary, or a trigram fallback
 
+### 54. A save conflict re-shows the loser's per-file fields over the winner's media — Strong
+- **Indicator:** 2 per-file fields (caption, alt) restored from a conflict without a base comparison (2026-10-07)
+- **Evidence:** `EditSurface.of(...).submitted(...)` -> `apply_media_fields`: the re-shown form overlays the losing editor's caption and alt onto the winner's media, so a second save can silently undo the winner's per-file edits
+- **Sketch:** carry the base version into the conflict re-render and overlay only the fields the loser changed against it
+
 ## Process law
 
 - **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (collection_chooser.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
