@@ -34,7 +34,7 @@
 Each checkout has its own test database (`test_bundesarchiv_<dir>`), so Postgres-backed
 runs in two worktrees may overlap; within one checkout, run them one at a time.
 
-Browser-suite runtimes (mise buffers pytest's progress line — a silent minute is normal, not a hang): gallery ~70s, e2e ~115s, plus a one-time chromium install.
+Browser-suite runtimes (mise buffers pytest's progress line — a silent minute is normal, not a hang): both run under `-n 4` (pytest-xdist: one test database, corpus and live server per worker): gallery ~27s, e2e ~37s (serial: ~96s, ~113s), plus a one-time chromium install. Worker DBs are `test_bundesarchiv_<dir>_gwN`; pass `-n 0` after `--` to run serially.
 
 Extra pytest flags go after `--`: `mise run test:nodb -- -k foo -x --lf`.
 

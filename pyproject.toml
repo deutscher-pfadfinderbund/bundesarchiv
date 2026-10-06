@@ -35,6 +35,7 @@ dev = [
     "types-pyyaml>=6.0.12.20260518",
     "pytest-playwright>=0.5",
     "pyrefly>=1.3.2",
+    "pytest-xdist>=3.8.0",
 ]
 
 # Editor LSP only; mypy is the gate.

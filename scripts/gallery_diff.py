@@ -31,6 +31,8 @@ def render(cwd: Path, out: Path) -> None:
     env = {**os.environ, "BUNDESARCHIV_GALLERY_DIR": str(out)}
     print(f"rendering {cwd} -> {out}", flush=True)
     cmd = ["uv", "run", "pytest", "-m", "gallery", "-s", "-q"]
+    if "pytest-xdist" in (cwd / "uv.lock").read_text():  # a ref from before xdist renders serially
+        cmd += ["-n", "4"]
     subprocess.run(cmd, cwd=cwd, env=env, check=True)  # noqa: S603 — fixed command
 
 

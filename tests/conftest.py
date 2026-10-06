@@ -110,15 +110,22 @@ def _checkout_suffix(checkout: Path) -> str:
 
 
 @pytest.fixture(scope="session")
-def django_db_modify_db_settings(django_db_modify_db_settings: None) -> None:
-    """One test database per checkout, so Postgres-backed runs in two worktrees never collide."""
+def django_db_modify_db_settings(
+    django_db_modify_db_settings: None, request: pytest.FixtureRequest
+) -> None:
+    """One test database per checkout and xdist worker, so Postgres-backed runs in two worktrees,
+    or in two workers of one, never collide. Overrides pytest-django's own ``_gwN`` suffix, which
+    this name replaces, so the worker id is appended here."""
     from django.db import connection
 
     suffix = _checkout_suffix(Path(__file__).resolve().parents[1])
-    if suffix:
+    worker = getattr(request.config, "workerinput", {}).get("workerid")
+    if suffix or worker:
         db = connection.settings_dict
-        # 63 bytes: Postgres truncates longer identifiers.
-        db["TEST"]["NAME"] = f"test_{db['NAME']}_{suffix}"[:63]
+        name = f"test_{db['NAME']}" + (f"_{suffix}" if suffix else "")
+        tail = f"_{worker}" if worker else ""
+        # 63 bytes: Postgres truncates longer identifiers; the worker id must survive.
+        db["TEST"]["NAME"] = name[: 63 - len(tail)] + tail
 
 
 @pytest.fixture(scope="session")

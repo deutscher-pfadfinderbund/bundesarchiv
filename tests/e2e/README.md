@@ -37,6 +37,12 @@ same value the dev switcher POST writes), so a journey lands authenticated
 without a login hop. `public_page` carries no cookie; `no_js_archivist_page` is
 the archivist with JavaScript disabled (the no-JS baseline).
 
+Both suites run in parallel (`-n 4`, pytest-xdist): each worker has its own test database
+(`test_bundesarchiv_<checkout>_gwN`), temp corpus and thumbnail roots, and a live server on a
+random port. Measured on a 12-core Mac (wall time; serial / 2 / 4 / 6 workers): e2e 113 / 58 / 38 /
+37s, gallery 96 / 48 / 27 / 20s. Four is the default: e2e stops gaining past it. The gallery PNGs
+are byte-identical across serial and parallel renders. Run serially with `-- -n 0`.
+
 ## Render the state gallery
 
 ```
@@ -73,7 +79,7 @@ Renders the ref (in a throwaway worktree under `var/`, removed afterwards) and t
 tree, then prints each PNG that is `changed`, `new` or `missing` and exits 1 if any is. It is the
 proof for a refactor you claim is pixel-neutral. The ref's render is cached per commit and
 Playwright version under `var/gallery-diff/ref-cache/` (the 3 most recently used stay), so only
-the first diff against a commit pays for two full renders (~5 min); later ones render the tree
+the first diff against a commit pays for two full renders (~1 min); later ones render the tree
 alone.
 
 ## Add a journey

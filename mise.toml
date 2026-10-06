@@ -113,12 +113,12 @@ run = "uv run playwright install chromium"
 [tasks."test:e2e"]
 description = "Real-browser journeys (excluded from default run)"
 depends = ["pg:wait", "e2e:browsers"]
-run = "uv run pytest -m e2e"
+run = "uv run pytest -m e2e -n 4"
 
 [tasks."test:gallery"]
 description = "State gallery, renders screenshots (excluded from default run)"
 depends = ["pg:wait", "e2e:browsers"]
-run = "uv run pytest -m gallery -s"
+run = "uv run pytest -m gallery -s -n 4"
 
 [tasks."test:gallery-diff"]
 description = "Pixel-diff the gallery: a git ref (default main) vs the working tree. -- REF"
