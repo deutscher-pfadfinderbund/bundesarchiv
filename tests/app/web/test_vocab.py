@@ -18,8 +18,8 @@ from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.index.query import FileKind
 
 #: The Medienart ``narrowed_vocabulary`` narrows, and the single Dokumenttyp it leaves it.
-_NARROWED_MEDIENART = "Foto(s)"
-_NARROWED_DOKUMENTTYP = "Lagerheft"
+_NARROWED_MEDIA_TYPE = "Foto(s)"
+_NARROWED_DOCUMENT_TYPE = "Lagerheft"
 
 
 @pytest.fixture
@@ -31,15 +31,15 @@ def narrowed_vocabulary(monkeypatch: pytest.MonkeyPatch) -> str:
     rule exists for, keeping it proven against the day the archivists narrow for real.
     """
     monkeypatch.setitem(
-        vocab.MEDIA_TYPE_DOCUMENT_TYPES, _NARROWED_MEDIENART, (_NARROWED_DOKUMENTTYP,)
+        vocab.MEDIA_TYPE_DOCUMENT_TYPES, _NARROWED_MEDIA_TYPE, (_NARROWED_DOCUMENT_TYPE,)
     )
-    return _NARROWED_MEDIENART
+    return _NARROWED_MEDIA_TYPE
 
 
 # --- the Medienart -> Dokumenttyp mapping ------------------------------------------
 
 #: The legacy archive's 17 Medienarten, verbatim and in legacy order.
-_LEGACY_MEDIENARTEN = (
+_LEGACY_MEDIA_TYPES = (
     "Audiodatei",
     "Buch",
     "CD / DVD",
@@ -60,7 +60,7 @@ _LEGACY_MEDIENARTEN = (
 )
 
 #: The legacy archive's 16 Dokumenttypen, verbatim and in legacy (lookup-table) order.
-_LEGACY_DOKUMENTTYPEN = (
+_LEGACY_DOCUMENT_TYPES = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
     "Fahrtenbericht",
@@ -80,19 +80,19 @@ _LEGACY_DOKUMENTTYPEN = (
 )
 
 
-def test_medienarten_are_the_legacy_vocabulary_verbatim() -> None:
-    assert vocab.media_types() == _LEGACY_MEDIENARTEN
+def test_media_types_are_the_legacy_vocabulary_verbatim() -> None:
+    assert vocab.media_types() == _LEGACY_MEDIA_TYPES
 
 
-def test_dokumenttypen_are_the_legacy_vocabulary_verbatim() -> None:
-    assert vocab.DOCUMENT_TYPES == _LEGACY_DOKUMENTTYPEN
+def test_document_types_are_the_legacy_vocabulary_verbatim() -> None:
+    assert vocab.DOCUMENT_TYPES == _LEGACY_DOCUMENT_TYPES
 
 
-def test_every_medienart_offers_the_whole_document_type_list() -> None:
+def test_every_media_type_offers_the_whole_document_type_list() -> None:
     # Narrowing is the archivists' call, not ours (deliverable 1): until they make it, no Medienart
     # hides a Dokumenttyp, so no legacy record can arrive at a pair the form would refuse.
     for media_type in vocab.media_types():
-        assert vocab.document_types_for(media_type) == _LEGACY_DOKUMENTTYPEN
+        assert vocab.document_types_for(media_type) == _LEGACY_DOCUMENT_TYPES
 
 
 def test_document_types_for_unknown_media_type_is_empty() -> None:
@@ -106,7 +106,7 @@ def test_is_valid_pair_accepts_a_type_belonging_to_its_media_type() -> None:
             assert vocab.is_valid_pair(media_type, document_type)
 
 
-def test_is_valid_pair_rejects_a_type_the_medienart_does_not_offer(
+def test_is_valid_pair_rejects_a_type_the_media_type_does_not_offer(
     narrowed_vocabulary: str,
 ) -> None:
     # The pair rule is a real gate, not a vacuous True: against a narrowed Medienart a foreign
@@ -127,16 +127,16 @@ def test_is_valid_pair_rejects_a_document_type_without_a_media_type() -> None:
     assert not vocab.is_valid_pair(None, "Zeitschrift")
 
 
-def test_grouped_options_are_one_group_while_every_medienart_shares_one_list() -> None:
+def test_grouped_options_are_one_group_while_every_media_type_shares_one_list() -> None:
     # 17 identical optgroups would be noise in the no-JS baseline; one group carries the same choices.
     groups = vocab.grouped_document_type_options()
     assert len(groups) == 1
     label, options = groups[0]
     assert label == vocab.ALL_MEDIA_TYPES
-    assert options == tuple((t, t) for t in _LEGACY_DOKUMENTTYPEN)
+    assert options == tuple((t, t) for t in _LEGACY_DOCUMENT_TYPES)
 
 
-def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabulary: str) -> None:
+def test_grouped_options_are_per_media_type_once_one_is_narrowed(narrowed_vocabulary: str) -> None:
     groups = vocab.grouped_document_type_options()
     assert len(groups) == len(vocab.media_types())
     assert dict(groups)[narrowed_vocabulary] == tuple(
@@ -166,13 +166,13 @@ def test_grouped_options_are_per_medienart_once_one_is_narrowed(narrowed_vocabul
         ("1965/..", (("1965", "1965"), ("…", ""))),  # an open end has none
     ],
 )
-def test_datierung_parts_speak_german_and_carry_a_datetime_only_where_html_has_one(
+def test_date_parts_speak_german_and_carry_a_datetime_only_where_html_has_one(
     edtf: str, expected: tuple[tuple[str, str], ...]
 ) -> None:
     assert tuple((p.text, p.datetime) for p in vocab.date_parts(EdtfDate(edtf))) == expected
 
 
-def test_datierung_parts_of_no_date_are_empty() -> None:
+def test_date_parts_of_no_date_are_empty() -> None:
     assert vocab.date_parts(None) == ()
 
 

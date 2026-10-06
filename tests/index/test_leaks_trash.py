@@ -113,7 +113,7 @@ def _facet(page: SearchPage, key: str, value: str) -> int:
     return next((fc.count for fc in page.facets[key] if fc.value == value), 0)
 
 
-_PAPIERKORB = SearchFilters(deleted=True)
+_TRASH = SearchFilters(deleted=True)
 
 
 # --- the normal search leaves a marked Article out for everyone ------------------------------
@@ -142,7 +142,7 @@ def test_the_facet_counts_leave_marked_articles_out_for_every_viewer(corpus: Non
 
 
 @pytest.mark.django_db
-def test_no_text_or_filter_reaches_a_marked_article_outside_the_papierkorb(corpus: None) -> None:
+def test_no_text_or_filter_reaches_a_marked_article_outside_the_trash(corpus: None) -> None:
     for label, viewer in _EVERY_VIEWER:
         for text in ("Papierkorbfund", "Kehrichtnotiz"):
             assert _ulids(search(viewer, text=text)) == set(), f"[{label}] text {text!r}"
@@ -156,18 +156,18 @@ def test_no_text_or_filter_reaches_a_marked_article_outside_the_papierkorb(corpu
 
 
 @pytest.mark.django_db
-def test_the_papierkorb_lists_only_marked_articles_to_the_archivist(corpus: None) -> None:
-    page = search(Archivist(), filters=_PAPIERKORB, page_size=200)
+def test_the_trash_lists_only_marked_articles_to_the_archivist(corpus: None) -> None:
+    page = search(Archivist(), filters=_TRASH, page_size=200)
     assert (_ulids(page), page.total, page.dateless_count) == ({_MARKED, _MARKED_DATELESS}, 2, 1)
     assert _facet(page, "collection", _ROOT) == 2
     assert _facet(page, "tags", "lebend") == 0
-    assert _ulids(search(Archivist(), text="Kehrichtnotiz", filters=_PAPIERKORB)) == {_MARKED}
-    assert _ulids(search(Archivist(), text="Lebendiger", filters=_PAPIERKORB)) == set()
+    assert _ulids(search(Archivist(), text="Kehrichtnotiz", filters=_TRASH)) == {_MARKED}
+    assert _ulids(search(Archivist(), text="Lebendiger", filters=_TRASH)) == set()
 
 
 @pytest.mark.django_db
-def test_a_papierkorb_hit_names_who_deleted_it_and_when(corpus: None) -> None:
-    marked = next(h for h in search(Archivist(), filters=_PAPIERKORB).hits if h.ulid == _MARKED)
+def test_a_trash_hit_names_who_deleted_it_and_when(corpus: None) -> None:
+    marked = next(h for h in search(Archivist(), filters=_TRASH).hits if h.ulid == _MARKED)
     assert marked.deleted_by == "bernd"
     assert marked.deleted_at is not None
     (live,) = search(Archivist()).hits
@@ -175,9 +175,9 @@ def test_a_papierkorb_hit_names_who_deleted_it_and_when(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_the_papierkorb_answers_a_non_archivist_with_an_empty_page(corpus: None) -> None:
+def test_the_trash_answers_a_non_archivist_with_an_empty_page(corpus: None) -> None:
     for label, viewer in _NON_ARCHIVISTS:
         for text in (None, "Papierkorbfund"):
-            page = search(viewer, text=text, filters=_PAPIERKORB, page_size=200)
+            page = search(viewer, text=text, filters=_TRASH, page_size=200)
             assert (page.hits, page.total, page.dateless_count) == ((), 0, 0), f"[{label}]"
             assert not any(page.facets.values()), f"[{label}] a facet counted a marked row"

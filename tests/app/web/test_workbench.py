@@ -317,7 +317,7 @@ def test_no_template_comment_syntax_leaks_into_page(indexed_corpus: Corpus) -> N
     assert "{#" not in body
 
 
-def test_neuer_artikel_chrome_only_for_archivist(indexed_corpus: Corpus) -> None:
+def test_new_article_chrome_only_for_archivist(indexed_corpus: Corpus) -> None:
     # The ROUTE is archivist-gated regardless; this pins the CHROME — Public/Member must not be
     # shown an admin affordance that 404s when clicked (and must not learn it exists).
     assert "Neuer Artikel" in _get(Archivist()).content.decode()
@@ -326,7 +326,7 @@ def test_neuer_artikel_chrome_only_for_archivist(indexed_corpus: Corpus) -> None
 
 
 @pytest.mark.parametrize("viewer", [Archivist(), Member(groups=())])
-def test_abmelden_is_offered_to_everyone_who_is_signed_in(
+def test_logout_is_offered_to_everyone_who_is_signed_in(
     indexed_corpus: Corpus, viewer: Viewer
 ) -> None:
     # NOT archivist chrome: a Member's cookie lives 30 days (the longest of the two tiers), and this
@@ -335,7 +335,7 @@ def test_abmelden_is_offered_to_everyone_who_is_signed_in(
     assert "Abmelden" in _get(viewer).content.decode()
 
 
-def test_abmelden_is_not_offered_to_an_anonymous_visitor(indexed_corpus: Corpus) -> None:
+def test_logout_is_not_offered_to_an_anonymous_visitor(indexed_corpus: Corpus) -> None:
     # Nothing to sign out of, and offering it would say somebody could be signed in here.
     assert "Abmelden" not in _get(Public()).content.decode()
 
@@ -387,7 +387,7 @@ def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
         assert "Gruppe: vorstand" not in body, f"[{label}] group-name visibility string leaked"
 
 
-def test_entwurf_mark_and_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
+def test_draft_mark_and_edit_only_for_archivist(indexed_corpus: Corpus) -> None:
     arch = _get(Archivist()).content.decode()
     assert draft_mark() in arch
     for viewer, label in _NON_ARCHIVIST:
@@ -411,7 +411,7 @@ def test_the_list_computes_only_the_facets_its_sentence_shows(indexed_corpus: Co
     assert set(page.facets) == {"collection", "decades", "document_type", "file_kind"}
 
 
-def test_the_slots_offer_the_bestand_decade_type_and_dateless_values(
+def test_the_slots_offer_the_collection_decade_type_and_dateless_values(
     indexed_corpus: Corpus,
 ) -> None:
     queries = _sentence_queries(Public())
@@ -493,7 +493,7 @@ def test_the_drafts_filter_is_offered_to_the_archivist_only(indexed_corpus: Corp
     assert all("entwuerfe" not in q for q in _sentence_queries(Member(groups=())))
 
 
-def test_ohne_datum_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
+def test_without_date_filter_narrows_to_dateless(indexed_corpus: Corpus) -> None:
     body = _get(Public(), "dateless=1").content.decode()
     assert "Undatiertes Liederheft" in body
     assert "Öffentliches Foto" not in body  # a dated article is excluded
@@ -536,7 +536,7 @@ def test_the_drafts_filter_answers_the_archivist_and_nobody_else(indexed_corpus:
     assert _listed(response.content.decode()) == set()
 
 
-def test_a_bestand_empty_only_under_another_filter_is_not_an_empty_bestand(
+def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection(
     indexed_corpus: Corpus,
 ) -> None:
     # "Noch keine Artikel in diesem Bestand" and its create link are for a Bestand with no record at
@@ -615,7 +615,7 @@ def test_search_form_hidden_input_values_are_html_escaped(indexed_corpus: Corpus
     assert raw_value not in form_html  # the raw, unescaped value never appears
 
 
-def test_round_trip_q_and_bestand_both_filter_results(indexed_corpus: Corpus) -> None:
+def test_round_trip_q_and_collection_both_filter_results(indexed_corpus: Corpus) -> None:
     # The server side of the loop the form now closes: a GET carrying BOTH q and an active filter
     # narrows by both together (not just markup) — proves the request the completed form emits
     # actually works. "Fahrt" matches only FOTOS-collection articles; AKTEN has none.
@@ -628,7 +628,7 @@ def test_round_trip_q_and_bestand_both_filter_results(indexed_corpus: Corpus) ->
 # --- long Signaturen: the SIG mark sizes to content, never truncates --------------
 
 
-def test_long_signaturen_render_in_full(indexed_corpus: Corpus) -> None:
+def test_long_ref_codes_render_in_full(indexed_corpus: Corpus) -> None:
     # An identity mark must never truncate at realistic lengths (owner correction 3) — realistic
     # being the 8-character, space-free ceiling (owner 2026-08-07), not an invented long code.
     body = _get(Public()).content.decode()
@@ -652,7 +652,7 @@ def test_garbage_params_yield_200_defaults(indexed_corpus: Corpus) -> None:
 # --- pagination -------------------------------------------------------------------
 
 
-def test_pagination_second_page_via_seite(
+def test_pagination_second_page_via_page(
     indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(browse, "PAGE_SIZE", 2)
@@ -672,8 +672,8 @@ def _pager(body: str) -> str:
     return body.split('aria-label="Seiten"', 1)[1].split("</nav>", 1)[0]
 
 
-_ZURUECK = "\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} Zurück"
-_WEITER = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
+_BACK = "\N{SINGLE LEFT-POINTING ANGLE QUOTATION MARK} Zurück"
+_CONTINUE = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
 
 
 def test_the_pager_holds_the_range_between_its_steps(
@@ -685,8 +685,8 @@ def test_the_pager_holds_the_range_between_its_steps(
     total = len(list(indexed_corpus.articles.list_ulids()))  # the archivist sees every record
     pager = _pager(_get(Archivist()).content.decode())
     assert f'1\N{EN DASH}2</data> von <data value="{total}">{total}</data>' in pager
-    assert f'<a role="link" aria-disabled="true">{_ZURUECK}</a>' in pager
-    assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next">{_WEITER}</a>', pager)
+    assert f'<a role="link" aria-disabled="true">{_BACK}</a>' in pager
+    assert re.search(rf'<a href="\?[^"]*page=2[^"]*" rel="next">{_CONTINUE}</a>', pager)
 
 
 def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
@@ -729,7 +729,7 @@ def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
 
 
 @pytest.mark.parametrize("viewer", [Public(), Archivist()], ids=["public", "archivist"])
-def test_titel_navigates_and_no_list_link_opens_the_pane(
+def test_title_navigates_and_no_list_link_opens_the_pane(
     indexed_corpus: Corpus, viewer: Viewer
 ) -> None:
     # The Titel is plain navigation to the detail route (owner 2026-08-07). The preview is paused
@@ -769,7 +769,7 @@ def test_the_pane_opens_and_offers_to_save_each_original(indexed_corpus: Corpus)
     assert media_url(PANE_PUB_ULID, ref.content_hash) in page_hrefs(pane)
 
 
-def test_pane_absent_or_malformed_artikel_renders_no_pane(indexed_corpus: Corpus) -> None:
+def test_pane_absent_or_malformed_article_renders_no_pane(indexed_corpus: Corpus) -> None:
     # An ABSENT artikel (valid ULID not in the corpus) or a MALFORMED one renders the workbench
     # without a pane — a plain 200, no pane markup. (The denied case is pinned below.)
     for query in (f"article={PANE_ABSENT_ULID}", "article=not-a-ulid"):
@@ -799,7 +799,7 @@ def test_pane_floored_fields_absent_even_for_member_who_can_view(indexed_corpus:
     assert "geheimnis" not in body  # ...nor its custom key
 
 
-def test_pane_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
+def test_pane_edit_only_for_archivist(indexed_corpus: Corpus) -> None:
     # The pane's Bearbeiten is archivist chrome; Öffnen is for everyone who can see the article.
     pub = _get(Public(), f"article={PANE_PUB_ULID}").content.decode()
     assert "Öffnen" in pub
@@ -808,14 +808,14 @@ def test_pane_bearbeiten_only_for_archivist(indexed_corpus: Corpus) -> None:
     assert "Bearbeiten" in arch and "Öffnen" in arch
 
 
-def test_no_pane_for_an_article_in_the_papierkorb(indexed_corpus: Corpus) -> None:
+def test_no_pane_for_an_article_in_the_trash(indexed_corpus: Corpus) -> None:
     # ADR 0022: a marked Article is edited nowhere, and the pane offers Bearbeiten.
     stored = indexed_corpus.articles.load(PANE_PUB_ULID)
     indexed_corpus.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
     assert client_as(Archivist()).get(list_url(article=PANE_PUB_ULID)).context["pane"] is None
 
 
-def test_pane_close_link_preserves_query_drops_only_artikel(indexed_corpus: Corpus) -> None:
+def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corpus) -> None:
     # The pane-close ✕ must return to the SAME search (text + facets + sort + page), dropping only
     # the pane selection (artikel). A bare href="?" would blow away the whole query — regression.
     body = _get(
@@ -883,7 +883,7 @@ def _queries(body: str) -> list[dict[str, list[str]]]:
     return [parse_qs(unescape(q), keep_blank_values=True) for q in hrefs]
 
 
-def test_the_archivist_list_has_no_selection_until_auswaehlen(indexed_corpus: Corpus) -> None:
+def test_the_archivist_list_has_no_selection_until_select(indexed_corpus: Corpus) -> None:
     body = _get(Archivist(), "q=fahrt").content.decode()
     assert 'name="selection"' not in body
     # "Auswählen" is the same search in selection mode
@@ -911,7 +911,7 @@ def test_non_archivists_never_get_the_selection(
 
 
 @pytest.mark.parametrize("query", ["selection=", f"selection={PANE_PUB_ULID}"])
-def test_the_ticks_the_feld_chooser_and_the_columns_each_submit_with_their_own_form(
+def test_the_ticks_the_field_chooser_and_the_columns_each_submit_with_their_own_form(
     indexed_corpus: Corpus, query: str
 ) -> None:
     # The no-JS contract: with or without a selection the bulk form carries the row ticks and the
@@ -961,7 +961,7 @@ def test_paging_keeps_selection_mode_with_nothing_ticked(
     assert [q.get("selection") for q in _queries(pager)] == [[""]] * 2
 
 
-def test_abbrechen_leaves_selection_mode_and_keeps_the_search(indexed_corpus: Corpus) -> None:
+def test_cancel_leaves_selection_mode_and_keeps_the_search(indexed_corpus: Corpus) -> None:
     # a bare "?" would wipe the search: "Abbrechen" is the same search without the selection
     body = _get(Archivist(), f"q=fahrt&selection={PANE_PUB_ULID}").content.decode()
     assert {"q": ["fahrt"]} in _queries(body)

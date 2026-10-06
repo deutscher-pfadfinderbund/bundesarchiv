@@ -351,7 +351,7 @@ def test_stale_save_against_deleted_article_is_404(
 # --- no-JS custom-row removal ------------------------------------------------------
 
 
-def test_custom_entfernen_drops_the_row_without_saving(corpus: _EditCorpus) -> None:
+def test_custom_remove_drops_the_row_without_saving(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit",
         {
@@ -375,7 +375,7 @@ def test_the_bag_renders_no_empty_pair_until_one_is_added(corpus: _EditCorpus) -
     assert "+ Angabe hinzufügen" in body
 
 
-def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorpus) -> None:
+def test_add_detail_adds_one_empty_pair_without_saving(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit",
         {
@@ -393,7 +393,7 @@ def test_angabe_hinzufuegen_adds_one_empty_pair_without_saving(corpus: _EditCorp
     assert corpus.articles.load(_ULID).version == corpus.version
 
 
-def test_custom_entfernen_index_survives_an_earlier_row_blanked_in_browser(
+def test_custom_remove_index_survives_an_earlier_row_blanked_in_browser(
     corpus: _EditCorpus,
 ) -> None:
     # A blanked-out earlier row shifts positions once `_post_to_form_values` drops it — but
@@ -819,7 +819,7 @@ def _conflict(body: str) -> _ConflictScanner:
     return scanner
 
 
-def test_a_gruppen_error_renders_its_message(corpus: _EditCorpus) -> None:
+def test_a_groups_error_renders_its_message(corpus: _EditCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit", _valid_post(corpus, audience="groups", groups="")
     )

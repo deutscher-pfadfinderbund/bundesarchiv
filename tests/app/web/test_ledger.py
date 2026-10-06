@@ -14,7 +14,7 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.index.query import FileKind, SearchHit
 
 _ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
-_BESTAND = "01KX6RHVHG90WHP1PZWP0GSKAA"
+_COLLECTION = "01KX6RHVHG90WHP1PZWP0GSKAA"
 
 
 def _hit(**overrides: Any) -> SearchHit:
@@ -26,7 +26,7 @@ def _hit(**overrides: Any) -> SearchHit:
         "media_type": "Schrifttum",
         "document_type": "Lagerheft",
         "is_draft": False,
-        "collection_id": _BESTAND,
+        "collection_id": _COLLECTION,
         "file_counts": ((FileKind.PDF, 1),),
     }
     return SearchHit(**(fields | overrides))
@@ -49,7 +49,7 @@ def _build(
         selection=(),
         is_archivist=is_archivist,
         selected_ulid=None,
-        chooser=CollectionChooser(lambda: (make_collection(_BESTAND, "Gau Wartburg"),)),
+        chooser=CollectionChooser(lambda: (make_collection(_COLLECTION, "Gau Wartburg"),)),
     )
 
 
@@ -63,27 +63,29 @@ def test_the_title_leads_the_default_columns_and_each_cell_says_its_fact() -> No
     assert [c.text for c in built.rows[0].cells] == ["1866-11-20", "Lagerheft", "PDF", "BA 1842"]
 
 
-def test_a_typ_cell_sets_its_type_filter_and_a_set_type_filter_hides_the_column() -> None:
-    (typ,) = [c for c in _build(params={"q": "sommer"}).rows[0].cells if c.key == "type"]
-    assert parse_qs(typ.query) == {"q": ["sommer"], browse.PARAM_DOCUMENT_TYPE: ["Lagerheft"]}
+def test_a_type_cell_sets_its_type_filter_and_a_set_type_filter_hides_the_column() -> None:
+    (type_cell,) = [c for c in _build(params={"q": "sommer"}).rows[0].cells if c.key == "type"]
+    assert parse_qs(type_cell.query) == {"q": ["sommer"], browse.PARAM_DOCUMENT_TYPE: ["Lagerheft"]}
 
     filtered = _build(params={browse.PARAM_DOCUMENT_TYPE: "Lagerheft"})
     assert "type" not in [h.key for h in filtered.heads]
     assert "type" not in [c.key for c in filtered.rows[0].cells]
 
 
-def test_the_bestand_cell_names_the_records_bestand_or_nothing() -> None:
+def test_the_collection_cell_names_the_records_collection_or_nothing() -> None:
     built = _build(_hit(), _hit(collection_id="GONE"), columns=(_column("collection"),))
     assert [row.cells[0].text for row in built.rows] == ["Gau Wartburg", ""]
 
 
-def test_a_bestand_cell_sets_its_bestand_and_a_set_bestand_hides_the_column() -> None:
+def test_a_collection_cell_sets_its_collection_and_a_set_collection_hides_the_column() -> None:
     columns = (_column("collection"),)
     (cell,) = _build(columns=columns).rows[0].cells
     assert cell.text == "Gau Wartburg"
-    assert parse_qs(cell.query) == {browse.PARAM_COLLECTION: [_BESTAND]}  # the ulid, not the name
+    assert parse_qs(cell.query) == {
+        browse.PARAM_COLLECTION: [_COLLECTION]
+    }  # the ulid, not the name
 
-    filtered = _build(params={browse.PARAM_COLLECTION: _BESTAND}, columns=columns)
+    filtered = _build(params={browse.PARAM_COLLECTION: _COLLECTION}, columns=columns)
     assert filtered.rows[0].cells == ()
 
 
@@ -91,7 +93,7 @@ def test_a_bestand_cell_sets_its_bestand_and_a_set_bestand_hides_the_column() ->
     ("is_archivist", "drafts_only", "marked"),
     [(True, False, True), (False, False, False), (True, True, False)],
 )
-def test_the_entwurf_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
+def test_the_draft_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
     is_archivist: bool, drafts_only: bool, marked: bool
 ) -> None:
     built = _build(_hit(is_draft=True), is_archivist=is_archivist, drafts_only=drafts_only)
@@ -99,7 +101,7 @@ def test_the_entwurf_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
 
 
 @pytest.mark.parametrize(
-    ("sortierung", "next_sortierung", "aria_sort"),
+    ("sort_by", "next_sort_by", "aria_sort"),
     [
         (None, "date", ""),
         ("date", "-date", "ascending"),
@@ -107,14 +109,12 @@ def test_the_entwurf_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
     ],
 )
 def test_a_sortable_head_links_to_its_next_sort_state(
-    sortierung: str | None, next_sortierung: str | None, aria_sort: str
+    sort_by: str | None, next_sort_by: str | None, aria_sort: str
 ) -> None:
-    params = {browse.PARAM_SORT: sortierung} if sortierung else {}
+    params = {browse.PARAM_SORT: sort_by} if sort_by else {}
     (head,) = [h for h in _build(params=params).heads if h.key == "date"]
     assert head.query is not None
-    assert parse_qs(head.query).get(browse.PARAM_SORT) == (
-        [next_sortierung] if next_sortierung else None
-    )
+    assert parse_qs(head.query).get(browse.PARAM_SORT) == ([next_sort_by] if next_sort_by else None)
     assert head.sort == aria_sort
 
 

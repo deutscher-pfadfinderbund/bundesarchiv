@@ -63,7 +63,7 @@ def test_search_filter_and_open_pane(
     assert "tag=sommer" in page.url
 
 
-def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
+def test_columns_keeps_its_choice_and_returns_to_the_same_list(
     no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # "Spalten …" (ruling 2026-09-29): without JS, a native popover and a POST that keeps the choice
@@ -91,23 +91,23 @@ def test_an_abandoned_panel_change_never_rides_along(
     # later Fertig / Änderung prüfen submits only what the archivist kept.
     page = archivist_page
     page.goto(live_workbench + f"{LIST}?selection={e2e_corpus.published_ulid}")
-    spalten = page.locator("#columns")
+    columns = page.locator("#columns")
     page.get_by_role("button", name="Spalten …").click()
-    spalten.get_by_role("checkbox", name="Bestand").check()
-    spalten.get_by_role("button", name="Abbrechen").click()
+    columns.get_by_role("checkbox", name="Bestand").check()
+    columns.get_by_role("button", name="Abbrechen").click()
     page.get_by_role("button", name="Spalten …").click()
-    expect(spalten.get_by_role("checkbox", name="Bestand")).not_to_be_checked()
-    spalten.get_by_role("button", name="Fertig").click()
+    expect(columns.get_by_role("checkbox", name="Bestand")).not_to_be_checked()
+    columns.get_by_role("button", name="Fertig").click()
     expect(page.locator(".ledger th.ref-code")).to_be_visible()
     expect(page.locator(".ledger th.collection")).to_have_count(0)
 
-    feld = page.locator('#field-change select[name="field"]')
-    rendered = feld.input_value()
+    field = page.locator('#field-change select[name="field"]')
+    rendered = field.input_value()
     page.click('[popovertarget="field-change"]')
-    feld.select_option("creator")
+    field.select_option("creator")
     page.keyboard.press("Escape")
     page.click('[popovertarget="field-change"]')
-    expect(feld).to_have_value(rendered)
+    expect(field).to_have_value(rendered)
 
 
 #: Counts htmx's errors AND every request htmx starts. The REQUEST counter is what makes the
@@ -182,13 +182,13 @@ def test_the_edit_forms_small_swap_lands_its_own_partial(
     # saw it.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
-    dokumenttyp = page.locator("#document-type-select")
-    expect(dokumenttyp.locator("option")).to_have_count(len(vocab.DOCUMENT_TYPES) + 1)  # + "kein"
-    expect(dokumenttyp).to_contain_text("Zeitschrift")
+    document_type = page.locator("#document-type-select")
+    expect(document_type.locator("option")).to_have_count(len(vocab.DOCUMENT_TYPES) + 1)  # + "kein"
+    expect(document_type).to_contain_text("Zeitschrift")
     # ...and it is the SWAPPED list, not the no-JS baseline: both offer the same 16 words while no
     # Medienart narrows the vocabulary, so the only thing that tells them apart is the baseline's
     # single <optgroup>, which the partial does not emit. Without this the half is vacuous.
-    expect(dokumenttyp.locator("optgroup")).to_have_count(0)
+    expect(document_type.locator("optgroup")).to_have_count(0)
 
 
 def test_ledger_headers_compute_one_uniform_treatment(
@@ -802,7 +802,7 @@ def test_the_way_back_keeps_the_lists_filters(archivist_page: Page, live_workben
     assert "decade=1960" in page.url
 
 
-def test_a_start_page_bestand_opens_the_list_the_crumb_returns_to(
+def test_a_start_page_collection_opens_the_list_the_crumb_returns_to(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # Start → a Bestand → its list → an article → "Archiv": the list as it was left, Bestand set;
@@ -926,7 +926,7 @@ _LONG_TITLE = (
     "Werbeplakat zur Bundesfahrt in die Rhön mit Aufruf zur Teilnahme"
     " am Pfingstlager des Gaues Hochland"
 )
-_LONG_TYP = max(vocab.DOCUMENT_TYPES, key=len)  # derived: the vocabulary IS the ceiling here
+_LONG_TYPE = max(vocab.DOCUMENT_TYPES, key=len)  # derived: the vocabulary IS the ceiling here
 #: Long HERKUNFT values: an institutional author and a full place name.
 _LONG_CREATOR = "Bundesleitung des Bundes Deutscher Pfadfinderinnen, Referat Öffentlichkeitsarbeit"
 _LONG_PLACE = "Burg Rieneck im Sinntal, Unterfranken"
@@ -953,7 +953,7 @@ def _seed_long_content(root: Path, blocker: DjangoDbBlocker) -> None:
             lifecycle=Lifecycle.PUBLISHED,
             ref_code=_CEILING_REF_CODE,
             media_type="Gegenstand",
-            document_type=_LONG_TYP,
+            document_type=_LONG_TYPE,
             date=EdtfDate("1948-01-01/1952-12-31"),
             tags=("pfingstlager",),
             creator=_LONG_CREATOR,
@@ -1009,7 +1009,7 @@ def _sideways_scroll_defects(
 #: line box. If it never wraps, the facts cannot keep their line and the table overflows instead.
 #: The seeded long row is the only Titel over 60 characters, so it is found by length rather than by
 #: a duplicated literal.
-_LONG_TITEL_LINES_JS = """() => {
+_LONG_TITLE_LINES_JS = """() => {
     const link = [...document.querySelectorAll('.ledger td.title > a:first-child')]
         .find((e) => e.textContent.trim().length > 60);
     if (!link) throw new Error('the long-Titel row is not on this page');
@@ -1046,7 +1046,7 @@ def test_ledger_absorbs_long_content_without_hiding_a_value(
         overflow: int = current.evaluate(_LEDGER_OVERFLOW_JS)
         if overflow > 1:
             found.append(f"the ledger overflows its own box by {overflow}px")
-        lines: int = current.evaluate(_LONG_TITEL_LINES_JS)
+        lines: int = current.evaluate(_LONG_TITLE_LINES_JS)
         if lines < 2:
             found.append(f"the long Titel never wrapped ({lines} line box)")
         return found
@@ -1130,7 +1130,7 @@ def test_detail_read_from_search_result(public_page: Page, live_workbench: str) 
     page.wait_for_url(lambda url: url.endswith(LIST))
 
 
-def test_herunterladen_saves_the_original_under_its_own_name(
+def test_download_saves_the_original_under_its_own_name(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     # The original is one click away (owner, 2026-10-01): the media route answers inline (ADR
@@ -1145,7 +1145,7 @@ def test_herunterladen_saves_the_original_under_its_own_name(
 # --- create a Bestand (4.8) --------------------------------------------------------
 
 
-def test_create_bestand_then_file_an_article_under_it(
+def test_create_collection_then_file_an_article_under_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
@@ -1216,9 +1216,7 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     expect(page.get_by_text("Entwurf", exact=True)).to_have_count(0)  # ...and applied the Status
 
 
-def test_a_double_clicked_speichern_sends_one_save(
-    archivist_page: Page, live_workbench: str
-) -> None:
+def test_a_double_clicked_save_sends_one_save(archivist_page: Page, live_workbench: str) -> None:
     # htmx's default hx-sync is "queue first": the second click's POST would follow the first and
     # carry the same expected_version, a CAS conflict against the archivist's own save.
     page = archivist_page
@@ -1241,7 +1239,7 @@ def test_a_double_clicked_speichern_sends_one_save(
     expect(page.locator(".conflict-notice")).to_have_count(0)
 
 
-def test_failed_save_banner_leaves_speichern_clickable(
+def test_failed_save_banner_leaves_save_clickable(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
@@ -1343,7 +1341,7 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
 
 
-def test_a_schlagwort_is_taken_from_the_suggestions_with_the_keyboard(
+def test_a_tag_is_taken_from_the_suggestions_with_the_keyboard(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
@@ -1491,7 +1489,7 @@ def test_cas_conflict_second_saver_sees_panel(
 # --- Duplizieren loop --------------------------------------------------------------
 
 
-def test_kopieren_creates_draft_copy_signatur_focused(
+def test_copy_creates_draft_copy_ref_code_focused(
     archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
     page = archivist_page
@@ -1524,7 +1522,7 @@ def _delete_new_draft(page: Page, base: str, title: str) -> None:
     page.wait_for_url(lambda url: url.endswith(LIST))  # → the list
 
 
-def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
+def test_a_deleted_article_waits_in_the_trash_and_comes_back(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
@@ -1538,7 +1536,7 @@ def test_a_deleted_article_waits_in_the_papierkorb_and_comes_back(
     expect(page.locator("main").get_by_role("link", name=title, exact=True)).to_be_visible()
 
 
-def test_delete_permanently_removes_it_from_the_papierkorb(
+def test_delete_permanently_removes_it_from_the_trash(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
@@ -1743,7 +1741,7 @@ def _seed_second_page(root: Path, blocker: DjangoDbBlocker) -> None:
         indexer.rebuild(store)
 
 
-def _auswahl_in_url(page: Page) -> list[str]:
+def _selection_in_url(page: Page) -> list[str]:
     return parse_qs(urlparse(page.url).query).get("selection", [])
 
 
@@ -1767,13 +1765,13 @@ def test_bulk_fresh_ticks_survive_paging(
     page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     seeded.uncheck()
     # "Abbrechen" is NEVER rewritten — its purpose is leaving selection mode
-    abbrechen_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
-    assert "auswahl" not in (abbrechen_href or "")
+    cancel_href = page.get_by_role("link", name="Abbrechen").get_attribute("href")
+    assert "auswahl" not in (cancel_href or "")
     page.click('a[rel="next"]')
     page.wait_for_url("**page=2**")
     # the URL carries the fresh state: the tick travelled, the untick stuck
-    assert e2e_corpus.second_ulid in _auswahl_in_url(page)
-    assert e2e_corpus.published_ulid not in _auswahl_in_url(page)
+    assert e2e_corpus.second_ulid in _selection_in_url(page)
+    assert e2e_corpus.published_ulid not in _selection_in_url(page)
     # ...and the archivist can SEE it here. Learning G.25: the progressive-visibility JS counted
     # only THIS page's checkboxes, so an off-page selection (nothing ticked on page 2) was hidden
     # at wire time, stranding the selection. Asserted BEFORE any tick on this page.
@@ -1793,8 +1791,8 @@ def test_bulk_fresh_ticks_survive_paging(
     expect(
         page.locator(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     ).not_to_be_checked()
-    assert page2_ulid in _auswahl_in_url(page)  # the other-page selection rode along
-    assert e2e_corpus.second_ulid in _auswahl_in_url(page)
+    assert page2_ulid in _selection_in_url(page)  # the other-page selection rode along
+    assert e2e_corpus.second_ulid in _selection_in_url(page)
     # "Abbrechen" leaves selection mode from either page and drops both pages' ulids
     page.get_by_role("link", name="Abbrechen").click()
     expect(page.locator('input[name="selection"]')).to_have_count(0)
@@ -1845,7 +1843,7 @@ def test_error_fields_compute_the_error_border(archivist_page: Page, live_workbe
     assert not defects, "an error state lost to the resting look (C13/G.29):\n" + "\n".join(defects)
 
 
-def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
+def test_a_groups_error_shows_in_the_margin_with_the_focus(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # Gruppen shows only while Sichtbarkeit says Gruppe(n) (CSS :has). An empty Gruppen at that rung
@@ -1864,7 +1862,7 @@ def test_a_gruppen_error_shows_in_the_margin_with_the_focus(
     expect(page.locator('main textarea[name="groups"]')).to_be_focused()
 
 
-def test_weitere_angaben_adds_and_removes_rows_by_round_trip(
+def test_more_details_adds_and_removes_rows_by_round_trip(
     archivist_page: Page, live_workbench: str
 ) -> None:
     # The bag renders no empty pair; "+ Angabe hinzufügen" and the remove cross are submits the

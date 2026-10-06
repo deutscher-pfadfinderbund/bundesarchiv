@@ -19,9 +19,9 @@ from tests._articles import make_article
 from tests.index import fixtures
 from tests.index.fixtures import (
     ARCHIVIST,
+    BOARD_MEMBER,
     PLAIN_MEMBER,
     PUBLIC,
-    VORSTAND_MEMBER,
 )
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection
@@ -79,8 +79,8 @@ def test_plain_member_sees_public_and_members(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_vorstand_member_also_sees_its_group(corpus: None) -> None:
-    page = search(VORSTAND_MEMBER)
+def test_board_member_also_sees_its_group(corpus: None) -> None:
+    page = search(BOARD_MEMBER)
     assert page.total == 10
     assert {"ART_GRPPROT", "ART_GRPBESCH"} <= _ulids(page)
 
@@ -157,7 +157,7 @@ def test_collection_filter_root_is_whole_tree_but_still_scoped(corpus: None) -> 
         Collection(ulid="ANDERE", name="Anderer Baum", parent_id=None),
         make_article("ART_ANDERE", title="Anderswo", collection_id="ANDERE"),
     )
-    page = search(VORSTAND_MEMBER, filters=SearchFilters(collection="ROOT"), page_size=200)
+    page = search(BOARD_MEMBER, filters=SearchFilters(collection="ROOT"), page_size=200)
     assert _ulids(page) == {
         ulid for ulid, who in fixtures.EXPECTED_VISIBILITY.items() if "vorstand" in who
     }
@@ -346,7 +346,7 @@ def test_facet_excludes_own_dimension(corpus: None) -> None:
 @pytest.mark.django_db
 def test_dateless_count_is_zero_when_every_row_is_dated(corpus: None) -> None:
     """Every corpus article has a date, so the "Ohne Datum" bucket is empty for every viewer."""
-    for viewer in (PUBLIC, PLAIN_MEMBER, VORSTAND_MEMBER, ARCHIVIST):
+    for viewer in (PUBLIC, PLAIN_MEMBER, BOARD_MEMBER, ARCHIVIST):
         assert search(viewer, page_size=200).dateless_count == 0
 
 

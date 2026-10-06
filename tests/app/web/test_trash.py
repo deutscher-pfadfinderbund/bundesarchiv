@@ -1,6 +1,6 @@
 """The Papierkorb page (ADR 0022): what it offers for each marked Article. Needs Postgres (it lists
 through ``search``); its archivist-only gate is the leak matrix's, its scoping
-``test_leaks_papierkorb.py``'s."""
+``test_leaks_trash.py``'s."""
 
 from collections.abc import Callable
 from dataclasses import replace

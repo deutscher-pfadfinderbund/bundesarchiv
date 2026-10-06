@@ -236,7 +236,7 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
     assert isinstance(outcome, Missing)
 
 
-def test_update_article_leaves_an_article_in_the_papierkorb_alone(archive: Archive) -> None:
+def test_update_article_leaves_an_article_in_the_trash_alone(archive: Archive) -> None:
     """ADR 0022: restore it first. Every internal mutation — publish, media, bulk — routes here."""
     stored = archive.articles.load("01FOTO")
     archive.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
@@ -260,7 +260,7 @@ def _archivist_titles(*, deleted: bool) -> set[str]:
 
 
 @pytest.mark.django_db
-def test_delete_and_restore_move_the_article_between_the_list_and_the_papierkorb(
+def test_delete_and_restore_move_the_article_between_the_list_and_the_trash(
     archive: Archive,
 ) -> None:
     stored = archive.articles.load("01FOTO")
@@ -354,7 +354,7 @@ def test_create_collection_rejects_absent_parent(archive: Archive) -> None:
 
 
 @pytest.mark.django_db
-def test_copy_article_copies_metadata_clears_signatur_and_media(
+def test_copy_article_copies_metadata_clears_ref_code_and_media(
     archive: Archive,
 ) -> None:
     from bundesarchiv.index.models import ArticleIndex
@@ -888,7 +888,7 @@ def test_save_collection_gives_up_on_a_held_index_lock_and_enqueues(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_rename_and_a_new_bestand_leave_the_index_as_it_is(
+def test_a_rename_and_a_new_collection_leave_the_index_as_it_is(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The index holds no Bestand name and a new Bestand holds no Articles, so neither waits on the
@@ -940,7 +940,7 @@ def test_gate_a_rename_at_a_version_it_did_not_read_still_reindexes(
 
 
 @pytest.mark.django_db
-def test_gate_moving_a_bestand_under_a_narrower_parent_hides_its_articles(
+def test_gate_moving_a_collection_under_a_narrower_parent_hides_its_articles(
     archive: Archive,
 ) -> None:
     """A parent edit moves the effective audience of an inheriting subtree, like an audience edit."""

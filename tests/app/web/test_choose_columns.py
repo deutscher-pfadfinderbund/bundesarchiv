@@ -40,7 +40,7 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
 
 
 @pytest.mark.parametrize(
-    "zurueck",
+    "back",
     [
         "//evil.example/liste",
         "https://evil.example/",
@@ -50,8 +50,8 @@ def test_the_choice_lands_in_the_cookie_and_the_list_returns_with_its_query() ->
         "",
     ],
 )
-def test_the_way_back_never_leaves_the_site(zurueck: str) -> None:
-    target = urlsplit(_post({"column": ["date"], "back": zurueck})["Location"])
+def test_the_way_back_never_leaves_the_site(back: str) -> None:
+    target = urlsplit(_post({"column": ["date"], "back": back})["Location"])
     assert (target.scheme, target.netloc, target.path) == ("", "", "/articles")
 
 

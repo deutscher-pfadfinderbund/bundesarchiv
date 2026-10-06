@@ -205,7 +205,7 @@ def _p_list(_c: _MatrixCorpus) -> str:
     return "/articles"
 
 
-def _p_spalten(_c: _MatrixCorpus) -> str:
+def _p_columns(_c: _MatrixCorpus) -> str:
     return "/columns"
 
 
@@ -225,23 +225,23 @@ def _p_logout(_c: _MatrixCorpus) -> str:
     return "/logout"
 
 
-def _p_artikel_neu(_c: _MatrixCorpus) -> str:
+def _p_new_article(_c: _MatrixCorpus) -> str:
     return "/articles/new"
 
 
-def _p_bestand_neu(_c: _MatrixCorpus) -> str:
+def _p_new_collection(_c: _MatrixCorpus) -> str:
     return "/collections/new"
 
 
-def _p_bestand_bearbeiten(c: _MatrixCorpus) -> str:
+def _p_collection_edit(c: _MatrixCorpus) -> str:
     return f"/collections/{c.collection_ulid}/edit"
 
 
-def _p_sammel_dok(_c: _MatrixCorpus) -> str:
+def _p_bulk_doctype(_c: _MatrixCorpus) -> str:
     return "/articles/bulk-edit/document-types"
 
 
-def _p_sammel(_c: _MatrixCorpus) -> str:
+def _p_bulk(_c: _MatrixCorpus) -> str:
     return "/articles/bulk-edit"
 
 
@@ -249,11 +249,11 @@ def _p_edit(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/edit"
 
 
-def _p_kopieren(c: _MatrixCorpus) -> str:
+def _p_copy(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/copy"
 
 
-def _p_loeschen(c: _MatrixCorpus) -> str:
+def _p_delete(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/delete"
 
 
@@ -265,19 +265,19 @@ def _p_restore(c: _MatrixCorpus) -> str:
     return f"/articles/{c.marked_ulid}/restore"
 
 
-def _p_veroeffentlichen(c: _MatrixCorpus) -> str:
+def _p_publish(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/publish"
 
 
-def _p_medien_verschieben(c: _MatrixCorpus) -> str:
+def _p_media_move(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/media/move"
 
 
-def _p_medien_entfernen(c: _MatrixCorpus) -> str:
+def _p_media_remove(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/media/remove"
 
 
-def _p_medien_hochladen(c: _MatrixCorpus) -> str:
+def _p_media_upload(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/media/upload"
 
 
@@ -285,7 +285,7 @@ def _p_upload_gate(c: _MatrixCorpus) -> str:
     return f"/upload-gate/{c.article_ulid}"
 
 
-def _p_dokumenttypen(c: _MatrixCorpus) -> str:
+def _p_document_types(c: _MatrixCorpus) -> str:
     return f"/articles/{c.article_ulid}/document-types"
 
 
@@ -333,14 +333,14 @@ _CONTRACT: dict[str, Route] = {
     # The "Spalten …" choice: a viewer's own preference, kept in a cookie — every tier may make it
     # (302 back to the list), and GET is the plain 404. It reads and writes no record.
     "columns": Route(
-        build_path=_p_spalten,
+        build_path=_p_columns,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,
         post_nonarch=REDIRECT,
         post_arch=REDIRECT,
     ),
     # The Papierkorb (ADR 0022): the Archivist's alone, GET only. Its rows come from search(), whose
-    # Papierkorb scoping is test_leaks_papierkorb.py's; here the gate.
+    # Papierkorb scoping is test_leaks_trash.py's; here the gate.
     "trash": Route(
         build_path=_p_trash,
         get_nonarch=FOUR_OH_FOUR,
@@ -378,21 +378,21 @@ _CONTRACT: dict[str, Route] = {
     # Archivist-only cataloging/collection routes — every non-archivist gets a 404 on BOTH methods;
     # the archivist status depends on the route's own method contract.
     "article-create": Route(
-        build_path=_p_artikel_neu,
+        build_path=_p_new_article,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # empty POST → validation re-render (200)
     ),
     "collection-create": Route(
-        build_path=_p_bestand_neu,
+        build_path=_p_new_collection,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # empty POST names no Sichtbarkeit (catalog.audience_choice)
     ),
     "collection-edit": Route(
-        build_path=_p_bestand_bearbeiten,
+        build_path=_p_collection_edit,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,
         post_nonarch=FOUR_OH_FOUR,
@@ -406,14 +406,14 @@ _CONTRACT: dict[str, Route] = {
         post_arch=OK,  # invalid POST → validation re-render (200)
     ),
     "article-copy": Route(
-        build_path=_p_kopieren,
+        build_path=_p_copy,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed → 404 even for archivist
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # copy → 302 to the copy's edit form
     ),
     "article-delete": Route(
-        build_path=_p_loeschen,
+        build_path=_p_delete,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # GET = confirm page
         post_nonarch=FOUR_OH_FOUR,
@@ -437,28 +437,28 @@ _CONTRACT: dict[str, Route] = {
         post_arch=REDIRECT,  # restored → 302 to its page
     ),
     "article-publish": Route(
-        build_path=_p_veroeffentlichen,
+        build_path=_p_publish,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=REDIRECT,  # the corpus article is published: refused, back to its page
     ),
     "article-media-move": Route(
-        build_path=_p_medien_verschieben,
+        build_path=_p_media_move,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # re-render edit form
     ),
     "article-media-remove": Route(
-        build_path=_p_medien_entfernen,
+        build_path=_p_media_remove,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
         post_arch=OK,  # confirm step / re-render
     ),
     "article-media-upload": Route(
-        build_path=_p_medien_hochladen,
+        build_path=_p_media_upload,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
@@ -473,7 +473,7 @@ _CONTRACT: dict[str, Route] = {
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
     "article-document-types": Route(
-        build_path=_p_dokumenttypen,
+        build_path=_p_document_types,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # options partial
         post_nonarch=FOUR_OH_FOUR,
@@ -489,7 +489,7 @@ _CONTRACT: dict[str, Route] = {
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
     "article-bulk-edit": Route(
-        build_path=_p_sammel,
+        build_path=_p_bulk,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=FOUR_OH_FOUR,  # GET disallowed
         post_nonarch=FOUR_OH_FOUR,
@@ -497,7 +497,7 @@ _CONTRACT: dict[str, Route] = {
         post_data=None,  # filled at probe time (needs the corpus ulid) — see _sammel_post_data
     ),
     "article-bulk-edit-document-types": Route(
-        build_path=_p_sammel_dok,
+        build_path=_p_bulk_doctype,
         get_nonarch=FOUR_OH_FOUR,
         get_arch=OK,  # ULID-free options partial
         post_nonarch=FOUR_OH_FOUR,
@@ -540,13 +540,13 @@ _CONTRACT: dict[str, Route] = {
 }
 
 
-def _sammel_post_data(c: _MatrixCorpus) -> dict[str, object]:
+def _bulk_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """A valid confirm-phase bulk POST: one real ulid selected + a field + its value → the confirm
     page (200) for an archivist. Non-archivists never reach validation (gate denies first)."""
     return {"selection": [c.article_ulid], "field": "creator", "value_creator": "Jemand"}
 
 
-def _loeschen_post_data(c: _MatrixCorpus) -> dict[str, object]:
+def _delete_post_data(c: _MatrixCorpus) -> dict[str, object]:
     """The confirm as its page hands it out: against the article's current version."""
     return {"expected_version": str(c.article_version)}
 
@@ -599,8 +599,8 @@ def _matrix_cases() -> Iterator[tuple[str, str, str]]:
 
 #: Routes whose POST payload needs the corpus (a real ulid / version), filled at probe time.
 _POST_DATA_BUILDERS = {
-    "article-bulk-edit": _sammel_post_data,
-    "article-delete": _loeschen_post_data,
+    "article-bulk-edit": _bulk_post_data,
+    "article-delete": _delete_post_data,
     "article-delete-permanently": _marked_post_data,
     "article-restore": _marked_post_data,
 }
@@ -717,9 +717,7 @@ def test_a_marked_article_refuses_every_other_route(
 
 
 @pytest.mark.parametrize("name", ["article-delete-permanently", "article-restore"])
-def test_a_papierkorb_route_refuses_an_unmarked_article(
-    matrix_corpus: _MatrixCorpus, name: str
-) -> None:
+def test_a_trash_route_refuses_an_unmarked_article(matrix_corpus: _MatrixCorpus, name: str) -> None:
     ulid = matrix_corpus.article_ulid
     before = matrix_corpus.base.articles.load(ulid)
     path = _CONTRACT[name].build_path(matrix_corpus).replace(matrix_corpus.marked_ulid, ulid)
@@ -730,9 +728,9 @@ def test_a_papierkorb_route_refuses_an_unmarked_article(
     assert matrix_corpus.base.articles.load(ulid) == before
 
 
-@pytest.mark.parametrize("bestaetigt", ["", "1"])
+@pytest.mark.parametrize("confirmed", ["", "1"])
 def test_bulk_edit_leaves_a_marked_article_out(
-    matrix_corpus: _MatrixCorpus, bestaetigt: str
+    matrix_corpus: _MatrixCorpus, confirmed: str
 ) -> None:
     """The check page does not list it and the commit does not write it: bucketed like an absent
     Article, so nothing says why."""
@@ -740,20 +738,20 @@ def test_bulk_edit_leaves_a_marked_article_out(
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
         {
-            **_sammel_post_data(matrix_corpus),
+            **_bulk_post_data(matrix_corpus),
             "selection": [matrix_corpus.marked_ulid],
-            "confirmed": bestaetigt,
+            "confirmed": confirmed,
         },
     )
     assert response.status_code == OK
-    if bestaetigt:
+    if confirmed:
         assert (response.context["saved"], response.context["missing_count"]) == (0, 1)
     else:
         assert response.context["selection"] == []
     assert _unchanged(matrix_corpus) == before
 
 
-def test_every_article_route_has_a_papierkorb_contract() -> None:
+def test_every_article_route_has_a_trash_contract() -> None:
     """A new route under an Article's ulid must say what it does with a marked one."""
     article_routes = {
         p.name

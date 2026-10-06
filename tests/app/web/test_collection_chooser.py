@@ -26,7 +26,7 @@ def _chooser(*collections: Collection) -> CollectionChooser:
 # --- the option lists --------------------------------------------------------------
 
 
-def test_options_lead_with_the_placeholder_then_every_bestand_by_name() -> None:
+def test_options_lead_with_the_placeholder_then_every_collection_by_name() -> None:
     assert _chooser(*_LOAD_ORDER).options() == (
         ("", "— Bestand wählen —"),
         ("02FOTOGRAFIEN0000000000000", "Fotografien"),
@@ -46,7 +46,7 @@ def test_an_empty_archive_still_offers_the_placeholder() -> None:
 # --- membership: no existence oracle -----------------------------------------------
 
 
-def test_accepts_a_saved_bestand_and_ignores_surrounding_whitespace() -> None:
+def test_accepts_a_saved_collection_and_ignores_surrounding_whitespace() -> None:
     chooser = _chooser(*_LOAD_ORDER)
     assert chooser.accepts("02FOTOGRAFIEN0000000000000")
     assert chooser.accepts("  02FOTOGRAFIEN0000000000000  ")
@@ -70,7 +70,7 @@ def test_empty_malformed_and_unknown_are_the_same_refusal(raw: str) -> None:
 # --- resolving names ---------------------------------------------------------------
 
 
-def test_name_of_resolves_a_saved_bestand_and_yields_none_otherwise() -> None:
+def test_name_of_resolves_a_saved_collection_and_yields_none_otherwise() -> None:
     chooser = _chooser(*_LOAD_ORDER)
     assert chooser.name_of("02FOTOGRAFIEN0000000000000") == "Fotografien"
     assert chooser.name_of("01UNBEKANNTERBESTAND000000") is None
@@ -101,6 +101,6 @@ def test_chain_of_is_the_collection_chain_leaf_first() -> None:
         "",
     ],
 )
-def test_chain_of_an_unresolvable_bestand_is_none(collection_id: str) -> None:
+def test_chain_of_an_unresolvable_collection_is_none(collection_id: str) -> None:
     waise = Collection(ulid="WAISE", name="Waise", parent_id="FEHLT")
     assert _chooser(waise).chain_of(collection_id) is None

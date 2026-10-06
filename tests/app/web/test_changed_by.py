@@ -27,7 +27,7 @@ def _landed_article(response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.articles.load(_ulid_in(response["Location"])).change
 
 
-def _created_bestand(response: HttpResponse, corpus: Corpus) -> Change | None:
+def _created_collection(response: HttpResponse, corpus: Corpus) -> Change | None:
     [ulid] = parse_qs(urlparse(response["Location"]).query)["collection"]
     return corpus.collections.load(ulid).change
 
@@ -50,7 +50,7 @@ _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-media-remove": _article(DRAFT_ULID),
     "article-bulk-edit": _article(DRAFT_ULID),
 }
-_BESTAND_CHANGED = {"collection-create": _created_bestand, "collection-edit": _chooser}
+_COLLECTION_CHANGED = {"collection-create": _created_collection, "collection-edit": _chooser}
 
 
 @pytest.mark.parametrize("route", _CHANGED)
@@ -63,14 +63,14 @@ def test_the_version_an_article_route_writes_names_the_signed_in_archivist(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("route", _BESTAND_CHANGED)
-def test_the_version_a_bestand_route_writes_names_the_signed_in_archivist(
+@pytest.mark.parametrize("route", _COLLECTION_CHANGED)
+def test_the_version_a_collection_route_writes_names_the_signed_in_archivist(
     corpus: Corpus, route: str
 ) -> None:
     response = WRITES[route](client_as(_ARCHIVIST), corpus)
-    change = _BESTAND_CHANGED[route](response, corpus)
+    change = _COLLECTION_CHANGED[route](response, corpus)
     assert change is not None and change.by == _ARCHIVIST.username
 
 
 def test_every_write_route_is_checked_here_or_leaves_no_version() -> None:
-    assert set(_CHANGED) | set(_BESTAND_CHANGED) | {"article-delete-permanently"} == set(WRITES)
+    assert set(_CHANGED) | set(_COLLECTION_CHANGED) | {"article-delete-permanently"} == set(WRITES)

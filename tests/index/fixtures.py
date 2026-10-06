@@ -44,7 +44,7 @@ from bundesarchiv.persistence.repository import ArticleRepository
 # rung); VORSTAND_MEMBER holds "vorstand" (clears the VORSTAND collection's GROUPS rung).
 ARCHIVIST = Archivist()
 PLAIN_MEMBER = Member(())
-VORSTAND_MEMBER = Member(("vorstand",))
+BOARD_MEMBER = Member(("vorstand",))
 PUBLIC = Public()
 
 

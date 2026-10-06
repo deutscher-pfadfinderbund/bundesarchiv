@@ -54,7 +54,7 @@ def test_garbage_decade_falls_to_none() -> None:
     assert _parse(decade="").filters.decade is None
 
 
-def test_ohne_datum_truthy_and_falsy() -> None:
+def test_dateless_truthy_and_falsy() -> None:
     assert _parse(dateless="1").filters.dateless is True
     assert _parse(dateless="true").filters.dateless is True
     assert _parse(dateless="0").filters.dateless is False
@@ -67,7 +67,7 @@ def test_the_digital_and_drafts_filters_are_toggles() -> None:
     assert _parse(digital="0", drafts="vielleicht").filters == SearchFilters()
 
 
-def test_date_bounds_parsed_from_von_bis() -> None:
+def test_date_bounds_parsed_from_date_from_and_date_to() -> None:
     parsed = _parse(date_from="1965-01-01", date_to="1972-12-31")
     assert parsed.filters.date_from == datetime.date(1965, 1, 1)
     assert parsed.filters.date_to == datetime.date(1972, 12, 31)

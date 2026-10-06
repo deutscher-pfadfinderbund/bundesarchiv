@@ -32,21 +32,21 @@ def focussed(make_corpus: Callable[[], Corpus]) -> Corpus:
 
 
 @pytest.mark.django_db
-def test_archivist_workbench_shows_neuer_bestand(corpus: Corpus) -> None:
+def test_archivist_workbench_shows_new_collection(corpus: Corpus) -> None:
     body = client_as(Archivist()).get(list_url()).content.decode()
     assert "Neuer Bestand" in body
     assert "/collections/new" in body
 
 
 @pytest.mark.django_db
-def test_public_workbench_hides_neuer_bestand(corpus: Corpus) -> None:
+def test_public_workbench_hides_new_collection(corpus: Corpus) -> None:
     body = client_as(Public()).get(list_url()).content.decode()
     assert "Neuer Bestand" not in body
     assert "/collections/new" not in body
 
 
 @pytest.mark.django_db
-def test_edit_affordance_appears_when_a_bestand_filter_is_active(focussed: Corpus) -> None:
+def test_edit_affordance_appears_when_a_collection_filter_is_active(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(list_url(collection=FOTOS)).content.decode()
     assert f"/collections/{FOTOS}/edit" in body  # edit the focused Bestand
 
@@ -61,7 +61,7 @@ def test_the_rename_opens_from_the_list_and_not_from_the_menu(focussed: Corpus) 
 
 
 @pytest.mark.django_db
-def test_an_empty_bestand_offers_the_new_article_panel_with_itself_preselected(
+def test_an_empty_collection_offers_the_new_article_panel_with_itself_preselected(
     focussed: Corpus,
 ) -> None:
     body = client_as(Archivist()).get(list_url(collection=FOTOS)).content.decode()
@@ -73,7 +73,7 @@ def test_an_empty_bestand_offers_the_new_article_panel_with_itself_preselected(
 
 
 @pytest.mark.django_db
-def test_no_edit_affordance_without_a_bestand_filter(focussed: Corpus) -> None:
+def test_no_edit_affordance_without_a_collection_filter(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(list_url()).content.decode()
     assert "/edit" not in body  # no focused Bestand → no rename affordance
 
@@ -85,7 +85,7 @@ def test_public_never_gets_edit_affordance(focussed: Corpus) -> None:
 
 
 @pytest.mark.django_db
-def test_the_header_creates_a_bestand_from_an_archivist_page(focussed: Corpus) -> None:
+def test_the_header_creates_a_collection_from_an_archivist_page(focussed: Corpus) -> None:
     client = client_as(Archivist())
     body = client.get(list_url(collection=FOTOS)).content.decode()
     [fields] = [f for action, f in page_forms(body) if action == "/collections/new"]

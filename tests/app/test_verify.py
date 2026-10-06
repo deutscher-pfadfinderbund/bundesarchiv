@@ -15,7 +15,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import Article, Collection, MediaRef
 from bundesarchiv.persistence._writer import history_key, readme_key
 
-ARTICLE, BESTAND = "01ARTIKEL", "01BESTAND"
+ARTICLE, COLLECTION = "01ARTIKEL", "01BESTAND"
 
 
 @pytest.fixture
@@ -28,11 +28,11 @@ def archive(tmp_path: Path) -> Iterator[Archive]:
 def scans(archive: Archive) -> tuple[MediaRef, MediaRef]:
     """A Bestand saved twice, and an Article saved twice: its first version names a scan and a
     second file uploaded under the same name, its second version only the scan."""
-    archive.collections.save(Collection(BESTAND, "Bund"), 0, changed_by="tester")
-    archive.collections.save(Collection(BESTAND, "Bund (alt)"), 1, changed_by="tester")
+    archive.collections.save(Collection(COLLECTION, "Bund"), 0, changed_by="tester")
+    archive.collections.save(Collection(COLLECTION, "Bund (alt)"), 1, changed_by="tester")
     scan = archive.articles.add_media(ARTICLE, "Scan.pdf", io.BytesIO(b"%PDF eins"))
     twin = archive.articles.add_media(ARTICLE, "Scan.pdf", io.BytesIO(b"%PDF zwei"))
-    article = Article(ARTICLE, "Brief", BESTAND, media=(scan, twin))
+    article = Article(ARTICLE, "Brief", COLLECTION, media=(scan, twin))
     archive.articles.save(article, 0, changed_by="tester")
     archive.articles.save(replace(article, media=(scan,)), 1, changed_by="tester")
     return scan, twin
@@ -104,7 +104,7 @@ def test_an_unreferenced_file_is_found_and_left_alone(
     [
         pytest.param(readme_key(f"articles/{ARTICLE}"), b"kein README", id="article"),
         pytest.param(readme_key(f"articles/{ARTICLE}"), b"\xff\xfe", id="article-not-utf8"),
-        pytest.param(history_key(f"collections/{BESTAND}", 1), b"kein README", id="history"),
+        pytest.param(history_key(f"collections/{COLLECTION}", 1), b"kein README", id="history"),
     ],
 )
 def test_an_unreadable_readme_version_is_found(

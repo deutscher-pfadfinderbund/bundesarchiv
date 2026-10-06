@@ -58,7 +58,7 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 # --- Duplizieren -------------------------------------------------------------------
 
 
-def test_kopieren_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) -> None:
+def test_copy_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) -> None:
     response = client_as(Archivist()).post(f"/articles/{PUBLISHED_ULID}/copy")
     assert response.status_code == 302
     new = _other_ulids(corpus)
@@ -74,13 +74,13 @@ def test_kopieren_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corp
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_kopieren_denied_creates_nothing(corpus: Corpus, viewer: Viewer) -> None:
+def test_copy_denied_creates_nothing(corpus: Corpus, viewer: Viewer) -> None:
     response = client_as(viewer).post(f"/articles/{PUBLISHED_ULID}/copy")
     assert_denied(response)
     assert _other_ulids(corpus) == set()  # nothing created
 
 
-def test_kopieren_get_is_404(corpus: Corpus) -> None:
+def test_copy_get_is_404(corpus: Corpus) -> None:
     # a copy is a mutation — GET must not create.
     response = client_as(Archivist()).get(f"/articles/{PUBLISHED_ULID}/copy")
     assert_denied(response)
@@ -100,7 +100,7 @@ def _submit_delete_form(client: Any, body: str, ulid: str) -> Any:
     return client.post(action, fields)
 
 
-def test_loeschen_confirm_page_names_the_record(corpus: Corpus) -> None:
+def test_delete_confirm_page_names_the_record(corpus: Corpus) -> None:
     response = client_as(Archivist()).get(f"/articles/{PUBLISHED_ULID}/delete")
     assert response.status_code == 200
     body = response.content.decode()
@@ -188,7 +188,7 @@ def test_a_drafts_edit_form_deletes_through_its_one_confirm(corpus: Corpus) -> N
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 @pytest.mark.parametrize("method", ["get", "post"])
-def test_loeschen_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: str) -> None:
+def test_delete_denied_leaves_article(corpus: Corpus, viewer: Viewer, method: str) -> None:
     response = getattr(client_as(viewer), method)(f"/articles/{PUBLISHED_ULID}/delete")
     assert_denied(response)
     assert _mark_of(corpus, PUBLISHED_ULID) is None  # the deny prevented the delete
@@ -201,7 +201,7 @@ def _for_good_forms(body: str, ulid: str) -> list[tuple[str, dict[str, str]]]:
     return [f for f in page_forms(body) if f[0].startswith(f"/articles/{ulid}/delete-permanently")]
 
 
-def test_endgueltig_loeschen_deletes_a_marked_record_for_good(corpus: Corpus) -> None:
+def test_delete_permanently_deletes_a_marked_record_for_good(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
     client = client_as(Archivist())
     body = client.get(f"/articles/{PUBLISHED_ULID}/delete-permanently").content.decode()
@@ -212,7 +212,7 @@ def test_endgueltig_loeschen_deletes_a_marked_record_for_good(corpus: Corpus) ->
         corpus.articles.load(PUBLISHED_ULID)
 
 
-def test_an_endgueltig_confirm_older_than_the_record_deletes_nothing_and_asks_again(
+def test_a_permanent_confirm_older_than_the_record_deletes_nothing_and_asks_again(
     corpus: Corpus,
 ) -> None:
     _mark(corpus, PUBLISHED_ULID)
@@ -232,7 +232,7 @@ def test_an_endgueltig_confirm_older_than_the_record_deletes_nothing_and_asks_ag
         corpus.articles.load(PUBLISHED_ULID)
 
 
-def test_a_restore_landing_while_endgueltig_runs_survives(
+def test_a_restore_landing_while_permanent_runs_survives(
     corpus: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The gate saw the record in the Papierkorb; a restore landing after that load is never
@@ -263,7 +263,7 @@ def _restore(client: Any, ulid: str, version: int) -> Any:
     return client.post(f"/articles/{ulid}/restore", {"expected_version": str(version)})
 
 
-def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus) -> None:
+def test_restore_takes_the_record_out_of_the_trash(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
     before = corpus.articles.load(PUBLISHED_ULID)
     response = _restore(client_as(Archivist()), PUBLISHED_ULID, before.version)
@@ -272,7 +272,7 @@ def test_wiederherstellen_takes_the_record_out_of_the_papierkorb(corpus: Corpus)
 
 
 @pytest.mark.parametrize("hx", [False, True], ids=["plain", "htmx"])
-def test_loeschen_with_index_lag_says_so(
+def test_delete_with_index_lag_says_so(
     corpus: Corpus, monkeypatch: pytest.MonkeyPatch, hx: bool
 ) -> None:
     # ADR 0014: the mark takes the record out of search; a lagging index is said, as on a restore.
@@ -316,7 +316,7 @@ def test_the_page_of_a_marked_record_offers_restore_and_delete_permanently_only(
         assert f'/articles/{PUBLISHED_ULID}/{refused}"' not in main
 
 
-def test_wiederherstellen_on_a_stale_page_restores_nothing(corpus: Corpus) -> None:
+def test_restore_on_a_stale_page_restores_nothing(corpus: Corpus) -> None:
     _mark(corpus, PUBLISHED_ULID)
     before = corpus.articles.load(PUBLISHED_ULID)
     assert _restore(client_as(Archivist()), PUBLISHED_ULID, before.version - 1).status_code == 302
@@ -346,7 +346,7 @@ def test_a_save_landing_while_the_restore_runs_survives(
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
 @pytest.mark.parametrize("route", ["delete-permanently", "restore"])
-def test_the_papierkorb_routes_deny_and_change_nothing(
+def test_the_trash_routes_deny_and_change_nothing(
     corpus: Corpus, viewer: Viewer, route: str
 ) -> None:
     _mark(corpus, PUBLISHED_ULID)
@@ -363,7 +363,7 @@ def test_the_papierkorb_routes_deny_and_change_nothing(
 _UNRESOLVABLE = "01KX7YT9E3VX0CP3A5Q49RZMWQ"
 
 
-def _article_whose_bestand_chain_is_broken(
+def _article_whose_collection_chain_is_broken(
     corpus: Corpus, lifecycle: Lifecycle = Lifecycle.DRAFT
 ) -> str:
     """Save an article filed under a collection whose PARENT does not exist, so ``resolve_chain``
@@ -381,9 +381,9 @@ def _article_whose_bestand_chain_is_broken(
     return _UNRESOLVABLE
 
 
-def test_an_unresolvable_bestand_chain_blocks_publishing(corpus: Corpus) -> None:
+def test_an_unresolvable_collection_chain_blocks_publishing(corpus: Corpus) -> None:
     # With no resolvable audience chain there is no exposure, so Veröffentlicht is not on offer (G.34).
-    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    ulid = _article_whose_collection_chain_is_broken(corpus)
     body = client_as(Archivist()).get(f"/articles/{ulid}/edit").content.decode()
     assert 'name="lifecycle"' in body  # the Status select is there...
     assert '<option value="published"' not in body  # ...without Veröffentlicht
@@ -396,7 +396,7 @@ def test_a_published_record_with_an_unresolvable_chain_keeps_its_status_on_offer
     corpus: Corpus,
 ) -> None:
     # Without Veröffentlicht in the select, the next Speichern would withdraw the record silently.
-    ulid = _article_whose_bestand_chain_is_broken(corpus, Lifecycle.PUBLISHED)
+    ulid = _article_whose_collection_chain_is_broken(corpus, Lifecycle.PUBLISHED)
     body = client_as(Archivist()).get(f"/articles/{ulid}/edit").content.decode()
     assert '<option value="published" selected>' in body
 
@@ -419,7 +419,7 @@ def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpu
     # The render half above hides the affordance; this is the half that actually holds. The state is
     # reachable with ordinary UI actions: re-parent a Bestand under a missing parent (the article's
     # own version is untouched, so CAS passes), then POST Veröffentlicht.
-    ulid = _article_whose_bestand_chain_is_broken(corpus)
+    ulid = _article_whose_collection_chain_is_broken(corpus)
     before = corpus.articles.load(ulid)
     response = client_as(Archivist()).post(
         f"/articles/{ulid}/edit", _publish_post(corpus, ulid, title="Frisch getippt")
@@ -436,7 +436,7 @@ def test_publishing_an_unresolvable_chain_is_refused_by_the_SERVER(corpus: Corpu
 def test_withdrawing_an_unresolvable_chain_stays_allowed(corpus: Corpus) -> None:
     # The refusal is about PUBLISHING. Taking a record back off the shelf needs no exposure fact, and
     # refusing it would strand a published record with a broken chain published forever.
-    ulid = _article_whose_bestand_chain_is_broken(corpus, Lifecycle.PUBLISHED)
+    ulid = _article_whose_collection_chain_is_broken(corpus, Lifecycle.PUBLISHED)
     response = client_as(Archivist()).post(
         f"/articles/{ulid}/edit",
         _publish_post(corpus, ulid, lifecycle="draft"),
@@ -450,7 +450,7 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
     corpus: Corpus, lifecycle: Lifecycle
 ) -> None:
     # Only draft to published is gated.
-    ulid = _article_whose_bestand_chain_is_broken(corpus, lifecycle)
+    ulid = _article_whose_collection_chain_is_broken(corpus, lifecycle)
     response = client_as(Archivist()).post(
         f"/articles/{ulid}/edit",
         _publish_post(corpus, ulid, title="Nur gespeichert", lifecycle=lifecycle.value),
@@ -463,7 +463,7 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
 # --- Veröffentlichen from the article page (a3 round 7) ------------------------------
 
 
-def _veroeffentlichen(
+def _publish(
     corpus: Corpus, ulid: str, viewer: Viewer | None = None, version: int | None = None
 ) -> Any:
     if version is None:
@@ -473,9 +473,9 @@ def _veroeffentlichen(
     )
 
 
-def test_veroeffentlichen_publishes_the_draft_and_returns_to_its_page(corpus: Corpus) -> None:
+def test_publish_publishes_the_draft_and_returns_to_its_page(corpus: Corpus) -> None:
     before = corpus.articles.load(DRAFT_ULID)
-    response = _veroeffentlichen(corpus, DRAFT_ULID)
+    response = _publish(corpus, DRAFT_ULID)
     assert response.status_code == 302
     assert response["Location"] == f"/articles/{DRAFT_ULID}"
     after = corpus.articles.load(DRAFT_ULID)
@@ -486,17 +486,17 @@ def test_veroeffentlichen_publishes_the_draft_and_returns_to_its_page(corpus: Co
 def _assert_refused(corpus: Corpus, ulid: str, version: int | None = None) -> None:
     """A refused publish writes nothing and sends the archivist back to the page as it stands."""
     before = corpus.articles.load(ulid)
-    response = _veroeffentlichen(corpus, ulid, version=version)
+    response = _publish(corpus, ulid, version=version)
     assert response.status_code == 302
     assert response["Location"] == f"/articles/{ulid}"
     assert corpus.articles.load(ulid) == before
 
 
-def test_veroeffentlichen_on_a_stale_page_writes_nothing(corpus: Corpus) -> None:
+def test_publish_on_a_stale_page_writes_nothing(corpus: Corpus) -> None:
     _assert_refused(corpus, DRAFT_ULID, version=corpus.articles.load(DRAFT_ULID).version - 1)
 
 
-def test_veroeffentlichen_refuses_a_record_changed_while_it_publishes(
+def test_publish_refuses_a_record_changed_while_it_publishes(
     corpus: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The page's version matches the first load; a concurrent save lands before the write service
@@ -517,7 +517,7 @@ def test_veroeffentlichen_refuses_a_record_changed_while_it_publishes(
 
     version = corpus.articles.load(DRAFT_ULID).version
     monkeypatch.setattr(ArticleRepository, "load", load_with_a_concurrent_save)
-    response = _veroeffentlichen(corpus, DRAFT_ULID, version=version)
+    response = _publish(corpus, DRAFT_ULID, version=version)
     monkeypatch.undo()
     after = corpus.articles.load(DRAFT_ULID)
     assert response.status_code == 302
@@ -525,22 +525,22 @@ def test_veroeffentlichen_refuses_a_record_changed_while_it_publishes(
     assert after.change is not None and after.change.by == "bert"  # only the concurrent save
 
 
-def test_veroeffentlichen_refuses_an_unresolvable_bestand_chain(corpus: Corpus) -> None:
-    _assert_refused(corpus, _article_whose_bestand_chain_is_broken(corpus))
+def test_publish_refuses_an_unresolvable_collection_chain(corpus: Corpus) -> None:
+    _assert_refused(corpus, _article_whose_collection_chain_is_broken(corpus))
 
 
-def test_veroeffentlichen_leaves_a_published_record_alone(corpus: Corpus) -> None:
+def test_publish_leaves_a_published_record_alone(corpus: Corpus) -> None:
     _assert_refused(corpus, PUBLISHED_ULID)
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_veroeffentlichen_denied_publishes_nothing(corpus: Corpus, viewer: Viewer) -> None:
+def test_publish_denied_publishes_nothing(corpus: Corpus, viewer: Viewer) -> None:
     before = corpus.articles.load(DRAFT_ULID)
-    assert_denied(_veroeffentlichen(corpus, DRAFT_ULID, viewer=viewer))
+    assert_denied(_publish(corpus, DRAFT_ULID, viewer=viewer))
     assert corpus.articles.load(DRAFT_ULID) == before
 
 
-def test_veroeffentlichen_get_is_404(corpus: Corpus) -> None:
+def test_publish_get_is_404(corpus: Corpus) -> None:
     before = corpus.articles.load(DRAFT_ULID)
     assert_denied(client_as(Archivist()).get(f"/articles/{DRAFT_ULID}/publish"))
     assert corpus.articles.load(DRAFT_ULID) == before

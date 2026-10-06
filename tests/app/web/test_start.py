@@ -25,7 +25,7 @@ from bundesarchiv.index import indexer
 from bundesarchiv.index.query import FacetCount
 
 _BUND = "01KX8A00000000000000000BND"
-_VERBORGEN = "01KX8A00000000000000000VRB"
+_HIDDEN = "01KX8A00000000000000000VRB"
 _FAHRTEN = "01KX8A00000000000000000FHR"
 
 
@@ -36,14 +36,14 @@ def indexed_corpus(db: None, make_corpus: Callable[[], Corpus]) -> Corpus:
     corpus = make_corpus()
     public = Audience(AudienceTier.PUBLIC)
     corpus.add_collection(make_collection(_BUND, "Bund", parent_id=None, audience=public))
-    corpus.add_collection(make_collection(_VERBORGEN, "Verborgen", parent_id=None, audience=public))
+    corpus.add_collection(make_collection(_HIDDEN, "Verborgen", parent_id=None, audience=public))
     corpus.add_collection(make_collection(_FAHRTEN, "Fahrten", parent_id=_BUND))
     for n, (collection, lifecycle, media_type, date) in enumerate(
         (
             (_BUND, Lifecycle.PUBLISHED, "Foto(s)", EdtfDate("1962-07")),
             (_BUND, Lifecycle.DRAFT, "Foto(s)", EdtfDate("1965")),
             (_FAHRTEN, Lifecycle.PUBLISHED, "Buch", None),
-            (_VERBORGEN, Lifecycle.DRAFT, "Buch", EdtfDate("1962")),
+            (_HIDDEN, Lifecycle.DRAFT, "Buch", EdtfDate("1962")),
         )
     ):
         corpus.add_article(
@@ -66,7 +66,7 @@ def _get(viewer: Viewer, path: str) -> Any:
     return response
 
 
-def _bestand_counts(response: Any) -> dict[str, str]:
+def _collection_counts(response: Any) -> dict[str, str]:
     """Each Bestand link in ``<main>`` and the count it carries."""
     main = response.content.decode().split("<main", 1)[1]
     return dict(re.findall(r'href="/articles\?collection=(\w+)".*?<data value="(\d+)"', main))
@@ -80,21 +80,21 @@ def _screen(response: Any) -> str:
     ("viewer", "expected"),
     [
         (Member(groups=()), {_BUND: "2"}),
-        (Archivist(), {_BUND: "3", _VERBORGEN: "1"}),
+        (Archivist(), {_BUND: "3", _HIDDEN: "1"}),
     ],
     ids=["member", "archivist"],
 )
-def test_the_start_page_counts_the_top_level_bestaende_the_viewer_may_see(
+def test_the_start_page_counts_the_top_level_collections_the_viewer_may_see(
     indexed_corpus: Corpus, viewer: Viewer, expected: dict[str, str]
 ) -> None:
-    assert _bestand_counts(_get(viewer, "/")) == expected
+    assert _collection_counts(_get(viewer, "/")) == expected
 
 
-def test_a_bestand_link_lands_on_the_list_with_as_many_articles_as_it_counts(
+def test_a_collection_link_lands_on_the_list_with_as_many_articles_as_it_counts(
     indexed_corpus: Corpus,
 ) -> None:
     member = Member(groups=())
-    counts = _bestand_counts(_get(member, "/"))
+    counts = _collection_counts(_get(member, "/"))
     listed = _get(member, list_url(collection=_BUND))
     assert _screen(listed) == "workbench/workbench.html"
     assert listed.context["total"] == counts[_BUND]
@@ -125,7 +125,7 @@ def _preset_counts(response: Any, param: str) -> dict[str, str]:
     ],
     ids=["member", "archivist"],
 )
-def test_nach_art_and_zeitleiste_count_what_the_viewer_may_see(
+def test_by_media_type_and_zeitleiste_count_what_the_viewer_may_see(
     indexed_corpus: Corpus,
     viewer: Viewer,
     art: dict[str, str],
@@ -138,7 +138,7 @@ def test_nach_art_and_zeitleiste_count_what_the_viewer_may_see(
     assert _preset_counts(response, "dateless") == {"1": undated}
 
 
-def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
+def test_by_media_type_names_the_top_media_types_each_a_media_type_preset() -> None:
     counts = {"media_type": tuple(FacetCount(f"Art {n}", 10 - n) for n in range(9))}
     area = start.by_media_type_area(Archivist(), RequestFactory().get("/"), counts, None)  # type: ignore[arg-type]
     tiles = cast("tuple[start.Tile, ...]", area["tiles"])
@@ -146,7 +146,7 @@ def test_nach_art_names_the_top_arten_each_a_medienart_preset() -> None:
     assert all("media_type=" in t.href for t in tiles)
 
 
-def test_weiter_bearbeiten_names_the_drafts_to_an_archivist_and_nothing_to_a_member(
+def test_continue_editing_names_the_drafts_to_an_archivist_and_nothing_to_a_member(
     indexed_corpus: Corpus,
 ) -> None:
     archivist = _get(Archivist(), "/").content.decode()
@@ -154,7 +154,7 @@ def test_weiter_bearbeiten_names_the_drafts_to_an_archivist_and_nothing_to_a_mem
     assert "/edit" not in _get(Member(groups=()), "/").content.decode()
 
 
-def test_weiter_bearbeiten_folds_more_than_three_drafts_into_a_link_to_the_drafts_list(
+def test_continue_editing_folds_more_than_three_drafts_into_a_link_to_the_drafts_list(
     indexed_corpus: Corpus,
 ) -> None:
     for n in range(3):
@@ -174,7 +174,7 @@ def test_weiter_bearbeiten_folds_more_than_three_drafts_into_a_link_to_the_draft
     [(Member(groups=()), {"Titel 0", "Titel 2"}), (Archivist(), {f"Titel {n}" for n in range(4)})],
     ids=["member", "archivist"],
 )
-def test_zuletzt_hinzugefuegt_lists_only_what_the_viewer_may_see(
+def test_recently_added_lists_only_what_the_viewer_may_see(
     indexed_corpus: Corpus, viewer: Viewer, titles: set[str]
 ) -> None:
     chooser = CollectionChooser.of(Archive.canonical())
@@ -183,7 +183,7 @@ def test_zuletzt_hinzugefuegt_lists_only_what_the_viewer_may_see(
     assert {title for _, title, _, _ in rows} == titles
 
 
-def test_zuletzt_hinzugefuegt_leads_with_the_day_it_was_added(indexed_corpus: Corpus) -> None:
+def test_recently_added_leads_with_the_day_it_was_added(indexed_corpus: Corpus) -> None:
     added = datetime.datetime(2017, 6, 26, 23, 30, tzinfo=datetime.UTC)
     indexed_corpus.add_article(
         make_article("01KX8A00000000000000000NEU", title="Neu", collection_id=_BUND, added_at=added)

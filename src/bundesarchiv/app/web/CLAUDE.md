@@ -35,7 +35,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `AUDIENCE_OPTIONS`, `exposure_label`, `date_parts`, `human_size` · tests: `test_vocab.py`
 - `landing.py` — state a redirect hands on · interface: `noting_lag`, `index_lagging`, `created_collection_url`, `preselected_collection`, `created_collection_name` · tests: `test_index_lag.py`, `test_collection_*.py`
-- `collection_chooser.py` — per-request Collection chooser · interface: `CollectionChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_bestand.py`
+- `collection_chooser.py` — per-request Collection chooser · interface: `CollectionChooser.of` + `options`/`accepts`/`error`/`name_of`/`names`/`by_ulid`/`chain_of` · tests: `tests/app/web/test_collection_chooser.py`
 - `theme.py` — the viewer's light/dark choice: the "theme" cookie (theme.js) as the render's scheme · interface: `theme` (context processor), `COOKIE` · tests: `tests/app/web/test_theme.py`
 
 Internal: `dev.py`, `dev_urls.py`, `urls.py`, `components_demo.py`, `layouts_demo.py`

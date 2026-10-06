@@ -56,16 +56,16 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 # The two group names the grid turns on. A viewer holding ``GRUPPE_A`` clears a GROUPS(a) or
 # GROUPS(a,b) rung; ``GRUPPE_B`` clears GROUPS(a,b) or a GROUPS(b) parent rung.
-GRUPPE_A = "gruppe-a"
-GRUPPE_B = "gruppe-b"
+GROUP_A = "gruppe-a"
+GROUP_B = "gruppe-b"
 
 # The six viewers spanning every group-membership shape that can flip a GROUPS decision.
 _VIEWERS: tuple[tuple[str, Viewer], ...] = (
     ("public", Public()),
     ("member()", Member(())),
-    ("member(a)", Member((GRUPPE_A,))),
-    ("member(b)", Member((GRUPPE_B,))),
-    ("member(a,b)", Member((GRUPPE_A, GRUPPE_B))),
+    ("member(a)", Member((GROUP_A,))),
+    ("member(b)", Member((GROUP_B,))),
+    ("member(a,b)", Member((GROUP_A, GROUP_B))),
     ("archivist", Archivist()),
 )
 
@@ -75,8 +75,8 @@ _VIEWERS: tuple[tuple[str, Viewer], ...] = (
 _ARTICLE_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("apub", Audience(AudienceTier.PUBLIC)),
     ("amem", Audience(AudienceTier.MEMBERS)),
-    ("agra", Audience(AudienceTier.GROUPS, (GRUPPE_A,))),
-    ("agrab", Audience(AudienceTier.GROUPS, (GRUPPE_A, GRUPPE_B))),
+    ("agra", Audience(AudienceTier.GROUPS, (GROUP_A,))),
+    ("agrab", Audience(AudienceTier.GROUPS, (GROUP_A, GROUP_B))),
     ("ainh", None),
 )
 
@@ -84,7 +84,7 @@ _ARTICLE_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
 _PARENT_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("ppub", Audience(AudienceTier.PUBLIC)),
     ("pmem", Audience(AudienceTier.MEMBERS)),
-    ("pgrb", Audience(AudienceTier.GROUPS, (GRUPPE_B,))),
+    ("pgrb", Audience(AudienceTier.GROUPS, (GROUP_B,))),
     ("pinh", None),
 )
 

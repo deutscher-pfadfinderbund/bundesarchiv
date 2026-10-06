@@ -45,7 +45,7 @@ PUB = new_ulid()
 DRAFT = new_ulid()
 MARKUP = new_ulid()
 
-_STANDORT = "Magazin 3, Regal 7"
+_LOCATION = "Magazin 3, Regal 7"
 _CUSTOM_KEY = "Bearbeitung"
 _CUSTOM_VALUE = "Restaurierung 1998"
 
@@ -102,7 +102,7 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
             date=EdtfDate("1962-07"),
             creator="K. Meyer",
             subject_place="Harz",
-            physical_location=_STANDORT,
+            physical_location=_LOCATION,
             custom=((_CUSTOM_KEY, _CUSTOM_VALUE),),
             media=(
                 MediaRef(cover.filename, cover.content_hash, caption="Am Lagerfeuer"),
@@ -242,20 +242,20 @@ def test_every_tile_opens_and_offers_to_save_its_original(corpus: _DetailArchive
 
 def test_member_never_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
     body = _body(Member(groups=()), corpus.pub)
-    assert _STANDORT not in body  # physical_location floored to None → row absent
+    assert _LOCATION not in body  # physical_location floored to None → row absent
     assert _CUSTOM_VALUE not in body  # custom floored to () → rows absent
     assert "Standort" not in body
 
 
 def test_public_never_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
-    assert _STANDORT not in body
+    assert _LOCATION not in body
     assert _CUSTOM_VALUE not in body
 
 
 def test_archivist_sees_archivist_only_field_values(corpus: _DetailArchive) -> None:
     body = _body(Archivist(), corpus.pub)
-    assert _STANDORT in body
+    assert _LOCATION in body
     assert _CUSTOM_VALUE in body
     assert "Standort" in body
 
@@ -290,7 +290,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
     assert archivist - member - tools == {
         "Standort",
         "intern",
-        _STANDORT,
+        _LOCATION,
         _CUSTOM_KEY,
         _CUSTOM_VALUE,
     }
@@ -346,13 +346,13 @@ def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) 
 # --- Bestand + Schlagworte links (the browsing loop) ------------------------------
 
 
-def test_bestand_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:
+def test_collection_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
     assert "Fotografien" in body  # leaf collection name
     assert "?collection=FOTOS" in body  # links into the collection facet
 
 
-def test_schlagworte_link_into_tag_facet(corpus: _DetailArchive) -> None:
+def test_tags_link_into_tag_facet(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
     assert "?tag=fahrt" in body
     assert "?tag=sommer" in body

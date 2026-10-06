@@ -66,7 +66,7 @@ def test_a_create_naming_no_rung_is_denied_and_creates_nothing(
 # --- GET renders the form ---------------------------------------------------------
 
 
-def test_get_renders_form_with_parent_and_sichtbarkeit(fotos: Corpus) -> None:
+def test_get_renders_form_with_parent_and_visibility(fotos: Corpus) -> None:
     body = client_as(Archivist()).get("/collections/new").content.decode()
     assert "Neuer Bestand" in body
     assert 'name="name"' in body  # Name field
@@ -99,7 +99,7 @@ def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> Non
 
 
 @pytest.mark.django_db
-def test_catalog_form_preselects_bestand_and_shows_hinweis(fotos: Corpus) -> None:
+def test_catalog_form_preselects_collection_and_shows_hinweis(fotos: Corpus) -> None:
     body = client_as(Archivist()).get("/articles/new?collection=FOTOS&created=1").content.decode()
     assert 'value="FOTOS" selected' in body  # the Bestand pre-selected in the collection select
     assert "Bestand „Fotografien“ angelegt." in body  # the name is looked up, not read from the URL
@@ -110,7 +110,7 @@ def test_catalog_form_preselects_bestand_and_shows_hinweis(fotos: Corpus) -> Non
     "query",
     ["created=<b>Geheim</b>", "created=Fotografien", "created=1", "collection=NOSUCH&created=1"],
 )
-def test_angelegt_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
+def test_created_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
     body = client_as(Archivist()).get(f"/articles/new?{query}").content.decode()
     assert "angelegt." not in body
     assert "Geheim" not in body
@@ -138,7 +138,7 @@ def test_post_creates_under_parent_with_members_audience(fotos: Corpus) -> None:
 
 
 @pytest.mark.django_db
-def test_post_creates_groups_audience_with_gruppen(corpus: Corpus) -> None:
+def test_post_creates_groups_audience_with_groups(corpus: Corpus) -> None:
     client_as(Archivist()).post(
         "/collections/new",
         {
@@ -167,7 +167,7 @@ def test_post_blank_name_re_renders_with_error_and_creates_nothing(corpus: Corpu
 
 
 @pytest.mark.django_db
-def test_post_groups_without_gruppen_re_renders_with_error(corpus: Corpus) -> None:
+def test_post_groups_without_groups_re_renders_with_error(corpus: Corpus) -> None:
     before = {c.ulid for c in corpus.collections.load_all()}
     response = client_as(Archivist()).post(
         "/collections/new",

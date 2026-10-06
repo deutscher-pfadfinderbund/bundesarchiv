@@ -70,7 +70,7 @@ def test_bulk_get_is_404(two_drafts: Corpus) -> None:
 
 
 @pytest.mark.parametrize("field", ["lifecycle", "audience", "ulid", "__class__", "added_at"])
-def test_forbidden_feld_writes_nothing(two_drafts: Corpus, field: str) -> None:
+def test_forbidden_field_writes_nothing(two_drafts: Corpus, field: str) -> None:
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
         {"selection": [_A], "field": field, "value_text": "x", "confirmed": "1"},
@@ -143,7 +143,7 @@ def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> No
     assert sorted(tokens) == sorted(f.target for f in bulk.FIELDS)
 
 
-def test_placeholder_feld_re_render_preserves_the_typed_value(two_drafts: Corpus) -> None:
+def test_placeholder_field_re_render_preserves_the_typed_value(two_drafts: Corpus) -> None:
     # The commonest slip — value typed, Feld left on "Feld wählen" — must be re-echoed like any
     # other rejected submit (spec §2 C: values preserved verbatim), not silently blanked.
     response = client_as(Archivist()).post(
@@ -197,7 +197,7 @@ def test_the_check_page_shows_the_new_value_and_writes_nothing(two_drafts: Corpu
 
 
 @pytest.mark.parametrize(
-    ("field", "widget", "value", "bisher", "saved_as"),
+    ("field", "widget", "value", "previous", "saved_as"),
     [
         ("creator", "value_text", "Neu", "Alt-Autor", {"creator": "Alt-Autor"}),
         ("Quelle", "value_text", "Neu", "Alt-Quelle", {"custom": (("Quelle", "Alt-Quelle"),)}),
@@ -209,7 +209,7 @@ def test_the_check_page_shows_each_value_it_replaces(
     field: str,
     widget: str,
     value: str,
-    bisher: str,
+    previous: str,
     saved_as: dict[str, object],
 ) -> None:
     # the value a record loses reaches the page before the commit; a Bestand by its name
@@ -225,7 +225,7 @@ def test_the_check_page_shows_each_value_it_replaces(
         .post("/articles/bulk-edit", {"selection": [_A], "field": field, widget: value})
         .content.decode()
     )
-    assert bisher in body.split("<main", 1)[1]  # the header's panels list every Bestand
+    assert previous in body.split("<main", 1)[1]  # the header's panels list every Bestand
 
 
 # --- commit phase (confirmed=1) ---------------------------------------------------
@@ -354,7 +354,7 @@ def _give_a_schriftgut_brief_pair(corpus: Corpus) -> None:
     )
 
 
-def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
+def test_media_type_orphan_requires_clear_flag(two_drafts: Corpus) -> None:
     # A commit WITHOUT dokumenttyp_leeren must NOT write — it re-confirms (server-enforced, spec §3).
     _give_a_schriftgut_brief_pair(two_drafts)
     response = client_as(Archivist()).post(
@@ -373,7 +373,7 @@ def test_media_type_orphan_requires_leeren_flag(two_drafts: Corpus) -> None:
     assert _stored(two_drafts, _A).media_type == "Schrifttum"  # NOT written without the flag
 
 
-def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
+def test_media_type_orphan_commits_with_clear_flag(two_drafts: Corpus) -> None:
     _give_a_schriftgut_brief_pair(two_drafts)
     client_as(Archivist()).post(
         "/articles/bulk-edit",
@@ -393,20 +393,20 @@ def test_media_type_orphan_commits_with_leeren_flag(two_drafts: Corpus) -> None:
 # --- dokumenttypen endpoint (ulid-free) --------------------------------------------
 
 
-def test_bulk_dokumenttypen_archivist(two_drafts: Corpus) -> None:
+def test_bulk_document_types_archivist(two_drafts: Corpus) -> None:
     response = client_as(Archivist()).get("/articles/bulk-edit/document-types?media_type=Foto(s)")
     assert response.status_code == 200
     assert "Zeitschrift" in response.content.decode()
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_bulk_dokumenttypen_denied_never_content(two_drafts: Corpus, viewer: Viewer) -> None:
+def test_bulk_document_types_denied_never_content(two_drafts: Corpus, viewer: Viewer) -> None:
     response = client_as(viewer).get("/articles/bulk-edit/document-types?media_type=Foto(s)")
     assert_denied(response)
     assert b"Zeitschrift" not in response.content
 
 
-def test_bulk_dokumenttypen_post_is_404(two_drafts: Corpus) -> None:
+def test_bulk_document_types_post_is_404(two_drafts: Corpus) -> None:
     assert (
         client_as(Archivist())
         .post("/articles/bulk-edit/document-types", {"media_type": "Foto(s)"})

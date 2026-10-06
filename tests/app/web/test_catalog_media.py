@@ -89,7 +89,7 @@ def _hashes(corpus: _MediaCorpus) -> list[str]:
     return [m.content_hash for m in corpus.media()]
 
 
-def _medien_drawer_region(body: str) -> str:
+def _media_drawer_region(body: str) -> str:
     # Mirrors what htmx's hx-select="#media-drawer" extracts client-side from the full-page
     # response: the <section id="media-drawer"> element, start tag through its matching close.
     # (It was a <fieldset> until the form wave turned the seven group drawers into the record card's
@@ -106,7 +106,7 @@ _NON_ARCHIVISTS = [Public(), Member(groups=("vorstand",))]
 # --- reorder (= re-cover) ----------------------------------------------------------
 
 
-def test_verschieben_runter_moves_cover_and_re_covers(corpus: _MediaCorpus) -> None:
+def test_move_down_moves_cover_and_re_covers(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/media/move",
@@ -125,7 +125,7 @@ def test_a_structural_media_edit_keeps_the_date_added(corpus: _MediaCorpus) -> N
     assert corpus.articles.load(_ULID).article.added_at == _ADDED_AT
 
 
-def test_verschieben_hoch_at_top_is_noop(corpus: _MediaCorpus) -> None:
+def test_move_up_at_top_is_noop(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     client_as(Archivist()).post(
         f"/articles/{_ULID}/media/move",
@@ -135,7 +135,7 @@ def test_verschieben_hoch_at_top_is_noop(corpus: _MediaCorpus) -> None:
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_verschieben_denied_leaves_order(corpus: _MediaCorpus, viewer: Viewer) -> None:
+def test_move_denied_leaves_order(corpus: _MediaCorpus, viewer: Viewer) -> None:
     before = _hashes(corpus)
     response = client_as(viewer).post(
         f"/articles/{_ULID}/media/move",
@@ -145,11 +145,11 @@ def test_verschieben_denied_leaves_order(corpus: _MediaCorpus, viewer: Viewer) -
     assert _hashes(corpus) == before  # order unchanged
 
 
-def test_verschieben_get_is_404(corpus: _MediaCorpus) -> None:
+def test_move_get_is_404(corpus: _MediaCorpus) -> None:
     assert_denied(client_as(Archivist()).get(f"/articles/{_ULID}/media/move"))
 
 
-def test_verschieben_against_deleted_article_is_404(
+def test_move_against_deleted_article_is_404(
     corpus: _MediaCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # _load_gated passes (the article existed at gate time), but the article is hard-deleted before
@@ -197,7 +197,7 @@ def test_structural_save_conflict_surfaces_hinweis_not_silent(
 # --- remove (two-step) -------------------------------------------------------------
 
 
-def test_entfernen_step1_shows_confirm_without_removing(corpus: _MediaCorpus) -> None:
+def test_remove_step1_shows_confirm_without_removing(corpus: _MediaCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/media/remove", {"remove": corpus.ref_b.content_hash}
     )
@@ -206,7 +206,7 @@ def test_entfernen_step1_shows_confirm_without_removing(corpus: _MediaCorpus) ->
     assert len(corpus.media()) == 2  # nothing removed yet
 
 
-def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) -> None:
+def test_remove_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) -> None:
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/media/remove",
         {"remove": corpus.ref_b.content_hash, "confirmed": "1"},
@@ -218,7 +218,7 @@ def test_entfernen_step2_confirmed_removes_ref_blob_stays(corpus: _MediaCorpus) 
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_entfernen_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> None:
+def test_remove_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> None:
     response = client_as(viewer).post(
         f"/articles/{_ULID}/media/remove",
         {"remove": corpus.ref_b.content_hash, "confirmed": "1"},
@@ -255,7 +255,7 @@ def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
 # --- upload ------------------------------------------------------------------------
 
 
-def test_hochladen_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -> None:
+def test_upload_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -> None:
     before = _hashes(corpus)
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
@@ -265,7 +265,7 @@ def test_hochladen_appends_at_end_never_displacing_cover(corpus: _MediaCorpus) -
     assert len(after) == len(before) + 1  # appended at the END
 
 
-def test_hochladen_the_same_file_again_stores_no_second_file(corpus: _MediaCorpus) -> None:
+def test_upload_the_same_file_again_stores_no_second_file(corpus: _MediaCorpus) -> None:
     files_before = corpus.articles.keys_for(_ULID)
     same = SimpleUploadedFile("cover.jpg", b"cover-bytes", content_type="image/jpeg")
     client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": same})
@@ -275,7 +275,7 @@ def test_hochladen_the_same_file_again_stores_no_second_file(corpus: _MediaCorpu
     assert len(corpus.articles.keys_for(_ULID)) == len(files_before) + 1  # + history/<n>.md only
 
 
-def test_hochladen_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
+def test_upload_oversize_is_clean_error_not_500(corpus: _MediaCorpus) -> None:
     big = SimpleUploadedFile("gross.jpg", b"x" * 1024, content_type="image/jpeg")
     with override_settings(BUNDESARCHIV_MAX_UPLOAD_BYTES=100):
         response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": big})
@@ -321,15 +321,13 @@ def test_a_media_action_shows_the_typed_captions_and_saves_none(corpus: _MediaCo
             f"caption[{b}]": "Getippt B",
         },
     )
-    drawer = _medien_drawer_region(response.content.decode())
+    drawer = _media_drawer_region(response.content.decode())
     assert drawer.index('value="Getippt B"') < drawer.index('value="Getippt A"')
     assert [m.caption for m in corpus.media()] == [None, "Titelbild"]
 
 
 @pytest.mark.parametrize("name", ["...", "  ", " . "])
-def test_hochladen_a_name_that_cleans_to_nothing_is_refused(
-    corpus: _MediaCorpus, name: str
-) -> None:
+def test_upload_a_name_that_cleans_to_nothing_is_refused(corpus: _MediaCorpus, name: str) -> None:
     files_before = corpus.articles.keys_for(_ULID)
     batch = [
         SimpleUploadedFile("gut.jpg", b"good-bytes", content_type="image/jpeg"),
@@ -387,7 +385,7 @@ def _traced_peak(body: Path) -> int:
         tracemalloc.stop()
 
 
-def test_hochladen_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_path: Path) -> None:
+def test_upload_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_path: Path) -> None:
     # tech-debt #18. Every file is past FILE_UPLOAD_MAX_MEMORY_SIZE, so Django spools each one. The
     # untraced first upload keeps one-time allocations out of the peaks. The repeat of the large
     # file takes the reuse path, which streams the stored file through the hash.
@@ -401,7 +399,7 @@ def test_hochladen_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_
     assert abs(peak_again - peak_small) < 2**20
 
 
-def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
+def test_upload_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
     # fix-wave: the per-row hidden forms (move-<hash>, remove-*-<hash>) must live INSIDE
     # #media-drawer so an htmx swap (hx-select="#media-drawer") delivers fresh forms for the
     # CURRENT row set. The fixture seeds 2 rows, so uploading a third brings the count to 3; check
@@ -410,7 +408,7 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert response.status_code == 200
     body = response.content.decode()
-    drawer = _medien_drawer_region(body)
+    drawer = _media_drawer_region(body)
     hashes_after = _hashes(corpus)
     assert len(hashes_after) == 3  # the new row is really there
     for content_hash in hashes_after:
@@ -420,7 +418,7 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
-def test_hochladen_denied_attaches_nothing(corpus: _MediaCorpus, viewer: Viewer) -> None:
+def test_upload_denied_attaches_nothing(corpus: _MediaCorpus, viewer: Viewer) -> None:
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(viewer).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert_denied(response)
@@ -558,14 +556,14 @@ def test_a_file_row_shows_a_thumbnail_only_once_the_cache_holds_one(
     Image.new("RGB", (4, 3)).save(cached, format="AVIF")
     with override_settings(BUNDESARCHIV_THUMBNAIL_ROOT=str(thumbs)):
         body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
-    drawer = _medien_drawer_region(body)
+    drawer = _media_drawer_region(body)
     assert thumbnail_url(_ULID, corpus.ref_a.content_hash) in drawer
     assert thumbnail_url(_ULID, corpus.ref_b.content_hash) not in drawer
 
 
 def test_every_file_row_opens_and_offers_to_save_its_original(corpus: _MediaCorpus) -> None:
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
-    drawer = _medien_drawer_region(body)
+    drawer = _media_drawer_region(body)
     originals = [media_url(_ULID, ref.content_hash) for ref in (corpus.ref_a, corpus.ref_b)]
     assert download_hrefs(drawer) == originals
     assert set(originals) <= set(page_hrefs(drawer))
@@ -624,7 +622,7 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
     assert 'value="Gelöschte Unterschrift"' in body
 
 
-def test_custom_entfernen_keeps_media_register_and_typed_caption(corpus: _MediaCorpus) -> None:
+def test_custom_remove_keeps_media_register_and_typed_caption(corpus: _MediaCorpus) -> None:
     # The no-JS custom-row removal re-render must NOT drop the whole Medien drawer.
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit",
@@ -641,7 +639,7 @@ def test_custom_entfernen_keeps_media_register_and_typed_caption(corpus: _MediaC
     )
     assert response.status_code == 200
     body = response.content.decode()
-    drawer = _medien_drawer_region(body)
+    drawer = _media_drawer_region(body)
     assert "cover.jpg" in drawer  # the media register is still present
     assert "zweite.jpg" in drawer
     assert 'value="Frisch getippt"' in drawer  # and carries the typed caption

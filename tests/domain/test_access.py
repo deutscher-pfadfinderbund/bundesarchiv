@@ -240,7 +240,7 @@ def test_preview_denies_all_on_a_chain_resolved_for_a_different_article() -> Non
 
 # --- Single-source safety net -----------------------------------------------------------------
 
-_VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
+_BOARD = Audience(AudienceTier.GROUPS, ("vorstand",))
 
 
 @pytest.mark.parametrize(
@@ -258,13 +258,13 @@ _VORSTAND = Audience(AudienceTier.GROUPS, ("vorstand",))
         (Member(("vorstand",)), Audience(AudienceTier.PUBLIC), Lifecycle.PUBLISHED, True),
         (Member(("vorstand",)), Audience(AudienceTier.MEMBERS), Lifecycle.PUBLISHED, True),
         # PUBLISHED, Groups rung — only a Member holding the group, plus Archivist.
-        (Public(), _VORSTAND, Lifecycle.PUBLISHED, False),
-        (Member(("vorstand",)), _VORSTAND, Lifecycle.PUBLISHED, True),
-        (Member(("stamm-bonn",)), _VORSTAND, Lifecycle.PUBLISHED, False),
-        (Archivist(), _VORSTAND, Lifecycle.PUBLISHED, True),
+        (Public(), _BOARD, Lifecycle.PUBLISHED, False),
+        (Member(("vorstand",)), _BOARD, Lifecycle.PUBLISHED, True),
+        (Member(("stamm-bonn",)), _BOARD, Lifecycle.PUBLISHED, False),
+        (Archivist(), _BOARD, Lifecycle.PUBLISHED, True),
         # DRAFT — the Lifecycle gate: Archivist only, tier irrelevant.
         (Public(), Audience(AudienceTier.PUBLIC), Lifecycle.DRAFT, False),
-        (Member(("vorstand",)), _VORSTAND, Lifecycle.DRAFT, False),
+        (Member(("vorstand",)), _BOARD, Lifecycle.DRAFT, False),
         (Archivist(), Audience(AudienceTier.PUBLIC), Lifecycle.DRAFT, True),
     ],
 )
@@ -279,7 +279,7 @@ def test_can_view_matrix(
 @pytest.mark.parametrize("lifecycle", [Lifecycle.PUBLISHED, Lifecycle.DRAFT])
 @pytest.mark.parametrize(
     "audience",
-    [Audience(AudienceTier.PUBLIC), Audience(AudienceTier.MEMBERS), _VORSTAND, None],
+    [Audience(AudienceTier.PUBLIC), Audience(AudienceTier.MEMBERS), _BOARD, None],
 )
 def test_preview_who_sees_is_defined_by_can_view(
     audience: Audience | None, lifecycle: Lifecycle

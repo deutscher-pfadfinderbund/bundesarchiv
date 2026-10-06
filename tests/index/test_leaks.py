@@ -32,9 +32,9 @@ import pytest
 from tests.index import fixtures
 from tests.index.fixtures import (
     ARCHIVIST,
+    BOARD_MEMBER,
     PLAIN_MEMBER,
     PUBLIC,
-    VORSTAND_MEMBER,
 )
 
 from bundesarchiv.domain.viewer import Member, Viewer
@@ -54,7 +54,7 @@ _NON_ARCHIVIST_TIERS = (
     ("public", PUBLIC),
     ("member()", PLAIN_MEMBER),
     ("member(wrong-group)", Member(("nicht-vorstand",))),
-    ("member(vorstand)", VORSTAND_MEMBER),
+    ("member(vorstand)", BOARD_MEMBER),
 )
 
 
@@ -134,8 +134,8 @@ def test_floored_field_term_visible_to_archivist(corpus: None) -> None:
 def test_floored_field_term_isolated_even_when_row_is_visible(corpus: None) -> None:
     """The vorstand Member CAN see ART_GRPBESCH (a browse returns it) yet still cannot text-match
     its floored physical_location — floor and visibility are independent axes."""
-    assert "ART_GRPBESCH" in _ulids(VORSTAND_MEMBER, page_size=200)  # row is visible
-    assert _ulids(VORSTAND_MEMBER, text="Geheimregal") == set()  # floored term is not
+    assert "ART_GRPBESCH" in _ulids(BOARD_MEMBER, page_size=200)  # row is visible
+    assert _ulids(BOARD_MEMBER, text="Geheimregal") == set()  # floored term is not
 
 
 # ===========================================================================
@@ -240,7 +240,7 @@ def test_groups_row_reachable_only_with_overlapping_group(corpus: None) -> None:
     assert "ART_GRPPROT" not in _ulids(PUBLIC, page_size=200)
     assert "ART_GRPPROT" not in _ulids(PLAIN_MEMBER, page_size=200)
     assert "ART_GRPPROT" not in _ulids(Member(("nicht-vorstand",)), page_size=200)
-    assert "ART_GRPPROT" in _ulids(VORSTAND_MEMBER, page_size=200)
+    assert "ART_GRPPROT" in _ulids(BOARD_MEMBER, page_size=200)
     assert "ART_GRPPROT" in _ulids(ARCHIVIST, page_size=200)
 
 
@@ -296,14 +296,14 @@ def test_collection_facet_subtree_count_hides_restricted_descendants(corpus: Non
     GROUPS rows under it (they can't see them); the vorstand member's AKTEN count includes them —
     a restricted descendant never inflates an ancestor's count for a viewer who can't see it."""
     akten_plain = _facet_count(PLAIN_MEMBER, "collection", "AKTEN")
-    akten_vorstand = _facet_count(VORSTAND_MEMBER, "collection", "AKTEN")
+    akten_vorstand = _facet_count(BOARD_MEMBER, "collection", "AKTEN")
     assert akten_vorstand > akten_plain  # the vorstand rows show up only for the holder
     # and each still equals its own subtree-filter result (the invariant, per this tier)
     assert akten_plain == len(
         _ulids(PLAIN_MEMBER, filters=SearchFilters(collection="AKTEN"), page_size=200)
     )
     assert akten_vorstand == len(
-        _ulids(VORSTAND_MEMBER, filters=SearchFilters(collection="AKTEN"), page_size=200)
+        _ulids(BOARD_MEMBER, filters=SearchFilters(collection="AKTEN"), page_size=200)
     )
 
 
@@ -344,8 +344,8 @@ def test_group_only_tag_absent_from_unauthorized_facets(corpus: None) -> None:
         assert "protokoll" not in tags, f"[{label}] group-only tag 'protokoll' leaked into facet"
         assert "vorstand" not in tags, f"[{label}] group-only tag 'vorstand' leaked into facet"
     # Authorized: present AND correctly counted (protokoll on 1 row, vorstand on 2).
-    assert _facet_count(VORSTAND_MEMBER, "tags", "protokoll") == 1
-    assert _facet_count(VORSTAND_MEMBER, "tags", "vorstand") == 2
+    assert _facet_count(BOARD_MEMBER, "tags", "protokoll") == 1
+    assert _facet_count(BOARD_MEMBER, "tags", "vorstand") == 2
     assert _facet_count(ARCHIVIST, "tags", "vorstand") == 2
 
 
@@ -428,7 +428,7 @@ def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) ->
     assert _ulids(PUBLIC, text="Tresornotiz") == set()
     assert _ulids(PLAIN_MEMBER, text="Tresornotiz") == set()
     assert _ulids(Member(("nicht-vorstand",)), text="Tresornotiz") == set()
-    assert "ART_GRPPROT" in _ulids(VORSTAND_MEMBER, text="Tresornotiz")
+    assert "ART_GRPPROT" in _ulids(BOARD_MEMBER, text="Tresornotiz")
     assert "ART_GRPPROT" in _ulids(ARCHIVIST, text="Tresornotiz")
 
 
@@ -495,7 +495,7 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "is_draft",
         "collection_id",
         "file_counts",
-        "deleted_at",  # only archivist_only rows carry the mark (test_leaks_papierkorb.py)
+        "deleted_at",  # only archivist_only rows carry the mark (test_leaks_trash.py)
         "deleted_by",
         "added_at",  # a fact of the record, not floored (CONTEXT.md "Date added")
     }

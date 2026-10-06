@@ -69,22 +69,22 @@ def _first(text: str, n: int = 1, viewer: Viewer = _PUBLIC) -> list[str]:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("text", ["BA 10", "BA10", "ba 10", " ba   10 ", "Ba10"])
-def test_the_typed_signatur_finds_its_article_first(corpus: None, text: str) -> None:
+def test_the_typed_ref_code_finds_its_article_first(corpus: None, text: str) -> None:
     assert _first(text) == ["SG_BA10"]
 
 
 @pytest.mark.django_db
-def test_a_signatur_is_matched_whole_not_as_a_prefix(corpus: None) -> None:
+def test_a_ref_code_is_matched_whole_not_as_a_prefix(corpus: None) -> None:
     assert "SG_BA10" not in [h.ulid for h in search(Public(), text="BA 1").hits[:1]]
 
 
 @pytest.mark.django_db
-def test_articles_sharing_a_signatur_all_come_first(corpus: None) -> None:
+def test_articles_sharing_a_ref_code_all_come_first(corpus: None) -> None:
     assert set(_first("BA B266", 2)) == {"SG_DUP1", "SG_DUP2"}
 
 
 @pytest.mark.django_db
-def test_an_exact_signatur_never_reveals_an_article_the_viewer_cannot_see(corpus: None) -> None:
+def test_an_exact_ref_code_never_reveals_an_article_the_viewer_cannot_see(corpus: None) -> None:
     page = search(Public(), text="BA 77")
     assert "SG_SECRET" not in {h.ulid for h in page.hits}
     assert "SG_SECRET" in {h.ulid for h in search(Archivist(), text="BA77").hits}

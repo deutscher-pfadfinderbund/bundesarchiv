@@ -29,8 +29,8 @@ from bundesarchiv.persistence._layout import COLLECTIONS
 
 #: Stand-ins for the edit form's two lists: `unknown_vocabulary` only ever tests membership, and
 #: which lists the real import measures against is the command's business, not this module's.
-_KNOWN_MEDIENARTEN = ("Schrifttum", "Foto(s)")
-_KNOWN_DOKUMENTTYPEN = ("Zeitschrift", "Lagerheft", "Chronik / Dokumentation", "Sonstiges")
+_KNOWN_MEDIA_TYPES = ("Schrifttum", "Foto(s)")
+_KNOWN_DOCUMENT_TYPES = ("Zeitschrift", "Lagerheft", "Chronik / Dokumentation", "Sonstiges")
 
 _COLLECTIONS = {
     "Bund": "01BUND0000000000000000000",
@@ -180,11 +180,11 @@ def test_pub_date_becomes_the_date_added_in_utc_whole_seconds(pub_date: str) -> 
     assert added_at == datetime(2017, 6, 26, 6, 6, 40, tzinfo=UTC)
 
 
-def test_the_signatur_keeps_its_inner_space_verbatim() -> None:
+def test_the_ref_code_keeps_its_inner_space_verbatim() -> None:
     assert _map(_row(signature="BA 1074")).article.ref_code == "BA 1074"
 
 
-def test_an_empty_signatur_is_absent_not_blank() -> None:
+def test_an_empty_ref_code_is_absent_not_blank() -> None:
     assert _map(_row(signature="  ")).article.ref_code is None
 
 
@@ -237,11 +237,11 @@ def test_no_document_type_at_all_is_absent() -> None:
 # --- Bestand ------------------------------------------------------------------------
 
 
-def test_an_empty_collection_lands_in_unsortiert() -> None:
+def test_an_empty_collection_lands_in_unsorted() -> None:
     assert legacy.collection_name(_row(collection="")) == legacy.UNSORTED
 
 
-def test_the_bestand_names_are_the_legacy_ones_plus_unsortiert() -> None:
+def test_the_collection_names_are_the_legacy_ones_plus_unsorted() -> None:
     rows = [_row(collection="Bund"), _row(collection=""), _row(collection="Orden St. Georg")]
     assert legacy.collection_names(rows) == ("Bund", "Orden St. Georg", legacy.UNSORTED)
 
@@ -473,8 +473,8 @@ def test_the_report_names_the_values_the_edit_form_would_refuse() -> None:
     ]
     media_types, document_types = legacy.unknown_vocabulary(
         rows,
-        known_media_types=_KNOWN_MEDIENARTEN,
-        known_document_types=_KNOWN_DOKUMENTTYPEN,
+        known_media_types=_KNOWN_MEDIA_TYPES,
+        known_document_types=_KNOWN_DOCUMENT_TYPES,
     )
     assert media_types == ("Papier",)  # distinct, first-seen order
     assert document_types == ("Brief",)
@@ -648,7 +648,7 @@ def test_the_import_derives_the_thumbnails_itself(tmp_path: Path) -> None:
 
 
 @pytest.mark.django_db
-def test_an_unreadable_bestand_stops_the_import_before_it_writes(tmp_path: Path) -> None:
+def test_an_unreadable_collection_stops_the_import_before_it_writes(tmp_path: Path) -> None:
     """Matching by name cannot see an unreadable Bestand: going on could create its twin."""
     csv_dir, media_root = tmp_path / "legacy", tmp_path / "media"
     _write_export(csv_dir, media_root)

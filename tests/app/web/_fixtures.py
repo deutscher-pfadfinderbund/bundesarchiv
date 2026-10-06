@@ -354,11 +354,11 @@ def _bulk(client: Client, corpus: Corpus) -> Any:
     )
 
 
-def _create_bestand(client: Client, corpus: Corpus) -> Any:
+def _create_collection(client: Client, corpus: Corpus) -> Any:
     return client.post("/collections/new", {"name": "Karten", "parent_id": "", "audience": ""})
 
 
-def _rename_bestand(client: Client, corpus: Corpus) -> Any:
+def _rename_collection(client: Client, corpus: Corpus) -> Any:
     version = str(corpus.collections.load(PUB).version)
     return client.post(
         f"/collections/{PUB}/edit", {"name": "Umbenannt", "expected_version": version}
@@ -377,6 +377,6 @@ WRITES: dict[str, Callable[[Client, Corpus], Any]] = {
     "article-media-move": _reorder,
     "article-media-remove": _remove,
     "article-bulk-edit": _bulk,
-    "collection-create": _create_bestand,
-    "collection-edit": _rename_bestand,
+    "collection-create": _create_collection,
+    "collection-edit": _rename_collection,
 }

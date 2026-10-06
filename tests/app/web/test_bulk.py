@@ -100,14 +100,14 @@ def test_field_display_scalar() -> None:
 
 
 def test_document_type_alone_all_valid() -> None:
-    arts = [_article(media_type="Foto(s)"), _article(media_type="Schrifttum")]
-    assert bulk.document_type_fits_all("Zeitschrift", arts) is True
+    types = [_article(media_type="Foto(s)"), _article(media_type="Schrifttum")]
+    assert bulk.document_type_fits_all("Zeitschrift", types) is True
 
 
 def test_document_type_alone_one_mismatch_rejects_all() -> None:
-    arts = [_article(media_type="Foto(s)"), _article(media_type=None)]
+    types = [_article(media_type="Foto(s)"), _article(media_type=None)]
     # no Dokumenttyp belongs to a missing Medienart → the whole apply must be rejected
-    assert bulk.document_type_fits_all("Zeitschrift", arts) is False
+    assert bulk.document_type_fits_all("Zeitschrift", types) is False
 
 
 # --- apply_bulk: the CAS loop + buckets against a real in-memory store (spec §4) ----

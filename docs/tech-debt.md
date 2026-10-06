@@ -227,7 +227,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   reuse path) lie within 1 MiB of each other (2026-09-25); RSS not measured
 - **Evidence:** ADR 0019 "Streaming upload": `ArticleRepository.add_media` takes a seekable stream,
   hashes it in 1 MiB chunks and stores it with `create_large`; the view hands it the upload file.
-  Pinned by `test_catalog_medien.test_hochladen_memory_does_not_grow_with_the_file`.
+  Pinned by `test_catalog_media.test_upload_memory_does_not_grow_with_the_file`.
 
 ## Implementation patterns
 

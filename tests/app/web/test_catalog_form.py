@@ -47,7 +47,7 @@ def _post(**overrides: object) -> dict[str, list[str]]:
 
 
 #: The two Bestände the form offered; the parse layer accepts these and nothing else.
-_BESTAND = CollectionChooser(
+_COLLECTION = CollectionChooser(
     lambda: (Collection(ulid="COLL1", name="Eins"), Collection(ulid="COLL2", name="Zwei"))
 )
 
@@ -56,7 +56,7 @@ def _parse(post: dict[str, list[str]], *, stored: Audience | None = None) -> cat
     return catalog.parse_edit_form(
         post,
         ulid="01ARTICLEULID0000000000000",
-        chooser=_BESTAND,
+        chooser=_COLLECTION,
         current_audience=stored,
         added_at=None,
         deleted=None,
@@ -75,12 +75,12 @@ def test_minimal_valid_form_builds_an_article() -> None:
     assert result.article.ulid == "01ARTICLEULID0000000000000"
 
 
-def test_an_edit_keeps_the_papierkorb_mark() -> None:
+def test_an_edit_keeps_the_trash_mark() -> None:
     mark = Change(at=datetime(2026, 9, 30, 12, 0, tzinfo=UTC), by="bert")
     result = catalog.parse_edit_form(
         _post(),
         ulid="01ARTICLEULID0000000000000",
-        chooser=_BESTAND,
+        chooser=_COLLECTION,
         current_audience=None,
         added_at=None,
         deleted=mark,
@@ -88,7 +88,7 @@ def test_an_edit_keeps_the_papierkorb_mark() -> None:
     assert result.article is not None and result.article.deleted == mark
 
 
-def test_a_line_break_in_the_titel_becomes_one_space() -> None:
+def test_a_line_break_in_the_title_becomes_one_space() -> None:
     # the Titel is a textarea; a break would reach the ledger, <title>, the crumbs and the index
     result = _parse(_post(title=" Wander-\r\n\n fahrt\n"))
     assert result.article is not None
@@ -261,7 +261,7 @@ def test_groups_visibility_without_groups_is_a_field_error() -> None:
     assert result.errors["groups"] == "Bitte mindestens eine Gruppe angeben."
 
 
-def test_gruppen_ignored_when_not_groups_tier() -> None:
+def test_groups_ignored_when_not_groups_tier() -> None:
     # Naming groups on a MEMBERS rung must not smuggle a GROUPS audience (illegal per the model).
     art = _parse(_post(audience="members", groups="vorstand")).article
     assert art is not None
