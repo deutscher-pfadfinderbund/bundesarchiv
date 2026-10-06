@@ -718,7 +718,7 @@ def _confirmed_delete(
         # htmx asked from a tool panel: the refusal answers in place (components/confirm.html)
         "components/confirm.html" if is_partial(request) else "workbench/article_delete.html",
         {
-            "id": "endgueltig-loeschen" if marked else "loeschen",
+            "id": "delete-permanently" if marked else "delete",
             "ulid": ulid,
             "version": stored.version,
             "stale": stale,

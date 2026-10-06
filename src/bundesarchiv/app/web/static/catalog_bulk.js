@@ -17,7 +17,7 @@
   // the bulk form currently in the document (absent for non-archivists and on the zero-hit page);
   // #results also holds the Spalten form, so it is found by its count hook
   function resultsForm() {
-    return document.querySelector("#results > form:has([data-bulk-zahl])");
+    return document.querySelector("#results > form:has([data-bulk-count])");
   }
 
   function init() {
@@ -54,7 +54,7 @@
       }
     }
 
-    // The count target [data-bulk-zahl] is always in the DOM in selection mode. Empty text at
+    // The count target [data-bulk-count] is always in the DOM in selection mode. Empty text at
     // zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may
     // restructure freely as long as it keeps the hook.
     //
@@ -64,11 +64,11 @@
     // selection on other pages is invisible to the DOM and can only come from the server: a
     // count of the boxes alone would drop a live cross-page selection (learning G.25).
     function updateCount() {
-      const zahl = form.querySelector("[data-bulk-zahl]");
+      const count = form.querySelector("[data-bulk-count]");
       const bulk = form.querySelector("[data-bulk-offpage]");
       const offPage = bulk ? Number.parseInt(bulk.dataset.bulkOffpage, 10) || 0 : 0;
       const n = offPage + rowBoxes().filter((b) => b.checked).length;
-      zahl.textContent = n > 0 ? `${n} ausgewählt` : "";
+      count.textContent = n > 0 ? `${n} ausgewählt` : "";
     }
 
     // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager

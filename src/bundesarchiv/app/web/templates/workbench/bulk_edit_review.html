@@ -1,7 +1,7 @@
 {% extends "workbench/base.html" %}
 {% load static %}
 {% comment %}
-The bulk check page (a2 pruefen.html) and its error mode (pruefen-fehler.html). Archivist-only (the
+The bulk check page (a2 pruefen.html) and its error mode (pruefen-error.html). Archivist-only (the
 view gates it). The consequence disclosure: the new value once, one row per record with the value
 it loses. Hidden inputs carry selection, field and value into the commit (no server session state).
 {% endcomment %}
@@ -9,7 +9,7 @@ it loses. Hidden inputs carry selection, field and value into the commit (no ser
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column">
+<main id="content" class="column">
   <h1>Änderung prüfen</h1>
 
   {% if error %}

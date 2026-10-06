@@ -74,7 +74,7 @@ def new_article_panel(
 ) -> FormPanel:
     """The create step as the header's "Neuer Artikel" tool panel."""
     return FormPanel(
-        id="neu-artikel",
+        id="new-article",
         label="Neuer Artikel …",
         action=reverse("article-create"),
         rows=article_rows(chooser, title, collection_id, errors or {}),
@@ -104,7 +104,7 @@ def article_rows(
 def new_collection_panel(rows: tuple[CardRow, ...]) -> FormPanel:
     """The create form as the header's "Neuer Bestand" tool panel."""
     return FormPanel(
-        id="neu-bestand",
+        id="new-collection",
         label="Neuer Bestand …",
         action=reverse("collection-create"),
         rows=rows,

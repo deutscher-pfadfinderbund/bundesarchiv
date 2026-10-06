@@ -131,7 +131,7 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -
 
 
 def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> None:
-    # data-bulk-wert is what layouts.css matches to reveal a widget; hand-typed, it went stale in
+    # data-bulk-value is what layouts.css matches to reveal a widget; hand-typed, it went stale in
     # silence — a new bulk field would offer no way to enter its value. Parsed back out of the
     # rendered chooser: every target from bulk.FIELDS, on exactly one widget, and nothing else.
     body = (
@@ -139,7 +139,7 @@ def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> No
         .post("/articles/bulk-edit", {"field": "creator", "value_text": "x", "confirmed": "1"})
         .content.decode()
     )
-    tokens = [t for attr in re.findall(r'data-bulk-wert="([^"]*)"', body) for t in attr.split()]
+    tokens = [t for attr in re.findall(r'data-bulk-value="([^"]*)"', body) for t in attr.split()]
     assert sorted(tokens) == sorted(f.target for f in bulk.FIELDS)
 
 

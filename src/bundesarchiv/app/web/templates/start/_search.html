@@ -3,8 +3,8 @@ The page's large search: the list's own search component (a field and its button
 its knobs in layouts.css) and, for an archivist with drafts, "Weiter bearbeiten" right under it:
 up to three drafts, or two and "und n weitere" (the list of Entwürfe).
 {% endcomment %}
-<section data-span="all" data-search aria-labelledby="start-suche">
-  <header class="section-head"><h1 id="start-suche">Im Archiv suchen</h1></header>
+<section data-span="all" data-search aria-labelledby="start-search">
+  <header class="section-head"><h1 id="start-search">Im Archiv suchen</h1></header>
   {% include "workbench/_search_field.html" with field_only=True only %}
   {% if area.drafts %}
   <div class="resume">

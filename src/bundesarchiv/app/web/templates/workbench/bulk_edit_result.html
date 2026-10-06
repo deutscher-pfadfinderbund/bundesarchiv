@@ -9,7 +9,7 @@ listed, each leading to its edit form, plus one collective recovery.
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column">
+<main id="content" class="column">
   <h1>{{ saved }} von {{ total }} gespeichert</h1>
   <p>{{ field_label }} → {{ value_display }}</p>
   {% include "components/index_lag.html" with index_lag=bulk_index_lag only %}

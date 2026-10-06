@@ -95,9 +95,9 @@ def _reach_neu_bestand_refused(page: Page, base: str, _corpus: CorpusHandles) ->
     # Anlegen with a blank Name: htmx answers in the panel itself, the error under the field. Spaces,
     # because the browser's `required` stops an empty Name before the server sees it.
     _reach_header_panel(page, base, LIST, "Neuer Bestand …")
-    page.locator("#neu-bestand-name").fill("   ")
-    page.locator("#neu-bestand").get_by_role("button", name="Anlegen").click()
-    page.wait_for_selector("#neu-bestand .error")
+    page.locator("#new-collection-name").fill("   ")
+    page.locator("#new-collection").get_by_role("button", name="Anlegen").click()
+    page.wait_for_selector("#new-collection .error")
 
 
 def _reach_bestand_bearbeiten_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -122,7 +122,7 @@ def _reach_auswahl(page: Page, base: str, corpus: CorpusHandles) -> None:
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
     # the same selection with "Feld ändern …" open (the chooser in its toolpanel)
     _reach_auswahl(page, base, corpus)
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
 
 
 def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -153,7 +153,7 @@ def _reach_edit_mehr_open(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 def _reach_edit_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     _reach_edit_mehr_open(page, base, corpus)
-    page.click('[popovertarget="loeschen"]')
+    page.click('[popovertarget="delete"]')
 
 
 def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -164,7 +164,7 @@ def _reach_detail_aktionen_open(page: Page, base: str, corpus: CorpusHandles) ->
 def _reach_detail_loeschen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.published_ulid}", wait_until="networkidle")
     page.click(".split-button .menu-button")
-    page.click('[popovertarget="loeschen"]')
+    page.click('[popovertarget="delete"]')
 
 
 def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -174,7 +174,7 @@ def _reach_detail_veroeffentlichen_open(page: Page, base: str, corpus: CorpusHan
 
 def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.marked_ulid}", wait_until="networkidle")
-    page.click('[popovertarget="endgueltig-loeschen"]')
+    page.click('[popovertarget="delete-permanently"]')
 
 
 def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
@@ -190,7 +190,7 @@ def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 def _reach_edit_datierung_help(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
-    page.click("#feld-date-hinweis .help")
+    page.click("#field-date-hint .help")
 
 
 def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
@@ -237,7 +237,7 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
     )
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
     page.select_option('select[name="field"]', "media_type")
     page.select_option('select[name="value_media_type"]', "")
     page.click('button:has-text("Änderung prüfen")')

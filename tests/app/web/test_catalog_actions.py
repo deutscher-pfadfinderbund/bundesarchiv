@@ -548,7 +548,7 @@ def test_veroeffentlichen_get_is_404(corpus: Corpus) -> None:
 
 def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
     body = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}").content.decode()
-    assert 'popovertarget="veroeffentlichen"' in body
+    assert 'popovertarget="publish"' in body
     assert f'action="/articles/{DRAFT_ULID}/publish"' in body
     version = corpus.articles.load(DRAFT_ULID).version
     assert f'name="expected_version" value="{version}"' in body
@@ -564,7 +564,7 @@ def test_the_confirmation_says_who_will_see_the_record(corpus: Corpus) -> None:
 
 def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:
     body = client_as(Archivist()).get(f"/articles/{PUBLISHED_ULID}").content.decode()
-    assert "veroeffentlichen" not in body
+    assert 'id="publish"' not in body
     assert "Nach dem Veröffentlichen" not in body
 
 

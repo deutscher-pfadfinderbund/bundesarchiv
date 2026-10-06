@@ -1111,7 +1111,7 @@
     width: var(--measure-date);
   }
   .ledger :where(td.ref-code) {
-    width: var(--measure-sig);
+    width: var(--measure-ref-code);
   }
   /* the word cells keep one width on every page, so the columns do not jump between results */
   .ledger :where(td.type, td.digital, td.collection) {

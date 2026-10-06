@@ -10,8 +10,8 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
 {% block head_extra %}<link rel="stylesheet" href="{% static "detail.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="article-page">
-  <article aria-labelledby="artikel-titel">
+<main id="content" class="article-page">
+  <article aria-labelledby="article-title">
     <header>
       <div class="record-head">
         <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
@@ -19,32 +19,32 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
         <div class="actions">
           <span class="mark">Gelöscht am {{ deleted.at }} von {{ deleted.by }}</span>
           <form method="post" action="{% url 'article-restore' ulid %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ version }}"><button class="primary" type="submit">Wiederherstellen</button></form>
-          <button class="danger" type="button" popovertarget="endgueltig-loeschen">Endgültig löschen …</button>
+          <button class="danger" type="button" popovertarget="delete-permanently">Endgültig löschen …</button>
           {% url 'article-delete-permanently' ulid as permanent_delete_href %}
-          {% include "components/confirm.html" with id="endgueltig-loeschen" action=permanent_delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="danger" in_place=True %}
+          {% include "components/confirm.html" with id="delete-permanently" action=permanent_delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="danger" in_place=True %}
         </div>
         {% elif is_archivist %}
         <div class="actions">
           <div class="split-button">
             <a class="button" href="{% url 'article-edit' ulid %}">Bearbeiten</a>
-            <button class="menu-button" type="button" popovertarget="aktionen-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
-            <ul class="menu" id="aktionen-menu" popover>
+            <button class="menu-button" type="button" popovertarget="actions-menu" aria-label="Weitere Aktionen" title="Weitere Aktionen">{% include "components/icon.html" with name="chevron-down" only %}</button>
+            <ul class="menu" id="actions-menu" popover>
               <li>{% include "workbench/_copy.html" %}</li>
               {% url 'article-delete' ulid as delete_href %}
-              <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
+              <li><button class="link" type="button" popovertarget="delete">Löschen …</button></li>
             </ul>
-            {% include "components/confirm.html" with id="loeschen" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
+            {% include "components/confirm.html" with id="delete" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
           </div>
           {% if is_draft %}
-          <button class="primary" type="button" popovertarget="veroeffentlichen">Veröffentlichen</button>
+          <button class="primary" type="button" popovertarget="publish">Veröffentlichen</button>
           {% url 'article-publish' ulid as publish_href %}
-          {% include "components/confirm.html" with id="veroeffentlichen" action=publish_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
+          {% include "components/confirm.html" with id="publish" action=publish_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}
           {% endif %}
         </div>
         {% endif %}
       </div>
       {% include "components/index_lag.html" %}
-      <h1 id="artikel-titel">{{ title }}</h1>
+      <h1 id="article-title">{{ title }}</h1>
       {% if ref_code or doc_type or date or place or creator %}
       <p class="byline">{% if ref_code %}<data value="{{ ref_code }}">{{ ref_code }}</data>{% endif %}{% if doc_type %}<span>{{ doc_type }}</span>{% endif %}{% if date %}<span>{% for part in date %}{% if not forloop.first %} – {% endif %}{% if part.datetime %}<time datetime="{{ part.datetime }}">{{ part.text }}</time>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>{% endif %}{% if place %}<span>{{ place }}</span>{% endif %}{% if creator %}<span>von {{ creator }}</span>{% endif %}</p>
       {% endif %}

@@ -286,9 +286,9 @@ def test_raced_save_shows_conflict_panel_with_preserved_input(corpus: _EditCorpu
     assert 'value="Meine Eingabe"' in body  # and their other input
     # each differing field is invalid and described by what is stored now, "(leer)" for nothing
     conflict = _conflict(body)
-    assert conflict.links == [("Titel", "feld-title"), ("Autor", "feld-creator")]
-    assert conflict.stored_value("feld-title") == "Inzwischen gespeichert: Gewinner"
-    assert conflict.stored_value("feld-creator") == "Inzwischen gespeichert: (leer)"
+    assert conflict.links == [("Titel", "field-title"), ("Autor", "field-creator")]
+    assert conflict.stored_value("field-title") == "Inzwischen gespeichert: Gewinner"
+    assert conflict.stored_value("field-creator") == "Inzwischen gespeichert: (leer)"
     # the store is at the WINNER's value + version (no last-writer-wins)
     stored = corpus.articles.load(_ULID)
     assert stored.article.title == "Gewinner"

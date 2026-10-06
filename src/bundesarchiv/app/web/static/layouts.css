@@ -22,14 +22,14 @@
      a q-swap refreshes its slots out-of-band. Set slots in ink, open ones quieter, centre dots
      between. The form is its size container: at S the unset slots after the first fold away. ---- */
   .search-form {
-    /* on the page grid, like the header: "Suche" starts where the wordmark starts. Knob: --satz-pad
+    /* on the page grid, like the header: "Suche" starts where the wordmark starts. Knob: --search-sentence-pad
        (0 where a composition already sets the page grid). */
-    --_satz-pad: var(
-      --satz-pad,
+    --_search-sentence-pad: var(
+      --search-sentence-pad,
       var(--space-4) max(var(--gutter), (100% - var(--measure)) / 2 + var(--gutter)) var(--space-2)
     );
     container-type: inline-size;
-    padding: var(--_satz-pad);
+    padding: var(--_search-sentence-pad);
   }
   .search-sentence {
     /* the containing block for its menus' panels (law C12) */
@@ -165,7 +165,7 @@
     color: var(--ink-2);
   }
 
-  /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-wert tokens
+  /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-value tokens
      contain the chosen Feld, derived from the select's own :checked option — no JS, so the no-JS
      baseline behaves identically. A new bulk field needs its token here (ledger #6).
      Knobs: --chooser-control-height (its action row's height). */
@@ -184,22 +184,22 @@
   .toolpanel .chooser {
     --chooser-control-height: var(--control-height);
   }
-  .chooser [data-bulk-wert] {
+  .chooser [data-bulk-value] {
     --field-display: none;
   }
   .chooser:has([name="field"] option:checked[value="physical_location"])
-    [data-bulk-wert~="physical_location"],
-  .chooser:has([name="field"] option:checked[value="creator"]) [data-bulk-wert~="creator"],
+    [data-bulk-value~="physical_location"],
+  .chooser:has([name="field"] option:checked[value="creator"]) [data-bulk-value~="creator"],
   .chooser:has([name="field"] option:checked[value="subject_place"])
-    [data-bulk-wert~="subject_place"],
-  .chooser:has([name="field"] option:checked[value="Quelle"]) [data-bulk-wert~="Quelle"],
-  .chooser:has([name="field"] option:checked[value="Querverweis"]) [data-bulk-wert~="Querverweis"],
-  .chooser:has([name="field"] option:checked[value="Besitzer"]) [data-bulk-wert~="Besitzer"],
-  .chooser:has([name="field"] option:checked[value="media_type"]) [data-bulk-wert~="media_type"],
+    [data-bulk-value~="subject_place"],
+  .chooser:has([name="field"] option:checked[value="Quelle"]) [data-bulk-value~="Quelle"],
+  .chooser:has([name="field"] option:checked[value="Querverweis"]) [data-bulk-value~="Querverweis"],
+  .chooser:has([name="field"] option:checked[value="Besitzer"]) [data-bulk-value~="Besitzer"],
+  .chooser:has([name="field"] option:checked[value="media_type"]) [data-bulk-value~="media_type"],
   .chooser:has([name="field"] option:checked[value="document_type"])
-    [data-bulk-wert~="document_type"],
+    [data-bulk-value~="document_type"],
   .chooser:has([name="field"] option:checked[value="collection_id"])
-    [data-bulk-wert~="collection_id"] {
+    [data-bulk-value~="collection_id"] {
     --field-display: inherit; /* whatever display the context gives every other field */
   }
 
@@ -442,7 +442,7 @@
      the area out of a small grid. ---- */
   .start {
     --section-head-type: var(--type-subhead);
-    --satz-pad: 0;
+    --search-sentence-pad: 0;
     --start-column-min: 15rem; /* the narrowest column: three still fit at M (~900px) */
     container-type: inline-size;
     display: grid;

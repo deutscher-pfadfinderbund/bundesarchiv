@@ -8,7 +8,7 @@ it out of a small container.
 {% comment %}The search sentence below is the page's search; the header drops its own.{% endcomment %}
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="start">
+<main id="content" class="start">
   {% for partial, area in areas %}{% include partial with area=area only %}
   {% endfor %}
 </main>

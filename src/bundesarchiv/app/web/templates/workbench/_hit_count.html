@@ -4,4 +4,4 @@ after a type-to-search swap. It lives outside #results, so the HX-Request render
 by innerHTML (oob) and the aria-live node survives and speaks. A full page load has nothing to
 announce, so it stays empty.
 {% endcomment %}
-<p id="trefferzahl" class="visually-hidden" aria-live="polite"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>{% if oob %}{{ total }} Treffer{% endif %}</p>
+<p id="hit-count" class="visually-hidden" aria-live="polite"{% if oob %} hx-swap-oob="innerHTML"{% endif %}>{% if oob %}{{ total }} Treffer{% endif %}</p>

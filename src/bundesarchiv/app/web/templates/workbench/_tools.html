@@ -6,7 +6,7 @@ the way to the Papierkorb before "Spalten …" (ADR 0022). While one Bestand is 
 (active_collection), "Bestand bearbeiten …" opens the header's rename panel: an edit is a tool, not
 a word of the search sentence. The
 row sits inside the bulk form, so its "Spalten …" controls post through their own form
-(form=spalten-form, _results.html): forms cannot nest.
+(form=columns-form, _results.html): forms cannot nest.
 Params: choices — ledger.Ledger.choices; bulk — the selection tools (the view's bulk context).
 {% endcomment %}
 <div role="toolbar" aria-label="Werkzeuge">
@@ -16,10 +16,10 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
   counting checkboxes cannot see (learning G.25).{% endcomment %}
   <div class="bulk" data-bulk-offpage="{{ selection_offpage_count }}">
     <a href="?{{ cancel_query }}">Abbrechen</a>
-    <span role="status" data-bulk-zahl>{% if selection_count %}{{ selection_count }} ausgewählt{% endif %}</span>
-    <button class="menu-button" type="button" popovertarget="feld-aendern">Feld ändern …</button>
-    <div class="toolpanel" id="feld-aendern" popover data-reset-on-close>
-      {% include "workbench/_field_picker.html" with cancel_panel="feld-aendern" %}
+    <span role="status" data-bulk-count>{% if selection_count %}{{ selection_count }} ausgewählt{% endif %}</span>
+    <button class="menu-button" type="button" popovertarget="field-change">Feld ändern …</button>
+    <div class="toolpanel" id="field-change" popover data-reset-on-close>
+      {% include "workbench/_field_picker.html" with cancel_panel="field-change" %}
     </div>
   </div>
   {% else %}
@@ -28,14 +28,14 @@ Params: choices — ledger.Ledger.choices; bulk — the selection tools (the vie
   {% if active_collection %}<button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button>{% endif %}
   <a href="{% url 'trash' %}">Papierkorb</a>
   {% endif %}
-  <button class="menu-button" type="button" popovertarget="spalten">Spalten …</button>
-  <div class="toolpanel" id="spalten" popover data-reset-on-close>
+  <button class="menu-button" type="button" popovertarget="columns">Spalten …</button>
+  <div class="toolpanel" id="columns" popover data-reset-on-close>
     <ul>
-      {% for choice in choices %}<li><label><input type="checkbox" name="column" value="{{ choice.key }}" form="spalten-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
+      {% for choice in choices %}<li><label><input type="checkbox" name="column" value="{{ choice.key }}" form="columns-form"{% if choice.chosen %} checked{% endif %}> {{ choice.label }}</label></li>{% endfor %}
     </ul>
     <div class="actions">
-      <button class="primary" type="submit" form="spalten-form">Fertig</button>
-      {% include "components/toolpanel_cancel.html" with panel="spalten" only %}
+      <button class="primary" type="submit" form="columns-form">Fertig</button>
+      {% include "components/toolpanel_cancel.html" with panel="columns" only %}
     </div>
   </div>
 </div>

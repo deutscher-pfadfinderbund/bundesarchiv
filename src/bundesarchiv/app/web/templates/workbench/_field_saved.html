@@ -1,1 +1,1 @@
-{% comment %}The winner's stored value under a field a CAS conflict touches. Needs `field` and `base`.{% endcomment %}{% if field.was is not None %}<span class="was" id="{{ base }}-gespeichert">Inzwischen gespeichert: {{ field.was|default:"(leer)" }}</span>{% endif %}
+{% comment %}The winner's stored value under a field a CAS conflict touches. Needs `field` and `base`.{% endcomment %}{% if field.was is not None %}<span class="was" id="{{ base }}-saved">Inzwischen gespeichert: {{ field.was|default:"(leer)" }}</span>{% endif %}

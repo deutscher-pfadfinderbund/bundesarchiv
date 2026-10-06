@@ -114,7 +114,7 @@ def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
     )
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -139,7 +139,7 @@ def reach_schlagwort_suggestions(page: Page, base: str, corpus: CorpusHandles) -
     """The second Article's edit form (it carries "lager") with "r" typed on a new last line of the
     Schlagworte, the suggestion list open."""
     page.goto(f"{base}/articles/{corpus.second_ulid}/edit", wait_until="networkidle")
-    field = page.locator("main #feld-tags")
+    field = page.locator("main #field-tags")
     field.click()
     field.evaluate("(el) => el.setSelectionRange(el.value.length, el.value.length)")
     page.keyboard.press("Enter")

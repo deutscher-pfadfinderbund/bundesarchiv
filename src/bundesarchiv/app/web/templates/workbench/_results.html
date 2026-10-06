@@ -24,7 +24,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
       hx-trigger="keyup changed delay:400ms from:input[name=q]">
   {% include "components/index_lag.html" %}
   {% if page.hits %}
-  <form id="spalten-form" method="post" action="{% url 'columns' %}" hidden>
+  <form id="columns-form" method="post" action="{% url 'columns' %}" hidden>
     {% csrf_token %}<input type="hidden" name="back" value="{{ columns_back }}">
   </form>
   {% if is_archivist %}
@@ -44,7 +44,7 @@ active-filter inputs, GH #21) and pushes the URL. Submit is not bound: Enter nav
   <div class="empty-state">
     <div class="emblem" aria-hidden="true"></div>
     <p>Noch keine Artikel in diesem Bestand.</p>
-    {% if is_archivist %}<p><button class="primary" type="button" popovertarget="neu-artikel">+ Neuer Artikel</button></p>{% endif %}
+    {% if is_archivist %}<p><button class="primary" type="button" popovertarget="new-article">+ Neuer Artikel</button></p>{% endif %}
     {% comment %}no rows, so no tool row: the rename stays reachable here{% endcomment %}
     {% if active_collection %}<p><button class="menu-button" type="button" popovertarget="collection-edit">Bestand bearbeiten …</button></p>{% endif %}
   </div>

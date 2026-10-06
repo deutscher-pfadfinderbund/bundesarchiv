@@ -2,7 +2,7 @@
 shows only the one matching the chosen Feld (layouts.css .chooser, via the select's own checked
 option — no JS, and the server reads only the matching widget either way). Rendered by the workbench
 bulk bar and by the confirm page's error mode from one context (bulk.field_picker_context); the
-data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cancel_panel — the tool panel it sits in, which its Abbrechen closes.{% endcomment %}
+data-bulk-value tokens and the Feld options derive from bulk.FIELDS. Param: cancel_panel — the tool panel it sits in, which its Abbrechen closes.{% endcomment %}
 <div class="chooser">
   <label class="field">
     <span>Feld</span>
@@ -13,23 +13,23 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cance
     </select>
   </label>
 
-  <label class="field" data-bulk-wert="{{ field_picker_targets.value_text }}">
+  <label class="field" data-bulk-value="{{ field_picker_targets.value_text }}">
     <span>Neuer Wert</span>
     <input type="text" name="value_text" value="{{ field_picker_value }}">
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.value_media_type }}">
+  <label class="field" data-bulk-value="{{ field_picker_targets.value_media_type }}">
     <span>Neuer Wert</span>
     <select name="value_media_type"
             hx-get="{% url 'article-bulk-edit-document-types' %}"
-            hx-trigger="change" hx-target="#bulk-dokumenttyp-select" hx-swap="innerHTML">
+            hx-trigger="change" hx-target="#bulk-document-type-select" hx-swap="innerHTML">
       {% for value, caption in field_picker_media_type_options %}
       <option value="{{ value }}"{% if value == field_picker_value %} selected{% endif %}>{{ caption }}</option>
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.value_document_type }}">
+  <label class="field" data-bulk-value="{{ field_picker_targets.value_document_type }}">
     <span>Neuer Wert</span>
-    <select name="value_document_type" id="bulk-dokumenttyp-select">
+    <select name="value_document_type" id="bulk-document-type-select">
       <option value="">— kein Dokumenttyp —</option>
       {% for group_label, group_options in field_picker_document_type_groups %}
       <optgroup label="{{ group_label }}">
@@ -40,7 +40,7 @@ data-bulk-wert tokens and the Feld options derive from bulk.FIELDS. Param: cance
       {% endfor %}
     </select>
   </label>
-  <label class="field" data-bulk-wert="{{ field_picker_targets.value_collection_id }}">
+  <label class="field" data-bulk-value="{{ field_picker_targets.value_collection_id }}">
     <span>Neuer Wert</span>
     <select name="value_collection_id">
       {% for value, caption in field_picker_collection_options %}

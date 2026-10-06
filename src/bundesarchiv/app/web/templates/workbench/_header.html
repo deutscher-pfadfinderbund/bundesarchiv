@@ -29,8 +29,8 @@ screen without #results.
 {% comment %}The header's create slot (learning G.9): a new create action joins this list, never a
 new header button.{% endcomment %}
 {% if is_archivist %}{% with panels=new %}
-<button class="menu-button" type="button" popovertarget="neu-menu">+ Neu …</button>
-<ul class="menu" id="neu-menu" popover>
+<button class="menu-button" type="button" popovertarget="new-menu">+ Neu …</button>
+<ul class="menu" id="new-menu" popover>
   {% for panel in panels %}{% if panel.in_menu %}<li><button class="link" type="button" popovertarget="{{ panel.id }}">{{ panel.label }}</button></li>{% endif %}
   {% endfor %}
 </ul>

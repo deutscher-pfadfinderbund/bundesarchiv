@@ -10,12 +10,12 @@
   // 1. Dirty register — reveal the "Nicht gespeicherte Änderungen" mark on the first edit.
   // No-JS can't detect dirtiness, so the baseline hides the mark (hidden attr); JS unhides it.
   // Listen on the document and match the field's form OWNER, not DOM ancestry: caption and
-  // custom-bag fields sit OUTSIDE #bearbeiten-form's subtree (the #medien-drawer fieldset holds the
+  // custom-bag fields sit OUTSIDE #edit-form's subtree (the #media-drawer fieldset holds the
   // real per-row forms, and forms cannot nest) but still ride its save via form= — an edit there is
   // just as unsaved. Re-querying by id also keeps working after an hx #form-region swap.
   document.addEventListener("input", (event) => {
     const field = event.target;
-    if (field.form?.id !== "bearbeiten-form") {
+    if (field.form?.id !== "edit-form") {
       return;
     }
     const status = document.getElementById("dirty-flag");
@@ -44,7 +44,7 @@
   let target; // the line the open list was suggested for: { start, text }
 
   function listOf(field) {
-    return document.getElementById(`${field.id}-vorschlaege`);
+    return document.getElementById(`${field.id}-suggestions`);
   }
 
   function enhance(field) {
@@ -52,13 +52,13 @@
       return;
     }
     const list = document.createElement("ul");
-    list.id = `${field.id}-vorschlaege`;
+    list.id = `${field.id}-suggestions`;
     list.className = "autocomplete-list";
     list.popover = "manual";
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Vorschläge");
     const status = document.createElement("span");
-    status.id = `${field.id}-vorschlaege-status`;
+    status.id = `${field.id}-suggestions-status`;
     status.className = "visually-hidden";
     status.setAttribute("aria-live", "polite");
     field.after(list, status);
@@ -79,7 +79,7 @@
   }
 
   function statusOf(field) {
-    return document.getElementById(`${field.id}-vorschlaege-status`);
+    return document.getElementById(`${field.id}-suggestions-status`);
   }
 
   function close(field) {

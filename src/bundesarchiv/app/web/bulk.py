@@ -12,7 +12,7 @@ shell over the real ``update_article`` service:
   ``document_type`` (spec §3). Custom writes rebuild through the Article constructor so the domain's
   sort/dedupe/reserved-key guard is the single rule (no second copy).
 - ``field_picker_context`` — the Feld chooser's render context, every part of it derived from ``FIELDS``
-  (options, the ``data-bulk-wert`` tokens). The workbench drawer and the confirm page's error mode
+  (options, the ``data-bulk-value`` tokens). The workbench drawer and the confirm page's error mode
   render ONE partial from it, so a new field reaches both surfaces at once.
 - ``document_type_fits_all`` — Dokumenttyp-alone is validated against EVERY article's CURRENT
   media_type before any write; one mismatch rejects the whole apply (all-or-nothing, fail-closed).
@@ -88,7 +88,7 @@ _FIELD_OPTIONS: tuple[tuple[str, str], ...] = (
     *((f.target, f.label) for f in FIELDS),
 )
 
-#: value_input → the space-separated targets that widget serves, the chooser's ``data-bulk-wert``
+#: value_input → the space-separated targets that widget serves, the chooser's ``data-bulk-value``
 #: tokens (layouts.css matches them to show exactly one widget). Derived, never typed out.
 _WIDGET_TARGETS: dict[str, str] = {
     value_input: " ".join(f.target for f in FIELDS if f.value_input == value_input)

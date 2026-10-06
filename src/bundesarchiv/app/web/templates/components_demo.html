@@ -202,15 +202,15 @@ components; this storyboard updates in lockstep with them.
         </select>
       </div>
       <div class="field">
-        <label for="demo-sicht-{{ mode }}">Sichtbar für</label>
-        <select id="demo-sicht-{{ mode }}" name="audience">
+        <label for="demo-audience-{{ mode }}">Sichtbar für</label>
+        <select id="demo-audience-{{ mode }}" name="audience">
           <option value="">Vom Bestand erben</option>
           <option value="groups">Gruppe(n)</option>
         </select>
       </div>
       <div class="field" data-shows-with="groups">
-        <label for="demo-gruppen-{{ mode }}">Gruppen</label>
-        <input id="demo-gruppen-{{ mode }}" type="text" name="groups">
+        <label for="demo-groups-{{ mode }}">Gruppen</label>
+        <input id="demo-groups-{{ mode }}" type="text" name="groups">
       </div>
       <div class="record-meta-actions">
         <button class="primary" type="button">Speichern</button>
@@ -245,14 +245,14 @@ components; this storyboard updates in lockstep with them.
     <div class="field">
       <label for="demo-date-{{ mode }}">Datierung</label>
       <input type="text" name="date" id="demo-date-{{ mode }}" value="19x2"
-             aria-invalid="true" aria-describedby="demo-date-{{ mode }}-fehler">
-      <span class="error" id="demo-date-{{ mode }}-fehler">Ungültige EDTF-Datierung.</span>
+             aria-invalid="true" aria-describedby="demo-date-{{ mode }}-error">
+      <span class="error" id="demo-date-{{ mode }}-error">Ungültige EDTF-Datierung.</span>
     </div>
     <div class="field">
       <label for="demo-date-conflict-{{ mode }}">Datierung</label>
       <input type="text" name="date" id="demo-date-conflict-{{ mode }}" value="1960~"
-             aria-invalid="true" aria-describedby="demo-date-conflict-{{ mode }}-gespeichert">
-      <span class="was" id="demo-date-conflict-{{ mode }}-gespeichert">Inzwischen gespeichert: 1960-03</span>
+             aria-invalid="true" aria-describedby="demo-date-conflict-{{ mode }}-saved">
+      <span class="was" id="demo-date-conflict-{{ mode }}-saved">Inzwischen gespeichert: 1960-03</span>
     </div>
   </div>
   {% endfor %}

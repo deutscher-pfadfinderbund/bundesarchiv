@@ -1,7 +1,7 @@
 {% comment %}The newest Articles: the day added, title, Bestand, one full-width row each.{% endcomment %}
 {% if area.rows %}
-<section data-span="all" aria-labelledby="start-neu">
-  <header class="section-head"><h2 id="start-neu">Zuletzt hinzugefügt</h2><a class="section-head-aside" href="{{ area.all_href }}">Alle ansehen</a></header>
+<section data-span="all" aria-labelledby="start-recent">
+  <header class="section-head"><h2 id="start-recent">Zuletzt hinzugefügt</h2><a class="section-head-aside" href="{{ area.all_href }}">Alle ansehen</a></header>
   <ul class="tiles" data-rows>
     {% for date, title, href, collection in area.rows %}<li><a class="register-row" href="{{ href }}"><span class="register-lead">{{ date }}</span><span class="register-label">{{ title }}</span><span class="register-aside">{{ collection }}</span></a></li>
     {% endfor %}

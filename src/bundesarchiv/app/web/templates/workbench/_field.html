@@ -30,8 +30,8 @@ A div with a <label for>, because the hint's ⓘ button and its popover may not 
   <input type="text" id="{{ control_id }}" name="{{ field.name }}" value="{{ field.value }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in field.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if field.autofocus %} autofocus{% endif %}>
   {% endif %}
   {% include "workbench/_field_saved.html" %}
-  {% if field.hint %}<span class="hint" id="{{ base }}-hinweis">{{ field.hint }}{% if field.help %}<button class="help" type="button" popovertarget="{{ base }}-hilfe" aria-label="Schreibweise: {{ field.label }}">ⓘ</button>{% endif %}</span>{% endif %}
-  {% if field.error %}<span class="error" id="{{ base }}-fehler">{{ field.error }}</span>{% endif %}
-  {% if field.help %}<div class="popover" id="{{ base }}-hilfe" popover>{% include field.help %}</div>{% endif %}
+  {% if field.hint %}<span class="hint" id="{{ base }}-hint">{{ field.hint }}{% if field.help %}<button class="help" type="button" popovertarget="{{ base }}-help" aria-label="Schreibweise: {{ field.label }}">ⓘ</button>{% endif %}</span>{% endif %}
+  {% if field.error %}<span class="error" id="{{ base }}-error">{{ field.error }}</span>{% endif %}
+  {% if field.help %}<div class="popover" id="{{ base }}-help" popover>{% include field.help %}</div>{% endif %}
 </div>
 {% endwith %}{% endwith %}

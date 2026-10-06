@@ -230,7 +230,7 @@ FIELDS: tuple[_Field, ...] = (
         hx_get="article-document-types",
         hx=(
             ("hx-trigger", "change"),
-            ("hx-target", "#dokumenttyp-select"),
+            ("hx-target", "#document-type-select"),
             ("hx-swap", "innerHTML"),
         ),
         scanned=True,
@@ -244,7 +244,7 @@ FIELDS: tuple[_Field, ...] = (
         section="filing",
         options="document_type_groups",
         blank="— kein Dokumenttyp —",
-        element_id="dokumenttyp-select",
+        element_id="document-type-select",
         scanned=True,
         focusable=True,
         diff="Dokumenttyp",
@@ -347,7 +347,7 @@ class CardRow:
     help: str = ""
     suggest: str = ""
     element_id: str = ""
-    prefix: str = "feld"
+    prefix: str = "field"
 
     @property
     def base(self) -> str:

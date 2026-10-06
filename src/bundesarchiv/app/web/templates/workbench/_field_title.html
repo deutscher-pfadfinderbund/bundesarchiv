@@ -2,4 +2,4 @@
 the owning form when the control sits outside it.{% endcomment %}{% with base=field.base %}<label id="{{ base }}-label" class="visually-hidden" for="{{ field.control_id }}">{{ field.label }}</label>
 <h1 class="title-field"><textarea id="{{ field.control_id }}" name="{{ field.name }}"{% if form %} form="{{ form }}"{% endif %} rows="1" placeholder="{{ field.label }}" {% include "workbench/_field_aria.html" %}{% if field.autofocus %} autofocus{% endif %}>{{ field.value }}</textarea></h1>
 {% include "workbench/_field_saved.html" %}
-{% if field.error %}<span class="error" id="{{ base }}-fehler">{{ field.error }}</span>{% endif %}{% endwith %}
+{% if field.error %}<span class="error" id="{{ base }}-error">{{ field.error }}</span>{% endif %}{% endwith %}

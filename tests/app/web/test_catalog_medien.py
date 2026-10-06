@@ -90,11 +90,11 @@ def _hashes(corpus: _MediaCorpus) -> list[str]:
 
 
 def _medien_drawer_region(body: str) -> str:
-    # Mirrors what htmx's hx-select="#medien-drawer" extracts client-side from the full-page
-    # response: the <section id="medien-drawer"> element, start tag through its matching close.
+    # Mirrors what htmx's hx-select="#media-drawer" extracts client-side from the full-page
+    # response: the <section id="media-drawer"> element, start tag through its matching close.
     # (It was a <fieldset> until the form wave turned the seven group drawers into the record card's
     # ruled sections — the region's id, and therefore the swap target, did not change.)
-    start = body.index('id="medien-drawer"')
+    start = body.index('id="media-drawer"')
     open_tag_start = body.rindex("<section", 0, start)
     end = body.index("</section>", start) + len("</section>")
     return body[open_tag_start:end]
@@ -402,10 +402,10 @@ def test_hochladen_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_
 
 
 def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
-    # fix-wave: the per-row hidden forms (verschieben-<hash>, entfernen-*-<hash>) must live INSIDE
-    # #medien-drawer so an htmx swap (hx-select="#medien-drawer") delivers fresh forms for the
+    # fix-wave: the per-row hidden forms (move-<hash>, remove-*-<hash>) must live INSIDE
+    # #media-drawer so an htmx swap (hx-select="#media-drawer") delivers fresh forms for the
     # CURRENT row set. The fixture seeds 2 rows, so uploading a third brings the count to 3; check
-    # the swapped-in region — not the whole page — carries a verschieben-<hash> form for all 3 rows.
+    # the swapped-in region — not the whole page — carries a move-<hash> form for all 3 rows.
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert response.status_code == 200
@@ -414,7 +414,7 @@ def test_hochladen_response_carries_per_row_forms_for_every_row(corpus: _MediaCo
     hashes_after = _hashes(corpus)
     assert len(hashes_after) == 3  # the new row is really there
     for content_hash in hashes_after:
-        assert f'id="verschieben-{content_hash}"' in drawer
+        assert f'id="move-{content_hash}"' in drawer
     # the worker has not derived the new file's thumbnail yet: its tile is the placeholder
     assert thumbnail_url(_ULID, hashes_after[-1]) not in drawer
 

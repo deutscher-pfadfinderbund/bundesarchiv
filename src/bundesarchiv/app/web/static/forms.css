@@ -20,7 +20,7 @@
   }
 
   /* in-flight cue for HTMX swaps: a static opacity dim, no spinner */
-  #medien-drawer.htmx-request,
+  #media-drawer.htmx-request,
   #form-region form.htmx-request {
     opacity: 0.6;
   }

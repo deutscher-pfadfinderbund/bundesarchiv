@@ -10,7 +10,7 @@ visibility move descendants' visibility and need the over-exposure machinery a r
 {% block head_extra %}<link rel="stylesheet" href="{% static "forms.css" %}">{% endblock %}
 {% block header %}{% include "workbench/_header.html" with without_search=True %}{% endblock %}
 {% block body %}
-<main id="inhalt" class="column narrow">
+<main id="content" class="column narrow">
   <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
   <h1>Bestand bearbeiten</h1>
   {% comment %}A racing rename (ADR 0013): the form below carries the refreshed version and the name

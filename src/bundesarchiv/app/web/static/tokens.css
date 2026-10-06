@@ -108,7 +108,7 @@
     --measure-query: 26rem; /* one query or caption field; a toolpanel's width */
     --measure-decade: 10ch; /* "Unbekannt" in the data face */
     --measure-date: 12ch; /* "1984-11-26" plus air, in the data face */
-    --measure-sig: 12ch; /* a Signatur of at most 8 characters (learning G.31), in the data face */
+    --measure-ref-code: 12ch; /* a Signatur of at most 8 characters (learning G.31), in the data face */
     --measure-word: 9rem; /* a word cell of the ledger: Typ, Digital, Bestand */
 
     /* THE STACKING MODEL (C5 one level down), lowest first:

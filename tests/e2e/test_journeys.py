@@ -73,7 +73,7 @@ def test_spalten_keeps_its_choice_and_returns_to_the_same_list(
     query = f"tag=sommer&sort=-date&selection={e2e_corpus.published_ulid}"
     page.goto(f"{live_workbench}{LIST}?{query}")
     page.get_by_role("button", name="Spalten …").click()
-    panel = page.locator("#spalten")
+    panel = page.locator("#columns")
     panel.get_by_role("checkbox", name="Bestand").check()
     panel.get_by_role("checkbox", name="Signatur").uncheck()
     panel.locator("button[type=submit]").click()
@@ -91,7 +91,7 @@ def test_an_abandoned_panel_change_never_rides_along(
     # later Fertig / Änderung prüfen submits only what the archivist kept.
     page = archivist_page
     page.goto(live_workbench + f"{LIST}?selection={e2e_corpus.published_ulid}")
-    spalten = page.locator("#spalten")
+    spalten = page.locator("#columns")
     page.get_by_role("button", name="Spalten …").click()
     spalten.get_by_role("checkbox", name="Bestand").check()
     spalten.get_by_role("button", name="Abbrechen").click()
@@ -101,12 +101,12 @@ def test_an_abandoned_panel_change_never_rides_along(
     expect(page.locator(".ledger th.ref-code")).to_be_visible()
     expect(page.locator(".ledger th.collection")).to_have_count(0)
 
-    feld = page.locator('#feld-aendern select[name="field"]')
+    feld = page.locator('#field-change select[name="field"]')
     rendered = feld.input_value()
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
     feld.select_option("creator")
     page.keyboard.press("Escape")
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
     expect(feld).to_have_value(rendered)
 
 
@@ -175,14 +175,14 @@ def test_search_works_from_a_screen_without_the_results_region(
 def test_the_edit_forms_small_swap_lands_its_own_partial(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # The same class one level down (G.27/G.32): htmx INHERITS hx-select, so #bearbeiten-form's
+    # The same class one level down (G.27/G.32): htmx INHERITS hx-select, so #edit-form's
     # hx-select="#form-region" reached the little GET enhancement inside it — whose response is an
     # <option> list, containing no #form-region. htmx selected nothing and swapped exactly that:
     # picking a Medienart EMPTIED the Dokumenttyp select. Enhancement-only, so no server-side test
     # saw it.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Teilschwenks")  # picks Medienart = Foto(s)
-    dokumenttyp = page.locator("#dokumenttyp-select")
+    dokumenttyp = page.locator("#document-type-select")
     expect(dokumenttyp.locator("option")).to_have_count(len(vocab.DOCUMENT_TYPES) + 1)  # + "kein"
     expect(dokumenttyp).to_contain_text("Zeitschrift")
     # ...and it is the SWAPPED list, not the no-JS baseline: both offer the same 16 words while no
@@ -713,7 +713,10 @@ def test_the_header_menu_is_clickable_on_the_edit_screen(
     # archivist's actual path end to end.
     page = archivist_page
     page.set_viewport_size({"width": 1440, "height": 900})
-    for entry, panel in (("Neuer Artikel …", "#neu-artikel"), ("Neuer Bestand …", "#neu-bestand")):
+    for entry, panel in (
+        ("Neuer Artikel …", "#new-article"),
+        ("Neuer Bestand …", "#new-collection"),
+    ):
         page.goto(live_workbench + f"/articles/{e2e_corpus.draft_ulid}/edit")
         page.click("header .menu-button")
         page.get_by_role("button", name=entry).click(timeout=5000)
@@ -731,9 +734,9 @@ def test_a_tool_panel_opened_from_a_menu_closes_the_menu(
     page = archivist_page
     edit = f"/articles/{e2e_corpus.draft_ulid}/edit"
     for path, menu, entry, panel in (
-        (edit, "#neu-menu", "Neuer Artikel …", "#neu-artikel"),
-        (edit, "#mehr-menu", "Löschen …", "#loeschen"),
-        (f"/articles/{e2e_corpus.published_ulid}", "#aktionen-menu", "Löschen …", "#loeschen"),
+        (edit, "#new-menu", "Neuer Artikel …", "#new-article"),
+        (edit, "#more-menu", "Löschen …", "#delete"),
+        (f"/articles/{e2e_corpus.published_ulid}", "#actions-menu", "Löschen …", "#delete"),
     ):
         page.goto(live_workbench + path)
         page.locator(menu).evaluate("menu => menu.showPopover()")
@@ -751,22 +754,22 @@ def test_the_count_rides_the_pager_and_a_live_swap_announces_it(
     # a2 round 10: the result count lives in the pager's range; a one-page list shows it alone. The
     # type-to-search swap replaces the pager with #results, and an aria-live element inserted with
     # its content is not announced — so the announcement lives in a node OUTSIDE the swap target
-    # (#trefferzahl), refreshed out-of-band. It is silent on a full page load: nothing changed.
+    # (#hit-count), refreshed out-of-band. It is silent on a full page load: nothing changed.
     page = archivist_page
     page.goto(live_workbench + LIST)
     expect(page.locator(".pager")).to_have_text("4 Artikel")  # the canonical corpus, one page
-    count = page.locator("#trefferzahl")
+    count = page.locator("#hit-count")
     expect(count).to_have_text("")
     # The live region's NODE must survive the swap or the polite announcement dies silently. Stamp
     # the node with an expando — a property, so no server render can reproduce it — and look for it
     # afterwards.
-    page.evaluate("() => { document.querySelector('#trefferzahl').__probe = 'same-node'; }")
+    page.evaluate("() => { document.querySelector('#hit-count').__probe = 'same-node'; }")
     # real keystrokes (the hx-trigger is keyup; fill() sets the value without key events)
     page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
     expect(count).to_have_text("1 Treffer")  # refreshed out-of-band, no full navigation
     expect(page.locator(".pager")).to_have_text("1 Artikel")
     assert "q=Sommerfahrt" in page.url  # it was the hx swap (pushed URL), not a page load
-    assert page.evaluate("() => document.querySelector('#trefferzahl').__probe") == "same-node", (
+    assert page.evaluate("() => document.querySelector('#hit-count').__probe") == "same-node", (
         "the count's aria-live node was replaced by the swap — announcements die silently"
     )
     # zero hits: the empty state says so, and there is no range to show
@@ -868,7 +871,7 @@ def test_sentence_links_keep_the_typed_q_after_a_live_swap(
         page.goto(live_workbench + f"{LIST}?tag=sommer&media_type=Foto(s)")
         page.locator('input[name="q"]').press_sequentially("Sommerfahrt")
         page.wait_for_url("**q=Sommerfahrt**")
-        expect(page.locator("#trefferzahl")).not_to_be_empty()
+        expect(page.locator("#hit-count")).not_to_be_empty()
         link = page.locator(".search-sentence .is-set > a").nth(nth)
         assert "q=Sommerfahrt" in (link.get_attribute("href") or ""), (
             f"set filter {nth} was rendered before the q existed: {link.get_attribute('href')}"
@@ -1153,7 +1156,7 @@ def test_create_bestand_then_file_an_article_under_it(
     page.goto(live_workbench + LIST)
     page.click(".menu-button")
     page.get_by_role("button", name="Neuer Bestand …").click()
-    panel = page.locator("#neu-bestand")
+    panel = page.locator("#new-collection")
     panel.locator('input[name="name"]').fill("Plakate")
     panel.get_by_role("button", name="Anlegen").click()
     page.wait_for_url("**/articles/new?**")  # HX-Redirect to the create-article form, not the list
@@ -1201,7 +1204,7 @@ def test_edit_and_save_redirects_to_read_view(archivist_page: Page, live_workben
     page.fill('input[name="ref_code"]', "E2E-1")
     page.fill('input[name="creator"]', "K. Meyer")
     # Saved by pressing ENTER in a field, not by clicking: Speichern lives in the form's margin,
-    # OUTSIDE #bearbeiten-form's subtree and associated to it by form=. Implicit submission still has
+    # OUTSIDE #edit-form's subtree and associated to it by form=. Implicit submission still has
     # to find Speichern as the form's default button, and Speichern applies the Status (a1 round 4):
     # Enter publishes exactly when the archivist set Veröffentlicht. Every other journey clicks.
     page.select_option('select[name="lifecycle"]', "published")
@@ -1325,8 +1328,8 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     archivist_page: Page, live_workbench: str
 ) -> None:
     page = archivist_page
-    # Custom-bag fields are form= ASSOCIATED with #bearbeiten-form but sit outside its
-    # DOM subtree (the #medien-drawer split) — the dirty register must still see their first edit.
+    # Custom-bag fields are form= ASSOCIATED with #edit-form but sit outside its
+    # DOM subtree (the #media-drawer split) — the dirty register must still see their first edit.
     edit_url = _create_draft(page, live_workbench, "E2E Ungespeichert")
     page.goto(edit_url)  # fresh load: _create_draft's Medienart pick already revealed the chip
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
@@ -1345,14 +1348,14 @@ def test_a_schlagwort_is_taken_from_the_suggestions_with_the_keyboard(
 ) -> None:
     page = archivist_page
     reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
-    field = page.locator("main #feld-tags")
+    field = page.locator("main #field-tags")
     options = page.locator('.autocomplete-list [role="option"]')
     # "lager" is on the field already, so only the corpus's other two
     expect(options).to_have_text(["fahrt", "sommer"])
     hangs = page.evaluate(
         """() => {
         const list = document.querySelector('.autocomplete-list').getBoundingClientRect();
-        const field = document.querySelector('#feld-tags').getBoundingClientRect();
+        const field = document.querySelector('#field-tags').getBoundingClientRect();
         return list.top >= field.bottom && list.left >= field.left && list.right <= field.right;
     }"""
     )
@@ -1376,7 +1379,7 @@ def test_moving_the_caret_off_the_line_ends_the_offer_and_changes_nothing(
 ) -> None:
     page = archivist_page
     reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
-    field = page.locator("main #feld-tags")
+    field = page.locator("main #field-tags")
     page.locator('.autocomplete-list [role="option"]').first.wait_for()
     # a click into line 1: the list closes, so Enter is a plain newline and nothing is replaced
     field.click(position={"x": 8, "y": 8})
@@ -1399,7 +1402,7 @@ def test_a_suggestion_is_not_taken_into_a_line_whose_text_changed(
 ) -> None:
     page = archivist_page
     reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)  # "lager" / "r"
-    field = page.locator("main #feld-tags")
+    field = page.locator("main #field-tags")
     page.keyboard.press("ArrowDown")  # an option is marked
     # the line changes under the open list without a key (a script, an extension)
     field.evaluate("(el) => { el.value = 'lager\\nrx'; }")
@@ -1413,14 +1416,14 @@ def test_the_live_region_speaks_only_for_matches(
 ) -> None:
     page = archivist_page
     reach_schlagwort_suggestions(page, live_workbench, e2e_corpus)
-    status = page.locator("#feld-tags-vorschlaege-status")
+    status = page.locator("#field-tags-suggestions-status")
     expect(status).to_have_text("2 Vorschläge")
-    page.locator("main #feld-tags").press_sequentially("zzzq")
+    page.locator("main #field-tags").press_sequentially("zzzq")
     expect(page.locator(".autocomplete-list")).to_be_hidden()
     expect(status).to_have_text("")
     # a failed request is as silent as a miss
     page.route("**/tags/suggestions*", lambda route: route.fulfill(status=500))
-    page.locator("main #feld-tags").press_sequentially("x")
+    page.locator("main #field-tags").press_sequentially("x")
     page.wait_for_timeout(500)
     expect(status).to_have_text("")
 
@@ -1440,7 +1443,7 @@ def test_a_stale_failed_request_leaves_the_newer_list_open(
             route.continue_()
 
     page.route("**/tags/suggestions*", hold_rx)
-    field = page.locator("main #feld-tags")
+    field = page.locator("main #field-tags")
     field.press_sequentially("x")  # "rx": its request hangs
     expect(page.locator(".autocomplete-list")).to_be_hidden()
     page.wait_for_timeout(300)  # past the debounce, the request is out
@@ -1514,8 +1517,8 @@ def _delete_new_draft(page: Page, base: str, title: str) -> None:
     ulid = page.url.split("/articles/")[1].split("/")[0]
     page.goto(base + f"/articles/{ulid}")
     page.get_by_label("Weitere Aktionen").click()
-    page.click('[popovertarget="loeschen"]')
-    panel = page.locator("#loeschen")
+    page.click('[popovertarget="delete"]')
+    panel = page.locator("#delete")
     expect(panel).to_be_visible()
     panel.locator('button[type="submit"]').click()
     page.wait_for_url(lambda url: url.endswith(LIST))  # → the list
@@ -1563,7 +1566,7 @@ def test_publish_from_the_article_page_confirms_first(
     _create_draft(page, live_workbench, "E2E Vom Artikel veröffentlicht")
     page.click('button:has-text("Speichern")')
     page.wait_for_url(lambda url: "/edit" not in url and "/articles/" in url)
-    panel = page.locator("#veroeffentlichen")
+    panel = page.locator("#publish")
     expect(panel).to_be_hidden()
     page.click('button:has-text("Veröffentlichen")')
     expect(panel).to_contain_text("Nach dem Veröffentlichen ist dieser Artikel öffentlich.")
@@ -1579,7 +1582,7 @@ def test_publish_by_status_saves_the_form(archivist_page: Page, live_workbench: 
     page = archivist_page
     # SAVING IS PART OF PUBLISHING (owner decision 2026-08-08): the Status select sits in the margin
     # (a1 round 4), so the archivist sets it with unsaved edits on screen, and Speichern must write
-    # both. Type into two fields — one inside #bearbeiten-form's subtree and one OUTSIDE it (the
+    # both. Type into two fields — one inside #edit-form's subtree and one OUTSIDE it (the
     # media/custom split), because they are wired to the form differently — then publish and find
     # both on the read view.
     _create_draft(page, live_workbench, "E2E Zu Veröffentlichen")
@@ -1621,8 +1624,8 @@ def test_bulk_select_confirm_apply(
     page.check(f'input[name="selection"][value="{e2e_corpus.published_ulid}"]')
     page.check(f'input[name="selection"][value="{e2e_corpus.second_ulid}"]')
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # JS live count on tick
-    page.click('[popovertarget="feld-aendern"]')
-    expect(page.locator("#feld-aendern")).to_be_visible()
+    page.click('[popovertarget="field-change"]')
+    expect(page.locator("#field-change")).to_be_visible()
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -1642,8 +1645,8 @@ def test_bulk_chooser_shows_exactly_one_value_widget(
         live_workbench
         + f"{LIST}?selection={e2e_corpus.published_ulid}&selection={e2e_corpus.second_ulid}"
     )
-    page.click('[popovertarget="feld-aendern"]')
-    widgets = page.locator("[data-bulk-wert]:visible")
+    page.click('[popovertarget="field-change"]')
+    widgets = page.locator("[data-bulk-value]:visible")
     page.select_option('select[name="field"]', "media_type")
     expect(widgets).to_have_count(1)
     page.select_option('select[name="value_media_type"]', "")
@@ -1667,7 +1670,7 @@ def test_bulk_url_seeded_selection_still_works(
     )
     expect(page.locator(".bulk")).to_be_visible()
     expect(page.get_by_text("2 ausgewählt")).to_be_visible()  # server-rendered count
-    page.click('[popovertarget="feld-aendern"]')
+    page.click('[popovertarget="field-change"]')
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')
@@ -1707,7 +1710,7 @@ def test_bulk_enhancement_survives_a_history_restore(
     page.wait_for_url("**q=Herbstlager**")
     expect(page.get_by_text("Herbstlager 1963")).to_be_visible()
     # the swap announced its count through the node outside #results
-    expect(page.locator("#trefferzahl")).to_have_text("1 Treffer")
+    expect(page.locator("#hit-count")).to_have_text("1 Treffer")
     # htmx 4 re-runs the <script>s of swapped content; a restore swaps the body, so a script there
     # would start a second htmx (and every later Back would restore twice)
     assert page.evaluate("() => htmx === window.__htmxAtLoad"), "the restore re-ran htmx.min.js"
@@ -1891,12 +1894,12 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
     # remove cross deletes for good only after the browser's own confirm.
     page = archivist_page
     page.goto(_create_draft(page, live_workbench, "E2E Hochladen"))
-    expect(page.locator('#medien-drawer button:has-text("Hochladen")')).to_be_hidden()
+    expect(page.locator('#media-drawer button:has-text("Hochladen")')).to_be_hidden()
     page.set_input_files(
-        '#medien-drawer input[type="file"]',
+        '#media-drawer input[type="file"]',
         {"name": "neu.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
     )
-    rows = page.locator("#medien-drawer .file-row")
+    rows = page.locator("#media-drawer .file-row")
     expect(rows).to_have_count(1)
     remove = page.get_by_role("button", name="neu.png entfernen")
     asked: list[str] = []
@@ -1919,18 +1922,18 @@ def test_a_chosen_file_uploads_at_once_and_its_removal_asks_first(
 def test_the_forms_own_media_actions_never_make_its_save_conflict(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # Each media route saves on its own and swaps only #medien-drawer; the form's expected_version
+    # Each media route saves on its own and swaps only #media-drawer; the form's expected_version
     # has to follow, or Speichern loses to the archivist's own upload, reorder or removal.
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Medien dann Speichern")
     page.set_input_files(
-        '#medien-drawer input[type="file"]',
+        '#media-drawer input[type="file"]',
         [
             FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
             FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
         ],
     )
-    rows = page.locator("#medien-drawer .file-row")
+    rows = page.locator("#media-drawer .file-row")
     expect(rows).to_have_count(2)
     page.get_by_role("button", name="Nach unten").first.click()
     expect(rows.first).to_contain_text("zwei.png")
@@ -1963,10 +1966,10 @@ def test_a_media_action_never_hides_anothers_save_from_the_form(
 
     page = archivist_page
     page.set_input_files(
-        '#medien-drawer input[type="file"]',
+        '#media-drawer input[type="file"]',
         {"name": "eins.png", "mimeType": "image/png", "buffer": _png((10, 20, 30))},
     )
-    expect(page.locator("#medien-drawer .file-row")).to_have_count(1)
+    expect(page.locator("#media-drawer .file-row")).to_have_count(1)
     page.fill('input[name="creator"]', "Erster")
     page.click('button:has-text("Speichern")')
     expect(page.get_by_text("Inzwischen geändert")).to_be_visible()
@@ -1975,18 +1978,18 @@ def test_a_media_action_never_hides_anothers_save_from_the_form(
 def test_a_media_action_keeps_the_captions_typed_before_it(
     archivist_page: Page, live_workbench: str
 ) -> None:
-    # A media action swaps #medien-drawer, which re-renders every caption: the unsaved ones typed
+    # A media action swaps #media-drawer, which re-renders every caption: the unsaved ones typed
     # before it must come back with their files and still save with Speichern (ADR 0015).
     page = archivist_page
     _create_draft(page, live_workbench, "E2E Bildunterschrift vor Medienaktion")
     page.set_input_files(
-        '#medien-drawer input[type="file"]',
+        '#media-drawer input[type="file"]',
         [
             FilePayload(name="eins.png", mimeType="image/png", buffer=_png((10, 20, 30))),
             FilePayload(name="zwei.png", mimeType="image/png", buffer=_png((30, 20, 10))),
         ],
     )
-    rows = page.locator("#medien-drawer .file-row")
+    rows = page.locator("#media-drawer .file-row")
     expect(rows).to_have_count(2)
     rows.nth(0).get_by_label("Bildunterschrift").fill("Erste Seite")
     rows.nth(1).get_by_label("Bildunterschrift").fill("Zweite Seite")
@@ -2039,7 +2042,7 @@ def test_no_js_bulk_flow_completes(
     rows = page.locator('input[name="selection"]').count()
     page.check('input[name="all"]')
     expect(page.locator('input[name="selection"]:checked')).to_have_count(0)  # no JS ticks them
-    page.click('[popovertarget="feld-aendern"]')  # native popover, no JS involved
+    page.click('[popovertarget="field-change"]')  # native popover, no JS involved
     page.select_option('select[name="field"]', "creator")
     page.fill('input[name="value_text"]', "Sammel-Autor")
     page.click('button:has-text("Änderung prüfen")')

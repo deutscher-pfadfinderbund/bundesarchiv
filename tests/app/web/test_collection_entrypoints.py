@@ -54,7 +54,7 @@ def test_edit_affordance_appears_when_a_bestand_filter_is_active(focussed: Corpu
 @pytest.mark.django_db
 def test_the_rename_opens_from_the_list_and_not_from_the_menu(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(list_url(collection=FOTOS)).content.decode()
-    menu = body.split('id="neu-menu"')[1].split("</ul>")[0]
+    menu = body.split('id="new-menu"')[1].split("</ul>")[0]
     assert 'popovertarget="collection-edit"' in body
     assert "collection-edit" not in menu
     assert 'id="collection-edit"' in body  # the panel the list's button opens
@@ -66,9 +66,9 @@ def test_an_empty_bestand_offers_the_new_article_panel_with_itself_preselected(
 ) -> None:
     body = client_as(Archivist()).get(list_url(collection=FOTOS)).content.decode()
     empty = body.split('class="empty-state"')[1]
-    assert 'popovertarget="neu-artikel"' in empty
+    assert 'popovertarget="new-article"' in empty
     assert 'popovertarget="collection-edit"' in empty  # no rows, no tool row: renamed from here
-    panel = body.split('id="neu-artikel"')[1].split("</form>")[0]
+    panel = body.split('id="new-article"')[1].split("</form>")[0]
     assert f'<option value="{FOTOS}" selected>' in panel
 
 

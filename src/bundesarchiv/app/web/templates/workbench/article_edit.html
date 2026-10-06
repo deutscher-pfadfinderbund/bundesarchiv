@@ -14,14 +14,14 @@ The hidden expected_version rides the form for CAS (ADR 0013).
 {% block body %}
 {% comment %}#form-region wraps the whole sheet; the save swaps exactly this out of the same full-page render
 (hx-select), so a re-render moves every part and the refreshed expected_version together. A media
-action swaps only #medien-drawer and #expected-version (catalog_views._media_surface). A successful
+action swaps only #media-drawer and #expected-version (catalog_views._media_surface). A successful
 save gets HX-Redirect.{% endcomment %}
 <div id="form-region">
-<main id="inhalt" class="form-sheet">
+<main id="content" class="form-sheet">
 
   <header>
     <nav class="crumbs" aria-label="Ort im Archiv"><a href="{% url 'workbench' %}" data-list-link>Archiv</a>{% for crumb in crumbs %}<a href="{{ crumb.href }}">{{ crumb.name }}</a>{% endfor %}</nav>
-    {% include "workbench/_field_title.html" with field=card_fields.lead.0 form="bearbeiten-form" novalidate=True only %}
+    {% include "workbench/_field_title.html" with field=card_fields.lead.0 form="edit-form" novalidate=True only %}
   </header>
 
   {% comment %}The margin: the record's state, its Status and audience, then the actions. Speichern is
@@ -33,71 +33,71 @@ save gets HX-Redirect.{% endcomment %}
     {% endif %}
     <output id="dirty-flag" class="mark" hidden>Nicht gespeicherte Änderungen</output>
     {% include "components/index_lag.html" %}
-    {% for field in card_fields.margin %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}
+    {% for field in card_fields.margin %}{% include "workbench/_field.html" with field=field form="edit-form" novalidate=True only %}{% endfor %}
     <div class="record-meta-actions">
-      <button class="primary" type="submit" form="bearbeiten-form">Speichern</button>
-      <button class="menu-button" type="button" popovertarget="mehr-menu">Mehr …</button>
-      <ul class="menu" id="mehr-menu" popover>
+      <button class="primary" type="submit" form="edit-form">Speichern</button>
+      <button class="menu-button" type="button" popovertarget="more-menu">Mehr …</button>
+      <ul class="menu" id="more-menu" popover>
         <li><a href="{% url 'article-detail' values.ulid %}">Zur Artikelseite</a></li>
         <li>{% include "workbench/_copy.html" with ulid=values.ulid %}</li>
         {% url 'article-delete' values.ulid as delete_href %}
-        <li><button class="link" type="button" popovertarget="loeschen">Löschen …</button></li>
+        <li><button class="link" type="button" popovertarget="delete">Löschen …</button></li>
       </ul>
-      {% include "components/confirm.html" with id="loeschen" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
+      {% include "components/confirm.html" with id="delete" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
     </div>
   </aside>
 
   <div>
-  {% comment %}#bearbeiten-form closes BEFORE Medien: #medien-drawer must hold real <form> children
+  {% comment %}#edit-form closes BEFORE Medien: #media-drawer must hold real <form> children
   and forms cannot nest, so every control outside it rides its single POST via form=. Its swap
   triple must stay NOT :inherited — the two GET enhancements inside answer with their own partials,
   which hold no #form-region (G.27).{% endcomment %}
-  <form id="bearbeiten-form" method="post"
+  <form id="edit-form" method="post"
         action="{% url 'article-edit' values.ulid %}"
         hx-post="{% url 'article-edit' values.ulid %}" hx-sync="this:drop"
         hx-target="#form-region" hx-select="#form-region" hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" id="expected-version" name="expected_version" value="{{ version }}">
 
-    <section aria-labelledby="h-kerndaten">
-      <header class="section-head"><h2 id="h-kerndaten">Kerndaten</h2></header>
-      <div class="field-grid">{% for field in card_fields.core %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+    <section aria-labelledby="h-core">
+      <header class="section-head"><h2 id="h-core">Kerndaten</h2></header>
+      <div class="field-grid">{% for field in card_fields.core %}{% include "workbench/_field.html" with field=field form="edit-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
     {% comment %}The section heading IS the Beschreibung's label (aria-labelledby), never both (Q2).{% endcomment %}
-    {% with field=card_fields.description.0 base="feld-body" %}
-    <section aria-labelledby="feld-body-label">
-      <header class="section-head"><h2 id="feld-body-label">{{ field.label }}</h2></header>
+    {% with field=card_fields.description.0 base="field-body" %}
+    <section aria-labelledby="field-body-label">
+      <header class="section-head"><h2 id="field-body-label">{{ field.label }}</h2></header>
       <div class="field"><textarea id="{{ field.control_id }}" name="{{ field.name }}" rows="6" {% include "workbench/_field_aria.html" %}>{{ field.value }}</textarea>
         {% include "workbench/_field_saved.html" %}</div>
     </section>
     {% endwith %}
 
-    <section aria-labelledby="h-einordnung">
-      <header class="section-head"><h2 id="h-einordnung">Einordnung</h2></header>
-      <div class="field-grid">{% for field in card_fields.filing %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+    <section aria-labelledby="h-filing">
+      <header class="section-head"><h2 id="h-filing">Einordnung</h2></header>
+      <div class="field-grid">{% for field in card_fields.filing %}{% include "workbench/_field.html" with field=field form="edit-form" novalidate=True only %}{% endfor %}</div>
     </section>
 
-    <section aria-labelledby="h-herkunft">
-      <header class="section-head"><h2 id="h-herkunft">Herkunft</h2></header>
-      <div class="field-grid">{% for field in card_fields.provenance %}{% include "workbench/_field.html" with field=field form="bearbeiten-form" novalidate=True only %}{% endfor %}</div>
+    <section aria-labelledby="h-provenance">
+      <header class="section-head"><h2 id="h-provenance">Herkunft</h2></header>
+      <div class="field-grid">{% for field in card_fields.provenance %}{% include "workbench/_field.html" with field=field form="edit-form" novalidate=True only %}{% endfor %}</div>
     </section>
   </form>
 
-    {% comment %}Medien (spec §6.3). Captions ride the #bearbeiten-form save (they are README front
+    {% comment %}Medien (spec §6.3). Captions ride the #edit-form save (they are README front
     matter, ADR 0015); each row's reorder/remove controls belong to their own per-row form, so each
-    carries exactly one hash. The upload controls belong to #medien-upload; without JS the file
+    carries exactly one hash. The upload controls belong to #media-upload; without JS the file
     input is the native one (owner ruling 7).
 
     The swap triple is declared once, on the region it names, and inherited by the forms below: a
     swap selector must resolve where it fires (G.32). The hidden forms are siblings inside the
     section (forms cannot nest), so a swap delivers fresh forms for the current rows. The include
     carries the unsaved captions too, so a swap shows them back unsaved.{% endcomment %}
-    <section id="medien-drawer" aria-labelledby="h-medien"
-             hx-target:inherited="#medien-drawer" hx-select:inherited="#medien-drawer"
+    <section id="media-drawer" aria-labelledby="h-media"
+             hx-target:inherited="#media-drawer" hx-select:inherited="#media-drawer"
              hx-swap:inherited="outerHTML"
-             hx-include:inherited="#expected-version, #medien-drawer input[form=bearbeiten-form]" hx-select-oob:inherited="#expected-version">
-      <header class="section-head"><h2 id="h-medien">Medien</h2></header>
+             hx-include:inherited="#expected-version, #media-drawer input[form=edit-form]" hx-select-oob:inherited="#expected-version">
+      <header class="section-head"><h2 id="h-media">Medien</h2></header>
       {% if media_error %}<p class="error" role="alert">{{ media_error }}</p>{% endif %}
       {% include "components/index_lag.html" with index_lag=drawer_index_lag only %}
       {% if media_rows %}
@@ -111,24 +111,24 @@ save gets HX-Redirect.{% endcomment %}
           </span>
           <label class="field">
             <span>Bildunterschrift</span>
-            <input type="text" name="caption[{{ row.content_hash }}]" value="{{ row.caption }}" form="bearbeiten-form">
+            <input type="text" name="caption[{{ row.content_hash }}]" value="{{ row.caption }}" form="edit-form">
           </label>
           {% comment %}The end rows' arrows are natively disabled. The no-JS two-step remove keeps its
           words: a confirm is a sentence, not a glyph.{% endcomment %}
           {% if row.confirm_remove %}
           <span class="file-row-tools confirm">Wirklich entfernen?
-            <button class="link danger" type="submit" form="entfernen-ja-{{ row.content_hash }}">Ja</button>
-            <button class="link" type="submit" form="entfernen-abbrechen-{{ row.content_hash }}">Nein</button>
+            <button class="link danger" type="submit" form="remove-yes-{{ row.content_hash }}">Ja</button>
+            <button class="link" type="submit" form="remove-cancel-{{ row.content_hash }}">Nein</button>
           </span>
           {% else %}
           <span class="file-row-tools" role="toolbar" aria-label="Medienaktionen">
-            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+            <button class="link" type="submit" form="move-{{ row.content_hash }}"
                     name="direction" value="up" aria-label="Nach oben" title="Nach oben"
                     {% if row.is_first %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-up" only %}</button>
-            <button class="link" type="submit" form="verschieben-{{ row.content_hash }}"
+            <button class="link" type="submit" form="move-{{ row.content_hash }}"
                     name="direction" value="down" aria-label="Nach unten" title="Nach unten"
                     {% if row.is_last %}disabled{% endif %}>{% include "components/icon.html" with name="arrow-down" only %}</button>
-            <button class="remove danger" type="submit" form="entfernen-frage-{{ row.content_hash }}"
+            <button class="remove danger" type="submit" form="remove-prompt-{{ row.content_hash }}"
                     aria-label="{{ row.tile.name }} entfernen" title="{{ row.tile.name }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
           </span>
           {% endif %}
@@ -139,33 +139,33 @@ save gets HX-Redirect.{% endcomment %}
       {% include "components/empty_state.html" with title="Noch keine Medien" hint="Das erste hochgeladene Bild wird zum Titelbild." only %}
       {% endif %}
       <div class="upload">
-        <label class="add">+ Dateien hinzufügen <input type="file" name="files" form="medien-upload" multiple></label>
-        <button type="submit" form="medien-upload">Hochladen</button>
+        <label class="add">+ Dateien hinzufügen <input type="file" name="files" form="media-upload" multiple></label>
+        <button type="submit" form="media-upload">Hochladen</button>
       </div>
 
       {% comment %}Per-row structural forms — siblings of the row markup, referenced via form=.
       Non-CAS, separate from the caption metadata save. The × asks in the browser and, confirmed, sends
       confirmed itself; without JS it asks through the server's two-step.{% endcomment %}
       {% for row in media_rows %}
-      <form id="verschieben-{{ row.content_hash }}" method="post"
+      <form id="move-{{ row.content_hash }}" method="post"
             action="{% url 'article-media-move' values.ulid %}"
             hx-post="{% url 'article-media-move' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="hash" value="{{ row.content_hash }}">
       </form>
-      <form id="entfernen-frage-{{ row.content_hash }}" method="post"
+      <form id="remove-prompt-{{ row.content_hash }}" method="post"
             action="{% url 'article-media-remove' values.ulid %}"
             hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop"
             hx-confirm="{{ row.tile.name }} entfernen? Die Datei wird gelöscht; das lässt sich nicht rückgängig machen."
             hx-vals='{"confirmed": "1"}' hidden>
         {% csrf_token %}<input type="hidden" name="remove" value="{{ row.content_hash }}">
       </form>
-      <form id="entfernen-ja-{{ row.content_hash }}" method="post"
+      <form id="remove-yes-{{ row.content_hash }}" method="post"
             action="{% url 'article-media-remove' values.ulid %}"
             hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}<input type="hidden" name="remove" value="{{ row.content_hash }}">
         <input type="hidden" name="confirmed" value="1">
       </form>
-      <form id="entfernen-abbrechen-{{ row.content_hash }}" method="post"
+      <form id="remove-cancel-{{ row.content_hash }}" method="post"
             action="{% url 'article-media-remove' values.ulid %}"
             hx-post="{% url 'article-media-remove' values.ulid %}" hx-sync="this:drop" hidden>
         {% csrf_token %}
@@ -175,7 +175,7 @@ save gets HX-Redirect.{% endcomment %}
       {% comment %}Upload — a separate multipart form, a sibling so it survives the drawer swap.
       Appends at the end, write-once dedupe. The browser's own tab spinner is the busy state (ADR 0004,
       update 2026-09-25).{% endcomment %}
-      <form id="medien-upload" method="post" enctype="multipart/form-data"
+      <form id="media-upload" method="post" enctype="multipart/form-data"
             action="{% url 'article-media-upload' values.ulid %}"
             hx-post="{% url 'article-media-upload' values.ulid %}" hx-sync="this:drop" hx-browser-indicator hidden>
         {% csrf_token %}
@@ -183,24 +183,24 @@ save gets HX-Redirect.{% endcomment %}
     </section>
 
     {% comment %}Weitere Angaben (the custom bag): the escape hatch.{% endcomment %}
-    <section id="custom-bag" aria-labelledby="h-weitere">
-      <header class="section-head"><h2 id="h-weitere">Weitere Angaben <span class="note">intern</span></h2></header>
+    <section id="custom-bag" aria-labelledby="h-more">
+      <header class="section-head"><h2 id="h-more">Weitere Angaben <span class="note">intern</span></h2></header>
       {% if errors.custom %}<p class="error" role="alert">{{ errors.custom }}</p>{% endif %}
       {% for key, val in values.custom_rows %}
       <div class="pairs">
         <label class="field">
           <span>Feld</span>
-          <input type="text" name="custom_key" value="{{ key }}" form="bearbeiten-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>
+          <input type="text" name="custom_key" value="{{ key }}" form="edit-form"{% if forloop.last and autofocus == "custom_key" %} autofocus{% endif %}>
         </label>
         <label class="field">
           <span>Wert</span>
-          <input type="text" name="custom_value" value="{{ val }}" form="bearbeiten-form">
+          <input type="text" name="custom_value" value="{{ val }}" form="edit-form">
         </label>
-        <button class="remove danger" type="submit" name="custom_remove" value="{{ forloop.counter0 }}" form="bearbeiten-form"
+        <button class="remove danger" type="submit" name="custom_remove" value="{{ forloop.counter0 }}" form="edit-form"
                 aria-label="{{ key|default:"Angabe" }} entfernen" title="{{ key|default:"Angabe" }} entfernen">{% include "components/icon.html" with name="x" only %}</button>
       </div>
       {% endfor %}
-      <button class="add" type="submit" name="custom_add" form="bearbeiten-form">+ Angabe hinzufügen</button>
+      <button class="add" type="submit" name="custom_add" form="edit-form">+ Angabe hinzufügen</button>
     </section>
   </div>
 </main>
