@@ -63,3 +63,28 @@ def test_ensure_index_current_rebuilds_empty_index(store: InMemoryObjectStore) -
 
     assert ArticleIndex.objects.count() == 0
     assert ensure_index_current(store) is False
+
+
+@pytest.mark.django_db
+def test_ensure_index_current_recomputes_the_page_vectors(store: InMemoryObjectStore) -> None:
+    """Page rows survive the rebuild, so a config change must not leave their vectors behind."""
+    from django.contrib.postgres.search import SearchVectorField
+    from django.db import connection
+    from django.db.models import F, Func
+
+    from bundesarchiv.index.models import ArticleIndex, MediaText
+
+    indexer.rebuild(store)
+    indexer.store_media_text("a" * 64, ("Fahrten im Lager",))
+    ArticleIndex.objects.update(config_version=indexer.CONFIG_VERSION - 1)
+    with connection.cursor() as cursor:  # a config change; rolled back with the test
+        cursor.execute(
+            "CREATE OR REPLACE FUNCTION bundesarchiv_text_tsv(page_text text) RETURNS tsvector"
+            " LANGUAGE sql IMMUTABLE AS $$ SELECT to_tsvector('simple', page_text) $$"
+        )
+
+    ensure_index_current(store)
+
+    fresh = Func(F("text"), function="bundesarchiv_text_tsv", output_field=SearchVectorField())
+    ((stored, recomputed),) = MediaText.objects.annotate(fresh=fresh).values_list("tsv", "fresh")
+    assert stored == recomputed

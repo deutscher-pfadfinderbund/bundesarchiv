@@ -39,6 +39,7 @@ by ADR 0013's ``WRITER_LOCK``, not this lock.
 import logging
 import mimetypes
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from django.db import connection, transaction
@@ -48,7 +49,7 @@ from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
 from bundesarchiv.domain.collections import ResolvedChain, resolve_chain
 from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Article, Collection, Lifecycle, MediaRef, Ulid
-from bundesarchiv.index.models import ArticleIndex
+from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.index.scope import ScopeColumns, _scope_columns
 from bundesarchiv.persistence.collections import CollectionRepository
@@ -68,6 +69,7 @@ logger = logging.getLogger(__name__)
 #   v5: file_counts column added (the Digital column and the has-files filter).
 #   v6: deleted_at / deleted_by columns added (the Papierkorb mark).
 #   v7: is_template column added (the Vorlage mark and filter).
+# The guard that acts on a bump also recomputes ``MediaText.tsv`` (app.reindex).
 CONFIG_VERSION = 7
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
@@ -361,6 +363,37 @@ def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Coll
     except DomainError:
         return article.collection_id == collection_ulid
     return any(c.ulid == collection_ulid for c in chain.collections)
+
+
+#: A page's text is cut here, so its tsvector stays under Postgres' 1 MB cap whatever the page holds
+#: (the densest legacy page holds 13,753 characters).
+_MAX_PAGE_CHARS = 100_000
+
+
+def store_media_text(content_hash: str, pages: Sequence[str]) -> None:
+    """Store the page texts of the file with ``content_hash``, page 1 first; no pages stores the
+    page-0 marker. Rows already stored win: the same hash is the same file, so the same text.
+    Stores every page or none."""
+    MediaText.objects.bulk_create(
+        (
+            MediaText(
+                content_hash=content_hash,
+                page=number,
+                text=text.replace("\x00", "")[:_MAX_PAGE_CHARS],  # Postgres rejects NUL
+            )
+            for number, text in enumerate(pages or ("",), 1 if pages else 0)
+        ),
+        ignore_conflicts=True,
+    )
+
+
+def hashes_with_text(hashes: Iterable[str]) -> frozenset[str]:
+    """Which of ``hashes`` already have page rows, so their files count as read."""
+    return frozenset(
+        MediaText.objects.filter(content_hash__in=list(hashes))
+        .values_list("content_hash", flat=True)
+        .distinct()
+    )
 
 
 def _current_year() -> int:

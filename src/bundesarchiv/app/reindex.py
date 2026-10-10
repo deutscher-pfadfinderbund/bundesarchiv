@@ -3,15 +3,18 @@
 When the ADR-0011 FTS config changes (config, collation, wrapper functions), ``CONFIG_VERSION``
 bumps; every existing index row then carries a now-stale ``config_version`` and its generated
 tsvector columns no longer match the new config. ``ensure_index_current`` detects any such row and
-forces a full ``rebuild`` from canonical, which restamps every row at the current version. This is
+forces a full ``rebuild`` from canonical, which restamps every row at the current version, then
+recomputes the page vectors of ``MediaText``, whose rows a rebuild keeps (ADR 0023). This is
 the piece Part 4.2 adds — before it, only the ``config_version`` column existed, never the compare.
 
 Kept in the app shell (not the index adapter) because it wires the canonical store to a rebuild;
 the ``ensure_index_current`` management command is a one-line shell over it.
 """
 
+from django.db.models import F
+
 from bundesarchiv.index import indexer
-from bundesarchiv.index.models import ArticleIndex
+from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.persistence.objectstore import ObjectStore
 
 
@@ -22,4 +25,5 @@ def ensure_index_current(store: ObjectStore) -> bool:
     if not ArticleIndex.objects.exclude(config_version=indexer.CONFIG_VERSION).exists():
         return False
     indexer.rebuild(store)
+    MediaText.objects.update(text=F("text"))  # Postgres recomputes a stored generated column
     return True

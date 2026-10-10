@@ -24,6 +24,8 @@ are RunSQL DDL in 0001; the table, its scalar/array columns, the two generated `
 columns (each a one-line wrapper call) and all indexes are ORM in ``0002_articleindex``. Marking
 the wrappers ``IMMUTABLE`` is safe because the index is derived and disposable — if the config or
 ``unaccent`` rules ever change, the config_version bumps and the index is rebuilt (ADR 0003).
+``MediaText`` (ADR 0023) declares its ``tsv`` the same way, over a third wrapper
+(``bundesarchiv_text_tsv``, migration ``0009_mediatext``).
 """
 
 from typing import ClassVar
@@ -125,3 +127,22 @@ class ArticleIndex(models.Model):
             Index(fields=["date_earliest"], name="index_date_earliest_btree"),
             Index(fields=["added_at"], name="index_added_at_btree"),
         ]
+
+
+class MediaText(models.Model):
+    """The text of one page of a media file, by the file's content hash; pages count from 1, and
+    page 0 with empty text marks a file read with nothing usable. It carries no audience
+    (ADR 0023)."""
+
+    pk = models.CompositePrimaryKey("content_hash", "page")
+    content_hash = models.TextField()
+    page = models.IntegerField()
+    text = models.TextField()
+    tsv = models.GeneratedField(
+        expression=_wrapper("bundesarchiv_text_tsv", "text"),
+        output_field=SearchVectorField(),
+        db_persist=True,
+    )
+
+    class Meta:
+        indexes: ClassVar[list[Index]] = [GinIndex(fields=["tsv"], name="index_media_text_tsv_gin")]

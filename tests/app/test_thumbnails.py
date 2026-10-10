@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, features
 from tests._articles import make_article
+from tests._pdfs import text_pdf
 
 from bundesarchiv.app import thumbnails
 from bundesarchiv.app.thumbnails import Size, cached, generate_thumbnail, thumbnail_path
@@ -50,18 +51,6 @@ def _broken_exif_jpeg() -> bytes:
     buf = BytesIO()
     Image.new("L", (64, 48)).save(buf, format="JPEG", exif=b"Exif\x00\x00MM *\x00\x00\x00\x08")
     return buf.getvalue()
-
-
-def _zero_page_pdf() -> bytes:
-    """A well-formed PDF whose page tree holds no page."""
-    objects = (b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [] /Count 0 >>")
-    out, offsets = b"%PDF-1.4\n", []
-    for number, body in enumerate(objects, 1):
-        offsets.append(len(out))
-        out += b"%d 0 obj\n%s\nendobj\n" % (number, body)
-    xref = len(out)
-    out += b"xref\n0 3\n0000000000 65535 f \n" + b"".join(b"%010d 00000 n \n" % o for o in offsets)
-    return out + b"trailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % xref
 
 
 def _derive(root: Path, filename: str, data: bytes, media_type: str) -> Path | None:
@@ -210,7 +199,7 @@ def test_a_photo_with_broken_exif_derives_no_thumbnail_and_does_not_raise(tmp_pa
 
 @pytest.mark.parametrize(
     "data",
-    [b"%PDF-1.4\n", _pdf()[:300], _ENCRYPTED, _zero_page_pdf()],
+    [b"%PDF-1.4\n", _pdf()[:300], _ENCRYPTED, text_pdf([])],
     ids=["broken", "truncated", "encrypted", "zero-pages"],
 )
 def test_an_unreadable_pdf_derives_no_thumbnail_and_does_not_raise(
