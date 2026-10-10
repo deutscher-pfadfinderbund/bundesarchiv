@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
 
 
 def test_groups_tier_requires_at_least_one_named_group() -> None:
@@ -108,3 +108,10 @@ def test_a_change_is_stamped_in_utc(at: datetime) -> None:
 def test_the_date_added_is_utc_in_whole_seconds(added_at: datetime) -> None:
     with pytest.raises(ValueError):
         Article(ulid="01J0", title="t", collection_id="c", added_at=added_at)
+
+
+def test_a_template_is_always_a_draft() -> None:
+    with pytest.raises(ValueError):
+        Article(
+            ulid="01J0", title="t", collection_id="c", lifecycle=Lifecycle.PUBLISHED, template=True
+        )

@@ -143,8 +143,12 @@ class Article:
     added_at: datetime | None = None
     # The Papierkorb mark: who deleted the Article and when; None = not deleted (ADR 0022).
     deleted: Change | None = None
+    # A Vorlage: a Draft archivists copy to start a new Article; never published (CONTEXT.md).
+    template: bool = False
 
     def __post_init__(self) -> None:
+        if self.template and self.lifecycle is not Lifecycle.DRAFT:
+            raise ValueError("a template is always a draft")
         if self.added_at is not None and (
             self.added_at.utcoffset() != timedelta(0) or self.added_at.microsecond
         ):

@@ -127,7 +127,7 @@ def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
     warning), and routes who-sees through `can_view` — it never re-derives visibility, so it
     shares the one resolver. The rung is read only to surface the named groups for display.
     """
-    published = replace(article, lifecycle=Lifecycle.PUBLISHED)
+    published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
     public = can_view(Public(), published, chain)
     members = can_view(Member(), published, chain)
     return VisibilityPreview(

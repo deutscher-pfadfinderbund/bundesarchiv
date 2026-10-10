@@ -40,6 +40,33 @@ def test_encode_decode_round_trips_every_field() -> None:
     assert version == 3
 
 
+def test_a_template_round_trips_and_a_plain_article_writes_no_mark() -> None:
+    template = _article(lifecycle=Lifecycle.DRAFT, template=True)
+    assert readme.decode("01J0", readme.encode(template, 1, _CHANGE))[0] == template
+    assert "template" not in readme.encode(replace(template, template=False), 1, _CHANGE)
+
+
+_HEAD = "---\nulid: x\nversion: 1\ntitle: t\ncollection_id: c\n"
+
+
+def test_a_readme_without_the_template_mark_reads_as_no_template() -> None:
+    assert readme.decode("x", f"{_HEAD}lifecycle: draft\n---\nbody")[0].template is False
+
+
+@pytest.mark.parametrize(
+    "mark",
+    [
+        "lifecycle: draft\ntemplate: 'true'\n",
+        "lifecycle: draft\ntemplate: 1\n",
+        "lifecycle: draft\ntemplate: [true]\n",
+        "lifecycle: published\ntemplate: true\n",
+    ],
+)
+def test_a_broken_template_mark_is_corrupt(mark: str) -> None:
+    with pytest.raises(ArchiveError):
+        readme.decode("x", f"{_HEAD}{mark}---\nbody")
+
+
 def test_custom_metadata_round_trips() -> None:
     article = _article(custom=(("herkunft", "Familie Müller"), ("zustand", "gut")))
     decoded, _, _ = readme.decode("01J0", readme.encode(article, 1, _CHANGE))

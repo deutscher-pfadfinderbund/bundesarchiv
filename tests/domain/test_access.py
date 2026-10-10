@@ -4,7 +4,7 @@ Fail-closed (ADR 0001): a non-Published Article is Archivist-only; a chain resol
 different Article denies everyone. Fixture-driven, no IO. Chains are `ResolvedChain`s.
 """
 
-from dataclasses import fields
+from dataclasses import fields, replace
 
 import pytest
 
@@ -214,6 +214,11 @@ def test_preview_shows_post_publish_audience_for_a_draft() -> None:
     assert p.members is True
 
 
+def test_a_template_previews_like_its_plain_draft_twin() -> None:
+    draft = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
+    assert preview(replace(draft, template=True), _chain()) == preview(draft, _chain())
+
+
 def test_preview_agrees_with_can_view_for_a_published_article() -> None:
     article = _article(audience=Audience(AudienceTier.MEMBERS))
     p = preview(article, _chain())
@@ -365,7 +370,8 @@ _MEMBER_VISIBLE_FIELDS = frozenset(
     {
         "added_at", "audience", "body", "collection_id", "creator", "date", "deleted",
         "document_type",
-        "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "title", "ulid",
+        "lifecycle", "media", "media_type", "ref_code", "subject_place", "tags", "template", "title",
+        "ulid",
     }
 )  # fmt: skip
 

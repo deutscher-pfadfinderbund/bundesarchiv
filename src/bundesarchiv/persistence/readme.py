@@ -77,6 +77,7 @@ def encode(article: Article, version: Version, change: Change) -> str:
         **(
             {"added_at": _change.utc_text(article.added_at)} if article.added_at is not None else {}
         ),
+        **({"template": True} if article.template else {}),
     }
     return _front_matter.dump(front_matter, article.body)
 
@@ -153,6 +154,15 @@ def _as_opt_int(value: object) -> int | None:
     return value
 
 
+def _as_flag(value: object) -> bool:
+    """An optional mark: absent -> False, a YAML boolean -> itself, anything else -> reject."""
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ValueError(f"expected true or false, got {type(value).__name__}")
+    return value
+
+
 def _as_opt_edtf(value: object) -> EdtfDate | None:
     """An optional EDTF date field: absent -> None, a YAML scalar -> EdtfDate (validates eagerly),
     invalid EDTF string -> ValueError (caller wraps to UnreadableReadme)."""
@@ -222,6 +232,7 @@ def _article_from_front_matter(fm: dict[str, Any], body: str) -> Article:
         custom=_as_str_map(fm.get("custom")),
         added_at=_as_opt_instant(fm.get("added_at")),
         deleted=_change.from_front_matter(fm, "deleted"),
+        template=_as_flag(fm.get("template")),
         media=tuple(
             MediaRef(
                 filename=str(m["filename"]),

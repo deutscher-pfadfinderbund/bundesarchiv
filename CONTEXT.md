@@ -88,6 +88,10 @@ The derived, disposable Postgres table rebuilt from the canonical `README.md` fi
 An Article's workflow state. In v1: **Draft** (*Entwurf*) → **Published** (*Veröffentlicht*). Anything not Published is Archivist-only regardless of Audience.
 _Avoid_: status, state.
 
+**Template** (*Vorlage*) — code field `template`:
+A Draft that carries a shared structure (the parts of a series): archivists copy it to start a new Article ("Neuer Entwurf aus Vorlage", the ordinary copy). Always a Draft — a template is never published; unmark it first. The copy is a plain Draft, not a template.
+_Avoid_: pattern, master, blueprint.
+
 **Trash** (*Papierkorb*) — code field `deleted`, URL `/trash`:
 Where a deleted Article waits (ADR 0022). "Löschen" marks the Article with who deleted it and when; its folder, media and history stay. A marked Article is Archivist-only and shows only in the Trash, never in the list or search; it cannot be edited until it is restored. *Wiederherstellen* takes the mark off; *Endgültig löschen* removes the Article for good. Emptied by hand.
 _Avoid_: bin, soft delete, archived (the whole thing is the archive). German UI copy says *Papierkorb*, never "Trash" or "bin".

@@ -17,6 +17,11 @@ history) and ADR 0015 (media layout). ADR 0018 supplies `changed_by`: the Archiv
 > Archivist at that time. The pair is the change record of the version that set it. Both are present
 > or both absent; absent means not deleted (a README written before the fields existed).
 
+> **Amended 2026-10-10:** the front matter gains an optional `template: true`: the Article is a
+> *Vorlage* (CONTEXT.md). Written only when set; absent means false. A template is always a draft:
+> `template: true` beside `lifecycle: published`, or a value that is not a YAML boolean, is a
+> corrupt README.
+
 ## Context
 
 The canonical tree was compared with two preservation layouts (sources below). The
