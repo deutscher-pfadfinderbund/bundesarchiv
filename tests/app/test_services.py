@@ -19,13 +19,17 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
+from tests._queue import queued
 
 from bundesarchiv.app import after_write
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.articles import (
+    PageText,
+    Thumbnail,
     copy_article,
     create_article,
     delete_article,
+    derived_jobs,
     hard_delete_article,
     restore_article,
     save_article,
@@ -40,6 +44,7 @@ from bundesarchiv.domain.models import (
     AudienceTier,
     Collection,
     Lifecycle,
+    MediaRef,
 )
 from bundesarchiv.domain.viewer import Archivist, Member, Public
 from bundesarchiv.index.query import SearchFilters, search
@@ -646,100 +651,73 @@ def test_gate_narrowing_collection_audience_via_service_hides_descendants(
 
 
 # ---------------------------------------------------------------------------
-# Thumbnail enqueue — save/create enqueue a thumbnail job for image and PDF media (Part 4.3)
+# Derived-file jobs — save and create queue a job per file to render and one to read
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db
-def test_save_article_enqueues_thumbnail_for_image_and_pdf_media(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
-    enqueued: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        articles_mod, "enqueue_generate_thumbnail", lambda *job: enqueued.append(job)
-    )
-
-    articles = archive.articles
-    image = articles.add_media(
-        "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
-    )
-    doc = articles.add_media(
-        "01FOTO", "notes.pdf", io.BytesIO(b"%PDF-1.7"), media_type="application/pdf"
-    )
-    stored = articles.load("01FOTO")
-    save_article(
-        archive,
-        Article(
-            ulid="01FOTO",
-            title="Öffentliches Foto",
-            collection_id="FOTOS",
-            lifecycle=Lifecycle.PUBLISHED,
-            media=(image, doc),
-        ),
-        stored.version,
-        changed_by="tester",
-    )
-
-    assert enqueued == [("01FOTO", image.content_hash), ("01FOTO", doc.content_hash)]
-
-
-def test_enqueue_thumbnails_selects_image_and_pdf_media_by_type_and_extension(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The shared enqueue helper (used by both save_article and create_article) enqueues exactly the
-    media a thumbnail renders from: an image or PDF media_type, or such an extension when
-    media_type is absent — and nothing else. This covers the create path too (it shares this
-    helper), without the chicken-and-egg of storing a blob under a not-yet-minted ULID."""
-    import bundesarchiv.app.articles as articles_mod
-    from bundesarchiv.domain.models import MediaRef
-
-    enqueued: list[str] = []
-    monkeypatch.setattr(
-        articles_mod, "enqueue_generate_thumbnail", lambda _ulid, h: enqueued.append(h)
-    )
-
+def test_derived_jobs_render_image_and_pdf_files_and_read_pdfs_once() -> None:
+    """A file renders by its media type, or by its extension when the type is absent; any PDF
+    gives the one page-text job."""
     article = Article(
         ulid="01FOTO",
         title="Mixed media",
         collection_id="FOTOS",
         media=(
             MediaRef("a.jpg", "hash-typed-image", media_type="image/jpeg"),
-            MediaRef("b.png", "hash-untyped-image", media_type=None),  # inferred by extension
+            MediaRef("b.png", "hash-untyped-image", media_type=None),
             MediaRef("c.pdf", "hash-doc", media_type="application/pdf"),
             MediaRef("d.PDF", "hash-untyped-doc", media_type=None),
             MediaRef("e.txt", "hash-text", media_type="text/plain"),
-            MediaRef("f.bin", "hash-unknown", media_type=None),  # unknown ext, no type
+            MediaRef("f.bin", "hash-unknown", media_type=None),
         ),
     )
-    articles_mod._enqueue_thumbnails(article)
 
-    assert enqueued == ["hash-typed-image", "hash-untyped-image", "hash-doc", "hash-untyped-doc"]
+    assert derived_jobs(article) == (
+        Thumbnail("01FOTO", "hash-typed-image"),
+        Thumbnail("01FOTO", "hash-untyped-image"),
+        Thumbnail("01FOTO", "hash-doc"),
+        Thumbnail("01FOTO", "hash-untyped-doc"),
+        PageText("01FOTO"),
+    )
+    assert derived_jobs(replace(article, media=article.media[:2])) == (
+        Thumbnail("01FOTO", "hash-typed-image"),
+        Thumbnail("01FOTO", "hash-untyped-image"),
+    )
 
 
-@pytest.mark.django_db
-def test_save_article_thumbnail_enqueue_failure_does_not_break_save(
-    archive: Archive, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import bundesarchiv.app.articles as articles_mod
-
-    def boom(_ulid: str, _content_hash: str) -> None:
-        raise RuntimeError("queue down")
-
-    monkeypatch.setattr(articles_mod, "enqueue_generate_thumbnail", boom)
-
+def _save_scan_and_pdf(archive: Archive) -> None:
     articles = archive.articles
     image = articles.add_media(
         "01FOTO", "scan.jpg", io.BytesIO(b"\xff\xd8\xff-fake"), media_type="image/jpeg"
     )
+    doc = articles.add_media("01FOTO", "notes.pdf", io.BytesIO(b"%PDF-1.7"))
     stored = articles.load("01FOTO")
-    result = save_article(
-        archive, replace(stored.article, media=(image,)), stored.version, changed_by="tester"
+    save_article(
+        archive, replace(stored.article, media=(image, doc)), stored.version, changed_by="tester"
     )
 
-    saved = articles.load("01FOTO")
-    assert (saved.version, saved.article.media) == (result.version, (image,))
+
+@pytest.mark.django_db
+def test_a_save_queues_the_jobs_its_files_derive(archive: Archive) -> None:
+    jobs = queued(lambda: _save_scan_and_pdf(archive))
+
+    image, doc = archive.articles.load("01FOTO").article.media
+    assert jobs == [
+        ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": image.content_hash}),
+        ("generate_thumbnail", {"ulid": "01FOTO", "content_hash": doc.content_hash}),
+        ("extract_media_text", {"ulid": "01FOTO"}),
+    ]
+
+
+@pytest.mark.django_db
+def test_a_failed_thumbnail_enqueue_neither_breaks_the_save_nor_skips_the_page_text(
+    archive: Archive,
+) -> None:
+    jobs = queued(lambda: _save_scan_and_pdf(archive), refuse=frozenset({"generate_thumbnail"}))
+
+    saved = archive.articles.load("01FOTO").article
+    assert [ref.filename for ref in saved.media] == ["scan.jpg", "notes.pdf"]
+    assert jobs == [("extract_media_text", {"ulid": "01FOTO"})]
 
 
 # ---------------------------------------------------------------------------

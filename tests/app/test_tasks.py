@@ -13,6 +13,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from PIL import Image
 from procrastinate.testing import InMemoryConnector
+from tests._pdfs import text_pdf
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import thumbnail_path
@@ -435,3 +436,66 @@ def test_a_failed_push_logs_its_summary_with_the_exception_class_and_still_raise
         "01FOTO",
     )
     assert record.exc_info
+
+
+@pytest.mark.django_db
+def test_the_page_text_job_reads_the_media_canonical_has_when_it_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.index.models import MediaText
+
+    store = InMemoryObjectStore()
+    articles = ArticleRepository(store)
+    old = articles.add_media("A1", "alt.pdf", io.BytesIO(text_pdf(["alt"])))
+    articles.save(Article("A1", "Heft", "FOTOS", media=(old,)), 0, changed_by="tester")
+    # (Job enqueued here.) Then the file is replaced:
+    new = articles.add_media("A1", "neu.pdf", io.BytesIO(text_pdf(["neu"])))
+    articles.save(Article("A1", "Heft", "FOTOS", media=(new,)), 1, changed_by="tester")
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+
+    tasks_mod.extract_media_text.func(ulid="A1")
+
+    assert list(MediaText.objects.values_list("content_hash", "text")) == [
+        (new.content_hash, "neu")
+    ]
+
+
+@pytest.mark.django_db
+def test_the_reconcile_job_queues_one_page_text_job_per_article_and_reads_no_pdf(
+    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+    from bundesarchiv.app import media_text
+    from bundesarchiv.index.models import ArticleIndex, MediaText
+
+    articles = ArticleRepository(store)
+    for ulid in ("01HEFT", "01ZWEI"):
+        refs = tuple(
+            articles.add_media(ulid, name, io.BytesIO(text_pdf([name])))
+            for name in ("a.pdf", "b.pdf")
+        )
+        articles.save(Article(ulid, "Heft", "FOTOS", media=refs), 0, changed_by="tester")
+    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    reconcile = lambda: tasks_mod.reconcile.func(timestamp=0)
+
+    assert sorted(_queued(reconcile, mirror=None)) == [
+        ("extract_media_text", "01HEFT"),
+        ("extract_media_text", "01ZWEI"),
+    ]
+    assert MediaText.objects.count() == 0
+
+    monkeypatch.setattr(media_text, "missing", lambda _store: 1 / 0)
+    ArticleIndex.objects.all().delete()
+    tasks_mod.reconcile.func(timestamp=0)  # the rebuild stands; the failure is logged
+    assert ArticleIndex.objects.filter(ulid="01HEFT").exists()
+
+
+def test_a_page_text_job_already_queued_stands_in_for_the_next() -> None:
+    import bundesarchiv.app.tasks as tasks_mod
+
+    def two_saves() -> None:
+        tasks_mod.enqueue_extract_media_text("01A")
+        tasks_mod.enqueue_extract_media_text("01A")
+
+    assert _queued(two_saves, mirror=None) == [("extract_media_text", "01A")]

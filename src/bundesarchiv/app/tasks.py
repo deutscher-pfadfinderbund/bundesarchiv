@@ -4,8 +4,9 @@ Every job is a REFERENCE, never a payload: it carries only a ulid (or the period
 scheduled job), and its execution re-reads canonical truth from the configured store and recomputes
 (ADR 0014 §"Queue jobs are references"). So two racing edits enqueue two pointers and whichever
 runs last recomputes the same final truth — jobs are idempotent and commute. The queue exists for:
-retry after a failed synchronous index update (the app services enqueue here), heavier future work
-(thumbnails, OCR), mirror replay, the scheduled full rebuild, and the monthly fixity check.
+retry after a failed synchronous index update (the app services enqueue here), heavier work
+(thumbnails, page text, future OCR), mirror replay, the scheduled full rebuild, and the monthly
+fixity check.
 
 The tasks are thin wrappers over ``indexer.index_article`` / ``index_subtree`` / ``rebuild``; the
 security logic lives there, not here. Procrastinate auto-discovers this module (it is named
@@ -31,7 +32,7 @@ from procrastinate import RetryStrategy
 from procrastinate.contrib.django import app
 from procrastinate.exceptions import AlreadyEnqueued
 
-from bundesarchiv.app import mirror, stats, thumbnails
+from bundesarchiv.app import media_text, mirror, stats, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.push_record import PostgresPushRecord
 from bundesarchiv.index import indexer
@@ -111,6 +112,13 @@ def generate_thumbnail(ulid: str, content_hash: str) -> None:
     )
 
 
+@app.task(name="extract_media_text")
+def extract_media_text(ulid: str) -> None:
+    """Reference job (ADR 0023): read the page text of Article ``ulid``'s files that have none yet,
+    from current canonical, into ``MediaText``. A no-op for an Article gone or fully read."""
+    media_text.extract(canonical_store(), ulid)
+
+
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
 @app.task(name="reconcile")
 def reconcile(timestamp: int) -> None:
@@ -125,6 +133,11 @@ def reconcile(timestamp: int) -> None:
         stats.log_archive_stats(store, index_rows_before=rows_before)
     except Exception:  # the dashboard numbers never fail the rebuild that already committed
         logger.exception("archive stats failed")
+    try:  # one job per Article: a file that hangs or crashes the reader costs only its own job
+        for ulid in media_text.missing(store):
+            enqueue_extract_media_text(ulid)
+    except Exception:  # nor does the page-text net
+        logger.exception("page text enqueue failed")
 
 
 @app.periodic(cron=_VERIFY_CRON)
@@ -246,6 +259,13 @@ def enqueue_generate_thumbnail(ulid: str, content_hash: str) -> None:
     services call this for image and PDF media on save/create — Part 4.3). Re-enqueuing the same file is
     harmless (the job is idempotent and the cache key is the hash)."""
     generate_thumbnail.defer(ulid=ulid, content_hash=content_hash)
+
+
+def enqueue_extract_media_text(ulid: str) -> None:
+    """Enqueue an ``extract_media_text`` reference job for Article ``ulid``. A job already queued
+    for ``ulid`` stands in for this one: it reads current truth when it runs."""
+    with contextlib.suppress(AlreadyEnqueued):
+        extract_media_text.configure(queueing_lock=f"extract_media_text:{ulid}").defer(ulid=ulid)
 
 
 def enqueue_mirror_push(ulid: str) -> None:

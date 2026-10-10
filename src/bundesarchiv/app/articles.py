@@ -4,7 +4,7 @@ Each service: write canonical through ``ArticleRepository`` (CAS — a stale ``e
 raises ``Conflict``, which propagates so the view can re-render the diff), THEN hand what it wrote
 to ``after_write.run`` — index sync, retry fallback, mirror job, never raising — and return its
 ``index_updated`` so the view can warn that the visibility change is not yet effective (ADR 0014).
-Only the thumbnail jobs stay here: only Article content has files to render.
+Only the derived-file jobs (thumbnails, page text) stay here: only Article content has files.
 
 Two entry points into that shell, and ADR 0013's split is which one you call. ``save_article`` takes
 an Article plus the version the caller is betting on and lets ``Conflict`` propagate — the form path,
@@ -15,9 +15,9 @@ the transform re-applies to whatever it is handed.
 
 import contextlib
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
-from bundesarchiv.app import after_write, thumbnails
+from bundesarchiv.app import after_write, media_text, thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.result import (
     Conflicted,
@@ -27,7 +27,7 @@ from bundesarchiv.app.result import (
     Updated,
     UpdateOutcome,
 )
-from bundesarchiv.app.tasks import enqueue_generate_thumbnail
+from bundesarchiv.app.tasks import enqueue_extract_media_text, enqueue_generate_thumbnail
 from bundesarchiv.domain import identity
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
@@ -49,7 +49,7 @@ def save_article(
     stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
-    _enqueue_thumbnails(article)
+    _enqueue_derived(article)
     return SaveResult(version=new_version, index_updated=index_updated)
 
 
@@ -132,7 +132,7 @@ def create_article(
     )
     new_version = archive.articles.save(article, 0, changed_by=changed_by)  # 0 = never saved
     index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
-    _enqueue_thumbnails(article)
+    _enqueue_derived(article)
     return CreateResult(ulid=article.ulid, version=new_version, index_updated=index_updated)
 
 
@@ -198,13 +198,43 @@ def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version)
     return SaveResult(version=0, index_updated=index_updated)
 
 
-def _enqueue_thumbnails(article: Article) -> None:
-    """Enqueue a thumbnail job for each media reference on ``article`` whose kind has a renderer
-    (Part 4.3). Best-effort and out-of-band: the thumbnail is a prunable derived cache, so a failure
-    to enqueue never affects the canonical write. Content-hash-keyed and idempotent, so re-saving an
-    Article that keeps its media just re-enqueues harmlessly (write-once files → identical
-    thumbnails)."""
-    with contextlib.suppress(Exception):
-        for ref in article.media:
-            if thumbnails.renders(ref):
-                enqueue_generate_thumbnail(article.ulid, ref.content_hash)
+@dataclass(frozen=True, slots=True)
+class Thumbnail:
+    """Render the file ``content_hash`` of Article ``ulid``."""
+
+    ulid: Ulid
+    content_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class PageText:
+    """Read the page text of Article ``ulid``'s files (ADR 0023)."""
+
+    ulid: Ulid
+
+
+type DerivedJob = Thumbnail | PageText
+
+
+def derived_jobs(article: Article) -> tuple[DerivedJob, ...]:
+    """The jobs that derive files from ``article``'s media: a ``Thumbnail`` per file whose kind has
+    a renderer, and one ``PageText`` when any file ``media_text.reads``."""
+    tiles = tuple(
+        Thumbnail(article.ulid, ref.content_hash)
+        for ref in article.media
+        if thumbnails.renders(ref)
+    )
+    text = (PageText(article.ulid),) if any(map(media_text.reads, article.media)) else ()
+    return tiles + text
+
+
+def _enqueue_derived(article: Article) -> None:
+    """Enqueue ``derived_jobs(article)``, each on its own: a failed enqueue never touches the
+    canonical write or skips another job. Every job is idempotent, so re-saving is harmless."""
+    for job in derived_jobs(article):
+        with contextlib.suppress(Exception):
+            match job:
+                case Thumbnail(ulid, content_hash):
+                    enqueue_generate_thumbnail(ulid, content_hash)
+                case PageText(ulid):
+                    enqueue_extract_media_text(ulid)
