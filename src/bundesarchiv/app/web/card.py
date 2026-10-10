@@ -60,9 +60,9 @@ class _Field:
     at all — a single string, so "a field lives in at most one section" is structural.
 
     ``control`` is what the form renders for it: ``text``, ``select`` (flat options), ``groups``
-    (optgrouped options), ``textarea``, or ``""`` for a row that is no control. A row with a control
-    carries a scalar form value — it is seeded, re-rendered from the POST and printed by that column
-    alone.
+    (optgrouped options), ``textarea``, ``checkbox`` (ticked when its value is set), or ``""`` for a
+    row that is no control. A row with a control carries a scalar form value — it is seeded,
+    re-rendered from the POST and printed by that column alone.
 
     ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
     §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
@@ -159,6 +159,16 @@ FIELDS: tuple[_Field, ...] = (
         diff="Status",
         seed=_seed_lifecycle,
         shown=_lifecycle_label,
+    ),
+    _Field(
+        "template",
+        label="Vorlage",
+        control="checkbox",
+        section="margin",
+        focusable=True,
+        diff="Vorlage",
+        seed=lambda article: "on" if article.template else "",
+        shown=lambda article: "ja" if article.template else "nein",
     ),
     _Field(
         "audience",

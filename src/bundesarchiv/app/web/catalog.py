@@ -178,6 +178,10 @@ def parse_edit_form(
     if custom_error is not None:
         errors["custom"] = custom_error
 
+    template = bool(_get(post, "template"))
+    if template and lifecycle is not Lifecycle.DRAFT:
+        errors["template"] = "Eine Vorlage bleibt ein Entwurf."
+
     if errors:
         return ParseResult(article=None, errors=errors, expected_version=expected_version)
 
@@ -203,6 +207,7 @@ def parse_edit_form(
         custom=custom,
         added_at=added_at,
         deleted=deleted,
+        template=template,
     )
     return ParseResult(article=article, errors={}, expected_version=expected_version)
 

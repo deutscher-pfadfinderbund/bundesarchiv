@@ -234,6 +234,7 @@ def test_the_form_as_rendered_saves_every_other_value_unchanged(
         creator="Kurt Meyer, Bonn",
         body="  Zwei\nZeilen  ",
         custom=(("Quelle", "Nachlass, Teil 2"),),
+        template=True,
     )
     version = corpus.articles.save(before, stored.version, changed_by="tester")
     archivist = client_as(Archivist())
@@ -246,6 +247,25 @@ def test_the_form_as_rendered_saves_every_other_value_unchanged(
     after = corpus.articles.load(_ULID)
     assert after.version == version + 1, "the form did not save"
     assert after.article == replace(before, title=title or before.title)
+
+
+@pytest.mark.parametrize("ticked", [True, False])
+def test_the_vorlage_box_sets_and_clears_the_mark(corpus: _EditCorpus, ticked: bool) -> None:
+    stored = corpus.articles.load(_ULID)
+    corpus.version = corpus.articles.save(
+        replace(stored.article, template=not ticked), stored.version, changed_by="tester"
+    )
+    post = _valid_post(corpus, **({"template": "on"} if ticked else {}))
+    assert client_as(Archivist()).post(f"/articles/{_ULID}/edit", post).status_code == 302
+    assert corpus.articles.load(_ULID).article.template is ticked
+
+
+def test_a_template_published_from_the_edit_screen_saves_nothing(corpus: _EditCorpus) -> None:
+    post = _valid_post(corpus, template="on", lifecycle="published", creator="Behalten")
+    response = client_as(Archivist()).post(f"/articles/{_ULID}/edit", post)
+    assert response.status_code == 200
+    assert 'value="Behalten"' in response.content.decode()
+    assert corpus.articles.load(_ULID).version == corpus.version
 
 
 def test_edit_post_empties_optional_to_none(corpus: _EditCorpus) -> None:
@@ -598,6 +618,7 @@ def test_every_card_field_seeds_from_the_stored_article() -> None:
         "body": "Ein Text.",
         "audience": "groups",
         "groups": "vorstand\narchiv",
+        "template": "",
         "custom_rows": [("Fotograf", "Meyer")],
     }
 
@@ -641,15 +662,18 @@ def test_the_cas_diff_spells_the_rung_and_the_state_in_german() -> None:
 
 def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> None:
     # `scanned` is the GET autofocus spine: the fields walked for the first EMPTY one. It is the
-    # focusable set minus exactly ONE declared exception — Gruppen, which is empty on almost every
-    # record by design (it means something only at the GROUPS rung), so scanning it would park the
-    # caret there on every fully catalogued record. Pinning the relation rather than the membership means a dropped `scanned=True` fails here, and a SECOND
+    # focusable set minus the declared exceptions, the fields empty on almost every record by design:
+    # Gruppen (it means something only at the GROUPS rung) and Vorlage (few records are templates).
+    # Scanning either would park the caret there on every fully catalogued record. Pinning the
+    # relation rather than the membership means a dropped `scanned=True` fails here, and a further
     # exception has to be argued for rather than typed.
     from bundesarchiv.app.web.card import FIELDS
 
     scanned = {f.name for f in FIELDS if f.scanned}
     focusable = {f.name for f in FIELDS if f.focusable}
-    assert scanned == focusable - {"groups"}, f"spine {sorted(scanned)} vs {sorted(focusable)}"
+    assert scanned == focusable - {"groups", "template"}, (
+        f"spine {sorted(scanned)} vs {sorted(focusable)}"
+    )
 
 
 def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:

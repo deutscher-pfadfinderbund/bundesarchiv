@@ -447,6 +447,7 @@ class EditSurface:
             "workbench/article_edit.html",
             {
                 "values": self.values,
+                "is_template": self.stored.template,
                 "version": self.version,
                 "errors": errors,
                 "autofocus": autofocus,
@@ -459,7 +460,8 @@ class EditSurface:
                     audience_options=_audience_options(inherited),
                     lifecycle_options=(
                         LIFECYCLE_OPTIONS[1:]
-                        if inherited is None and self.stored.lifecycle is Lifecycle.DRAFT
+                        if self.stored.template
+                        or (inherited is None and self.stored.lifecycle is Lifecycle.DRAFT)
                         else LIFECYCLE_OPTIONS
                     ),
                 ),
@@ -607,6 +609,7 @@ def article_publish(request: HttpRequest, ulid: str) -> HttpResponseBase:
         if (
             article != stored.article
             or article.lifecycle is not Lifecycle.DRAFT
+            or article.template
             or chooser.chain_of(article.collection_id) is None
         ):
             raise _PublishRefused

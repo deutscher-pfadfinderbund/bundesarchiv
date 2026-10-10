@@ -35,7 +35,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
             </ul>
             {% include "components/confirm.html" with id="delete" action=delete_href lead=delete_confirm.question consequence=delete_confirm.consequence button=delete_confirm.button tone="primary" in_place=True %}
           </div>
-          {% if is_draft %}
+          {% if is_draft and not is_template %}
           <button class="primary" type="button" popovertarget="publish">Veröffentlichen</button>
           {% url 'article-publish' ulid as publish_href %}
           {% include "components/confirm.html" with id="publish" action=publish_href lead=publish_statement button="Jetzt veröffentlichen" tone="primary" %}

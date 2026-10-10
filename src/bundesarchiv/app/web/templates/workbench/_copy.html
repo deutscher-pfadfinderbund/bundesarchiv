@@ -1,2 +1,3 @@
-{% comment %}The rare-actions menus' "Duplizieren": a POST, so a form, never a link. Param: ulid.{% endcomment %}
-<form class="menu-form" method="post" action="{% url 'article-copy' ulid %}">{% csrf_token %}<button class="link" type="submit">Duplizieren</button></form>
+{% comment %}The rare-actions menus' "Duplizieren": a POST, so a form, never a link. Params: ulid,
+is_template (a template's copy is the new draft it exists for).{% endcomment %}
+<form class="menu-form" method="post" action="{% url 'article-copy' ulid %}">{% csrf_token %}<button class="link" type="submit">{% if is_template %}Neuer Entwurf aus Vorlage{% else %}Duplizieren{% endif %}</button></form>

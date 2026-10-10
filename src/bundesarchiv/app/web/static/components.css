@@ -196,6 +196,12 @@
     font: var(--type-label);
     color: var(--ink-2);
   }
+  /* a checkbox field: the box leads its label on one line */
+  .field > label:has(> input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
   /* the edge doubled (register row 5): a 1px red line alone does not stand out from the gray edge */
   .field :is(input, select, textarea)[aria-invalid="true"] {
     border-color: var(--error);

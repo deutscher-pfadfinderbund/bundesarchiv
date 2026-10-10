@@ -674,6 +674,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
     return {
         "ulid": article.ulid,
         "is_draft": is_draft,
+        "is_template": article.template,
         # only an Archivist reaches a marked Article (ADR 0022): its page shows the Papierkorb state
         "deleted": None if mark is None else {"at": vocab.day(mark.at), "by": mark.by},
         "version": resolution.version,

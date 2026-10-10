@@ -6,7 +6,11 @@ the registry is the only place a field exists; the Bestand forms print rows of t
 
 A div with a <label for>, because the hint's ⓘ button and its popover may not sit inside a label.
 {% endcomment %}{% with base=field.base %}{% with control_id=field.control_id %}<div class="field"{% if field.span %} data-span="all"{% endif %}{% if field.shows_with %} data-shows-with="{{ field.shows_with }}"{% endif %}>
+  {% if field.control == "checkbox" %}
+  <label id="{{ base }}-label" for="{{ control_id }}"><input type="checkbox" id="{{ control_id }}" name="{{ field.name }}" value="on"{% if field.value %} checked{% endif %}{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if field.autofocus %} autofocus{% endif %}> {{ field.label }}</label>
+  {% else %}
   <label id="{{ base }}-label" for="{{ control_id }}">{{ field.label }}{% if field.required %} <span aria-hidden="true">*</span>{% endif %}{% if field.archivist_only %} <span class="note">intern</span>{% endif %}</label>
+  {% endif %}
   {% if field.control == "select" %}
   <select id="{{ control_id }}" name="{{ field.name }}"{% if form %} form="{{ form }}"{% endif %} {% include "workbench/_field_aria.html" %}{% for attr, attr_value in field.hx %} {{ attr }}="{{ attr_value }}"{% endfor %}{% if field.autofocus %} autofocus{% endif %}>
     {% for value, caption in field.options %}
@@ -24,6 +28,7 @@ A div with a <label for>, because the hint's ⓘ button and its popover may not 
     </optgroup>
     {% endfor %}
   </select>
+  {% elif field.control == "checkbox" %}
   {% elif field.control == "textarea" %}
   <textarea id="{{ control_id }}" name="{{ field.name }}" rows="3"{% if form %} form="{{ form }}"{% endif %}{% if field.suggest %} data-suggest="{{ field.suggest }}"{% endif %} {% include "workbench/_field_aria.html" %}{% if field.autofocus %} autofocus{% endif %}>{{ field.value }}</textarea>
   {% else %}

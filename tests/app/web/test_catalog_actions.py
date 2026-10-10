@@ -31,9 +31,11 @@ from tests.app.web._fixtures import (
     make_article,
     make_collection,
     page_forms,
+    with_two_media,
 )
 
-from bundesarchiv.domain.models import Audience, AudienceTier, Change, Lifecycle
+from bundesarchiv.domain.edtf import EdtfDate
+from bundesarchiv.domain.models import Article, Audience, AudienceTier, Change, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.errors import NotFound
 from bundesarchiv.persistence.repository import Stored
@@ -71,6 +73,37 @@ def test_copy_creates_draft_copy_and_redirects_to_its_edit_form(corpus: Corpus) 
     assert copy.lifecycle is Lifecycle.DRAFT
     assert copy.media == ()
     assert copy.title == "Sommerfahrt 1962"  # metadata carried over
+
+
+def _as_template(corpus: Corpus, **fields: Any) -> Article:
+    stored = corpus.articles.load(DRAFT_ULID)
+    template = replace(stored.article, template=True, **fields)
+    corpus.articles.save(template, stored.version, changed_by="tester")
+    return template
+
+
+def test_a_copy_of_a_template_is_a_plain_draft_with_every_other_field(corpus: Corpus) -> None:
+    with_two_media(corpus)
+    template = _as_template(
+        corpus,
+        body="Teil 1 der Reihe",
+        audience=Audience(AudienceTier.GROUPS, ("vorstand",)),
+        media_type="Foto(s)",
+        document_type="Zeitschrift",
+        tags=("Fahrt, Sommer", "Reihe"),
+        physical_location="Regal 4",
+        date=EdtfDate("1962"),
+        creator="K. Meier",
+        subject_place="Bonn",
+        custom=(("Serie", "Fahrten"),),
+    )
+    response = client_as(Archivist()).post(f"/articles/{DRAFT_ULID}/copy")
+    (new_ulid,) = _other_ulids(corpus)
+    assert response["Location"] == f"/articles/{new_ulid}/edit?focus=ref_code"
+    copy = corpus.articles.load(new_ulid).article
+    assert (copy.template, copy.media, copy.ref_code) == (False, (), None)
+    excluded = {"ulid", "added_at", "template", "media", "ref_code"}
+    assert replace(copy, **{name: getattr(template, name) for name in excluded}) == template
 
 
 @pytest.mark.parametrize("viewer", _NON_ARCHIVISTS)
@@ -527,6 +560,14 @@ def test_publish_refuses_a_record_changed_while_it_publishes(
 
 def test_publish_refuses_an_unresolvable_collection_chain(corpus: Corpus) -> None:
     _assert_refused(corpus, _article_whose_collection_chain_is_broken(corpus))
+
+
+def test_a_template_is_never_published_nor_offered_for_it(corpus: Corpus) -> None:
+    _as_template(corpus)
+    response = client_as(Archivist()).get(f"/articles/{DRAFT_ULID}")
+    assert response.status_code == 200
+    assert f'action="/articles/{DRAFT_ULID}/publish"' not in response.content.decode()
+    _assert_refused(corpus, DRAFT_ULID)
 
 
 def test_publish_leaves_a_published_record_alone(corpus: Corpus) -> None:
