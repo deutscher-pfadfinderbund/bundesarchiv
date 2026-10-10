@@ -15,6 +15,7 @@ transaction: the rollback IS the index isolation.
 import io
 import re
 from collections.abc import Callable
+from dataclasses import replace
 from html import unescape
 from html.parser import HTMLParser
 from typing import cast
@@ -459,6 +460,7 @@ def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corp
         "digital": "1",
         "file": "pdf",
         "drafts": "1",
+        "templates": "1",
     }
     assert set(samples) == set(browse.FILTER_PARAMS)
     for param, value in samples.items():
@@ -538,6 +540,18 @@ def test_the_drafts_filter_answers_the_archivist_and_nobody_else(indexed_corpus:
     response = _get(Member(groups=()), "drafts=1")
     assert response.status_code == 200
     assert _listed(response.content.decode()) == set()
+
+
+def test_the_templates_filter_answers_the_archivist_and_nobody_else(indexed_corpus: Corpus) -> None:
+    stored = indexed_corpus.articles.load("DRAFT")
+    template = replace(stored.article, template=True)
+    indexed_corpus.articles.save(template, stored.version, changed_by="tester")
+    indexer.rebuild(indexed_corpus.store)
+    assert {"templates": ["1"]} in _sentence_queries(Archivist())
+    assert _listed(_get(Archivist(), "templates=1").content.decode()) == {"DRAFT"}
+    for viewer, label in _NON_ARCHIVIST:
+        assert {"templates": ["1"]} not in _sentence_queries(viewer), label
+        assert _listed(_get(viewer, "templates=1").content.decode()) == set(), label
 
 
 def test_a_collection_empty_only_under_another_filter_is_not_an_empty_collection(

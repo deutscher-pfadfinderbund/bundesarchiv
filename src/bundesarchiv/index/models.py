@@ -96,6 +96,7 @@ class ArticleIndex(models.Model):
     # visibility is decided by archivist_only/tier/groups alone; this only narrows or labels rows
     # the archivist already sees. Members/public never receive archivist_only rows.
     is_draft = models.BooleanField(default=False)
+    is_template = models.BooleanField(default=False)  # a Vorlage; a draft, so archivist_only too
     added_at = models.DateTimeField(null=True)  # the date added; None = unknown
     # The Papierkorb mark (ADR 0022); None = not deleted. A marked row is also archivist_only.
     deleted_at = models.DateTimeField(null=True)

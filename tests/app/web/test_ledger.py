@@ -101,6 +101,17 @@ def test_the_draft_mark_is_archivist_chrome_and_quiet_on_a_list_of_drafts(
 
 
 @pytest.mark.parametrize(
+    ("is_archivist", "params", "marked"),
+    [(True, {}, True), (False, {}, False), (True, {"templates": "1"}, False)],
+)
+def test_the_template_mark_is_archivist_chrome_and_quiet_on_a_list_of_templates(
+    is_archivist: bool, params: dict[str, str], marked: bool
+) -> None:
+    built = _build(_hit(is_draft=True, is_template=True), params=params, is_archivist=is_archivist)
+    assert built.rows[0].template is marked
+
+
+@pytest.mark.parametrize(
     ("sort_by", "next_sort_by", "aria_sort"),
     [
         (None, "date", ""),

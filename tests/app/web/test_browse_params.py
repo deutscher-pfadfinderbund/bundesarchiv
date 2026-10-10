@@ -65,7 +65,8 @@ def test_dateless_truthy_and_falsy() -> None:
 def test_the_digital_and_drafts_filters_are_toggles() -> None:
     assert _parse(digital="1").filters.has_files is True
     assert _parse(drafts="1").filters.drafts_only is True
-    assert _parse(digital="0", drafts="vielleicht").filters == SearchFilters()
+    assert _parse(templates="1").filters.templates_only is True
+    assert _parse(digital="0", drafts="vielleicht", templates="").filters == SearchFilters()
 
 
 def test_date_bounds_parsed_from_date_from_and_date_to() -> None:

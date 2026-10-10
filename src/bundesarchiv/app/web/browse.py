@@ -41,6 +41,7 @@ PARAM_DATE_TO = "date_to"
 PARAM_DIGITAL = "digital"
 PARAM_FILE = "file"
 PARAM_DRAFTS = "drafts"
+PARAM_TEMPLATES = "templates"
 PARAM_SORT = "sort"
 PARAM_PAGE = "page"
 
@@ -60,6 +61,7 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_DIGITAL,
         PARAM_FILE,
         PARAM_DRAFTS,
+        PARAM_TEMPLATES,
         PARAM_SORT,
         PARAM_PAGE,
     }
@@ -75,8 +77,8 @@ PAGE_SIZE = 50
 _SORTS: frozenset[str] = frozenset({"relevance", "ref_code", "date", "title", "added"})
 _DEFAULT_SORT: SortOrder = "relevance"
 
-#: Truthy spellings for the boolean toggles (Ohne Datum, Digital, Entwürfe). Anything else (incl.
-#: absence) is False.
+#: Truthy spellings for the boolean toggles (Ohne Datum, Digital, Entwürfe, Vorlagen). Anything
+#: else (incl. absence) is False.
 _TRUTHY = frozenset({"1", "true", "ja", "on"})
 
 
@@ -128,6 +130,7 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
             has_files=_truthy(params.get(PARAM_DIGITAL)),
             file_kind=_file_kind(params.get(PARAM_FILE)),
             drafts_only=_truthy(params.get(PARAM_DRAFTS)),
+            templates_only=_truthy(params.get(PARAM_TEMPLATES)),
         ),
         sort=sort,
         descending=descending,
@@ -231,6 +234,7 @@ FILTER_PARAMS: tuple[str, ...] = (
     PARAM_DIGITAL,
     PARAM_FILE,
     PARAM_DRAFTS,
+    PARAM_TEMPLATES,
 )
 
 

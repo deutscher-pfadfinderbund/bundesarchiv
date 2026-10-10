@@ -1,5 +1,5 @@
 {% comment %}
-Lifecycle mark. Param: draft. Renders only for drafts; a published item carries no mark (register
-row 7).
+Lifecycle mark. Params: draft, template (optional). Renders only for drafts and templates; a
+published item carries no mark (register row 7).
 {% endcomment %}
-{% if draft %}<span class="mark">Entwurf</span>{% endif %}
+{% if draft %}<span class="mark">Entwurf</span>{% endif %}{% if draft and template %} {% endif %}{% if template %}<span class="mark">Vorlage</span>{% endif %}

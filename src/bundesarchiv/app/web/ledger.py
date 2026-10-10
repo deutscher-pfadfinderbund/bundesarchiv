@@ -100,8 +100,8 @@ class Cell:
 
 @dataclass(frozen=True, slots=True)
 class Row:
-    """One hit as the ledger prints it. ``draft`` and ``in_selection`` are the archivist's chrome,
-    False for everyone else; ``selected`` marks the row in the pane."""
+    """One hit as the ledger prints it. ``draft``, ``template`` and ``in_selection`` are the
+    archivist's chrome, False for everyone else; ``selected`` marks the row in the pane."""
 
     ulid: str
     title: str
@@ -110,6 +110,7 @@ class Row:
     selected: bool
     in_selection: bool
     cells: tuple[Cell, ...]
+    template: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +160,7 @@ def build(
             title=hit.title,
             href=reverse("article-detail", args=[hit.ulid]),
             draft=mark_drafts and hit.is_draft,
+            template=is_archivist and not parsed.filters.templates_only and hit.is_template,
             selected=hit.ulid == selected_ulid,
             in_selection=hit.ulid in selected_ulids,
             cells=tuple(_cell(c, hit, chooser, params) for c in shown),

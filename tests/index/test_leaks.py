@@ -483,7 +483,7 @@ def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
 
 def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
     """Static floor: ``SearchHit`` carries the member-visible identity/metadata columns plus
-    ``is_draft``, and never a floored field."""
+    ``is_draft`` / ``is_template``, and never a floored field."""
     field_names = set(SearchHit.__dataclass_fields__)
     assert field_names == {
         "ulid",
@@ -493,6 +493,7 @@ def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
         "media_type",
         "document_type",
         "is_draft",
+        "is_template",
         "collection_id",
         "file_counts",
         "deleted_at",  # only archivist_only rows carry the mark (test_leaks_trash.py)

@@ -95,7 +95,8 @@ class SearchFilters:
 
     ``has_files`` keeps rows with at least one file (the fact ``SearchHit.file_counts`` reports);
     ``file_kind`` keeps rows with at least one file of that kind;
-    ``drafts_only`` keeps drafts, so it narrows a non-Archivist's scope to nothing.
+    ``drafts_only`` keeps drafts and ``templates_only`` templates (drafts too), so either narrows a
+    non-Archivist's scope to nothing.
 
     ``deleted`` picks the side of the Papierkorb (ADR 0022): False (the default) leaves every
     marked row out, True keeps only marked rows. Marked rows are archivist-only, so True narrows a
@@ -113,17 +114,19 @@ class SearchFilters:
     has_files: bool = False
     file_kind: FileKind | None = None
     drafts_only: bool = False
+    templates_only: bool = False
     deleted: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
     """One result row, floor-safe by construction: the member-visible identity + metadata columns
-    plus ``is_draft`` for the archivist's Entwurf mark. No ``physical_location`` / ``custom`` /
-    ``archivist_text`` (the floored fields) ever appear here.
+    plus ``is_draft`` / ``is_template`` for the archivist's Entwurf and Vorlage marks. No
+    ``physical_location`` / ``custom`` / ``archivist_text`` (the floored fields) ever appear here.
 
-    ``is_draft`` carries no cross-tier leak: ``_viewer_scope`` restricts the returned rows to those
-    the viewer may see, and draft rows (archivist_only) never reach a non-archivist."""
+    ``is_draft`` and ``is_template`` carry no cross-tier leak: ``_viewer_scope`` restricts the
+    returned rows to those the viewer may see, and draft rows (archivist_only) never reach a
+    non-archivist."""
 
     ulid: str
     title: str
@@ -139,6 +142,7 @@ class SearchHit:
     deleted_at: datetime.datetime | None = None
     deleted_by: str | None = None
     added_at: datetime.datetime | None = None  # None = unknown
+    is_template: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +187,7 @@ _HIT_COLUMNS = (
     "deleted_at",
     "deleted_by",
     "added_at",
+    "is_template",
 )
 
 
@@ -428,6 +433,8 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
         qs = qs.filter(file_counts__has_key=f.file_kind.value)
     if f.drafts_only:
         qs = qs.filter(is_draft=True)
+    if f.templates_only:
+        qs = qs.filter(is_template=True)
     return _apply_date_range(qs, f.date_from, f.date_to)
 
 

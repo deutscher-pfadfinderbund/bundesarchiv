@@ -392,7 +392,9 @@ def _pager(
     )
     shown = f"{vocab.count(first)}\N{EN DASH}{vocab.count(first + hits - 1)}" if hits else ""
     noun = "Artikel"
-    if parsed.filters.drafts_only:
+    if parsed.filters.templates_only:
+        noun = "Vorlage" if page.total == 1 else "Vorlagen"
+    elif parsed.filters.drafts_only:
         noun = "Entwurf" if page.total == 1 else "Entwürfe"
     return _Pager(
         stepped=has_prev or has_next,
@@ -513,6 +515,7 @@ def _sentence(
         (browse.PARAM_DIGITAL, "mit Dateien" if f.has_files else None),
         (browse.PARAM_FILE, f.file_kind and vocab.FILE_FILTER_LABELS[f.file_kind]),
         (browse.PARAM_DRAFTS, "Entwürfe" if f.drafts_only else None),
+        (browse.PARAM_TEMPLATES, "Vorlagen" if f.templates_only else None),
     )
     checks = [_toggle(params, browse.PARAM_DIGITAL, "mit Dateien", f.has_files)]
     checks += _facet_items(
@@ -523,6 +526,7 @@ def _sentence(
     )
     if is_archivist:
         checks.append(_toggle(params, browse.PARAM_DRAFTS, "Entwürfe", f.drafts_only))
+        checks.append(_toggle(params, browse.PARAM_TEMPLATES, "Vorlagen", f.templates_only))
     set_filters = tuple(
         _SetFilter(label, browse.without_param(params, param))
         for param, label in unslotted
