@@ -58,6 +58,7 @@ DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
 CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # sorts last in browse order (ulid), so it renders last
 MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or search shows it
 MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"  # seven photos of mixed shape: rows and the lightbox
+TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"  # a Vorlage: a draft the archivists copy
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
@@ -98,6 +99,7 @@ class CorpusHandles:
     marked_ulid: str
     ceiling_ulid: str
     many_ulid: str
+    template_ulid: str
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
@@ -256,6 +258,21 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         changed_by="tester",
     )
 
+    # The Vorlage: the shared structure of a series' parts lives in its description.
+    articles.save(
+        Article(
+            ulid=TEMPLATE_ULID,
+            title="Fahrtenbericht",
+            collection_id="AKTEN",
+            lifecycle=Lifecycle.DRAFT,
+            template=True,
+            media_type="Schrifttum",
+            body="Route: …\n\nTeilnehmende: …\n\nWetter: …",
+        ),
+        0,
+        changed_by="tester",
+    )
+
     winterlager = Article(
         ulid=MARKED_ULID,
         title="Winterlager 1961",
@@ -288,4 +305,5 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         marked_ulid=MARKED_ULID,
         ceiling_ulid=CEILING_ULID,
         many_ulid=MANY_ULID,
+        template_ulid=TEMPLATE_ULID,
     )

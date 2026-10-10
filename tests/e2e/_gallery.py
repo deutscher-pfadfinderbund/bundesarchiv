@@ -25,7 +25,7 @@ from typing import Literal
 
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
-from tests.e2e._corpus import CorpusHandles
+from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
 from tests.e2e._pages import LIST, SCREENS, Screen, reach_tag_suggestions
 
 #: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
@@ -175,6 +175,20 @@ def _reach_detail_publish_open(page: Page, base: str, corpus: CorpusHandles) -> 
     page.click('button:has-text("Veröffentlichen")')
 
 
+def _reach_detail_template_actions_open(page: Page, base: str, corpus: CorpusHandles) -> None:
+    page.goto(f"{base}/articles/{corpus.template_ulid}", wait_until="networkidle")
+    page.click(".split-button .menu-button")
+
+
+def _reach_edit_template_refused(page: Page, base: str, corpus: CorpusHandles) -> None:
+    # Vorlage ticked on a draft with Veröffentlicht chosen: the save refuses, nothing is written
+    page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
+    page.check('main input[name="template"]')
+    page.select_option('main select[name="lifecycle"]', "published")
+    page.click('main button:has-text("Speichern")')
+    page.locator("#field-template-error").wait_for()
+
+
 def _reach_detail_in_trash_confirm_open(page: Page, base: str, corpus: CorpusHandles) -> None:
     page.goto(f"{base}/articles/{corpus.marked_ulid}", wait_until="networkidle")
     page.click('[popovertarget="delete-permanently"]')
@@ -311,6 +325,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "workbench-bulk", "workbench, selection + 'Feld ändern …' open", True, _reach_bulk
     ),
     GalleryState(
+        "workbench-templates",
+        "workbench filtered to the Vorlagen: the removable chip, no Vorlage mark on the rows",
+        True,
+        _goto(f"{LIST}?templates=1"),
+    ),
+    GalleryState(
         "bulk-confirm-error",
         "bulk edit, confirm surface rejected: the chooser re-rendered under the message",
         True,
@@ -372,6 +392,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         _reach_detail_publish_open,
     ),
     GalleryState(
+        "detail-template-actions-open",
+        "the article page of a Vorlage, the menu open: 'Neuer Entwurf aus Vorlage', no"
+        " Veröffentlichen",
+        True,
+        _reach_detail_template_actions_open,
+    ),
+    GalleryState(
         "detail-in-trash-confirm-open",
         "the article page of a record in the Papierkorb, its Endgültig löschen confirm open (red)",
         True,
@@ -400,6 +427,18 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface rejected: a Gruppen error in the margin",
         True,
         _reach_edit_rejected,
+    ),
+    GalleryState(
+        "edit-template",
+        "the edit surface of a Vorlage: the box ticked, the Status without Veröffentlicht",
+        True,
+        _goto(f"/articles/{TEMPLATE_ULID}/edit"),
+    ),
+    GalleryState(
+        "edit-template-refused",
+        "the edit surface rejected: Vorlage ticked with Veröffentlicht, the error in the margin",
+        True,
+        _reach_edit_template_refused,
     ),
     GalleryState(
         "edit-conflict",
