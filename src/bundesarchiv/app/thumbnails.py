@@ -14,7 +14,7 @@ bytes are untrusted: no content problem raises past ``_derive``, it only yields 
 Reference semantics (ADR 0014): the worker job carries the Article's ulid and the content-hash and
 re-derives at execution, reading the file through that Article's media entry (ADR 0019). A file's
 kind picks its ``Renderer`` (``_RENDERERS``): images through Pillow (JPEG/PNG/TIFF — evaluated
-against Pillow 12.x), PDFs through ``pdf_preview``. Any other kind (text, video, …) is a no-op.
+against Pillow 12.x), PDFs through ``pdf``. Any other kind (text, video, …) is a no-op.
 """
 
 import io
@@ -29,7 +29,7 @@ from typing import BinaryIO
 
 from PIL import Image, ImageOps
 
-from bundesarchiv.app import pdf_preview
+from bundesarchiv.app import pdf
 from bundesarchiv.domain.models import MediaRef, Ulid
 from bundesarchiv.index.indexer import file_kind
 from bundesarchiv.index.query import FileKind
@@ -83,7 +83,7 @@ def _picture(source: BinaryIO, longest_side: int) -> Image.Image | None:
 #: The one place a file kind picks its renderer; a kind without one gets no thumbnail.
 _RENDERERS: dict[FileKind, Renderer] = {
     FileKind.IMAGE: _picture,
-    FileKind.PDF: pdf_preview.first_page,
+    FileKind.PDF: pdf.first_page,
 }
 
 #: A PDF opens in a new tab, so only an image has a display version.

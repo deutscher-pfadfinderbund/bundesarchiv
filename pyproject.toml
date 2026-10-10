@@ -97,7 +97,7 @@ mypy_path = ["src"]
 [tool.django-stubs]
 django_settings_module = "bundesarchiv.index.settings"
 
-# No types shipped: authlib (typed at the keycloak.py seam), pypdfium2 (at pdf_preview.py) and the
+# No types shipped: authlib (typed at the keycloak.py seam), pypdfium2 (at pdf.py) and the
 # test WebDAV server.
 [[tool.mypy.overrides]]
 module = ["authlib.*", "pypdfium2.*", "wsgidav.*"]
