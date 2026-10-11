@@ -11,7 +11,8 @@ from tests.app.web._fixtures import make_collection
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.index.query import FileKind, SearchHit
+from bundesarchiv.app.web.media_views import media_url
+from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
 _ULID = "01KX6RHVHG90WHP1PZWP0GSKQQ"
 _COLLECTION = "01KX6RHVHG90WHP1PZWP0GSKAA"
@@ -157,3 +158,26 @@ def test_an_unknown_empty_or_garbage_cookie_falls_back_to_the_default(raw: str |
 
 def test_a_cookie_with_one_unknown_column_keeps_the_known_ones() -> None:
     assert [c.key for c in ledger.chosen("collection.gone")] == ["collection"]
+
+
+def test_a_row_without_matching_pages_has_no_text_hits() -> None:
+    assert _build().rows[0].text_hits is None
+
+
+_FILES = ("a" * 64, "b" * 64)
+
+
+@pytest.mark.parametrize(
+    ("matched", "linked", "more"),
+    [(1, 1, 0), (3, 3, 0), (4, 2, 2), (5, 2, 3)],
+)
+def test_up_to_three_pages_all_link_and_more_link_two_and_count_the_rest(
+    matched: int, linked: int, more: int
+) -> None:
+    pages = tuple(TextPage(_FILES[n % 2], n + 1) for n in range(matched))
+    hits = _build(_hit(text_pages=pages)).rows[0].text_hits
+    assert hits is not None
+    assert [link.href for link in hits.pages] == [
+        f"{media_url(_ULID, page.content_hash)}#page={page.page}" for page in pages[:linked]
+    ]
+    assert hits.more == more

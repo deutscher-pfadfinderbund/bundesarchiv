@@ -17,7 +17,9 @@ from dataclasses import dataclass
 from django.urls import reverse
 
 from bundesarchiv.app.web import browse, vocab
+from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
+from bundesarchiv.app.web.media_views import media_url
 from bundesarchiv.index.query import SearchHit
 
 
@@ -98,10 +100,25 @@ class Cell:
     query: str = ""
 
 
+#: A row links this many matching pages at most; more link one fewer and count the rest, so the
+#: count never stands for a single page.
+TEXT_PAGES_SHOWN = 3
+
+
+@dataclass(frozen=True, slots=True)
+class TextHits:
+    """The matching pages of a hit's files: each a link opening its file at that page, and how
+    many more matched."""
+
+    pages: tuple[BylineLink, ...]
+    more: int
+
+
 @dataclass(frozen=True, slots=True)
 class Row:
     """One hit as the ledger prints it. ``draft``, ``template`` and ``in_selection`` are the
-    archivist's chrome, False for everyone else; ``selected`` marks the row in the pane."""
+    archivist's chrome, False for everyone else; ``selected`` marks the row in the pane;
+    ``text_hits`` is None unless the query matched a page of the hit's files."""
 
     ulid: str
     title: str
@@ -111,6 +128,7 @@ class Row:
     in_selection: bool
     cells: tuple[Cell, ...]
     template: bool = False
+    text_hits: TextHits | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,11 +182,31 @@ def build(
             selected=hit.ulid == selected_ulid,
             in_selection=hit.ulid in selected_ulids,
             cells=tuple(_cell(c, hit, chooser, params) for c in shown),
+            text_hits=_text_hits(hit),
         )
         for hit in hits
     )
     choices = tuple(Choice(c.key, c.label, c in columns) for c in COLUMNS)
     return Ledger(heads=heads, rows=rows, choices=choices)
+
+
+def _text_hits(hit: SearchHit) -> TextHits | None:
+    pages = hit.text_pages
+    if not pages:
+        return None
+    shown = pages if len(pages) <= TEXT_PAGES_SHOWN else pages[: TEXT_PAGES_SHOWN - 1]
+    return TextHits(
+        pages=tuple(
+            BylineLink(
+                label=f"S. {p.page}",
+                href=f"{media_url(hit.ulid, p.content_hash)}#page={p.page}",
+                aria_label=f"Seite {p.page}",
+                new_tab=True,
+            )
+            for p in shown
+        ),
+        more=len(pages) - len(shown),
+    )
 
 
 def _filtered(column: Column, params: Mapping[str, str]) -> bool:

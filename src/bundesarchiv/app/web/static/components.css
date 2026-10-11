@@ -890,7 +890,9 @@
      with a dot, and a long value that wraps inside its item keeps its first letters. The clip
      leaves room around the other edges for a link's focus ring. ---- */
   .byline {
+    --_byline-font: var(--byline-font, var(--type-body));
     --byline-sep: 1.6em;
+    font: var(--_byline-font);
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -1099,6 +1101,11 @@
   }
   .ledger td.title > a:first-child:hover {
     text-decoration: underline;
+  }
+  /* the matching pages under the title; the margin also drops the dl's own */
+  .ledger td.title > .byline {
+    --byline-font: var(--type-meta);
+    margin: var(--space-1) 0 0;
   }
   .ledger td:not(.title, .select) {
     font: var(--type-meta);

@@ -20,7 +20,7 @@ from django.templatetags.static import static
 
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.index.query import FileKind, SearchHit
+from bundesarchiv.index.query import FileKind, SearchHit, TextPage
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
 _MODES = ("light", "dark")
@@ -74,13 +74,27 @@ _LEDGER_HITS = tuple(
     )
 )
 
+#: A hit that matched on five pages of its PDF: its row prints the capped "Im Volltext" line.
+_TEXT_HIT = SearchHit(
+    ulid="01KDEMQ0000000000000000007",
+    title="Gaubrief Herbst 1971",
+    ref_code="G4",
+    date_edtf="1971",
+    media_type=None,
+    document_type="Zeitschrift",
+    is_draft=False,
+    collection_id="",
+    file_counts=((FileKind.PDF, 1),),
+    text_pages=tuple(TextPage("0" * 64, page) for page in (4, 9, 14, 22, 31)),
+)
+
 #: The demo ledger is sorted by Signatur, ascending, so one head shows its direction.
 _LEDGER_QUERY = {"sort": "ref_code"}
 
 
 def _demo_ledger() -> ledger.Ledger:
     return ledger.build(
-        _LEDGER_HITS,
+        (_TEXT_HIT, *_LEDGER_HITS),
         columns=ledger.DEFAULT_COLUMNS,
         parsed=browse.parse_query(_LEDGER_QUERY),
         params=_LEDGER_QUERY,

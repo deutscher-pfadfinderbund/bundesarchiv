@@ -644,6 +644,17 @@ def test_round_trip_q_and_collection_both_filter_results(indexed_corpus: Corpus)
     assert "Fahrtenbericht" in both
 
 
+# --- full text: a page-only match links its page ---------------------------------
+
+
+def test_a_word_only_on_a_page_links_that_page_of_the_file(indexed_corpus: Corpus) -> None:
+    (ref,) = indexed_corpus.articles.load(PANE_PUB_ULID).article.media
+    indexer.store_media_text(ref.content_hash, ["", "Zauberkessel"])
+    body = _get(Member(groups=()), "q=Zauberkessel").content.decode()
+    main = body.split("<main", 1)[1]
+    assert f"{media_url(PANE_PUB_ULID, ref.content_hash)}#page=2" in page_hrefs(main)
+
+
 # --- long Signaturen: the SIG mark sizes to content, never truncates --------------
 
 
