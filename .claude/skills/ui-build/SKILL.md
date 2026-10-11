@@ -55,6 +55,15 @@ A unit that adds or moves a `[popovertarget]` runs the overlay journey itself be
 (`mise run test:e2e -- -k overlays`, ~30 s): a panel anchored under the wrong trigger shows only
 there, and a finisher cycle costs far more.
 
+## Template source stays readable
+
+Django templates have no whitespace control, so the CSS must not depend on whitespace. Lay out inline
+runs (facts, links, separators) as flex or grid with `gap`, and draw separators with a generated
+`::before` (`content: "·" / ""`), as `.byline` does; whitespace between flex or grid items does not
+render. Then write the template source normally: one element per line, indented. No
+`{% spaceless %}`, no `&nbsp;` or `&#32;` for layout, no one-line templates. A template you create or
+touch follows this.
+
 ## Screenshots via the gallery, review on live pages
 
 For any UI change: restart the dev server after EVERY commit (`:8000` runs `--noreload` and serves
