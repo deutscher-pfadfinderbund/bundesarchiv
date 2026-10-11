@@ -229,6 +229,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   hashes it in 1 MiB chunks and stores it with `create_large`; the view hands it the upload file.
   Pinned by `test_catalog_media.test_upload_memory_does_not_grow_with_the_file`.
 
+### 56. The index writer has no seam — Worth exploring
+- **Indicator:** shell tests that need Postgres only for the index write (`save_article` and the other write services); the web suite's autouse stubs of `after_write.index_article` and the enqueue functions (#55) (2026-10-11)
+- **Evidence:** `index/indexer.py` is reached through the Django ORM directly; the mirror's push record already has the pattern (`PostgresPushRecord` / `InMemoryPushRecord`)
+- **Deletion test:** an index-writer port with a Postgres and an in-memory adapter lets shell tests run without Postgres and retires the web stubs; shared contract tests run against both adapters so the fake cannot accept what Postgres refuses
+- **Sketch:** write side only (`index_article`, `rebuild`, `store_media_text`, `hashes_with_text`); the read side (`search`, facets) stays Postgres — a fake would be a second search engine and the leak tests prove only the real SQL. Owner 2026-10-11: build it when it pays, not for pluggability alone
+
 ## Implementation patterns
 
 ### 51. Knobs are resolved at every use, not once per component — done (Wave KNOBS, 2026-10-01)
