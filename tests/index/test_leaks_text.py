@@ -17,8 +17,10 @@ from tests._articles import make_article
 from tests.index import fixtures
 
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Collection, Lifecycle
+from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index import indexer
 from bundesarchiv.index.models import MediaText
+from bundesarchiv.index.query import SearchPage, TextPage, search
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -37,6 +39,29 @@ _TRASH = "TX_TRASH"
 _ORPHAN = "TX_ORPHAN"
 
 _SHARED_BYTES = b"one file on two Articles"
+
+_VIEWERS: tuple[tuple[str, Viewer], ...] = (
+    ("public", Public()),
+    ("member", Member(())),
+    ("other group", Member(("andere",))),
+    ("board", Member(("vorstand",))),
+    ("archivist", Archivist()),
+)
+_EVERYONE = frozenset(label for label, _ in _VIEWERS)
+_MEMBERS_UP = _EVERYONE - {"public"}
+_BOARD_UP = frozenset({"board", "archivist"})
+_ARCHIVIST = frozenset({"archivist"})
+
+# A word only on a page -> the Articles it must reach, and the viewers they reach.
+_PAGE_WORDS: Mapping[str, Mapping[str, frozenset[str]]] = {
+    "Mitgliederseite": {_MEMBER_ONLY: _MEMBERS_UP},
+    "Vorstandsseite": {_GROUP: _BOARD_UP},
+    "Entwurfsseite": {_DRAFT: _ARCHIVIST},
+    "Vorlagenseite": {_TEMPLATE: _ARCHIVIST},
+    "Waisenseite": {_ORPHAN: _ARCHIVIST},
+    "Papierkorbseite": {_TRASH: frozenset()},
+    "Gemeinschaftsseite": {_SHARED: _EVERYONE, _SHARED_HIDDEN: _BOARD_UP},
+}
 
 # (ulid, index of the file in its media) -> the file's page texts; () is the unreadable-file marker.
 _PAGES: Mapping[tuple[str, int], tuple[str, ...]] = {
@@ -62,18 +87,18 @@ class _Corpus:
 
 def _articles() -> tuple[tuple[Article, tuple[tuple[str, bytes], ...]], ...]:
     """Each Article with its files as (name, bytes); none carries a page word in its record."""
-    hidden = {"tags": ("verborgen",)}
+    hidden = ("verborgen",)
     return (
         (make_article(_PUBLIC, collection_id=_OPEN, title="Abendbericht"), (("a.pdf", b"a"), ("b.pdf", b"b"))),
         (make_article(_RECORD, collection_id=_OPEN, title="Kochtopf und Rezept"), (("scan.pdf", b"s"), ("lock.pdf", b"l"))),
         (make_article(_SHARED, collection_id=_OPEN, title="Geteilt"), (("shared.pdf", _SHARED_BYTES),)),
-        (make_article(_SHARED_HIDDEN, collection_id=_BOARD, title="Auch geteilt", **hidden), (("shared.pdf", _SHARED_BYTES),)),
-        (make_article(_MEMBER_ONLY, collection_id=_MEMBERS, title="Akte", **hidden), (("m.pdf", b"m"),)),
-        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", **hidden), (("g.pdf", b"g"),)),
-        (make_article(_DRAFT, collection_id=_OPEN, title="Entwurf", lifecycle=Lifecycle.DRAFT, **hidden), (("d.pdf", b"d"),)),
-        (make_article(_TEMPLATE, collection_id=_OPEN, title="Vorlage", lifecycle=Lifecycle.DRAFT, template=True, **hidden), (("t.pdf", b"t"),)),
-        (make_article(_TRASH, collection_id=_OPEN, title="Weggeworfen", **hidden), (("p.pdf", b"p"),)),
-        (make_article(_ORPHAN, collection_id="TX_GHOST", title="Verwaist", **hidden), (("o.pdf", b"o"),)),
+        (make_article(_SHARED_HIDDEN, collection_id=_BOARD, title="Auch geteilt", tags=hidden), (("shared.pdf", _SHARED_BYTES),)),
+        (make_article(_MEMBER_ONLY, collection_id=_MEMBERS, title="Akte", tags=hidden), (("m.pdf", b"m"),)),
+        (make_article(_GROUP, collection_id=_BOARD, title="Protokoll", tags=hidden), (("g.pdf", b"g"),)),
+        (make_article(_DRAFT, collection_id=_OPEN, title="Entwurf", lifecycle=Lifecycle.DRAFT, tags=hidden), (("d.pdf", b"d"),)),
+        (make_article(_TEMPLATE, collection_id=_OPEN, title="Vorlage", lifecycle=Lifecycle.DRAFT, template=True, tags=hidden), (("t.pdf", b"t"),)),
+        (make_article(_TRASH, collection_id=_OPEN, title="Weggeworfen", tags=hidden), (("p.pdf", b"p"),)),
+        (make_article(_ORPHAN, collection_id="TX_GHOST", title="Verwaist", tags=hidden), (("o.pdf", b"o"),)),
     )  # fmt: skip
 
 
@@ -143,3 +168,84 @@ def test_rebuild_drops_the_text_no_row_names_and_keeps_the_papierkorb_text(corpu
     indexer.rebuild(corpus.store)
 
     assert _stored_hashes() == {corpus.media[ulid][index] for ulid, index in _PAGES}
+
+
+def _search(viewer: Viewer, text: str | None) -> SearchPage:
+    return search(viewer, text=text, page_size=200)
+
+
+def _ulids(page: SearchPage) -> list[str]:
+    return [hit.ulid for hit in page.hits]
+
+
+# --- a page word reaches an Article only inside the viewer's scope -----------------------------
+
+
+def test_a_page_word_reaches_only_the_articles_the_viewer_may_see(corpus: _Corpus) -> None:
+    """Below an Article's audience its page word changes nothing: hits, total, every facet and the
+    dateless count equal the search without page text. A Papierkorb Article reaches no one."""
+    queries = [(label, viewer, word) for label, viewer in _VIEWERS for word in _PAGE_WORDS]
+    before = {(label, word): _search(viewer, word) for label, viewer, word in queries}
+    _store_pages(corpus)
+
+    for label, viewer, word in queries:
+        reached = {ulid for ulid, labels in _PAGE_WORDS[word].items() if label in labels}
+        page = _search(viewer, word)
+        assert (set(_ulids(page)), page.total) == (reached, len(reached)), f"[{label}] {word}"
+        if not reached:
+            assert page == before[label, word], f"[{label}] {word} changed a count"
+
+
+def test_a_hit_lists_pages_of_its_own_files_only(corpus: _Corpus) -> None:
+    _store_pages(corpus)
+
+    for label, viewer in _VIEWERS:
+        for word in ("Lagerfeuer", *_PAGE_WORDS):
+            for hit in _search(viewer, word).hits:
+                hashes = {page.content_hash for page in hit.text_pages}
+                assert hashes and hashes <= set(corpus.media[hit.ulid]), f"[{label}] {word}"
+
+
+def test_a_shared_file_shows_through_the_visible_article_only(corpus: _Corpus) -> None:
+    _store_pages(corpus)
+
+    page = _search(Public(), "Gemeinschaftsseite")
+
+    assert [(hit.ulid, hit.text_pages) for hit in page.hits] == [
+        (_SHARED, (TextPage(corpus.media[_SHARED][0], 1),))
+    ]
+
+
+# --- what page text does not change -------------------------------------------------------------
+
+
+def test_without_a_positive_page_match_a_search_is_unchanged(corpus: _Corpus) -> None:
+    """A browse, a record-only word and a query without a positive word (ADR 0023) return what
+    they return without page text, so no hit lists an empty page or the unreadable-file marker."""
+    queries = [
+        (label, viewer, text)
+        for label, viewer in _VIEWERS
+        for text in (None, "Rezept", "-Kochtopf", "Lagerfeuer or -Kochtopf")
+    ]
+    before = [_search(viewer, text) for _, viewer, text in queries]
+    _store_pages(corpus)
+
+    after = [_search(viewer, text) for _, viewer, text in queries]
+
+    for (label, _, text), was, now in zip(queries, before, after, strict=True):
+        assert now == was, f"[{label}] {text!r}"
+
+
+def test_a_record_hit_outranks_a_page_hit_that_repeats_the_word(corpus: _Corpus) -> None:
+    _store_pages(corpus)
+
+    assert _ulids(_search(Public(), "Kochtopf")) == [_RECORD, _PUBLIC]
+
+
+def test_a_hit_lists_its_pages_in_media_order_then_page_order(corpus: _Corpus) -> None:
+    _store_pages(corpus)
+
+    (hit,) = (h for h in _search(Public(), "Lagerfeuer").hits if h.ulid == _PUBLIC)
+
+    first, second = corpus.media[_PUBLIC]
+    assert hit.text_pages == (TextPage(first, 1), TextPage(first, 3), TextPage(second, 1))

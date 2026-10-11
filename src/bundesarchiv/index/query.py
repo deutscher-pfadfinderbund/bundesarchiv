@@ -15,6 +15,7 @@ with ``assert_never`` (``_matched_vector``), commented as the sanctioned excepti
 No QuerySets or model instances cross the interface: ``search`` returns frozen dataclasses only,
 and ``SearchHit`` carries exactly the member-visible identity/metadata columns — no
 ``physical_location``, ``custom`` or ``archivist_text`` (the domain field floor, by construction).
+Its ``text_pages`` name only pages of the hit's own files (ADR 0023).
 
 ORM-vs-raw outcome (brief decision point). The whole query is expressible in the Django ORM —
 ``SearchQuery``/``SearchRank`` for text+relevance, ``Collate`` for the ICU sort, array lookups
@@ -29,15 +30,30 @@ import datetime
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from itertools import groupby
+from operator import itemgetter
 from typing import Any, Literal, assert_never
 
+from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVectorField
-from django.db.models import Case, Count, F, Func, IntegerField, Q, QuerySet, TextField, Value, When
+from django.db.models import (
+    Case,
+    Count,
+    F,
+    Func,
+    IntegerField,
+    Q,
+    QuerySet,
+    TextField,
+    Value,
+    When,
+)
 from django.db.models.functions import Collate, Lower
+from django.db.models.lookups import Exact
 
 from bundesarchiv.domain.models import Ulid
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
-from bundesarchiv.index.models import ArticleIndex
+from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
 
 # The FTS config both the generated columns and the query parser use (ADR 0011). websearch is the
@@ -119,6 +135,14 @@ class SearchFilters:
 
 
 @dataclass(frozen=True, slots=True)
+class TextPage:
+    """A page of one of a hit's files whose text matches the query; pages count from 1."""
+
+    content_hash: str
+    page: int
+
+
+@dataclass(frozen=True, slots=True)
 class SearchHit:
     """One result row, floor-safe by construction: the member-visible identity + metadata columns
     plus ``is_draft`` / ``is_template`` for the archivist's Entwurf and Vorlage marks. No
@@ -126,7 +150,8 @@ class SearchHit:
 
     ``is_draft`` and ``is_template`` carry no cross-tier leak: ``_viewer_scope`` restricts the
     returned rows to those the viewer may see, and draft rows (archivist_only) never reach a
-    non-archivist."""
+    non-archivist. ``text_pages`` are the matching pages of the hit's own files, in media order
+    then page order; () without a query or a page match."""
 
     ulid: str
     title: str
@@ -143,6 +168,7 @@ class SearchHit:
     deleted_by: str | None = None
     added_at: datetime.datetime | None = None  # None = unknown
     is_template: bool = False
+    text_pages: tuple[TextPage, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,12 +400,27 @@ def _matched_vector(viewer: Viewer) -> F | Func:
 def _apply_text(
     qs: QuerySet[ArticleIndex], query: SearchQuery | None, viewer: Viewer, ref_code_match: Q | None
 ) -> QuerySet[ArticleIndex]:
-    """Restrict ``qs`` to rows whose matched vector matches ``query``, or whose Signatur equals the
-    text (``ref_code_match``). A ``None`` query is a browse — the queryset is returned unchanged."""
+    """Restrict ``qs`` to rows whose matched vector matches ``query``, or one of whose files has a
+    page that matches it, or whose Signatur equals the text (``ref_code_match``). A ``None`` query
+    is a browse — the queryset is returned unchanged."""
     if query is None:
         return qs
-    hit = Q(_vector=query) | ref_code_match if ref_code_match else Q(_vector=query)
+    own_page = Q(
+        media_hashes__overlap=ArraySubquery(
+            _matching_pages(query).values("content_hash").distinct()
+        )
+    )
+    hit = Q(_vector=query) | own_page
+    if ref_code_match:
+        hit |= ref_code_match
     return qs.annotate(_vector=_matched_vector(viewer)).filter(hit)
+
+
+def _matching_pages(query: SearchQuery) -> QuerySet[MediaText]:
+    """The pages whose text matches ``query``; none for a query without a positive word (ADR 0023):
+    it would match every page that lacks the word, empty pages and markers included."""
+    tree = Func(query, function="querytree", output_field=TextField())
+    return MediaText.objects.filter(tsv=query).exclude(Exact(tree, "T"))
 
 
 # ``ref_code`` with case and whitespace removed: "BA 10", "ba10" and "BA10" share one key. A
@@ -503,10 +544,37 @@ def _page_of_hits(
     )
     size = _clamp_page_size(page_size)
     start = max(page - 1, 0) * size
-    rows = ordered.values(*_HIT_COLUMNS)[start : start + size]
+    rows = list(ordered.values(*_HIT_COLUMNS, "media_hashes")[start : start + size])
+    pages = _text_pages(query, [row.pop("media_hashes") for row in rows])
     return tuple(
-        SearchHit(**{**row, "file_counts": _in_kind_order(row["file_counts"])}) for row in rows
+        SearchHit(**{**row, "file_counts": _in_kind_order(row["file_counts"]), "text_pages": tp})
+        for row, tp in zip(rows, pages, strict=True)
     )
+
+
+def _text_pages(query: SearchQuery | None, media: list[list[str]]) -> list[tuple[TextPage, ...]]:
+    """Per hit, given its files' hashes, the pages of those files that match ``query``."""
+    by_hash = _matching_page_numbers(query, {h for hashes in media for h in hashes})
+    return [_pages_of(hashes, by_hash) for hashes in media]
+
+
+def _matching_page_numbers(query: SearchQuery | None, hashes: set[str]) -> dict[str, list[int]]:
+    """The numbers of the pages of ``hashes`` that match ``query``, per hash, in page order; ``{}``
+    without a query."""
+    if query is None:
+        return {}
+    found = (
+        _matching_pages(query)
+        .filter(content_hash__in=hashes)
+        .order_by("content_hash", "page")
+        .values_list("content_hash", "page")
+    )
+    return {h: [page for _, page in rows] for h, rows in groupby(found, key=itemgetter(0))}
+
+
+def _pages_of(hashes: list[str], by_hash: Mapping[str, list[int]]) -> tuple[TextPage, ...]:
+    """The matching pages of one hit's files, in media order then page order."""
+    return tuple(TextPage(h, page) for h in dict.fromkeys(hashes) for page in by_hash.get(h, ()))
 
 
 def _in_kind_order(counts: Mapping[str, int]) -> tuple[tuple[FileKind, int], ...]:
