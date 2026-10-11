@@ -70,9 +70,9 @@ simplicity checkable instead of a matter of taste.
      its status, `approved (date)` or `proposed` ("Component inventory",
      "Layout primitives"); what has no row does not ship. Pages compose only
      from inventoried layout primitives. The component library
-     (`/_dev/components/`) shows each sample's status and families, and
-     `tests/app/web/test_design_lint.py` fails on a component template or a
-     layout primitive without a row.
+     (`/_dev/components/`) shows the status and families of each component a
+     sample shows, and `tests/app/web/test_design_lint.py` fails on a
+     component template or a layout primitive without a row.
   4. **Families.** Components may share styling written once, in a family
      section. A family has a row in "Families": its member roots, its one CSS
      section, its status. In that section a rule may set any property on its

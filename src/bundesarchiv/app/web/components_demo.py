@@ -9,7 +9,7 @@ render in one document without JS.
 ONE theme (owner ruling, 2026-08-06): design iterations happen ON the real components.
 
 Doubles as developer documentation: every sample is annotated with its include path + params and
-its inventory status (design-system.md) with each family it is in, and
+the inventory status (design-system.md) of each component it shows, with each family it is in, and
 a token-swatch section shows the monochrome ink/ground pairs and the lines with role names.
 Page chrome is English (development-facing); the SAMPLE CONTENT inside atoms is German (product
 UI copy). Sample data below is inert demo fixture data — no store, no index, no viewer.
