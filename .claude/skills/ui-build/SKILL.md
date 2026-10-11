@@ -1,6 +1,6 @@
 ---
 name: ui-build
-description: Rules for building or reviewing web UI on this repo — contexts not variants, CSS that reaches into containers, includes and the page context, the build order for UI features, and how UI is checked (gallery, journeys, live pages). Preloaded by writer-ui and design-gate.
+description: Rules for building or reviewing web UI on this repo — contexts not variants, CSS that reaches into containers, includes and the page context, the build order for UI features, and how UI is checked (gallery, journeys, live pages, impeccable critique). Preloaded by writer-ui and design-gate.
 when_to_use: Any change to templates, CSS or JS under src/bundesarchiv/app/web/, or a review of one.
 ---
 
@@ -20,6 +20,12 @@ wish/ruling/spec section, one pattern per problem. Its component rules decide wh
 adapt or build a component, and when a new one needs the owner first ("Component rules"; the
 inventory with each row's status is "Component inventory"). A UI wave ends with before/after
 gallery renders for the owner's verdict — never with prose claiming the UI is good.
+
+## Design critique through impeccable
+
+Design critique, audit and polish go through the `impeccable` skill (`impeccable:impeccable`;
+project config in `.impeccable/`). A UI change ends with an impeccable critique of the touched
+screens; its findings are reported to the owner, never fixed unasked.
 
 ## UI: contexts, not variants
 
