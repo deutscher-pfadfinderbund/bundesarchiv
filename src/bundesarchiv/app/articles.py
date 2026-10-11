@@ -16,6 +16,7 @@ the transform re-applies to whatever it is handed.
 import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from typing import assert_never
 
 from bundesarchiv.app import after_write, media_text, thumbnails
 from bundesarchiv.app.archive import Archive
@@ -238,3 +239,5 @@ def _enqueue_derived(article: Article) -> None:
                     enqueue_generate_thumbnail(ulid, content_hash)
                 case PageText(ulid):
                     enqueue_extract_media_text(ulid)
+                case _:
+                    assert_never(job)
