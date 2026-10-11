@@ -5,13 +5,15 @@ gave nothing usable stores the page-0 marker, so it counts as done too. Only a f
 that do not match their hash leave no rows, and the next fill tries again. A file's bytes are
 untrusted: no content problem raises past ``fill``.
 
-``unread`` and ``parse`` decide; ``fill`` and ``missing`` read the archive and the rows.
+``readable`` and ``parse`` decide; ``read``, ``record``, ``fill`` and ``missing`` touch the archive
+and the rows.
 """
 
 import io
 import logging
-from collections.abc import Collection, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import assert_never
 
 from bundesarchiv.app import pdf
 from bundesarchiv.app.archive import Archive
@@ -53,11 +55,9 @@ def reads(ref: MediaRef) -> bool:
     return indexer.file_kind(ref) is FileKind.PDF
 
 
-def unread(media: Iterable[MediaRef], done: Collection[str]) -> tuple[MediaRef, ...]:
-    """The files of ``media`` that ``reads`` and whose hash is not in ``done``, one per hash."""
-    return tuple(
-        {r.content_hash: r for r in media if reads(r) and r.content_hash not in done}.values()
-    )
+def readable(media: Iterable[MediaRef]) -> tuple[MediaRef, ...]:
+    """The files of ``media`` that text is read from (``reads``), one per content hash."""
+    return tuple({r.content_hash: r for r in media if reads(r)}.values())
 
 
 def parse(data: bytes, content_hash: str) -> Parsed:
@@ -68,39 +68,63 @@ def parse(data: bytes, content_hash: str) -> Parsed:
     return Pages(texts) if texts else Unreadable()
 
 
-def fill(archive: Archive, ulid: Ulid) -> int:
-    """Store the text of each file of Article ``ulid``'s current media that is still ``unread``;
-    returns how many files were stored. 0 when the Article is gone. Never raises for a file's
-    bytes."""
+def read(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
+    """What Article ``ulid``'s file ``ref`` gives (``parse``), or None when the file is gone or its
+    read fails (logged); a later fill tries again. Never raises for the file's bytes."""
     try:
-        media = archive.articles.load(ulid).article.media
+        with archive.articles.open_media(ulid, ref) as stream:
+            return parse(stream.read(), ref.content_hash)
     except NotFound:
-        return 0
-    stored = 0
-    for ref in unread(media, indexer.hashes_with_text(r.content_hash for r in media)):
-        try:
-            with archive.articles.open_media(ulid, ref) as stream:
-                data = stream.read()
-            parsed = parse(data, ref.content_hash)
-        except NotFound:
-            continue  # the file is gone from canonical
-        except Exception:  # a failed read, or untrusted bytes the reader did not expect: retried
-            logger.warning("no text of %s", ref.content_hash, exc_info=True)
-            continue
-        match parsed:
-            case HashMismatch():
-                logger.warning("media %s of %s does not match its hash", ref.content_hash, ulid)
-            case Pages(texts):
-                indexer.store_media_text(ref.content_hash, texts)
-                stored += 1
-            case Unreadable():
-                indexer.store_media_text(ref.content_hash, ())
-                stored += 1
-    return stored
+        return None
+    except Exception:  # a failed read, or untrusted bytes the reader did not expect
+        logger.warning("no text of %s", ref.content_hash, exc_info=True)
+        return None
+
+
+def record(ulid: Ulid, content_hash: str, parsed: Parsed) -> None:
+    """Store ``parsed`` as the text of ``content_hash``: the pages of ``Pages``, the page-0 marker
+    for ``Unreadable``. A ``HashMismatch`` stores nothing and is logged as an alarm naming the file
+    and Article ``ulid``."""
+    match parsed:
+        case Pages(texts):
+            indexer.store_media_text(content_hash, texts)
+        case Unreadable():
+            indexer.store_media_text(content_hash, ())
+        case HashMismatch():
+            logger.warning("media %s of %s does not match its hash", content_hash, ulid)
+        case _:
+            assert_never(parsed)
+
+
+def fill(archive: Archive, ulid: Ulid) -> dict[str, Parsed]:
+    """``read`` and ``record`` each ``readable`` file of Article ``ulid``'s current media that has
+    no text yet; returns the outcome per content hash of each file read (a failed read is absent).
+    ``{}`` when the Article is gone. Never raises for a file's bytes."""
+    try:
+        files = readable(archive.articles.load(ulid).article.media)
+    except NotFound:
+        return {}
+    done = indexer.hashes_with_text(r.content_hash for r in files)
+    return {
+        ref.content_hash: parsed
+        for ref in files
+        if ref.content_hash not in done and (parsed := _fill_one(archive, ulid, ref)) is not None
+    }
+
+
+def _fill_one(archive: Archive, ulid: Ulid, ref: MediaRef) -> Parsed | None:
+    """``read`` one file and ``record`` its outcome at once, so a later file that kills the job
+    leaves this one stored."""
+    parsed = read(archive, ulid, ref)
+    if parsed is not None:
+        record(ulid, ref.content_hash, parsed)
+    return parsed
 
 
 def missing(archive: Archive) -> tuple[Ulid, ...]:
-    """The readable Articles with a file that is still ``unread``."""
-    articles = archive.articles.scan().readable
-    done = indexer.hashes_with_text(r.content_hash for a in articles for r in a.media)
-    return tuple(article.ulid for article in articles if unread(article.media, done))
+    """The Articles whose README decodes with a ``readable`` file that has no text yet."""
+    files = {a.ulid: readable(a.media) for a in archive.articles.scan().readable}
+    done = indexer.hashes_with_text(r.content_hash for refs in files.values() for r in refs)
+    return tuple(
+        ulid for ulid, refs in files.items() if any(r.content_hash not in done for r in refs)
+    )

@@ -306,8 +306,8 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     )
 
     indexer.rebuild(store)
-    # fill never raises; a miss is silent
-    assert media_text.fill(Archive.of(store), PUBLISHED_ULID) == 1
+    filled = media_text.fill(Archive.of(store), PUBLISHED_ULID)
+    assert len(filled) == 1  # fill never raises; a miss is silent
     if thumbnail_root is not None:
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
         # cover + filmstrip images render instead of the /media/.../thumb route 404ing.

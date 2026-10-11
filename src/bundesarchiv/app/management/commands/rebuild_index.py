@@ -7,12 +7,14 @@ root takes it back — after the legacy import, or when that import's own rebuil
 Reads ``BUNDESARCHIV_CANONICAL_ROOT`` like every other entry point; rebuilding is idempotent.
 """
 
+from collections import Counter
 from typing import Any
 
 from django.core.management.base import BaseCommand
 
 from bundesarchiv.app import media_text
 from bundesarchiv.app.archive import Archive
+from bundesarchiv.app.media_text import HashMismatch, Pages, Unreadable
 from bundesarchiv.index import indexer
 
 
@@ -31,5 +33,12 @@ class Command(BaseCommand):
         if report.unreadable_collections:
             names = ", ".join(report.unreadable_collections)
             self.stdout.write(f"collections whose README does not decode (absent): {names}")
-        filled = sum(media_text.fill(archive, ulid) for ulid in media_text.missing(archive))
-        self.stdout.write(f"page text read: {filled} files")
+        read = Counter(
+            type(parsed)
+            for ulid in media_text.missing(archive)
+            for parsed in media_text.fill(archive, ulid).values()
+        )
+        self.stdout.write(
+            f"page text read: {read[Pages]} files, {read[Unreadable]} unreadable,"
+            f" {read[HashMismatch]} not matching their hash"
+        )

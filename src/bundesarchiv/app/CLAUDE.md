@@ -20,7 +20,7 @@ Every write service that writes a version takes `changed_by`, who is acting; the
 - `stats.py` — the operator statistics the hourly reconcile logs: archive-wide, never per user · interface: `log_archive_stats` · tests: `tests/app/test_stats.py`
 - `thumbnails.py` — AVIF tile/display versions, local hash-keyed cache · interface: `Size`, `generate_thumbnail`, `cached`, `is_cached`, `tile_size`, `thumbnail_path`, `renders` · tests: `tests/app/test_thumbnails.py`
 - `pdf.py` — a PDF's first page as a picture, its pages' text; the only `pypdfium2` importer, swap the backend here · interface: `first_page`, `page_texts` · tests: `tests/app/test_thumbnails.py`, `tests/app/test_pdf.py`
-- `media_text.py` — each PDF page's text, read once per file (ADR 0023) · interface: `fill`, `missing`, `unread`, `parse` (`Pages` | `Unreadable` | `HashMismatch`), `reads`, `MAX_PAGES` · tests: `test_media_text.py`
+- `media_text.py` — PDF page text, read once per file (ADR 0023) · interface: `fill`, `missing`, `read`, `record`, `readable`, `parse` → `Parsed`, `reads`, `MAX_PAGES` · tests: `test_media_text.py`
 - `reindex.py` — deploy-startup config-version currency guard (ADR 0014) · interface: `ensure_index_current` · tests: `tests/app/test_config_version.py`
 - `legacy.py` — the legacy CSV → Article mapping for the one-time import; pure · interface: `ITEM_COLUMNS`, `collection_names`, `map_item`, `plan`, `unknown_vocabulary`, `Report` · tests: `tests/app/test_legacy.py`
 - `result.py` — the write services' result shapes · interface: `SaveResult`, `CreateResult`, `UpdateOutcome` (`Updated` | `Conflicted` | `Missing`) · tests: `tests/app/test_services.py`
