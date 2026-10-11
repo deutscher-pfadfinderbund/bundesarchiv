@@ -49,26 +49,6 @@ _HASH_LENGTH = 64
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
 
-def media_url(ulid: str, content_hash: str) -> str:
-    """The public wire URL of a blob: ``/media/<ulid>/<content_hash>`` (the ``media`` route). The ONE
-    builder for this shape — the detail view, the preview pane, and the edit-form media manager all
-    call it, so the URL layout has a single home (it is earmarked to change with the Part 7 tiering
-    work). Distinct from ``ArticleRepository.media_key`` — that names the blob in the store."""
-    return f"/media/{ulid}/{content_hash}"
-
-
-def thumbnail_url(ulid: str, content_hash: str) -> str:
-    """The public wire URL of a blob's thumbnail: ``/media/<ulid>/<content_hash>/thumb`` (the
-    ``media-thumb`` route). Same single-source rule as :func:`media_url`."""
-    return f"{media_url(ulid, content_hash)}/thumb"
-
-
-def display_url(ulid: str, content_hash: str) -> str:
-    """The public wire URL of an image's display version: ``/media/<ulid>/<content_hash>/display``
-    (the ``media-display`` route). Same single-source rule as :func:`media_url`."""
-    return f"{media_url(ulid, content_hash)}/display"
-
-
 def _is_valid_hash(value: str) -> bool:
     """True iff ``value`` is a well-formed sha256 content hash (64 lowercase hex chars). Total: a
     malformed route param yields False, never an exception — it floors to the shared 404."""

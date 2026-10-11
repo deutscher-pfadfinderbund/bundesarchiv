@@ -36,7 +36,8 @@ from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_
 from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.catalog import none_if_blank
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.app.web.media_views import display_url, media_url, not_found, thumbnail_url
+from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
+from bundesarchiv.app.web.media_views import not_found
 from bundesarchiv.app.web.viewers import is_partial, render_screen, viewer_of
 from bundesarchiv.domain.access import preview
 from bundesarchiv.domain.collections import ResolvedChain

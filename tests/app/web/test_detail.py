@@ -31,7 +31,7 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import generate_thumbnail
-from bundesarchiv.app.web.media_views import display_url, media_url, thumbnail_url
+from bundesarchiv.app.web.media_urls import display_url, media_url, thumbnail_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.identity import new_ulid
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef

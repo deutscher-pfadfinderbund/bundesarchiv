@@ -40,7 +40,7 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.thumbnails import thumbnail_path
 from bundesarchiv.app.web.browse_views import media_tiles
-from bundesarchiv.app.web.media_views import media_url, thumbnail_url
+from bundesarchiv.app.web.media_urls import media_url, thumbnail_url
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle, MediaRef
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 

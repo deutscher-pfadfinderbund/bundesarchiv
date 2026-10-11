@@ -33,6 +33,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `bulk.py` — bulk-edit core: allowlist, field-picker context, CAS apply · interface: `FIELDS`, `apply_bulk`, `is_allowed_field`, `field_picker_context` · tests: `tests/app/web/test_bulk_core.py`, `test_bulk.py`
 - `bulk_views.py` — bulk-edit confirm/commit routes · interface: `article_bulk_edit` · tests: `tests/app/web/test_bulk_views.py`, `test_bulk_links.py`
 - `media.py` — the media-serving seam: X-Accel in prod, port-streamed in dev, derived versions from the local cache (ADR 0017) · interface: `media_response`, `thumbnail_response` · tests: `tests/app/web/test_media.py`
+- `media_urls.py` — the wire URLs of a file and its derived versions; a leaf · interface: `media_url`, `thumbnail_url`, `display_url` · tests: `test_detail.py`, `test_catalog_media.py`
 - `media_views.py` — media entry points, `can_view` before any blob probe · interface: `serve_media`, `serve_thumbnail`, `not_found` (the one 404 page) · tests: `tests/app/web/test_media.py`
 - `vocab.py` — controlled vocabulary + the German spellings (Sichtbarkeit, dates, sizes) · interface: `is_valid_pair`, `AUDIENCE_OPTIONS`, `exposure_label`, `date_parts`, `human_size` · tests: `test_vocab.py`
 - `landing.py` — state a redirect hands on · interface: `noting_lag`, `index_lagging`, `created_collection_url`, `preselected_collection`, `created_collection_name` · tests: `test_index_lag.py`, `test_collection_*.py`

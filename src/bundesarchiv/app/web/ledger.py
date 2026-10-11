@@ -19,7 +19,7 @@ from django.urls import reverse
 from bundesarchiv.app.web import browse, vocab
 from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
-from bundesarchiv.app.web.media_views import media_url
+from bundesarchiv.app.web.media_urls import media_url
 from bundesarchiv.index.query import SearchHit
 
 

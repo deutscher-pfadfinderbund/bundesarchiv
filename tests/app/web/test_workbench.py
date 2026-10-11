@@ -36,7 +36,7 @@ from tests.app.web._fixtures import (
 
 from bundesarchiv.app.web import browse, ledger, vocab
 from bundesarchiv.app.web.browse_views import _FORM_FILTER_PARAMS
-from bundesarchiv.app.web.media_views import media_url
+from bundesarchiv.app.web.media_urls import media_url
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
