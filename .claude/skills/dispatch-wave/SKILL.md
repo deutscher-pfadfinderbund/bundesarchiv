@@ -24,6 +24,19 @@ The architect thinks in modules and interfaces; writers implement one module eac
   REST simplify: moving `FormPanel` alone left the cycle; the field registry had to move too).
 - A finding about **browser behaviour names the platform where it fails** (a focus bug that only Safari shows passed every Chromium pin until the journey reproduced Safari's path). A fix that adds native `required` or other validation lists the tests and gallery states that submit empty fields.
 - A brief built on a ruling **greps `docs/requirements/` for every later ruling on the same subject** first (the door brief cited the 2026-08-22 ruling and missed the 2026-09-26/27 ones that superseded two of its points; the writer caught it).
+- Two items of one brief that touch the same lines: name the item that owns them (the one that rewrites
+  them). Otherwise the writer spends turns working out fixup collisions (FTSFIX, 2026-10-11).
+- A brief asking for map rows names the 220-character row budget; writers otherwise learn it from a
+  red check.
+- A brief that asks for fixups on a signature change whose callers sit in several stack commits:
+  expect a core fixup plus a plain signature commit (no fixup can be green alone; the structure gate
+  refuses a shim). Say so in the brief (PILOT, 2026-10-11).
+- "Fixup where it folds cleanly, plain otherwise" plus "do not rebase" contradict once a committed
+  fixup turns out not to fold. Brief it as: the writer may rebase its OWN commits to reword a fixup
+  into a plain commit (REVIEWFIX, 2026-10-11).
+- A unit that changes a return type or signature: its fence lists every caller from `git grep`,
+  `tests/e2e/_corpus.py` included (the browser corpus calls app code), and it runs `test:e2e`. R1R5
+  (2026-10-11) changed `media_text.fill` to return a dict, skipped e2e, and broke every browser test.
 - Anchor on **symbol names, never line numbers** — they drift between brief-writing and dispatch.
 - **Verify every referenced test/function exists** before asserting it does; a wrong "keep the existing test green" costs the writer a search.
 - Name **contracts to pin, not test instruments** — the writer reads `tests/CLAUDE.md`'s do-not-write list and picks the instrument; several past briefs prescribed forbidden mechanisms.
@@ -36,6 +49,9 @@ The architect thinks in modules and interfaces; writers implement one module eac
   verify a guard is load-bearing before pinning a contract on it: the CSRF header it asked to
   protect was redundant (every form carries the body token).
 - Explicit **scope fence** + stop conditions ("if this cascades past ~N files, stop and report"). Include: "needing anything outside your fence = STOP and report; that report is a success outcome." A fence names its files **plus their necessary call sites** — an interface change drags its callers, and a fence that pretends otherwise forces the writer to judge instead of read. A brief that DELETES a symbol also fences "everything that greps for it" (prose references included), or the deletion leaves dangling names by construction.
+- A deletion brief says "plus their tests" only for tests of the deleted contract. A test that reached a
+  LIVE contract through the deleted symbol moves to the surviving path — the #33 prune dropped the only
+  replace-crash test (prior-object-or-nothing) that way, caught in review.
 - A deletion brief also says: collapse what the deletion makes redundant (a settings list left
   identical to prod's), and re-check every claim the touched docstrings make (one cited a test
   that never existed). Its fence also covers prose that states the removed mechanism in other
@@ -47,6 +63,15 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - Worktree writers: cwd is NOT reliable between a writer's bash calls — instruct them to prefix every command with `cd <worktree> && `, not to cd once. A relative grep that silently hits the main checkout instead reads the WRONG code (this happened; the misread looked like a syntax error).
 - A UI unit's fence names its CSS (tokens, components, page sheet): no visible state ships without it
   (MEDIATILES widened its fence by judgment to reach them).
+- A rename unit names every place that keys on the old name as data, not code: gallery state names pair
+  baseline and new screenshots, so a sed over them reads as a pixel diff (Wave ENGLISH U1).
+- A rename brief asks for a grep of NEGATIVE assertions (`"old" not in body`) for every renamed string: they
+  pass vacuously once the old string is gone everywhere (Wave ENGLISH: 4 found only by the final sweep).
+- A rename of anything a browser SENDS (POST field, query param, cookie) has a deploy window: pages rendered
+  before it post the old names after it. The brief asks what each consumer does with an ABSENT field — an
+  absent visibility field read as "inherit" widened access (Wave ENGLISH U4, caught in review).
+- A unit that adds a ROUTE names every registry that lists routes: `urls.py`, the leak matrix,
+  `test_index_lag`, `test_screen_inventory` (M1 found the last two by a red check).
 - A unit that adds corpus fixtures (a PDF, a new record) moves every list state in `test:gallery-diff`,
   not only its own screens: say so in the brief instead of "only the X states may change".
 - The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
@@ -66,8 +91,8 @@ The architect thinks in modules and interfaces; writers implement one module eac
 - A workflow writer stalls when one turn goes silent for 3 minutes (the watchdog counts streamed
   output, not work). A large merged unit at full effort did that six times in a row (Wave LIST U3,
   2026-09-30, ~2.5 h lost; each retry starts over). Pass `effort: 'high'` or lower, keep one
-  writer to one screen part, and brief "run long suites in the background into a log and print a
-  line before each". Do NOT brief "one edit per call": turns are the main cost (writer-brief.md,
+  writer to one screen part. Since xdist (2026-10-06) every suite runs in under a minute: brief them
+  in the FOREGROUND — a writer that backgrounds a suite and waits for it stalls (M2 did). Do NOT brief "one edit per call": turns are the main cost (writer-brief.md,
   "Pace"), and small edits do not prevent stalls; silent long calls cause them.
 - **Onboarding is a cost.** A brief names the exact sections to read (file + heading), not whole
   files; the writer brief's "What to read" gives the always-read core.
@@ -90,8 +115,11 @@ Any rule breach or unexpected red stops the wave line. Investigate the cause cha
 After each merged unit (or 2–3 tiny ones together): run the `simplify` skill on that diff, then the
 `code-review` skill; fix confirmed findings before the next unit (owner rule 2026-10-01). Pass both an
 explicit range (`git diff main...<branch>`): given a bare branch name, one review read code already
-on main and missed the branch's own (2026-10-01). Before the controller fast-forwards `main`, the
-rebased branch runs `mise run gate`, not `check`: `check` has no mypy (a merged gate failed on it).
+on main and missed the branch's own (2026-10-01). Run `code-review` at `medium` or above: `low` is one
+diff read with test files skipped and no verification, and its `(none)` says little (2026-10-06). The full `mise run gate` runs ONCE, in the
+pre-push hook (owner, 2026-10-02, again 2026-10-07): writers and the controller run `check` plus the suites
+the diff could break, never a full gate per unit or per merge. `check` has no mypy, so a mypy red surfaces
+at the push — fix forward.
 
 Integrating parked branches: when the wave added an **exhaustiveness gate over a directory** (module map, leak matrix), list every in-flight branch's new files in that directory before merging. A rebase or `merge-tree` dry run sees overlapping TEXT only, so a gate that asserts over a whole package is invisible until it runs — four unrowed `app/web` modules stopped one integration exactly here.
 
