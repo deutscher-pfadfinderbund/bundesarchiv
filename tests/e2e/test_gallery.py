@@ -5,7 +5,7 @@ database.
 import pytest
 from playwright.sync_api import Browser
 from tests.e2e._corpus import CorpusHandles
-from tests.e2e._gallery import MODES, STATES, WIDTHS, GalleryState, gallery_dir, render_state
+from tests.e2e._gallery import MODES, STATES, GalleryState, gallery_dir, render_state
 
 pytestmark = pytest.mark.gallery
 
@@ -19,6 +19,6 @@ def test_render_state(
     written = render_state(
         browser, live_workbench, e2e_corpus, _archivist_cookie(live_workbench), state
     )
-    assert len(written) == len(MODES) * len(WIDTHS)
+    assert len(written) == len(MODES) * len(state.widths)
     assert all(p.exists() and p.stat().st_size > 0 for p in written)
     print(f"\nwrote {len(written)} PNGs for {state.name} to {gallery_dir()}")

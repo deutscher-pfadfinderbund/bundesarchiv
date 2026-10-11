@@ -52,6 +52,30 @@ def test_search_filter_and_open_pane(
     assert "tag=sommer" in page.url
 
 
+def test_the_view_switch_carries_the_search_between_lesesaal_and_table(
+    archivist_page: Page, live_workbench: str
+) -> None:
+    # One search, two views (owner S1): the switch keeps the query and the filter, typing in the
+    # table stays in the table, and clearing the query leaves the table without a switch.
+    page = archivist_page
+    page.goto(f"{live_workbench}{LIST}?q=Lager&media_type=Foto(s)", wait_until="networkidle")
+    switch = page.locator("main").get_by_role("navigation", name="Ansicht")
+    expect(page.locator("main .reading")).to_contain_text("Herbstlager 1963")
+    switch.get_by_role("link", name="Tabelle").click()
+    page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("view") == ["table"])
+    assert parse_qs(urlparse(page.url).query)["media_type"] == ["Foto(s)"]
+    expect(page.locator("main .ledger")).to_contain_text("Herbstlager 1963")
+    field = page.locator("[role=search] input[name=q]")
+    field.fill("Sommer")
+    field.press("End")
+    page.wait_for_url(lambda url: parse_qs(urlparse(url).query).get("q") == ["Sommer"])
+    assert parse_qs(urlparse(page.url).query)["view"] == ["table"]
+    expect(page.locator("main .ledger")).to_contain_text("Sommerfahrt 1962")
+    switch.get_by_role("link", name="Lesesaal").click()
+    page.wait_for_url(lambda url: "view" not in parse_qs(urlparse(url).query))
+    expect(page.locator("main .reading")).to_contain_text("Sommerfahrt 1962")
+
+
 def test_columns_keeps_its_choice_and_returns_to_the_same_list(
     no_js_archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
 ) -> None:
