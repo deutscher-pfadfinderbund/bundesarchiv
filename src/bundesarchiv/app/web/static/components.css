@@ -758,6 +758,34 @@
     border: var(--line-width) solid var(--ink);
   }
 
+  /* ---- panel entry — a family (component rule 4): one entry of a floating panel is the panel's
+     hit floor in the meta type; the set entry is bold, a count quiet tabular figures at the end
+     edge. ---- */
+  .menu li > a,
+  :is(.menu li > button.link, .menu li > form > button.link),
+  .autocomplete-list > li,
+  .toolpanel > ul:not(.menu) a {
+    --_entry-height: var(--control-height, auto);
+    min-height: var(--_entry-height);
+    font: var(--type-meta);
+    text-decoration: none;
+  }
+  :is(.menu li > a, .menu li > button.link, .menu li > form > button.link):hover,
+  .autocomplete-list > li:hover {
+    text-decoration: underline;
+  }
+  .menu li > a[aria-current],
+  .toolpanel > ul a[aria-current] {
+    font-weight: 600;
+  }
+  .menu li > a > span,
+  .toolpanel > ul:not(.menu) a > span {
+    margin-inline-start: auto;
+    font: var(--type-mono-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+
   /* ---- overlay placement — PROGRESSIVE ENHANCEMENT (law F, pre-Baseline tier, never
      load-bearing): where anchor positioning exists a panel drops from its OWN trigger; where it
      does not, the browser centres it. Each container's anchor-scope (in its own section) keeps a
@@ -819,17 +847,6 @@
 
   /* ---- menu: a button that opens a list of actions, a native popover (button.menu-button +
      ul.menu[popover]) — the header's "+ Neu …" and the form margin's "Mehr …". ---- */
-  /* an entry is the panel's hit floor (its own knob) in the meta type, like every panel's entry */
-  .menu li > a,
-  :is(.menu li > button.link, .menu li > form > button.link) {
-    --_entry-height: var(--control-height, auto);
-    min-height: var(--_entry-height);
-    font: var(--type-meta);
-    text-decoration: none;
-  }
-  :is(.menu li > a, .menu li > button.link, .menu li > form > button.link):hover {
-    text-decoration: underline;
-  }
   /* the button is text, not a framed button (DESIGN.md "Menu"). Its ink binds to the role,
      because the elements layer's button hover would otherwise invert it. */
   .menu-button {
@@ -873,6 +890,7 @@
   /* menu delta: a fixed label neither wraps nor ellipsizes, so the entry's own box pads and centers
      it — link or submit button alike (Kopieren mutates, so it cannot be a link), or the button
      that opens an entry's own tool panel ("Löschen …"). */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a check-list link (ul:not(.menu)) */
   .menu li > a,
   :is(.menu li > button.link, .menu li > form > button.link) {
     display: flex;
@@ -889,20 +907,10 @@
     margin: 0;
   }
   /* an entry with a count (a filter slot's value): the words, then the count at the end edge */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a check-list link (ul:not(.menu)) */
   .menu li > a {
     justify-content: space-between;
     gap: var(--space-4);
-  }
-  /* the set entry in bold */
-  .menu li > a[aria-current] {
-    font-weight: 600;
-  }
-  /* a count: quiet tabular figures at the end edge, as in "+ Filter"'s check list */
-  .menu li > a > span {
-    margin-inline-start: auto;
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
   }
 
   /* ---- split-button — one action and its rarer siblings in one frame: a .button (the frequent
@@ -997,20 +1005,12 @@
   /* ---- autocomplete-list — the values a field suggests for what is typed (catalog_form.js): a
      native [popover] listbox, its surface the floating panel's (register row 12). The option the
      arrow keys reach inverts. Unanchored the browser centres it. ---- */
-  /* an option is the panel's hit floor (its own knob) in the meta type, like a menu entry */
   .autocomplete-list > li {
-    --_option-height: var(--control-height, auto);
     display: flex;
     align-items: center;
-    min-height: var(--_option-height);
     padding: var(--space-1) var(--space-2);
-    font: var(--type-meta);
-    text-decoration: none;
     overflow-wrap: anywhere;
     cursor: pointer;
-  }
-  .autocomplete-list > li:hover {
-    text-decoration: underline;
   }
   .autocomplete-list > [aria-selected="true"] {
     color: var(--ground);
@@ -1083,8 +1083,8 @@
     padding: 0;
     list-style: none;
   }
-  /* an entry is the panel's hit height (its checkbox consumes the panel's --control-height) in the
-     panel entries' type, like a menu entry */
+  /* an entry is the panel's hit height (its checkbox consumes the panel's --control-height) in a
+     panel entry's type */
   .toolpanel > ul label {
     display: flex;
     align-items: center;
@@ -1093,14 +1093,10 @@
   }
   /* a check list of links ("+ Filter"): the box before each entry is filled when it is set */
   .toolpanel > ul:not(.menu) a {
-    --_link-height: var(--control-height, auto);
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: var(--_link-height);
-    font: var(--type-meta);
     color: var(--ink);
-    text-decoration: none;
   }
   .toolpanel > ul:not(.menu) a::before {
     content: "";
@@ -1111,13 +1107,6 @@
   .toolpanel > ul:not(.menu) a[aria-current]::before {
     background: currentColor;
   }
-  /* a count: quiet tabular figures at the end edge, as in a slot's menu */
-  .toolpanel > ul:not(.menu) a > span {
-    margin-inline-start: auto;
-    font: var(--type-mono-meta);
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-2);
-  }
   /* the head over one list of the phone's "Filter" fold: which slot its entries set */
   .toolpanel > .toolpanel-head {
     margin: var(--space-3) 0 var(--space-1);
@@ -1126,10 +1115,6 @@
   }
   .toolpanel > .toolpanel-head:first-child {
     margin-block-start: 0;
-  }
-  /* the set entry in bold, as in a menu */
-  .toolpanel > ul a[aria-current] {
-    font-weight: 600;
   }
   /* the checkbox's UA margin would stand the entry taller than the panel's other controls (C8) */
   .toolpanel > ul label > input {

@@ -349,6 +349,7 @@ and CSS section columns, as for the component inventory.
 | Family | Members | CSS section | Status |
 |---|---|---|---|
 | Floating panel | `.menu`, `.popover`, `.toolpanel`, `.autocomplete-list` | `components.css` floating panel | proposed |
+| Panel entry | `.menu`, `.autocomplete-list`, `.toolpanel` | `components.css` panel entry | proposed |
 
 ### Layout primitives
 
