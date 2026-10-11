@@ -16,8 +16,9 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+from tests._pdfs import text_pdf
 
-from bundesarchiv.app import thumbnails
+from bundesarchiv.app import media_text, thumbnails
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -39,15 +40,27 @@ def _png(color: tuple[int, int, int], size: tuple[int, int] = (8, 8)) -> bytes:
     return buf.getvalue()
 
 
-def _pdf() -> bytes:
-    """A one-page A4 PDF with bars for lines of text, so its thumbnail reads as a document."""
+def _page() -> Image.Image:
+    """An A4 page with bars for lines of text, so its thumbnail reads as a document."""
     page = Image.new("L", (595, 842), 250)
     draw = ImageDraw.Draw(page)
     for top in range(96, 760, 26):
         draw.rectangle((72, top, 72 + 260 + (top * 37) % 200, top + 9), fill=70)
+    return page
+
+
+def _pdf() -> bytes:
+    """A one-page PDF of ``_page``, without a text layer."""
     buf = BytesIO()
-    page.save(buf, format="PDF")
+    _page().save(buf, format="PDF")
     return buf.getvalue()
+
+
+def _report_pdf() -> bytes:
+    """``_page`` as page 1, then a page whose text layer holds ``PAGE_ONLY_WORD``."""
+    buf = BytesIO()
+    _page().convert("RGB").save(buf, format="JPEG")
+    return text_pdf([PAGE_ONLY_WORD], first_page_image=buf.getvalue())
 
 
 # Fixed valid ULIDs for the articles a journey names (generated once; stable so screenshots + tests
@@ -86,6 +99,9 @@ _PHOTO_COLORS = ((90, 120, 70), (160, 110, 60), (70, 110, 150), (120, 90, 130))
 
 #: The one file of the ceiling record: a PDF, so its article page leads with its first page.
 MINUTES_FILENAME = "Protokoll_1958.pdf"
+
+#: A word only on page 2 of the published record's PDF, in no record field.
+PAGE_ONLY_WORD = "Wimpelweihe"
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +161,10 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     )
     # a PDF beside the photos: its tiles show its first page
     report = articles.add_media(
-        PUBLISHED_ULID, "Fahrtenbericht_1962.pdf", BytesIO(_pdf()), media_type="application/pdf"
+        PUBLISHED_ULID,
+        "Fahrtenbericht_1962.pdf",
+        BytesIO(_report_pdf()),
+        media_type="application/pdf",
     )
     minutes = articles.add_media(
         CEILING_ULID, MINUTES_FILENAME, BytesIO(_pdf()), media_type="application/pdf"
@@ -286,6 +305,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     )
 
     indexer.rebuild(store)
+    assert media_text.extract(store, PUBLISHED_ULID) == 1  # it never raises; a miss is silent
     if thumbnail_root is not None:
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
         # cover + filmstrip images render instead of the /media/.../thumb route 404ing.

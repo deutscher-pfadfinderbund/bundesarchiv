@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 
 from django.test import override_settings
 from playwright.sync_api import Page, expect
-from tests.e2e._corpus import CorpusHandles
+from tests.e2e._corpus import PAGE_ONLY_WORD, CorpusHandles
 
 #: The list's path, once for every browser file (the start page is "/").
 LIST = "/articles"
@@ -234,6 +234,14 @@ SCREENS: tuple[Screen, ...] = (
         overlays=1,
     ),
     Screen(
+        "workbench-text-hit",
+        "workbench as a public visitor, a word only on a page of a PDF: the row links that page",
+        False,
+        _at(f"{LIST}?q={PAGE_ONLY_WORD}"),
+        "workbench",
+        overlays=1,
+    ),
+    Screen(
         "create-form",
         "the create step",
         True,
@@ -404,7 +412,7 @@ SCREENS: tuple[Screen, ...] = (
 #: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
 #: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
 #: screens share one route.
-SCREEN_COUNT = 29
+SCREEN_COUNT = 30
 
 
 def screens_for(*, archivist: bool) -> tuple[Screen, ...]:
