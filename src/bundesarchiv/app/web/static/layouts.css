@@ -207,13 +207,13 @@
      baseline behaves identically. A new bulk field needs its token here (ledger #6).
      Knobs: --chooser-control-height (its action row's height). ---- */
   .chooser {
+    --_chooser-height: var(--chooser-control-height, auto);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: var(--space-3);
   }
   .chooser .actions {
-    --_chooser-height: var(--chooser-control-height, auto);
     --control-height: var(--_chooser-height);
     margin-left: auto;
   }

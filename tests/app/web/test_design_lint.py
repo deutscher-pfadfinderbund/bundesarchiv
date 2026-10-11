@@ -17,8 +17,8 @@ and enforces:
    token fits;
 6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
    except the doubled edge of an invalid control (register row 5, law E);
-7. outside a component's own CSS section a rule only places its root and sets its knobs, and never
-   selects past it (law C1/C3 — owned components).
+7. outside a component's own CSS section a rule only places its root and sets its public knobs,
+   and never selects past it (law C1/C3 — owned components).
 8. a knob is resolved once (law C3): a ``var(--_x)`` needs a ``--_x:`` in the same section, and a
    public knob with a fallback is read only on a ``--_`` line.
 
@@ -581,7 +581,8 @@ def _reach(complex_selector: str, own: tuple[str, ...], foreign: tuple[str, ...]
 
 
 #: What a rule outside a component's own section may set on it (law C1): where it sits and the
-#: size of its slot. Custom properties — its knobs and role tokens — are always allowed.
+#: size of its slot. Its public knobs and role tokens are always allowed; its private `--_` knobs
+#: are resolved in its own section (C3).
 PLACEMENT = re.compile(
     r"(margin|inset)(-[-\w]+)?|top|right|bottom|left|order|(align|justify|place)-self"
     r"|grid-(area|row|column)(-[-\w]+)?|flex(-grow|-shrink|-basis)?"
@@ -650,7 +651,9 @@ def test_outside_its_section_a_component_is_only_placed_and_knobbed() -> None:
             own = owned.get((name, section), ())
             foreign = tuple(root for root in roots if root not in own)
             looks = [
-                p for p in rule.properties if not (p.startswith("--") or PLACEMENT.fullmatch(p))
+                p
+                for p in rule.properties
+                if p.startswith("--_") or not (p.startswith("--") or PLACEMENT.fullmatch(p))
             ]
             for complex_selector in _split_top(rule.resolved, ","):
                 reach = _reach(complex_selector, own, foreign)

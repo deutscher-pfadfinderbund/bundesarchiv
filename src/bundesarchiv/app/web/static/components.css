@@ -785,18 +785,6 @@
       justify-self: end;
       margin: var(--space-1) 0 0;
     }
-    /* a tool panel keeps the page gutter clear on both sides, on S too. Knobs:
-       --toolpanel-inset-inline and --toolpanel-justify-self (a selection tool's panel opens
-       start-aligned under its tool, a2 round 2) */
-    .toolpanel {
-      --_toolpanel-inset: var(
-        --toolpanel-inset-inline,
-        var(--gutter) max(var(--gutter), anchor(end))
-      );
-      --_toolpanel-justify: var(--toolpanel-justify-self, end);
-      inset-inline: var(--_toolpanel-inset);
-      justify-self: var(--_toolpanel-justify);
-    }
     /* a help popover hangs under its ⓘ, centred on it as far as the viewport allows */
     .popover {
       position-anchor: --help;
@@ -1061,8 +1049,15 @@
      sentence (or labelled controls), then its one action beside "Abbrechen"
      (components/toolpanel_cancel; a3: the Veröffentlichen confirmation).
      Its surface is the floating-panel rule's (register row 12); it hangs under its button like a
-     menu. Light dismiss and Esc cancel; without popover support it shows inline. ---- */
+     menu. Light dismiss and Esc cancel; without popover support it shows inline.
+     Knobs: --toolpanel-inset-inline and --toolpanel-justify-self, its anchored placement (a
+     selection tool's panel opens start-aligned under its tool, a2 round 2). ---- */
   .toolpanel {
+    --_toolpanel-inset: var(
+      --toolpanel-inset-inline,
+      var(--gutter) max(var(--gutter), anchor(end))
+    );
+    --_toolpanel-justify: var(--toolpanel-justify-self, end);
     inline-size: var(--measure-query);
     max-inline-size: min(100%, 100vw - 2 * var(--gutter)); /* the page gutter, also on S */
     padding: var(--space-5);
@@ -1070,6 +1065,15 @@
     background: var(--ground);
     color: var(--ink);
     border: var(--line-width) solid var(--ink);
+  }
+  /* anchored, it keeps the page gutter clear on both sides, on S too (overlay placement) */
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
+    (justify-self: anchor-center) {
+    .toolpanel {
+      inset-inline: var(--_toolpanel-inset);
+      justify-self: var(--_toolpanel-justify);
+    }
   }
   .toolpanel > * {
     margin: 0;
