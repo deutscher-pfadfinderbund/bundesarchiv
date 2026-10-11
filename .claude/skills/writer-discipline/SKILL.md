@@ -157,6 +157,10 @@ Example, `app/media_text.py`: `unread(media, done)` names the files still to rea
 loads, reads, calls both, writes the rows and logs the mismatch. Likewise `articles.derived_jobs`
 returns the jobs and `_enqueue_derived` enqueues them.
 
+**Test depth follows the layer.** The core gets the many cases. A shell (an app service such as
+`save_article` is one: it orders effects under a contract) gets a few, through real I/O, so its
+tests need Postgres. An edge gets none.
+
 **Tests never patch our own code.** A core is tested on its returned value, a shell over
 `Archive.of(InMemoryObjectStore())` and the real ORM, the queue through Procrastinate's in-memory
 connector (`tests/_queue.py`). `monkeypatch` stays only at true externals a test cannot run: the
