@@ -748,11 +748,13 @@
        property that is the guaranteed-invalid value, so each consumer falls back to its OWN default
        and one knob resolves to two things (learning G.38). */
     --control-height: var(--touch-target-compact);
+    /* re-declared too, so a panel nested in another starts from this default, not its host's knob;
+       a panel's own section sets it later in this file */
+    --panel-padding: var(--space-2);
     --ground: var(--page-ground);
     --ink: var(--page-ink);
     --ink-2: var(--page-ink-2);
-    --_panel-padding: var(--panel-padding, var(--space-2));
-    padding: var(--_panel-padding);
+    padding: var(--panel-padding);
     list-style: none;
     background: var(--ground);
     color: var(--ink);
