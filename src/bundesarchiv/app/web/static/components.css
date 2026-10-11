@@ -155,9 +155,11 @@
     min-height: var(--_control-height);
   }
 
-  /* screen-reader-only text — and the skip link, which is exactly that until it takes focus */
+  /* ---- visually hidden — a family (component rule 4): screen-reader-only text, the skip link until
+     it takes focus, and the file input an upload hides once it uploads on choosing. ---- */
   .visually-hidden,
-  .skip:not(:focus) {
+  .skip:not(:focus),
+  [data-upload-on-choose] .upload input[type="file"] {
     position: absolute;
     width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
     height: 1px; /* (same) */
@@ -539,20 +541,9 @@
   [data-upload-on-choose] .upload button {
     display: none;
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: hidden, the input takes the clip's margin */
   .upload input[type="file"] {
     margin-inline-start: var(--space-2);
-  }
-  /* the input stays for the label and screen readers, clipped like .visually-hidden */
-  [data-upload-on-choose] .upload input[type="file"] {
-    position: absolute;
-    width: 1px; /* the sr-only clip box — no dimension token applies to an off-screen rect */
-    height: 1px; /* (same) */
-    padding: 0;
-    margin: -1px; /* (same) */
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
   }
   .upload ::file-selector-button {
     margin-inline-end: var(--space-2);

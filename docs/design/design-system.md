@@ -351,6 +351,7 @@ and CSS section columns, as for the component inventory.
 | Floating panel | `.menu`, `.popover`, `.toolpanel`, `.autocomplete-list` | `components.css` floating panel | proposed |
 | Panel entry | `.menu`, `.autocomplete-list`, `.toolpanel` | `components.css` panel entry | proposed |
 | Icon control | `[role="toolbar"]`, `.actions`, `.remove`, `.bulk`, `.pane` | `components.css` icon control | proposed |
+| Visually hidden | `.upload` | `components.css` visually hidden | proposed |
 
 ### Layout primitives
 
