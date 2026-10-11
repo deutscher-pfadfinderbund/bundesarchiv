@@ -18,7 +18,8 @@ and enforces:
 6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
    except the doubled edge of an invalid control (register row 5, law E);
 7. outside a component's own CSS section a rule only places its root and sets its public knobs,
-   and never selects past it (law C1/C3 — owned components).
+   and never selects past it (law C1/C3 — owned components); a family section may set anything
+   on its members and selects nothing else (component rule 4).
 8. a knob is resolved once (law C3): a ``var(--_x)`` needs a ``--_x:`` in the same section, and a
    public knob with a fallback is read only on a ``--_`` line.
 
@@ -613,30 +614,35 @@ def _section_heads(css: str) -> list[tuple[int, str]]:
     ]
 
 
-def _section_heads_named() -> dict[str, tuple[str, list[int]]]:
-    """Each inventory root -> (its stylesheet, the head linenos there whose text starts with the
-    section its CSS section column names). Exactly one is the component's own section."""
-    named = {}
-    for row in components_demo.inventory("Component inventory"):
-        if row.section == "none":
-            continue
-        quoted, section = row.section.split(" ", 1)
-        name = quoted.strip("`")
-        named[row.root] = (
-            name,
-            [
-                lineno
-                for lineno, text in _section_heads((STATIC / name).read_text())
-                if re.match(rf"{re.escape(section)}(?![-\w])", text, re.IGNORECASE)
-            ],
-        )
-    return named
+def _heads_of(section: str) -> tuple[str, list[int]]:
+    """A CSS section cell -> (its stylesheet, the head linenos there whose text starts with the
+    section's name). Exactly one is the section."""
+    quoted, name = section.split(" ", 1)
+    sheet = quoted.strip("`")
+    return sheet, [
+        lineno
+        for lineno, text in _section_heads((STATIC / sheet).read_text())
+        if re.match(rf"{re.escape(name)}(?![-\w])", text, re.IGNORECASE)
+    ]
 
 
-def test_every_component_names_its_one_css_section() -> None:
+def _component_heads() -> dict[str, tuple[str, list[int]]]:
+    return {
+        row.root: _heads_of(row.section)
+        for row in components_demo.inventory("Component inventory")
+        if row.section != "none"
+    }
+
+
+def _family_heads() -> dict[components_demo.FamilyRow, tuple[str, list[int]]]:
+    return {row: _heads_of(row.section) for row in components_demo.families()}
+
+
+def test_every_component_and_family_names_its_one_css_section() -> None:
+    named = {**_component_heads(), **{f"family {f.name}": h for f, h in _family_heads().items()}}
     unresolved = [
-        f"{root}: {name} has {len(heads)} matching section heads"
-        for root, (name, heads) in _section_heads_named().items()
+        f"{key}: {sheet} has {len(heads)} matching section heads"
+        for key, (sheet, heads) in named.items()
         if len(heads) != 1
     ]
     assert not unresolved, "the inventory's CSS section column:\n" + "\n".join(unresolved)
@@ -645,24 +651,36 @@ def test_every_component_names_its_one_css_section() -> None:
 def _own_sections() -> dict[tuple[str, int], tuple[str, ...]]:
     """(stylesheet, head lineno) -> the roots whose own section it is."""
     owned: dict[tuple[str, int], tuple[str, ...]] = {}
-    for root, (name, heads) in _section_heads_named().items():
+    for root, (sheet, heads) in _component_heads().items():
         for head in heads[:1]:
-            owned[(name, head)] = (*owned.get((name, head), ()), root)
+            owned[(sheet, head)] = (*owned.get((sheet, head), ()), root)
     return owned
+
+
+def _family_sections() -> dict[tuple[str, int], tuple[str, ...]]:
+    """(stylesheet, head lineno) -> the member roots of the family whose section it is."""
+    return {
+        (sheet, head): family.members
+        for family, (sheet, heads) in _family_heads().items()
+        for head in heads[:1]
+    }
 
 
 def test_outside_its_section_a_component_is_only_placed_and_knobbed() -> None:
     # Only a selector that NAMES a root is seen: `.column :is(input, …)` would reach into `.field`
     # without naming it.
+    # A family section (component rule 4) may set anything on its members, and selects nothing else.
     roots = _component_roots()
     owned = _own_sections()
+    families = _family_sections()
     found = []
     for name in STYLESHEETS:
         css = (STATIC / name).read_text()
         heads = [lineno for lineno, _text in _section_heads(css)]
         for rule in _parse(css)[2]:
             section = max((head for head in heads if head < rule.lineno), default=0)
-            own = owned.get((name, section), ())
+            members = families.get((name, section), ())
+            own = (*owned.get((name, section), ()), *members)
             foreign = tuple(root for root in roots if root not in own)
             looks = [
                 p
@@ -671,7 +689,12 @@ def test_outside_its_section_a_component_is_only_placed_and_knobbed() -> None:
             ]
             for complex_selector in _split_top(rule.resolved, ","):
                 reach = _reach(complex_selector, own, foreign)
-                if reach == "past" or (reach == "root" and looks):
+                if members and reach:
+                    found.append(
+                        f"{name}:{rule.lineno}: {' '.join(complex_selector.split())} — a family "
+                        "section selects a non-member"
+                    )
+                elif reach == "past" or (reach == "root" and looks):
                     what = "selects inside" if reach == "past" else f"sets {', '.join(looks)} on"
                     found.append(
                         f"{name}:{rule.lineno}: {' '.join(complex_selector.split())} — {what} a component"
@@ -774,9 +797,10 @@ def test_every_layout_primitive_has_an_inventory_row() -> None:
 
 
 def test_every_inventory_row_has_a_status() -> None:
-    rows = (
+    rows: tuple[components_demo.InventoryRow | components_demo.FamilyRow, ...] = (
         *components_demo.inventory("Component inventory"),
         *components_demo.inventory("Layout primitives"),
+        *components_demo.families(),
     )
     bad = [
         row.name

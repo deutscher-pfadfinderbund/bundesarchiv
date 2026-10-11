@@ -9,7 +9,7 @@ render in one document without JS.
 ONE theme (owner ruling, 2026-08-06): design iterations happen ON the real components.
 
 Doubles as developer documentation: every sample is annotated with its include path + params and
-its inventory status (design-system.md), and
+its inventory status (design-system.md) with each family it is in, and
 a token-swatch section shows the monochrome ink/ground pairs and the lines with role names.
 Page chrome is English (development-facing); the SAMPLE CONTENT inside atoms is German (product
 UI copy). Sample data below is inert demo fixture data — no store, no index, no viewer.
@@ -37,12 +37,31 @@ class InventoryRow(NamedTuple):
     status: str
 
 
-def inventory(heading: str) -> tuple[InventoryRow, ...]:
-    """The rows of one inventory table in design-system.md (its ``### heading``)."""
+class FamilyRow(NamedTuple):
+    name: str
+    members: tuple[str, ...]
+    section: str
+    status: str
+
+
+def _cells(heading: str) -> list[list[str]]:
+    """The body cells of one table in design-system.md (its ``### heading``)."""
     section = DESIGN_SYSTEM.read_text().split(f"### {heading}\n", 1)[1].split("\n#", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("|")][2:]
-    cells = [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
-    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[3], c[-1]) for c in cells)
+    return [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
+
+
+def inventory(heading: str) -> tuple[InventoryRow, ...]:
+    """The rows of one inventory table (components or layout primitives)."""
+    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[3], c[-1]) for c in _cells(heading))
+
+
+def families() -> tuple[FamilyRow, ...]:
+    """The rows of the families table: components sharing one CSS section (component rule 4)."""
+    return tuple(
+        FamilyRow(c[0], tuple(m.strip(" `") for m in c[1].split(",")), c[2], c[-1])
+        for c in _cells("Families")
+    )
 
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
@@ -164,6 +183,7 @@ def component_library(request: HttpRequest) -> HttpResponse:
     """GET: the component library — the ONE baseline stylesheet (components.css).
 
     Never mounted in production."""
+    family_rows = families()
     return render(
         request,
         "components_demo.html",
@@ -176,7 +196,12 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "ledger": _demo_ledger(),
             "pagers": _PAGERS,
             "status": {
-                row.name.lower().replace(" ", "_"): row.status
+                row.name.lower().replace(" ", "_"): " · ".join(
+                    [
+                        row.status,
+                        *(f"{f.name}: {f.status}" for f in family_rows if row.root in f.members),
+                    ]
+                )
                 for row in inventory("Component inventory")
             },
         },

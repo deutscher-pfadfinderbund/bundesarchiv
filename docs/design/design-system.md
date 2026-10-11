@@ -70,9 +70,18 @@ simplicity checkable instead of a matter of taste.
      its status, `approved (date)` or `proposed` ("Component inventory",
      "Layout primitives"); what has no row does not ship. Pages compose only
      from inventoried layout primitives. The component library
-     (`/_dev/components/`) shows each sample's status, and
+     (`/_dev/components/`) shows each sample's status and families, and
      `tests/app/web/test_design_lint.py` fails on a component template or a
      layout primitive without a row.
+  4. **Families.** Components may share styling written once, in a family
+     section. A family has a row in "Families": its member roots, its one CSS
+     section, its status. In that section a rule may set any property on its
+     members and selects nothing else; everywhere else the composition rule
+     holds (a rule outside a component's own section places its root and sets
+     its knobs, and never selects inside it). Joining a family is approved like
+     a new component (rule 2). Where a full family does not fit, the components
+     share only values, through custom properties, and each keeps its own
+     declarations.
 - **Provenance.** Every visible element traces to a named archivist wish
   (`docs/requirements/`), an owner ruling, or a spec section
   (`docs/design/part-4-web.md`). No element exists "for completeness."
@@ -283,7 +292,8 @@ Every owned component (law C1), its root, its one CSS section and its status (co
 The design lint reads the Root and CSS section columns. A component's own section is the one
 section head in that file starting with the section's name; any rule outside it may only place
 the root (margin, inset, self-alignment, grid or flex placement, order, slot size) and set its
-custom properties, and never select past it. A new component joins this table. Views (`_results`, `_header`) and layout primitives
+custom properties, and never select past it; a family section (below) is the one exception, for its
+members. A new component joins this table. Views (`_results`, `_header`) and layout primitives
 (below) are compositions, not components. `_filterset` and `_hit_count` are parts of the filter
 rail; they are split out only as swap units (law C7).
 
@@ -330,6 +340,15 @@ rail; they are split out only as swap units (law C7).
 | Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte | approved (2026-10-11) |
 | Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover | approved (2026-10-11) |
 | Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox | approved (2026-10-11) |
+
+### Families
+
+Components that share styling written once (component rule 4). The design lint reads the Members
+and CSS section columns, as for the component inventory.
+
+| Family | Members | CSS section | Status |
+|---|---|---|---|
+| Floating panel | `.menu`, `.popover`, `.toolpanel`, `.autocomplete-list` | `components.css` floating panel | proposed |
 
 ### Layout primitives
 
