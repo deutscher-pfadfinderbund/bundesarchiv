@@ -81,7 +81,8 @@ simplicity checkable instead of a matter of taste.
      its knobs, and never selects inside it). Joining a family is approved like
      a new component (rule 2). Where a full family does not fit, the components
      share only values, through custom properties, and each keeps its own
-     declarations.
+     declarations. A member is an inventory root, so a utility class a family
+     serves (`.visually-hidden`) has a row like a component.
 - **Provenance.** Every visible element traces to a named archivist wish
   (`docs/requirements/`), an owner ruling, or a spec section
   (`docs/design/part-4-web.md`). No element exists "for completeness."
@@ -308,6 +309,9 @@ rail; they are split out only as swap units (law C7).
 | Section head | `.section-head` | inline (edit form) | `components.css` section-head | approved (2026-10-11) |
 | Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta | approved (2026-10-11) |
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove | approved (2026-10-11) |
+| Theme toggle | `.theme-toggle` | inline (`workbench/base`: the page footer), script `theme.js` | `components.css` theme toggle | proposed |
+| Screen-reader text | `.visually-hidden` | inline (`components/ref_code_tab`, `_hit_count`, `_field_title`), `catalog_form.js` (the suggestions' live status) | `components.css` visually hidden | proposed |
+| Skip link | `.skip` | inline (`workbench/base`) | `components.css` skip link | proposed |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add | approved (2026-10-11) |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register | approved (2026-10-11) |
 | Register row | `.register-row` | `start/_collections`, `_by_media_type`, `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row | approved (2026-10-11) |
@@ -350,8 +354,8 @@ and CSS section columns, as for the component inventory.
 |---|---|---|---|
 | Floating panel | `.menu`, `.popover`, `.toolpanel`, `.autocomplete-list` | `components.css` floating panel | proposed |
 | Panel entry | `.menu`, `.autocomplete-list`, `.toolpanel` | `components.css` panel entry | proposed |
-| Icon control | `[role="toolbar"]`, `.actions`, `.remove`, `.bulk`, `.pane` | `components.css` icon control | proposed |
-| Visually hidden | `.upload` | `components.css` visually hidden | proposed |
+| Icon control | `[role="toolbar"]`, `.actions`, `.remove`, `.theme-toggle`, `.bulk`, `.pane` | `components.css` icon control | proposed |
+| Visually hidden | `.visually-hidden`, `.skip`, `.upload` | `components.css` visually hidden | proposed |
 
 ### Layout primitives
 

@@ -584,6 +584,23 @@ def _reach(complex_selector: str, own: tuple[str, ...], foreign: tuple[str, ...]
     return "root" if _names_root(compounds[-1], foreign) else None
 
 
+def _reaches(complex_selector: str, roots: tuple[str, ...]) -> bool:
+    """The selector selects only a root or elements inside one: some compound names a root, itself
+    or in every argument of an :is()/:where(), and only child or descendant combinators follow it."""
+    compounds, combinators = _compounds(complex_selector), _combinators(complex_selector)
+    return any(
+        all(combinator in " >" for combinator in combinators[i:])
+        and (
+            _names_root(compound, roots)
+            or any(
+                all(_reaches(arg, roots) for arg in _split_top(args, ","))
+                for args in _pseudo_args(compound, ("is", "where"))
+            )
+        )
+        for i, compound in enumerate(compounds)
+    )
+
+
 @pytest.mark.parametrize(
     ("selector", "reach"),
     [
@@ -593,6 +610,21 @@ def _reach(complex_selector: str, own: tuple[str, ...], foreign: tuple[str, ...]
 )
 def test_a_relative_selector_reaches_from_its_anchor(selector: str, reach: str | None) -> None:
     assert _reach(selector, (".pairs",), (".remove", ".field")) == reach
+
+
+@pytest.mark.parametrize(
+    ("selector", "reaches"),
+    [
+        (".menu li > a", True),
+        (":is(.menu li > button.link, .pane header > a)", True),
+        (":where(.menu li > a, body > header)", False),
+        (".menu + p", False),
+        ("body:has(.menu)", False),
+        (".skip:not(:focus)", False),
+    ],
+)
+def test_a_selector_reaches_a_root_it_selects_or_enters(selector: str, reaches: bool) -> None:
+    assert _reaches(selector, (".menu", ".pane")) is reaches
 
 
 #: What a rule outside a component's own section may set on it (law C1): where it sits and the
@@ -699,7 +731,7 @@ def test_outside_its_section_a_component_is_only_placed_and_knobbed() -> None:
             ]
             for complex_selector in _split_top(rule.resolved, ","):
                 reach = _reach(complex_selector, own, foreign)
-                if members and reach:
+                if members and (reach or not _reaches(complex_selector, members)):
                     found.append(
                         f"{name}:{rule.lineno}: {' '.join(complex_selector.split())} — a family "
                         "section selects a non-member"
