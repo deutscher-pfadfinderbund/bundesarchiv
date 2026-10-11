@@ -34,6 +34,8 @@ listed there.
    nothing-written assert on writes); a fail-closed function is tested on its least visible output
    for every invalid input shape; a new route has its leak-matrix entry.
 8. **Language**: German UI copy (informal du), English code, routes, URLs, comments, logs and docs.
+9. **One owner per decision**: two modules doing the same job two ways (sibling divergence), or a
+   fact decided in two places, is a finding; name the owner it should collapse into.
 
 ## The bar for a finding
 
