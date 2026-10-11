@@ -43,12 +43,12 @@ it and hold — do not silently continue on a changed spec.
 
 ## Gates green
 
-Every commit must pass `mise run check` — ruff, format, pyrefly, the no-DB tests. The full
-`mise run gate` (mypy and every suite; it starts and waits for the dev Postgres itself) is required
-when the change touches index, search or schema — `src/bundesarchiv/index/`, migrations,
-search-relevant persistence — and before you declare a task done. The task definitions in
-`mise.toml` are the single source of what each runs. `check` has no mypy; typing errors in tests
-first show in `gate`.
+Every commit must pass `mise run check` — ruff, format, pyrefly, the no-DB tests. Before you report,
+also run the suites your change could break: `test:index` / `test:db` for index, search, schema or a
+new Postgres-backed test; `test:gallery` and `test:e2e` for UI. The full `mise run gate` runs once,
+in the pre-push hook — not per commit and not per task (owner, 2026-10-02 and 2026-10-07). `check`
+has no mypy, so a typing error surfaces at the push and is fixed forward. The task definitions in
+`mise.toml` are the single source of what each runs.
 
 In an isolated worktree, compound shell commands that contain git (a heredoc commit message,
 `cmd; git …`) are refused. Write the message to a file and commit with `git commit -F <file>`.
