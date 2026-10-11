@@ -731,6 +731,7 @@ def trash(request: HttpRequest) -> HttpResponseBase:
         sort="title",
         page=parsed.page,
         page_size=browse.PAGE_SIZE,
+        facets=(),
     )
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
