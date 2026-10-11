@@ -87,8 +87,7 @@
     border: 0;
   }
   /* under a picture: its caption, then the download line, both quiet words */
-  .cover :is(figcaption, .download),
-  .media-rows :is(figcaption, .download) {
+  .cover :is(figcaption, .download) {
     margin: var(--space-2) 0 0;
     color: var(--ink-2);
     font: var(--type-meta);
@@ -261,9 +260,20 @@
   .media-rows figure > a {
     display: block;
   }
+  /* under a picture: its caption, then the download line, both quiet words, as under the cover */
+  .media-rows :is(figcaption, .download) {
+    margin: var(--space-2) 0 0;
+    color: var(--ink-2);
+    font: var(--type-meta);
+  }
+  .media-rows img {
+    display: block;
+  }
+  .media-rows .blank {
+    --blank-display: block;
+  }
   .media-rows img,
   .media-rows .blank {
-    display: block;
     height: var(--_row-height);
     width: auto;
   }

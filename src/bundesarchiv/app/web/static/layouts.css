@@ -92,13 +92,22 @@
   .search-sentence-slots > .is-minor {
     --ink: var(--ink-2);
   }
-  .search-sentence :is(.menu-button, .is-set > a) {
+  /* a set slot's link reads like the slot menus' buttons */
+  .search-sentence .is-set > a {
     font: inherit;
     color: var(--ink);
     text-decoration: none;
   }
-  .search-sentence :is(.menu-button, .is-set > a):hover {
+  .search-sentence .is-set > a:hover {
     text-decoration: underline;
+  }
+  /* each slot's panel hangs from its own trigger (overlay placement) */
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
+    (justify-self: anchor-center) {
+    :is(.search-sentence-slots > div, .search-sentence-add, .search-sentence-more) {
+      anchor-scope: --menu-button;
+    }
   }
   /* "+ Filter" (and on S "Filter") read in an open slot's quieter ink */
   :is(.search-sentence-add, .search-sentence-more) {
@@ -137,7 +146,6 @@
       align-self: start;
       justify-self: stretch;
       max-block-size: stretch;
-      overflow-y: auto;
     }
     .search-sentence-field {
       --_field-basis: var(--search-field-basis, 100%);
@@ -160,15 +168,44 @@
     gap: var(--space-2) var(--space-4);
     font: var(--type-meta);
   }
+  /* its panel hangs from its own tool (overlay placement) */
+  @supports (anchor-name: --anchor-probe) and
+    (inset-block-start: anchor(end)) and
+    (justify-self: anchor-center) {
+    .bulk {
+      anchor-scope: --menu-button;
+    }
+  }
+  /* its panel opens start-aligned under its tool (a2 round 2) */
+  .bulk > .toolpanel {
+    --toolpanel-inset-inline: anchor(start) var(--gutter);
+    --toolpanel-justify-self: start;
+  }
   /* the count is a state, quieter than the tools beside it */
   .bulk > [role="status"] {
     color: var(--ink-2);
   }
+  /* its links are a toolbar's icon controls: their hit area and ink */
+  [role="toolbar"] > .bulk > a {
+    --_tool-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--_tool-hit);
+    min-height: var(--_tool-hit);
+  }
+  :where([role="toolbar"] > .bulk > a) {
+    color: var(--ink-2);
+  }
+  [role="toolbar"] > .bulk > a:hover:not(:disabled) {
+    color: var(--ink);
+    text-decoration: none;
+  }
 
-  /* the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-value tokens
+  /* ---- Feld chooser — the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-value tokens
      contain the chosen Feld, derived from the select's own :checked option — no JS, so the no-JS
      baseline behaves identically. A new bulk field needs its token here (ledger #6).
-     Knobs: --chooser-control-height (its action row's height). */
+     Knobs: --chooser-control-height (its action row's height). ---- */
   .chooser {
     display: flex;
     flex-wrap: wrap;
@@ -203,7 +240,12 @@
     --field-display: inherit; /* whatever display the context gives every other field */
   }
 
-  /* ---- preview pane: the sheet beside the list — flat, framed by an edge ---- */
+  /* ---- preview pane: the sheet beside the list — flat, framed by an edge. Knob: --pane-display
+     (block; the frame hides it until its column exists). ---- */
+  .pane {
+    --_pane-display: var(--pane-display, block);
+    display: var(--_pane-display);
+  }
   .pane > div {
     position: sticky;
     top: var(--space-4); /* nothing sticky stands above it: the frame's own gap */
@@ -229,10 +271,25 @@
     min-width: 0;
     font: var(--type-title);
   }
-  /* the ✕ close: hit area and ink come from the shared icon-control rule. The one local delta is
-     alignment — an icon-only flex item has no text baseline to share with the header. */
+  /* the ✕ close: an icon control's hit area and ink, as in a toolbar. An icon-only flex item has no
+     text baseline to share with the header, so it aligns to the start. */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a sentence's or a toolbar's link */
   .pane header > a {
+    --_close-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--_close-hit);
+    min-height: var(--_close-hit);
     align-self: flex-start;
+  }
+  :where(.pane header > a) {
+    color: var(--ink-2);
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never a toolbar's link */
+  .pane header > a:hover:not(:disabled) {
+    color: var(--ink);
+    text-decoration: none;
   }
   /* the meta line — a NAMED hook (law C1): positional selectors made every pane reshuffle a silent
      retarget risk */
@@ -430,7 +487,7 @@
   }
   /* the list's tool row: its view tool "Spalten …" at the end edge (a2 round 11) */
   :is(.frame main, .frame main > form) > [role="toolbar"] {
-    justify-content: flex-end;
+    --toolbar-justify: flex-end;
   }
   /* HTMX in-flight: a static opacity dim, no motion */
   #results.htmx-request {
@@ -507,17 +564,17 @@
     margin-block-start: var(--space-4);
   }
 
-  /* ---- Feld chooser: its place under what precedes it ---- */
+  /* ---- the Feld chooser's place: under what precedes it ---- */
   .chooser {
     margin-top: var(--space-3);
   }
 
-  /* ---- preview pane: the frame's second column ---- */
+  /* ---- the preview pane's place: the frame's second column ---- */
   .pane {
     /* HIDDEN BY DEFAULT: the pane switch at the bottom of this file switches the column on, and
        nothing switches it off. A negated second query is a complement kept true by hand (learning
        G.44). */
-    display: none;
+    --pane-display: none;
     grid-column: pane;
     /* stretch across the frame's ROW, against the frame's align-items: start. Without it a grid item
        is only as tall as its content, so the sheet's `position: sticky` below had no slack and never
@@ -636,7 +693,7 @@
       grid-template-columns: [main] minmax(0, 1fr) [pane] var(--pane-col);
     }
     body.preview .pane {
-      display: block; /* the pane column exists here (it is a grid item, so this only un-hides it) */
+      --pane-display: block; /* the pane column exists here (a grid item: this only un-hides it) */
     }
   }
 
@@ -727,9 +784,8 @@
     gap: var(--space-4) var(--space-5);
   }
   .pairs > .field {
+    --field-rows: subgrid;
     grid-row: span 2;
-    grid-template-rows: subgrid;
-    row-gap: var(--space-1);
   }
   .pairs > .remove {
     grid-area: 2 / 3;

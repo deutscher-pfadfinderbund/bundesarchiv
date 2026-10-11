@@ -33,6 +33,7 @@ class InventoryRow(NamedTuple):
     name: str
     root: str
     where: str
+    section: str
     status: str
 
 
@@ -41,7 +42,7 @@ def inventory(heading: str) -> tuple[InventoryRow, ...]:
     section = DESIGN_SYSTEM.read_text().split(f"### {heading}\n", 1)[1].split("\n#", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("|")][2:]
     cells = [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
-    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[-1]) for c in cells)
+    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[3], c[-1]) for c in cells)
 
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.

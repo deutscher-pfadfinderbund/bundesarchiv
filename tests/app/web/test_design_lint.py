@@ -17,7 +17,8 @@ and enforces:
    token fits;
 6. no ``box-shadow`` (register rows 8 and 12: flat; a floating panel is ground with an edge) —
    except the doubled edge of an invalid control (register row 5, law E);
-7. no compositions-layer selector continues past a component root (law C1/C14 — owned components).
+7. outside a component's own CSS section a rule only places its root and sets its knobs, and never
+   selects past it (law C1/C3 — owned components).
 8. a knob is resolved once (law C3): a ``var(--_x)`` needs a ``--_x:`` in the same section, and a
    public knob with a fallback is read only on a ``--_`` line.
 
@@ -31,6 +32,7 @@ it red).
 import itertools
 import re
 from pathlib import Path
+from typing import NamedTuple
 
 from bundesarchiv.app.web import components_demo
 
@@ -56,7 +58,24 @@ Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned lin
 #: because it was invisible to every check while it was only a selector-stack prefix, which is how a
 #: hard-coded `@media (min-width: 80rem)` slipped past the px/rem literal rule three times over.
 AtRule = tuple[str, str, int, bool]
-Rule = tuple[str, str, int]  # (enclosing stack, the rule's own selector list, lineno)
+
+
+class Rule(NamedTuple):
+    stack: str  # the enclosing at-rules and style rules
+    selectors: str  # the rule's own selector list, as written
+    resolved: str  # the same list with a nesting parent's selector put in for `&`
+    lineno: int
+    properties: list[str]  # the properties the rule itself declares
+
+
+def _resolve(parent: str | None, selectors: str) -> str:
+    """A nested rule's selector list as a plain one: `&` becomes `:is(parent)`."""
+    if parent is None:
+        return selectors
+    return ", ".join(
+        part.replace("&", f":is({parent})") if "&" in part else f":is({parent}) {part}"
+        for part in _split_top(selectors, ",")
+    )
 
 
 def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
@@ -70,6 +89,7 @@ def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
     at_rules: list[AtRule] = []
     rules: list[Rule] = []
     stack: list[str] = []
+    owners: list[Rule | None] = []  # per stack entry: the innermost style rule at that depth
     pending: list[str] = []  # selector lines accumulated until their opening brace
     in_comment = False
     in_value = False  # inside a declaration whose value wraps onto further lines
@@ -94,22 +114,29 @@ def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
         if line.endswith("{"):
             pending.append(line[:-1].strip())
             opener = " ".join(p for p in pending if p)
+            owner = owners[-1] if owners else None
             if opener.startswith("@"):
                 at_rules.append((" ".join([*stack, opener]), opener, lineno, had_comment))
             else:
-                rules.append((" ".join(stack), opener, lineno))
+                parent = owner.resolved if owner else None
+                owner = Rule(" ".join(stack), opener, _resolve(parent, opener), lineno, [])
+                rules.append(owner)
             stack.append(opener)
+            owners.append(owner)
             pending = []
             continue
         if line == "}":
             if stack:
                 stack.pop()
+                owners.pop()
             continue
         # A declaration is `property:` then whitespace or the line end; `a:hover,` and a wrapped
         # `.chooser:has(…)` are selector lines, as is anything else outside a value.
         match = re.match(r"([-a-zA-Z_][-\w]*)\s*:(?:\s|$)", line)
         if match and stack:
             decls.append((" ".join(stack), match.group(1), line, lineno, had_comment))
+            if owners[-1]:
+                owners[-1].properties.append(match.group(1))
             in_value = not line.endswith(";")
             continue
         if not line.endswith(";"):  # a `;` line here is a statement at-rule (`@layer a, b;`)
@@ -484,6 +511,21 @@ def _compounds(complex_selector: str) -> list[str]:
     return _split_top(complex_selector, " >+~")
 
 
+def _combinators(complex_selector: str) -> list[str]:
+    """The combinator after each compound but the last: " ", ">", "+" or "~"."""
+    found: list[str] = []
+    depth, pending = 0, None
+    for char in complex_selector.strip():
+        depth += (char in "([") - (char in ")]")
+        if depth == 0 and char in " >+~":
+            pending = char if pending in (None, " ") else pending
+            continue
+        if pending is not None:
+            found.append(pending)
+            pending = None
+    return found
+
+
 def _names_root(compound: str, roots: tuple[str, ...]) -> bool:
     """The compound selects a root itself, or through an :is()/:where() argument whose subject does.
     :has()/:not() arguments select other elements, so they never make the compound a root."""
@@ -511,37 +553,118 @@ def _pseudo_args(compound: str, names: tuple[str, ...]) -> list[str]:
     return found
 
 
-def _reaches_past_root(complex_selector: str, roots: tuple[str, ...]) -> bool:
-    compounds = _compounds(complex_selector)
-    if any(_names_root(compound, roots) for compound in compounds[:-1]):
-        return True
-    return any(
-        _reaches_past_root(arg, roots)
+_SECTION_HEAD = re.compile(r"/\* (?:----|====)")
+
+
+def _reach(complex_selector: str, own: tuple[str, ...], foreign: tuple[str, ...]) -> str | None:
+    """ "past" when the selector continues past a foreign root, "root" when it selects one. What
+    precedes the section's own root is the context its component sits in (law C2)."""
+    compounds, combinators = _compounds(complex_selector), _combinators(complex_selector)
+    mine = [i for i, compound in enumerate(compounds) if _names_root(compound, own)]
+    start = mine[-1] if mine else 0
+    compounds, combinators = compounds[start:], combinators[start:]
+    # a sibling combinator leaves the root's subtree; a child or descendant one enters it
+    if any(
+        _names_root(compound, foreign) and combinator in " >"
+        for compound, combinator in zip(compounds, combinators, strict=False)
+    ):
+        return "past"
+    nested = (
+        _reach(arg, own, foreign)
         for compound in compounds
         for args in _pseudo_args(compound, ("is", "where", "has", "not"))
         for arg in _split_top(args, ",")
     )
+    if "past" in nested:
+        return "past"
+    return "root" if _names_root(compounds[-1], foreign) else None
 
 
-def test_no_composition_selector_reaches_past_a_component_root() -> None:
+#: What a rule outside a component's own section may set on it (law C1): where it sits and the
+#: size of its slot. Custom properties — its knobs and role tokens — are always allowed.
+PLACEMENT = re.compile(
+    r"(margin|inset)(-[-\w]+)?|top|right|bottom|left|order|(align|justify|place)-self"
+    r"|grid-(area|row|column)(-[-\w]+)?|flex(-grow|-shrink|-basis)?"
+    r"|(min-|max-)?(width|height|inline-size|block-size)|position-anchor"
+)
+
+
+def _section_heads(css: str) -> list[tuple[int, str]]:
+    """(lineno, text after the dashes) of each section head, in order."""
+    return [
+        (lineno, _SECTION_HEAD.split(raw, 1)[1].strip(" -="))
+        for lineno, raw in enumerate(css.splitlines(), start=1)
+        if _SECTION_HEAD.search(raw)
+    ]
+
+
+def _section_heads_named() -> dict[str, tuple[str, list[int]]]:
+    """Each inventory root -> (its stylesheet, the head linenos there whose text starts with the
+    section its CSS section column names). Exactly one is the component's own section."""
+    named = {}
+    for row in components_demo.inventory("Component inventory"):
+        if row.section == "none":
+            continue
+        quoted, section = row.section.split(" ", 1)
+        name = quoted.strip("`")
+        named[row.root] = (
+            name,
+            [
+                lineno
+                for lineno, text in _section_heads((STATIC / name).read_text())
+                if re.match(rf"{re.escape(section)}(?![-\w])", text, re.IGNORECASE)
+            ],
+        )
+    return named
+
+
+def test_every_component_names_its_one_css_section() -> None:
+    unresolved = [
+        f"{root}: {name} has {len(heads)} matching section heads"
+        for root, (name, heads) in _section_heads_named().items()
+        if len(heads) != 1
+    ]
+    assert not unresolved, "the inventory's CSS section column:\n" + "\n".join(unresolved)
+
+
+def _own_sections() -> dict[tuple[str, int], tuple[str, ...]]:
+    """(stylesheet, head lineno) -> the roots whose own section it is."""
+    owned: dict[tuple[str, int], tuple[str, ...]] = {}
+    for root, (name, heads) in _section_heads_named().items():
+        for head in heads[:1]:
+            owned[(name, head)] = (*owned.get((name, head), ()), root)
+    return owned
+
+
+def test_outside_its_section_a_component_is_only_placed_and_knobbed() -> None:
     # Only a selector that NAMES a root is seen: `.column :is(input, …)` would reach into `.field`
     # without naming it.
     roots = _component_roots()
-    found = sorted(
-        f"{name}: {' '.join(complex_selector.split())}"
-        for name in STYLESHEETS
-        for stack, selector_list, _lineno in _parse((STATIC / name).read_text())[2]
-        if "@layer compositions" in stack
-        for complex_selector in _split_top(selector_list, ",")
-        if _reaches_past_root(complex_selector, roots)
-    )
+    owned = _own_sections()
+    found = []
+    for name in STYLESHEETS:
+        css = (STATIC / name).read_text()
+        heads = [lineno for lineno, _text in _section_heads(css)]
+        for rule in _parse(css)[2]:
+            section = max((head for head in heads if head < rule.lineno), default=0)
+            own = owned.get((name, section), ())
+            foreign = tuple(root for root in roots if root not in own)
+            looks = [
+                p for p in rule.properties if not (p.startswith("--") or PLACEMENT.fullmatch(p))
+            ]
+            for complex_selector in _split_top(rule.resolved, ","):
+                reach = _reach(complex_selector, own, foreign)
+                if reach == "past" or (reach == "root" and looks):
+                    what = "selects inside" if reach == "past" else f"sets {', '.join(looks)} on"
+                    found.append(
+                        f"{name}:{rule.lineno}: {' '.join(complex_selector.split())} — {what} a component"
+                    )
     assert not found, (
-        "a composition selects inside a component (set its knobs on the root instead):\n"
+        "outside its own section a component is only placed and knobbed (law C1/C3):\n"
         + "\n".join(found)
     )
 
 
-_SECTION_HEAD = re.compile(r"/\* (?:----|====)")
 _PRIVATE_DECL = re.compile(r"^\s*(--_[\w-]+)\s*:")
 _CUSTOM_DECL = re.compile(r"^\s*--[\w-]+\s*:")
 _KNOB_WITH_FALLBACK = re.compile(r"var\(\s*(--(?!_)[\w-]+)\s*,")
@@ -623,7 +746,7 @@ def test_every_layout_primitive_has_an_inventory_row() -> None:
     starts = {
         match.group(0)
         for name in STYLESHEETS
-        for stack, selector_list, _lineno in _parse((STATIC / name).read_text())[2]
+        for stack, selector_list, *_ in _parse((STATIC / name).read_text())[2]
         if "@layer compositions" in stack
         for complex_selector in _split_top(selector_list, ",")
         if (match := re.match(r"\.[-\w]+", _compounds(complex_selector)[0]))

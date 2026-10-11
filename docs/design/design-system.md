@@ -280,8 +280,10 @@ The app's owned components today (law C1). The retoken and component waves conve
 monochrome system; each row changes when its component does.
 
 Every owned component (law C1), its root, its one CSS section and its status (component rules).
-The design lint reads the Root column: a compositions-layer selector may reach a root and never
-past it. A new component joins this table. Views (`_results`, `_header`) and layout primitives
+The design lint reads the Root and CSS section columns. A component's own section is the one
+section head in that file starting with the section's name; any rule outside it may only place
+the root (margin, inset, self-alignment, grid or flex placement, order, slot size) and set its
+custom properties, and never select past it. A new component joins this table. Views (`_results`, `_header`) and layout primitives
 (below) are compositions, not components. `_filterset` and `_hit_count` are parts of the filter
 rail; they are split out only as swap units (law C7).
 
@@ -307,12 +309,13 @@ rail; they are split out only as swap units (law C7).
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark | approved (2026-10-11) |
 | Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark | approved (2026-10-11) |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu | approved (2026-10-11) |
+| Menu button | `.menu-button` | inline, before each `.menu` it opens (the split button's chevron among them) | `components.css` menu | proposed |
 | Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel | approved (2026-10-11) |
 | Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button | approved (2026-10-11) |
 | Byline | `.byline` | inline (article page: the origin and the labelled lines; `workbench/_formpanel` facts), `components/byline_links` (Schlagworte, a result row's pages: part `.byline-links`; knob `--byline-font`) | `components.css` byline | proposed |
 | Ledger | `.ledger` | `components/ledger`, `components/ledger_row` | `components.css` ledger | approved (2026-10-11) |
-| Pagination | `.pager` | `components/pagination` | `components.css` pagination | approved (2026-10-11) |
-| Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state | approved (2026-10-11) |
+| Pagination | `.pager` | `components/pagination` | `components.css` pager | approved (2026-10-11) |
+| Empty state | `.empty-state` | `components/empty_state` | `components.css` honest empty state | approved (2026-10-11) |
 | Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank | approved (2026-10-11) |
 | Icon | `.icon` | `components/icon` | none | approved (2026-10-11) |
 | Field | `.field` | `workbench/_field` (the edit form, the create step, the Bestand forms) | `components.css` field | approved (2026-10-11) |
@@ -320,10 +323,10 @@ rail; they are split out only as swap units (law C7).
 | Index lag notice | `.hint` | `components/index_lag` (the list, the article page, the edit form and its drawer, the bulk result, the Papierkorb) | `components.css` hint | proposed |
 | Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice | approved (2026-10-11) |
 | Feld chooser | `.chooser` | `workbench/_field_picker` | `layouts.css` Feld chooser | approved (2026-10-11) |
-| Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools | approved (2026-10-11) |
+| Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` the tool row's selection tools | approved (2026-10-11) |
 | Search sentence | `.search-sentence` | `workbench/_search_field`, `_filterset` | `layouts.css` search sentence | approved (2026-10-11) |
 | Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane | approved (2026-10-11) |
-| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner | approved (2026-10-11) |
+| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` global htmx failure banner | approved (2026-10-11) |
 | Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte | approved (2026-10-11) |
 | Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover | approved (2026-10-11) |
 | Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox | approved (2026-10-11) |
