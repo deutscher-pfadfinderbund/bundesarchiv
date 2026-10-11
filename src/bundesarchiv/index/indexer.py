@@ -38,6 +38,7 @@ by ADR 0013's ``WRITER_LOCK``, not this lock.
 
 import logging
 import mimetypes
+import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -380,6 +381,9 @@ def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Coll
 #: (the densest legacy page holds 13,753 characters).
 _MAX_PAGE_CHARS = 100_000
 
+#: What Postgres refuses in a text column: NUL, and a lone surrogate (it has no UTF-8 form).
+_UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
+
 
 def store_media_text(content_hash: str, pages: Sequence[str]) -> None:
     """Store the page texts of the file with ``content_hash``, page 1 first; no pages stores the
@@ -390,7 +394,7 @@ def store_media_text(content_hash: str, pages: Sequence[str]) -> None:
             MediaText(
                 content_hash=content_hash,
                 page=number,
-                text=text.replace("\x00", "")[:_MAX_PAGE_CHARS],  # Postgres rejects NUL
+                text=_UNSTORABLE.sub("", text)[:_MAX_PAGE_CHARS],
             )
             for number, text in enumerate(pages or ("",), 1 if pages else 0)
         ),

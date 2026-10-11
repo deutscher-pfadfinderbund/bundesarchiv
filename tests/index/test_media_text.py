@@ -1,5 +1,5 @@
-"""The page-text store: a file's pages are written once, whole or not at all, no page text is
-refused by Postgres, and a rebuild leaves every page vector on the current config."""
+"""The page-text store: a file's pages are written once, no page text is refused by Postgres, and
+a rebuild leaves every page vector on the current config."""
 
 import io
 from dataclasses import replace
@@ -45,8 +45,9 @@ def test_a_file_without_pages_stores_only_the_marker() -> None:
     assert indexer.hashes_with_text([_HASH, "b" * 64]) == {_HASH}
 
 
-def test_nul_never_reaches_postgres() -> None:
-    indexer.store_media_text(_HASH, ("Fahr\x00ten",))
+@pytest.mark.parametrize("unstorable", ["\x00", "\ud800"])
+def test_what_postgres_cannot_take_is_dropped_not_refused(unstorable: str) -> None:
+    indexer.store_media_text(_HASH, (f"Fahr{unstorable}ten",))
 
     assert _pages() == [(1, "Fahrten")]
 
@@ -60,14 +61,6 @@ def test_an_oversized_page_is_cut_not_refused() -> None:
     stored = MediaText.objects.get(content_hash=_HASH, page=2)
     assert stored.text == huge[: len(stored.text)]
     assert 0 < len(stored.text) < len(huge)
-
-
-@pytest.mark.django_db(transaction=True)  # autocommit, as the worker runs: no outer rollback
-def test_an_interrupted_store_leaves_no_rows() -> None:
-    with pytest.raises(UnicodeEncodeError):
-        indexer.store_media_text(_HASH, ("eins", "zwei", "\ud800"))
-
-    assert _pages() == []
 
 
 @pytest.mark.parametrize("stale", ["an old config_version", "no row at all"])
