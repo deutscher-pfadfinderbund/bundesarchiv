@@ -787,9 +787,12 @@
       position-anchor: --menu-button;
       inset: auto;
       inset-block-start: anchor(end);
+      margin: var(--space-1) 0 0;
+    }
+    /* a toolpanel's inline placement is its own knobs' (its section) */
+    ul.menu[popover] {
       inset-inline: 0 anchor(end);
       justify-self: end;
-      margin: var(--space-1) 0 0;
     }
     /* a help popover hangs under its ⓘ, centred on it as far as the viewport allows */
     .popover {

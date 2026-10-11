@@ -710,11 +710,24 @@ _CUSTOM_DECL = re.compile(r"^\s*--[\w-]+\s*:")
 _KNOB_WITH_FALLBACK = re.compile(r"var\(\s*(--(?!_)[\w-]+)\s*,")
 
 
-def _sectioned_lines(css: str) -> list[tuple[int, int, str]]:
-    """(section, lineno, line without comments); a `/* ----` or `/* ====` head opens a section."""
+def _sectioned_statements(css: str) -> list[tuple[int, int, str]]:
+    """(section, lineno, statement without comments): a declaration wrapped over lines is one
+    statement, at its first line; a `/* ----` or `/* ====` head opens a section."""
     stripped = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group().count("\n"), css, flags=re.DOTALL)
     heads = list(itertools.accumulate(bool(_SECTION_HEAD.search(raw)) for raw in css.splitlines()))
-    return [(heads[i], i + 1, line) for i, line in enumerate(stripped.splitlines())]
+    statements: list[tuple[int, int, str]] = []
+    start: tuple[int, int] | None = None
+    parts: list[str] = []
+    for i, line in enumerate(stripped.splitlines()):
+        if not line.strip():
+            continue
+        if start is None:
+            start = (heads[i], i + 1)
+        parts.append(line.strip())
+        if line.rstrip().endswith((";", "{", "}")):
+            statements.append((start[0], start[1], " ".join(parts)))
+            start, parts = None, []
+    return statements
 
 
 def test_a_private_knob_is_declared_in_its_own_section() -> None:
@@ -722,7 +735,7 @@ def test_a_private_knob_is_declared_in_its_own_section() -> None:
     # Reading a `--_name` the section never declares reads one some other component resolved.
     offenders = []
     for name in STYLESHEETS:
-        lines = _sectioned_lines((STATIC / name).read_text())
+        lines = _sectioned_statements((STATIC / name).read_text())
         declared = {
             (section, m.group(1)) for section, _n, line in lines if (m := _PRIVATE_DECL.match(line))
         }
@@ -744,7 +757,7 @@ def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
     lines = [
         (name, lineno, line)
         for name in STYLESHEETS
-        for _s, lineno, line in _sectioned_lines((STATIC / name).read_text())
+        for _s, lineno, line in _sectioned_statements((STATIC / name).read_text())
     ]
     knobs = {
         knob
