@@ -651,19 +651,17 @@ def _walk_overlay_containment(
     return defects
 
 
-#: The one pre-Baseline @supports condition in components.css, and a falsification of it. Serving
-#: the REAL stylesheet with just this condition negated is how the walker reaches the FALLBACK tier
-#: — no fallback CSS is restated in the test, and Chromium's own anchor-positioning support (which
-#: no browser flag turns off any more) is left alone.
+#: The one pre-Baseline @supports condition, in every stylesheet that carries it, and a
+#: falsification of it. Serving the REAL stylesheets with just this condition negated is how the
+#: walker reaches the FALLBACK tier — no fallback CSS is restated in the test, and Chromium's own
+#: anchor-positioning support (which no browser flag turns off any more) is left alone.
 _ANCHOR_SUPPORTS_CONDITION = "(anchor-name: --anchor-probe)"
 _ANCHOR_SUPPORTS_FALSIFIED = "(anchor-name: 0)"
 
 
-def _serve_components_css_without_anchor_positioning(route: Route) -> None:
+def _serve_css_without_anchor_positioning(route: Route) -> None:
     response = route.fetch()
-    css = response.text()
-    patched = css.replace(_ANCHOR_SUPPORTS_CONDITION, _ANCHOR_SUPPORTS_FALSIFIED)
-    assert patched != css, f"components.css no longer contains {_ANCHOR_SUPPORTS_CONDITION}"
+    patched = response.text().replace(_ANCHOR_SUPPORTS_CONDITION, _ANCHOR_SUPPORTS_FALSIFIED)
     route.fulfill(response=response, body=patched)
 
 
@@ -687,14 +685,17 @@ def test_overlays_stay_inside_the_viewport(
         f"[anchored] {d}"
         for d in _walk_overlay_containment(page, live_workbench, e2e_corpus, anchored=True)
     ]
-    page.route("**/static/components.css", _serve_components_css_without_anchor_positioning)
+    page.route("**/static/*.css", _serve_css_without_anchor_positioning)
     page.goto(live_workbench + LIST)
-    anchors = page.evaluate(
-        "() => ['ul.menu[popover]'].map("
-        "(s) => getComputedStyle(document.querySelector(s)).positionAnchor)"
+    anchored = page.evaluate(
+        "() => [...document.querySelectorAll('*')].flatMap((e) => {"
+        " const s = getComputedStyle(e);"
+        " return [s.anchorName, s.anchorScope, s.positionAnchor]"
+        "  .filter((v) => v.startsWith('--')).map((v) => `${e.localName}.${e.className} ${v}`);"
+        "})"
     )
-    assert "--menu-button" not in anchors, (
-        f"the enhancement is still live — the fallback tier would go unproven: {anchors}"
+    assert not anchored, (
+        f"the enhancement is still live — the fallback tier would go unproven: {anchored}"
     )
     defects += [
         f"[fallback] {d}"
