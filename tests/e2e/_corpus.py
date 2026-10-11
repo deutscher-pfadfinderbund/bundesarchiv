@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw
 from tests._pdfs import text_pdf
 
 from bundesarchiv.app import media_text, thumbnails
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.edtf import EdtfDate
 from bundesarchiv.domain.models import (
     Article,
@@ -305,7 +306,8 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     )
 
     indexer.rebuild(store)
-    assert media_text.extract(store, PUBLISHED_ULID) == 1  # it never raises; a miss is silent
+    # fill never raises; a miss is silent
+    assert media_text.fill(Archive.of(store), PUBLISHED_ULID) == 1
     if thumbnail_root is not None:
         # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
         # cover + filmstrip images render instead of the /media/.../thumb route 404ing.

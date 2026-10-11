@@ -20,8 +20,8 @@ class Command(BaseCommand):
     help = "Rebuild the search index from BUNDESARCHIV_CANONICAL_ROOT (wipes the shared table)."
 
     def handle(self, *args: Any, **options: Any) -> None:
-        store = Archive.canonical().store
-        report = indexer.rebuild(store)
+        archive = Archive.canonical()
+        report = indexer.rebuild(archive.store)
         self.stdout.write(f"index rebuilt: {report.indexed} articles")
         if report.failed_closed:
             self.stdout.write(f"failed closed (unresolvable chain): {len(report.failed_closed)}")
@@ -31,5 +31,5 @@ class Command(BaseCommand):
         if report.unreadable_collections:
             names = ", ".join(report.unreadable_collections)
             self.stdout.write(f"collections whose README does not decode (absent): {names}")
-        filled = sum(media_text.extract(store, ulid) for ulid in media_text.missing(store))
+        filled = sum(media_text.fill(archive, ulid) for ulid in media_text.missing(archive))
         self.stdout.write(f"page text read: {filled} files")

@@ -116,7 +116,7 @@ def generate_thumbnail(ulid: str, content_hash: str) -> None:
 def extract_media_text(ulid: str) -> None:
     """Reference job (ADR 0023): read the page text of Article ``ulid``'s files that have none yet,
     from current canonical, into ``MediaText``. A no-op for an Article gone or fully read."""
-    media_text.extract(canonical_store(), ulid)
+    media_text.fill(Archive.canonical(), ulid)
 
 
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
@@ -133,9 +133,8 @@ def reconcile(timestamp: int) -> None:
         stats.log_archive_stats(store, index_rows_before=rows_before)
     except Exception:  # the dashboard numbers never fail the rebuild that already committed
         logger.exception("archive stats failed")
-    try:  # one job per Article: a file that hangs or crashes the reader costs only its own job
-        for ulid in media_text.missing(store):
-            enqueue_extract_media_text(ulid)
+    try:
+        enqueue_missing_text(Archive.of(store))
     except Exception:  # nor does the page-text net
         logger.exception("page text enqueue failed")
 
@@ -266,6 +265,13 @@ def enqueue_extract_media_text(ulid: str) -> None:
     for ``ulid`` stands in for this one: it reads current truth when it runs."""
     with contextlib.suppress(AlreadyEnqueued):
         extract_media_text.configure(queueing_lock=f"extract_media_text:{ulid}").defer(ulid=ulid)
+
+
+def enqueue_missing_text(archive: Archive) -> None:
+    """Enqueue an ``extract_media_text`` job for each Article ``media_text.missing`` names: one job
+    per Article, so a file that hangs or crashes the reader costs only its own job."""
+    for ulid in media_text.missing(archive):
+        enqueue_extract_media_text(ulid)
 
 
 def enqueue_mirror_push(ulid: str) -> None:

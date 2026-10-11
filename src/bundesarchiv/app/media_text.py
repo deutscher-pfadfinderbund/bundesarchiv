@@ -3,9 +3,9 @@
 v1 reads the text layer of PDFs (``pdf.page_texts``). A hash with rows counts as done; a file that
 gave nothing usable stores the page-0 marker, so it counts as done too. Only a failed read or bytes
 that do not match their hash leave no rows, and the next fill tries again. A file's bytes are
-untrusted: no content problem raises past ``extract``.
+untrusted: no content problem raises past ``fill``.
 
-``unread`` and ``parse`` decide; ``extract`` and ``missing`` read the archive and the rows.
+``unread`` and ``parse`` decide; ``fill`` and ``missing`` read the archive and the rows.
 """
 
 import io
@@ -14,12 +14,12 @@ from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 
 from bundesarchiv.app import pdf
+from bundesarchiv.app.archive import Archive
 from bundesarchiv.domain.models import MediaRef, Ulid
 from bundesarchiv.index import indexer
 from bundesarchiv.index.query import FileKind
 from bundesarchiv.persistence.errors import NotFound
-from bundesarchiv.persistence.objectstore import ObjectStore
-from bundesarchiv.persistence.repository import ArticleRepository, content_digest
+from bundesarchiv.persistence.repository import content_digest
 
 logger = logging.getLogger(__name__)
 
@@ -68,19 +68,18 @@ def parse(data: bytes, content_hash: str) -> Parsed:
     return Pages(texts) if texts else Unreadable()
 
 
-def extract(store: ObjectStore, ulid: Ulid) -> int:
+def fill(archive: Archive, ulid: Ulid) -> int:
     """Store the text of each file of Article ``ulid``'s current media that is still ``unread``;
     returns how many files were stored. 0 when the Article is gone. Never raises for a file's
     bytes."""
-    articles = ArticleRepository(store)
     try:
-        media = articles.load(ulid).article.media
+        media = archive.articles.load(ulid).article.media
     except NotFound:
         return 0
     stored = 0
-    for ref in unread(media, indexer.hashes_with_text(r.content_hash for r in media if reads(r))):
+    for ref in unread(media, indexer.hashes_with_text(r.content_hash for r in media)):
         try:
-            with articles.open_media(ulid, ref) as stream:
+            with archive.articles.open_media(ulid, ref) as stream:
                 data = stream.read()  # held whole (largest legacy PDF 69 MB)
             parsed = parse(data, ref.content_hash)
         except NotFound:
@@ -100,8 +99,8 @@ def extract(store: ObjectStore, ulid: Ulid) -> int:
     return stored
 
 
-def missing(store: ObjectStore) -> tuple[Ulid, ...]:
+def missing(archive: Archive) -> tuple[Ulid, ...]:
     """The readable Articles with a file that is still ``unread``."""
-    articles = ArticleRepository(store).scan().readable
-    done = indexer.hashes_with_text(r.content_hash for a in articles for r in a.media if reads(r))
+    articles = archive.articles.scan().readable
+    done = indexer.hashes_with_text(r.content_hash for a in articles for r in a.media)
     return tuple(article.ulid for article in articles if unread(article.media, done))
