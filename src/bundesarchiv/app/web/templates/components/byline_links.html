@@ -1,3 +1,15 @@
 {% comment %}A labelled byline of links joined by dots. Params: label; links — byline.BylineLink;
 more — how many links are left out, printed as a last item "+n" (0 prints nothing).{% endcomment %}
-<dl class="byline"><div><dt>{{ label }}</dt><dd>{% for link in links %}<a href="{{ link.href }}"{% if link.aria_label %} aria-label="{{ link.aria_label }}"{% endif %}{% if link.new_tab %} target="_blank" rel="noopener"{% endif %}>{{ link.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}{% if more %}&nbsp;<span class="sep" aria-hidden="true">·</span> +{{ more }}{% endif %}</dd></div></dl>
+<dl class="byline">
+  <div class="byline-links">
+    <dt>{{ label }}</dt>
+    <dd>
+      {% for link in links %}
+        <a href="{{ link.href }}"
+           {% if link.aria_label %}aria-label="{{ link.aria_label }}"{% endif %}
+           {% if link.new_tab %}target="_blank" rel="noopener"{% endif %}>{{ link.label }}</a>
+      {% endfor %}
+      {% if more %}<span>+{{ more }}</span>{% endif %}
+    </dd>
+  </div>
+</dl>

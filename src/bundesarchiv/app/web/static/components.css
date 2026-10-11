@@ -921,9 +921,38 @@
     margin-inline-end: var(--space-2);
     color: var(--ink-2);
   }
-  /* the dot between the entries of one value (Schlagworte): the line's own separator, inside */
-  .byline .sep {
+  /* a value that is a run of links (byline_links): the pair, and the links and a last "+n" inside
+     its value, are flex lines, so source whitespace never renders. Every item but the last holds a
+     tighter dot in its end margin: a wrapped line ends with one, never begins with one. The run
+     wraps beside its label while its widest item fits there, else below it; the pair's own dot
+     must not shrink, or the label slides into the line's clip. */
+  .byline-links {
+    --byline-link-sep: 0.82em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  .byline-links::before,
+  .byline-links > dt {
+    flex: none;
+  }
+  .byline-links > dd {
+    flex: 1 1 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  .byline-links > dd > :not(:last-child) {
+    margin-inline-end: var(--byline-link-sep);
+  }
+  .byline-links > dd > :not(:last-child)::after {
+    content: "·" / "";
+    display: inline-block;
+    width: var(--byline-link-sep);
+    margin-inline-end: calc(-1 * var(--byline-link-sep));
+    text-align: center;
     color: var(--ink-2);
+    pointer-events: none; /* the dot hangs past its link; a click on it opens nothing */
   }
 
   /* ---- autocomplete-list — the values a field suggests for what is typed (catalog_form.js): a
