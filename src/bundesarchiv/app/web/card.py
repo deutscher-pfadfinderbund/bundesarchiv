@@ -77,7 +77,7 @@ class _Field:
     template of the popover the hint's ⓘ opens.
 
     ``suggest`` names the route whose fragment offers the archive's own values for the line being
-    typed (catalog_form.js).
+    typed (combobox.js).
 
     ``diff`` is the German label the CAS conflict notice names the field by, ``""`` when a conflict
     never marks it.

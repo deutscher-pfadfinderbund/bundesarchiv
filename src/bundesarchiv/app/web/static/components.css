@@ -767,7 +767,7 @@
   /* biome-ignore lint/style/noDescendingSpecificity: never a toolbar's link */
   .menu li > a,
   :is(.menu li > button.link, .menu li > form > button.link),
-  .autocomplete-list > li,
+  .autocomplete-list [role="option"],
   .toolpanel > ul:not(.menu) a {
     --_entry-height: var(--control-height, auto);
     min-height: var(--_entry-height);
@@ -775,7 +775,7 @@
     text-decoration: none;
   }
   :is(.menu li > a, .menu li > button.link, .menu li > form > button.link):hover,
-  .autocomplete-list > li:hover {
+  .autocomplete-list [role="option"]:hover {
     text-decoration: underline;
   }
   .menu li > a[aria-current],
@@ -1006,19 +1006,50 @@
     pointer-events: none; /* the dot hangs past its link; a click on it opens nothing */
   }
 
-  /* ---- autocomplete-list — the values a field suggests for what is typed (catalog_form.js): a
+  /* ---- autocomplete-list — the values a field suggests for what is typed (combobox.js): a
      native [popover] listbox, its surface the floating panel's (register row 12). The option the
      arrow keys reach inverts. Unanchored the browser centres it. ---- */
-  .autocomplete-list > li {
+  .autocomplete-list [role="option"] {
     display: flex;
     align-items: center;
+    gap: var(--space-2);
     padding: var(--space-1) var(--space-2);
     overflow-wrap: anywhere;
     cursor: pointer;
   }
-  .autocomplete-list > [aria-selected="true"] {
+  /* a quiet note in it re-points --ink to --ink-2, so that role follows the inversion too */
+  .autocomplete-list [aria-selected="true"] {
+    --ink-2: var(--ground);
     color: var(--ground);
     background: var(--ink);
+  }
+  .autocomplete-list mark {
+    background: none;
+    color: inherit;
+    font-weight: 700;
+  }
+  /* parts of a grouped list (the search field's): each group's kind hangs in a start column; where
+     the list is too narrow for both, the options wrap under it */
+  .autocomplete-group {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-3);
+  }
+  .autocomplete-group + .autocomplete-group,
+  .autocomplete-all {
+    margin-block-start: var(--space-2);
+  }
+  .autocomplete-kind {
+    flex: 0 0 6rem; /* the kind column: "Schlagworte" in the label type, one structural size */
+    padding-block: var(--space-1);
+    font: var(--type-label);
+    color: var(--ink-2);
+  }
+  .autocomplete-group > ul {
+    flex: 1 1 20rem; /* below this the options wrap under their kind: a title keeps its width */
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   /* ---- popover — the surface a help button opens: a native [popover] holding a <dl> of

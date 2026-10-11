@@ -310,7 +310,7 @@ rail; they are split out only as swap units (law C7).
 | Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta | approved (2026-10-11) |
 | Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove | approved (2026-10-11) |
 | Theme toggle | `.theme-toggle` | inline (`workbench/base`: the page footer), script `theme.js` | `components.css` theme toggle | proposed |
-| Screen-reader text | `.visually-hidden` | inline (`components/ref_code_tab`, `_hit_count`, `_field_title`), `catalog_form.js` (the suggestions' live status) | `components.css` visually hidden | proposed |
+| Screen-reader text | `.visually-hidden` | inline (`components/ref_code_tab`, `_hit_count`, `_field_title`), `combobox.js` (the suggestions' live status) | `components.css` visually hidden | proposed |
 | Skip link | `.skip` | inline (`workbench/base`) | `components.css` skip link | proposed |
 | Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add | approved (2026-10-11) |
 | Register | `.register` | inline (edit form: Medien) | `components.css` register | approved (2026-10-11) |
@@ -319,7 +319,8 @@ rail; they are split out only as swap units (law C7).
 | File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row | approved (2026-10-11) |
 | Upload | `.upload` | inline (edit form) | `components.css` upload | approved (2026-10-11) |
 | Popover | `.popover` | inline (`_field`), `workbench/_date_help` | `components.css` popover | approved (2026-10-11) |
-| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_tag_suggestions` | `components.css` autocomplete-list | approved (2026-10-11) |
+| Autocomplete list | `.autocomplete-list` | built by `combobox.js` beside a `[data-suggest]` field (the edit form's Schlagworte, the search field), its options `workbench/_tag_suggestions`, `workbench/_suggestions` | `components.css` autocomplete-list | approved (2026-10-11) |
+| Suggestion group | `.autocomplete-group` (parts `.autocomplete-kind`, `.autocomplete-all`) | `workbench/_suggestions` (the search field's list, `combobox.js`) | `components.css` autocomplete-list | proposed |
 | Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark | approved (2026-10-11) |
 | Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark | approved (2026-10-11) |
 | Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu | approved (2026-10-11) |

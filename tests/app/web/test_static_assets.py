@@ -22,6 +22,7 @@ _KNOWN_ASSETS = frozenset(
     {
         "catalog_bulk.js",
         "catalog_form.js",
+        "combobox.js",
         "components.css",
         "detail.css",
         "error_banner.js",
