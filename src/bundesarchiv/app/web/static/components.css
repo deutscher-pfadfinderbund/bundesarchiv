@@ -170,7 +170,10 @@
     white-space: nowrap;
     border: 0;
   }
-  /* it belongs to no control row, so it names its own hit floor (C8's out-of-row mechanism) */
+
+  /* ---- skip link — "Zum Inhalt springen", the page's first stop; until it takes focus it is
+     visually hidden. It belongs to no control row, so it names its own hit floor (C8's out-of-row
+     mechanism). ---- */
   .skip {
     --hit-fallback: var(--touch-target);
   }
