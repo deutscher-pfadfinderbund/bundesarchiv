@@ -43,6 +43,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from django.db import connection, transaction
+from django.db.models import F, Func
 
 from bundesarchiv.domain.access import ARCHIVIST_ONLY_FIELDS
 from bundesarchiv.domain.audience import ARCHIVIST_ONLY, effective_audience
@@ -69,8 +70,9 @@ logger = logging.getLogger(__name__)
 #   v5: file_counts column added (the Digital column and the has-files filter).
 #   v6: deleted_at / deleted_by columns added (the Papierkorb mark).
 #   v7: is_template column added (the Vorlage mark and filter).
+#   v8: media_hashes column added (the page-text match, ADR 0023).
 # The guard that acts on a bump also recomputes ``MediaText.tsv`` (app.reindex).
-CONFIG_VERSION = 7
+CONFIG_VERSION = 8
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
 # ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
@@ -201,6 +203,7 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         "deleted_at": article.deleted.at if article.deleted else None,
         "deleted_by": article.deleted.by if article.deleted else None,
         "file_counts": _file_counts(article),
+        "media_hashes": [ref.content_hash for ref in article.media],
         "date_edtf": article.date.value if article.date is not None else None,
         "date_earliest": earliest,
         "date_latest": latest,
@@ -272,7 +275,8 @@ def rebuild(store: ObjectStore) -> RebuildReport:
     Article's chain + effective audience, and writes one row per Article. A ``DomainError`` for
     any Article yields a fail-closed archivist-only row (still indexed, counted in the report)
     rather than dropping it or guessing visibility; so does a README that does not decode
-    (reported, and logged). Idempotent: the leading wipe means a repeat rebuild produces
+    (reported, and logged). Then it deletes the ``MediaText`` of every file no row names any more
+    (ADR 0023). Idempotent: the leading wipe means a repeat rebuild produces
     the same rows with no duplicates.
 
     Holds the shared index-writer lock across the whole read and write (ADR 0014 v2), so every
@@ -290,6 +294,8 @@ def rebuild(store: ObjectStore) -> RebuildReport:
         rows += [_unreadable_row(ulid, cap_year=cap_year) for ulid in scan.unreadable]
         ArticleIndex.objects.all().delete()
         ArticleIndex.objects.bulk_create(ArticleIndex(**row) for row in rows)
+        named = ArticleIndex.objects.annotate(_hash=Func(F("media_hashes"), function="unnest"))
+        MediaText.objects.exclude(content_hash__in=named.values("_hash")).delete()
 
     for ulid in (*unreadable_collections, *scan.unreadable):
         logger.warning("the README of %s does not decode", ulid)

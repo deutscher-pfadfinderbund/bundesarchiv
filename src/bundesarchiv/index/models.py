@@ -105,6 +105,8 @@ class ArticleIndex(models.Model):
     deleted_by = models.TextField(null=True)
     # {FileKind value: count} of the Article's media, zero kinds absent; {} = no files.
     file_counts = models.JSONField(default=dict)
+    # The content hash of each file, in media order: how a row reaches its files' ``MediaText``.
+    media_hashes = ArrayField(models.TextField(), default=list)
     # bump when the FTS config changes (indexer.CONFIG_VERSION) to trigger a rebuild
     config_version = models.IntegerField()
 

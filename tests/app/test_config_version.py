@@ -7,6 +7,9 @@ before Part 4.2). Exercised through the reindex helper the management command ca
 stays a thin shell.
 """
 
+import io
+from dataclasses import replace
+
 import pytest
 
 from bundesarchiv.app.reindex import ensure_index_current
@@ -74,8 +77,11 @@ def test_ensure_index_current_recomputes_the_page_vectors(store: InMemoryObjectS
 
     from bundesarchiv.index.models import ArticleIndex, MediaText
 
+    repo = ArticleRepository(store)
+    ref = repo.add_media("01FOTO", "f.pdf", io.BytesIO(b"pdf"))  # rebuild keeps only named text
+    repo.save(replace(repo.load("01FOTO").article, media=(ref,)), 1, changed_by="tester")
     indexer.rebuild(store)
-    indexer.store_media_text("a" * 64, ("Fahrten im Lager",))
+    indexer.store_media_text(ref.content_hash, ("Fahrten im Lager",))
     ArticleIndex.objects.update(config_version=indexer.CONFIG_VERSION - 1)
     with connection.cursor() as cursor:  # a config change; rolled back with the test
         cursor.execute(
