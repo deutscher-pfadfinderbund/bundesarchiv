@@ -23,6 +23,7 @@ and `test_index_lag.py` (it shows a lagging index, ADR 0014).
 - `browse.py` — pure URL-as-state algebra (no IO) · interface: `parse_query`, `ParsedQuery`, `with_param`, `without_param`, `view_query` · tests: `tests/app/web/test_browse_params.py`, `test_browse_links.py`
 - `browse_views.py` — the list, detail and Trash routes · interface: `workbench`, `article_detail`, `choose_columns`, `trash`, `preset_url` · tests: `test_workbench.py`, `test_choose_columns.py`, `test_trash.py`
 - `byline.py` — the linked value a byline line prints (Schlagworte, Im Volltext); a leaf · interface: `BylineLink` · tests: `test_detail.py`, `test_ledger.py`
+- `suggestions.py` — the search field's grouped suggestions, a member route; pure `build` · interface: `suggestions`, `build` · tests: `test_suggestions.py`, `tests/index/test_leaks_suggestions.py`
 - `start.py` — start page: areas (a function + a partial each) on one grid, one tuple per role · interface: `start`, `Area`, `ARCHIVIST`, `MEMBER` · tests: `tests/app/web/test_start.py`
 - `ledger.py` — columns and rows: one registry the chooser offers and the ledger prints (debt #8) · interface: `COLUMNS`, `SORT_LABELS`, `build`, `chosen`, `unfiltered`, `text_hits`, both marks · tests: `test_ledger.py`
 - `reading.py` — the Lesesaal: hits as rows to read, the why line chosen from the headlines · interface: `rows`, `why`, `Row`, `Why` · tests: `tests/app/web/test_reading.py`, `test_workbench.py`

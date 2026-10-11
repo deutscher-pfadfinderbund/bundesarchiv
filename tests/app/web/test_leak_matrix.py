@@ -141,6 +141,7 @@ class Route:
         post_arch: int | None,
         post_data: dict[str, object] | None = None,
         tier_sensitive: bool = False,
+        member_route: bool = False,
         stub_search: bool = False,
     ) -> None:
         self.build_path = build_path
@@ -151,6 +152,8 @@ class Route:
         self.post_data = post_data or {}
         # tier_sensitive: a read route where the matching-group Member is ALLOWED (media/detail).
         self.tier_sensitive = tier_sensitive
+        # member_route: every Member is allowed like the Archivist; Public and anonymous are not.
+        self.member_route = member_route
         self.stub_search = stub_search
 
 
@@ -248,6 +251,10 @@ def _p_document_types(c: _MatrixCorpus) -> str:
 
 def _p_tag_suggestions(_c: _MatrixCorpus) -> str:
     return "/tags/suggestions"
+
+
+def _p_suggestions(_c: _MatrixCorpus) -> str:
+    return "/suggestions"
 
 
 def _p_detail(c: _MatrixCorpus) -> str:
@@ -441,6 +448,16 @@ _CONTRACT: dict[str, Route] = {
         post_nonarch=FOUR_OH_FOUR,
         post_arch=FOUR_OH_FOUR,  # POST disallowed
     ),
+    # The search field's suggestions: a member route. No ``q``, so the probe never reaches the
+    # index; what each tier is offered is tests/index/test_leaks_suggestions.py's.
+    "suggestions": Route(
+        build_path=_p_suggestions,
+        get_nonarch=FOUR_OH_FOUR,
+        get_arch=OK,
+        post_nonarch=FOUR_OH_FOUR,
+        post_arch=FOUR_OH_FOUR,  # POST disallowed
+        member_route=True,
+    ),
     "article-bulk-edit": Route(
         build_path=_p_bulk,
         get_nonarch=FOUR_OH_FOUR,
@@ -518,6 +535,8 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
     is_arch = tier == "archivist"
     if route.tier_sensitive and tier == "member_matching":
         is_arch = True  # a matching-group Member sees the GROUPS-tier corpus article
+    if route.member_route and tier in ("member", "member_matching"):
+        is_arch = True
     if method == "GET":
         return route.get_arch if is_arch else route.get_nonarch
     return route.post_arch if is_arch else route.post_nonarch
@@ -528,7 +547,7 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
 
 def _tier_invariant(route: Route) -> bool:
     statuses = {route.get_nonarch, route.get_arch, route.post_nonarch, route.post_arch}
-    return len(statuses) == 1 and not route.tier_sensitive
+    return len(statuses) == 1 and not route.tier_sensitive and not route.member_route
 
 
 def _matrix_cases() -> Iterator[tuple[str, str, str]]:

@@ -71,6 +71,7 @@ _READS = {
     "upload-gate",
     "article-document-types",
     "tag-suggestions",
+    "suggestions",
     "article-detail",
     "media",
     "media-thumb",
