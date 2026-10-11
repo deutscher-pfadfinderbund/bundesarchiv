@@ -25,6 +25,8 @@ from typing import cast
 
 import pytest
 from django.test import override_settings
+from procrastinate.contrib.django import app
+from procrastinate.testing import InMemoryConnector
 from tests.app.web._fixtures import Corpus, KeyRecordingStore, settings_for, standard_corpus
 
 from bundesarchiv.app.archive import Archive
@@ -77,9 +79,9 @@ def _collect_static_assets() -> None:
 
 @pytest.fixture(autouse=True)
 def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """No-op the index writes and every worker enqueue for the duration of a web test. The
-    canonical write (repository + README + CAS) stays real; only the two external boundaries are
-    stubbed."""
+    """No-op the index writes and the worker enqueues for the duration of a web test; a job that
+    still reaches the queue lands in Procrastinate's in-memory connector. The canonical write
+    (repository + README + CAS) stays real."""
     from bundesarchiv.app import after_write, articles
 
     for name in (
@@ -92,5 +94,5 @@ def _stub_service_boundaries(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     ):
         monkeypatch.setattr(after_write, name, lambda *a, **k: None)
     monkeypatch.setattr(articles, "enqueue_generate_thumbnail", lambda *a, **k: None)
-    monkeypatch.setattr(articles, "enqueue_extract_media_text", lambda *a, **k: None)
-    yield
+    with app.replace_connector(InMemoryConnector()):
+        yield

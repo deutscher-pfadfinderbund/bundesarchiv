@@ -24,6 +24,7 @@ from bundesarchiv.domain.models import (
     Collection,
     Lifecycle,
 )
+from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
@@ -455,18 +456,20 @@ def test_one_page_text_job_is_queued_per_article_that_misses_text_and_no_pdf_is_
 
 
 @pytest.mark.django_db
-def test_a_failed_page_text_enqueue_never_fails_the_rebuild(
-    store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_failed_page_text_enqueue_never_fails_the_rebuild(tmp_path: Path) -> None:
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
+    store = LocalFsObjectStore(tmp_path)
+    root = Collection(ulid="ROOT", name="Wurzel", parent_id=None)
+    CollectionRepository(store).save(root, 0, changed_by="tester")
     articles = ArticleRepository(store)
     heft = articles.add_media("01HEFT", "a.pdf", io.BytesIO(text_pdf(["Lager"])))
-    articles.save(Article("01HEFT", "Heft", "FOTOS", media=(heft,)), 0, changed_by="tester")
-    monkeypatch.setattr(tasks_mod, "canonical_store", lambda: store)
+    articles.save(Article("01HEFT", "Heft", "ROOT", media=(heft,)), 0, changed_by="tester")
 
-    queued(lambda: tasks_mod.reconcile.func(timestamp=0), refuse=frozenset({"extract_media_text"}))
+    with override_settings(BUNDESARCHIV_CANONICAL_ROOT=str(tmp_path)):
+        refuse = frozenset({"extract_media_text"})
+        queued(lambda: tasks_mod.reconcile.func(timestamp=0), refuse=refuse)
 
     assert ArticleIndex.objects.filter(ulid="01HEFT").exists()
 
