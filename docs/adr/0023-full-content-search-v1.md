@@ -30,7 +30,7 @@ serves any file of an Article the viewer may see (ADR 0001, ADR 0017).
 - **Staying current.** The rows are a cache of the reader. A change to what the reader stores
   (page cap, text clean-up, a library upgrade that changes text) ships with a data migration that
   empties the table; the next fill rebuilds it. A change to the FTS config (ADR 0011) is covered
-  by the existing config-version guard (ADR 0014), which also recomputes the page vectors.
+  by the config-version bump (ADR 0014): a rebuild over a stale index recomputes the page vectors.
 - **Visibility: through the article only.** Page rows carry no audience. A query reaches them
   only from index rows that already passed the viewer's scope: a row matches if its own text
   matches, or if one of its files has a page that matches. The pages a hit shows come only from
