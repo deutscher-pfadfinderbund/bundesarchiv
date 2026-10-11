@@ -203,8 +203,6 @@ def verify_access(access_token: str) -> Mapping[str, object] | None:
     jwks = _jwks(jwks_uri)
     kid = _kid(access_token)
     if jwks is not None and kid is not None and kid not in {key.kid for key in jwks}:
-        # A rotated realm key. A forged token naming an unknown kid also costs one key-set fetch per
-        # request; add a refetch cooldown if that ever shows up in the realm's load.
         jwks = _jwks(jwks_uri, refresh=True)
     if jwks is None:
         return None
