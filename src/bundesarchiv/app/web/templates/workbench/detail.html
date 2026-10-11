@@ -57,7 +57,7 @@ member/archivist fork (spec §4/§10). Only the tools are presentation-gated on 
       <dl class="byline"><div><dt>Standort <span class="note">intern</span></dt><dd>{{ location }}</dd></div></dl>
       {% endif %}
       {% if tags %}
-      <dl class="byline"><div><dt>Schlagworte</dt><dd>{% for tag in tags %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% if not forloop.last %}&nbsp;<span class="sep" aria-hidden="true">·</span> {% endif %}{% endfor %}</dd></div></dl>
+      {% include "components/byline_links.html" with label="Schlagworte" links=tags more=0 only %}
       {% endif %}
       {% if custom %}
       <dl class="byline">{% for key, value in custom %}<div><dt>{{ key }} <span class="note">intern</span></dt><dd>{{ value }}</dd></div>{% endfor %}</dl>

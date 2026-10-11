@@ -33,6 +33,7 @@ from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
 from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
+from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.catalog import none_if_blank
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.media_views import display_url, media_url, not_found, thumbnail_url
@@ -645,14 +646,6 @@ def collection_crumbs(chain: ResolvedChain) -> tuple[CollectionCrumb, ...]:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class _DetailTag:
-    """One Schlagwort: the tag text + the workbench link into the tag facet."""
-
-    label: str
-    href: str
-
-
 def _body_paragraphs(body: str) -> tuple[str, ...]:
     """Split the Markdown ``body`` into paragraphs on blank lines (spec §3). No Markdown rendering in
     this minimal slice — each paragraph is emitted as an autoescaped ``<p>``, so no markup is
@@ -673,7 +666,7 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         replace(tile, slot=next(slots)) if tile.is_image else tile
         for tile in media_tiles(article.ulid, article.media)
     )
-    tags = tuple(_DetailTag(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
+    tags = tuple(BylineLink(label=t, href=preset_url(browse.PARAM_TAG, t)) for t in article.tags)
     mark = article.deleted
     return {
         "ulid": article.ulid,
