@@ -80,7 +80,7 @@ def fill(archive: Archive, ulid: Ulid) -> int:
     for ref in unread(media, indexer.hashes_with_text(r.content_hash for r in media)):
         try:
             with archive.articles.open_media(ulid, ref) as stream:
-                data = stream.read()  # held whole (largest legacy PDF 69 MB)
+                data = stream.read()
             parsed = parse(data, ref.content_hash)
         except NotFound:
             continue  # the file is gone from canonical
