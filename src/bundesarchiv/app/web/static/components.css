@@ -258,29 +258,39 @@
   [role="toolbar"] > a:not(.button) {
     font: var(--type-meta);
   }
-  /* Hit-area mechanics for a row's quiet icon controls; ink/hover stay per-site deltas.
-     `a:not(.button)` is load-bearing: a toolbar's `a.button` takes its look from @layer elements and
-     this layer outranks that one, so a bare `a` here overrode the button even from :where() —
-     14.98:1 down to 2.24:1 (learning G.47).
-     DIRECT children only: a toolbar may own a disclosure, and its dropped panel's links are overlay
-     contents, not row controls. */
+
+  /* ---- icon control — a family (component rule 4): a quiet control as large as its hit area, a
+     row's control height or else its fallback (C8), in the toolbar's ink. Toolbar controls are its
+     DIRECT children: a toolbar may own a disclosure, and its dropped panel's links are overlay
+     contents. `a:not(.button)` is load-bearing: a toolbar's `a.button` takes its look from @layer
+     elements and this layer outranks that one, so a bare `a` here overrode the button even from
+     :where() — 14.98:1 down to 2.24:1 (learning G.47). ---- */
   [role="toolbar"] > :is(a:not(.button), button.link),
   .actions > a:not(.button),
-  .theme-toggle {
+  .theme-toggle,
+  .remove,
+  .pane header > a,
+  [role="toolbar"] > .bulk > a {
+    --_icon-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    --_icon-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
     min-width: var(--_icon-hit);
     min-height: var(--_icon-hit);
   }
-  /* ...and its INK, the same three states, once. Quiet until the pointer is on it; a disabled
-     control keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6).
-     Declared in :where() per law C13, so every per-site delta outranks it in this same layer. */
-  :where([role="toolbar"] > :is(a:not(.button), button.link)) {
+  /* the ink, the same three states, once. Quiet until the pointer is on it; a disabled control
+     keeps a visibly non-interactive ink, so a dead-end arrow is no false affordance (Q6). Declared
+     in :where() per law C13, so every per-site delta outranks it in this same layer. */
+  :where(
+    [role="toolbar"] > :is(a:not(.button), button.link),
+    .pane header > a,
+    [role="toolbar"] > .bulk > a
+  ) {
     color: var(--ink-2);
   }
-  [role="toolbar"] > :is(a:not(.button), button.link):hover:not(:disabled) {
+  [role="toolbar"] > :is(a:not(.button), button.link):hover:not(:disabled),
+  .pane header > a:hover:not(:disabled),
+  [role="toolbar"] > .bulk > a:hover:not(:disabled) {
     color: var(--ink);
     text-decoration: none;
   }
@@ -296,14 +306,8 @@
   }
 
   /* ---- remove — the one × for every removal (DESIGN.md Remove); it carries .danger, so the ink it
-     takes on hover, press and focus is red. Hit area: an icon control's, as in a toolbar. ---- */
+     takes on hover, press and focus is red. Hit area: the icon control's. ---- */
   .remove {
-    --_remove-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--_remove-hit);
-    min-height: var(--_remove-hit);
     padding: 0;
     background: none;
     border: 0;
@@ -455,6 +459,7 @@
   .resume li + li::before {
     content: " \00B7 ";
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: never a toolbar's link */
   .resume a {
     font: var(--type-entry);
     color: var(--ink);
@@ -761,6 +766,7 @@
   /* ---- panel entry — a family (component rule 4): one entry of a floating panel is the panel's
      hit floor in the meta type; the set entry is bold, a count quiet tabular figures at the end
      edge. ---- */
+  /* biome-ignore lint/style/noDescendingSpecificity: never a toolbar's link */
   .menu li > a,
   :is(.menu li > button.link, .menu li > form > button.link),
   .autocomplete-list > li,

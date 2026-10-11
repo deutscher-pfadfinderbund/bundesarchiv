@@ -185,22 +185,6 @@
   .bulk > [role="status"] {
     color: var(--ink-2);
   }
-  /* its links are a toolbar's icon controls: their hit area and ink */
-  [role="toolbar"] > .bulk > a {
-    --_tool-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--_tool-hit);
-    min-height: var(--_tool-hit);
-  }
-  :where([role="toolbar"] > .bulk > a) {
-    color: var(--ink-2);
-  }
-  [role="toolbar"] > .bulk > a:hover:not(:disabled) {
-    color: var(--ink);
-    text-decoration: none;
-  }
 
   /* ---- Feld chooser — the Feld → value chooser. Exactly ONE value widget shows: the one whose data-bulk-value tokens
      contain the chosen Feld, derived from the select's own :checked option — no JS, so the no-JS
@@ -271,25 +255,11 @@
     min-width: 0;
     font: var(--type-title);
   }
-  /* the ✕ close: an icon control's hit area and ink, as in a toolbar. An icon-only flex item has no
-     text baseline to share with the header, so it aligns to the start. */
+  /* the ✕ close, an icon control: an icon-only flex item has no text baseline to share with the
+     header, so it aligns to the start */
   /* biome-ignore lint/style/noDescendingSpecificity: never a sentence's or a toolbar's link */
   .pane header > a {
-    --_close-hit: var(--control-height, var(--hit-fallback, var(--touch-target)));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--_close-hit);
-    min-height: var(--_close-hit);
     align-self: flex-start;
-  }
-  :where(.pane header > a) {
-    color: var(--ink-2);
-  }
-  /* biome-ignore lint/style/noDescendingSpecificity: never a toolbar's link */
-  .pane header > a:hover:not(:disabled) {
-    color: var(--ink);
-    text-decoration: none;
   }
   /* the meta line — a NAMED hook (law C1): positional selectors made every pane reshuffle a silent
      retarget risk */
