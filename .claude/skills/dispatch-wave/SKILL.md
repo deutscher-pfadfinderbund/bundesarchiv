@@ -15,9 +15,15 @@ The architect thinks in modules and interfaces; writers implement one module eac
 
 ## Brief mechanics (each brief is a file on disk)
 
+- **Dispatch by agent type**: `subagent_type: writer` (code), `writer-ui` (templates/CSS/JS),
+  `reviewer` (read-only code review) or `design-gate` (UI review). Each preloads its standing
+  skills (`.claude/agents/`); the task brief names any topic skill to load beyond them
+  (`adversarial-input` for a UI unit that parses a form field, `ui-build` for a writer touching a
+  template).
+
 - State **deltas, not absolutes**; the writer reads current reality first. Cite the task's `docs/tech-debt.md` entry by number — its evidence pointers replace a grep sweep (writers rank this the highest-value line a brief carries).
 - Sketch **interface invariants and the indicator, not field lists**. On a branch other writers are reshaping, every concrete signature in a sketch is a guess that reads as an instruction — two of two such guesses were wrong in one wave and following either would have shipped a behavior change. "One render, closed union, always seeded from the saved record" was sufficient; `Conflict(winner, submitted)` was a liability.
-- HTML-equivalence constraint? Give the writer the render-diff recipe from `writer-brief.md` (dump states → normalize CSRF/whitespace → diff; throwaway harness named `_zz_*.py` so `check` never collects it — ruff still formats it; a fixture-free script lives outside the tree).
+- HTML-equivalence constraint? Point the writer at the render-diff recipe in the `writer-discipline` skill, "TDD" (dump states → normalize CSRF/whitespace → diff; throwaway harness named `_zz_*.py` so `check` never collects it — ruff still formats it; a fixture-free script lives outside the tree).
 - Pixel-neutral wave? The gallery covers only its listed states. Ask for a computed-style probe over the touched roots too (states the gallery lacks: error modes, open folds, hover/focus) — C2 found a latent bug that way.
 - A sanctioned pixel change inside a pixel-neutral wave moves the baseline: name the new baseline dir for every later slice.
 - A brief that cuts an **import cycle** lists the whole chain it has to cut, traced in the code (Wave
@@ -74,9 +80,9 @@ The architect thinks in modules and interfaces; writers implement one module eac
   `test_index_lag`, `test_screen_inventory` (M1 found the last two by a red check).
 - A unit that adds corpus fixtures (a PDF, a new record) moves every list state in `test:gallery-diff`,
   not only its own screens: say so in the brief instead of "only the X states may change".
-- The **law-beats-brief clause**: where the brief conflicts with `docs/agents/writer-brief.md` or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
+- The **law-beats-brief clause**: where the brief conflicts with a preloaded skill or `tests/CLAUDE.md`, law wins and the writer reports the conflict.
 - Ask for **DX feedback (top 3) upfront** in the final report — it is the brief-quality feedback loop.
-- Security-sensitive waves: include the adversarial checklist from the writer brief's serialization rules (round-trip tests, delimiter rule) *in the brief*, not only in review.
+- Security-sensitive waves: dispatch `writer` (it preloads `adversarial-input`), or name `adversarial-input` in a `writer-ui` brief; name the pairs and fail-closed functions the unit touches.
 
 ## Dispatch and read reports
 
@@ -92,10 +98,10 @@ The architect thinks in modules and interfaces; writers implement one module eac
   output, not work). A large merged unit at full effort did that six times in a row (Wave LIST U3,
   2026-09-30, ~2.5 h lost; each retry starts over). Pass `effort: 'high'` or lower, keep one
   writer to one screen part. Since xdist (2026-10-06) every suite runs in under a minute: brief them
-  in the FOREGROUND — a writer that backgrounds a suite and waits for it stalls (M2 did). Do NOT brief "one edit per call": turns are the main cost (writer-brief.md,
+  in the FOREGROUND — a writer that backgrounds a suite and waits for it stalls (M2 did). Do NOT brief "one edit per call": turns are the main cost (`writer-discipline`,
   "Pace"), and small edits do not prevent stalls; silent long calls cause them.
 - **Onboarding is a cost.** A brief names the exact sections to read (file + heading), not whole
-  files; the writer brief's "What to read" gives the always-read core.
+  files; the preloaded skills are the always-read core.
 - **Model per unit.** Sonnet for mechanical units (copy, CSS moves, test helpers, docs, render
   checks); Opus for seams, security and leak paths, data-loss paths, and finishers that must judge
   a red. Say which in the dispatch.

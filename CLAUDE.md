@@ -29,7 +29,7 @@
 | Before a push | `mise run gate`. The pre-push hook runs it and starts Postgres itself. |
 | Postgres-backed tests only | `mise run test:db` |
 | New test in `tests/app/` or `tests/index/` that uses `django_db` | also `mise run test:db` — `check` deselects it (auto-marked `requires_pg`), so `check` alone never runs it |
-| UI change | `mise run test:gallery` and `mise run test:e2e`, per the design-gate brief |
+| UI change | `mise run test:gallery` and `mise run test:e2e`, per the `design-gate` agent |
 
 Each checkout has its own test database (`test_bundesarchiv_<dir>`), so Postgres-backed
 runs in two worktrees may overlap; within one checkout, run them one at a time.
@@ -77,10 +77,10 @@ Owner rulings live in `docs/requirements/` (`archivist-wishes-2025.md`, `owner-i
 
 Test depth is proportional to risk: extensive coverage only where a defect is domain-relevant, loses data, or leaks data (owner ruling 2026-08). The do-not-write list, the deny contract (`assert_denied`), and the per-suite ownership map: `tests/CLAUDE.md`.
 
-### Design-gate / QA brief
+### Design gate / QA
 
-Before reviewing any UI change: render the state gallery (`mise run test:gallery`) and run the journeys (`mise run test:e2e`), then judge on live `:8000` pages. See `docs/agents/design-gate-brief.md`.
+Before accepting any UI change: render the state gallery (`mise run test:gallery`) and run the journeys (`mise run test:e2e`), then judge on live `:8000` pages. The `design-gate` agent (`.claude/agents/design-gate.md`) runs it; `reviewer` does code review.
 
 ### Writer discipline
 
-The standing rules for a writer agent (one writer per task, gates green each commit, TDD with mutation-proof, functional core, imperative shell (tests never patch our own code), deny = plain 404 revealing/changing nothing, German UI / English dev, comments only for what isn't apparent — cite an ADR rather than restating it, fixup+fold within your own wave, simplify your own code, report before idle). See `docs/agents/writer-brief.md`.
+Writers are the `writer` and `writer-ui` agents (`.claude/agents/`); they preload the `writer-discipline` skill (one writer per task, gates green each commit, TDD with mutation-proof, build for what happens, functional core, imperative shell (tests never patch our own code), deny = plain 404 revealing/changing nothing, German UI / English dev, comments only for what isn't apparent — cite an ADR rather than restating it, fixup+fold within your own wave, simplify your own code, report before idle) plus `adversarial-input` or `ui-build`. Further topic skills are named per task in the task brief.

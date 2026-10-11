@@ -235,7 +235,7 @@ Round 2, scoping the CSS/markup rework wave. Rulings:
   workbench-only (unobjected default).
 - **Communication language (owner, 2026-08-07):** all agent communication
   and report artifacts in ENGLISH; German remains the product UI language
-  (writer-brief law unchanged). No mixed-language reports.
+  (writer-discipline law unchanged). No mixed-language reports.
 - **Post-review decisions (owner, 2026-08-07):**
   - **Rail dropdowns stay mutually exclusive** (native accordion, one open
     at a time) and an open one closes on a live search.

@@ -285,7 +285,7 @@ this test are forbidden — the walker covers new rows automatically.
 
 What the lint cannot check — composition, alignment, one-fact-one-place —
 is the design gate's checklist: catechism questions 2–4 and 6–8, judged on
-the state gallery and live pages (`docs/agents/design-gate-brief.md`).
+the state gallery and live pages (the `design-gate` agent, `.claude/agents/design-gate.md`).
 
 ## F. Modern CSS baseline (owner, 2026-08-06)
 

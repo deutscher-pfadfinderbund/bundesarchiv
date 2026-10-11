@@ -77,7 +77,7 @@ simplicity checkable instead of a matter of taste.
   wave (no piecemeal migration: two coexisting class systems is the worst
   state).
 - **UI waves end at the design gate, judged on pixels.** Deliverable is
-  before/after gallery renders (`docs/agents/design-gate-brief.md`) for the
+  before/after gallery renders (the `design-gate` agent) for the
   owner's verdict — agent prose about the UI is not acceptance. Subtraction-
   first: prefer waves that only remove.
 

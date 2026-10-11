@@ -397,7 +397,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 ### 55. Tests monkeypatch our own code — Strong
 - **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved, then `tests/app` 47 and `tests/app/web` 47 once the page-text tests dropped theirs (2026-10-11)
-- **Evidence:** writer-brief "Functional core, imperative shell"; most are `tasks.canonical_store` (14 on 2026-10-11) and the web conftest's index/enqueue stubs
+- **Evidence:** `writer-discipline` skill, "Functional core, imperative shell"; most are `tasks.canonical_store` (14 on 2026-10-11) and the web conftest's index/enqueue stubs
 - **Deletion test:** a test runs the real shell over `Archive.of(...)` and the in-memory queue; a renamed function no longer leaves a patch passing vacuously
 - **Sketch:** removed when the module is touched; a later wave may sweep the rest
 
@@ -415,7 +415,7 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
 
 - **Row budget friction** — `ROW_MAX_CHARS=220` forced 4 rewrites of one interface-rich row (collection_chooser.py, 2026-09-03, landed at exactly 220). One occurrence = instance, not evidence; if a second row fights the cap, investigate the budget (wrap the interface segment vs raise) per the framework-health rule. Indicator: rows within 10 chars of cap: 19 (2026-10-01, worse; 1 on 2026-09-03). Map rows are stale at every audit (review pattern 7): a framework-health trigger; owner 2026-10-01 chose a gate (every listed interface name exists, `5080d85`) over changing the rule.
 
-- **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49, #31, #33–37, #43–44). Adopted: writer-brief "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
+- **The second caller copies a decision instead of moving it** — 10 findings in the 2026-10-01 review (#9, #49, #31, #33–37, #43–44). Adopted: `writer-discipline` skill, "One owner per decision" (`e488814`); gated where mechanical by `tests/test_structure.py`. Indicator: 10 copies found (2026-10-01).
 
 - **Left (2026-10-01):** each state rebuilds the corpus (`live_server` → `transactional_db` truncates the index), so the full run is ~9% slower (135 s) and `test:gallery-diff` takes ~4.5 min; a module-scoped corpus would cut both but changes the isolation `edit-conflict` relies on. The diff task's first version compared only the alpha band (always "identical"); fixed 2026-10-01 (RGB). A re-check of the rebuild (`f45b8db` vs `91a500b`) then showed 35 changed PNGs, all from the old single-test run leaking a bulk edit's author ("Sammel-Autor") into later states; per-state isolation removed that leak, so the new renders are the correct ones.
 ### 23. Tests pin UI copy and markup — Strong
