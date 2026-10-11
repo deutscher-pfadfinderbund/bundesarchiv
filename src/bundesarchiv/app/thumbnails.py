@@ -61,7 +61,7 @@ _MAX_PIXELS = 80_000_000
 #: content; ``_derive`` turns that into no version.
 Renderer = Callable[[BinaryIO, int], Image.Image | None]
 
-# ponytail: one global derive lock; per-key locks if concurrent first views ever queue
+# One lock for every derive; per-key locks if concurrent first views ever queue.
 _derive_lock = threading.Lock()
 
 

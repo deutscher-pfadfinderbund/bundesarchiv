@@ -295,7 +295,7 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> t
     needle = text.strip().casefold()
     if not needle:
         return ()
-    # ponytail: every distinct tag per call (~3,400 in the corpus); match in SQL if that grows tenfold
+    # Every distinct tag per call (~3,400 in the corpus); match in SQL if that grows tenfold.
     rows = (
         _scoped(viewer, deleted=False)
         .annotate(_elem=Func(F("tags"), function="unnest"))
