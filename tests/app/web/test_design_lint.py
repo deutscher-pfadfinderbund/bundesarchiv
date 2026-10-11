@@ -657,6 +657,16 @@ def _own_sections() -> dict[tuple[str, int], tuple[str, ...]]:
     return owned
 
 
+def test_every_family_member_is_an_inventory_root() -> None:
+    roots = set(_component_roots())
+    bad = [
+        f"{family.name}: {', '.join(sorted(set(family.members) - roots))}"
+        for family in components_demo.families()
+        if not roots.issuperset(family.members)
+    ]
+    assert not bad, "a family member without a component inventory row:\n" + "\n".join(bad)
+
+
 def _family_sections() -> dict[tuple[str, int], tuple[str, ...]]:
     """(stylesheet, head lineno) -> the member roots of the family whose section it is."""
     return {
