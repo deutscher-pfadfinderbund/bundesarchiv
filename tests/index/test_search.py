@@ -13,6 +13,7 @@ come straight from ``fixtures.EXPECTED_VISIBILITY`` (Public 5, plain Member 8, v
 
 import datetime
 from collections.abc import Iterator
+from typing import get_args
 
 import pytest
 from tests._articles import make_article
@@ -309,16 +310,10 @@ def test_equal_ranks_read_in_numeric_title_order(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_facet_keys_are_exactly_the_six(corpus: None) -> None:
-    page = search(PUBLIC)
-    assert set(page.facets.keys()) == {
-        "collection",
-        "media_type",
-        "document_type",
-        "tags",
-        "decades",
-        "file_kind",
-    }
+def test_creator_and_place_are_computed_only_when_asked_for(corpus: None) -> None:
+    opt_in: tuple[Facet, ...] = ("creator", "place")
+    assert set(search(PUBLIC).facets) == set(get_args(Facet.__value__)) - set(opt_in)
+    assert set(search(PUBLIC, facets=opt_in).facets) == set(opt_in)
 
 
 @pytest.mark.django_db

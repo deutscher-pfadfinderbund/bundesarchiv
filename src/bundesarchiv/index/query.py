@@ -74,8 +74,12 @@ _DE_NUMERIC = "de_numeric"
 
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
 
-type Facet = Literal["collection", "tags", "decades", "media_type", "document_type", "file_kind"]
-_ALL_FACETS: tuple[Facet, ...] = (
+type Facet = Literal[
+    "collection", "tags", "decades", "media_type", "document_type", "file_kind", "creator", "place"
+]
+#: What ``search`` computes unless asked otherwise. ``creator`` and ``place`` are opt-in: each is an
+#: unbounded GROUP BY over a free-text column (one bucket per distinct value).
+_DEFAULT_FACETS: tuple[Facet, ...] = (
     "collection",
     "tags",
     "decades",
@@ -123,6 +127,8 @@ class SearchFilters:
     media_type: str | None = None
     document_type: str | None = None
     tag: str | None = None
+    creator: str | None = None
+    place: str | None = None  # the ``subject_place`` column
     decade: int | None = None
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None
@@ -226,7 +232,7 @@ def search(
     descending: bool = False,
     page: int = 1,
     page_size: int = 50,
-    facets: tuple[Facet, ...] = _ALL_FACETS,
+    facets: tuple[Facet, ...] = _DEFAULT_FACETS,
 ) -> SearchPage:
     """Viewer-scoped search over the derived index.
 
@@ -460,6 +466,10 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
         qs = qs.filter(document_type=f.document_type)
     if f.tag is not None:
         qs = qs.filter(tags__contains=[f.tag])
+    if f.creator is not None:
+        qs = qs.filter(creator=f.creator)
+    if f.place is not None:
+        qs = qs.filter(subject_place=f.place)
     if f.decade is not None:
         qs = qs.filter(decades__contains=[f.decade])
     if f.dateless:
@@ -650,6 +660,8 @@ def _clamp_page_size(page_size: int) -> int:
 _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("media_type", "media_type"),
     ("document_type", "document_type"),
+    ("creator", "creator"),
+    ("place", "subject_place"),
 )
 
 # Array facets: (facet key, array column) — counted per-element via unnest.
@@ -716,12 +728,10 @@ def _file_kind_facet(
 def _without(filters: SearchFilters, key: str) -> SearchFilters:
     """A copy of ``filters`` with the facet ``key``'s own dimension cleared (standard faceting).
     The facet key maps to the filter field it excludes: ``collection`` -> collection,
-    ``tags`` -> tag, ``decades`` -> decade, and the scalar keys to themselves."""
+    ``tags`` -> tag, ``decades`` -> decade, and the other keys to themselves."""
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
-    # ``field`` is always a nullable facet dimension (collection/media_type/document_type/tag/decade)
-    # — never the bool ``dateless`` — so clearing it to None is well-typed; ``Any`` keeps ``replace``
-    # from narrowing the kwarg value against the union of field types (the same shape it had before
-    # ``dateless`` joined the dataclass).
+    # ``field`` is always a nullable dimension, never a bool, so None is well-typed; ``Any`` keeps
+    # ``replace`` from narrowing the value against the union of field types.
     kwargs: dict[str, Any] = {field: None}
     return replace(filters, **kwargs)
 

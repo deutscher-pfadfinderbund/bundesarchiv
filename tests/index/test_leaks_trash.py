@@ -43,6 +43,8 @@ _MARKED_ONLY_FILTERS = (
     SearchFilters(tag="weggeworfen"),
     SearchFilters(document_type="Abfallschrift"),
     SearchFilters(media_type="Abfallart"),
+    SearchFilters(creator="Kehrichtautor"),
+    SearchFilters(place="Müllhalde"),
     SearchFilters(decade=1840),
     SearchFilters(dateless=True),
 )
@@ -50,6 +52,8 @@ _MARKED_ONLY_FACETS: tuple[tuple[Facet, str], ...] = (
     ("tags", "weggeworfen"),
     ("document_type", "Abfallschrift"),
     ("media_type", "Abfallart"),
+    ("creator", "Kehrichtautor"),
+    ("place", "Müllhalde"),
     ("decades", "1840"),
 )
 
@@ -59,6 +63,9 @@ def _with_file(repo: ArticleRepository, article: Article, caption: str) -> Artic
         article.ulid, "scan.jpg", io.BytesIO(article.ulid.encode()), caption=caption
     )
     return replace(article, media=(ref,))
+
+
+_FACETS_UNDER_TEST: tuple[Facet, ...] = ("collection", *(key for key, _ in _MARKED_ONLY_FACETS))
 
 
 def _build_store() -> InMemoryObjectStore:
@@ -82,6 +89,8 @@ def _build_store() -> InMemoryObjectStore:
         tags=("weggeworfen",),
         document_type="Abfallschrift",
         media_type="Abfallart",
+        creator="Kehrichtautor",
+        subject_place="Müllhalde",
         date=EdtfDate("1845"),
     )
     dateless = make_article(
@@ -124,7 +133,7 @@ def test_the_list_counts_and_facets_leave_marked_articles_out_for_every_viewer(
     corpus: None,
 ) -> None:
     for label, viewer in _EVERY_VIEWER:
-        page = search(viewer, page_size=200)
+        page = search(viewer, page_size=200, facets=_FACETS_UNDER_TEST)
         assert (_ulids(page), page.total, page.dateless_count) == ({_LIVE}, 1, 0), f"[{label}]"
         assert _facet(page, "collection", _ROOT) == 1, f"[{label}] a marked row counted"
         for key, value in _MARKED_ONLY_FACETS:
@@ -133,7 +142,7 @@ def test_the_list_counts_and_facets_leave_marked_articles_out_for_every_viewer(
 
 @pytest.mark.django_db
 def test_the_facet_counts_leave_marked_articles_out_for_every_viewer(corpus: None) -> None:
-    keys: tuple[Facet, ...] = ("collection", *(key for key, _ in _MARKED_ONLY_FACETS))
+    keys = _FACETS_UNDER_TEST
     for label, viewer in _EVERY_VIEWER:
         counts = facet_counts(viewer, keys)
         assert [(fc.value, fc.count) for fc in counts["collection"]] == [(_ROOT, 1)], f"[{label}]"
