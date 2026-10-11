@@ -152,10 +152,11 @@ DB, writing rows, enqueueing, the clock, logging. Parsing bytes (PDF text) is pu
   `Archive` holds the canonical archive only; a new resource is its own argument.
 - **A function does the one act its name says**: an "extract" does not also store.
 
-Example, `app/media_text.py`: `unread(media, done)` names the files still to read;
-`parse(data, content_hash)` returns `Pages | Unreadable | HashMismatch`; `fill(archive, ulid)`
-loads, reads, calls both, writes the rows and logs the mismatch. Likewise `articles.derived_jobs`
-returns the jobs and `_enqueue_derived` enqueues them.
+Example, `app/media_text.py`: the core `readable(media)` (the files text is read from, one per
+hash) and `parse(data, content_hash)` (`Pages | Unreadable | HashMismatch`); the single-item shells
+`read` (one file) and `record` (one outcome: rows, or the alarm); `fill` composes them with a
+comprehension. Likewise `articles.derived_jobs` returns the jobs and `_enqueue_derived` enqueues
+them.
 
 **Test depth follows the layer.** The core gets the many cases. A shell (an app service such as
 `save_article` is one: it orders effects under a contract) gets a few, through real I/O, so its
