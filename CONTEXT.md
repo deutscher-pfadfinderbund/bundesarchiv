@@ -67,6 +67,12 @@ Descriptive classifications of an Article. Free-text with autocomplete, seeded w
 **Tag** (*Schlagwort*):
 Free-text keyword with autocomplete.
 
+**Creator** (*Urheber*) — code field `creator`, URL param `creator`:
+Who made the original, as free text.
+
+**Place** (*Ort*) — code field `subject_place`, URL param `place`:
+The place an Article concerns, as free text.
+
 **Physical location** (*Standort*):
 Where an Article's physical original is kept, as free text with a path convention (`Magazin 2 / Regal B / Mappe 14`) + autocomplete. The object's description lives in the Article body, not a separate field.
 

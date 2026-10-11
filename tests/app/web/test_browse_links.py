@@ -116,3 +116,14 @@ def test_has_next_false_on_empty_results() -> None:
 def test_has_next_false_on_overshot_empty_page() -> None:
     # A hand-edited seite beyond the end (no hits) must not offer a further page.
     assert has_next_page(page=3, page_size=50, hits_on_page=0, total=60) is False
+
+
+def test_a_creator_or_place_round_trips_through_its_link() -> None:
+    # A suggestion pick or facet click carries the stored value verbatim; stored values are
+    # stripped (the form and the legacy import strip), so only padding is lost.
+    values = ("Müller & Söhne", "a=b;c", "50 %", "Köln, Bonn", "+ Fahrt #1", "Šibenik", " Köln ")
+    for value in values:
+        creator = parse_query(_params(with_param({}, "creator", value))).filters.creator
+        place = parse_query(_params(with_param({}, "place", value))).filters.place
+        assert creator == place == value.strip(), value
+    assert parse_query(_params(with_param({}, "creator", ""))).filters.creator is None

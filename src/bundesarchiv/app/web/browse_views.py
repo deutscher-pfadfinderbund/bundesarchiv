@@ -510,6 +510,8 @@ def _sentence(
     unslotted = (
         (browse.PARAM_MEDIA_TYPE, f.media_type and f"Medienart: {f.media_type}"),
         (browse.PARAM_TAG, f.tag and f"Schlagwort: {f.tag}"),
+        (browse.PARAM_CREATOR, f.creator and f"Urheber: {f.creator}"),
+        (browse.PARAM_PLACE, f.place and f"Ort: {f.place}"),
         (browse.PARAM_DATE_FROM, f"ab {_bound(f.date_from, (1, 1))}" if f.date_from else None),
         (browse.PARAM_DATE_TO, f"bis {_bound(f.date_to, (12, 31))}" if f.date_to else None),
         # set beside a decade (a hand-made URL) it has no slot left, but must stay removable

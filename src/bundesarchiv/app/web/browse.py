@@ -34,6 +34,8 @@ PARAM_COLLECTION = "collection"
 PARAM_MEDIA_TYPE = "media_type"
 PARAM_DOCUMENT_TYPE = "document_type"
 PARAM_TAG = "tag"
+PARAM_CREATOR = "creator"
+PARAM_PLACE = "place"
 PARAM_DECADE = "decade"
 PARAM_DATELESS = "dateless"
 PARAM_DATE_FROM = "date_from"
@@ -54,6 +56,8 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_MEDIA_TYPE,
         PARAM_DOCUMENT_TYPE,
         PARAM_TAG,
+        PARAM_CREATOR,
+        PARAM_PLACE,
         PARAM_DECADE,
         PARAM_DATELESS,
         PARAM_DATE_FROM,
@@ -123,6 +127,8 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
             media_type=_nonempty(params.get(PARAM_MEDIA_TYPE)),
             document_type=_nonempty(params.get(PARAM_DOCUMENT_TYPE)),
             tag=_nonempty(params.get(PARAM_TAG)),
+            creator=_nonempty(params.get(PARAM_CREATOR)),
+            place=_nonempty(params.get(PARAM_PLACE)),
             decade=_int_or_none(params.get(PARAM_DECADE)),
             date_from=_date_or_none(params.get(PARAM_DATE_FROM)),
             date_to=_date_or_none(params.get(PARAM_DATE_TO)),
@@ -227,6 +233,8 @@ FILTER_PARAMS: tuple[str, ...] = (
     PARAM_MEDIA_TYPE,
     PARAM_DOCUMENT_TYPE,
     PARAM_TAG,
+    PARAM_CREATOR,
+    PARAM_PLACE,
     PARAM_DECADE,
     PARAM_DATELESS,
     PARAM_DATE_FROM,

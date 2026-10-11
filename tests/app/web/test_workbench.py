@@ -453,6 +453,8 @@ def test_every_set_filter_stays_removable_from_the_sentence(indexed_corpus: Corp
         "media_type": "Mikrofilm",
         "document_type": "Lagerheft",
         "tag": "fahrten",
+        "creator": "Hans Müller",
+        "place": "Burg Waldeck",
         "decade": "1960",
         "dateless": "1",
         "date_from": "1960-01-01",
