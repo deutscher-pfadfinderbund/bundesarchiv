@@ -105,11 +105,34 @@ def test_text_is_umlaut_insensitive(corpus: None) -> None:
 
 
 @pytest.mark.django_db
-def test_all_stopword_query_does_not_crash(corpus: None) -> None:
-    """A query that parses to an EMPTY tsquery (all stopwords) must not raise — the NULLIF guard
-    in the prefix wrapper turns ''||':*' into the empty tsquery, not the invalid ':*'."""
-    page = search(PUBLIC, text="und der die")
-    assert isinstance(page.total, int)  # ran without error
+def test_text_reads_web_search_syntax(corpus: None) -> None:
+    """ADR 0011: a leading minus leaves a word out, ``or`` joins alternatives."""
+    assert _ulids(search(PLAIN_MEMBER, text="Fahrten -Notiz")) == {"ART_PUBFOTO", "ART_PUBKARTE"}
+    assert _ulids(search(PLAIN_MEMBER, text="Notiz or Wanderkarte")) == {
+        "ART_MEMNOTIZ",
+        "ART_PUBKARTE",
+    }
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '-"Lieder Haus"',
+        'Lager -"Lieder Haus"',
+        '"Lieder Haus"',
+        "Lager -Zelt",
+        "Lieder or",
+        "-",
+        '"',
+        "or",
+        "und der die",
+    ],
+)
+@pytest.mark.django_db
+def test_any_web_search_text_yields_a_result_page(corpus: None, text: str) -> None:
+    """Whatever the user types, list, count and facets run; the DB never refuses the query."""
+    page = search(ARCHIVIST, text=text)
+    assert page.total == len(page.hits)
 
 
 @pytest.mark.django_db

@@ -42,7 +42,7 @@ from bundesarchiv.index.scope import _viewer_scope
 
 # The FTS config both the generated columns and the query parser use (ADR 0011). websearch is the
 # query parser (``websearch_to_tsquery``): quoted phrases, ``-`` negation, bare AND. Part 4 adds the
-# ADR-0011 recall mitigation: prefix (``:*``) matching on the trailing lexeme (``_prefix_tsquery``),
+# ADR-0011 recall mitigation: prefix (``:*``) matching on the trailing lexeme (``_PrefixWebSearchQuery``),
 # which lifts the corpus spot-check from 9/12 to 12/12 (a leading part like ``Bundes`` then matches
 # ``Bundeslager``). No ``ts_headline`` in v1.
 _CONFIG = "bundesarchiv_german"
@@ -303,19 +303,19 @@ def _search_query(text: str | None) -> SearchQuery | None:
     """
     if text is None or not text.strip():
         return None
-    return _PrefixWebSearchQuery(text, config=_CONFIG)
+    return _PrefixWebSearchQuery(text, config=_CONFIG, search_type="websearch")
 
 
 class _PrefixWebSearchQuery(SearchQuery):
     """A ``websearch_to_tsquery`` with ``:*`` appended to its trailing lexeme (ADR 0011).
 
     Postgres has no inline ``:*`` in ``websearch_to_tsquery``, so the ADR's verified pattern is
-    applied at the SQL level: parse with ``websearch_to_tsquery``, cast to text, append ``':*'``, and
-    re-parse with ``to_tsquery`` — which reparses cleanly (``websearch_to_tsquery('Berliner
-    Lieder')::text || ':*'`` → ``'berlin' & 'lied':*``). The ``NULLIF(..., '')`` guard makes an
-    all-stopword query (empty tsquery, whose text is ``''``) fall to ``to_tsquery(config, NULL)`` =
-    the empty tsquery again, instead of the invalid ``':*'``. Subclassing ``SearchQuery`` (not a bare
-    ``Func``) keeps it a first-class query expression usable by both ``@@`` and ``ts_rank``.
+    applied at the SQL level: parse with ``websearch_to_tsquery``, cast to text, append ``:*``, and
+    re-parse with ``to_tsquery`` (``'berlin' & 'lied'`` → ``'berlin' & 'lied':*``). The ``:*``
+    goes only after a closing quote: a query ending in a negated phrase (``!( 'a' <-> 'b' )``) has
+    no trailing lexeme and is re-parsed as it is; so is an all-stopword query (``''``, which
+    matches nothing). Subclassing ``SearchQuery`` (not a bare ``Func``) keeps it a first-class
+    query expression usable by both ``@@`` and ``ts_rank``.
     """
 
     def as_sql(  # type: ignore[override]
@@ -329,11 +329,11 @@ class _PrefixWebSearchQuery(SearchQuery):
         # the same two params so the config is applied to BOTH the websearch parse and the reparse.
         sql, params = super().as_sql(compiler, connection, function, template)  # type: ignore[arg-type]
         # ``sql`` is ``websearch_to_tsquery(%s::regconfig, %s)`` (Django's rendering). Wrap it:
-        # to_tsquery(config, NULLIF(<that>::text, '') || ':*') — but the config param is consumed
-        # once by the inner call, so re-supply it for the outer to_tsquery too. The first param is
-        # always the config (a websearch SearchQuery always renders config + term).
+        # to_tsquery(config, <that>::text with ':*' after a trailing quote) — but the config param
+        # is consumed once by the inner call, so re-supply it for the outer to_tsquery too. The
+        # first param is always the config (a websearch SearchQuery always renders config + term).
         config_param = next(iter(params))
-        wrapped = f"to_tsquery(%s::regconfig, NULLIF(({sql})::text, '') || ':*')"
+        wrapped = f"to_tsquery(%s::regconfig, regexp_replace(({sql})::text, '''$', ''':*'))"
         return wrapped, [config_param, *params]
 
 
