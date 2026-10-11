@@ -71,7 +71,6 @@ logger = logging.getLogger(__name__)
 #   v6: deleted_at / deleted_by columns added (the Papierkorb mark).
 #   v7: is_template column added (the Vorlage mark and filter).
 #   v8: media_hashes column added (the page-text match, ADR 0023).
-# The guard that acts on a bump also recomputes ``MediaText.tsv`` (app.reindex).
 CONFIG_VERSION = 8
 
 # THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
@@ -270,17 +269,13 @@ def _collection_lookup(store: ObjectStore) -> tuple[dict[Ulid, Collection], tupl
 
 
 def rebuild(store: ObjectStore) -> RebuildReport:
-    """Wipe and rebuild the whole ``ArticleIndex`` from the files-canonical core in one
-    transaction. Loads every Collection and Article through the repositories, resolves each
-    Article's chain + effective audience, and writes one row per Article. A ``DomainError`` for
-    any Article yields a fail-closed archivist-only row (still indexed, counted in the report)
-    rather than dropping it or guessing visibility; so does a README that does not decode
-    (reported, and logged). Then it deletes the ``MediaText`` of every file no row names any more
-    (ADR 0023). Idempotent: the leading wipe means a repeat rebuild produces
-    the same rows with no duplicates.
+    """Rebuild the index from the canonical files in one transaction. On return ``ArticleIndex``
+    holds one row per Article, ``MediaText`` holds only text some row names (ADR 0023), and every
+    page vector matches the current config. An Article that cannot be indexed (a ``DomainError``, a
+    README that does not decode) gets an archivist-only row, reported in the ``RebuildReport``.
 
-    Holds the shared index-writer lock across the whole read and write (ADR 0014 v2), so every
-    other index writer waits for it; searches still see the old rows until it commits.
+    Holds the shared index-writer lock throughout (ADR 0014 v2); searches see the old rows until
+    it commits.
     """
     articles = ArticleRepository(store)
     cap_year = _current_year()
@@ -292,15 +287,25 @@ def rebuild(store: ObjectStore) -> RebuildReport:
         built = [(a.ulid, *_row_for(a, lookup, cap_year=cap_year)) for a in scan.readable]
         rows = [row for _, row, _ in built]
         rows += [_unreadable_row(ulid, cap_year=cap_year) for ulid in scan.unreadable]
+        # No row at all leaves nothing to tell which config the kept page vectors were built under.
+        stale = config_stale() or not ArticleIndex.objects.exists()
         ArticleIndex.objects.all().delete()
         ArticleIndex.objects.bulk_create(ArticleIndex(**row) for row in rows)
         named = ArticleIndex.objects.annotate(_hash=Func(F("media_hashes"), function="unnest"))
         MediaText.objects.exclude(content_hash__in=named.values("_hash")).delete()
+        if stale:
+            # Postgres recomputes a stored generated column
+            MediaText.objects.update(text=F("text"))
 
     for ulid in (*unreadable_collections, *scan.unreadable):
         logger.warning("the README of %s does not decode", ulid)
     failed = tuple(ulid for ulid, _, failed_closed in built if failed_closed)
     return RebuildReport(len(rows), failed, scan.unreadable, unreadable_collections)
+
+
+def config_stale() -> bool:
+    """Whether a row of the index was written under another ``CONFIG_VERSION``."""
+    return ArticleIndex.objects.exclude(config_version=CONFIG_VERSION).exists()
 
 
 def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:

@@ -2,8 +2,8 @@
 
 The wrapper exists for the reason 0001's do: a generated column's expression must be
 ``IMMUTABLE``, but the ``unaccent``-based config is only ``STABLE``. Safe for the same reason too:
-on a config change the config-version guard recomputes ``MediaText.tsv``
-(``app.reindex.ensure_index_current``).
+a rebuild over an index of another config version recomputes ``MediaText.tsv``
+(``indexer.rebuild``).
 """
 
 import django.contrib.postgres.indexes

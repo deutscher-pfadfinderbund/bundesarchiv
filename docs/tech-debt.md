@@ -308,9 +308,9 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   Django's `LoginRequiredMiddleware` + `@login_not_required`. A forgotten decorator fails closed.
 
 ### 16. Shallow wrappers that fail the deletion test — Speculative
-- **Indicator:** 3 pass-throughs (2026-10-01, worse; 2 on 2026-09-02, of which only `card._audience_label` is left)
-- **Evidence:** `card._audience_label`, `app/reindex.py` (3 lines, 1 caller). `article_auth.resolve_visible_article`
-  inlined (Wave CLEAN, 2026-10-01): 2 left.
+- **Indicator:** 2 pass-throughs (2026-10-11, same as after Wave CLEAN; 3 on 2026-10-01)
+- **Evidence:** `card._audience_label`, `app/reindex.py` (3 lines, 1 caller; `indexer.rebuild` owns the page-vector
+  recompute, 2026-10-11). `article_auth.resolve_visible_article` inlined (Wave CLEAN, 2026-10-01).
 - **Deletion test:** fails — inlining each removes a name and adds nothing.
 
 ### 20. Variants in disguise (law C2) — Strong
