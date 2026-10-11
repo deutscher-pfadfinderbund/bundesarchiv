@@ -38,10 +38,7 @@ simplicity checkable instead of a matter of taste.
      `--_name` (law C3) — are its API: compositions set knobs and place it, never select inside it.
      Facts about one field (width, Signatur ink) come from the field registry
      as markup, never from CSS keyed on an input's `name`. Semantic HTML
-     first. Reuse-first: no ad-hoc one-off markup where a component exists,
-     no redundant near-duplicates; anything genuinely new is added
-     DELIBERATELY — named, filed, entered in the component inventory
-     ("Component mapping") — or it doesn't ship.
+     first. Reuse-first and deliberate: the component rules below.
   2. **Views** — self-contained work surfaces (search sentence, result ledger,
      article reader, edit form, confirm panel). Viewport-agnostic: a view
      adapts to its CONTAINER (`@container`), never to the screen. One
@@ -59,6 +56,23 @@ simplicity checkable instead of a matter of taste.
   References: Every Layout (Pickering/Bell — composition primitives),
   CSS container queries (view adaptivity; inside the browser floor),
   Atomic Design (Frost — terminology: view ≈ organism).
+- **Component rules** (owner, 2026-10-11).
+  1. **Order.** Use an existing component; else adapt a semantically close
+     one with a new knob value or a context (never a modifier class — law
+     C2); else build a new reusable component. No ad-hoc one-off markup
+     where a component exists, no redundant near-duplicates.
+  2. **Approval.** A new component or variant is approved by the owner
+     before it is built. Exception: a writer may build one it judges small
+     without asking; it ships with status `proposed`, and the owner approves
+     or rejects it in a UI review pass. A new view or layout primitive is
+     never small.
+  3. **Inventory.** Every component and every layout primitive has a row with
+     its status, `approved (date)` or `proposed` ("Component inventory",
+     "Layout primitives"); what has no row does not ship. Pages compose only
+     from inventoried layout primitives. The component library
+     (`/_dev/components/`) shows each sample's status, and
+     `tests/app/web/test_design_lint.py` fails on a component template or a
+     layout primitive without a row.
 - **Provenance.** Every visible element traces to a named archivist wish
   (`docs/requirements/`), an owner ruling, or a spec section
   (`docs/design/part-4-web.md`). No element exists "for completeness."
@@ -265,53 +279,79 @@ remove (the one ×), add ("+ …"), pairs.
 The app's owned components today (law C1). The retoken and component waves convert them to the
 monochrome system; each row changes when its component does.
 
-Every owned component (law C1), its root and its one CSS section. The design lint reads the Root
-column: a compositions-layer selector may reach a root and never past it. A new component joins
-this table. Views (`_results`, `_header`) and layout primitives (`.frame`, `.column`, `.start`, `.tiles`, `.article-page`,
-`.record-head`, `.prose`, `.form-sheet`, `.field-grid`, `.pairs`) are compositions, not components. `_filterset` and
-`_hit_count` are parts of the filter rail; they are split out only as swap units (law C7).
+Every owned component (law C1), its root, its one CSS section and its status (component rules).
+The design lint reads the Root column: a compositions-layer selector may reach a root and never
+past it. A new component joins this table. Views (`_results`, `_header`) and layout primitives
+(below) are compositions, not components. `_filterset` and `_hit_count` are parts of the filter
+rail; they are split out only as swap units (law C7).
 
-| Component | Root | Template | CSS section |
-|---|---|---|---|
-| Action row | `.actions` | inline | `components.css` action rows |
-| Toolbar | `[role="toolbar"]` | inline | `components.css` action rows |
-| Note | `.note` | inline (`_field`, the edit form's Weitere Angaben) | `components.css` note |
-| Help | `.help` | inline (`_field`) | `components.css` help |
-| Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field |
-| Crumbs | `.crumbs` | inline (edit form, article page) | `components.css` crumbs |
-| Section head | `.section-head` | inline (edit form) | `components.css` section-head |
-| Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta |
-| Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove |
-| Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add |
-| Register | `.register` | inline (edit form: Medien) | `components.css` register |
-| Register row | `.register-row` | `start/_collections`, `_by_media_type`, `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row |
-| Resume | `.resume` | `start/_search` ("Weiter bearbeiten") | `components.css` resume |
-| File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row |
-| Upload | `.upload` | inline (edit form) | `components.css` upload |
-| Popover | `.popover` | inline (`_field`), `workbench/_date_help` | `components.css` popover |
-| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_tag_suggestions` | `components.css` autocomplete-list |
-| Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark |
-| Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark |
-| Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu |
-| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel |
-| Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button |
-| Byline | `.byline` | inline (article page: the origin and the labelled lines; `workbench/_formpanel` facts), `components/byline_links` (Schlagworte, a result row's pages: `.byline-links`) | `components.css` byline |
-| Ledger | `.ledger` | `components/ledger`, `ledger_row` | `components.css` ledger |
-| Pagination | `.pager` | `components/pagination` | `components.css` pagination |
-| Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state |
-| Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank |
-| Icon | `.icon` | `components/icon` | none |
-| Field | `.field` | `workbench/_field` (the edit form, the create step, the Bestand forms) | `components.css` field |
-| Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected |
-| Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice |
-| Feld chooser | `.chooser` | `workbench/_field_picker` | `layouts.css` Feld chooser |
-| Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools |
-| Search sentence | `.search-sentence` | `workbench/_search_field`, `_filterset` | `layouts.css` search sentence |
-| Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane |
-| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner |
-| Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte |
-| Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover |
-| Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox |
+| Component | Root | Template | CSS section | Status |
+|---|---|---|---|---|
+| Action row | `.actions` | inline | `components.css` action rows | approved (2026-10-11) |
+| Toolbar | `[role="toolbar"]` | inline | `components.css` action rows | approved (2026-10-11) |
+| Note | `.note` | inline (`_field`, the edit form's Weitere Angaben) | `components.css` note | approved (2026-10-11) |
+| Help | `.help` | inline (`_field`) | `components.css` help | approved (2026-10-11) |
+| Title field | `.title-field` | inline (edit form, create step) | `components.css` title-field | approved (2026-10-11) |
+| Crumbs | `.crumbs` | inline (edit form, article page) | `components.css` crumbs | approved (2026-10-11) |
+| Section head | `.section-head` | inline (edit form) | `components.css` section-head | approved (2026-10-11) |
+| Record margin | `.record-meta` | inline (edit form, create step) | `components.css` record-meta | approved (2026-10-11) |
+| Remove | `.remove` | inline (edit form: media rows, Weitere Angaben) | `components.css` remove | approved (2026-10-11) |
+| Add | `.add` | inline (edit form: Weitere Angaben, upload) | `components.css` add | approved (2026-10-11) |
+| Register | `.register` | inline (edit form: Medien) | `components.css` register | approved (2026-10-11) |
+| Register row | `.register-row` | `start/_collections`, `_by_media_type`, `_timeline` (bar: `.register-bar`), `_recent` (`.register-lead`, `.register-aside`) | `components.css` register-row | approved (2026-10-11) |
+| Resume | `.resume` | `start/_search` ("Weiter bearbeiten") | `components.css` resume | approved (2026-10-11) |
+| File row | `.file-row` | inline (edit form: Medien) | `components.css` file-row | approved (2026-10-11) |
+| Upload | `.upload` | inline (edit form) | `components.css` upload | approved (2026-10-11) |
+| Popover | `.popover` | inline (`_field`), `workbench/_date_help` | `components.css` popover | approved (2026-10-11) |
+| Autocomplete list | `.autocomplete-list` | built by `catalog_form.js` beside a `[data-suggest]` field (the edit form's Schlagworte), its options `workbench/_tag_suggestions` | `components.css` autocomplete-list | approved (2026-10-11) |
+| Mark | `.mark` | `components/mark_lifecycle`, inline (dirty register, Titelbild, the article page's Papierkorb state) | `components.css` mark | approved (2026-10-11) |
+| Signatur mark | `.c-sig` | `components/ref_code_tab` | `components.css` Signatur mark | approved (2026-10-11) |
+| Menu | `.menu` | inline (`_header`, the edit form's margin, the article page's split button; all popovers), `workbench/_copy` (the entry that POSTs); an entry's tool panel follows the menu, and opening it closes the menu (`menu.js`) | `components.css` menu | approved (2026-10-11) |
+| Toolpanel | `.toolpanel` | `components/confirm` (the delete and Veröffentlichen confirms), `workbench/_formpanel` (the header's "Neuer Artikel …", "Neuer Bestand …", "Bestand bearbeiten …"), inline (the list's "Spalten …" and "Feld ändern …", `workbench/_tools`; the phone "Filter" and "+ Filter", `workbench/_filterset`); each ends in `components/toolpanel_cancel` | `components.css` toolpanel | approved (2026-10-11) |
+| Split button | `.split-button` | inline (article page: Bearbeiten) | `components.css` split-button | approved (2026-10-11) |
+| Byline | `.byline` | inline (article page: the origin and the labelled lines; `workbench/_formpanel` facts), `components/byline_links` (Schlagworte, a result row's pages: part `.byline-links`; knob `--byline-font`) | `components.css` byline | proposed |
+| Ledger | `.ledger` | `components/ledger`, `components/ledger_row` | `components.css` ledger | approved (2026-10-11) |
+| Pagination | `.pager` | `components/pagination` | `components.css` pagination | approved (2026-10-11) |
+| Empty state | `.empty-state` | `components/empty_state` | `components.css` empty state | approved (2026-10-11) |
+| Blank | `.blank` | `components/blank` (a file without a thumbnail: the article page, the pane, the edit form's file rows) | `components.css` blank | approved (2026-10-11) |
+| Icon | `.icon` | `components/icon` | none | approved (2026-10-11) |
+| Field | `.field` | `workbench/_field` (the edit form, the create step, the Bestand forms) | `components.css` field | approved (2026-10-11) |
+| Affected | `.affected` | inline (the bulk check and result pages, the Papierkorb) | `components.css` affected | approved (2026-10-11) |
+| Index lag notice | `.hint` | `components/index_lag` (the list, the article page, the edit form and its drawer, the bulk result, the Papierkorb) | `components.css` hint | proposed |
+| Conflict notice | `.conflict-notice` | `components/conflict_notice` (both edit forms) | `components.css` conflict notice | approved (2026-10-11) |
+| Feld chooser | `.chooser` | `workbench/_field_picker` | `layouts.css` Feld chooser | approved (2026-10-11) |
+| Selection tools | `.bulk` | `workbench/_tools` (the list's tool row: "Auswählen"; in selection mode "Abbrechen", the count, "Feld ändern …") | `layouts.css` selection tools | approved (2026-10-11) |
+| Search sentence | `.search-sentence` | `workbench/_search_field`, `_filterset` | `layouts.css` search sentence | approved (2026-10-11) |
+| Pane | `.pane` | `workbench/_pane` | `layouts.css` preview pane | approved (2026-10-11) |
+| Failure banner | `.error-banner` | inline (`base`) | `layouts.css` failure banner | approved (2026-10-11) |
+| Cover Platte | `.cover` | inline (`detail`) | `detail.css` cover Platte | approved (2026-10-11) |
+| Media rows | `.media-rows` | inline (`detail`), script `media.js` | `detail.css` the files after the cover | approved (2026-10-11) |
+| Lightbox | `.lightbox` | `workbench/_lightbox` | `detail.css` the lightbox | approved (2026-10-11) |
+
+### Layout primitives
+
+The compositions a page is built from (component rules). Each is a class that starts a rule in the
+compositions layer; the design lint fails on such a class without a row here or in the component
+inventory.
+
+| Primitive | Class | Where | CSS section | Status |
+|---|---|---|---|---|
+| Frame | `.frame` | `workbench/workbench` (main · pane) | `layouts.css` page frame | approved (2026-10-11) |
+| Column | `.column` | the confirm, Bestand, bulk, Papierkorb and error pages | `layouts.css` work/reading column | approved (2026-10-11) |
+| Start | `.start` | `start/start` | `layouts.css` start | approved (2026-10-11) |
+| Tiles | `.tiles` | the start page's registers | `layouts.css` tiles | approved (2026-10-11) |
+| Article page | `.article-page` | `workbench/detail` | `detail.css` article page | approved (2026-10-11) |
+| Record head | `.record-head` | `workbench/detail` | `detail.css` record head | approved (2026-10-11) |
+| Prose | `.prose` | `workbench/detail` | `detail.css` prose | approved (2026-10-11) |
+| Form sheet | `.form-sheet` | `workbench/article_edit`, `article_new` | `layouts.css` form-sheet | approved (2026-10-11) |
+| Field grid | `.field-grid` | `workbench/article_edit`, `article_new` | `layouts.css` field-grid | approved (2026-10-11) |
+| Pairs | `.pairs` | `workbench/article_edit` (Weitere Angaben) | `layouts.css` pairs | approved (2026-10-11) |
+| Page footer | `.page-footer` | `workbench/base` (the light/dark toggle) | `layouts.css` page-footer | proposed |
+| Wordmark | `.wordmark` | `workbench/base`, `workbench/door` | `layouts.css` wordmark | proposed |
+| Door | `.door` | `workbench/door` | `layouts.css` door | proposed |
+| Dev stub | `.stub` | `dev.py` (the viewer switcher) | `layouts.css` dev stub | proposed |
+| Back link | `.back` | none: no template emits it | `layouts.css` back link | proposed |
+
 
 ### Roles
 

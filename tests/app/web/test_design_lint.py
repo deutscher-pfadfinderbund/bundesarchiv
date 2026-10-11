@@ -32,6 +32,8 @@ import itertools
 import re
 from pathlib import Path
 
+from bundesarchiv.app.web import components_demo
+
 STATIC = Path(__file__).resolve().parents[3] / "src" / "bundesarchiv" / "app" / "web" / "static"
 
 #: Every prod stylesheet; tokens.css is the ONLY file allowed to write color literals.
@@ -459,14 +461,9 @@ def test_bare_dimension_literals_are_named_or_commented() -> None:
     )
 
 
-DESIGN_SYSTEM = Path(__file__).resolve().parents[3] / "docs" / "design" / "design-system.md"
-
-
 def _component_roots() -> tuple[str, ...]:
     """The Root column of design-system.md's component inventory — the one list of components."""
-    section = DESIGN_SYSTEM.read_text().split("### Component inventory", 1)[1].split("\n#", 1)[0]
-    rows = [line for line in section.splitlines() if line.startswith("|")]
-    return tuple(row.split("|")[2].strip().strip("`") for row in rows[2:])
+    return tuple(row.root for row in components_demo.inventory("Component inventory"))
 
 
 def _split_top(selector: str, at: str) -> list[str]:
@@ -605,3 +602,45 @@ def test_a_public_knob_is_read_only_where_it_is_resolved() -> None:
         )
     ]
     assert not offenders, "a public knob read outside its --_ line (C3):\n" + "\n".join(offenders)
+
+
+COMPONENT_TEMPLATES = STATIC.parent / "templates" / "components"
+
+
+def test_every_component_template_has_an_inventory_row() -> None:
+    # Component rules, design-system.md: what has no row does not ship.
+    named = " ".join(row.where for row in components_demo.inventory("Component inventory"))
+    missing = sorted(
+        path.stem
+        for path in COMPONENT_TEMPLATES.glob("*.html")
+        if not re.search(rf"components/{path.stem}(?![\w])", named)
+    )
+    assert not missing, "component template without an inventory row: " + ", ".join(missing)
+
+
+def test_every_layout_primitive_has_an_inventory_row() -> None:
+    # A class that starts a compositions-layer rule is a layout primitive unless it is a component.
+    starts = {
+        match.group(0)
+        for name in STYLESHEETS
+        for stack, selector_list, _lineno in _parse((STATIC / name).read_text())[2]
+        if "@layer compositions" in stack
+        for complex_selector in _split_top(selector_list, ",")
+        if (match := re.match(r"\.[-\w]+", _compounds(complex_selector)[0]))
+    }
+    rowed = {row.root for row in components_demo.inventory("Layout primitives")}
+    missing = sorted(starts - rowed - set(_component_roots()))
+    assert not missing, "layout primitive without an inventory row: " + ", ".join(missing)
+
+
+def test_every_inventory_row_has_a_status() -> None:
+    rows = (
+        *components_demo.inventory("Component inventory"),
+        *components_demo.inventory("Layout primitives"),
+    )
+    bad = [
+        row.name
+        for row in rows
+        if not re.fullmatch(r"approved \(\d{4}-\d{2}-\d{2}\)|proposed", row.status)
+    ]
+    assert not bad, "inventory row without a status: " + ", ".join(bad)

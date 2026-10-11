@@ -8,11 +8,15 @@ render in one document without JS.
 
 ONE theme (owner ruling, 2026-08-06): design iterations happen ON the real components.
 
-Doubles as developer documentation: every sample is annotated with its include path + params, and
+Doubles as developer documentation: every sample is annotated with its include path + params and
+its inventory status (design-system.md), and
 a token-swatch section shows the monochrome ink/ground pairs and the lines with role names.
 Page chrome is English (development-facing); the SAMPLE CONTENT inside atoms is German (product
 UI copy). Sample data below is inert demo fixture data — no store, no index, no viewer.
 """
+
+from pathlib import Path
+from typing import NamedTuple
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -21,6 +25,24 @@ from django.templatetags.static import static
 from bundesarchiv.app.web import browse, ledger
 from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.index.query import FileKind, SearchHit, TextPage
+
+DESIGN_SYSTEM = Path(__file__).resolve().parents[4] / "docs" / "design" / "design-system.md"
+
+
+class InventoryRow(NamedTuple):
+    name: str
+    root: str
+    where: str
+    status: str
+
+
+def inventory(heading: str) -> tuple[InventoryRow, ...]:
+    """The rows of one inventory table in design-system.md (its ``### heading``)."""
+    section = DESIGN_SYSTEM.read_text().split(f"### {heading}\n", 1)[1].split("\n#", 1)[0]
+    rows = [line for line in section.splitlines() if line.startswith("|")][2:]
+    cells = [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
+    return tuple(InventoryRow(c[0], c[1].strip("`"), c[2], c[-1]) for c in cells)
+
 
 #: Both color-scheme values, in render order — the template's per-sample column loop.
 _MODES = ("light", "dark")
@@ -152,5 +174,9 @@ def component_library(request: HttpRequest) -> HttpResponse:
             "swatch_lines": _SWATCH_LINES,
             "ledger": _demo_ledger(),
             "pagers": _PAGERS,
+            "status": {
+                row.name.lower().replace(" ", "_"): row.status
+                for row in inventory("Component inventory")
+            },
         },
     )

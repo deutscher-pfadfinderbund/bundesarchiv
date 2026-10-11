@@ -37,6 +37,8 @@ components; this storyboard updates in lockstep with them.
       border-bottom: var(--line-width) solid var(--rule);
       padding-bottom: var(--space-1);
     }
+    /* the inventory status of the sample's component (design-system.md, component rules) */
+    .status { font: var(--type-meta); color: var(--ink-3); margin-inline-start: var(--space-2); }
     .probe {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -151,7 +153,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">&lt;button&gt; is the outline default (also the header's Suchen); every button inverts under the pointer · .primary = the ink inversion, outline under the pointer · dark never fills with ink: .primary is outlined too, and the pointer lifts to a dim ground · a.button = link-as-button · .link = text affordance · .danger = a context: red while about to act (hover, press, focus)</code>
 
-<h2>Fields — stacked (the default)</h2>
+<h2>Fields — stacked (the default) <span class="status">{{ status.field }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -171,7 +173,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">bare &lt;input&gt;/&lt;select&gt;/&lt;textarea&gt; styled by the cascade · label.field stacks the label span over its control</code>
 
-<h2>Form head — crumbs, title field, section head (the edit form)</h2>
+<h2>Form head — crumbs, title field, section head (the edit form) <span class="status">Crumbs: {{ status.crumbs }}</span> <span class="status">Title field: {{ status.title_field }}</span> <span class="status">Section head: {{ status.section_head }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -185,7 +187,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">nav.crumbs: "Archiv", then the Bestand chain, "›" between steps · h1.title-field: the Titel is the heading, editable in place — no frame, an edge under it on hover, the focus width on focus · header.section-head &gt; h2: a section's rank; a .section-head-aside (link or note) touches its heading</code>
 
-<h2>Record margin — conflict, Status, audience, actions (the edit form)</h2>
+<h2>Record margin — conflict, Status, audience, actions (the edit form) <span class="status">{{ status.record_margin }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -222,7 +224,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">aside.record-meta: the conflict notice (components/conflict_notice, role="alert": the heavy red rule, a red subhead, a sentence naming the changed fields as links) · the Status select · the audience fields (Gruppen only while "Gruppe(n)" is chosen, :has; visible where :has is missing) · .record-meta-actions, a control row, Speichern first</code>
 
-<h2>Record margin — the create step</h2>
+<h2>Record margin — the create step <span class="status">{{ status.record_margin }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -238,7 +240,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">.record-meta-state: the page's state in words where no heading names it yet (the Titel is still empty) · the .record-meta-line says what the one action does</code>
 
-<h2>Field with validation error</h2>
+<h2>Field with validation error <span class="status">{{ status.field }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -259,7 +261,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">a field that carries a message is a div.field with an explicit &lt;label for&gt; — inside a label element the message would join the control's accessible name; it is wired with aria-describedby + aria-invalid instead. aria-invalid doubles the red edge (border plus a 1px inset). An edit conflict marks the field the same way, with .was ("Inzwischen gespeichert: …") as its description</code>
 
-<h2>Mark — lifecycle</h2>
+<h2>Mark — lifecycle <span class="status">{{ status.mark }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -272,7 +274,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/mark_lifecycle.html · draft=True → ENTWURF; draft=False → nothing</code>
 
-<h2>Signatur mark</h2>
+<h2>Signatur mark <span class="status">{{ status.signatur_mark }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -287,7 +289,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/ref_code_tab.html · ref_code=… — quiet mono, everywhere (as the ledger column); absent → nothing visible (screen-reader "Ohne Signatur"); long codes ellipsize</code>
 
-<h2>Icons — the one vendored set (register row 9)</h2>
+<h2>Icons — the one vendored set (register row 9) <span class="status">{{ status.icon }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -308,7 +310,7 @@ components; this storyboard updates in lockstep with them.
 </div>
 <code class="doc">components/icon.html · name=pencil|panel|x|arrow-up|arrow-down|log-out|chevron-down|chevron-left|chevron-right|contrast — hairline-stroke inline SVG, 24px grid, stroke-width 2, currentColor; aria-hidden (the owning control carries the aria-label); licensed slots: register row 9. The two arrows joined for the media register's row toolbar (owner ruling 6, 2026-08-08)</code>
 
-<h2>Menu — the header's "+ Neu …" popover</h2>
+<h2>Menu — the header's "+ Neu …" popover <span class="status">{{ status.menu }}</span></h2>
 {% comment %} A popover cannot be served open: click the button. anchor-scope keeps each column's
 list anchored to its own button. {% endcomment %}
 <div class="probe">
@@ -329,7 +331,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">button.menu-button + ul.menu[popover] (workbench header, Mock B — owner 2026-08-07) · the ONE create menu: "+ Neu …" is a text control, not a framed button, and consumes the header row's --control-height knob; the list is a floating panel with the ink edge (register row 12), page surface even in the band, in the top layer, dropped under its button with right edges aligned (anchor() insets; without anchor positioning the browser centres it); the list is the header's create SLOT (G.9) — "Bestand bearbeiten" joins it only while a Bestand filter is active. Entry height + type come from the PANEL's own --control-height knob, so a link entry and an entry that must POST (a button) cannot read as different kinds of thing. The edit form's "Mehr …" is the same menu; its Löschen carries the .danger context</code>
 
-<h2>Split button — the article page's Bearbeiten</h2>
+<h2>Split button — the article page's Bearbeiten <span class="status">{{ status.split_button }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}; --control-height: var(--touch-target)">
@@ -346,7 +348,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">.split-button: a.button (the frequent action) + button.menu-button (the chevron, named "Weitere Aktionen") + ul.menu[popover] (the rare actions) in one frame; the chevron draws no start edge, so the action's end edge divides them; both invert on hover. Its row sets --control-height (law C8)</code>
 
-<h2>Byline — one line of facts</h2>
+<h2>Byline — one line of facts <span class="status">{{ status.byline }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -357,7 +359,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">.byline on a &lt;p&gt; (self-evident values: spans, &lt;time&gt;, &lt;data&gt;) or a &lt;dl&gt; (labelled pairs); a middle dot separates the items, and no line, the first or a wrapped one, begins with one</code>
 
-<h2>Ledger — full density</h2>
+<h2>Ledger — full density <span class="status">{{ status.ledger }}</span></h2>
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -367,7 +369,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">components/ledger.html · ledger=ledger.build(…) bulk=… — Titel · Datierung · Typ · Digital · Signatur (ledger.COLUMNS; Bestand on choice); sortable heads cycle asc→desc→default; a Typ sets its filter; Bearbeiten follows the title and shows with its row on pointer devices; the draft row's Entwurf mark rides its title</code>
 
-<h2>Ledger — narrow container (intrinsic tightening)</h2>
+<h2>Ledger — narrow container (intrinsic tightening) <span class="status">{{ status.ledger }}</span></h2>
 <div class="probe probe-stack">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -382,7 +384,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">width is the only density input, absorbed intrinsically (law C11): the Titel takes the slack and wraps; every other cell keeps one line and a word cell (Typ, Bestand) ends in … at --measure-word; the last column shrinks to its content (round 2)</code>
 
-<h2>Ledger — S container (the title over one line of facts)</h2>
+<h2>Ledger — S container (the title over one line of facts) <span class="status">{{ status.ledger }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -394,7 +396,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">below 40rem (S, the space budget) the heads go and each row is its title over one line of its facts, "1962 · Fahrtenbericht · 2 Fotos · F12" in sans (round 10); a dot only between two present values; the tools and the selection are absent</code>
 
-<h2>Pagination</h2>
+<h2>Pagination <span class="status">{{ status.pagination }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
@@ -404,7 +406,7 @@ list anchored to its own button. {% endcomment %}
 </div>
 <code class="doc">components/pagination.html · pager=browse_views._Pager — page 2 of many: the range between the steps (a2 round 10); page 1: Zurück stays, disabled in Faint; one page: the count alone, no steps (round 9)</code>
 
-<h2>Empty state</h2>
+<h2>Empty state <span class="status">{{ status.empty_state }}</span></h2>
 <div class="probe">
   {% for mode in modes %}
   <div class="col" data-mode="{{ mode }}" style="color-scheme: {{ mode }}">
