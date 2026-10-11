@@ -121,6 +121,13 @@ def reach_tag_suggestions(page: Page, base: str, corpus: CorpusHandles) -> None:
     expect(page.locator(".autocomplete-list")).to_be_visible()
 
 
+def reach_search_suggestions(page: Page, base: str, _corpus: CorpusHandles) -> None:
+    """The start page with "meyer" typed in its search field: an Artikel and its Autor offered."""
+    page.goto(f"{base}/", wait_until="networkidle")
+    page.locator("main #search-field").press_sequentially("meyer")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+
+
 #: Every screen the app renders, in a stable order. The archivist screens all carry the shared
 #: header, hence one overlay (the "+ Neu …" create menu) at minimum; a list with hits adds its
 #: "Spalten …" panel, the filtered workbench one dropdown per filter-rail facet group, the edit surface the margin's "Mehr …" and the article

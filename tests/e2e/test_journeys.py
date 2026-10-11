@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +19,7 @@ from tests.e2e._pages import (
     OVERLAY_TRIGGERS,
     SCREENS,
     reach_door,
+    reach_search_suggestions,
     reach_tag_suggestions,
     screens_for,
 )
@@ -1299,6 +1301,39 @@ def test_dirty_register_covers_fields_outside_the_form_subtree(
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_hidden()
     page.fill('input[name="ref_code"]', "E2E-U2")
     expect(page.get_by_text("Nicht gespeicherte Änderungen")).to_be_visible()
+
+
+def test_a_search_suggestion_sets_its_filter_with_the_keyboard(
+    archivist_page: Page, live_workbench: str, e2e_corpus: CorpusHandles
+) -> None:
+    page = archivist_page
+    reach_search_suggestions(page, live_workbench, e2e_corpus)
+    field = page.locator("main #search-field")
+    expect(field).to_have_attribute("aria-expanded", "true")
+    kinds = page.locator(".autocomplete-kind")
+    expect(kinds).to_have_text(["Artikel", "Autor"])
+    page.keyboard.press("Escape")
+    expect(page.locator(".autocomplete-list")).to_be_hidden()
+    field.press_sequentially("x")
+    page.keyboard.press("Backspace")
+    expect(page.locator(".autocomplete-list")).to_be_visible()
+    page.keyboard.press("ArrowDown")  # the Artikel
+    page.keyboard.press("ArrowDown")  # the Autor
+    expect(field).to_have_attribute(
+        "aria-activedescendant", re.compile(r"search-field-suggestions-\d+")
+    )
+    page.keyboard.press("Enter")
+    page.wait_for_url(re.compile(r"creator=K\.(\+|%20)Meyer"))
+
+
+def test_without_js_the_search_field_just_submits(
+    no_js_archivist_page: Page, live_workbench: str
+) -> None:
+    page = no_js_archivist_page
+    page.goto(f"{live_workbench}/", wait_until="networkidle")
+    page.locator("main #search-field").fill("meyer")
+    page.keyboard.press("Enter")
+    page.wait_for_url(re.compile(r"/articles\?q=meyer"))
 
 
 def test_a_tag_is_taken_from_the_suggestions_with_the_keyboard(

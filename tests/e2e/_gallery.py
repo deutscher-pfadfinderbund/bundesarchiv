@@ -11,7 +11,14 @@ from typing import Literal
 from django.template.loader import render_to_string
 from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
-from tests.e2e._pages import LIST, READING_QUERY, SCREENS, Screen, reach_tag_suggestions
+from tests.e2e._pages import (
+    LIST,
+    READING_QUERY,
+    SCREENS,
+    Screen,
+    reach_search_suggestions,
+    reach_tag_suggestions,
+)
 
 #: Shot under the emulated ``prefers-color-scheme``, with no theme cookie.
 MODES: tuple[Literal["light", "dark"], ...] = ("light", "dark")
@@ -417,6 +424,12 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
         "the edit surface, the Schlagworte field suggesting for the line being typed",
         True,
         reach_tag_suggestions,
+    ),
+    GalleryState(
+        "start-suggestions",
+        "the start page, the search field suggesting Artikel and Autor for what is typed",
+        True,
+        reach_search_suggestions,
     ),
     GalleryState(
         "edit-rejected",
