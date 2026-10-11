@@ -26,8 +26,8 @@ def test_with_param_adds_a_facet_and_resets_page() -> None:
     params = _params(q)
     assert params["media_type"] == "Foto"
     assert params["q"] == "Lager"
-    # Adding a facet changes the result set, so pagination resets to page 1 (drop stale ``seite``).
-    assert "seite" not in params
+    # Adding a facet changes the result set, so pagination resets to page 1 (drop the stale ``page``).
+    assert "page" not in params
 
 
 def test_with_param_replaces_an_existing_value_for_the_same_key() -> None:
@@ -38,14 +38,14 @@ def test_with_param_replaces_an_existing_value_for_the_same_key() -> None:
 def test_without_param_removes_one_dimension_only() -> None:
     q = without_param({"q": "Lager", "media_type": "Foto", "collection": "LAGER"}, "media_type")
     params = _params(q)
-    assert "medienart" not in params
+    assert "media_type" not in params
     assert params["q"] == "Lager"
     assert params["collection"] == "LAGER"
 
 
 def test_without_param_also_resets_page() -> None:
     q = without_param({"media_type": "Foto", "page": "4"}, "media_type")
-    assert "seite" not in _params(q)
+    assert "page" not in _params(q)
 
 
 def test_add_then_parse_round_trips() -> None:
