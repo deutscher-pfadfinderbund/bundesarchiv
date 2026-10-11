@@ -395,6 +395,12 @@ continue it. #31–48 come from the 2026-10-01 cleanup review (its W/A/P ids are
   `mise run test:gallery-diff` (a ref vs the tree, per-PNG verdict).
 - **Still open:** `mise run mutate` runs plain pytest, so it cannot prove an e2e pin (a `menu.js` mutation was done by hand).
 
+### 55. Tests monkeypatch our own code — Strong
+- **Indicator:** `monkeypatch.setattr` on a `bundesarchiv` name: `tests/app` 56, `tests/app/web` 48, `tests/persistence` 2, `tests/e2e` 0 (2026-10-11, AST count); `tests/app` 48 once the page-text shells moved (2026-10-11)
+- **Evidence:** writer-brief "Functional core, imperative shell"; most are `tasks.canonical_store` (16) and the web conftest's index/enqueue stubs
+- **Deletion test:** a test runs the real shell over `Archive.of(...)` and the in-memory queue; a renamed function no longer leaves a patch passing vacuously
+- **Sketch:** removed when the module is touched; a later wave may sweep the rest
+
 ### 52. German FTS ranking is untuned — Speculative
 - **Indicator:** 0 relevance judgements on real queries; config `german` fixed by ADR 0011 (2026-10-06)
 - **Evidence:** `index/query.py` ranking; parked on GH #19 until real data exists. Trigger: the archivists' first real searches
