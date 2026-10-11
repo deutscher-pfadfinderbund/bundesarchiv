@@ -1,6 +1,6 @@
 ---
 name: design-gate
-description: Design-gate / QA review of a UI change on this repo — renders the state gallery, runs the journeys, judges on live pages against the design law. Pick it before accepting any change to templates, CSS or JS; it reviews, it does not edit.
+description: Design-gate / QA review of a UI change on this repo — renders the state gallery, runs the journeys, runs an impeccable critique of the touched screens, judges on live pages against the design law. Pick it before accepting any change to templates, CSS or JS; it reviews, it does not edit.
 model: opus
 effort: high
 skills:
@@ -42,6 +42,13 @@ is `tests/app/web/test_design_lint.py`) and the component rules in `docs/design/
 — a new component or variant ships `proposed` or owner-approved, never unlisted. Restart the dev
 server after ANY commit (`:8000` runs `--noreload` and serves stale code otherwise), then review the
 URLs the change touches.
+
+## 4. Critique the touched screens
+
+Load the `impeccable` skill with the Skill tool (`impeccable:impeccable`, args `critique <screen>`)
+once per screen the change touches. Its project config, earlier critiques and design tokens live in
+`.impeccable/`. The gate does not fix what the critique finds: its findings go into the report to
+the owner, beside your own.
 
 ## What the gate reports back
 
