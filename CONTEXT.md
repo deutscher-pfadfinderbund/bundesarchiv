@@ -88,6 +88,9 @@ When an Article entered the archive, UTC. Set once at creation (the legacy impor
 **Index** (*Suchindex*):
 The derived, disposable Postgres table rebuilt from the canonical `README.md` files. Holds each Article's resolved effective-audience columns (materialized at build time, ADR 0012) and searchable text. Rebuilt in full by `rebuild()`; queried by `search()`. Never canonical — the README is.
 
+**Reading view** (*Lesesaal*) and **table** (*Tabelle*) — URL param `view`:
+The two views of one search over the same route, address and hits (owner S1, 2026-10). A query reads in the Lesesaal unless `view=table`; without a query the list is the table. A Lesesaal row names the member-searchable field the query matched in (the why line) when the title does not hold the word. Sort and selection exist only in the table.
+
 ### Lifecycle
 
 **Lifecycle**:

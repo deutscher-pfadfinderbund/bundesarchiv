@@ -1,0 +1,13 @@
+{% comment %}
+View switch — the size of the answer and the two views of the same search ("Lesesaal · Tabelle",
+owner S1). Params: total — the hit count in words; views — the entries (label, query, current),
+each link keeping every other param of the address.
+{% endcomment %}
+<div class="view-switch">
+  <span>{{ total }} Treffer</span>
+  <nav aria-label="Ansicht">
+    {% for view in views %}
+    <a href="?{{ view.query }}"{% if view.current %} aria-current="page"{% endif %}>{{ view.label }}</a>
+    {% endfor %}
+  </nav>
+</div>

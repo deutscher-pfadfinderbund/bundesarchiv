@@ -113,3 +113,15 @@ def test_the_file_kind_parses_and_an_unknown_one_is_ignored() -> None:
     assert _parse(file=" PDF ").filters.file_kind == FileKind.PDF
     assert _parse(file="exe").filters == SearchFilters()
     assert _parse(file="").filters == SearchFilters()
+
+
+def test_a_query_reads_in_the_lesesaal_unless_the_table_is_asked_for() -> None:
+    assert _parse(q="Lager").reading
+    assert not _parse(q="Lager", view="table").reading
+    # any other value is the rule's default, never an error
+    assert _parse(q="Lager", view="Tabelle").reading
+
+
+def test_without_a_query_the_list_is_the_table() -> None:
+    assert not _parse().reading
+    assert not _parse(q="  ", view="reading").reading

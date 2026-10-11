@@ -1,0 +1,32 @@
+{% comment %}
+Reading list — the Lesesaal: a search's hits as rows to read (reading.Row). Param: rows. A row is
+its title with the Entwurf and Vorlage marks, the why line (where the query matched, its matched
+words in <mark>), the matching pages and the facts line. The why line's runs are plain text, each
+escaped; its loop stays on one line because the whitespace between runs is the field's own.
+{% endcomment %}
+<ol class="reading">
+  {% for row in rows %}
+  <li>
+    <p class="reading-title">
+      <a href="{{ row.href }}">{{ row.title }}</a>
+      {% include "components/mark_lifecycle.html" with draft=row.draft template=row.template only %}
+    </p>
+    {% if row.why %}
+    <p class="reading-why">
+      {{ row.why.label }}:
+      {% for text, marked in row.why.runs %}{% if marked %}<mark>{{ text }}</mark>{% else %}{{ text }}{% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    {% if row.text_hits %}
+    {% include "components/byline_links.html" with label="Im Volltext" links=row.text_hits.pages more=row.text_hits.more only %}
+    {% endif %}
+    {% if row.facts %}
+    <p class="byline quiet">
+      {% for fact in row.facts %}
+      <span>{{ fact }}</span>
+      {% endfor %}
+    </p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>

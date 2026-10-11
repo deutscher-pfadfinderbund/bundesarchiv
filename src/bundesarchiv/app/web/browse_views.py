@@ -16,7 +16,7 @@ from django.urls import reverse
 from bundesarchiv.app import thumbnails
 from bundesarchiv.app.archive import Archive
 from bundesarchiv.app.thumbnails import Size
-from bundesarchiv.app.web import browse, bulk, landing, ledger, vocab
+from bundesarchiv.app.web import browse, bulk, landing, ledger, reading, vocab
 from bundesarchiv.app.web.article_auth import DetailResolution, resolve_visible_detail
 from bundesarchiv.app.web.byline import BylineLink
 from bundesarchiv.app.web.catalog import none_if_blank
@@ -53,12 +53,13 @@ def workbench(request: HttpRequest) -> HttpResponse:
         page_size=browse.PAGE_SIZE,  # explicit: the pager arithmetic reads the same constant
         # the sentence's three slots + the file types of "+ Filter"
         facets=("collection", "decades", "document_type", "file_kind"),
+        headlines=parsed.reading,
     )
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
     # a bare ?selection= is selection mode with nothing ticked (spec §2)
-    selecting = is_archivist and browse.PARAM_SELECTION in request.GET
+    selecting = is_archivist and not parsed.reading and browse.PARAM_SELECTION in request.GET
     selection = [u for u in request.GET.getlist(browse.PARAM_SELECTION) if u] if selecting else []
     context = _results_context(
         request,
@@ -235,7 +236,7 @@ def _resolve_pane(
 
 
 #: ``q`` is the form's own input, and a new search resets ``page``.
-_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
+_FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT, browse.PARAM_VIEW)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
@@ -269,7 +270,19 @@ def _results_context(
         "text": parsed.text or "",
         "filter_params": _form_filters(params),
         "page": page,
-        "ledger": ledger.build(
+        "reading": parsed.reading,
+        "reading_rows": reading.rows(
+            page.hits,
+            filters=parsed.filters,
+            params=params,
+            is_archivist=is_archivist,
+            chooser=chooser,
+        )
+        if parsed.reading
+        else (),
+        "ledger": None
+        if parsed.reading
+        else ledger.build(
             page.hits,
             columns=ledger.chosen(request.COOKIES.get(ledger.COOKIE)),
             parsed=parsed,
@@ -279,6 +292,8 @@ def _results_context(
             selected_ulid=selected_ulid,
             chooser=chooser,
         ),
+        # the view switch, with a query only: without one the list is the table
+        "views": _views(params, reading=parsed.reading) if parsed.text else (),
         "pager": _pager(parsed, page, params, ["", *selection] if selecting else [])
         if total
         else None,
@@ -288,9 +303,26 @@ def _results_context(
         "empty_collection": _only_collection_filter(parsed) if total == 0 else None,
     }
     context.update(_sentence(params, parsed, page, chooser, is_archivist=is_archivist))
-    if is_archivist:
+    if is_archivist and not parsed.reading:
         context.update(_bulk_bar_context(params, page, selecting, selection, chooser))
     return context
+
+
+@dataclass(frozen=True, slots=True)
+class _View:
+    """One entry of the view switch: its word, the query showing the same search in it, and
+    whether it is the view on screen."""
+
+    label: str
+    query: str
+    current: bool
+
+
+def _views(params: Mapping[str, str], *, reading: bool) -> tuple[_View, ...]:
+    return (
+        _View("Lesesaal", browse.view_query(params, table=False), reading),
+        _View("Tabelle", browse.view_query(params, table=True), not reading),
+    )
 
 
 @dataclass(frozen=True, slots=True)

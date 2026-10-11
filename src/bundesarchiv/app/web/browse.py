@@ -27,6 +27,11 @@ PARAM_DRAFTS = "drafts"
 PARAM_TEMPLATES = "templates"
 PARAM_SORT = "sort"
 PARAM_PAGE = "page"
+PARAM_VIEW = "view"
+
+#: The one ``view`` value: the table. A query reads in the Lesesaal unless the table is asked for;
+#: without a query the list is the table (ParsedQuery.reading).
+TABLE = "table"
 
 #: The SEARCH-state query keys — the full set the workbench URL carries as its state. Deliberately
 #: excludes ``article`` (pane selection) and ``selection`` (bulk selection): neither is search state.
@@ -49,6 +54,7 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
         PARAM_TEMPLATES,
         PARAM_SORT,
         PARAM_PAGE,
+        PARAM_VIEW,
     }
 )
 
@@ -72,6 +78,7 @@ class ParsedQuery:
     sort: SortOrder
     descending: bool
     page: int
+    reading: bool = False
 
 
 _SORT_DESC_PREFIX = "-"
@@ -90,8 +97,9 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
     """Parse the raw GET params into a ``ParsedQuery``. Total: every malformed field falls to its
     own default, so a hand-edited / garbage URL yields a sane all-defaults search, never a 500."""
     sort, descending = _parse_sort(params.get(PARAM_SORT))
+    text = _nonempty(params.get(PARAM_Q))
     return ParsedQuery(
-        text=_nonempty(params.get(PARAM_Q)),
+        text=text,
         filters=SearchFilters(
             collection=_nonempty(params.get(PARAM_COLLECTION)),
             media_type=_nonempty(params.get(PARAM_MEDIA_TYPE)),
@@ -111,6 +119,7 @@ def parse_query(params: Mapping[str, str]) -> ParsedQuery:
         sort=sort,
         descending=descending,
         page=_page(params.get(PARAM_PAGE)),
+        reading=text is not None and (params.get(PARAM_VIEW) or "").strip() != TABLE,
     )
 
 
@@ -183,6 +192,16 @@ def without_param(params: Mapping[str, str], key: str) -> str:
     updated = _clean(params)
     updated.pop(key, None)
     updated.pop(PARAM_PAGE, None)
+    return urlencode(updated)
+
+
+def view_query(params: Mapping[str, str], *, table: bool) -> str:
+    """The query string for the same search in the table (``table``) or the Lesesaal. Every other
+    param stays, the page too: both views show the same hits."""
+    updated = _clean(params)
+    updated.pop(PARAM_VIEW, None)
+    if table:
+        updated[PARAM_VIEW] = TABLE
     return urlencode(updated)
 
 

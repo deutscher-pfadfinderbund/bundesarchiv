@@ -1379,6 +1379,89 @@
     color: var(--ink-2);
   }
 
+  /* ---- reading — the Lesesaal (components/reading): one hit per row, read top to bottom: the
+     title as the entry, then meta lines one tier quieter — the why line (its matched words in ink),
+     the matching pages, the facts. Rows part by air, no rule. Knob: --reading-measure. ---- */
+  ol.reading {
+    --_reading-measure: var(--reading-measure, 48rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-inline-size: var(--_reading-measure);
+  }
+  .reading > li {
+    --byline-font: var(--type-meta);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .reading > li > p {
+    margin: 0;
+  }
+  .reading > li + li {
+    margin-block-start: var(--space-6);
+  }
+  .reading-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside a panel or the ledger */
+  .reading-title > a {
+    font: var(--type-entry);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside a panel or the ledger */
+  .reading-title > a:hover {
+    text-decoration: underline;
+  }
+  .reading-why {
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  .reading-why mark {
+    background: none;
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ---- view-switch — the hit count and the two views of one search, "Lesesaal · Tabelle"
+     (components/view_switch): words in the meta type. ---- */
+  .view-switch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+    font: var(--type-meta);
+    color: var(--ink-2);
+  }
+  /* in the list's tool row it holds the start, whatever follows it, and the tool that follows
+     sits as far from it as the switch's own parts sit from each other */
+  [role="toolbar"] > .view-switch {
+    margin-inline-end: auto;
+    padding-inline-end: calc(var(--space-5) - var(--space-2));
+  }
+  .view-switch > nav {
+    display: flex;
+    gap: var(--space-4);
+  }
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside a panel or the ledger */
+  .view-switch a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-compact);
+    color: inherit;
+  }
+  /* the view on screen in ink and without the link's underline; one weight, as every control
+     in a row (law C8) */
+  /* biome-ignore lint/style/noDescendingSpecificity: never inside a panel or the ledger */
+  .view-switch a[aria-current] {
+    color: var(--ink);
+    text-decoration: none;
+  }
+
   /* ---- danger — a context, not a variant (law C2): an action that deletes for good re-points
      --ink to --error while it is about to act. Whatever reads --ink (text, edge, fill) turns
      red; it sets no property itself. ---- */
