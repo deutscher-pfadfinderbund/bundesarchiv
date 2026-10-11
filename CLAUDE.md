@@ -83,4 +83,4 @@ Before reviewing any UI change: render the state gallery (`mise run test:gallery
 
 ### Writer discipline
 
-The standing rules for a writer agent (one writer per task, gates green each commit, TDD with mutation-proof, no heavy mocking, deny = plain 404 revealing/changing nothing, German UI / English dev, comments only for what isn't apparent — cite an ADR rather than restating it, fixup+fold within your own wave, simplify your own code, report before idle). See `docs/agents/writer-brief.md`.
+The standing rules for a writer agent (one writer per task, gates green each commit, TDD with mutation-proof, functional core, imperative shell (tests never patch our own code), deny = plain 404 revealing/changing nothing, German UI / English dev, comments only for what isn't apparent — cite an ADR rather than restating it, fixup+fold within your own wave, simplify your own code, report before idle). See `docs/agents/writer-brief.md`.

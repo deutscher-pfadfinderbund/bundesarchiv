@@ -6,7 +6,7 @@ brief) — the mailbox is not the source of truth. Its sibling is
 `design-gate-brief.md` (what a UI review runs); this is how the code gets built.
 
 **What to read.** Always: "Gates green", "TDD", "An unexpected red is a STOP", "One owner per
-decision", "The deny contract",
+decision", "Functional core, imperative shell", "The deny contract",
 "Comment discipline", "Clean history", "Report before you idle". The other sections only when your
 task touches their subject (CSS, templates, serialization, map rows, screenshots). Your task brief
 names the sections of other docs to read; read those, not the whole files.
@@ -186,13 +186,33 @@ with its own copy of the rule. A drift test pinning two copies equal needs a
 stated reason why an owning interface is not the fix, and a `docs/tech-debt.md` entry for the copy.
 The one standing exception is a fact that must exist in two encodings (Python and SQL scope, ADR 0012).
 
-## No heavy mocking
+## Functional core, imperative shell (owner, 2026-10-11)
 
-Exercise the real code path, not mocks of the unit under test. The web subtree
-stubs exactly two genuine external boundaries (the Postgres index write and the
-worker enqueue, via the autouse conftest fixture) and nothing else — the
-canonical write + CAS path stays real. Distrust a test that mostly asserts
-against its own mocks.
+Pure functions wherever possible; I/O only in a shell. The line is I/O: reading the store or the
+DB, writing rows, enqueueing, the clock, logging. Parsing bytes (PDF text) is pure.
+
+- **The core** takes plain values (bytes, an `Article`, a set of hashes), never a handle, and
+  returns plain values: rows to store, jobs to enqueue, a closed union of outcomes. Each shell calls
+  its effects directly: no effect library, no generic interpreter.
+- **A log line someone acts on** (an alarm, an operator warning) is an outcome the core returns;
+  the shell logs it, the test asserts the value. Diagnostic logging is allowed anywhere.
+- **Resources come in as arguments.** A shell takes the `Archive`; only an edge (a task, a
+  management command, a view) builds it, in one line (`Archive.canonical()`), and an edge gets no
+  test of its own. Postgres (the ORM) and the queue (Procrastinate's `app`) stay framework globals.
+  `Archive` holds the canonical archive only; a new resource is its own argument.
+- **A function does the one act its name says**: an "extract" does not also store.
+
+Example, `app/media_text.py`: `unread(media, done)` names the files still to read;
+`parse(data, content_hash)` returns `Pages | Unreadable | HashMismatch`; `fill(archive, ulid)`
+loads, reads, calls both, writes the rows and logs the mismatch. Likewise `articles.derived_jobs`
+returns the jobs and `_enqueue_derived` enqueues them.
+
+**Tests never patch our own code.** A core is tested on its returned value, a shell over
+`Archive.of(InMemoryObjectStore())` and the real ORM, the queue through Procrastinate's in-memory
+connector (`tests/_queue.py`). `monkeypatch` stays only at true externals a test cannot run: the
+clock, a remote service, a simulated crash. Existing patches of our code (the web suite's autouse
+index and enqueue stubs among them) go when their module is touched (`docs/tech-debt.md` #55).
+Distrust a test that mostly asserts against its own mocks.
 
 ## The deny contract
 

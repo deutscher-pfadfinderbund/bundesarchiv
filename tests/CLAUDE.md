@@ -35,6 +35,9 @@ in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 - **Hand-rolled DB gating** (a connection probe, a `skipif`, a manual
   `requires_pg`) — `tests/conftest.py` derives the marker from each test's
   fixture closure. Mark by hand only for DB use that closure cannot see.
+- **A patch of our own code** (`monkeypatch.setattr` on a `bundesarchiv` name). Assert a core's
+  returned value; run a shell over `Archive.of(InMemoryObjectStore())`. Only true externals are
+  patched: `docs/agents/writer-brief.md`, "Functional core, imperative shell".
 - **A second proof of a fact already pinned elsewhere.** One proof per fact, at
   the layer closest to the user (the `de_numeric` collation was once pinned in
   four files).

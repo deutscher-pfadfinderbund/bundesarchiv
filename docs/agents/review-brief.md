@@ -25,7 +25,8 @@ Read `docs/tech-debt.md` (open entries) and the open GitHub issues
 5. **Distrust wholesale monkeypatching.** A test that stubs the unit under
    review does not exercise it (the #20 client leak sat behind a
    `mirror_store` monkeypatch). Check what a test actually runs before citing
-   it as coverage.
+   it as coverage. A new patch of our own code is a finding (writer-brief,
+   "Functional core, imperative shell").
 6. **Propose a pin for repeating defect classes — but only inside the testing
    razor** (domain-relevant / data-loss / data-leak; see the do-not-write
    list in `tests/CLAUDE.md`). House idiom:
