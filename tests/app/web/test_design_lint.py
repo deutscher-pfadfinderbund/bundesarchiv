@@ -34,6 +34,8 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
+import pytest
+
 from bundesarchiv.app.web import components_demo
 
 STATIC = Path(__file__).resolve().parents[3] / "src" / "bundesarchiv" / "app" / "web" / "static"
@@ -512,10 +514,11 @@ def _compounds(complex_selector: str) -> list[str]:
 
 
 def _combinators(complex_selector: str) -> list[str]:
-    """The combinator after each compound but the last: " ", ">", "+" or "~"."""
+    """The combinator after each compound but the last: " ", ">", "+" or "~". A relative
+    selector's leading combinator (`:has(> x)`) follows no compound, so it is not one of them."""
     found: list[str] = []
     depth, pending = 0, None
-    for char in complex_selector.strip():
+    for char in complex_selector.strip(" >+~"):
         depth += (char in "([") - (char in ")]")
         if depth == 0 and char in " >+~":
             pending = char if pending in (None, " ") else pending
@@ -578,6 +581,17 @@ def _reach(complex_selector: str, own: tuple[str, ...], foreign: tuple[str, ...]
     if "past" in nested:
         return "past"
     return "root" if _names_root(compounds[-1], foreign) else None
+
+
+@pytest.mark.parametrize(
+    ("selector", "reach"),
+    [
+        (".pairs:has(> .remove)", None),
+        (".pairs:has(+ .field > span)", "past"),
+    ],
+)
+def test_a_relative_selector_reaches_from_its_anchor(selector: str, reach: str | None) -> None:
+    assert _reach(selector, (".pairs",), (".remove", ".field")) == reach
 
 
 #: What a rule outside a component's own section may set on it (law C1): where it sits and the
