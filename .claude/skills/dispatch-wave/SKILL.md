@@ -34,6 +34,11 @@ The architect thinks in modules and interfaces; writers implement one module eac
   them). Otherwise the writer spends turns working out fixup collisions (FTSFIX, 2026-10-11).
 - A brief asking for map rows names the 220-character row budget; writers otherwise learn it from a
   red check.
+- Review findings handed to a writer come grouped per file, each with its line and the covering
+  test's line; a flat list makes the writer regroup and look lines up by hand.
+- Cuts of leak, deny or access tests never ride in a general deletion brief: the auto-mode classifier
+  stops the batch halfway. They get their own dispatch, after the owner approves each cut (and the
+  2026-09-29 ruling keeps redundant ones, `tests/CLAUDE.md`).
 - A brief that asks for fixups on a signature change whose callers sit in several stack commits:
   expect a core fixup plus a plain signature commit (no fixup can be green alone; the structure gate
   refuses a shim). Say so in the brief (PILOT, 2026-10-11).
