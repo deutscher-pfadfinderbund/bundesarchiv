@@ -28,6 +28,7 @@ the same guarded ``django_db_setup``.
 
 import os
 import re
+import sys
 from pathlib import Path
 from typing import cast
 
@@ -140,11 +141,14 @@ def django_db_setup(_pg_guard: None, django_db_setup: None) -> None:
 
 class _MissingVariable(str):
     def __mod__(self, name: object) -> str:
-        raise NameError(f"template variable missing: {name}")
+        # Django formats this inside FilterExpression.resolve, whose ``context`` knows the template
+        # being rendered — the include, not its host.
+        template = sys._getframe(1).f_locals["context"].render_context.template
+        raise NameError(f"template variable missing: {name} (in {template.origin.template_name})")
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Every suite renders templates strictly: a missing ``{{ var }}`` raises, naming it.
+    """Every suite renders templates strictly: a missing ``{{ var }}`` raises, naming it and its template.
 
     Prod and dev keep Django's lenient empty string. A value that is optional by design says so
     with ``{% firstof var %}``; a ``|default`` filter does not escape this, ``{% if %}`` does.

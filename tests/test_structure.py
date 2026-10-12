@@ -137,4 +137,9 @@ def _unreferenced() -> set[str]:
 
 
 def test_no_public_name_is_unreferenced() -> None:
-    _assert_matches(_unreferenced(), set(UNREFERENCED), "unreferenced public names")
+    _assert_matches(
+        _unreferenced(),
+        set(UNREFERENCED),
+        "unreferenced public names (a _ prefix exempts a module-private name; "
+        "a name only Django or a test reaches goes in UNREFERENCED with its reason)",
+    )

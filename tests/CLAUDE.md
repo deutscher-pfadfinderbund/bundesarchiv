@@ -48,8 +48,8 @@ governs new tests only.
 
 ## Strict templates
 
-Under every suite a missing `{{ var }}` raises, naming the variable (`tests/conftest.py`), and so
-does a filter on it, `|default` included. A value that is optional by design uses
+Under every suite a missing `{{ var }}` raises, naming the variable and its template
+(`tests/conftest.py`), and so does a filter on it, `|default` included. A value that is optional by design uses
 `{% firstof var %}` or `{% if var %}`; everything else is passed explicitly.
 
 ## The deny contract
