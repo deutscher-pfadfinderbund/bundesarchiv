@@ -57,6 +57,18 @@ exit 1
 description = "Dev server on :8000"
 run = "DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev uv run manage.py runserver"
 
+[tasks."dev:legacy"]
+description = "Dev server on :8000 over the imported legacy archive (rebuilds the index first)"
+depends = ["pg:wait"]
+# The search index is one table for every root, so it is rebuilt from the legacy tree on each start.
+# `manage.py rebuild_index` without the env var hands it back to the dev archive (README).
+env = { BUNDESARCHIV_CANONICAL_ROOT = "var/legacy/canonical", DJANGO_SETTINGS_MODULE = "bundesarchiv.index.settings_dev" }
+run = [
+  "uv run manage.py rebuild_index",
+  "uv run manage.py rebuild_thumbnails",
+  "uv run manage.py runserver",
+]
+
 # Test suites. The DB-backed ones share one test database per checkout (tests/conftest.py) — within
 # a checkout run them sequentially, never in parallel.
 
