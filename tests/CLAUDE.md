@@ -7,6 +7,10 @@ Extensive coverage ONLY where a defect is (a) domain-relevant, (b) data loss, or
 `docs/requirements/owner-interview-2026-08.md`; the full audit that applied it is
 in git history (`docs/plans/test-audit-2026-08.md`, removed after execution).
 
+Leak, deny, access and floor tests stay even when another test overshadows them (owner ruling,
+2026-09-29), the index leak suites included. Do not cut them as redundant; "Do not write" below
+governs new tests only.
+
 ## Do not write
 
 - **Dataclass/framework/library-mechanics tests** (frozen raises, equality of
