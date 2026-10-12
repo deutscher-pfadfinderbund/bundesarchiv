@@ -31,3 +31,11 @@ probe.env
 /canonical/
 /thumbnails/
 /pgdata/
+
+# impeccable's local state: critiques, live sessions, question logs, PRODUCT.md.
+# config.json (lint ignores) and design.json (the DESIGN.md sidecar) stay shared.
+# .worktreeinclude copies PRODUCT.md into agent worktrees.
+.impeccable/*
+!.impeccable/config.json
+!.impeccable/design.json
+/PRODUCT.md
