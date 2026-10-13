@@ -10,7 +10,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import BinaryIO
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps  # noqa: TID251
 
 from bundesarchiv.app import pdf
 from bundesarchiv.domain.models import MediaRef, Ulid

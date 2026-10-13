@@ -6,7 +6,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db.models import Count
-from procrastinate.contrib.django.models import ProcrastinateJob
+from procrastinate.contrib.django.models import ProcrastinateJob  # noqa: TID251
 
 from bundesarchiv.app import thumbnails
 from bundesarchiv.index.indexer import mime_type

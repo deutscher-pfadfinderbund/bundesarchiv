@@ -5,21 +5,23 @@
 biome = "2.5.15"
 
 [tasks.check]
-description = "Fast commit check (no Postgres)"
+description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, biome, pytest"
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
+  "uv run lint-imports",
   "uv run pyrefly check src tests scripts --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run pytest -m \"not requires_pg\"",
 ]
 
 [tasks.gate]
-description = "Full gate: ruff, format, pyrefly, biome, mypy, pytest"
+description = "Full gate: ruff, format, import contracts, pyrefly, biome, mypy, pytest"
 depends = ["pg:wait"]
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
+  "uv run lint-imports",
   "uv run pyrefly check src tests scripts --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run mypy",
@@ -136,3 +138,21 @@ run = "uv run pytest -m gallery -s -n 4"
 description = "Pixel-diff the gallery: a git ref (default main) vs the working tree. -- REF"
 depends = ["pg:wait", "e2e:browsers"]
 run = "uv run python scripts/gallery_diff.py"
+
+# Code-quality clues (scripts/quality/): the reports always exit 0; only comments-only gates.
+
+[tasks."quality:comments-only"]
+description = "Gate: exit 1 unless BASE..HEAD changes only comments and docstrings. -- BASE [HEAD]"
+run = "uv run python -m scripts.quality.comments_only"
+
+[tasks."quality:comments"]
+description = "Report: comment blocks and docstrings ranked by smell flags. -- [--top N] [--json]"
+run = "uv run python -m scripts.quality.comments"
+
+[tasks."quality:churn"]
+description = "Report: function churn per session, hotspots, stale-docstring risk, change coupling. -- [--under PREFIX] [--top N] [--json]"
+run = "uv run python -m scripts.quality.churn"
+
+[tasks."quality:indicators"]
+description = "Report: pass-throughs, data clumps, repeated conditions and literals, argument mutation, module depth. -- [--top N] [--json]"
+run = "uv run python -m scripts.quality.indicators"

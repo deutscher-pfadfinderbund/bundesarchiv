@@ -17,7 +17,7 @@ from typing import Any, BinaryIO
 from urllib.parse import quote, unquote, urlsplit
 from xml.etree import ElementTree
 
-import httpx2
+import httpx2  # noqa: TID251
 
 from bundesarchiv.persistence.errors import AlreadyExists, ArchiveError, Busy, NotFound
 from bundesarchiv.persistence.objectstore import (

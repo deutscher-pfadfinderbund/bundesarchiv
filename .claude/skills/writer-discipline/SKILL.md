@@ -89,7 +89,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - A comment says only what the code at that spot cannot: an exception, a non-obvious constraint, a value someone would otherwise "fix".
 - Narration, restated law and history are defects — git holds the history, the law, ADRs and requirements hold the decisions; deleting code does not license a comment about the deletion.
 - A decision gets a pointer, never a paraphrase (`law C8`, `register row 9`, `ADR 0015`), once, where a reader needs it; a "why it is right" belongs in the law, cited here.
-- Before keeping a comment, delete it and re-read the code: if only your confidence is gone it was noise; if a future writer could now break something, keep it at one line.
+- Before keeping a comment, delete it and re-read the code: if only your confidence is gone it was noise; if a future writer could now break something, keep it at one line. Run that test per clause, not per comment, and again after every cut: one cut does not finish a comment.
 - Test docstrings name the contract under test, never the assertions; if the test name says it, write nothing.
 - Never advertise a gate that does not exist: when a planned test is dropped, grep for comments promising it.
 - A comment may not deform the code: if a trailing comment splits a one-line call across three, move it above or drop it.
@@ -104,7 +104,7 @@ Example, `app/media_text.py`: the core `readable(media)` (the files text is read
 - Trim noisy hook output with `| tail` under `set -o pipefail` (a pipe returns `tail`'s status), or confirm with `git log -1` that the commit landed; the baseline is what the ledger records — never let it drop.
 - A module created, renamed or deleted, or its interface changed, updates its row in `src/bundesarchiv/<pkg>/CLAUDE.md` (and `MODULES.md` when a name appears or vanishes) in the same commit, within 220 characters; an implementation-only change touches no map (`update-module-map` skill, `tests/test_module_map.py`).
 - A ruling that changes standing law (a testing rule, the deny shape, a workflow) updates `.claude/agents/`, `.claude/skills/`, `CLAUDE.md` and `tests/CLAUDE.md` in the same wave, because a contradicting definition regenerates the old behavior.
-- Wave-internal fixes land as `git commit --fixup <sha>` and fold at wave end with `GIT_SEQUENCE_EDITOR=: git rebase --autosquash <wave-base>`, strictly over your own unaccepted commits.
+- Wave-internal fixes land as `git commit --fixup <sha>` and fold at wave end with `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <wave-base>` (without `-i`, git before 2.44 folds nothing yet reports success), strictly over your own unaccepted commits.
 - Never rebase a commit you did not create in this wave or one already accepted; no flip-flops in the log; no push, `reset --hard`, `clean` or `branch -D` (a hook blocks them).
 
 ## Before you report

@@ -4,8 +4,8 @@ backend (poppler, MuPDF, a service) replaces this module and nothing else."""
 from contextlib import closing
 from typing import BinaryIO
 
-import pypdfium2 as pdfium
-from PIL import Image
+import pypdfium2 as pdfium  # noqa: TID251
+from PIL import Image  # noqa: TID251
 
 #: PDFium's mark for a hyphen it found at a line end; the word continues on the next line.
 _LINE_END_HYPHEN = "\ufffe"
