@@ -80,7 +80,6 @@ def test_empty_custom_is_omitted_from_the_wire() -> None:
 
 
 def test_inherit_audience_omits_the_key_and_round_trips_as_none() -> None:
-    # `audience=None` is inherit (ADR 0001).
     article = _article(audience=None)
     text = readme.encode(article, 1, _CHANGE)
     assert "audience:" not in text
@@ -400,8 +399,7 @@ def test_media_entry_omits_empty_media_type_and_byte_size() -> None:
 
 
 def test_old_style_readme_with_explicit_nulls_loads_identically() -> None:
-    # ADR 0015 compat: an explicit-null README decodes like the omit-empty style, so no README needs
-    # migrating.
+    # ADR 0015 compat: old READMEs load without migration.
     old_style = (
         "<!-- Managed by bundesarchiv — do not edit by hand. -->\n"
         "---\n"

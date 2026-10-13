@@ -1,13 +1,9 @@
-"""One in-process WebDAV server (wsgidav on cheroot) per session; each test gets its own
-collection on it.
-
-The server is brought up to the backend semantics the adapter relies on
+"""The in-process WebDAV server is brought up to the backend semantics the adapter relies on
 (`docs/nextcloud-webdav-notes.md`), so a green run means the adapter maps them right, not
 that wsgidav is lenient: a `PUT` places a file in one rename, as measured on Nextcloud
 (stock wsgidav writes in place, and first puts an empty file at a new key), and requests
 that change the tree run one at a time, so a `PUT` with `If-None-Match: *` is atomic (stock
-wsgidav checks it and writes without a lock, so two creates could both win). Whether a real
-server gives the same is what the live run checks.
+wsgidav checks it and writes without a lock, so two creates could both win).
 
 `live_dav_store` points the same conformance suite at a real WebDAV server
 (`docs/nextcloud-webdav-notes.md`, "Probes").
@@ -141,7 +137,6 @@ def webdav_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
 
 @pytest.fixture
 def webdav_root(webdav_server: str) -> str:
-    """A fresh, isolated collection on the shared server for one test; returns its URL."""
     base = f"{webdav_server}{uuid.uuid4().hex}/"
     with httpx2.Client(timeout=10) as setup:
         setup.request("MKCOL", base).raise_for_status()
