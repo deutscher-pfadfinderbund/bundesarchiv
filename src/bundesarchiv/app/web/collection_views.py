@@ -1,19 +1,6 @@
-"""Bestand (Collection) management views (Part 4.8 SLIM): create + rename.
-
-Two archivist-only routes, both methods gated to the plain 404 (existence-hiding, no oracle):
-
-- ``/collections/new`` (create): Name + Eltern-Bestand + Sichtbarkeit. Audience-at-creation is SAFE — a
-  fresh collection is empty, so no over-exposure is possible. Reuses the 4.7 form grammar wholesale
-  (the c-form group, the Sichtbarkeit select + GROUPS-iff parse, verbatim German error strings,
-  ""→None, autofocus on Name).
-- ``/collections/<ulid>/edit`` (rename): Name ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY
-  display rows with one hint — moving + changing visibility are deferred (the parked pile), because
-  they can move descendants' visibility and need the over-exposure machinery a rename does not.
-
-The Sichtbarkeit option vocabulary + the GROUPS-iff audience parse are the SAME single source the 4.7
-article form uses (``vocab.AUDIENCE_OPTIONS`` / ``catalog.parse_audience``) — the
-GROUPS-iff invariant is security-critical, so it is reused verbatim, never re-implemented.
-"""
+"""Bestand create and rename, archivist-only. A create may set Sichtbarkeit (an empty Bestand exposes
+nothing); a rename changes the Name only, since moving or re-scoping a Bestand needs the
+over-exposure gate."""
 
 from dataclasses import replace
 
@@ -55,11 +42,8 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 
 def collection_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /collections/new`` — create a Bestand. Archivist-only (non-archivist → the byte-identical
-    404, both methods). A POST naming no Sichtbarkeit choice (``audience_choice``) is the 404 too:
-    a create has no stored audience to keep. POST validates (Name required; parent must be the top-level option or a real
-    collection; GROUPS-iff), creates, and 302s to the workbench filtered to the new Bestand; a
-    validation failure re-renders with the verbatim error + preserved values."""
+    """``GET/POST /collections/new`` — create a Bestand, then open the create-article form with it
+    preselected. A POST without a Sichtbarkeit choice is the 404."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
         return not_found()
@@ -83,8 +67,6 @@ def collection_create(request: HttpRequest) -> HttpResponseBase:
                 parent_id=parent_id or None,
                 audience=audience,
             )
-            # Land on the create-article form with the new Bestand PRE-SELECTED + a success hinweis
-            # (create→catalog is one flow, design-gate blocker 2).
             return redirect_to(request, landing.created_collection_url(result.ulid))
         rows = collection_rows(chooser, name, parent_id, choice, groups_text, errors)
         if is_partial(request):
@@ -106,10 +88,8 @@ def _create_errors(
     chooser: CollectionChooser,
     audience_error: str | None,
 ) -> FormErrors:
-    """The create-Bestand validations (verbatim German). Name required; a non-empty parent must be a
-    Bestand the chooser accepts; the GROUPS-iff audience error (if any) rides the Sichtbarkeit field.
-    An empty parent is the valid top-level choice, so it is the ONE value skipping the check — and it
-    earns its own wording, since "kein Eltern-Bestand" is not the article form's missing Bestand."""
+    """The create form's errors. An empty parent is valid (top level), so only a non-empty one is
+    checked, with its own wording."""
     errors: FormErrors = {}
     if not name:
         errors["name"] = "Name ist erforderlich."
@@ -124,12 +104,8 @@ def _create_errors(
 
 
 def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /collections/<ulid>/edit`` — rename a Bestand. SLIM: the Name field ONLY; parent
-    + Sichtbarkeit render READ-ONLY (moving + visibility changes are deferred — they move descendants'
-    visibility and need machinery a rename does not). Archivist-only; a non-archivist, malformed, or
-    absent ulid all collapse to the plain 404. POST saves against the form's
-    ``expected_version`` (ADR 0013) and returns to the list scoped to it; a blank Name re-renders
-    with the verbatim error, unchanged."""
+    """``GET/POST /collections/<ulid>/edit`` — rename a Bestand against the form's
+    ``expected_version`` (ADR 0013), then return to the list scoped to it."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return not_found()
@@ -147,7 +123,7 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                     chooser, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
             )
-        # rename ONLY: keep parent_id + audience exactly as stored (this slice never changes them).
+        # rename only: parent and audience stay as stored
         try:
             save_collection(
                 archive,
@@ -197,10 +173,8 @@ def _render_edit(
 def _load_gated_collection(
     request: HttpRequest, ulid: str
 ) -> tuple[Archive, StoredCollection, Archivist] | None:
-    """The shared gate for the rename route: archivist-only, validate the ulid in-view, load the
-    Collection — returning ``(archive, stored, archivist)`` ONLY if all pass, else ``None`` (the
-    caller maps ``None`` to the plain 404). A non-archivist, a malformed ulid, and an
-    absent/unreadable collection all collapse to the SAME ``None`` (existence-hiding)."""
+    """The archivist and the stored Bestand at ``ulid``, or ``None`` — not an archivist, malformed
+    and absent look alike."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None

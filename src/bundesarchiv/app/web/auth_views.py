@@ -2,12 +2,8 @@
 
 The three routes that turn a Keycloak login into the two token cookies ``viewer_of`` resolves — no
 Django sessions, no user model; the server stores no token. There is no login PAGE and no
-Abmelden landing page (owner, 2026-08-29): ``/login`` IS the redirect to Keycloak, and a logout
-lands back on the workbench as an anonymous visitor.
-
-Everything that touches the realm goes through the ``keycloak`` seams imported here as module
-names — the suite fakes them in place (the web subtree's boundary-stub pattern) and everything else
-in this module runs for real.
+Abmelden landing page: ``/login`` IS the redirect to Keycloak, and a logout lands back on the
+workbench as an anonymous visitor.
 
 Fail-closed, in the shape the rest of the surface uses: a missing signing key, an unreachable realm,
 a callback nobody's ``/login`` started, a token exchange that failed — all the shared 404. Two
@@ -48,7 +44,6 @@ _STATE_MAX_AGE = 10 * 60
 #: 32 bytes of entropy each for ``state`` (CSRF binding) and ``nonce`` (ID-token replay binding).
 _TOKEN_BYTES = 32
 
-#: Where a login lands when it carries no usable ``?next=``.
 _DEFAULT_NEXT = "/"
 
 
@@ -81,9 +76,8 @@ def _callback_uri(request: HttpRequest) -> str:
 
 
 def login(request: HttpRequest) -> HttpResponse:
-    """``GET /login`` — start the code flow: mint a state/nonce pair, remember them (with the
-    landing path) in the transient cookie, and hand the browser to Keycloak. Also the target the
-    anonymous gate redirects to, hence the ``?next=``."""
+    """``GET /login?next=`` — start the code flow and hand the browser to Keycloak; ``next`` is
+    where the login lands."""
     key = settings.VIEWER_SIGNING_KEY
     if request.method != "GET" or not key:
         return not_found()
@@ -173,6 +167,5 @@ def logout(request: HttpRequest) -> HttpResponse:
 
 
 def login_redirect(next_path: str) -> str:
-    """The ``/login?next=…`` URL that sends a visitor through the login and back to ``next_path``.
-    Here rather than in the caller, so the query parameter's name is known in ONE module."""
+    """The ``/login?next=…`` URL that sends a visitor through the login and back to ``next_path``."""
     return f"{reverse('login')}?{urlencode({'next': next_path})}"

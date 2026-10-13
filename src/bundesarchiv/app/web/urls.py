@@ -1,12 +1,5 @@
-"""Production ROOT_URLCONF (Part 4.3) — the prod-minimal HTTP surface.
-
-Production settings set ``ROOT_URLCONF = "bundesarchiv.app.web.urls"``: the app's whole HTTP
-surface. ``settings_dev`` composes this module WITH the dev viewer switcher (see ``dev_urls``), so
-dev gets both.
-
-The public URL namespace never encodes filesystem paths (plan §4.3): media is addressed by
-``/media/<article-ulid>/<content-hash>`` and the store-relative blob path is derived inside the seam.
-"""
+"""The app's whole HTTP surface (production ROOT_URLCONF; ``dev_urls`` adds the dev routes). Media is
+addressed by ulid and content hash, never by a store path."""
 
 from django.urls import URLPattern, path
 
@@ -35,21 +28,13 @@ from bundesarchiv.app.web.start import start
 
 handler404 = page_not_found
 
-#: ``<str:...>`` (not a stricter converter): the view validates the ulid via ``is_valid_ulid`` and
-#: the hash shape itself, mapping any malformed value to the SAME plain 404 — a route-level
-#: converter that 404'd on shape would be a distinguishable failure mode (a different 404 body), so
-#: validation stays in the view where every reject collapses to one shape.
-#:
-#: ``article-create`` is registered BEFORE ``article-detail`` so the literal ``new`` path wins over the
-#: ``<str:ulid>`` capture (``new`` is not a valid ULID anyway, but ordering makes intent explicit).
+#: Literal paths (``articles/new``) precede the ``<str:ulid>`` captures, which would swallow them.
 urlpatterns = [
     path("", start, name="start"),
     path("articles", workbench, name="workbench"),
     path("columns", choose_columns, name="columns"),
     path("trash", trash, name="trash"),
-    # The login surface (ADR 0018). English paths: these are protocol endpoints, not UI — the
-    # callback path is registered in the realm client, and /login is what the anonymous gate points
-    # at. They are the routes the gate exempts, so they must stay reachable to an anonymous visitor.
+    # ADR 0018. The callback path is registered in the realm client: renaming it breaks login.
     path("login", login, name="login"),
     path("oidc/callback", oidc_callback, name="oidc-callback"),
     path("logout", logout, name="logout"),
@@ -66,7 +51,6 @@ urlpatterns = [
     path("articles/<str:ulid>/edit", article_edit, name="article-edit"),
     path("articles/<str:ulid>/copy", article_copy, name="article-copy"),
     path("articles/<str:ulid>/delete", article_delete, name="article-delete"),
-    # English paths: owner-interview-2026-08.md, "Ruling of 2026-10-01 (URLs)".
     path(
         "articles/<str:ulid>/delete-permanently",
         article_delete_permanently,
@@ -128,10 +112,8 @@ _OLD_SEGMENTS = {
 
 
 def _alias(route: URLPattern) -> URLPattern:
-    """The old German path of ``route``, under the distinct name ``alias-<name>``. Names are the
-    reverse() key (templates and ``redirect_to`` use them), so the aliases must not share them:
-    Django's ``reverse`` tries the LAST-registered pattern of a shared name first, which would hand
-    out the German path. Distinct names make the English path the only one ``reverse`` can yield."""
+    """The old German path of ``route``, named ``alias-<name>``: with a shared name ``reverse`` would
+    prefer the later-registered German path."""
     old = "/".join(_OLD_SEGMENTS.get(part, part) for part in str(route.pattern).split("/"))
     return path(old, route.callback, name=f"alias-{route.name}")
 

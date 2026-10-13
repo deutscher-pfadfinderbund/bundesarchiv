@@ -1,31 +1,5 @@
-"""The bulk-edit (Sammelbearbeitung) core: field allowlist, per-article application, and the CAS
-loop's write-time guards (spec §0/§1/§3/§4).
-
-Two layers, split so the leak-sensitive rules are pure and unit-testable and the apply loop is a thin
-shell over the real ``update_article`` service:
-
-- ``ALLOWED_FIELDS`` / ``is_allowed_field`` — the fixed 9-field allowlist (spec §1). ``audience``,
-  ``lifecycle``, ``audience`` are deliberately ABSENT (visibility changes must pass the per-item
-  over-exposure gate, spec §0.7); an unknown ``field`` mutates nothing.
-- ``apply_field`` — apply one allowed field to one Article, pure: ``"" → None`` for scalars; a
-  custom-bag key upserts (or removes on empty); setting ``media_type`` clears a now-orphaned
-  ``document_type`` (spec §3). Custom writes rebuild through the Article constructor so the domain's
-  sort/dedupe/reserved-key guard is the single rule (no second copy).
-- ``field_picker_context`` — the Feld chooser's render context, every part of it derived from ``FIELDS``
-  (options, the ``data-bulk-value`` tokens). The workbench drawer and the confirm page's error mode
-  render ONE partial from it, so a new field reaches both surfaces at once.
-- ``document_type_fits_all`` — Dokumenttyp-alone is validated against EVERY article's CURRENT
-  media_type before any write; one mismatch rejects the whole apply (all-or-nothing, fail-closed).
-- ``apply_bulk`` — per selected ulid independently, through ``app.articles.update_article`` with NO
-  retries: bulk never carries a stale version (the archivist never opened these records), so the
-  service's fresh load IS the apply-time version, but a field overwrite is not idempotent-safe, so a
-  lost race must reach the human rather than be re-applied to the winner. A ``document_type`` apply
-  re-checks ``vocab.is_valid_pair`` against the FRESHLY-LOADED media_type (the confirm page validated
-  a possibly-stale one; a mismatch here is a concurrent modification, not a rules bug) and refuses.
-  That refusal, a lost race, and any other ``ArchiveError`` the save raises all bucket ``conflicted``;
-  an article the service cannot load buckets ``missing``. The loop NEVER aborts early; every attempted
-  ulid lands in exactly one bucket (``saved + conflicted + missing == distinct selection``).
-"""
+"""Bulk edit (Sammelbearbeitung): the field allowlist (``FIELDS``), the pure per-article apply, and
+the no-retry apply loop. Visibility fields are never bulk-editable (spec §0.7)."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -41,11 +15,8 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 @dataclass(frozen=True, slots=True)
 class BulkField:
-    """One bulk-editable field's metadata — the SINGLE source everything else derives from, so the
-    allowlist, the German label, the drawer widget, and the POST value-input name can never drift
-    apart (spec §1). ``value_input`` is the form field the drawer posts the value under (the no-JS
-    drawer renders every widget; the server reads the one matching the chosen field). ``is_custom``
-    routes writes through the custom bag."""
+    """One bulk-editable field. ``value_input`` is the form field its value is posted under;
+    ``is_custom`` writes through the custom bag."""
 
     target: str
     label: str
@@ -54,10 +25,8 @@ class BulkField:
     is_custom: bool
 
 
-#: The 9 bulk-editable fields in spec §1 order — the ONE source of truth. audience / lifecycle /
-#: audience are deliberately absent (visibility must pass the per-item over-exposure gate, §0.7).
-#: The plain scalars + custom keys share the one text widget (value_text); the three selects have
-#: their own. Everything below (ALLOWED_FIELDS, labels, options, value-input map) derives from this.
+#: The bulk-editable fields in spec §1 order; everything below derives from this. No visibility
+#: field (spec §0.7).
 FIELDS: tuple[BulkField, ...] = (
     BulkField("physical_location", "Standort", "Standorte", "value_text", False),
     BulkField("creator", "Autor", "Autoren", "value_text", False),
@@ -72,12 +41,9 @@ FIELDS: tuple[BulkField, ...] = (
 
 _BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
 
-#: The full 9-field allowlist, derived from FIELDS. An unknown ``field`` is refused, ZERO mutation
-#: (spec §6.3).
+#: An unknown ``field`` is refused before anything is written (spec §6.3).
 ALLOWED_FIELDS: frozenset[str] = frozenset(_BY_TARGET)
 
-#: The custom-bag targets (written through the Article constructor so the reserved-key guard +
-#: sort/dedupe stay the domain's rule), derived from FIELDS.
 _CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_custom)
 
 
@@ -99,10 +65,8 @@ _WIDGET_TARGETS: dict[str, str] = {
 def field_picker_context(
     chooser: CollectionChooser, *, field: str = "", value: str = ""
 ) -> dict[str, object]:
-    """The whole Feld-chooser context behind ``workbench/_field_picker.html`` (spec §2 C) — ONE builder
-    for the workbench bulk bar and the confirm page's error mode, so the two renders cannot drift.
-    ``field``/``value`` are the submitted pair to re-echo verbatim (empty for a fresh chooser);
-    ``chooser`` supplies the Collection widget's options."""
+    """The context of ``workbench/_field_picker.html``; ``field``/``value`` re-echo a submitted
+    pair."""
     return {
         "field_picker_field": field,
         "field_picker_value": value,
@@ -134,22 +98,19 @@ def value_input_of(field: str) -> str:
 
 
 def is_allowed_field(field: str) -> bool:
-    """Whether ``field`` may be bulk-edited (spec §0.7/§6.3). The allowlist is the ONLY gate — a value
-    like ``lifecycle`` / ``audience`` / ``ulid`` / ``__class__`` is refused, mutating nothing."""
+    """Whether ``field`` may be bulk-edited — the only gate (spec §6.3)."""
     return field in ALLOWED_FIELDS
 
 
 def apply_field(article: Article, field: str, value: str) -> Article:
-    """Return ``article`` with the one allowed ``field`` set to ``value`` (pure — the frozen source is
-    untouched). Scalars empty to ``None`` (``"" → None``); a custom-bag key upserts, or is removed on
-    empty; setting ``media_type`` clears an orphaned ``document_type`` (spec §3). Caller must have
-    checked ``is_allowed_field`` first."""
+    """``article`` with ``field`` set to ``value``; empty clears, except the required Bestand; a new
+    media_type drops a document_type it no longer admits (spec §3). ``field`` must pass
+    ``is_allowed_field``."""
     if field in _CUSTOM_FIELDS:
         return _apply_custom(article, field, value)
     cleaned = value.strip() or None
-    # Explicit per-field replace (not a **dict splat) so each write is statically typed — the same
-    # discipline project() uses; a dynamic splat into replace() type-checks as Any and would let a
-    # wrong field through. media_type additionally clears an orphaned document_type (spec §3).
+    # One replace() per field, not a **splat: a splat type-checks as Any and would let a wrong field
+    # through.
     match field:
         case "physical_location":
             return replace(article, physical_location=cleaned)
@@ -194,9 +155,8 @@ def document_type_fits_all(document_type: str, articles_: Sequence[Article]) -> 
 
 
 def field_display(field: str, value: str, chooser: CollectionChooser) -> str:
-    """The confirm/result page's human display of the new value (spec §2 D): a collection shows its
-    NAME (not the ulid); an emptied scalar shows ``(geleert)``; else the value verbatim. The Signatur
-    field is not bulk-editable, so no ``.c-sig`` rendering is needed here."""
+    """The new value as the check and result pages show it: ``(geleert)`` when empty, a Bestand by
+    name."""
     if not value.strip():
         return "(geleert)"
     return _display(field, value, chooser)
@@ -223,8 +183,7 @@ def _display(field: str, raw: str, chooser: CollectionChooser) -> str:
 
 @dataclass(frozen=True, slots=True)
 class BulkRow:
-    """One article's identity for the result buckets — its ulid + the marks the result page shows
-    (ref_code for the ``.c-sig``, title). Captured at load time (a missing article has no row)."""
+    """An article as the result page lists it, captured when it was loaded."""
 
     ulid: Ulid
     ref_code: str
@@ -233,11 +192,8 @@ class BulkRow:
 
 @dataclass(frozen=True, slots=True)
 class BulkOutcome:
-    """The result of a bulk apply (spec §4). ``saved`` is a COUNT (the count carries the successes,
-    signals-once); ``conflicted``/``missing`` are the actionable rows; ``doctype_cleared`` names the
-    articles whose orphaned document_type was cleared; ``index_lagged`` aggregates any
-    index_updated=False (one quiet lag note). Invariant: ``saved + len(conflicted) + len(missing) ==
-    distinct selection`` (property-tested)."""
+    """A bulk apply's outcome: every distinct ulid is counted in ``saved`` or listed in
+    ``conflicted`` or ``missing``, exactly once."""
 
     saved: int
     conflicted: tuple[BulkRow, ...]
@@ -274,13 +230,9 @@ class _FieldApplication:
 def apply_bulk(
     archive: Archive, ulids: Sequence[Ulid], field: str, value: str, *, changed_by: str
 ) -> BulkOutcome:
-    """Apply ``field=value`` to each of ``ulids`` independently (spec §4), each through
-    ``update_article`` with NO retries — a lost race must reach the human, not be re-applied to the
-    winner. A refused pair (spec §3), a lost race and any other ``ArchiveError`` from the save all
-    bucket ``conflicted`` without writing; an article the service cannot load buckets ``missing``.
-    The loop never aborts early; every DISTINCT ulid lands in exactly one bucket. Caller has already
-    validated the field + dependent pair against its OWN load; this re-validates against the current
-    store state and executes."""
+    """Apply ``field=value`` to each distinct ulid independently, never retrying: a lost race must
+    reach the human, not be re-applied to the winner. A lost race, a pair the fresh load no longer
+    admits, or a failed save is ``conflicted``; an unloadable one is ``missing``."""
     saved = 0
     conflicted: list[BulkRow] = []
     missing: list[Ulid] = []
@@ -295,7 +247,7 @@ def apply_bulk(
         except _Unfit, ArchiveError:
             outcome = Conflicted()  # refused pair, or a save failure the service does not own
         loaded = mutation.loaded
-        if isinstance(outcome, Missing) or loaded is None:  # loaded is None iff nothing was loaded
+        if isinstance(outcome, Missing) or loaded is None:
             missing.append(ulid)
             continue
         row = BulkRow(ulid=ulid, ref_code=loaded.ref_code or "", title=loaded.title)

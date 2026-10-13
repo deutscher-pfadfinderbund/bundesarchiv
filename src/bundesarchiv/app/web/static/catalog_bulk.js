@@ -1,16 +1,11 @@
-// Bulk-edit (Sammelbearbeitung) progressive enhancement (spec §5). Enhancement-only: the no-JS
-// baseline works without it (selection mode is the ?selection= URL; paging carries the URL-borne
-// selection, so fresh ticks need a submit first — this file lifts that limit, GH #22). It keeps
-// the live count: the live checkboxes here PLUS the off-page URL-borne selection the server hands
-// over in data-bulk-offpage (learning G.25). Self-contained, same-origin, no framework (dormancy
-// rule). HTMX (loaded separately) handles the dependent-Dokumenttyp swap.
+// Bulk selection, enhanced: keeps the live count (this page's boxes plus the off-page selection the
+// server hands over in data-bulk-offpage) and carries fresh ticks into the pager links. Without it,
+// ticks need a submit before paging.
 (() => {
   "use strict";
 
-  // Re-init on load AND after any htmx swap: the live search swaps #results (replacing the form +
-  // bar), and a history restore (Back after a hx-push-url search) is a server GET whose response
-  // swaps the whole body — both end in htmx:after:swap (learning G.25). Idempotent: a data-flag
-  // guards double-binding.
+  // Re-init after every swap: a live search and a history restore both replace the form. The data
+  // flag stops double binding.
   document.addEventListener("DOMContentLoaded", init);
   document.body.addEventListener("htmx:after:swap", init);
 
@@ -54,15 +49,8 @@
       }
     }
 
-    // The count target [data-bulk-count] is always in the DOM in selection mode. Empty text at
-    // zero keeps signals-once (no "0 ausgewählt"). The data-hook is the contract: markup may
-    // restructure freely as long as it keeps the hook.
-    //
-    // The TOTAL is this page's live checkboxes PLUS the off-page part of the URL-borne selection
-    // (data-bulk-offpage, from the server). Both halves matter: on THIS page the live checkbox
-    // state supersedes the URL (fresh ticks/unticks count immediately, GH #22), while the
-    // selection on other pages is invisible to the DOM and can only come from the server: a
-    // count of the boxes alone would drop a live cross-page selection (learning G.25).
+    // Count = this page's ticked boxes + the server's off-page count: other pages' selection is
+    // invisible to the DOM. Empty at zero (no "0 ausgewählt").
     function updateCount() {
       const count = form.querySelector("[data-bulk-count]");
       const bulk = form.querySelector("[data-bulk-offpage]");
@@ -71,12 +59,8 @@
       count.textContent = n > 0 ? `${n} ausgewählt` : "";
     }
 
-    // 2. Selection-carrying links (GH #22): fold the LIVE checkbox state into the prev/next pager
-    // links on every change, so unsubmitted ticks/unticks survive paging while the URL stays the
-    // canonical shareable state. Per link, from its own href: drop this page's ulids from
-    // ?selection= (fresh unticks stick), keep the rest (other pages' selections and the bare
-    // selection= that keeps selection mode), append the added set. "Abbrechen" is NEVER rewritten —
-    // its purpose is leaving the mode.
+    // 2. Fold the live ticks into the pager links so unsubmitted changes survive paging. "Abbrechen"
+    // is left alone: it leaves the mode.
     function rewriteSelectionLinks() {
       const boxes = rowBoxes();
       const pageUlids = boxes.map((b) => b.value);

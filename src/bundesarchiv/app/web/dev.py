@@ -1,13 +1,5 @@
-"""Dev-only viewer switcher view (Part 4.4).
-
-This module is referenced ONLY from ``dev_urls``. Under production settings its route never appears
-in the URLconf, so the switcher is UNREACHABLE in production by absence of code paths — not by a
-runtime flag that could be flipped on. The cookie it sets is signed with the dedicated dev key (see
-``viewers``), worthless against any production deployment.
-
-The switcher view (GET) shows a dead-simple German form to pick a viewer; (POST) sets the signed
-cookie and redirects back to itself.
-"""
+"""Dev-only viewer switcher: pick a viewer, signed into a cookie under the dev-only key. Mounted only
+by ``dev_urls``."""
 
 from html import escape
 
@@ -31,14 +23,7 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 
 def favicon(request: HttpRequest) -> HttpResponse:
-    """Dev-only ``GET /favicon.ico`` -> an explicit, plain 404.
-
-    There is no favicon asset, so the app has no route for it. Under prod settings that already
-    yields a clean 404. Under ``settings_dev`` (DEBUG=True) it does NOT: Django's technical-404
-    debug page reads ``SECRET_KEY`` while rendering, and dev deliberately leaves it empty (the
-    dev-viewer signs with its own dedicated key), so the debug renderer raises and the browser's
-    automatic ``/favicon.ico`` probe surfaces as a 500. Answering the route here returns the honest
-    404 directly, never entering the debug handler — no asset, prod behavior unchanged."""
+    """An empty 404 for the browser's favicon probe; there is no favicon asset."""
     return HttpResponseNotFound()
 
 
@@ -57,13 +42,11 @@ def _viewer_from_post(request: HttpRequest) -> Viewer:
 
 
 def switch_viewer(request: HttpRequest) -> HttpResponse:
-    """Dev switcher: GET renders the picker (current viewer + form); POST signs the chosen viewer
-    into the dev cookie and redirects back. Never mounted under production settings."""
+    """GET shows the picker; POST signs the chosen viewer into the dev cookie."""
     if request.method == "POST":
         signer = _dev_signer()
-        if (
-            signer is None
-        ):  # defensive: this view only runs under settings_dev, which defines the key
+        # only settings_dev mounts this, and it defines the key
+        if signer is None:
             return HttpResponseRedirect(reverse("dev-switch-viewer"))
         signed = signer.sign(encode_viewer(_viewer_from_post(request)))
         response = HttpResponseRedirect(reverse("dev-switch-viewer"))
@@ -86,10 +69,8 @@ def _describe(viewer: Viewer) -> str:
 
 
 def _render_form(current: Viewer, *, csrf_token: str) -> str:
-    """Minimal no-JS German switcher form. Dev-only; it borrows the design-system stylesheet stack
-    (same-origin, self-contained) for a consistent minimal look — no styling of its own beyond the
-    shared ``stub`` shell. The hidden CSRF token is required now that CsrfViewMiddleware runs in dev
-    too (see settings_dev)."""
+    """The switcher form, on the design-system stylesheets; it carries a CSRF token because
+    CsrfViewMiddleware runs in dev too."""
     return (
         "<!doctype html><html lang=de><head><meta charset=utf-8>"
         '<link rel="stylesheet" href="/static/tokens.css">'

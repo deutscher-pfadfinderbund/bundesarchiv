@@ -67,7 +67,7 @@ def search_area(
 ) -> Mapping[str, object]:
     """The list's own search field, without its filter slots: it submits to the list. For an
     Archivist it carries "Weiter bearbeiten" under it: every draft, newest ``added_at`` first (the
-    index has no "changed at"). At most three titles; more than three: two and "und n weitere"."""
+    index has no "changed at"). Up to ``_RESUME_TITLES`` titles; more fold into "und n weitere"."""
     if not isinstance(viewer, Archivist):
         return {}
     page = search(
