@@ -1,10 +1,5 @@
-"""Dev URLconf — mounted ONLY by ``settings_dev.ROOT_URLCONF`` (Part 4.4 + 4.3).
-
-It COMPOSES the production HTTP surface (``bundesarchiv.app.web.urls`` — the authorized media
-routes) WITH the dev-only viewer switcher, so a dev process gets both. Production settings point
-``ROOT_URLCONF`` at ``bundesarchiv.app.web.urls`` directly (the media routes, no switcher), so the
-switcher route this module adds is unreachable in production by absence, not by a flag.
-"""
+"""Dev URLconf (``settings_dev.ROOT_URLCONF``): the production ``urls`` plus the dev-only routes,
+which production lacks because it never loads this module."""
 
 from collections.abc import Collection, Mapping
 from typing import cast
@@ -27,12 +22,6 @@ handler404 = page_not_found
 _PAGE_POLICY = cast("Mapping[str, Collection[str] | str]", settings.SECURE_CSP)
 _demo_csp = csp_override({**_PAGE_POLICY, "style-src": [CSP.SELF, CSP.UNSAFE_INLINE]})
 
-# Prod routes first (included verbatim), then the dev-only routes: an explicit /favicon.ico -> 404
-# (the browser probes for it; without a route DEBUG's technical-404 page crashes on the empty dev
-# SECRET_KEY and surfaces as a 500 — see dev.favicon), the viewer switcher (reversed by name in
-# dev.py), the component library (the ONE baseline — the variant toggle died with the papier cut,
-# owner 2026-08-06) and the layout demo (the full workbench layout) — all unreachable in prod by
-# absence of this URLconf.
 urlpatterns = [
     path("", include("bundesarchiv.app.web.urls")),
     path("favicon.ico", favicon, name="dev-favicon"),
