@@ -1,10 +1,5 @@
-"""The Bestand chooser (debt #7) — the one per-request answer to "which Bestände are there?".
-
-Pure: the chooser is driven by a plain loader here, exactly as the views drive it with the
-archive's ``load_all``. What is pinned is what used to be spelled several ways — the ONE option
-ordering, the two role placeholders (verbatim user contract), and the fail-closed membership rule
-that gives an unknown ulid the same answer as an empty value.
-"""
+"""The Bestand chooser: one option ordering, the two role placeholders (verbatim user contract),
+and fail-closed membership (an unknown ulid answers like an empty one)."""
 
 import pytest
 
