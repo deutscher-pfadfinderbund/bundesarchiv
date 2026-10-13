@@ -1,8 +1,5 @@
-"""Archive statistics for the operator's dashboard: what the hourly reconcile logs after a rebuild.
-
-Counts are archive-wide, never scoped to a viewer and never per user. Canonical truth gives the
-Articles, files and bytes; the index gives the audience levels; Procrastinate's table the queue.
-"""
+"""Archive statistics for the operator's dashboard: archive-wide counts, never scoped to a viewer
+or a user."""
 
 import logging
 from collections import Counter
