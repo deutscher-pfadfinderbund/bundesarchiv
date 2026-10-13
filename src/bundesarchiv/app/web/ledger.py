@@ -5,10 +5,9 @@ shows first. The chooser offers exactly these and the ledger prints them in this
 column is one entry. ``build`` turns a page of ``SearchHit`` s into a ``Ledger`` the templates only
 print: every link is a finished query string, every cell finished text.
 
-A column whose filter is set is left out: every row would repeat the one value the filter holds
-(round 11; LEARNINGS lesson 16). No visibility logic lives here — the hits are already
-viewer-scoped by ``search``; the archivist's chrome (the Entwurf mark, Bearbeiten, the selection)
-is a presentation gate on ``is_archivist``.
+A column whose filter is set is left out: every row would repeat the one value the filter holds.
+No visibility logic lives here — the hits are already viewer-scoped by ``search``; the archivist's
+chrome (the Entwurf mark, Bearbeiten, the selection) is a presentation gate on ``is_archivist``.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -53,7 +52,7 @@ COLUMNS: tuple[Column, ...] = (
     ),
 )
 
-#: The columns a ledger shows until its viewer chooses (the a2 mock's set).
+#: The columns a ledger shows until its viewer chooses.
 DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "collection")
 
 #: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
@@ -161,8 +160,8 @@ def build(
     selected_ulid: str | None,
     chooser: CollectionChooser,
 ) -> Ledger:
-    """The ledger for one page of hits. ``params`` is the search state every link builds from
-    (the pane and selected_ulids params already dropped); ``columns`` the chosen ones, printed in
+    """The ledger for one page of hits. ``params`` is the search state every link builds from,
+    without the pane, ``selection`` and landing-flag params; ``columns`` the chosen ones, printed in
     registry order."""
     shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
     active = parsed.sort
