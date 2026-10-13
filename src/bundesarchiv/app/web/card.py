@@ -18,8 +18,6 @@ from bundesarchiv.domain.models import Article, Lifecycle
 
 
 def _audience_label(article: Article) -> str:
-    """The stored audience as a human-German label for the CAS diff (inherit / rung / groups) — the
-    shared ``vocab`` formatter fed the article's own audience."""
     return vocab.audience_label(article.audience)
 
 
@@ -43,7 +41,6 @@ def _seed_lifecycle(article: Article) -> str:
     return article.lifecycle.value
 
 
-#: The Status select (a1 round 4): the POST value is the Lifecycle's own value.
 LIFECYCLE_OPTIONS: tuple[tuple[str, str], ...] = (
     (Lifecycle.PUBLISHED.value, "Veröffentlicht"),
     (Lifecycle.DRAFT.value, "Entwurf (nur Archivare)"),
@@ -59,10 +56,11 @@ class _Field:
     ``margin`` (the record's margin), a body section, or ``""`` for the rows that are not on the form
     at all — a single string, so "a field lives in at most one section" is structural.
 
-    ``control`` is what the form renders for it: ``text``, ``select`` (flat options), ``groups``
-    (optgrouped options), ``textarea``, ``checkbox`` (ticked when its value is set), or ``""`` for a
-    row that is no control. A row with a control carries a scalar form value — it is seeded,
-    re-rendered from the POST and printed by that column alone.
+    ``control`` is what ``_field.html`` renders for it (Titel and Beschreibung bring their own):
+    ``text``, ``select`` (flat options), ``groups`` (optgrouped options), ``textarea``,
+    ``checkbox`` (ticked when its value is set), or ``""`` for a row that is no control. A row
+    with a control carries a scalar form value — it is seeded, re-rendered from the POST and
+    printed by that column alone.
 
     ``scanned`` marks the cataloguing spine the GET autofocus walks for its first EMPTY field (spec
     §5). Gruppen is deliberately NOT on it: it is empty on almost every record by design (it means
@@ -118,8 +116,7 @@ class _Field:
     shown: Callable[[Article], str] | None = None
 
     def value_of(self, article: Article) -> str:
-        """The field's form value for a stored Article: its own ``seed`` where it declares one, else
-        the Article attribute of the same name — ``""`` when unset (spec §8)."""
+        """The field's form value for a stored Article, ``""`` when unset (spec §8)."""
         if self.seed is not None:
             return self.seed(article)
         return str(getattr(article, self.name) or "")
@@ -235,8 +232,7 @@ FIELDS: tuple[_Field, ...] = (
         section="filing",
         required=True,
         options="media_type_options",
-        # On change, swap in the dependent Dokumenttyp options. No-JS baseline unchanged: the full
-        # grouped optgroup list + server pairing re-validation still stand.
+        # no-JS: the full grouped list and the server's pair re-validation still stand
         hx_get="article-document-types",
         hx=(
             ("hx-trigger", "change"),
@@ -386,11 +382,8 @@ def card_fields(
     lifecycle_options: _Options = LIFECYCLE_OPTIONS,
     only: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[CardRow, ...]]:
-    """The form's fields grouped by section, in DOM order — the ONE list the template loops over.
-    ``only`` limits it to the fields of those names (the create step renders two).
-
-    Only ``focusable`` rows can carry the caret, so a target the registry does not mark focusable
-    focuses nothing rather than nothing-visible."""
+    """The form's fields by section, in DOM order — the one list the template loops over; ``only``
+    keeps those names. Only a ``focusable`` row takes ``autofocus``."""
     option_lists: dict[str, Callable[[], _Options]] = {
         "collection_options": chooser.options,
         "media_type_options": vocab.media_type_options,
