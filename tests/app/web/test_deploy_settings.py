@@ -1,11 +1,5 @@
-"""Production-deploy settings whose DIRECTION is the security property (sibling of
-``test_auth_settings.py``).
-
-Each fact here is silent when wrong: a forgotten SECRET_KEY serves happily until something signs,
-a missing proxy header turns every POST into a CSRF origin failure behind Traefik+nginx, and an
-insecure CSRF cookie leaks over any plain-http hop. The deploy env itself is enforced at the one
-entry point a real app server uses.
-"""
+"""Production settings whose direction is the security property; each one is silent when wrong. The
+deploy env is enforced at the WSGI entry point."""
 
 import importlib
 import runpy
@@ -26,7 +20,6 @@ _WSGI = "bundesarchiv.index.wsgi"
 
 
 def _boot_wsgi() -> ModuleType:
-    """Import (or re-import) the WSGI entry point under the current environment."""
     module = importlib.import_module(_WSGI)
     return importlib.reload(module)
 
@@ -75,9 +68,8 @@ def test_the_upload_ceiling_is_four_gibibytes_by_default() -> None:
 
 
 def test_the_token_cookie_middleware_wraps_everything_that_resolves_the_viewer() -> None:
-    """``TokenCookieMiddleware`` writes a refresh outcome onto the response, so it must sit outside
-    every middleware that calls ``viewer_of`` (ADR 0018). Missing, a refreshed login never reaches
-    the browser and a dead refresh cookie is never cleared."""
+    """Otherwise a refreshed login never reaches the browser and a dead refresh cookie is never
+    cleared (ADR 0018)."""
     token = "bundesarchiv.app.web.viewers.TokenCookieMiddleware"
     gate = "bundesarchiv.app.web.anonymous_gate.AnonymousGateMiddleware"
     for stack in (prod_settings.MIDDLEWARE, settings_dev.MIDDLEWARE):

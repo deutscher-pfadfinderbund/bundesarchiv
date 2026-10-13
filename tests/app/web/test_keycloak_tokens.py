@@ -1,7 +1,6 @@
 """The access-token check (ADR 0018): the one decision every request makes about a Keycloak token.
 
-Tokens are signed here with generated RSA keys. The realm's HTTP endpoints are an ``httpx2.get``
-stand-in, as in ``test_keycloak_discovery``; the check itself runs for real.
+Tokens are signed with generated RSA keys; only the realm's HTTP endpoints are faked.
 """
 
 import hashlib

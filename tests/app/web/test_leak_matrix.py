@@ -1,30 +1,6 @@
-"""The route x tier leak matrix (Part 4.10) — the whole HTTP surface, one exhaustive suite.
-
-Every per-route test already pins its own contract; this suite is the STRUCTURAL backstop that no
-route escapes the discipline. It walks the PRODUCTION urlconf (``bundesarchiv.app.web.urls``) and,
-for every route, asserts the exact status an anonymous / Public / Member(with & without a matching
-group) / Archivist viewer gets under both GET and POST. A deny is ``assert_denied`` — a plain 404
-revealing nothing (the byte-identical-404 law was relaxed by the owner, 2026-08); each route's own
-tests pin that a deny additionally changes nothing.
-
-The invariant that makes this a GATE, not a snapshot, is **exhaustiveness**: ``_CONTRACT`` carries
-one explicit entry per route name, and the suite asserts the contract's key set EQUALS the urlconf's
-route names. A future route added to ``urls.py`` without a matrix entry FAILS
-``test_contract_covers_every_prod_route`` — you cannot ship a route the leak matrix has never seen.
-
-Method note (contract-shaping fact, verified in the views): no route uses a method guard, so a
-disallowed method is NOT a 405 — the POST-only routes 404 on GET and the GET-only routes 404 on POST
-via the same shared 404 helper. The dev routes are the exception: they ignore method entirely.
-
-Static assets are NOT in this matrix: ``/static/*`` is served by WhiteNoise middleware (ADR 0016),
-never the urlconf. Its public-by-design contract is pinned in ``test_static_assets.py``.
-
-Dev-only routes (``dev_urls.py``) are covered by their own prod-by-absence assertions here:
-``test_dev_routes_absent_from_prod_urlconf`` proves each is a ``Resolver404`` under the prod urlconf.
-
-Pure request handling against a local FS store — no Postgres, and the index-write /
-worker-enqueue seams are the conftest autouse no-ops.
-"""
+"""The route x tier leak matrix: every prod route's status per viewer tier and method, gated
+exhaustive against the urlconf. No route has a method guard, so a disallowed method is the plain
+404, not a 405. ``/static/*`` is WhiteNoise's (ADR 0016), outside the urlconf."""
 
 import io
 from collections import defaultdict
@@ -56,11 +32,8 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
 
 
 class _MatrixCorpus:
-    """The shared ``Corpus`` filled with one GROUPS-tier Collection and one published, group-scoped
-    Article that carries a real media blob — enough to give an Archivist a 200 on every
-    ulid/hash-bearing route and to make the media route's authorization non-trivial. The GROUPS tier
-    names ``vorstand`` so a matching-group Member is distinguishable from a non-matching one; the
-    frozen standard corpus is PUBLIC and media-free, so the matrix builds its own content."""
+    """One GROUPS-tier (``vorstand``) Bestand holding a published article with a real media blob, plus
+    a Public article in the Papierkorb; the frozen standard corpus is PUBLIC and media-free."""
 
     def __init__(self, base: Corpus) -> None:
         self.base = base
@@ -78,8 +51,6 @@ class _MatrixCorpus:
                 Audience(AudienceTier.GROUPS, ("vorstand",)),
             )
         )
-        # A GROUPS-tier published article: an Archivist sees it, a matching-group Member sees it, a
-        # non-matching Member and Public do not — so every ulid/hash route resolves for the Archivist.
         self.article_ulid = new_ulid()
         ref = self.base.articles.add_media(
             self.article_ulid,
@@ -97,9 +68,7 @@ class _MatrixCorpus:
             )
         )
         self.content_hash = ref.content_hash
-        # The CAS version the store landed the article at (a save writes the NEXT version), read back
-        # so the lifecycle route's expected_version matches and the retract succeeds (302, not a
-        # conflict re-render).
+        # the delete confirm posts the version the store landed the article at
         self.article_version = self.base.articles.load(self.article_ulid).version
         # A Public article in the Papierkorb (ADR 0022): every tier would see it but for the mark.
         self.marked_ulid = new_ulid()
@@ -157,8 +126,6 @@ _NON_ARCHIVIST = ("anonymous", "public", "member", "member_matching")
 
 # --- the contract: expected status per route x method, and how to reach each -----------------------
 
-# Status classes. A route entry declares, for each of GET and POST, the expected status for a
-# NON-archivist and for the Archivist.
 FOUR_OH_FOUR = 404
 OK = 200
 NO_CONTENT = 204
@@ -167,9 +134,8 @@ ALIAS_PREFIX = "alias-"
 
 
 class Route:
-    """One route's leak contract. ``build_path`` maps the corpus to the concrete URL; the four status
-    fields are the expected codes; ``post_data`` (if any) is sent on the POST probe; ``skip_post_body
-    _check`` marks routes whose archivist-allowed status is method-dependent (documented inline)."""
+    """One route's leak contract: the expected status per method for a non-archivist and for the
+    Archivist."""
 
     def __init__(
         self,
@@ -191,9 +157,7 @@ class Route:
         self.post_data = post_data or {}
         # tier_sensitive: a read route where the matching-group Member is ALLOWED (media/detail).
         self.tier_sensitive = tier_sensitive
-        # stub_search: the route calls the Postgres index (search()); the matrix stubs it
-        # to an empty page so the STATUS/tier-chrome path runs DB-free. Content-scoping correctness is
-        # test_workbench.py's job (real Postgres) — here we only assert the route 200s for every tier.
+        # stub_search: the route queries the index; the matrix stubs it empty to run DB-free.
         self.stub_search = stub_search
 
 
@@ -309,11 +273,9 @@ def _p_media_display(c: _MatrixCorpus) -> str:
     return f"/media/{c.article_ulid}/{c.content_hash}/display"
 
 
-# The exhaustive contract — ONE entry per prod route name. Keeping it a dict keyed by route name lets
-# ``test_contract_covers_every_prod_route`` assert exhaustiveness against the urlconf.
+# ONE entry per prod route name; the exhaustiveness gate joins on it.
 _CONTRACT: dict[str, Route] = {
-    # Open pages — 200 for every tier, method-blind (no guard). Never a deny path here. What each
-    # tier's counts and hits hold is test_start.py's and test_workbench.py's.
+    # Open pages: 200 for every tier, method-blind.
     "start": Route(
         build_path=_p_root,
         get_nonarch=OK,
@@ -420,8 +382,7 @@ _CONTRACT: dict[str, Route] = {
         post_arch=REDIRECT,  # confirmed delete → 302 to /
         post_data=None,  # filled at probe time (the confirm's version) — see _POST_DATA_BUILDERS
     ),
-    # The Papierkorb's two routes, probed on the marked article (ADR 0022); an unmarked one is
-    # refused to the Archivist too — see test_a_trash_route_refuses_an_unmarked_article.
+    # The Papierkorb's two routes, probed on the marked article (ADR 0022).
     "article-delete-permanently": Route(
         build_path=_p_delete_permanently,
         get_nonarch=FOUR_OH_FOUR,
@@ -556,16 +517,13 @@ def _marked_post_data(c: _MatrixCorpus) -> dict[str, object]:
 
 
 def _empty_search_page() -> object:
-    """An empty ``SearchPage`` for the workbench stub: no hits, no facets — enough for the template to
-    render the (empty) ledger for any tier so the matrix can assert the route's status DB-free."""
+    """An empty ``SearchPage`` for the index stub."""
     from bundesarchiv.index.query import SearchPage
 
     return SearchPage(hits=(), total=0, facets={}, dateless_count=0)
 
 
 def _expected_for(route: Route, tier: str, method: str) -> int | None:
-    """The expected status for ``route`` at ``tier`` under ``method``, resolving the tier-sensitive
-    read routes (matching-group Member is allowed like the Archivist)."""
     is_arch = tier == "archivist"
     if route.tier_sensitive and tier == "member_matching":
         is_arch = True  # a matching-group Member sees the GROUPS-tier corpus article
@@ -578,9 +536,7 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
 
 
 def _tier_invariant(route: Route) -> bool:
-    """A route whose contract declares the SAME status for every tier x method cell (and no
-    tier-sensitive resolution) has exactly one distinct cell — one probe proves it. Derived from
-    the declared statuses, so a future route with any tier-varying cell is probed in full."""
+    """One status for every tier and method: one probe proves it."""
     statuses = {route.get_nonarch, route.get_arch, route.post_nonarch, route.post_arch}
     return len(statuses) == 1 and not route.tier_sensitive
 
@@ -617,9 +573,7 @@ def test_route_tier_matrix(
     if name in _POST_DATA_BUILDERS:
         data = _POST_DATA_BUILDERS[name](matrix_corpus)
     if route.stub_search:
-        # The workbench's only DB dependency is search(); stub it so the STATUS/tier-chrome path runs
-        # DB-free. The real view code (viewer resolution, template render, archivist-chrome gating)
-        # still executes — only the index query is replaced with an empty page.
+        # the index is these routes' only DB dependency; everything else runs for real
         monkeypatch.setattr(
             "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
         )
@@ -781,10 +735,7 @@ _GATE_EXEMPT = ("login", "oidc-callback", "logout")
 def test_the_anonymous_gate_shows_the_door_on_every_route(
     matrix_corpus: _MatrixCorpus, name: str
 ) -> None:
-    """With the gate on (the production setting), an anonymous visitor gets the door on EVERY route
-    — the 200s and the 404s alike, so nothing about a route or a record is answerable before
-    authentication. Derived from the same contract as the matrix, so a new route is walked here the
-    day it is registered."""
+    """With the gate on, nothing about a route or a record is answerable before authentication."""
     path = _CONTRACT[name].build_path(matrix_corpus)
     with override_settings(ANONYMOUS_GATE_ENABLED=True):
         assert_door(client_as(None).get(path), path, name)
@@ -803,23 +754,14 @@ def test_the_gate_never_bounces_the_login_flow(matrix_corpus: _MatrixCorpus, nam
 
 
 def _prod_route_names() -> set[str]:
-    """The canonical routes. The ``alias-`` routes (the old German paths) serve the SAME view callable
-    as their English twin, which ``test_old_paths.py`` pins, so the twin's contract covers them."""
+    """The canonical routes; an ``alias-`` route serves its English twin's view, so the twin's contract
+    covers it."""
     return {name for name in _prod_pattern_names() if not name.startswith(ALIAS_PREFIX)}
 
 
 def _prod_pattern_names() -> list[str]:
-    """The ``.name`` of every prod pattern. Two structural asserts guard the exhaustiveness gate below,
-    because both of them are ways for a live route to leave its scope:
-
-    The prod urlconf is deliberately FLAT (all ``path()``, no ``include()``), so every entry is a
-    ``URLPattern``; asserting that doubles as a guard that a future ``include()`` — which would nest
-    routes past the leak matrix — is a deliberate change.
-
-    And every pattern must be NAMED. ``name`` is the handle the contract joins on, so an unnamed live
-    route was un-gated and un-leak-tested: this function used to drop ``None`` from the list, and the
-    set-equality then dropped it from BOTH sides and reported no drift at all. A route with no
-    ``name=`` is not an exception to the matrix, it is a route the matrix cannot see."""
+    """Every prod pattern's name. Asserts the urlconf stays flat and fully named: an ``include()`` or an
+    unnamed route would escape the matrix."""
     patterns = get_resolver(_PROD_URLCONF).url_patterns
     assert all(isinstance(p, URLPattern) for p in patterns), "prod urlconf is no longer flat"
     unnamed = [str(p.pattern) for p in patterns if isinstance(p, URLPattern) and p.name is None]
@@ -831,9 +773,6 @@ def _prod_pattern_names() -> list[str]:
 
 
 def test_contract_covers_every_prod_route() -> None:
-    """The GATE: every route in the production urlconf has a leak-matrix contract, and the contract
-    names no route the urlconf lacks. Add a route to ``urls.py`` and this fails until the matrix
-    grows an entry for it — a future route cannot ship un-leak-tested."""
     assert set(_CONTRACT) == _prod_route_names(), (
         f"contract vs urlconf drift: "
         f"missing from contract = {_prod_route_names() - set(_CONTRACT)}, "
@@ -842,8 +781,7 @@ def test_contract_covers_every_prod_route() -> None:
 
 
 def test_every_prod_route_name_is_unique() -> None:
-    """No two prod patterns share a name (the exhaustiveness set-equality would otherwise mask a
-    duplicate). Guards against a copy-paste route registration."""
+    """A duplicate name would hide inside the exhaustiveness set-equality."""
     names = [name for name in _prod_pattern_names() if name is not None]
     assert len(names) == len(set(names)), f"duplicate route names: {names}"
 
@@ -860,9 +798,7 @@ _DEV_ONLY_PATHS = (
 
 @pytest.mark.parametrize("path", _DEV_ONLY_PATHS)
 def test_dev_routes_absent_from_prod_urlconf(path: str) -> None:
-    """Every dev-only route resolves under the DEV urlconf but is a ``Resolver404`` under the PROD
-    urlconf — dev is gated by ABSENCE of the urlconf, not by a runtime flag, so a production process
-    (which points ROOT_URLCONF at ``...urls``) can never reach the switcher or the demo pages."""
+    """Dev is gated by absence from the prod urlconf, not by a runtime flag."""
     resolve(path, urlconf=_DEV_URLCONF)  # present in dev — raises here if the assumption is wrong
     with pytest.raises(Resolver404):
         resolve(path, urlconf=_PROD_URLCONF)
