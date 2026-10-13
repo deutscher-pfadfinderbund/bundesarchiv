@@ -1,4 +1,4 @@
-"""Schlagwort suggestions (``query.suggest_tags``): which tags a typed text offers, in what order."""
+"""Schlagwort suggestions (``query.suggest_tags``)."""
 
 from collections.abc import Iterator
 

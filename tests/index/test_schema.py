@@ -1,7 +1,3 @@
-"""The migrations' generated ``general_tsv`` / ``archivist_tsv`` columns populate on an ORM insert
-under the German config.
-"""
-
 import pytest
 
 from bundesarchiv.index.models import ArticleIndex

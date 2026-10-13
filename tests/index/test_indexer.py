@@ -1,8 +1,3 @@
-"""The indexer's write side: ``build_row`` (pure — its section runs without a database) maps an
-Article and its chain to columns; ``rebuild`` writes them. Equivalence with ``can_view``:
-``test_equivalence.py``.
-"""
-
 import datetime
 import io
 
@@ -118,7 +113,6 @@ def test_build_row_still_indexes_text_of_a_draft() -> None:
 
 
 def test_build_row_appends_media_captions_to_the_body_bucket() -> None:
-    """Captions join the body FTS bucket (ADR 0015), after the body text, in media order."""
     root = _root()
     article = _article(
         body="Ein Bericht.",
@@ -178,8 +172,8 @@ def test_build_row_open_ended_date_has_null_latest() -> None:
     article = _article(date=EdtfDate("1970/.."))
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
     assert row["date_earliest"] == datetime.date(1970, 1, 1)
-    assert row["date_latest"] is None  # open end
-    # decades run from the earliest through cap_year's decade.
+    assert row["date_latest"] is None
+    # an open end runs through cap_year's decade
     assert row["decades"] == [1970, 1980, 1990, 2000, 2010, 2020]
 
 
@@ -342,7 +336,6 @@ def test_rebuild_fails_closed_on_dangling_collection(store: InMemoryObjectStore)
     assert bad.archivist_only is True  # fail-closed: only an Archivist can find it
     assert bad.tier is None
     assert list(bad.groups) == []
-    # a broken chain is not a draft
     assert bad.is_draft is False
     assert bad.title == "Verwaistes Artikel"  # still indexed with its text, so it's findable
 

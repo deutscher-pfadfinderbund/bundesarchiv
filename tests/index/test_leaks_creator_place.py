@@ -1,6 +1,5 @@
-"""The Urheber and Ort filters and facets only narrow the viewer's scope: a value on a restricted
-row never reaches another viewer's hits, total or counts. The Papierkorb half lives in
-``test_leaks_trash.py``.
+"""The Urheber and Ort filters and facets only narrow the viewer's scope. The Papierkorb half lives
+in ``test_leaks_trash.py``.
 """
 
 from collections import Counter

@@ -1,7 +1,4 @@
-"""The incremental indexer, ``index_article`` and ``index_subtree`` (ADR 0014): both re-read
-canonical truth and share ``rebuild``'s fail-closed branch; every index writer takes the one
-advisory lock.
-"""
+"""The incremental indexer, ``index_article`` and ``index_subtree`` (ADR 0014)."""
 
 import threading
 from collections.abc import Callable
@@ -162,7 +159,7 @@ def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) ->
     title changed."""
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.rebuild(store)  # baseline
+    indexer.rebuild(store)
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
     assert ArticleIndex.objects.get(ulid="01AKTE").tier == "PUBLIC"  # inherits FOTOS
     assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
@@ -331,8 +328,6 @@ def test_a_busy_store_is_no_unreadable_readme(
 def test_advisory_lock_serializes_concurrent_index_writers(
     store: InMemoryObjectStore,
 ) -> None:
-    """Lock-sensitive: while another transaction holds the writer lock, ``index_article`` blocks;
-    it lands once that commits."""
     from django.db import connection, transaction
 
     from bundesarchiv.index.indexer import _take_writer_lock

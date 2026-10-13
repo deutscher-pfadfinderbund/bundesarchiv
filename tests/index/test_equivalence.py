@@ -1,8 +1,6 @@
-"""SQL ≡ ``can_view`` (ADR 0012): per viewer, ``search`` returns exactly the ulids ``can_view``
-clears, over article audience x parent audience x lifecycle under a silent ROOT.
+"""SQL ≡ ``can_view`` (ADR 0012) over the article audience x parent audience x lifecycle grid.
 
 The one allowed gap: a fail-closed row is index-visible to the Archivist but ``can_view``-denied.
-The grid produces none; ``test_leaks.py`` pins it on ``ART_ORPHAN``.
 """
 
 from collections.abc import Iterator, Mapping
@@ -43,7 +41,6 @@ _VIEWERS: tuple[tuple[str, Viewer], ...] = (
 
 # --- Grid axes --------------------------------------------------------------
 
-# Article audience; the tag goes into the ulid, ``None`` = inherit.
 _ARTICLE_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("apub", Audience(AudienceTier.PUBLIC)),
     ("amem", Audience(AudienceTier.MEMBERS)),
@@ -52,7 +49,7 @@ _ARTICLE_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("ainh", None),
 )
 
-# Parent audience; ``None`` = inherit (→ root MEMBERS).
+# ``None`` inherits the silent root: the MEMBERS default.
 _PARENT_AUDIENCES: tuple[tuple[str, Audience | None], ...] = (
     ("ppub", Audience(AudienceTier.PUBLIC)),
     ("pmem", Audience(AudienceTier.MEMBERS)),
@@ -81,7 +78,6 @@ def _leaf_ulid(parent_tag: str) -> Ulid:
 
 
 def _build_grid_store() -> InMemoryObjectStore:
-    """A shared ROOT with one parent→leaf pair per parent-audience case, holding the grid articles."""
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -144,7 +140,6 @@ def _build_grid() -> _Grid:
 
 @pytest.fixture(scope="module")
 def grid(django_db_setup: None, django_db_blocker: pytest.FixtureRequest) -> Iterator[_Grid]:
-    """The grid, built and indexed once per module via ``fixtures.indexed_corpus``."""
     yield from fixtures.indexed_corpus(django_db_blocker, _build_grid)
 
 
@@ -156,8 +151,8 @@ class _Grid:
         self.articles = tuple(ArticleRepository(store).load(u).article for u in _all_ulids(store))
 
     def can_view_ulids(self, viewer: Viewer) -> set[str]:
-        """The truth side. Catch only ``DomainError`` (what ``can_view`` fails closed on): anything
-        else must fail the guard, not shrink the expected set."""
+        """Catch only ``DomainError`` (what ``can_view`` fails closed on): anything else must fail
+        the guard, not shrink the expected set."""
         visible: set[str] = set()
         for article in self.articles:
             try:
@@ -175,12 +170,11 @@ def _all_ulids(store: InMemoryObjectStore) -> tuple[str, ...]:
 
 @pytest.fixture
 def corpus(grid: _Grid, db: None) -> _Grid:
-    """Per-test entry: joins the module-indexed grid to the ``db`` transaction fixture."""
     return grid
 
 
 def _search_ulids(viewer: Viewer) -> set[str]:
-    """Every ulid ``search`` returns for ``viewer``; the grid fits one page under the 200-row cap."""
+    """The grid must fit one page: ``search`` clamps ``page_size`` to 200."""
     return {hit.ulid for hit in search(viewer, page_size=1000).hits}
 
 
@@ -200,7 +194,6 @@ def test_grid_has_expected_shape(corpus: _Grid) -> None:
 
 @pytest.mark.django_db
 def test_search_equals_can_view_per_viewer(corpus: _Grid) -> None:
-    """Fail-closed rows are exempt for the Archivist only (module docstring)."""
     failed_closed = set(corpus.report.failed_closed)
     mismatches: list[str] = []
     for label, viewer in _VIEWERS:
@@ -223,15 +216,11 @@ def test_search_equals_can_view_per_viewer(corpus: _Grid) -> None:
 # ===========================================================================
 # Grid facet totals: aggregate counts derived from the can_view-visible set.
 # ===========================================================================
-#
-# The hit-set check catches a leaked row; this catches a leaked aggregate: a facet count tallying
-# rows the viewer cannot see.
 
 
 @pytest.mark.django_db
 def test_grid_facet_total_equals_can_view_count_per_viewer(corpus: _Grid) -> None:
-    """Facet counts and ``total`` equal the viewer's can_view count: no aggregate tallies an
-    out-of-scope row."""
+    """No aggregate tallies an out-of-scope row."""
     failed_closed = set(corpus.report.failed_closed)
     mismatches: list[str] = []
     for label, viewer in _VIEWERS:
@@ -264,8 +253,6 @@ def test_grid_facet_total_equals_can_view_count_per_viewer(corpus: _Grid) -> Non
 
 @pytest.mark.django_db
 def test_grid_subtree_filter_stays_can_view_scoped(corpus: _Grid) -> None:
-    """A subtree filter composes with the scope predicate: it narrows the can_view-visible set,
-    never widens it."""
     mismatches: list[str] = []
     for parent_tag, _audience in _PARENT_AUDIENCES:
         subtree = {a.ulid for a in corpus.articles if a.collection_id == _leaf_ulid(parent_tag)}
