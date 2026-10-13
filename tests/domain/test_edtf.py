@@ -6,9 +6,7 @@ import pytest
 
 from bundesarchiv.domain.edtf import EdtfDate
 
-# ---------------------------------------------------------------------------
 # (value, earliest, latest, decades at cap_year=2030)
-# ---------------------------------------------------------------------------
 
 VALID_ROWS: list[tuple[str, datetime.date, datetime.date | None, tuple[int, ...]]] = [
     # --- Level 0: date-only ---

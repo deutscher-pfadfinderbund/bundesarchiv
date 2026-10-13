@@ -1,6 +1,5 @@
-"""Suite-wide setup: Postgres gating derived from each test's fixture closure, one test database
-per checkout, strict templates. ``tests/domain`` and ``tests/persistence`` use no DB fixture, so
-they never create a test database and run without Postgres.
+"""``tests/domain`` and ``tests/persistence`` use no DB fixture, so they never create a test
+database and run without Postgres.
 """
 
 import os
@@ -67,7 +66,7 @@ def pytest_terminal_summary(
 
 @pytest.fixture(scope="session")
 def _pg_guard() -> None:
-    """Fail (never skip) with an actionable hint when Postgres is unreachable."""
+    """Fail, never skip, when Postgres is unreachable."""
     import psycopg
 
     dsn = os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_PG_DSN)
@@ -104,8 +103,7 @@ def django_db_modify_db_settings(
 
 @pytest.fixture(scope="session")
 def django_db_setup(_pg_guard: None, django_db_setup: None) -> None:
-    """pytest-django's ``django_db_setup`` behind the reachability probe; ``_pg_guard`` is listed
-    first so it runs before test-database creation."""
+    """``_pg_guard`` is listed first so the probe runs before test-database creation."""
 
 
 class _MissingVariable(str):
@@ -117,8 +115,7 @@ class _MissingVariable(str):
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Strict templates in every suite (tests/CLAUDE.md, "Strict templates"); prod and dev keep
-    Django's lenient empty string."""
+    """Strict templates (tests/CLAUDE.md); prod and dev keep Django's lenient empty string."""
     from django.conf import settings
 
     options = cast("dict[str, object]", settings.TEMPLATES[0]["OPTIONS"])

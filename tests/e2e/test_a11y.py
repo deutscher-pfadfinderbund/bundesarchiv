@@ -1,5 +1,5 @@
 """The axe-core WCAG 2.2 AA pass (design-review-law floor) over every inventory screen; axe is
-vendored in tests/e2e/vendor/ (MPL-2.0). Rule overrides: ``_RULES``.
+vendored in tests/e2e/vendor/ (MPL-2.0).
 """
 
 import json
@@ -22,9 +22,8 @@ _TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 #: json.dumps, not repr: Python's True/False are not JavaScript literals.
 _RULES = json.dumps({"color-contrast": {"enabled": False}, "target-size": {"enabled": True}})
 
-#: Rules whose "needs review" results count as findings: axe reports a small target crowded by its
-#: neighbours as incomplete, not as a violation, and every hit area here comes from one knob chain,
-#: so there is nothing for axe to be unsure about.
+#: axe reports a small target crowded by its neighbours as incomplete, not as a violation, and every
+#: hit area here comes from one knob chain, so there is nothing for axe to be unsure about.
 _INCOMPLETE_COUNTS = frozenset({"target-size"})
 
 _RUN = f"""

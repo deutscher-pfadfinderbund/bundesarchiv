@@ -1,5 +1,5 @@
-"""The Artikel detail page (``/articles/<ulid>``). Leak surface: archivist-only fields are floored
-before the template, so their values never reach a member or public body."""
+"""The Artikel detail page (``/articles/<ulid>``): no archivist-only value reaches a member or
+public body."""
 
 import io
 import re
@@ -66,9 +66,8 @@ class _DetailArchive:
 
 @pytest.fixture
 def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
-    """Overrides the standard corpus with one richly-populated published article (two media,
-    archivist-only Standort/custom), a draft and a markup-bearing record. Media go through
-    ``add_media``: the repository refuses an unstored blob."""
+    """Overrides the standard corpus. Media go through ``add_media``: the repository refuses an
+    Article naming an unstored blob."""
     archive = make_corpus()
     archive.add_collection(
         make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
@@ -103,7 +102,6 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
     archive.add_article(
         make_article(DRAFT, collection_id=FOTOS, lifecycle=Lifecycle.DRAFT, title="Entwurf")
     )
-    # free-text fields carrying markup, for the escaping test
     evil = archive.articles.add_media(
         MARKUP, "e.png", io.BytesIO(_png((90, 90, 90))), media_type="image/png"
     )
@@ -147,8 +145,8 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
         before = _body(Public(), corpus.pub)
         assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.second_hash, thumbs)
         after = _body(Public(), corpus.pub)
-    assert second not in before  # no thumbnail URL that would 404
-    assert "b.png" in before  # the uncached file's tile names it
+    assert second not in before
+    assert "b.png" in before
     assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
     assert "data:image" not in after  # no bytes inlined
 
@@ -378,7 +376,6 @@ def test_tags_link_into_tag_facet(corpus: _DetailArchive) -> None:
 
 
 def test_markup_bearing_fields_render_escaped(corpus: _DetailArchive) -> None:
-    # stored XSS: an archivist-typed field must never execute in a reader's browser
     body = _body(Public(), corpus.markup)
     assert "&lt;script&gt;alert(&#x27;body&#x27;)&lt;/script&gt;" in body
     assert "&lt;script&gt;alert(&#x27;titel&#x27;)&lt;/script&gt;" in body

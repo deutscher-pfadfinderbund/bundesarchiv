@@ -1,6 +1,5 @@
-"""``render_screen`` resolves the header's ``is_archivist`` and ``is_signed_in`` from ``viewer_of``; no
-caller context may assert them. The leak matrix never checks chrome, so this is the only gate on it.
-"""
+"""The only gate on the header's authorization-shaped chrome: the leak matrix checks routes, not
+chrome."""
 
 from django.http import HttpRequest
 from django.test import RequestFactory

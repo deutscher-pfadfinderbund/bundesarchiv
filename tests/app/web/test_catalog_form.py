@@ -1,4 +1,4 @@
-"""``catalog.parse_edit_form``: a total parse of the form POST into an ``Article`` or verbatim German field errors. The "" → None boundary (spec §8) is the leak-sensitive contract pinned here."""
+"""``catalog.parse_edit_form``. The "" → None boundary (spec §8) is leak-sensitive."""
 
 from datetime import UTC, datetime
 

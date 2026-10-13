@@ -1,4 +1,4 @@
-"""The Dokumenttyp options endpoint ``/articles/<ulid>/document-types`` (spec §5): archivist-gated to a 404, never partial content for anyone else. Plus the htmx save's HX-Redirect."""
+"""The Dokumenttyp options endpoint and the htmx save (spec §5)."""
 
 import pytest
 from tests.app.web._asserts import assert_denied

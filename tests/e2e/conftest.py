@@ -1,6 +1,5 @@
 """E2E wiring: pytest-playwright against ``live_server`` under ``settings_dev``'s urlconf and
-middleware, with a fresh canonical store and corpus per test (pytest-django truncates the index
-between tests). ``archivist_page`` carries the signed archivist cookie, ``public_page`` none.
+middleware.
 """
 
 import os
@@ -37,8 +36,7 @@ document.addEventListener("securitypolicyviolation", (e) => window.__cspViolatio
 
 @pytest.fixture(autouse=True)
 def _no_csp_violations(browser: Browser, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Fail any test on a CSP violation. Hooked on ``browser.new_context`` because tests open their
-    own contexts."""
+    """Hooked on ``browser.new_context`` because tests open their own contexts."""
     violations: list[str] = []
     new_context = browser.new_context
 
@@ -55,23 +53,20 @@ def _no_csp_violations(browser: Browser, monkeypatch: pytest.MonkeyPatch) -> Ite
 
 @pytest.fixture
 def _e2e_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The canonical store root, fresh per test: pytest-django truncates the index between tests, so
-    a session corpus would vanish."""
+    """Per test: pytest-django truncates the index between tests, so a session corpus would
+    vanish."""
     return tmp_path_factory.mktemp("e2e-canonical")
 
 
 @pytest.fixture
 def _e2e_thumbs(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The thumbnail cache root, fresh per test; the corpus pre-generates into it and the live
-    server reads it."""
     return tmp_path_factory.mktemp("e2e-thumbs")
 
 
 @pytest.fixture
 def _e2e_settings(_e2e_root: Path, _e2e_thumbs: Path) -> Iterator[dict[str, object]]:
-    """The live server's settings: ``settings_dev``'s layer, so a dev change never skips this suite,
-    plus the per-test values. Views read the roots per request, so the session-scoped
-    ``live_server`` follows each test's dirs.
+    """``settings_dev``'s layer, so a dev change never skips this suite. Views read the roots per
+    request, so the session-scoped ``live_server`` follows each test's dirs.
     """
     settings: dict[str, object] = {
         "ROOT_URLCONF": settings_dev.ROOT_URLCONF,
@@ -101,7 +96,7 @@ def e2e_corpus(
     transactional_db: None,
     django_db_blocker: DjangoDbBlocker,
 ) -> CorpusHandles:
-    """The corpus, committed through ``transactional_db`` so the live server's thread reads it."""
+    """Committed through ``transactional_db`` so the live server's thread reads it."""
     with django_db_blocker.unblock():
         return build_corpus(_e2e_root, thumbnail_root=_e2e_thumbs)
 
@@ -110,7 +105,6 @@ def e2e_corpus(
 def live_workbench(
     live_server: LiveServer, _e2e_settings: dict[str, object], e2e_corpus: CorpusHandles
 ) -> str:
-    """The live server's base URL, with the corpus built and the settings active."""
     return live_server.url
 
 
@@ -126,7 +120,6 @@ def _archivist_cookie(base_url: str) -> dict[str, object]:
 
 
 def _archivist_context_page(browser: Browser, base_url: str, *, javascript: bool) -> Iterator[Page]:
-    """A page in a fresh archivist-cookie context."""
     context = browser.new_context(java_script_enabled=javascript)
     context.add_cookies([_archivist_cookie(base_url)])  # type: ignore[list-item]
     page = context.new_page()
@@ -136,7 +129,6 @@ def _archivist_context_page(browser: Browser, base_url: str, *, javascript: bool
 
 @pytest.fixture
 def archivist_page(live_workbench: str, browser: Browser) -> Iterator[Page]:
-    """A page signed in as an Archivist."""
     yield from _archivist_context_page(browser, live_workbench, javascript=True)
 
 

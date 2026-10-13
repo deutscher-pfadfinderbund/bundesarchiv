@@ -1,6 +1,6 @@
 """Design lint: the lintable subset (section E) of ``docs/design/design-review-law.md`` over the prod
-stylesheets. The parser is a brace tracker for our own CSS formatting: one ``{`` per block opener,
-selectors and values possibly wrapped."""
+stylesheets. The parser is a brace tracker for our own CSS formatting: one ``{`` per block
+opener."""
 
 import itertools
 import re
@@ -28,8 +28,8 @@ ERROR_LICENSED = (
 )
 
 Decl = tuple[str, str, str, int, bool]  # (selector stack, property, cleaned line, lineno, comment)
-#: One at-rule opener: (selector stack including it, raw condition, lineno, has-comment). Separate
-#: from Decl so the literal rules also see conditions.
+#: (selector stack including it, raw condition, lineno, has-comment). Separate from Decl so the
+#: literal rules also see conditions.
 AtRule = tuple[str, str, int, bool]
 
 
@@ -52,9 +52,7 @@ def _resolve(parent: str | None, selectors: str) -> str:
 
 
 def _parse(css: str) -> tuple[list[Decl], list[AtRule], list[Rule]]:
-    """Flatten a stylesheet into declarations, at-rule openers and style-rule openers.
-
-    Comments are stripped; each line keeps whether it had one (the C5 exemption)."""
+    """Declarations and at-rules keep whether their line had a comment (the C5 exemption)."""
     decls: list[Decl] = []
     at_rules: list[AtRule] = []
     rules: list[Rule] = []
@@ -127,7 +125,7 @@ def _all_at_rules() -> dict[str, list[AtRule]]:
 
 
 def test_every_prod_stylesheet_is_linted() -> None:
-    # hand-written so it reads; a new stylesheet would otherwise escape every rule silently
+    # STYLESHEETS is hand-written: a new stylesheet would escape every rule silently
     on_disk = {path.name for path in STATIC.glob("*.css")}
     assert set(STYLESHEETS) == on_disk, (
         f"stylesheets on disk but not linted = {sorted(on_disk - set(STYLESHEETS))}, "
@@ -397,8 +395,7 @@ def test_error_only_in_licensed_selectors() -> None:
 
 
 def test_no_margin_on_component_roots() -> None:
-    # Law C4. A root is a components-layer rule whose subject is one bare class. .visually-hidden is
-    # exempt: its -1px margin is the sr-only clip.
+    # Law C4. .visually-hidden is exempt: its -1px margin is the sr-only clip.
     offenders = []
     for name, decls in _all_declarations().items():
         for sel, prop, raw, lineno, _comment in decls:
@@ -416,8 +413,7 @@ _PX_REM = re.compile(r"\b(?:0*[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b")
 
 
 def test_bare_dimension_literals_are_named_or_commented() -> None:
-    # Law C5. At-rule conditions count too: a width threshold needs the same why-comment as any
-    # structural literal (C9).
+    # Law C5, at-rule conditions included (C9).
     offenders = []
     for name, decls in _all_declarations().items():
         if name == "tokens.css":

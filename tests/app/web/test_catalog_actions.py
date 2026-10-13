@@ -1,4 +1,5 @@
-"""Read-view actions and lifecycle: copy, delete, delete-permanently, restore, publish (spec §6.2/§7/§8, ADR 0022). Every route is archivist-gated for both methods, and each deny asserts its side effect did not happen."""
+"""Read-view actions and lifecycle: copy, delete, delete-permanently, restore, publish
+(spec §6.2/§7/§8, ADR 0022)."""
 
 from dataclasses import replace
 from typing import Any

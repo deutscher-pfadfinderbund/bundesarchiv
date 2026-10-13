@@ -1,6 +1,3 @@
-"""The create-Bestand form (``/collections/new``). Setting the audience at creation is safe: a fresh
-Bestand holds nothing."""
-
 from collections.abc import Callable
 
 import pytest
@@ -13,7 +10,6 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
 @pytest.fixture
 def fotos(make_corpus: Callable[[], Corpus]) -> Corpus:
-    """An archive holding one named public Bestand, ``FOTOS``."""
     corpus = make_corpus()
     corpus.add_collection(
         make_collection("FOTOS", "Fotografien", audience=Audience(AudienceTier.PUBLIC))
@@ -62,7 +58,7 @@ def test_get_renders_form_with_parent_and_visibility(fotos: Corpus) -> None:
     assert 'name="name"' in body
     assert 'name="parent_id"' in body
     assert "Fotografien" in body
-    assert "Vom Bestand erben" in body  # the Sichtbarkeit inherit default
+    assert "Vom Bestand erben" in body
     assert "Öffentlich" in body
 
 
@@ -71,7 +67,6 @@ def test_get_renders_form_with_parent_and_visibility(fotos: Corpus) -> None:
 
 @pytest.mark.django_db
 def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> None:
-    # create → catalog is one flow
     response = client_as(Archivist()).post(
         "/collections/new", {"name": "Karten", "parent_id": "", "audience": ""}
     )
@@ -79,8 +74,7 @@ def test_post_creates_top_level_and_lands_on_catalog_form(corpus: Corpus) -> Non
     created = [c for c in corpus.collections.load_all() if c.name == "Karten"]
     assert len(created) == 1
     assert created[0].parent_id is None
-    assert created[0].audience is None  # inherit
-    # lands on the create-article form with the new Bestand pre-selected
+    assert created[0].audience is None
     location = response["Location"]
     assert location.startswith("/articles/new?")
     assert f"collection={created[0].ulid}" in location
@@ -107,7 +101,7 @@ def test_created_shows_no_text_from_the_url(fotos: Corpus, query: str) -> None:
 
 @pytest.mark.django_db
 def test_catalog_form_ignores_a_bogus_preselect(fotos: Corpus) -> None:
-    # no oracle: an unknown ?collection= leaves the placeholder selected, as when none is given
+    # no existence oracle
     body = client_as(Archivist()).get("/articles/new?collection=NOSUCH").content.decode()
     assert 'value="FOTOS" selected' not in body
     assert 'value="" selected' in body
@@ -178,7 +172,6 @@ def test_post_unknown_parent_re_renders_and_creates_nothing(corpus: Corpus) -> N
 
 @pytest.mark.django_db
 def test_the_panel_answers_a_refusal_in_place_then_creates(corpus: Corpus) -> None:
-    """Under htmx the create's tool panel is its own answer."""
     client = client_as(Archivist())
     before = len(corpus.collections.load_all())
     refused = client.post(

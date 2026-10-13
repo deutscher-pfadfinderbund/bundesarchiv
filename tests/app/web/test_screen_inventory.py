@@ -28,7 +28,6 @@ _NOT_A_SCREEN: dict[str, str] = {
 
 
 def _get_reachable_routes() -> set[str]:
-    """Every prod route whose GET answers an archivist 200, per the leak matrix's contract."""
     return {name for name, route in _CONTRACT.items() if route.get_arch == OK}
 
 

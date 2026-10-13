@@ -36,7 +36,6 @@ def _chooser(_response: HttpResponse, corpus: Corpus) -> Change | None:
     return corpus.collections.load(PUB).change
 
 
-#: Per write route: the version it wrote (a hard delete writes none).
 _CHANGED: dict[str, Callable[[HttpResponse, Corpus], Change | None]] = {
     "article-create": _landed_article,
     "article-edit": _article(DRAFT_ULID),

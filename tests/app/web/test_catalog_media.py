@@ -1,4 +1,4 @@
-"""The media manager (spec §6.3): reorder, remove and upload under ``/articles/<ulid>/media/``, and the captions riding the edit-form save. Every structural route is archivist-gated and POST-only; the deny tests assert the media tuple is unchanged."""
+"""The media manager (spec §6.3)."""
 
 import io
 import re
@@ -78,8 +78,7 @@ def _hashes(corpus: _MediaCorpus) -> list[str]:
 
 
 def _media_drawer_region(body: str) -> str:
-    # Mirrors what htmx's hx-select="#media-drawer" extracts client-side from the full-page
-    # response: the <section id="media-drawer"> element, start tag through its matching close.
+    # the region htmx's hx-select="#media-drawer" swaps in
     start = body.index('id="media-drawer"')
     open_tag_start = body.rindex("<section", 0, start)
     end = body.index("</section>", start) + len("</section>")
@@ -160,8 +159,6 @@ def test_move_against_deleted_article_is_404(
 def test_structural_save_conflict_surfaces_hinweis_not_silent(
     corpus: _MediaCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # If every structural save attempt loses the race, the archivist must see a hinweis, not a
-    # silently unchanged form.
     from bundesarchiv.app import articles
     from bundesarchiv.persistence.errors import Conflict
 
@@ -214,8 +211,7 @@ def test_remove_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> Non
 
 
 def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
-    # An authenticated non-archivist can obtain a CSRF token, so CSRF must not be the only barrier.
-    # The dev urlconf composes the prod routes, and its switcher GET seeds the cookie without a DB.
+    # the dev urlconf composes the prod routes and adds the switcher GET
     client = client_as(Member(groups=("vorstand",)), enforce_csrf=True)
     with override_settings(
         ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
@@ -383,8 +379,7 @@ def test_upload_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_pat
 
 
 def test_upload_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
-    # The per-row forms must live inside #media-drawer, so the htmx swap (hx-select="#media-drawer")
-    # delivers forms for the current row set.
+    # only #media-drawer is swapped in (hx-select), so its forms must cover every row
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert response.status_code == 200

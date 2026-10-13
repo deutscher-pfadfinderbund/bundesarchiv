@@ -46,9 +46,9 @@ Reach = Callable[[Page, str, CorpusHandles], None]
 
 @dataclass(frozen=True, slots=True)
 class Screen:
-    """One screen of the app; ``route`` is the prod route name the inventory gate joins on.
-    ``overlays`` and ``control_rows`` are the MINIMUM a walker must find, so a silent no-find never
-    passes as a green walk.
+    """``route`` is the prod route name the inventory gate joins on. ``overlays`` and
+    ``control_rows`` are the MINIMUM a walker must find, so a silent no-find never passes as a green
+    walk.
     """
 
     name: str
@@ -79,7 +79,6 @@ BULK_COMMIT = 'main form:has(input[name="confirmed"]) button[type="submit"]'
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    """The bulk confirm surface, POST-only."""
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
@@ -352,7 +351,6 @@ SCREENS: tuple[Screen, ...] = (
         reach_door,
         "article-detail",
     ),
-    # The two POST-only bulk surfaces.
     Screen(
         "bulk-confirm",
         "bulk edit, confirm surface (field · value · affected list · the one primary action)",

@@ -1,5 +1,5 @@
-"""Archivist entry points to the Bestand routes. Showing them is chrome, not a visibility decision:
-the routes gate themselves."""
+"""Showing the archivist's Bestand entry points is chrome, not a visibility decision: the routes
+gate themselves."""
 
 from collections.abc import Callable
 

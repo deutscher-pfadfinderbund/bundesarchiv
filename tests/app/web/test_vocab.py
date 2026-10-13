@@ -1,5 +1,5 @@
-"""The cataloging vocabulary and the display spellings. The legacy lists are pinned verbatim: a silent
-edit to a Medienart the legacy archive uses would orphan records.
+"""The legacy lists are pinned verbatim: a silent edit to a Medienart the legacy archive uses would
+orphan records.
 """
 
 import pytest
@@ -30,7 +30,6 @@ def narrowed_vocabulary(monkeypatch: pytest.MonkeyPatch) -> str:
 
 # --- the Medienart -> Dokumenttyp mapping ------------------------------------------
 
-#: The legacy archive's Medienarten, verbatim and in legacy order.
 _LEGACY_MEDIA_TYPES = (
     "Audiodatei",
     "Buch",
@@ -51,7 +50,7 @@ _LEGACY_MEDIA_TYPES = (
     "Wappen und Zeichen",
 )
 
-#: The legacy archive's Dokumenttypen, verbatim and in legacy (lookup-table) order.
+#: In legacy (lookup-table) order, not alphabetical.
 _LEGACY_DOCUMENT_TYPES = (
     "Adressverzeichnis",
     "Chronik / Dokumentation",
@@ -116,7 +115,6 @@ def test_is_valid_pair_rejects_a_document_type_without_a_media_type() -> None:
 
 
 def test_grouped_options_are_one_group_while_every_media_type_shares_one_list() -> None:
-    # identical optgroups would be noise in the no-JS baseline; one group carries the same choices
     groups = vocab.grouped_document_type_options()
     assert len(groups) == 1
     label, options = groups[0]

@@ -1,4 +1,4 @@
-"""The edit form ``/articles/<ulid>/edit`` (spec §2/§3/§6.1/§8): GET seeds it from the stored Article, POST saves under CAS (ADR 0013). The write path is real; only the index and queue seams are stubbed (conftest.py)."""
+"""The edit form ``/articles/<ulid>/edit`` (spec §2/§3/§6.1/§8)."""
 
 import io
 from collections.abc import Callable
@@ -116,13 +116,13 @@ def test_edit_form_renders_seeded_for_archivist(corpus: _EditCorpus) -> None:
 
 
 def test_edit_header_omits_hollow_sig_slot_when_no_ref_code(corpus: _EditCorpus) -> None:
-    # The edit header shows the Signatur mark only when a code exists; the Signatur input carries absence (signals-once).
+    # signals-once: the Signatur input already carries absence
     no_sig = "01KX7YT9E3VX0CP3A5Q49RZMWK"
     corpus.add_article(
         make_article(no_sig, collection_id="PUB", lifecycle=Lifecycle.DRAFT, title="Unbetitelt")
     )
     body = client_as(Archivist()).get(f"/articles/{no_sig}/edit").content.decode()
-    # "Ohne Signatur" is the hollow ref_code_tab's sr-only text, so its absence proves the slot is gone
+    # the hollow slot's sr-only text
     assert "Ohne Signatur" not in body
     # the Signatur input is present and empty
     assert 'name="ref_code" value=""' in body
@@ -209,8 +209,7 @@ def test_an_edit_keeps_the_date_added(corpus: _EditCorpus) -> None:
 def test_the_form_as_rendered_saves_every_other_value_unchanged(
     corpus: _EditCorpus, title: str
 ) -> None:
-    # Each field's pre-fill is parsed back on save. Legacy Schlagworte carry commas, and so may a
-    # group name: a save of the form as rendered must not split them, nor touch any other value.
+    # Legacy Schlagworte carry commas, and so may a group name.
     stored = corpus.articles.load(_ULID)
     before = replace(
         stored.article,
@@ -518,9 +517,6 @@ def _autofocused(body: str) -> str:
 
 
 # --- the field registry's columns ---------------------------------------------------
-# `diff` is the consequential column: `_conflict_rows` derives the CAS notice from it (loss-adjacent,
-# tests/CLAUDE.md). Each guard joins the registry to the real render or behaviour, never to a second
-# hand-written list.
 
 
 def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> list[CardRow]:
@@ -534,8 +530,6 @@ def _card_rows(*, autofocus: str = "", errors: dict[str, str] | None = None) -> 
 
 
 def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus) -> None:
-    # The sections loop over `card_fields`, so an undeclared field cannot render; a section whose
-    # loop was never wired can drop one — walk the real render for each declared control.
     from bundesarchiv.app.web.card import FIELDS
 
     body = client_as(Archivist()).get(f"/articles/{_ULID}/edit").content.decode()
@@ -546,8 +540,7 @@ def test_the_card_renders_every_field_the_registry_declares(corpus: _EditCorpus)
 
 
 def test_only_a_focusable_field_can_carry_the_autofocus() -> None:
-    # `first_error_field` scans `focusable`: a focusable field whose control never gets `autofocus`
-    # focuses nothing on a validation re-render, and in source looks like a working one.
+    # `first_error_field` picks from `focusable`, so every focusable field must take the caret
     from bundesarchiv.app.web.card import FIELDS
 
     focusable = [f.name for f in FIELDS if f.focusable]
@@ -656,9 +649,6 @@ def test_scanned_is_the_focusable_spine_minus_the_one_declared_exception() -> No
 
 
 def test_every_scanned_field_is_reachable_as_the_first_empty_one() -> None:
-    # ...and the spine behaves: for each scanned field, a record whose other spine fields are filled
-    # and this one empty autofocuses exactly it — so a field dropped or reordered out of DOM order
-    # fails for every field.
     from bundesarchiv.app.web.card import FIELDS, first_empty_field
 
     spine = [f.name for f in FIELDS if f.scanned]
@@ -700,9 +690,7 @@ def test_the_card_marks_required_exactly_the_fields_the_save_rejects_blank(
     assert marked == refused
 
 
-#: Every field the CAS "Inzwischen geändert" notice names when all of them changed, in its order —
-#: pinned verbatim, not read off `FIELDS`, which would move with a dropped `diff=`.
-#: Bestand is deliberately absent: a diff of collection moves is its own surface.
+#: The CAS notice's rows, pinned verbatim: read off `FIELDS` they would move with a dropped `diff=`.
 _CAS_DIFF_ROWS = (
     "Titel",
     "Status",
@@ -720,8 +708,6 @@ _CAS_DIFF_ROWS = (
 
 
 def test_the_cas_diff_lists_every_registry_field_that_changed(corpus: _EditCorpus) -> None:
-    # Every diffable field differs, so a dropped `diff=`, a reordered registry or a field the notice
-    # cannot point at fails against the pinned list.
     archivist = client_as(Archivist())
     changed = {
         "title": "Anderer Titel",
