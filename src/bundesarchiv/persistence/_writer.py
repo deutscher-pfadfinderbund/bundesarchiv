@@ -1,15 +1,11 @@
 """The one save protocol both repositories share (ADR 0013, ADR 0019).
 
-A saved record is a folder, ``articles/<ulid>`` or ``collections/<ulid>``, holding ``README.md``
-(the current version, and the commit point) and ``history/<n>.md`` (each version a save replaced,
-byte for byte). ``commit`` owns the order: check the version, keep the replaced README, commit.
-It also stamps the change record every version carries, so no caller can write one of its own.
-``remove`` deletes a folder against the same version check.
-``keys_in_save_order`` lists a folder in that order, for the repositories' ``keys_for``.
+A record folder holds ``README.md`` (the current version and the commit point) and
+``history/<n>.md`` (each replaced version, byte for byte).
 
-The port has no compare-and-swap, so the check-then-write runs under ``WRITER_LOCK``. It is one
-lock for both repositories because they write one store. The cross-process race is out of scope
-by the single-app-process deploy rule (ADR 0013). Media writes run without the lock. Holding it across store calls assumes a local-latency canonical store.
+The port has no compare-and-swap, so check-then-write runs under ``WRITER_LOCK``, one lock for the
+one store. Cross-process races are excluded by the single-process deploy rule (ADR 0013). Media
+writes take no lock. Holding the lock across store calls assumes a local-latency store.
 """
 
 import threading
@@ -35,14 +31,13 @@ def history_key(folder: str, version: Version) -> str:
 
 
 def is_history_key(folder: str, key: str) -> bool:
-    """True if `key` is ``history_key(folder, version)`` for some version."""
     stem = PurePosixPath(key).stem
     return stem.isdecimal() and history_key(folder, int(stem)) == key
 
 
 @dataclass(frozen=True, slots=True)
 class StoredKey:
-    """One key of a saved record's folder, as `keys_for` lists it, with its size. A save replaces
+    """One key of a saved record's folder, with its size. A save replaces
     only the README; every other key is `write_once` (ADR 0019). `sha256` is the digest of the
     bytes when the README states it, else None. `readable` is False only for a README its
     repository cannot decode, which is never to be pushed (ADR 0020)."""

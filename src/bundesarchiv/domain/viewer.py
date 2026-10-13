@@ -1,9 +1,5 @@
-"""Viewer value objects — *who is asking* (CONTEXT.md: Archivist, Member, Public).
-
-Inert, per-request data injected into the access model. This module never reads
-Keycloak: a Member's groups arrive as already-resolved names. The Audience *logic*
-lives in `audience` and `access`; here the three kinds are plain value objects.
-"""
+"""Who is asking (CONTEXT.md): per-request values. A Member's groups arrive resolved;
+nothing here reads Keycloak."""
 
 from dataclasses import dataclass
 
@@ -18,8 +14,7 @@ class Archivist:
 
 @dataclass(frozen=True, slots=True)
 class Member:
-    """An authenticated DPB member. `groups` holds the Keycloak group names they
-    hold (immutable; injected per request, never fetched here)."""
+    """An authenticated DPB member; `groups` are their Keycloak group names."""
 
     groups: tuple[str, ...] = ()
 

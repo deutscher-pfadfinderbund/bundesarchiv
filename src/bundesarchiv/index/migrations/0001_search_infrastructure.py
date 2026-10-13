@@ -4,8 +4,8 @@ Pure database DDL with no ORM model:
 
 - The ``bundesarchiv_german`` text-search configuration and the ``unaccent`` extension it
   depends on — consumed **verbatim** from [ADR 0011](../../../../docs/adr/0011-german-fts-config.md).
-  The chain is ``unaccent → german_stem`` only (the Hunspell ispell dict was dropped by
-  measurement). ``unaccent`` must exist before the config references it, hence the extension first.
+  The chain is ``unaccent → german_stem`` only. ``unaccent`` must exist before the config
+  references it, hence the extension first.
 - The ``de_numeric`` ICU collation for numeric-aware, locale-aware ``ref_code`` sorting (ADR 0011 §5).
 - Two ``IMMUTABLE`` wrapper functions holding the weighted tsvector expression. They exist because a
   generated column's expression must be ``IMMUTABLE``, but the ADR expression uses only-``STABLE``
@@ -13,8 +13,6 @@ Pure database DDL with no ORM model:
   verbatim expression in an ``IMMUTABLE`` SQL function lets ``ArticleIndex`` (migration 0002)
   declare each generated ``tsvector`` column as a one-line call to its wrapper. Safe because the
   index is derived and disposable: a config change bumps ``config_version`` and rebuilds (ADR 0003).
-
-``ArticleIndex`` (0002) depends on this migration; the dependency is declared there.
 """
 
 from django.db import migrations
@@ -44,11 +42,9 @@ _DROP_CONFIG = "DROP TEXT SEARCH CONFIGURATION IF EXISTS bundesarchiv_german;"
 _CREATE_COLLATION = "CREATE COLLATION de_numeric (provider = icu, locale = 'de-u-kn-true');"
 _DROP_COLLATION = "DROP COLLATION IF EXISTS de_numeric;"
 
-# The weighted tsvector, verbatim from ADR 0011 / the Task 6 brief: title A; ref_code + tags B;
-# creator + subject_place + media_type + document_type C; body D. Marked IMMUTABLE so it may back
-# a generated column (see the module docstring). PARALLEL SAFE: no side effects, config pinned.
-# The config reference is schema-qualified ('public.…') so lexization inside the persisted
-# columns is search_path-independent for their whole life, not just resolvable at CREATE time.
+# The weighted tsvector, verbatim from ADR 0011 (title A; ref_code, tags B; creator, place,
+# media/document type C; body D). IMMUTABLE so it may back a generated column. The config is
+# schema-qualified so lexization never depends on search_path.
 _CREATE_FUNCTIONS = """
 CREATE FUNCTION bundesarchiv_general_tsv(
     title text, ref_code text, tags text[], creator text,

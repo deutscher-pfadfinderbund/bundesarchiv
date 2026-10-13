@@ -1,14 +1,4 @@
-"""Collection-tree resolution (Part 2).
-
-`resolve_chain` walks an Article's owning Collection chain — its Collection, then that
-Collection's parent, up to the root — from an injected lookup (a mapping ULID → Collection,
-passed in, never fetched here). It returns a `ResolvedChain`: the value object that *owns*
-the structural invariant, so the leak-sensitive effective-Audience resolver can trust the
-type rather than re-validate. Fail-closed: an unknown Collection, a missing parent, or a
-cycle raises `BrokenCollectionTree` while building, before any `ResolvedChain` exists.
-
-Order is leaf-first, root-last: the Article's own Collection at index 0, the root last.
-"""
+"""Collection-tree resolution: an Article's owning chain, leaf-first, root-last."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -20,14 +10,9 @@ from bundesarchiv.domain.models import Collection, Ulid
 
 @dataclass(frozen=True, slots=True)
 class ResolvedChain:
-    """An Article's owning Collection chain, leaf-first and root-last, proven well-formed at
-    construction: non-empty, parent-linked (each element names the next as its parent), and
-    terminated at a real root (`parent_id is None`). `resolve_chain` is the sole sanctioned
-    producer; a malformed chain raises `MisresolvedChain` here rather than reaching the
-    resolver. Article-agnostic: binding a chain to a specific Article (its leaf matching the
-    Article's `collection_id`) is the resolver's check, not this type's — one chain is
-    reusable across every Article in the same Collection.
-    """
+    """An owning Collection chain, leaf-first, proven non-empty, parent-linked and
+    root-terminated at construction. Article-agnostic: whether it belongs to a given Article is
+    the resolver's check."""
 
     collections: tuple[Collection, ...]
 
@@ -53,9 +38,8 @@ class ResolvedChain:
 
 
 def resolve_chain(collection_id: Ulid, collections: Mapping[Ulid, Collection]) -> ResolvedChain:
-    """The Collection chain from `collection_id` up to the root, leaf-first, as a validated
-    `ResolvedChain`. Raises `BrokenCollectionTree` on a cycle, an unknown Collection, or a
-    missing parent."""
+    """The chain from `collection_id` to the root. Raises `BrokenCollectionTree` on a cycle or
+    an id the lookup lacks."""
     chain: list[Collection] = []
     seen: set[Ulid] = set()
     current: Ulid | None = collection_id

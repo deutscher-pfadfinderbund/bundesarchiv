@@ -22,9 +22,7 @@ import datetime
 import re
 from dataclasses import dataclass
 
-# ---------------------------------------------------------------------------
-# Regex patterns — order of application matters in _parse_single
-# ---------------------------------------------------------------------------
+# Order of application matters in _parse_single.
 
 # Qualifier suffix: ?, ~, %  (display-level uncertainty; does not affect bounds)
 _Q = r"[?~%]?"
@@ -57,22 +55,12 @@ _SEASON_BOUNDS: dict[str, tuple[int, int, int, int]] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
 def _last_day(year: int, month: int) -> int:
     return calendar.monthrange(year, month)[1]
 
 
 def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
-    """Parse one EDTF token (no ``/``). Returns (earliest, latest).
-
-    Checks patterns from most-specific to least-specific so no branch shadows another.
-    Raises ValueError on any unrecognised or invalid form.
-    """
-    # 1. YYYY-MM-DD
+    """One EDTF token (no ``/``) as (earliest, latest); ValueError if invalid."""
     m = _DATE_RE.match(s)
     if m:
         try:
@@ -81,12 +69,11 @@ def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
             raise ValueError(f"invalid EDTF date: {s!r}") from err
         return d, d
 
-    # 2. Seasons YYYY-21..24  (before YYYY-MM so codes 21-24 are not rejected as bad months)
+    # Seasons before YYYY-MM, so codes 21-24 are not rejected as bad months.
     ms = _SEASON_RE.match(s)
     if ms:
         return _parse_season(int(ms.group(1)), ms.group(2))
 
-    # 3. YYYY-MM
     m2 = _YEARMONTH_RE.match(s)
     if m2:
         year, mm = int(m2.group(1)), int(m2.group(2))
@@ -96,7 +83,6 @@ def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
         hi = datetime.date(year, mm, _last_day(year, mm))
         return lo, hi
 
-    # 4. Unspecified digits: 197X or 19XX
     mu = _UNSPEC_RE.match(s)
     if mu:
         century_tens = mu.group(1)  # e.g. "19"
@@ -109,7 +95,6 @@ def _parse_single(s: str) -> tuple[datetime.date, datetime.date]:
         base = int(century_tens) * 100
         return datetime.date(base, 1, 1), datetime.date(base + 99, 12, 31)
 
-    # 5. Plain YYYY
     my = _YEAR_RE.match(s)
     if my:
         year = int(my.group(1))
@@ -133,11 +118,6 @@ def _decade_of(d: datetime.date) -> int:
     return (d.year // 10) * 10
 
 
-# ---------------------------------------------------------------------------
-# Public value object
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True, slots=True)
 class EdtfDate:
     """Validated EDTF Level 0/1 date. Raises ValueError on invalid input.
@@ -149,27 +129,16 @@ class EdtfDate:
     value: str
 
     def __post_init__(self) -> None:
-        # Validate eagerly so an EdtfDate in hand is always well-formed.
         _validate(self.value)
 
     def bounds(self) -> tuple[datetime.date, datetime.date | None]:
-        """Return ``(earliest, latest)`` for this date expression.
-
-        For open upper ends (``A/..``) ``latest`` is ``None``.
-        For open lower ends (``../B``) ``earliest`` is the start of B's range —
-        the anchor IS the effective lower bound (v1 has no unbounded-below
-        sentinel; consumers like the index date-range filter treat it as a
-        real floor).
-        """
+        """(earliest, latest); latest is None for an open upper end. An open lower end
+        (``../B``) floors at B's start, since there is no unbounded-below."""
         return _bounds(self.value)
 
     def decades(self, *, cap_year: int) -> tuple[int, ...]:
-        """Decade-start years spanned by this date, capped at ``cap_year``.
-
-        ``cap_year`` is exclusive: a decade starting *at or after* ``cap_year`` is
-        omitted. For open upper ends the range runs from the earliest decade up to
-        (but not including) ``cap_year``'s decade.
-        """
+        """Decade-start years from earliest to latest. An open upper end runs to the decade of
+        ``cap_year - 1``; a closed range is not capped."""
         lo, hi = self.bounds()
         if hi is None:
             hi = datetime.date(cap_year - 1, 12, 31)
@@ -178,27 +147,19 @@ class EdtfDate:
         return tuple(range(first_decade, last_decade + 1, 10))
 
 
-# ---------------------------------------------------------------------------
-# Validation + bounds (module-private; EdtfDate is the public surface)
-# ---------------------------------------------------------------------------
-
-
 def _validate(value: str) -> None:
-    """Raise ValueError if *value* is not a supported EDTF expression."""
     if not value:
         raise ValueError("EDTF value must not be empty")
-    _bounds(value)  # parsing already raises on bad input
+    _bounds(value)
 
 
 def _bounds(value: str) -> tuple[datetime.date, datetime.date | None]:
-    """Parse *value* into ``(earliest, latest | None)``. Raises ValueError on bad input."""
     if "/" not in value:
         return _parse_single(value)
 
     parts = value.split("/", 1)
     left, right = parts[0], parts[1]
 
-    # Both sides empty is nonsensical
     if not left and not right:
         raise ValueError(f"invalid EDTF interval (both ends empty): {value!r}")
 
