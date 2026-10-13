@@ -1,7 +1,7 @@
 """The ObjectStore port: a minimal blob interface defined to the WebDAV/S3
 lowest common denominator — no append, no rename, no OS-level lock (ADR 0005).
 
-Backends vary (in-memory, local filesystem, WebDAV, S3); every adapter satisfies
+Backends vary (in-memory, local filesystem, WebDAV); every adapter satisfies
 this Protocol and the conformance suite. Keys are "/"-separated paths.
 """
 
@@ -11,11 +11,8 @@ from typing import BinaryIO, Protocol
 
 from bundesarchiv.persistence.errors import ArchiveError
 
-# A key is "reserved" if any "/"-segment starts with a dot. Reserved keys are the
-# storage protocol's internal namespace: the local-FS adapter's temp siblings ("…/.tmp-<uuid>")
-# and prefix-delete leftovers ("…/.deleted-<hash>"); ".lock" is reserved by ADR 0013 and unused.
-# They are real, durable keys — `read`/`write_atomic`/`exists` see them and address them by direct
-# key — but they are EXCLUDED from `list()`, so a walk sees only live content.
+# A key with a dot-led segment is reserved: storage-internal (temp siblings, prefix-delete
+# leftovers; `.lock` per ADR 0013). It is addressable by key but excluded from `list()`.
 _RESERVED_SEGMENT_PREFIX = "."
 
 
@@ -25,15 +22,9 @@ def is_reserved(key: str) -> bool:
 
 
 def validate_key(key: str) -> None:
-    """Raise `ArchiveError` if `key` is not a valid object key — part of the port
-    contract every adapter enforces on every key-taking operation.
-
-    A key is "/"-separated and non-empty; no segment may be empty, "." or ".."
-    (fail closed against path traversal), and no character may be a NUL or other
-    ASCII control character (those provoke a raw ValueError from pathlib that would
-    escape the port, and the in-memory fake would diverge by accepting them). A
-    leading-dot reserved segment (".tmp-<uuid>") is valid.
-    """
+    """Raise `ArchiveError` unless `key` is valid: no empty, "." or ".." segment (traversal) and
+    no control character (pathlib would raise a raw ValueError past the port). Dot-led reserved
+    segments are valid."""
     if any(segment in ("", ".", "..") for segment in key.split("/")):
         raise ArchiveError(f"invalid key: {key!r}")  # an empty key splits to [""], caught here
     if any(ch < " " or ch == "\x7f" for ch in key):
@@ -88,12 +79,8 @@ class ObjectStore(Protocol):
         ...
 
     def open_stream(self, key: str) -> BinaryIO:
-        """Return a readable binary stream over the object at `key`, which the caller
-        closes. Raise `NotFound` if absent.
-
-        The read counterpart of `create_large`: the stream hands the bytes out as they are read
-        and never holds the whole object in memory, so a caller that passes them on (an HTTP
-        response, a copy to another store) stays small for any object size."""
+        """A readable stream over `key` that never holds the whole object in memory; the caller
+        closes it. Raise `NotFound` if absent."""
         ...
 
     def list(self, prefix: str = "") -> Iterable[str]:

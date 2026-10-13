@@ -1,16 +1,8 @@
-"""ArticleRepository — the deep module the rest of the app uses (ADR 0005).
+"""ArticleRepository (ADR 0005): Articles as `articles/<ulid>/` on an injected ObjectStore.
 
-It owns the whole canonical-file protocol and sits on an injected `ObjectStore`:
-
-    articles/<ulid>/README.md             the commit point (front-matter + body + marker)
-    articles/<ulid>/history/<version>.md  each replaced README
-    articles/<ulid>/media/<name>          media files under their own name, write-once
-
-The README.md ⇄ Article translation is the `readme` codec. The README and history keys and the save
-order are `_writer.commit`'s, the folder and media keys `_layout`'s; this module owns the media
-names (ADR 0019 "Media names") and the hard delete.
-
-Callers depend only on this module; they never touch `ObjectStore` keys directly.
+The codec is `readme`; README and history keys and the save order are `_writer`'s, folder and
+media keys `_layout`'s. This module owns media names (ADR 0019 "Media names") and the hard delete.
+Callers never touch ObjectStore keys.
 """
 
 import unicodedata
@@ -99,13 +91,10 @@ class ArticleRepository:
         media_type: str | None = None,
         caption: str | None = None,
     ) -> MediaRef:
-        """Store what `source` holds, from where it stands to its end, as one of the Article's
-        media files under `filename` cleaned (ADR 0019 "Media names"), and return the reference to
-        embed in the Article before `save`. An optional `caption` (ADR 0015) is carried into the
-        ref. Raises `ValueError`, writing nothing, when `cleaned_name(filename)` is None.
-
-        `source` is read in chunks, once to hash it and once to store it (ADR 0019 "Streaming
-        upload"), so it must be seekable; no step holds the whole file in memory."""
+        """Store `source` (from its current position; must be seekable, because it is read twice,
+        ADR 0019 "Streaming upload") as one of the Article's media files under its cleaned name
+        (ADR 0019 "Media names"), and return the ref to embed before `save`. Raises `ValueError`,
+        writing nothing, when nothing of `filename` survives cleaning."""
         name = _clean(filename)
         if not name:
             raise ValueError(f"nothing is left of the media name {filename!r} once cleaned")
@@ -216,7 +205,6 @@ class ArticleRepository:
                 )
 
     def _read_readme(self, ulid: Ulid) -> str:
-        """Read + decode the Article's README text (raises NotFound if absent)."""
         return _front_matter.text_of(ulid, self._store.read(ARTICLES.readme_key(ulid)))
 
 
