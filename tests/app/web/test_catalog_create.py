@@ -1,4 +1,4 @@
-"""The create step ``/articles/new`` (spec §2): GET the minimal form, POST a draft via ``create_article``; archivist-gated to a 404 for everyone else."""
+"""The create step ``/articles/new`` (spec §2)."""
 
 from collections.abc import Callable
 

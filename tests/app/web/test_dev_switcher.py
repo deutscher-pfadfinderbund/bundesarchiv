@@ -57,7 +57,6 @@ def test_switcher_post_roundtrips_to_viewer_of(post_data: dict[str, str], expect
 
 @override_settings(**_DEV)
 def test_switcher_post_carries_csrf_token_so_it_works_under_enforcement() -> None:
-    # the switcher's hand-rolled form must render the token itself
     client = Client(enforce_csrf_checks=True)
     client.get(reverse("dev-switch-viewer"))
     token = client.cookies["csrftoken"].value
@@ -111,7 +110,6 @@ def test_switcher_neither_resolves_nor_reverses_without_the_dev_urlconf() -> Non
 # test's closure and the requires_pg derivation in tests/conftest.py cannot see it.
 @pytest.mark.requires_pg
 def test_prod_process_boots_clean_under_prod_settings() -> None:
-    # a real boot under prod settings surfaces any dev-viewer coupling that needs the dev key
     env = dict(os.environ)
     env["DJANGO_SETTINGS_MODULE"] = "bundesarchiv.index.settings"
     env.pop("DEV_VIEWER_SIGNING_KEY", None)

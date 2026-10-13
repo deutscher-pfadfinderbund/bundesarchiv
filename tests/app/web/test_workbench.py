@@ -1,6 +1,4 @@
-"""The workbench list (``/articles``): results are viewer-scoped by ``search``. The corpus is bespoke
-and re-indexed inside each test's transaction: the rollback is the index isolation.
-"""
+"""The workbench list (``/articles``): results are viewer-scoped by ``search``."""
 
 import io
 import re
@@ -168,8 +166,6 @@ def _fill(corpus: Corpus) -> None:
             custom=(("herkunft", "Nachlass Schmidt"),),
         )
     )
-    # the pane articles: PANE_PUB public with a captioned file, PANE_MEM members-only with floored
-    # fields
     pub_ref = corpus.articles.add_media(
         PANE_PUB_ULID,
         "titel.jpg",
@@ -281,7 +277,7 @@ def test_hx_request_renders_only_results_partial(indexed_corpus: Corpus) -> None
     # the Archivist's full page — its absence here proves the topbar is outside the partial).
     response = _get(Archivist(), "q=Foto", hx=True)
     body = response.content.decode()
-    assert 'id="results"' in body  # the swap target
+    assert 'id="results"' in body
     assert "<html" not in body
     assert "Neuer Artikel" not in body
 
@@ -352,11 +348,11 @@ def test_floored_fields_present_for_archivist_only_where_intended(indexed_corpus
     # the ledger shows no floored field, not even to the archivist
     body = _get(Archivist()).content.decode()
     assert "Protokoll der Vorstandssitzung" in body
-    assert "Geheimregal" not in body  # ...but its floored physical_location is not in the ledger
+    assert "Geheimregal" not in body
 
 
 def test_visibility_column_renders_for_nobody(indexed_corpus: Corpus) -> None:
-    # No visibility column for anyone (owner 2026-08-07); group names never reach a non-archivist.
+    # owner ruling 2026-08-07: no visibility column
     page = _get(Archivist()).content.decode()
     # the ledger alone: the header's "Neuer Bestand …" form offers a Sichtbarkeit of its own
     arch = page[page.index("<table") : page.index("</table>")]
@@ -569,8 +565,7 @@ def _search_form_html(body: str) -> str:
 
 
 def test_search_form_echoes_every_active_filter_as_hidden_input(indexed_corpus: Corpus) -> None:
-    # a new q refines within the active filters; page is dropped (a new search starts at page 1),
-    # and q is the one live input
+    # a new search starts at page 1, so page is not echoed
     query = (
         "q=Fahrt&collection=FOTOS&media_type=Foto&document_type=Lagerheft&tag=fahrten"
         "&decade=1960&dateless=1&date_from=1960-01-01&date_to=1969-12-31&sort=-ref_code&page=2"
@@ -636,7 +631,7 @@ def test_a_word_only_on_a_page_links_that_page_of_the_file(indexed_corpus: Corpu
 
 
 def test_long_ref_codes_render_in_full(indexed_corpus: Corpus) -> None:
-    # realistic lengths: the 8-character, space-free ceiling (owner 2026-08-07)
+    # the 8-character, space-free ceiling (owner 2026-08-07)
     body = _get(Public()).content.decode()
     assert "F12/3-b" in body
     assert "BA1848/2" in body
@@ -685,7 +680,7 @@ _CONTINUE = "Weiter \N{SINGLE RIGHT-POINTING ANGLE QUOTATION MARK}"
 def test_the_pager_holds_the_range_between_its_steps(
     indexed_corpus: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # on page 1 Zurück stays, disabled: it becomes active one click later
+    # Zurück stays, disabled: it becomes active one click later
     monkeypatch.setattr(browse, "PAGE_SIZE", 2)
     total = len(list(indexed_corpus.articles.list_ulids()))  # the archivist sees every record
     pager = _pager(_get(Archivist()).content.decode())
@@ -695,7 +690,6 @@ def test_the_pager_holds_the_range_between_its_steps(
 
 
 def test_a_one_page_list_shows_its_count_and_no_steps(indexed_corpus: Corpus) -> None:
-    # neither step can become active on a one-page list
     total = len(list(indexed_corpus.articles.list_ulids()))
     body = _get(Archivist()).content.decode()
     assert f'<data value="{total}">{total}</data> Artikel</span></p>' in body
@@ -737,8 +731,8 @@ def test_a_garbage_cookie_prints_the_default_columns_and_no_column_is_a_choice(
 def test_title_navigates_and_no_list_link_opens_the_pane(
     indexed_corpus: Corpus, viewer: Viewer
 ) -> None:
-    # The Titel is plain navigation to the detail route (owner 2026-08-07). The preview is paused
-    # (owner 2026-09-30): the pane opens only from its address, so no link on the list sets ?article=
+    # owner rulings: the Titel navigates (2026-08-07); the preview is paused, reachable only by
+    # address (2026-09-30)
     body = _get(viewer).content.decode()
     hrefs = page_hrefs(body)
     assert f"/articles/{PANE_PUB_ULID}" in hrefs
@@ -813,7 +807,7 @@ def test_no_pane_for_an_article_in_the_trash(indexed_corpus: Corpus) -> None:
 
 
 def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corpus) -> None:
-    # a bare href="?" would drop the whole search; the close link drops only ?article=
+    # a bare href="?" would drop the whole search
     body = _get(
         Public(),
         f"q=Vorschau&media_type=Foto&article={PANE_PUB_ULID}",
@@ -822,7 +816,6 @@ def test_pane_close_link_preserves_query_drops_only_article(indexed_corpus: Corp
     # the close link carries the active search params...
     assert "q=Vorschau" in body
     assert "media_type=Foto" in body
-    # ...but never the article selection (it is pane state, stripped from the close href)
     close_href = body.split(' aria-label="Vorschau schließen"', 1)[0].rsplit('href="', 1)[1]
     assert "artikel" not in close_href, f"close href must drop artikel: {close_href}"
     assert "q=Vorschau" in close_href and "media_type=Foto" in close_href

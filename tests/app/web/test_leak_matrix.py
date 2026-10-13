@@ -1,6 +1,5 @@
-"""The route x tier leak matrix: every prod route's status per viewer tier and method, gated
-exhaustive against the urlconf. No route has a method guard, so a disallowed method is the plain
-404, not a 405. ``/static/*`` is WhiteNoise's (ADR 0016), outside the urlconf."""
+"""The route x tier leak matrix, gated exhaustive against the prod urlconf. ``/static/*`` is
+WhiteNoise's (ADR 0016), outside the urlconf."""
 
 import io
 from collections import defaultdict
@@ -32,8 +31,7 @@ def _png_bytes(color: tuple[int, int, int]) -> bytes:
 
 
 class _MatrixCorpus:
-    """One GROUPS-tier (``vorstand``) Bestand holding a published article with a real media blob, plus
-    a Public article in the Papierkorb; the frozen standard corpus is PUBLIC and media-free."""
+    """The matrix's own content: the frozen standard corpus is PUBLIC and media-free."""
 
     def __init__(self, base: Corpus) -> None:
         self.base = base
@@ -68,7 +66,6 @@ class _MatrixCorpus:
             )
         )
         self.content_hash = ref.content_hash
-        # the delete confirm posts the version the store landed the article at
         self.article_version = self.base.articles.load(self.article_ulid).version
         # A Public article in the Papierkorb (ADR 0022): every tier would see it but for the mark.
         self.marked_ulid = new_ulid()
@@ -134,8 +131,7 @@ ALIAS_PREFIX = "alias-"
 
 
 class Route:
-    """One route's leak contract: the expected status per method for a non-archivist and for the
-    Archivist."""
+    """One route's leak contract."""
 
     def __init__(
         self,
@@ -157,7 +153,6 @@ class Route:
         self.post_data = post_data or {}
         # tier_sensitive: a read route where the matching-group Member is ALLOWED (media/detail).
         self.tier_sensitive = tier_sensitive
-        # stub_search: the route queries the index; the matrix stubs it empty to run DB-free.
         self.stub_search = stub_search
 
 
@@ -273,9 +268,8 @@ def _p_media_display(c: _MatrixCorpus) -> str:
     return f"/media/{c.article_ulid}/{c.content_hash}/display"
 
 
-# ONE entry per prod route name; the exhaustiveness gate joins on it.
 _CONTRACT: dict[str, Route] = {
-    # Open pages: 200 for every tier, method-blind.
+    # Open pages.
     "start": Route(
         build_path=_p_root,
         get_nonarch=OK,
@@ -517,7 +511,6 @@ def _marked_post_data(c: _MatrixCorpus) -> dict[str, object]:
 
 
 def _empty_search_page() -> object:
-    """An empty ``SearchPage`` for the index stub."""
     from bundesarchiv.index.query import SearchPage
 
     return SearchPage(hits=(), total=0, facets={}, dateless_count=0)
@@ -536,7 +529,6 @@ def _expected_for(route: Route, tier: str, method: str) -> int | None:
 
 
 def _tier_invariant(route: Route) -> bool:
-    """One status for every tier and method: one probe proves it."""
     statuses = {route.get_nonarch, route.get_arch, route.post_nonarch, route.post_arch}
     return len(statuses) == 1 and not route.tier_sensitive
 
@@ -573,7 +565,7 @@ def test_route_tier_matrix(
     if name in _POST_DATA_BUILDERS:
         data = _POST_DATA_BUILDERS[name](matrix_corpus)
     if route.stub_search:
-        # the index is these routes' only DB dependency; everything else runs for real
+        # the index is these routes' only DB dependency
         monkeypatch.setattr(
             "bundesarchiv.app.web.browse_views.search", lambda *a, **k: _empty_search_page()
         )
@@ -754,14 +746,12 @@ def test_the_gate_never_bounces_the_login_flow(matrix_corpus: _MatrixCorpus, nam
 
 
 def _prod_route_names() -> set[str]:
-    """The canonical routes; an ``alias-`` route serves its English twin's view, so the twin's contract
-    covers it."""
+    """An ``alias-`` route serves its English twin's view, so the twin's contract covers it."""
     return {name for name in _prod_pattern_names() if not name.startswith(ALIAS_PREFIX)}
 
 
 def _prod_pattern_names() -> list[str]:
-    """Every prod pattern's name. Asserts the urlconf stays flat and fully named: an ``include()`` or an
-    unnamed route would escape the matrix."""
+    """Asserts the urlconf stays flat: an ``include()`` would nest routes past the matrix."""
     patterns = get_resolver(_PROD_URLCONF).url_patterns
     assert all(isinstance(p, URLPattern) for p in patterns), "prod urlconf is no longer flat"
     unnamed = [str(p.pattern) for p in patterns if isinstance(p, URLPattern) and p.name is None]
@@ -798,7 +788,6 @@ _DEV_ONLY_PATHS = (
 
 @pytest.mark.parametrize("path", _DEV_ONLY_PATHS)
 def test_dev_routes_absent_from_prod_urlconf(path: str) -> None:
-    """Dev is gated by absence from the prod urlconf, not by a runtime flag."""
     resolve(path, urlconf=_DEV_URLCONF)  # present in dev — raises here if the assumption is wrong
     with pytest.raises(Resolver404):
         resolve(path, urlconf=_PROD_URLCONF)

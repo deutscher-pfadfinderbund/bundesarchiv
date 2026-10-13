@@ -1,5 +1,4 @@
-"""The Bestand chooser: one option ordering, the two role placeholders (verbatim user contract),
-and fail-closed membership (an unknown ulid answers like an empty one)."""
+"""The Bestand chooser; its two role placeholders are verbatim user contract."""
 
 import pytest
 

@@ -16,8 +16,8 @@ from bundesarchiv.index import settings_dev
 _MANIFEST = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 _PLAIN = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
-#: The public-by-design asset set: WhiteNoise serves each to anonymous users, so a private file
-#: dropped under the static dir must turn this red.
+#: WhiteNoise serves each to anonymous users: a private file dropped under the static dir must
+#: turn this red.
 _KNOWN_ASSETS = frozenset(
     {
         "catalog_bulk.js",

@@ -1,7 +1,5 @@
-"""The access-token check (ADR 0018): the one decision every request makes about a Keycloak token.
-
-Tokens are signed with generated RSA keys; only the realm's HTTP endpoints are faked.
-"""
+"""The access-token check (ADR 0018): the one decision every request makes about a Keycloak
+token."""
 
 import hashlib
 import hmac

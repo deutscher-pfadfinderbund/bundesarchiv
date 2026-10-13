@@ -1,7 +1,6 @@
 """``viewer_of`` through the dev cookie: only a cookie signed with the dedicated dev key and salt,
 unexpired, and parsing to a known viewer yields a non-Public viewer; everything else is ``Public()``,
-never an exception. No corpus fixture: each test declares the one setting the seam reads, or its
-absence.
+never an exception.
 """
 
 import pytest
@@ -35,7 +34,6 @@ def _request_with_cookie(value: str | None) -> HttpRequest:
 
 
 def _sign(payload: str, *, key: str, salt: str = _DEV_VIEWER_SALT) -> str:
-    """Sign a raw payload as the dev switcher does."""
     return signing.TimestampSigner(key=key, salt=salt).sign(payload)
 
 
@@ -88,7 +86,6 @@ def test_tampered_signature_is_public() -> None:
 
 @override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_expired_cookie_is_public(monkeypatch: pytest.MonkeyPatch) -> None:
-    # a negative max_age makes every cookie read as expired, without sleeping or forging timestamps
     monkeypatch.setattr("bundesarchiv.app.web.viewers._DEV_VIEWER_MAX_AGE", -1)
     cookie = _sign(encode_viewer(Archivist()), key=DEV_KEY)
     assert viewer_of(_request_with_cookie(cookie)) == Public()
@@ -207,7 +204,6 @@ def test_empty_group_segments_are_dropped() -> None:
 
 @override_settings(DEV_VIEWER_SIGNING_KEY=DEV_KEY)
 def test_the_viewer_is_resolved_once_per_request() -> None:
-    # every call site must get the same answer: the first resolution fixes the request's identity
     request = _request_with_cookie(_sign(encode_viewer(Archivist()), key=DEV_KEY))
     resolved = viewer_of(request)
     request.COOKIES[DEV_VIEWER_COOKIE] = _sign(encode_viewer(Member(groups=("v",))), key=DEV_KEY)

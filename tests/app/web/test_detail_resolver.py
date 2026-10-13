@@ -1,5 +1,3 @@
-"""``resolve_visible_detail``: the projection floors archivist-only fields for every non-archivist."""
-
 from collections.abc import Callable
 
 import pytest

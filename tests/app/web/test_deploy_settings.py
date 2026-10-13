@@ -1,5 +1,4 @@
-"""Production settings whose direction is the security property; each one is silent when wrong. The
-deploy env is enforced at the WSGI entry point."""
+"""Production settings that are silent when wrong."""
 
 import importlib
 import runpy

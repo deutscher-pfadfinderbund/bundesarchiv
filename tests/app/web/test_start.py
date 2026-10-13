@@ -1,5 +1,5 @@
 """The start page (``/``) and the redirect of old list links to ``/articles``. Leak spine: a
-Bestand's count is what this viewer may see, and a Bestand with nothing visible to them is not named.
+Bestand's count is what this viewer may see; one with nothing visible to them is not named.
 """
 
 import datetime

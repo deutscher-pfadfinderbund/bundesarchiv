@@ -1,5 +1,5 @@
-"""Media serving: bytes and derived versions go out only where ``can_view`` allows. Every deny or
-absence is the plain 404, and a deny comes before any blob or cache probe."""
+"""Media serving: bytes and derived versions go out only where ``can_view`` allows, and a deny
+comes before any blob or cache probe."""
 
 import io
 import re
@@ -45,8 +45,7 @@ def _jpeg_bytes() -> bytes:
 
 
 class _TierCorpus:
-    """One Article per tier, each with one image blob, plus the thumbnail root; the frozen standard
-    corpus is PUBLIC and media-free."""
+    """The tier grid's own content: the frozen standard corpus is PUBLIC and media-free."""
 
     def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
         self.thumbnail_root = thumbnail_root
@@ -69,8 +68,7 @@ class _TierCorpus:
         base.add_collection(
             make_collection("GRP", "Groups", audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
         )
-        # distinct colours, so every content hash differs (the wrong-hash deny needs another
-        # article's real hash)
+        # distinct colours: the wrong-hash deny needs another article's real hash
         specs = [
             ("public", "PUB", Lifecycle.PUBLISHED, (200, 40, 60)),
             ("members", "MEM", Lifecycle.PUBLISHED, (40, 200, 60)),
@@ -362,7 +360,6 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -
     disposition = response["Content-Disposition"]
     assert "\r" not in disposition and "\n" not in disposition
     assert "Set-Cookie" not in response
-    # The raw unescaped quote must not appear as a bare filename= value (it is RFC5987-encoded).
     assert 'filename="e"vil' not in disposition
 
 
