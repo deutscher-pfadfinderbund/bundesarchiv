@@ -1,8 +1,4 @@
-"""apply_bulk's two write-time guards (spec §4, Task 9): a pair re-check against the
-FRESHLY-LOADED media_type (TOCTOU close) and a catch-all for non-``Conflict`` ``ArchiveError`` on
-save (no mid-loop abort). Both bucket the affected ulid as ``conflicted`` and write nothing to it,
-while the loop still lands every OTHER distinct ulid in its bucket (spec §4 property).
-"""
+"""apply_bulk's two write-time guards (spec §4): the pair re-checked against the freshly loaded Medienart, and a non-Conflict ArchiveError on save. Each buckets its ulid as conflicted, writes nothing to it, and the loop goes on."""
 
 import pytest
 
@@ -28,10 +24,7 @@ def _archive_with(*articles_: Article) -> Archive:
 
 
 def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> None:
-    # 01A's Medienart was CLEARED after the confirm-page load validated the Dokumenttyp against
-    # the stale one, and no Dokumenttyp belongs to a missing Medienart. apply_bulk re-loads fresh and must
-    # re-check the pair itself — a stale-view mismatch is a concurrent-modification loss, bucketed
-    # conflicted, nothing written. 01B still has a fitting media_type and must still save.
+    # 01A's Medienart was cleared after the confirm page validated against it: a concurrent-modification loss.
     archive = _archive_with(
         _article(ulid="01A", media_type=None),
         _article(ulid="01B", media_type="Schrifttum"),
@@ -49,9 +42,6 @@ def test_apply_bulk_document_type_rechecks_pair_against_fresh_media_type() -> No
 def test_apply_bulk_non_conflict_archive_error_buckets_and_does_not_abort(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A non-Conflict ArchiveError at save time (e.g. media not stored) must not escape mid-loop —
-    # the documented invariant is every distinct ulid lands in a bucket, never a 500. 01A's save
-    # is forced to raise plain ArchiveError; 01B must still save.
     archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))
     real_save = articles.save_article
 

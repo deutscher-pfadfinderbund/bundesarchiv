@@ -1,11 +1,4 @@
-"""Task 4.2 — the config_version startup check (ADR 0014 §3).
-
-``ensure_index_current`` is the deploy/startup guard: any index row whose stored ``config_version``
-does not match the current ``indexer.CONFIG_VERSION`` means the FTS config changed under it, so the
-whole index must be rebuilt from canonical. The check itself is what is new (only the column existed
-before Part 4.2). Exercised through the reindex helper the management command calls, so the command
-stays a thin shell.
-"""
+"""``ensure_index_current``: an index row stamped with another ``config_version`` forces a rebuild from canonical (ADR 0014 §3)."""
 
 import pytest
 
@@ -37,7 +30,6 @@ def store() -> InMemoryObjectStore:
 
 @pytest.mark.django_db
 def test_ensure_index_current_rebuilds_on_version_mismatch(store: InMemoryObjectStore) -> None:
-    """A stale-config_version row triggers a rebuild that restamps the current version."""
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.rebuild(store)
@@ -51,7 +43,6 @@ def test_ensure_index_current_rebuilds_on_version_mismatch(store: InMemoryObject
 
 @pytest.mark.django_db
 def test_ensure_index_current_noop_when_all_current(store: InMemoryObjectStore) -> None:
-    """No mismatch -> no rebuild (returns False)."""
     indexer.rebuild(store)
     assert ensure_index_current(store) is False
 

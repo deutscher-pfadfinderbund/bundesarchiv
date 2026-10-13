@@ -1,18 +1,4 @@
-"""Media manager — reorder / remove / upload + caption round-trip (Part 4.7 Slice D, spec §6.3).
-
-Three structural POST routes plus the caption metadata save:
-
-- ``/medien/verschieben`` — reorder (= re-cover, order is meaning ADR 0015). Structural, non-CAS.
-- ``/medien/entfernen`` — two-step no-JS confirm (show → [Ja] removes the ref; the blob stays).
-- ``/media/upload`` — multipart, multiple files, named write-once files (ADR 0019), append at
-  END; oversize or a name that cleans to nothing → a clean German error not a 500, nothing stored.
-  The file persists BEFORE the README references it.
-- captions ride the main edit-form save (``save_article``), README round-trip, ``"" → None``.
-
-SECURITY (mutation-tested): every structural route archivist-gated, POST-only → 404 for
-Member/Public/anon; the deny tests assert the media tuple is UNCHANGED. The write path is real;
-only index + queue seams are stubbed (conftest.py).
-"""
+"""The media manager (spec §6.3): reorder, remove and upload under ``/articles/<ulid>/media/``, and the captions riding the edit-form save. Every structural route is archivist-gated and POST-only; the deny tests assert the media tuple is unchanged."""
 
 import io
 import re
@@ -94,8 +80,6 @@ def _hashes(corpus: _MediaCorpus) -> list[str]:
 def _media_drawer_region(body: str) -> str:
     # Mirrors what htmx's hx-select="#media-drawer" extracts client-side from the full-page
     # response: the <section id="media-drawer"> element, start tag through its matching close.
-    # (It was a <fieldset> until the form wave turned the seven group drawers into the record card's
-    # ruled sections — the region's id, and therefore the swap target, did not change.)
     start = body.index('id="media-drawer"')
     open_tag_start = body.rindex("<section", 0, start)
     end = body.index("</section>", start) + len("</section>")
@@ -176,8 +160,8 @@ def test_move_against_deleted_article_is_404(
 def test_structural_save_conflict_surfaces_hinweis_not_silent(
     corpus: _MediaCorpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # If every structural save attempt loses the race, the archivist must SEE a hinweis (not a
-    # silently-unchanged form). Force save_article to always raise Conflict.
+    # If every structural save attempt loses the race, the archivist must see a hinweis, not a
+    # silently unchanged form.
     from bundesarchiv.app import articles
     from bundesarchiv.persistence.errors import Conflict
 
@@ -230,11 +214,8 @@ def test_remove_denied_leaves_media(corpus: _MediaCorpus, viewer: Viewer) -> Non
 
 
 def test_member_with_valid_csrf_still_gets_404(corpus: _MediaCorpus) -> None:
-    # The real leak-suite concern: an AUTHENTICATED non-archivist can obtain a CSRF token, so CSRF
-    # (which floors an anonymous tokenless POST to 403) must not be the only barrier. A Member who
-    # clears CSRF must still hit the archivist gate's 404 — no existence oracle, no
-    # mutation. Seed the csrf cookie via the DB-free dev switcher GET (prod routes are composed into
-    # the dev urlconf), then POST the structural route with a matching token.
+    # An authenticated non-archivist can obtain a CSRF token, so CSRF must not be the only barrier.
+    # The dev urlconf composes the prod routes, and its switcher GET seeds the cookie without a DB.
     client = client_as(Member(groups=("vorstand",)), enforce_csrf=True)
     with override_settings(
         ROOT_URLCONF="bundesarchiv.app.web.dev_urls",
@@ -402,10 +383,8 @@ def test_upload_memory_does_not_grow_with_the_file(corpus: _MediaCorpus, tmp_pat
 
 
 def test_upload_response_carries_per_row_forms_for_every_row(corpus: _MediaCorpus) -> None:
-    # fix-wave: the per-row hidden forms (move-<hash>, remove-*-<hash>) must live INSIDE
-    # #media-drawer so an htmx swap (hx-select="#media-drawer") delivers fresh forms for the
-    # CURRENT row set. The fixture seeds 2 rows, so uploading a third brings the count to 3; check
-    # the swapped-in region — not the whole page — carries a move-<hash> form for all 3 rows.
+    # The per-row forms must live inside #media-drawer, so the htmx swap (hx-select="#media-drawer")
+    # delivers forms for the current row set.
     upload = SimpleUploadedFile("dritte.jpg", b"third-bytes", content_type="image/jpeg")
     response = client_as(Archivist()).post(f"/articles/{_ULID}/media/upload", {"files": upload})
     assert response.status_code == 200
@@ -625,7 +604,6 @@ def test_conflict_re_render_keeps_typed_caption(corpus: _MediaCorpus) -> None:
 
 
 def test_custom_remove_keeps_media_register_and_typed_caption(corpus: _MediaCorpus) -> None:
-    # The no-JS custom-row removal re-render must NOT drop the whole Medien drawer.
     response = client_as(Archivist()).post(
         f"/articles/{_ULID}/edit",
         {

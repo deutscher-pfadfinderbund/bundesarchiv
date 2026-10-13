@@ -1,14 +1,4 @@
-"""Pure param-parsing for the archivist workbench (Part 4.5-MVP).
-
-``browse.parse_query`` is the ONE strict-but-total parser: it turns the raw GET params (English
-keys ``q, collection, media_type, document_type, tag, creator, place, decade, dateless, date_from,
-date_to, digital, file, drafts, templates, sort, page``) into a ``ParsedQuery`` (text +
-``SearchFilters`` + sort + page). Garbage in any field falls to that field's default — never a
-500 (plan §4.5: strict parse, never crash).
-
-These tests need NO database and NO request cycle: the parser is a pure function over a plain
-mapping, so the whole URL-as-state contract is pinned here, fast, in isolation.
-"""
+"""``browse.parse_query``, the one strict-but-total parser of the workbench's GET params: garbage in any field falls to that field's default, never a 500."""
 
 import datetime
 from typing import get_args
@@ -103,7 +93,7 @@ def test_sort_direction_from_minus_prefix() -> None:
     assert asc.sort == "ref_code" and asc.descending is False
     desc = _parse(sort="-ref_code")
     assert desc.sort == "ref_code" and desc.descending is True
-    # relevance has no direction — a stray "-relevanz" collapses to plain relevance, not descending.
+    # relevance has no direction — a stray "-relevance" collapses to plain relevance, not descending.
     rel = _parse(sort="-relevance")
     assert rel.sort == "relevance" and rel.descending is False
     # a bare "-" or a "-garbage" falls to the default, ascending.

@@ -1,11 +1,4 @@
-"""Bulk-edit confirm + commit route (Sammelbearbeitung, spec §2/§4/§6).
-
-POST /articles/bulk-edit: archivist-gated, POST-only. Phase 1 (no confirmed) → confirm page;
-phase 2 (confirmed=1) → apply + result page. The deny suite (spec §6) is the load-bearing part
-(mutation-tested): non-archivist → 404 with ZERO writes; GET → 404; feld allowlist;
-dependent-pair server-enforced; orphan clear_document_type server-enforced. The write path is real;
-only index + queue seams are stubbed (conftest.py).
-"""
+"""POST /articles/bulk-edit (spec §2/§4/§6): without ``confirmed`` the check page, with it the apply and its result. The write path is real; only the index and queue seams are stubbed (conftest.py)."""
 
 import re
 from collections.abc import Callable
@@ -82,9 +75,7 @@ def test_forbidden_field_writes_nothing(two_drafts: Corpus, field: str) -> None:
 
 
 def test_validation_error_re_renders_drawer_with_selection_preserved(two_drafts: Corpus) -> None:
-    # Design-gate blocker: a validation error must NOT dead-end and drop the selection (spec §2 C).
-    # It re-renders the chooser drawer + the verbatim error, carrying every selection ulid as a hidden
-    # input so the archivist fixes the value and re-submits from here — selection intact.
+    # spec §2 C: no dead end — the archivist fixes the value and re-submits from here.
     response = client_as(Archivist()).post(
         "/articles/bulk-edit",
         {"selection": [_A, _B], "field": "", "value_text": "x", "confirmed": "1"},
@@ -131,9 +122,8 @@ def test_every_field_echoes_its_rejected_value(two_drafts: Corpus, field: str) -
 
 
 def test_every_bulk_field_has_exactly_one_value_widget(two_drafts: Corpus) -> None:
-    # data-bulk-value is what layouts.css matches to reveal a widget; hand-typed, it went stale in
-    # silence — a new bulk field would offer no way to enter its value. Parsed back out of the
-    # rendered chooser: every target from bulk.FIELDS, on exactly one widget, and nothing else.
+    # data-bulk-value is what layouts.css matches to reveal a widget, so every target from
+    # bulk.FIELDS must sit on exactly one widget.
     body = (
         client_as(Archivist())
         .post("/articles/bulk-edit", {"field": "creator", "value_text": "x", "confirmed": "1"})
@@ -267,8 +257,7 @@ def test_commit_keeps_the_date_added(two_drafts: Corpus) -> None:
 def test_commit_cas_race_loser_value_not_on_disk(
     two_drafts: Corpus, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # CAS honesty (spec §6.7): a bulk apply that loses the race on _A must report _A conflicted and
-    # leave _A's value NOT on disk, while _B still saves. Force save_article to conflict for _A.
+    # spec §6.7: the race loser is reported, and its value never reaches disk.
     from bundesarchiv.app import articles
 
     real_save = articles.save_article

@@ -1,9 +1,4 @@
-"""The legacy→Article mapping (`app.legacy`), the loss-critical half of the one-time import.
-
-This is the data-loss class of the testing razor: the old database is being read once and thrown
-away, so anything this module silently drops is gone. Hence the column-coverage gate (every legacy
-column is either mapped or named as dropped), a case per date shape the memo automates, and the
-keyword/custom/Signatur rules that carry an archivist's typing verbatim.
+"""The legacy→Article mapping (`app.legacy`): the data-loss class of the testing razor — the old database is read once and thrown away.
 
 The rows here are SYNTHETIC — shaped like the real export, never copied from it.
 """

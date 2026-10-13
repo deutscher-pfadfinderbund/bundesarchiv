@@ -1,12 +1,6 @@
 """Shared response assertions for the web suite: the deny, the anonymous gate's bounce and its door.
 
-The single definition of what a deny looks like over HTTP, so every per-route test pins the
-same contract and there is ONE edit point if it ever changes (e.g. when a styled access-denied
-page ships). Relaxed from the byte-identical-404 law (owner ruling 2026-08, see
-docs/requirements/owner-interview-2026-08.md): the byte-for-byte shape comparison is gone;
-what remains is that a deny is a 404 whose body reveals nothing — production emits the one
-constant ``404.html`` page from ``not_found()``, rendered once, so the body is the same for every
-reason and every viewer.
+The one definition of a deny over HTTP (owner ruling 2026-08): a 404 whose body is the one constant ``404.html`` from ``not_found()``.
 """
 
 import re
