@@ -1,12 +1,6 @@
-"""Task 4.2 — the application-service layer (``bundesarchiv.app``): the imperative shell the
-Part 4.5+ views call. Each service is a thin, explicit two-step: the canonical repo write (CAS
-per ADR 0013), THEN the synchronous index update (ADR 0014). An index failure never fails the
-canonical write — it enqueues a reference job and returns a ``SaveResult`` carrying
-``index_updated=False`` so the UI can show the ADR-mandated specific warning.
+"""The write services (``bundesarchiv.app``): canonical CAS write, then the index sync (app law, ADR 0013/0014).
 
-Includes THE ADVERSARIAL STALENESS GATE (ADR 0014 §gate): a narrowing edit made through the
-PRODUCTION service entry point must be reflected in the very next ``search()`` — ``rebuild()`` is
-FORBIDDEN inside the gate tests.
+Holds the staleness gate (ADR 0014): ``rebuild()`` is forbidden inside the gate tests.
 """
 
 import contextlib
@@ -110,7 +104,6 @@ def test_save_article_writes_canonical_and_indexes(archive: Archive) -> None:
 
 @pytest.mark.django_db
 def test_save_article_conflict_propagates_without_indexing(archive: Archive) -> None:
-    """A stale expected_version raises Conflict from the repo (ADR 0013) — nothing is indexed."""
     from bundesarchiv.index.models import ArticleIndex
     from bundesarchiv.persistence.errors import Conflict
 
@@ -144,9 +137,7 @@ def test_update_article_applies_the_mutation_and_indexes(archive: Archive) -> No
 
 @pytest.mark.django_db
 def test_update_article_retries_onto_the_winner_of_a_concurrent_write(archive: Archive) -> None:
-    """A real race, no monkeypatching: the mutate closure commits a concurrent write on its first
-    call, so the first save loses. The retry must re-apply the mutation to the WINNER's article —
-    the concurrent creator survives alongside our title."""
+    """The retry re-applies the mutation to the winner's article: the concurrent creator survives alongside our title."""
     calls = 0
 
     def mutate(article: Article) -> Article:
@@ -242,7 +233,7 @@ def test_update_article_reports_missing_when_the_article_vanishes_mid_retry(
 
 
 def test_update_article_leaves_an_article_in_the_trash_alone(archive: Archive) -> None:
-    """ADR 0022: restore it first. Every internal mutation — publish, media, bulk — routes here."""
+    """ADR 0022: restore it first."""
     stored = archive.articles.load("01FOTO")
     archive.articles.mark_deleted(stored.article, stored.version, changed_by="bert")
     before = archive.articles.load("01FOTO")
@@ -313,7 +304,7 @@ def test_create_article_mints_ulid_and_indexes(archive: Archive) -> None:
 
 
 # ---------------------------------------------------------------------------
-# create_collection — mints ulid, saves at v1, validates parent (4.8)
+# create_collection — mints ulid, saves at v1, validates parent
 # ---------------------------------------------------------------------------
 
 
@@ -367,7 +358,6 @@ def test_copy_article_copies_metadata_clears_ref_code_and_media(
     articles = archive.articles
     # store a real blob so the source can reference it (repository refuses an unstored ref)
     ref = articles.add_media("01SOURCE", "bild.jpg", io.BytesIO(b"pixels"), "image/jpeg", "Am See")
-    # a rich source: published, with a Signatur, media, tags, custom, date, an audience
     source = Article(
         ulid="01SOURCE",
         title="Sommerfahrt 1962",
@@ -466,9 +456,7 @@ def test_hard_delete_article_stands_when_the_remote_delete_cannot_be_enqueued(
 def test_save_article_index_failure_stands_canonical_and_enqueues(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Force the synchronous index update to fail at the SERVICE seam. The canonical write must
-    stand, a reference reindex job must be enqueued, and the result must carry
-    index_updated=False (so the UI shows 'Sichtbarkeitsänderung noch nicht wirksam')."""
+    """index_updated=False is what makes the UI say 'Sichtbarkeitsänderung noch nicht wirksam'."""
     enqueued: list[str] = []
 
     def boom(*_args: object, **_kwargs: object) -> None:
@@ -492,9 +480,7 @@ def test_save_article_index_failure_stands_canonical_and_enqueues(
 def test_save_article_swallows_enqueue_failure_after_index_failure(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Queue-down at enqueue time must not fail a request whose canonical write already stood: when
-    BOTH the synchronous index update AND the retry enqueue raise, save_article still succeeds with
-    index_updated=False and no exception escapes (mirrors _enqueue_mirror's swallow policy)."""
+    """Queue down at enqueue time: the canonical write already stood, so save_article still returns index_updated=False and raises nothing."""
 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("index down")
@@ -584,9 +570,7 @@ def test_save_article_gives_up_on_a_held_index_lock_and_enqueues(
 def test_gate_unpublishing_article_via_service_hides_it_next_search(
     archive: Archive,
 ) -> None:
-    """Publish -> index via the service -> Public sees it. Unpublish (DRAFT) THROUGH the service.
-    The member/public's very NEXT search must exclude it. rebuild() is FORBIDDEN here — only the
-    production save_article entry point may touch the index."""
+    """rebuild() is forbidden here: only the production save_article path may touch the index (ADR 0014 gate)."""
     articles = archive.articles
     save_article(
         archive,
@@ -619,9 +603,7 @@ def test_gate_unpublishing_article_via_service_hides_it_next_search(
 def test_gate_narrowing_collection_audience_via_service_hides_descendants(
     archive: Archive,
 ) -> None:
-    """Index the descendant article (PUBLIC via FOTOS). Narrow FOTOS to MEMBERS THROUGH
-    save_collection. The public member's next search must no longer return the descendant.
-    rebuild() is FORBIDDEN — only save_collection may touch the index."""
+    """rebuild() is forbidden here: only save_collection may touch the index (ADR 0014 gate)."""
     articles = archive.articles
     save_article(
         archive,
@@ -795,8 +777,7 @@ def test_save_collection_enqueues_one_push_of_the_collection(
 def test_save_article_mirror_enqueue_failure_does_not_break_save(
     archive: Archive, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A mirror-enqueue failure must NOT fail the request (same discipline as the index-sync retry:
-    mirror lag is invisible-by-design and the reconcile heals it). The canonical write stands."""
+    """The canonical write stands; the reconcile heals a lost push (ADR 0020)."""
 
     def boom(_ulid: str) -> None:
         raise RuntimeError("queue down")

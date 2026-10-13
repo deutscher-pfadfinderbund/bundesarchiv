@@ -1,7 +1,4 @@
-"""The push to the system of record (ADR 0020), the mirror logic over two in-memory stores: the
-working copy an ``Archive`` holds, and ``_Remote`` standing in for the Nextcloud folder, which logs
-every call that sends, fetches or deletes bytes. The push record is the in-memory fake; its
-Postgres twin answers the same contract (``test_push_record.py``)."""
+"""The push to the system of record (ADR 0020) over an in-memory working copy and ``_Remote``. The push record is the in-memory fake; its Postgres twin answers the same contract (``test_push_record.py``)."""
 
 import io
 from collections.abc import Callable, Iterable
