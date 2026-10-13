@@ -1,4 +1,4 @@
-"""The Article builder both the web and the index suites use."""
+"""The shared Article builder."""
 
 from typing import Any
 

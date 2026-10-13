@@ -1,11 +1,6 @@
-"""The Urheber and Ort filters and facets per tier: they only narrow the viewer's scope.
-
-A creator or place value carried only by a restricted row never reaches another viewer's hits,
-total or counts; a value shared across tiers counts only the rows each viewer may see. The
-Papierkorb half lives in ``test_leaks_trash.py``.
-
-Its own module and corpus, because ``indexer.rebuild`` wipes the table (see
-``test_leaks_decades.py``).
+"""The Urheber and Ort filters and facets only narrow the viewer's scope: a value on a restricted
+row never reaches another viewer's hits, total or counts. The Papierkorb half lives in
+``test_leaks_trash.py``.
 """
 
 from collections import Counter

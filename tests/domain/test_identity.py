@@ -1,4 +1,4 @@
-"""domain.identity — ULID minting/validation and the display-slug helper."""
+"""domain.identity: ULID validation and minting."""
 
 from datetime import UTC, datetime
 

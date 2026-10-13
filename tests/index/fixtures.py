@@ -1,23 +1,13 @@
-"""Shared search fixture — one indexed corpus built via ``rebuild`` from an InMemory store.
+"""Shared search corpus: collections and articles saved through the repositories, then indexed by
+``rebuild``.
 
-Task 8 (``test_search.py``) and Task 9 (the visibility grid / equivalence) both drive the
-same corpus, so it lives here once rather than being copied. It is deliberately built the real
-way — Collections + Articles saved through the repositories, then ``indexer.rebuild`` — so the
-generated ``tsvector`` columns, the scope columns, the date/decade columns and the collection
-ancestry are all produced by the production code path, not hand-poked into rows.
-
-Shape (a ~3-level collection tree, 12 articles spanning tiers / groups / lifecycles / dates /
-tags / media+document types):
-
-    ROOT  "Bundesarchiv"                       (Members default)
+    ROOT  "Bundesarchiv"                       (no audience: MEMBERS default)
     +- FOTOS "Fotografien"          PUBLIC
     |    +- LAGER "Lagerfotos"      (inherits PUBLIC)
     +- AKTEN "Aktenbestand"         MEMBERS
          +- VORSTAND "Vorstandsakten"   GROUPS {vorstand}
 
-Every article's expected visibility, per-viewer, is captured in :data:`EXPECTED_VISIBILITY`
-so Task 9 can assert the grid without re-deriving it. The three viewers used across the tests
-are the module-level singletons below.
+Per-viewer ground truth: ``EXPECTED_VISIBILITY``.
 """
 
 import io
@@ -40,8 +30,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# The three viewers the search tests reuse. PLAIN_MEMBER holds no groups (never clears a GROUPS
-# rung); VORSTAND_MEMBER holds "vorstand" (clears the VORSTAND collection's GROUPS rung).
+# BOARD_MEMBER holds "vorstand", the group that clears the VORSTAND collection.
 ARCHIVIST = Archivist()
 PLAIN_MEMBER = Member(())
 BOARD_MEMBER = Member(("vorstand",))
@@ -59,8 +48,7 @@ class FixtureArticle:
     visible_to: frozenset[str]
 
 
-# The corpus manifest — ulid -> the labels that may see it. This is the ground truth Task 9's
-# grid compares ``search`` against; Task 8 uses it to compute per-viewer expected counts.
+# ulid -> the viewer labels ``search`` must return it for.
 EXPECTED_VISIBILITY: dict[str, frozenset[str]] = {
     # PUBLIC-tier, published: everyone.
     "ART_PUBFOTO": frozenset({"archivist", "vorstand", "member", "public"}),
@@ -84,8 +72,7 @@ EXPECTED_VISIBILITY: dict[str, frozenset[str]] = {
 
 
 def build_store() -> InMemoryObjectStore:
-    """A populated InMemory store: the 3-level tree and 12 articles described in the module
-    docstring. Saved through the real repositories so ``rebuild`` sees canonical READMEs."""
+    """The corpus, saved through the real repositories so ``rebuild`` reads canonical READMEs."""
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -133,20 +120,18 @@ def build_store() -> InMemoryObjectStore:
     return store
 
 
-# Unique caption words per article — each appears NOWHERE else in the corpus, so a search for it
-# probes exactly the caption channel (ADR 0015). One public article (reachable by all tiers) and
-# two RESTRICTED articles (a GROUPS row + the draft) so the leak test can assert per-tier isolation.
+# Each word appears nowhere else in the corpus, so a search for it probes only the caption channel
+# (ADR 0015); one article per visibility case.
 CAPTION_WORDS: dict[str, str] = {
-    "ART_PUBFOTO": "Zeltwiese",  # public: caption search must reach every tier + archivist
-    "ART_GRPPROT": "Tresornotiz",  # GROUPS{vorstand}: must NOT leak to public / non-vorstand
-    "ART_DRAFT": "Skizzenblatt",  # draft (archivist-only): must NOT leak to any non-archivist
+    "ART_PUBFOTO": "Zeltwiese",
+    "ART_GRPPROT": "Tresornotiz",
+    "ART_DRAFT": "Skizzenblatt",
 }
 
 
 def _with_captioned_media(articles: ArticleRepository, article: Article) -> Article:
-    """Attach one captioned media file to the articles named in ``CAPTION_WORDS`` (others pass
-    through untouched). Stores the blob via ``add_media`` (so ``save``'s media-exists check passes)
-    and threads the article's unique caption word onto the ref."""
+    """Attach one captioned media file to the articles named in ``CAPTION_WORDS``; the blob goes
+    through ``add_media`` because ``save`` refuses unstored media."""
     word = CAPTION_WORDS.get(article.ulid)
     if word is None:
         return article
@@ -161,24 +146,19 @@ def _with_captioned_media(articles: ArticleRepository, article: Article) -> Arti
 
 
 def build_index() -> indexer.RebuildReport:
-    """Build the store AND rebuild the index from it. Returns the ``RebuildReport`` (the
-    django_db fixture in ``test_search.py`` calls this)."""
     return indexer.rebuild(build_store())
 
 
 def indexed_corpus[T](
     django_db_blocker: pytest.FixtureRequest, build: Callable[[], T]
 ) -> Iterator[T]:
-    """THE single index-isolation mechanism for ``tests/index/``: build + index a corpus outside
-    the per-test transaction, then wipe ``ArticleIndex`` when the requesting module is done.
+    """The index-isolation mechanism for ``tests/index/``: build and index a corpus outside the
+    per-test transaction, wipe ``ArticleIndex`` at module teardown.
 
-    ``rebuild`` commits rows with the db blocker unblocked, so no per-test transaction ever rolls
-    them back — a corpus left behind leaks into any later module that assumes an empty table
-    (``test_schema`` was green only by alphabetical luck before this existed). Every module-scoped
-    corpus fixture must ``yield from`` this helper; none may add its own wipe. Deliberately NOT an
-    autouse conftest fixture: that would have to touch the DB after EVERY module in this directory,
-    so this directory's no-DB tests would need Postgres too. A test that needs one more row
-    beside the corpus adds it with ``index_beside_corpus``.
+    ``rebuild`` commits, so no test transaction rolls the rows back. Every module-scoped corpus
+    fixture yields from this and adds no wipe of its own; not autouse, so the directory's no-DB
+    tests stay DB-free. A test that needs one more row beside the corpus uses
+    ``index_beside_corpus``.
     """
     from bundesarchiv.index.models import ArticleIndex
 
@@ -188,8 +168,8 @@ def indexed_corpus[T](
 
 
 def index_beside_corpus(root: Collection, *articles: Article) -> None:
-    """Index ``articles`` (all under ``root``) one by one, in the given order, next to an already
-    indexed corpus — no rebuild wipe. Call inside a test's transaction so the rows roll back."""
+    """Index ``articles`` (all under ``root``) beside the indexed corpus, without the rebuild wipe;
+    call inside a test's transaction so the rows roll back."""
     store = InMemoryObjectStore()
     CollectionRepository(store).save(root, 0, changed_by="tester")
     repo = ArticleRepository(store)
@@ -199,9 +179,8 @@ def index_beside_corpus(root: Collection, *articles: Article) -> None:
 
 
 def _articles() -> tuple[Article, ...]:
-    """The 12 corpus articles. German text is chosen so ADR-0011 stemming/umlaut behaviour is
-    exercisable (Häuser/Haus, Bäume, Fahrten, Lieder), spanning media/document types, tags,
-    decades and one open-ended date."""
+    """The corpus articles; the German text exercises ADR 0011 stemming and umlauts (Häuser/Haus,
+    Bäume, Fahrten, Lieder)."""
     return (
         # --- PUBLIC (via FOTOS / LAGER) ---
         Article(
@@ -258,7 +237,7 @@ def _articles() -> tuple[Article, ...]:
             media_type="Plakat",
             document_type="Plakat",
             tags=("lieder",),
-            # Open-ended date (open upper end): 1970 onward, latest is NULL.
+            # Open upper end: the indexed date_latest is NULL.
             date=EdtfDate("1970/.."),
         ),
         # --- MEMBERS (explicit AKTEN / inherited) ---
@@ -285,7 +264,7 @@ def _articles() -> tuple[Article, ...]:
             date=EdtfDate("1988"),
         ),
         Article(
-            # Inherits MEMBERS from ROOT default (no explicit audience, ROOT is silent -> MEMBERS).
+            # No audience on the chain: the MEMBERS default.
             ulid="ART_MEMBRIEF",
             title="Briefwechsel im Bund",
             collection_id="ROOT",

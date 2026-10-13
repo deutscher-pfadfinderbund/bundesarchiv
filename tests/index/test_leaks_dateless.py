@@ -1,14 +1,5 @@
-"""Per-tier leak guard for the "Ohne Datum" facet (Part 4) — its own module + corpus.
-
-The shared corpus (``tests/index/fixtures.py``) dates every article, so it cannot exhibit a
-tier-exclusive DATELESS row — the property this guard needs. Mirroring ``test_leaks_decades.py``
-(same reason, same shape), this module builds a dedicated corpus where an undated row sits on a
-RESTRICTED tier and another undated row sits on PUBLIC, so a leak (a restricted dateless row
-inflating a lesser viewer's ``dateless_count`` or appearing under the ``dateless`` filter) is
-distinguishable from an empty index.
-
-Separate module because ``indexer.rebuild`` is destructive (wipes the whole ``ArticleIndex``), so
-two module-scoped corpora cannot coexist in one module's shared table.
+"""Per-tier leak guard for the "Ohne Datum" count and filter. Own corpus: the shared one dates
+every article, so it has no tier-exclusive dateless row.
 """
 
 from collections.abc import Iterator
@@ -43,10 +34,6 @@ _DL_DRAFT_NODATE = "DL_DRAFT_NODATE"  # DRAFT (archivist-only), no date (must NO
 
 
 def _build_dateless_store() -> InMemoryObjectStore:
-    """A four-article corpus: one dated PUBLIC row (so the index is provably non-empty), one
-    undated PUBLIC row (dateless, visible to all), one undated MEMBERS row (dateless, hidden from
-    Public), and one undated DRAFT row (archivist-only). ``EdtfDate`` cannot express "no date" — a
-    dateless Article is simply ``date=None`` (the default)."""
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -127,30 +114,23 @@ def _dateless_ulids(viewer: Viewer) -> set[str]:
 
 @pytest.mark.django_db
 def test_public_dateless_count_excludes_restricted_rows(dateless_corpus: None) -> None:
-    """Public's "Ohne Datum" count is exactly 1 (its own undated PUBLIC row) — the undated MEMBERS
-    row and the undated DRAFT row must NOT inflate it. A count of 2 or 3 would be the leak."""
     assert search(PUBLIC, page_size=200).dateless_count == 1
 
 
 @pytest.mark.django_db
 def test_public_dateless_filter_returns_only_visible_undated(dateless_corpus: None) -> None:
-    """Under the ``dateless`` filter, Public sees only its own undated PUBLIC row — never the
-    member-only or draft undated rows."""
     assert _dateless_ulids(PUBLIC) == {_DL_PUBLIC_NODATE}
 
 
 @pytest.mark.django_db
 def test_member_dateless_count_includes_member_row_not_draft(dateless_corpus: None) -> None:
-    """A Member's count is 2 (the undated PUBLIC row + the undated MEMBERS row); the DRAFT row is
-    archivist-only and must never count for a Member."""
     assert search(PLAIN_MEMBER, page_size=200).dateless_count == 2
     assert _dateless_ulids(PLAIN_MEMBER) == {_DL_PUBLIC_NODATE, _DL_MEMBER_NODATE}
 
 
 @pytest.mark.django_db
 def test_archivist_dateless_count_includes_draft(dateless_corpus: None) -> None:
-    """The Archivist's count is 3 — every undated row, including the DRAFT — so the negatives above
-    are a scope gate, not an indexing gap."""
+    """The positive: the negatives above are a scope gate, not an indexing gap."""
     assert search(ARCHIVIST, page_size=200).dateless_count == 3
     assert _dateless_ulids(ARCHIVIST) == {
         _DL_PUBLIC_NODATE,

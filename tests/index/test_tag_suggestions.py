@@ -1,7 +1,4 @@
-"""Schlagwort suggestions (``query.suggest_tags``): which tags a typed text offers, in what order.
-
-Its own module and corpus, because ``indexer.rebuild`` wipes the table.
-"""
+"""Schlagwort suggestions (``query.suggest_tags``): which tags a typed text offers, in what order."""
 
 from collections.abc import Iterator
 

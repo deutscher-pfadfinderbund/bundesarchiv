@@ -1,10 +1,6 @@
-"""LocalFsObjectStore-specific tests: the atomicity guarantee the in-memory fake
-cannot model — a process killed mid-write leaves prior-object-or-nothing at the
-final key (ADR 0005). No mocking of the adapter: a real child process is SIGKILLed
-mid-write and a fresh store inspects what actually landed on disk.
-
-The general ObjectStore contract is covered by the parametrized conformance suite
-(test_objectstore_conformance.py runs every adapter, including this one).
+"""LocalFsObjectStore-specific: what the in-memory fake cannot model — crash atomicity (ADR 0005),
+directory fsync, unreadable folders, delete_prefix leftovers and races. The general contract:
+``test_objectstore_conformance.py``.
 """
 
 import os
@@ -21,9 +17,8 @@ from bundesarchiv.persistence.errors import ArchiveError, NotFound
 
 
 class _KillAfterFirstChunk:
-    """A read-stream that yields one chunk, then SIGKILLs its own process on the
-    next read — a deterministic hard crash partway through the write, with the real
-    adapter doing the writing (this is test *input*, not a mock of the adapter)."""
+    """A read-stream that SIGKILLs its own process on its second read: a hard crash partway
+    through a real write."""
 
     def __init__(self) -> None:
         self._sent = False
@@ -78,8 +73,6 @@ def test_sigkill_mid_write_keeps_prior_value(
 
 
 def test_successful_write_leaves_no_temp(tmp_path: Path) -> None:
-    # A committed write (and overwrite) must clean up its temp sibling; orphans
-    # must not accumulate on the canonical backend on the success path.
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("art/1/x", b"v1")
     store.write_atomic("art/1/x", b"v2")
@@ -116,8 +109,7 @@ def test_commit_fsyncs_every_directory_it_creates(
 
 
 def test_descend_through_a_file_key_is_not_found(tmp_path: Path) -> None:
-    # A key whose intermediate component is an existing blob (ENOTDIR) names no blob -> NotFound,
-    # matching the in-memory/WebDAV adapters (not a generic ArchiveError) so the port is uniform.
+    # ENOTDIR names no blob: NotFound, as every adapter answers.
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("art/1", b"i am a file")
     with pytest.raises(NotFound):
@@ -126,8 +118,7 @@ def test_descend_through_a_file_key_is_not_found(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
 def test_read_unreadable_file_raises_archive_error(tmp_path: Path) -> None:
-    # A real, broken backend (NO mocking): a key whose file is mode 000. read() must
-    # surface this as ArchiveError, never let the raw PermissionError cross the port.
+    # A raw PermissionError never crosses the port.
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("secret", b"classified")
     target = tmp_path / "secret"
@@ -141,8 +132,7 @@ def test_read_unreadable_file_raises_archive_error(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
 def test_list_under_unreadable_dir_raises_not_under_reports(tmp_path: Path) -> None:
-    # Fail closed: a walk that hits an unreadable directory must raise ArchiveError,
-    # not silently drop that subtree's live content (no mocking — a real mode-000 dir).
+    # Fail closed: never silently drop the subtree's live content.
     store = LocalFsObjectStore(tmp_path)
     store.write_atomic("a/k", b"x")
     store.write_atomic("a/sub/k", b"x")
