@@ -1,6 +1,4 @@
-"""``manage.py rebuild_thumbnails``: derive every missing tile (new host, pruned cache, format
-change), and remove retired ``*.webp`` cache files and temp files a crashed write left.
-"""
+"""``*.webp`` is the retired tile format; ``*.tmp`` a crashed write's leftover."""
 
 from pathlib import Path
 from typing import Any

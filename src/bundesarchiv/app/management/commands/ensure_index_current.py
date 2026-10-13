@@ -1,7 +1,3 @@
-"""``manage.py ensure_index_current``: rebuild the index when a row's config version is stale
-(ADR 0014 §3). Always exits 0.
-"""
-
 from typing import Any
 
 from django.core.management.base import BaseCommand

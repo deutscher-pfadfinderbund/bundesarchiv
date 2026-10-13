@@ -146,9 +146,8 @@ class MappedItem:
 
 @dataclass(frozen=True, slots=True)
 class Report:
-    """What the archivist must decide about: the dry run's whole output and the post-import summary.
-    The defaulted fields are filled in by the command, which alone may look at the disk and at the
-    edit form's vocabulary."""
+    """The defaulted fields are filled in by the command, which alone may look at the disk and at
+    the edit form's vocabulary."""
 
     items: int
     without_media: int
@@ -329,8 +328,8 @@ def unknown_vocabulary(
     known_media_types: Vocabulary,
     known_document_types: Vocabulary,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """The Medienarten and Dokumenttypen in ``rows`` outside the edit form's two lists: imported
-    verbatim, but the form refuses to re-save them, so the ``Report`` names them."""
+    """Values outside the edit form's lists are imported verbatim, but the form refuses to re-save
+    them, so the ``Report`` names them."""
     rows = list(rows)
     return (
         _strangers((row["medartanalog"] for row in rows), known_media_types),

@@ -1,5 +1,5 @@
-"""Dev-only workbench layout demo: the real search, ledger and pane partials over static German data;
-``?preview=1`` opens the pane."""
+"""Dev-only workbench layout demo: the real search, ledger and pane partials over static German
+data."""
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -9,8 +9,8 @@ from bundesarchiv.app.web.collection_chooser import CollectionChooser
 from bundesarchiv.app.web.panels import header_panels
 from bundesarchiv.index.query import FileKind, SearchHit
 
-#: Enough rows to scroll: two drafts (with and without a Signatur), one Signatur at the length
-#: ceiling.
+#: Enough rows to scroll: two drafts (with and without a Signatur), one Signatur at the owner's
+#: 8-character ceiling.
 _ROWS: tuple[tuple[str, str, str, str, bool, tuple[tuple[FileKind, int], ...]], ...] = (
     ("Sommerfahrt 1962", "F12", "1962", "Fahrtenbericht", False, ((FileKind.IMAGE, 2),)),
     ("Jahresbericht 1974", "B3", "1974", "Chronik / Dokumentation", False, ()),
@@ -95,7 +95,6 @@ _PREVIEW = {
 
 
 def layout_demo(request: HttpRequest) -> HttpResponse:
-    """GET: the layout demo; ``?preview=1`` opens the pane."""
     with_preview = request.GET.get("preview") == "1"
     return render(
         request,
@@ -115,7 +114,6 @@ def layout_demo(request: HttpRequest) -> HttpResponse:
             "slots": _SLOTS,
             "set_filters": _SET_FILTERS,
             "filter_checks": _FILTER_CHECKS,
-            # a one-page list: the pager shows the count alone
             "pager": {
                 "stepped": False,
                 "total": len(_HITS),

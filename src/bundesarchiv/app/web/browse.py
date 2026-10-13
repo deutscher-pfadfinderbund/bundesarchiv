@@ -1,5 +1,4 @@
-"""The workbench's state as a query string: a total parse into ``SearchFilters`` + sort + page, and
-the pure query-string algebra its links are built from. IO-free; no visibility logic."""
+"""The workbench's state as a query string. IO-free; no visibility logic."""
 
 import datetime
 from collections.abc import Mapping, Sequence
@@ -54,7 +53,6 @@ _SEARCH_PARAMS: frozenset[str] = frozenset(
 )
 
 
-#: Results per workbench page; the search call and the pager must read the same value.
 PAGE_SIZE = 50
 
 #: The ``sort`` values the index understands (``SortOrder``). An unknown value falls to the
@@ -80,8 +78,6 @@ _SORT_DESC_PREFIX = "-"
 
 
 def _parse_sort(raw: str | None) -> tuple[SortOrder, bool]:
-    """``sort`` as (order, descending), a leading ``-`` being descending; anything unknown, and any
-    direction on relevance, is plain relevance."""
     value = (raw or "").strip().lower()
     descending = value.startswith(_SORT_DESC_PREFIX)
     name = value[1:] if descending else value
@@ -137,7 +133,6 @@ def _int_or_none(raw: str | None) -> int | None:
 
 
 def _date_or_none(raw: str | None) -> datetime.date | None:
-    """An ISO date, or ``None``: a garbage bound drops that half of the range."""
     if raw is None or not raw.strip():
         return None
     try:
@@ -158,7 +153,6 @@ def _file_kind(raw: str | None) -> FileKind | None:
 
 
 def _page(raw: str | None) -> int:
-    """The 1-based page; anything else is 1."""
     parsed = _int_or_none(raw)
     return parsed if parsed is not None and parsed >= 1 else 1
 
@@ -192,8 +186,6 @@ def without_param(params: Mapping[str, str], key: str) -> str:
     return urlencode(updated)
 
 
-#: The filter params, in sentence order — what one set-filter link removes and clear-all removes
-#: together. Not ``q``, sort or page.
 FILTER_PARAMS: tuple[str, ...] = (
     PARAM_COLLECTION,
     PARAM_MEDIA_TYPE,
@@ -213,21 +205,18 @@ FILTER_PARAMS: tuple[str, ...] = (
 
 
 def clear_filters_query(params: Mapping[str, str]) -> str:
-    """The current state minus every ``FILTER_PARAMS`` key and the page; ``q`` and sort stay."""
     updated = {k: v for k, v in _clean(params).items() if k not in FILTER_PARAMS}
     updated.pop(PARAM_PAGE, None)
     return urlencode(updated)
 
 
-#: The bulk selection, one value per ulid. Not search state: only links that keep the selection
-#: carry it.
+#: The bulk selection: the param repeats, one value per ulid.
 PARAM_SELECTION = "selection"
 
 
 def page_query_with_selection(
     params: Mapping[str, str], selection: Sequence[str], page: int
 ) -> str:
-    """The current state at ``page``, carrying ``selection`` (omitted when empty)."""
     pairs: list[tuple[str, str]] = [
         (k, v) for k, v in _clean(params).items() if k != PARAM_SELECTION
     ]
@@ -240,8 +229,6 @@ def page_query_with_selection(
 def select_page_query(
     params: Mapping[str, str], selection: Sequence[str], page_ulids: Sequence[str]
 ) -> str:
-    """The current state in selection mode, with ``page_ulids`` added to ``selection`` (deduped,
-    order kept)."""
     merged = list(dict.fromkeys([*selection, *page_ulids]))
     pairs: list[tuple[str, str]] = [
         (k, v) for k, v in _clean(params).items() if k != PARAM_SELECTION
@@ -251,6 +238,6 @@ def select_page_query(
 
 
 def has_next_page(*, page: int, page_size: int, hits_on_page: int, total: int) -> bool:
-    """Whether a page follows this one. Counts full windows before this page, not
-    ``page * hits_on_page``, which understates on a short last page."""
+    """Counts full windows before this page, not ``page * hits_on_page``, which understates on a
+    short last page."""
     return (page - 1) * page_size + hits_on_page < total

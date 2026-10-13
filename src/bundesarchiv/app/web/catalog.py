@@ -1,6 +1,4 @@
-"""The article edit form's pure parse (``parse_edit_form``) and its save shell
-(``save_catalog_form``, this form's ADR 0013 ``Conflict`` catch site).
-"""
+"""The edit form's pure parse and its save shell, this form's ADR 0013 ``Conflict`` catch site."""
 
 import re
 from collections.abc import Mapping, Sequence
@@ -88,8 +86,6 @@ def one_line(raw: str) -> str:
 
 
 def none_if_blank(raw: str) -> str | None:
-    """The ``"" → None`` boundary for an optional scalar (spec §8): blank → ``None``, else
-    stripped."""
     stripped = raw.strip()
     return stripped or None
 
@@ -202,10 +198,8 @@ def _edited(raw: str | None, current: str | None) -> str | None:
 def apply_media_fields(
     post: Mapping[str, object], current_media: tuple[MediaRef, ...]
 ) -> tuple[MediaRef, ...]:
-    """``current_media`` with captions and alts from the form's ``caption[<hash>]`` /
-    ``alt[<hash>]`` (spec §6.3/§8); an absent field keeps the stored value. Only an image takes an
-    alt, as one line — a forged ``alt[<pdf hash>]`` is ignored. Re-renders go through this same
-    rule, so they show only what Speichern would write."""
+    """``current_media`` with the form's ``caption[<hash>]`` / ``alt[<hash>]`` applied (spec
+    §6.3/§8); an absent field keeps the stored value, and only an image takes an alt."""
 
     def field(name: str, key: str) -> str | None:
         values = _getlist(post, f"{name}[{key}]")
@@ -224,8 +218,8 @@ def apply_media_fields(
 
 
 def parse_version(raw: str) -> Version:
-    """The hidden ``expected_version``, 0 when absent or garbage — a garbage one just loses the CAS
-    check, so it is no field error."""
+    """A garbage ``expected_version`` is 0: it just loses the CAS check, so it is no field
+    error."""
     try:
         return int(raw)
     except ValueError:
@@ -285,8 +279,6 @@ def parse_audience(
 def _parse_custom(
     keys: Sequence[str], values: Sequence[str]
 ) -> tuple[tuple[tuple[str, str], ...], str | None]:
-    """The custom bag: rows with either cell blank are dropped (spec §8); a key that collides with
-    an Article field is the verbatim error."""
     rows: list[tuple[str, str]] = []
     for key, value in zip(keys, values, strict=False):
         name, val = key.strip(), value.strip()
@@ -302,13 +294,8 @@ def _parse_custom(
     return normalized, None
 
 
-# --- the form save (ADR 0013) ---
-
-
 @dataclass(frozen=True, slots=True)
 class SavedOutcome:
-    """A successful CAS save."""
-
     result: SaveResult
 
 
@@ -336,9 +323,8 @@ type SaveOutcome = SavedOutcome | ConflictOutcome | DeletedOutcome
 def save_catalog_form(
     archive: Archive, article: Article, expected_version: Version, *, changed_by: str
 ) -> SaveOutcome:
-    """Save the article form against ``expected_version`` (ADR 0013: ``save_article``, never
-    ``update_article``). A lost race returns the winner with the submission, or ``DeletedOutcome``
-    when the winner deleted it."""
+    """Save against ``expected_version`` with ``save_article``, never the retrying
+    ``update_article`` (ADR 0013)."""
     try:
         result = articles.save_article(archive, article, expected_version, changed_by=changed_by)
     except Conflict:

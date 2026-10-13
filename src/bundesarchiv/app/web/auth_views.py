@@ -1,15 +1,9 @@
-"""The login surface: ``GET /login``, ``GET /oidc/callback``, ``POST /logout`` (ADR 0018).
+"""The login surface (ADR 0018): a Keycloak login becomes the two token cookies ``viewer_of``
+resolves; no Django sessions, no user model, no token stored server-side. ``/login`` is the
+redirect to Keycloak: there is no login page and no Abmelden page.
 
-The three routes that turn a Keycloak login into the two token cookies ``viewer_of`` resolves — no
-Django sessions, no user model; the server stores no token. There is no login PAGE and no
-Abmelden landing page: ``/login`` IS the redirect to Keycloak, and a logout lands back on the
-workbench as an anonymous visitor.
-
-Fail-closed, in the shape the rest of the surface uses: a missing signing key, an unreachable realm,
-a callback nobody's ``/login`` started, a token exchange that failed — all the shared 404. Two
-deliberate exceptions, both because the alternative is worse than the deny: ``/logout`` always clears
-the local cookies (refusing to sign somebody OUT is not a safe failure), and a callback whose VERIFIED
-transient carries another state restarts the login instead of stranding a stale tab on a blank page.
+Every failure is the shared 404, but ``/logout`` always clears the cookies (refusing to sign
+someone out is no safe failure) and a stale tab's callback restarts the login.
 """
 
 from dataclasses import dataclass
@@ -76,8 +70,7 @@ def _callback_uri(request: HttpRequest) -> str:
 
 
 def login(request: HttpRequest) -> HttpResponse:
-    """``GET /login?next=`` — start the code flow and hand the browser to Keycloak; ``next`` is
-    where the login lands."""
+    """``GET /login?next=`` — ``next`` is where the login lands."""
     key = settings.VIEWER_SIGNING_KEY
     if request.method != "GET" or not key:
         return not_found()
@@ -167,5 +160,4 @@ def logout(request: HttpRequest) -> HttpResponse:
 
 
 def login_redirect(next_path: str) -> str:
-    """The ``/login?next=…`` URL that sends a visitor through the login and back to ``next_path``."""
     return f"{reverse('login')}?{urlencode({'next': next_path})}"

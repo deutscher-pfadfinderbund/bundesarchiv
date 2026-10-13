@@ -1,6 +1,5 @@
-"""Bestand create and rename, archivist-only. A create may set Sichtbarkeit (an empty Bestand exposes
-nothing); a rename changes the Name only, since moving or re-scoping a Bestand needs the
-over-exposure gate."""
+"""A create may set Sichtbarkeit (an empty Bestand exposes nothing); a rename changes the Name
+only, since moving or re-scoping a Bestand needs the over-exposure gate."""
 
 from dataclasses import replace
 
@@ -42,8 +41,7 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 
 
 def collection_create(request: HttpRequest) -> HttpResponseBase:
-    """``GET/POST /collections/new`` — create a Bestand, then open the create-article form with it
-    preselected. A POST without a Sichtbarkeit choice is the 404."""
+    """``GET/POST /collections/new`` — create a Bestand."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist):
         return not_found()
@@ -88,8 +86,8 @@ def _create_errors(
     chooser: CollectionChooser,
     audience_error: str | None,
 ) -> FormErrors:
-    """The create form's errors. An empty parent is valid (top level), so only a non-empty one is
-    checked, with its own wording."""
+    """Not ``chooser.error()``: an empty parent is the valid top level, so "Bitte einen Bestand
+    wählen." would mislead."""
     errors: FormErrors = {}
     if not name:
         errors["name"] = "Name ist erforderlich."
@@ -104,8 +102,7 @@ def _create_errors(
 
 
 def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET/POST /collections/<ulid>/edit`` — rename a Bestand against the form's
-    ``expected_version`` (ADR 0013), then return to the list scoped to it."""
+    """``GET/POST /collections/<ulid>/edit`` — rename a Bestand (CAS, ADR 0013)."""
     gated = _load_gated_collection(request, ulid)
     if gated is None:
         return not_found()
@@ -123,7 +120,6 @@ def collection_edit(request: HttpRequest, ulid: str) -> HttpResponseBase:
                     chooser, stored, name, {"name": "Name ist erforderlich."}, expected_version
                 ),
             )
-        # rename only: parent and audience stay as stored
         try:
             save_collection(
                 archive,
@@ -173,8 +169,6 @@ def _render_edit(
 def _load_gated_collection(
     request: HttpRequest, ulid: str
 ) -> tuple[Archive, StoredCollection, Archivist] | None:
-    """The archivist and the stored Bestand at ``ulid``, or ``None`` — not an archivist, malformed
-    and absent look alike."""
     archivist = viewer_of(request)
     if not isinstance(archivist, Archivist) or not is_valid_ulid(ulid):
         return None

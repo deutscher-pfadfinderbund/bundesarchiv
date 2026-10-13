@@ -1,6 +1,4 @@
-"""Dev-only component library (``/_dev/components/``): every component in light and dark side by
-side, annotated with its design-system.md inventory status. English chrome, German samples, inert
-data."""
+"""Dev-only component library: English chrome, German samples, inert data."""
 
 from pathlib import Path
 from typing import NamedTuple
@@ -61,8 +59,8 @@ _SORT_OPTIONS = (
     ("title", "Titel"),
 )
 
-#: Ledger samples through the real ``ledger.build``: a draft with a Signatur, one Signatur at the
-#: domain's length ceiling, and three rows missing facts.
+#: A draft with a Signatur, one Signatur at the owner's 8-character ceiling, and three rows
+#: missing facts.
 _LEDGER_HITS = tuple(
     SearchHit(
         ulid=f"01KDEMQ0000000000000000{n:03d}",
@@ -166,7 +164,6 @@ _SWATCH_LINES = ("rule", "edge", "faint")
 
 
 def component_library(request: HttpRequest) -> HttpResponse:
-    """GET: the component library."""
     family_rows = families()
     return render(
         request,

@@ -72,8 +72,7 @@ def page_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
 def _authorize(
     request: HttpRequest, ulid: str, content_hash: str
 ) -> tuple[Archive, Article, MediaRef] | None:
-    """``(archive, article, media_ref)`` when the viewer may read this file, else ``None``.
-    Authorization decides before any blob is touched; the hash is matched in memory."""
+    """Authorization decides before any blob is touched; the hash is matched in memory."""
     if not is_valid_ulid(ulid) or not _is_valid_hash(content_hash):
         return None
     archive = Archive.canonical()
@@ -94,8 +93,7 @@ def _authorize(
 
 
 def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
-    """``GET /media/<ulid>/<content_hash>`` — the original file; a blob missing from the store is
-    the same 404."""
+    """``GET /media/<ulid>/<content_hash>`` — the original file."""
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
         return not_found()
@@ -127,5 +125,4 @@ def serve_thumbnail(
 
 
 def _media_ref_for(article: Article, content_hash: str) -> MediaRef | None:
-    """The ``MediaRef`` on ``article`` with ``content_hash``, or ``None``."""
     return next((ref for ref in article.media if ref.content_hash == content_hash), None)

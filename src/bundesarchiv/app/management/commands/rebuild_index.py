@@ -1,7 +1,4 @@
-"""``manage.py rebuild_index``: rebuild the search index from the canonical store and read the
-page text it lacks.
-
-The index is shared by every canonical root and the root indexed last owns it; this is how a root
+"""The index is shared by every canonical root and the root indexed last owns it; this is how a root
 takes it back.
 """
 

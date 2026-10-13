@@ -1,7 +1,5 @@
-"""Collection write services: canonical CAS write, then ``after_write.run``, which reindexes the
-whole subtree when the save moves any Article's visibility (an audience or parent edit). A rename
-or a create touches no index row.
-"""
+"""Collection write services: a save that moves any Article's visibility (an audience or parent
+edit) reindexes the whole subtree."""
 
 from dataclasses import replace
 
@@ -21,9 +19,7 @@ def create_collection(
     parent_id: Ulid | None = None,
     audience: Audience | None = None,
 ) -> CreateResult:
-    """Mint a new Collection under ``parent_id`` (top-level when None) and save it at version 0. A
-    missing parent raises ``NotFound`` (fail-closed). A new leaf holds no Articles, so its audience
-    exposes nothing and nothing is reindexed."""
+    """A new leaf holds no Articles, so its audience exposes nothing and nothing is reindexed."""
     if parent_id is not None and not _collection_exists(archive, parent_id):
         raise NotFound(f"parent collection {parent_id!r} does not exist")
     collection = Collection(
@@ -45,8 +41,7 @@ def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
 def save_collection(
     archive: Archive, collection: Collection, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
-    """Save ``collection`` at ``expected_version`` (a stale one raises ``Conflict``), then
-    ``after_write.run``: a whole-subtree reindex unless only the name changed."""
+    """A stale ``expected_version`` raises ``Conflict``."""
     moves = _moves_visibility(archive, collection, expected_version)
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
     written = after_write.MovedCollection if moves else after_write.SavedCollection

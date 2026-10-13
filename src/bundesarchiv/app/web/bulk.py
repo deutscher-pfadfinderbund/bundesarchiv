@@ -1,6 +1,3 @@
-"""Bulk edit (Sammelbearbeitung): the field allowlist (``FIELDS``), the pure per-article apply, and
-the no-retry apply loop. Visibility fields are never bulk-editable (spec §0.7)."""
-
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
@@ -15,8 +12,8 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 @dataclass(frozen=True, slots=True)
 class BulkField:
-    """One bulk-editable field. ``value_input`` is the form field its value is posted under;
-    ``is_custom`` writes through the custom bag."""
+    """``value_input``: the form field the value is posted under; ``is_custom``: ``target`` is a
+    custom-bag key."""
 
     target: str
     label: str
@@ -25,8 +22,7 @@ class BulkField:
     is_custom: bool
 
 
-#: The bulk-editable fields in spec §1 order; everything below derives from this. No visibility
-#: field (spec §0.7).
+#: In spec §1 order; never ``audience`` or ``lifecycle`` (spec §0.7).
 FIELDS: tuple[BulkField, ...] = (
     BulkField("physical_location", "Standort", "Standorte", "value_text", False),
     BulkField("creator", "Autor", "Autoren", "value_text", False),
@@ -41,7 +37,6 @@ FIELDS: tuple[BulkField, ...] = (
 
 _BY_TARGET: dict[str, BulkField] = {f.target: f for f in FIELDS}
 
-#: An unknown ``field`` is refused before anything is written (spec §6.3).
 ALLOWED_FIELDS: frozenset[str] = frozenset(_BY_TARGET)
 
 _CUSTOM_FIELDS: frozenset[str] = frozenset(f.target for f in FIELDS if f.is_custom)
@@ -92,20 +87,18 @@ def counted(field: str, n: int) -> str:
 
 def value_input_of(field: str) -> str:
     """The POST field name the drawer posts this field's value under (spec §2 C). Unknown → the text
-    input (harmless; an unknown field is refused before the value is read)."""
+    input (harmless; an unknown field is refused before anything is written)."""
     f = _BY_TARGET.get(field)
     return f.value_input if f is not None else "value_text"
 
 
 def is_allowed_field(field: str) -> bool:
-    """Whether ``field`` may be bulk-edited — the only gate (spec §6.3)."""
+    """The only gate on ``field`` (spec §6.3)."""
     return field in ALLOWED_FIELDS
 
 
 def apply_field(article: Article, field: str, value: str) -> Article:
-    """``article`` with ``field`` set to ``value``; empty clears, except the required Bestand; a new
-    media_type drops a document_type it no longer admits (spec §3). ``field`` must pass
-    ``is_allowed_field``."""
+    """``field`` must pass ``is_allowed_field``."""
     if field in _CUSTOM_FIELDS:
         return _apply_custom(article, field, value)
     cleaned = value.strip() or None
@@ -155,8 +148,6 @@ def document_type_fits_all(document_type: str, articles_: Sequence[Article]) -> 
 
 
 def field_display(field: str, value: str, chooser: CollectionChooser) -> str:
-    """The new value as the check and result pages show it: ``(geleert)`` when empty, a Bestand by
-    name."""
     if not value.strip():
         return "(geleert)"
     return _display(field, value, chooser)
@@ -183,8 +174,6 @@ def _display(field: str, raw: str, chooser: CollectionChooser) -> str:
 
 @dataclass(frozen=True, slots=True)
 class BulkRow:
-    """An article as the result page lists it, captured when it was loaded."""
-
     ulid: Ulid
     ref_code: str
     title: str
@@ -192,8 +181,8 @@ class BulkRow:
 
 @dataclass(frozen=True, slots=True)
 class BulkOutcome:
-    """A bulk apply's outcome: every distinct ulid is counted in ``saved`` or listed in
-    ``conflicted`` or ``missing``, exactly once."""
+    """Every distinct ulid is counted in ``saved`` or listed in ``conflicted`` or ``missing``,
+    exactly once."""
 
     saved: int
     conflicted: tuple[BulkRow, ...]
@@ -230,9 +219,7 @@ class _FieldApplication:
 def apply_bulk(
     archive: Archive, ulids: Sequence[Ulid], field: str, value: str, *, changed_by: str
 ) -> BulkOutcome:
-    """Apply ``field=value`` to each distinct ulid independently, never retrying: a lost race must
-    reach the human, not be re-applied to the winner. A lost race, a pair the fresh load no longer
-    admits, or a failed save is ``conflicted``; an unloadable one is ``missing``."""
+    """Never retries: a lost race must reach the human, not be re-applied to the winner."""
     saved = 0
     conflicted: list[BulkRow] = []
     missing: list[Ulid] = []

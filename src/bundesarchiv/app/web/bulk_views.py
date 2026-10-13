@@ -30,7 +30,6 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     all_ulids = request.POST.get("all", "").split()
     selection = _distinct_valid_ulids([*request.POST.getlist("selection"), *all_ulids])
     field = request.POST.get("field", "")
-    # Read even for a refused field: the reject page echoes what was typed; _validate refuses it.
     value = request.POST.get(bulk.value_input_of(field), "")
 
     error = _validate(selection, field, archive, chooser, value)
@@ -43,8 +42,8 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 
 
 def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
-    """``GET /articles/bulk-edit/document-types`` — the Dokumenttyp options for a Medienart,
-    archivist-only; an enhancement over the no-JS full list."""
+    """``GET /articles/bulk-edit/document-types`` — the Dokumenttyp options for a Medienart; the
+    no-JS drawer lists them all."""
     if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
         return not_found()
     # htmx sends the drawer's <select name="value_media_type"> value under that name; accept the plain
@@ -198,8 +197,7 @@ def _orphans(articles: list[Article], field: str, value: str) -> list[Article]:
 
 
 def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
-    """The present articles among ``ulids``; absent, unreadable and trashed ones (ADR 0022) are
-    skipped."""
+    """Absent, unreadable and trashed ones are skipped."""
     repo = archive.articles
     out: list[Article] = []
     for ulid in ulids:

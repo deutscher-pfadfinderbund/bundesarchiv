@@ -1,9 +1,4 @@
-"""Derived AVIF versions of a file (``Size``): a local cache keyed by content hash.
-
-Regenerable from canonical, never canonical, never mirrored, freely prunable (README runbook). A
-file's bytes are untrusted: no content problem raises past ``_derive``. Every write lands by
-rename.
-"""
+"""A local cache, regenerable from canonical: never mirrored, freely prunable (README runbook)."""
 
 import io
 import logging
@@ -53,8 +48,6 @@ _derive_lock = threading.Lock()
 
 
 def _picture(source: BinaryIO, longest_side: int) -> Image.Image | None:
-    """The image ``source`` holds as RGB, at most ``longest_side`` px, turned as its EXIF orientation
-    says; None over ``_MAX_PIXELS``."""
     box = (longest_side, longest_side)
     with Image.open(source) as image:
         if image.width * image.height > _MAX_PIXELS:
@@ -111,8 +104,7 @@ def tile_size(thumbnail_root: Path, content_hash: str) -> tuple[int, int] | None
 def generate_thumbnail(
     store: ObjectStore, ulid: Ulid, content_hash: str, thumbnail_root: Path
 ) -> bool:
-    """Derive the tile of Article ``ulid``'s file ``content_hash`` into the cache; True iff a tile
-    was written. Re-reads canonical every time; never raises for the file's content."""
+    """True iff a tile was written; never raises for the file's content."""
     articles = ArticleRepository(store)
     try:
         media = articles.load(ulid).article.media

@@ -38,6 +38,5 @@ class Archive:
 
     @classmethod
     def canonical(cls) -> Archive:
-        """The canonical archive from ``BUNDESARCHIV_CANONICAL_ROOT``, the one place that builds the
-        CANONICAL store. Built per call, so a settings override takes effect."""
+        """Built per call, so a settings override takes effect."""
         return cls.of(LocalFsObjectStore(Path(settings.BUNDESARCHIV_CANONICAL_ROOT)))

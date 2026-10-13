@@ -1,8 +1,5 @@
-"""The list (with its column choice), the article read page and the Papierkorb, kept thin.
-
-Data comes from the viewer-scoped ``search``, ``resolve_visible_detail``, or (the archivist-only
-Papierkorb) the canonical load; no visibility logic lives here (plan §11). An htmx region swap
-renders the results partial of the same page (plan §4.5).
+"""No visibility logic lives here (plan §11): data comes from the viewer-scoped ``search``,
+``resolve_visible_detail``, or, for the archivist-only Papierkorb, the canonical load.
 """
 
 import datetime
@@ -41,8 +38,7 @@ _PANE_PARAM = "article"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /articles`` — the workbench. An htmx region swap gets only the results partial; a
-    history restore gets the full page."""
+    """``GET /articles`` — the workbench."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
     # chrome only, not scoping (§11): search() decides visibility, archivist routes gate themselves
@@ -61,8 +57,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
-    # any ?selection= is selection mode (a bare one: nothing ticked), its values the ticked ulids
-    # across pages (spec §2)
+    # a bare ?selection= is selection mode with nothing ticked (spec §2)
     selecting = is_archivist and browse.PARAM_SELECTION in request.GET
     selection = [u for u in request.GET.getlist(browse.PARAM_SELECTION) if u] if selecting else []
     context = _results_context(
@@ -77,7 +72,6 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
-    # archivist-only chrome: "Bestand bearbeiten" shows only while one Bestand is in focus
     context["active_collection"] = parsed.filters.collection if is_archivist else None
     # body.preview adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
@@ -92,9 +86,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
 
 
 def choose_columns(request: HttpRequest) -> HttpResponseBase:
-    """``POST /columns`` — keep the "Spalten …" choice in a cookie (ruling 2026-09-29) and return
-    to the same list (PRG). The cookie holds registry keys only. Any other method is the plain
-    404."""
+    """``POST /columns`` — the "Spalten …" choice, kept in a cookie (ruling 2026-09-29)."""
     if request.method != "POST":
         return not_found()
     # the fixed path is the guard: whatever was posted can only ever be this list's query
@@ -154,10 +146,8 @@ _DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 
 @dataclass(frozen=True, slots=True)
 class MediaTile:
-    """One file as the pane, the article page and the edit form show it. Every URL is gated and
-    re-authorizes per request (a page never inlines bytes); ``full_url`` is set only for an
-    original a browser draws, ``display_url`` only for an image, ``thumb_url``/``aspect`` only
-    while the local cache holds a tile."""
+    """Every URL is gated and re-authorizes per request (a page never inlines bytes); an empty URL
+    means that version is not offered."""
 
     kind: str
     name: str
@@ -203,8 +193,7 @@ def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile
 
 @dataclass(frozen=True, slots=True)
 class _Pane:
-    """The preview pane, built only from a ``visible``-projected Article; ``edit_href`` is empty
-    for a non-archivist."""
+    """Built only from a ``visible``-projected Article."""
 
     ulid: str
     title: str
@@ -228,7 +217,6 @@ def _resolve_pane(
     resolution = resolve_visible_detail(request, ulid, archive, chooser)
     article = resolution.article if resolution is not None else None
     if article is None or article.deleted is not None:
-        # a marked Article belongs to the Papierkorb (ADR 0022), not the pane
         return None
     # closing keeps the search: only the pane param goes (a bare "?" would drop it)
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
@@ -246,14 +234,12 @@ def _resolve_pane(
     )
 
 
-#: The search form's hidden inputs: every filter plus the sort. ``q`` is the form's own input; a
-#: new search resets ``page``.
+#: ``q`` is the form's own input, and a new search resets ``page``.
 _FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
-    """The set filters as the search form's hidden inputs, from the same ``params`` the sentence's
-    links use, so typing refines within them; blank ones are left out."""
+    """The set filters as hidden inputs, so typing a new ``q`` refines within them."""
     return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
 
 
@@ -268,9 +254,8 @@ def _results_context(
     selection: list[str],
     chooser: CollectionChooser,
 ) -> dict[str, object]:
-    """The context the full page and the results partial share; every link is prebuilt from
-    ``params``, which drops the pane, the selection and the landing flags (none is search state).
-    In selection mode the pager re-attaches the selection."""
+    """Links are prebuilt from ``params``, which drops the pane, the selection and the landing
+    flags: none is search state."""
     params = {
         k: v
         for k, v in request.GET.dict().items()
@@ -310,9 +295,7 @@ def _results_context(
 
 @dataclass(frozen=True, slots=True)
 class _Pager:
-    """The pager: on a list of several pages, the range between two steps (``None`` = disabled); a
-    one-page list shows only its count and ``noun``. ``shown`` is this page's range, empty past
-    the last page."""
+    """A step that cannot move is ``None``; ``shown`` is empty past the last page."""
 
     stepped: bool
     prev_query: str | None
@@ -353,7 +336,6 @@ def _pager(
 
 
 def _only_collection_filter(parsed: browse.ParsedQuery) -> str | None:
-    """The Bestand ulid when that collection is the search's only constraint, else ``None``."""
     f = parsed.filters
     others_empty = not parsed.text and replace(f, collection=None) == SearchFilters()
     return f.collection if f.collection is not None and others_empty else None
@@ -366,9 +348,8 @@ def _bulk_bar_context(
     selection: list[str],
     chooser: CollectionChooser,
 ) -> dict[str, object]:
-    """The tool row's selection tools (spec §2; owner 2026-09-30). Both links keep the search.
-    ``selection_offpage_count`` is the URL-borne selection not on this page, which the client adds
-    to its live count (learning G.25)."""
+    """Both links keep the search (a bare "?" would wipe the filters);
+    ``selection_offpage_count`` feeds the client's live count (catalog_bulk.js)."""
     hits = page.hits
     if not hits:
         return {}
@@ -542,8 +523,8 @@ def _facet_items(
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /articles/<ulid>`` — the Lesesaal read page: one template fed a ``visible``-projected
-    Article (spec §4/§10); whatever ``resolve_visible_detail`` refuses is the plain 404."""
+    """``GET /articles/<ulid>`` — the Lesesaal read page: one template for every viewer, fed the
+    ``visible`` projection (spec §4/§10)."""
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     resolution = resolve_visible_detail(request, ulid, archive, chooser)
@@ -579,13 +560,12 @@ def collection_crumbs(chain: ResolvedChain) -> tuple[CollectionCrumb, ...]:
 
 
 def _body_paragraphs(body: str) -> tuple[str, ...]:
-    """The body's blank-line paragraphs, stripped; no Markdown is rendered and the template escapes
-    each (spec §3, §11)."""
+    """No Markdown is rendered; the template escapes each paragraph (spec §3, §11)."""
     return tuple(block.strip() for block in body.split("\n\n") if block.strip())
 
 
 def _detail_context(resolution: DetailResolution) -> dict[str, object]:
-    """The read page's context, built only from the projected Article and the member-safe chain."""
+    """Built only from the projected Article and the member-safe chain."""
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
     slots = iter(range(len(article.media)))

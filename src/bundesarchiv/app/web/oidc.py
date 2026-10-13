@@ -21,8 +21,7 @@ ARCHIVIST_REALM_ROLE = "Bundesarchiv"
 
 
 def viewer_from_claims(claims: Mapping[str, object]) -> Viewer:
-    """The ``Viewer`` of checked access-token claims: ``Archivist`` for ``ARCHIVIST_REALM_ROLE``,
-    else a ``Member`` with the ``groups`` claim. No claim shape raises or escalates."""
+    """The ``Viewer`` of checked access-token claims; no claim shape raises or escalates."""
     if ARCHIVIST_REALM_ROLE in _strings(_as_mapping(claims.get("realm_access")).get("roles")):
         username = claims.get("preferred_username")
         if isinstance(username, str) and username.strip():

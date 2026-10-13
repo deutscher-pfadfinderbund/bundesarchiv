@@ -65,9 +65,8 @@ _RECENT_COUNT = 5
 def search_area(
     viewer: Viewer, _request: HttpRequest, _counts: Counts, _chooser: CollectionChooser
 ) -> Mapping[str, object]:
-    """The list's own search field, without its filter slots: it submits to the list. For an
-    Archivist it carries "Weiter bearbeiten" under it: every draft, newest ``added_at`` first (the
-    index has no "changed at"). Up to ``_RESUME_TITLES`` titles; more fold into "und n weitere"."""
+    """For an Archivist, "Weiter bearbeiten": the newest drafts by ``added_at`` (the index has no
+    "changed at")."""
     if not isinstance(viewer, Archivist):
         return {}
     page = search(

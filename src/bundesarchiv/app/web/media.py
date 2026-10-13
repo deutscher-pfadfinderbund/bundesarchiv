@@ -31,9 +31,8 @@ _SAME_ORIGIN_ONLY = "same-origin"
 def media_response(
     archive: Archive, article: Article, media_ref: MediaRef, request: HttpRequest
 ) -> HttpResponseBase:
-    """The bytes of ``media_ref``: an X-Accel handoff to nginx (which serves Range) when
-    ``BUNDESARCHIV_X_ACCEL_PREFIX`` is set, else a stream without Range (dev, ADR 0017) that raises
-    for an absent blob."""
+    """An X-Accel handoff to nginx (which serves Range) when ``BUNDESARCHIV_X_ACCEL_PREFIX`` is
+    set, else a stream without Range (dev, ADR 0017) that raises for an absent blob."""
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
     if prefix:
@@ -50,8 +49,7 @@ def media_response(
 def thumbnail_response(
     archive: Archive, article: Article, media_ref: MediaRef, size: Size
 ) -> HttpResponseBase:
-    """The AVIF ``size`` version of ``media_ref``, from the local derived cache (made on a miss) —
-    never X-Accel. Raises ``FileNotFoundError`` when the file yields none."""
+    """Streamed, not X-Accel: nginx's X-Accel location fronts only the canonical media tree."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
     path = cached(archive.articles, article.ulid, media_ref, root, size)
     if path is None:
@@ -76,8 +74,8 @@ def _stamped(response: HttpResponseBase) -> HttpResponseBase:
 
 
 def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpResponse:
-    """An empty response nginx fills from ``key``. The filename goes through
-    ``content_disposition_header``, so a hostile name cannot inject a header."""
+    """``key`` is percent-encoded: nginx decodes the header as a URI (ADR 0019). The filename
+    goes through ``content_disposition_header``, so a hostile name cannot inject a header."""
     response = HttpResponse(b"", content_type=content_type)
     response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{quote(key)}"
     disposition = content_disposition_header(as_attachment=False, filename=filename)
