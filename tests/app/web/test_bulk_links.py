@@ -1,10 +1,4 @@
-"""Auswahl (selection) query-string algebra for bulk edit (Sammelbearbeitung, spec §2/§3 no-JS).
-
-Selection is URL/form state: checkboxes name="selection"; pagination links must PRESERVE the
-multi-valued ?selection= across pages, and the way back from the bulk pages adds ulids to it. Pure
-query-string helpers in ``browse`` (IO-free, unit-tested) so the no-JS baseline persists selection
-with zero server-side session state.
-"""
+"""Selection query-string algebra for bulk edit (spec §2/§3): the multi-valued ?selection= survives pagination and the way back from the bulk pages, with no server-side session state."""
 
 from urllib.parse import parse_qs
 
