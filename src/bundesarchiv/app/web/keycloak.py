@@ -21,10 +21,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
-import httpx2
-from authlib.common.errors import AuthlibBaseError
-from authlib.common.urls import add_params_to_uri
-from authlib.integrations.httpx_client import OAuth2Client
+import httpx2  # noqa: TID251
+from authlib.common.errors import AuthlibBaseError  # noqa: TID251
+from authlib.common.urls import add_params_to_uri  # noqa: TID251
+from authlib.integrations.httpx_client import OAuth2Client  # noqa: TID251
 from django.conf import settings
 from joserfc import jwt
 from joserfc.errors import InvalidClaimError, JoseError

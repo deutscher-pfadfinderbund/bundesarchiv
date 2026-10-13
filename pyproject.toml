@@ -36,6 +36,7 @@ dev = [
     "pytest-playwright>=0.5",
     "pyrefly>=1.3.2",
     "pytest-xdist>=3.8.0",
+    "import-linter>=2.15",
 ]
 
 # Editor LSP only; mypy is the gate.
@@ -74,11 +75,21 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 extend-select = [
     "I", "UP", "B", "SIM", "RUF", "C4", "FURB", "PERF", "PIE", "PTH", "RET", "BLE", "DTZ", "PGH", "S",
+    # Library ownership (banned-api below).
+    "TID251",
     # Design signals: flag parameters, unused arguments, private access, size and branching.
     "FBT", "ARG", "SLF", "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
     # Hygiene: commented-out code, deferral markers, prints, builtin shadowing, logging, Django.
     "ERA", "FIX", "TD", "T20", "A", "G", "LOG", "PLE", "RSE", "FLY", "ISC", "DJ",
 ]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# One owner per library: the owner's import line carries `# noqa: TID251`.
+"pypdfium2".msg = "Only app/pdf.py talks to pypdfium2."
+"PIL".msg = "Only app/pdf.py and app/thumbnails.py decode images."
+"authlib".msg = "Only app/web/keycloak.py talks to authlib (ADR 0018)."
+"httpx2".msg = "HTTP lives in the WebDAV adapter, the Keycloak adapter and the mirror job."
+"procrastinate".msg = "The job queue lives in app/tasks.py (and its stats in app/stats.py)."
 
 [tool.ruff.lint.per-file-ignores]
 # Django owns the migrations' mutable class attributes.
@@ -88,10 +99,10 @@ extend-select = [
 "src/bundesarchiv/persistence/collection_readme.py" = ["TRY004", "ARG001"]
 # Tests assert, and their keys and passwords are fixtures. Fixtures are requested for their
 # effect and parametrized flags are data.
-"tests/**" = ["S101", "S105", "S106", "ARG", "FBT", "SLF"]
+"tests/**" = ["S101", "S105", "S106", "ARG", "FBT", "SLF", "TID251"]
 # Django fixes the command signature; the scripts talk to a terminal.
 "src/bundesarchiv/app/management/commands/*.py" = ["ARG002"]
-"scripts/**" = ["T20"]
+"scripts/**" = ["T20", "TID251"]
 # Offenders pinned when the design rules arrived (2026-10-13), plus ARG001 in collection_readme.py
 # above. Fix and remove, never add.
 "src/bundesarchiv/app/articles.py" = ["PLR0913"]
@@ -155,3 +166,41 @@ markers = [
     "requires_pg: needs the real Postgres on :5434 (auto-derived from DB fixtures; add explicitly only for out-of-band DB use)",
 ]
 addopts = "--strict-markers -m 'not e2e and not gallery'"
+
+[tool.importlinter]
+root_package = "bundesarchiv"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Packages layer downward: app over index over persistence over domain"
+type = "layers"
+layers = [
+    "bundesarchiv.app",
+    "bundesarchiv.index",
+    "bundesarchiv.persistence",
+    "bundesarchiv.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain and persistence never import Django (ADR 0005)"
+type = "forbidden"
+source_modules = ["bundesarchiv.domain", "bundesarchiv.persistence"]
+forbidden_modules = ["django"]
+
+[[tool.importlinter.contracts]]
+name = "Storage adapters stay independent of each other"
+type = "independence"
+modules = [
+    "bundesarchiv.persistence.adapters.localfs",
+    "bundesarchiv.persistence.adapters.memory",
+    "bundesarchiv.persistence.adapters.webdav",
+]
+
+[[tool.importlinter.contracts]]
+name = "App services never import the web layer"
+type = "forbidden"
+source_modules = ["bundesarchiv.app.*"]
+forbidden_modules = ["bundesarchiv.app.web"]
+# Pinned 2026-10-13: the legacy import reads the vocabulary from the web layer. A stale entry fails.
+ignore_imports = ["bundesarchiv.app.management.commands.import_legacy -> bundesarchiv.app.web.vocab"]
+unmatched_ignore_imports_alerting = "error"

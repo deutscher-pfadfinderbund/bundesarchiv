@@ -25,12 +25,12 @@ from collections.abc import Callable, Generator
 from dataclasses import asdict
 from pathlib import Path
 
-import httpx2
+import httpx2  # noqa: TID251
 from django.conf import settings
 from django.core.management import call_command
-from procrastinate import RetryStrategy
-from procrastinate.contrib.django import app
-from procrastinate.exceptions import AlreadyEnqueued
+from procrastinate import RetryStrategy  # noqa: TID251
+from procrastinate.contrib.django import app  # noqa: TID251
+from procrastinate.exceptions import AlreadyEnqueued  # noqa: TID251
 
 from bundesarchiv.app import media_text, mirror, stats, thumbnails
 from bundesarchiv.app.archive import Archive
@@ -309,7 +309,7 @@ def run_worker_once_in_test(defer: Callable[[], None]) -> int:
 
     The InMemoryConnector holds only the queue; the tasks still write the real index DB, so this
     exercises the true task functions end-to-end without a live worker process or broker."""
-    from procrastinate.testing import InMemoryConnector
+    from procrastinate.testing import InMemoryConnector  # noqa: TID251
 
     connector = InMemoryConnector()
     with app.replace_connector(connector):

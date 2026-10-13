@@ -5,21 +5,23 @@
 biome = "2.5.15"
 
 [tasks.check]
-description = "Fast commit check (no Postgres)"
+description = "Fast commit check (no Postgres): ruff, format, import contracts, pyrefly, biome, pytest"
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
+  "uv run lint-imports",
   "uv run pyrefly check src tests scripts --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run pytest -m \"not requires_pg\"",
 ]
 
 [tasks.gate]
-description = "Full gate: ruff, format, pyrefly, biome, mypy, pytest"
+description = "Full gate: ruff, format, import contracts, pyrefly, biome, mypy, pytest"
 depends = ["pg:wait"]
 run = [
   "uv run ruff check",
   "uv run ruff format --check .",
+  "uv run lint-imports",
   "uv run pyrefly check src tests scripts --output-format=min-text",
   "biome check --error-on-warnings",
   "uv run mypy",
