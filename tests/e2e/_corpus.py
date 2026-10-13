@@ -1,14 +1,5 @@
-"""The canonical E2E corpus — one small archive shaped to exercise every journey (Part #26).
-
-Built once per session into a temp store and indexed. Returns ``CorpusHandles`` so a journey names
-what it needs (the draft to edit, the published article to copy/delete, a second collection to move
-into) instead of hard-coding ULIDs. Kept deliberately tiny: two collections, a handful of articles
-covering search/filter, edit, copy, delete, publish-preview, and bulk paths.
-
-SIGNATUREN here obey the domain fact (owner, 2026-08-07): NO SPACES, and 8 characters is the
-practical ceiling. One article sits AT that ceiling (``CEILING_REF_CODE``) so every render and
-design judgment happens on realistic codes; layout guards that need to stress a column stress the
-Titel, which is genuinely unbounded free text.
+"""The canonical E2E corpus every journey and gallery state names through ``CorpusHandles``. Layout
+stress goes on the Titel, the one unbounded field (Signaturen are bounded: ``CEILING_REF_CODE``).
 """
 
 from dataclasses import dataclass
@@ -69,17 +60,15 @@ def _report_pdf() -> bytes:
 PUBLISHED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ7"
 SECOND_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ8"
 DRAFT_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZ9"
-CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"  # sorts last in browse order (ulid), so it renders last
-MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb: no list or search shows it
-MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"  # seven photos of mixed shape: rows and the lightbox
-TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"  # a Vorlage: a draft the archivists copy
+CEILING_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZA"
+MARKED_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZB"  # in the Papierkorb
+MANY_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZC"
+TEMPLATE_ULID = "01KX8N6P2PBDPMNJE58ZVQKVZD"
 
 #: The Signatur at the domain ceiling (owner, 2026-08-07): 8 characters, no spaces — Bestand ·
 #: subdivision · volume, the longest code the archive is expected to carry.
 CEILING_REF_CODE = "F12/3-b2"
-# A ULID-keyed collection (unlike the literal "ROOT"/"FOTOS" ids) for the 4.8 rename route + gallery
-# state: /collections/<ulid>/edit validates a real ULID (real collections created via the app get
-# one), so the rename state needs a genuine ULID, not a literal.
+# /collections/<ulid>/edit accepts only a real ULID, unlike the literal ROOT/FOTOS ids.
 RENAMABLE_ULID = "01KX939S67DNGH0AB53HNXGB9B"
 
 #: The photos of MANY_ULID: (filename, caption, pixel size) — landscape, portrait, square, wide.
@@ -120,11 +109,8 @@ class CorpusHandles:
 
 
 def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandles:
-    """Build + index the canonical corpus at ``root``. Idempotent per fresh temp dir.
-
-    When ``thumbnail_root`` is given, the media blobs' AVIF tiles are pre-generated into it —
-    the worker-side generation the live e2e run has no worker for — so the detail cover + filmstrip
-    <img>s (which point at the /media/.../thumb route) actually render instead of 404ing."""
+    """With ``thumbnail_root``, pre-generate the thumbnails the absent worker would, so media <img>s
+    render."""
     store = LocalFsObjectStore(root)
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -140,15 +126,13 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # A ULID-keyed Bestand under FOTOS so the 4.8 rename route/gallery state has a valid-ULID target.
     collections.save(
         Collection(RENAMABLE_ULID, "Karten", "FOTOS", Audience(AudienceTier.PUBLIC)),
         0,
         changed_by="tester",
     )
 
-    # Two media on the published article so the 4.6 detail page has a cover Platte + a filmstrip
-    # (add_media stores the blobs first; the repository refuses an Article referencing unstored ones).
+    # add_media first: the repository refuses an Article referencing unstored blobs.
     cover = articles.add_media(
         PUBLISHED_ULID,
         "cover.png",
@@ -176,8 +160,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
             title="Sommerfahrt 1962",
             collection_id="FOTOS",
             lifecycle=Lifecycle.PUBLISHED,
-            # A multi-paragraph body so the detail gallery states exercise the prose+card split (a
-            # body-less article would hide the layout bug the design gate found — process fix, §5).
+            # A multi-paragraph body, so the detail states exercise the prose+card split.
             body=(
                 "Die Sommerfahrt führte die Gruppe im Juli 1962 in den Harz.\n\n"
                 "Aufgenommen wurden Porträts am Lagerfeuer sowie ein Gruppenbild vor der Hütte.\n\n"
@@ -213,9 +196,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # Corpus realism (learning G.6): the draft's TITLE is plain archive content — its draft-ness
-    # is lifecycle state (the ENTWURF mark), never words in the title. "Entwurf Lagerchronik"
-    # once made every render lie about badge duplication.
+    # draft-ness is lifecycle state, never words in the title (G.6)
     articles.save(
         Article(
             ulid=DRAFT_ULID,
@@ -231,10 +212,7 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
         0,
         changed_by="tester",
     )
-    # The Signatur ceiling (owner, 2026-08-07): ONE article at 8 characters, no spaces, so the
-    # ledger's sig column and every gallery shot are judged on the widest REALISTIC code. Filed in
-    # AKTEN with its own Medienart, so it neither joins the "sommer" tag facet nor the Foto(s)
-    # count the filter journeys narrow on.
+    # not a Foto(s): the filter journeys narrow on that count
     articles.save(
         Article(
             ulid=CEILING_ULID,
@@ -309,8 +287,6 @@ def build_corpus(root: Path, thumbnail_root: Path | None = None) -> CorpusHandle
     filled = media_text.fill(Archive.of(store), PUBLISHED_ULID)
     assert len(filled) == 1  # fill never raises; a miss is silent
     if thumbnail_root is not None:
-        # Pre-generate the thumbnails the worker would (the e2e run has no worker), so the detail
-        # cover + filmstrip images render instead of the /media/.../thumb route 404ing.
         for ulid, ref in (
             (PUBLISHED_ULID, cover),
             (PUBLISHED_ULID, plate),

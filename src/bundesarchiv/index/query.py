@@ -1,29 +1,7 @@
-"""The query layer — viewer-scoped ``search`` over the derived index (ADR 0003/0004).
+"""Viewer-scoped search over the derived index (ADR 0003, ADR 0004).
 
-``search``, its facets alone (``facet_counts``) and the tag suggestions, plus the frozen value
-types they return. Everything ``search`` computes — text match, filters, facets, total, the page
-window — derives from ONE base queryset:
-
-    ArticleIndex.objects.filter(_viewer_scope(viewer), <the side of the Papierkorb>)
-
-``_viewer_scope`` (``index.scope``) is the single visibility predicate; this module never writes
-a tier / archivist_only comparison of its own. The ONE sanctioned exception is choosing which
-tsvector(s) to search: an Archivist searches the archivist tsvector too, which is a per-viewer
-decision the scope ``Q`` deliberately does not carry. That choice is a single ``match viewer``
-with ``assert_never`` (``_matched_vector``), commented as the sanctioned exception.
-
-No QuerySets or model instances cross the interface: ``search`` returns frozen dataclasses only,
-and ``SearchHit`` carries exactly the member-visible identity/metadata columns — no
-``physical_location``, ``custom`` or ``archivist_text`` (the domain field floor, by construction).
-Its ``text_pages`` name only pages of the hit's own files (ADR 0023).
-
-ORM-vs-raw outcome (brief decision point). The whole query is expressible in the Django ORM —
-``SearchQuery``/``SearchRank`` for text+relevance, ``Collate`` for the ICU sort, array lookups
-for the tag/decade/subtree filters, and per-facet aggregate queries. The tags/decades facets need
-per-element counts over an array column; ``ArrayAgg``/``Count`` over ``Func('unnest', ...)`` in a
-``.values().annotate()`` group-by does this without raw SQL. So this module is pure ORM — the
-scope predicate is therefore always applied by Django as a real ``WHERE`` on every one of the
-(1 + up to 5-facet) queries, never hand-rolled.
+Every ``ArticleIndex`` query starts from ``_scoped``; the only other viewer branch is the tsvector
+choice in ``_matched_vector``. No QuerySet or model instance crosses the interface.
 """
 
 import datetime
@@ -56,20 +34,11 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.index.models import ArticleIndex, MediaText
 from bundesarchiv.index.scope import _viewer_scope
 
-# The FTS config both the generated columns and the query parser use (ADR 0011). websearch is the
-# query parser (``websearch_to_tsquery``): quoted phrases, ``-`` negation, bare AND. Part 4 adds the
-# ADR-0011 recall mitigation: prefix (``:*``) matching on the trailing lexeme (``_PrefixWebSearchQuery``),
-# which lifts the corpus spot-check from 9/12 to 12/12 (a leading part like ``Bundes`` then matches
-# ``Bundeslager``). No ``ts_headline`` in v1.
+# Must name the config the tsvector wrappers use (migration 0001).
 _CONFIG = "bundesarchiv_german"
 
-# page_size cap. A page is a human-facing result window; 200 is a generous ceiling that still
-# bounds the row count and the per-hit work. Anything larger is clamped (not rejected) so a
-# caller passing a huge value gets a full-but-bounded page rather than an error.
 _MAX_PAGE_SIZE = 200
 
-# ICU numeric collation for ``ref_code`` / ``title`` ordering (ADR 0011): "B 10" sorts after
-# "B 2", "Ä 3" sorts with A. Used by both the ref_code and title sorts.
 _DE_NUMERIC = "de_numeric"
 
 type SortOrder = Literal["relevance", "ref_code", "date", "title", "added"]
@@ -101,27 +70,9 @@ class FileKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SearchFilters:
-    """Facet/filter selection. All optional; ``None`` means "no constraint on this dimension".
-
-    ``collection`` matches the whole subtree (any row whose ``collection_ancestors`` contains the
-    ulid — leaf, mid or root). ``date_from``/``date_to`` are an interval-overlap constraint (see
-    ``_apply_date_range``); a row with no date is excluded from any date-range-filtered result.
-
-    ``dateless`` (Part 4, "Ohne Datum" facet — data honesty per the ideas doc) narrows to rows with
-    NO date at all (``date_earliest IS NULL``). It is the exact complement of the date-range filter's
-    NULL exclusion, and mutually exclusive with a date range in practice (a dateless row can never
-    overlap a window): if ``dateless`` and a range are both given, the two ``date_earliest`` clauses
-    (IS NULL vs IS NOT NULL) conjoin to the empty set — the honest, non-crashing outcome.
-
-    ``has_files`` keeps rows with at least one file (the fact ``SearchHit.file_counts`` reports);
-    ``file_kind`` keeps rows with at least one file of that kind;
-    ``drafts_only`` keeps drafts and ``templates_only`` templates (drafts too), so either narrows a
-    non-Archivist's scope to nothing.
-
-    ``deleted`` picks the side of the Papierkorb (ADR 0022): False (the default) leaves every
-    marked row out, True keeps only marked rows. Marked rows are archivist-only, so True narrows a
-    non-Archivist's scope to nothing.
-    """
+    """None or False means no constraint, except ``deleted``, which picks the side of the
+    Papierkorb (ADR 0022). ``collection`` matches the whole subtree; ``date_from``/``date_to`` keep
+    rows whose date range overlaps the window."""
 
     collection: Ulid | None = None
     media_type: str | None = None
@@ -150,14 +101,7 @@ class TextPage:
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
-    """One result row, floor-safe by construction: the member-visible identity + metadata columns
-    plus ``is_draft`` / ``is_template`` for the archivist's Entwurf and Vorlage marks. No
-    ``physical_location`` / ``custom`` / ``archivist_text`` (the floored fields) ever appear here.
-
-    ``is_draft`` and ``is_template`` carry no cross-tier leak: ``_viewer_scope`` restricts the
-    returned rows to those the viewer may see, and draft rows (archivist_only) never reach a
-    non-archivist. ``text_pages`` are the matching pages of the hit's own files, in media order
-    then page order; () without a query or a page match."""
+    """Never carries a floored column (``physical_location``, ``custom``, ``archivist_text``)."""
 
     ulid: str
     title: str
@@ -188,14 +132,8 @@ class FacetCount:
 
 @dataclass(frozen=True, slots=True)
 class SearchPage:
-    """A page of hits with the total (pre-pagination, scoped+filtered count) and the facets.
-
-    ``dateless_count`` is the "Ohne Datum" facet bucket (Part 4): how many in-scope, in-filter rows
-    carry NO date. Own-dimension-excluded like every other facet (computed with the ``dateless``
-    filter cleared) so it always reads as "how many you'd get by switching this filter on", never
-    collapsed by the current selection. It is a scalar (not a ``FacetCount``) because it has one
-    value — present-or-not — not a set of values to choose among.
-    """
+    """``total`` counts every match, not just this page; ``dateless_count`` is the "Ohne Datum"
+    facet."""
 
     hits: tuple[SearchHit, ...]
     total: int
@@ -203,9 +141,6 @@ class SearchPage:
     dateless_count: int
 
 
-# The columns ``SearchHit`` reads, pulled with ``.values(...)`` so no model instance is built or
-# leaked. Exactly the SearchHit fields — the floor is enforced by this projection being narrow: the
-# floored columns (physical_location/custom/archivist_text) are simply never named here.
 _HIT_COLUMNS = (
     "ulid",
     "title",
@@ -234,16 +169,7 @@ def search(
     page_size: int = 50,
     facets: tuple[Facet, ...] = _DEFAULT_FACETS,
 ) -> SearchPage:
-    """Viewer-scoped search over the derived index.
-
-    Pipeline: scope the queryset (``_viewer_scope`` — always first), apply the text match, apply
-    the filters, then derive total / facets / the ordered, paginated hits from that one scoped +
-    filtered queryset. Returns frozen dataclasses only; no QuerySet or model instance escapes.
-
-    ``descending`` reverses a COLUMN sort's primary key (the workbench header cycle asc→desc); it is
-    a no-op for ``relevance`` (always best-first). ``facets`` names the facets to compute; the
-    page's ``facets`` mapping holds exactly those.
-    """
+    """``descending`` reverses a column sort; ``relevance`` and ``added`` ignore it."""
     filters = filters or SearchFilters()
     query = _search_query(text)
 
@@ -295,9 +221,7 @@ _MAX_SUGGESTIONS = 10
 
 
 def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> tuple[str, ...]:
-    """The Schlagworte of ``viewer``'s Articles outside the Papierkorb that contain ``text``,
-    ignoring case: the ones starting with it first, each part by how many Articles use the tag,
-    then alphabetically. At most ten, none in ``exclude`` (ignoring case); a blank ``text`` suggests nothing."""
+    """Those starting with ``text`` first, each part by use count, then alphabetically."""
     needle = text.strip().casefold()
     if not needle:
         return ()
@@ -318,20 +242,7 @@ def suggest_tags(viewer: Viewer, text: str, *, exclude: Iterable[str] = ()) -> t
     return tuple(ranked[:_MAX_SUGGESTIONS])
 
 
-# ---------------------------------------------------------------------------
-# Text match + relevance
-# ---------------------------------------------------------------------------
-
-
 def _search_query(text: str | None) -> SearchQuery | None:
-    """The parsed tsquery for ``text``, or ``None`` for a browse (no text). A blank / whitespace-only
-    string is treated as no text — an all-match browse, not an empty query.
-
-    ADR-0011 recall mitigation: the query is prefix-augmented — the trailing lexeme is given the
-    ``:*`` prefix form so a leading part (``Bundes``) matches the whole compound (``Bundeslager``),
-    recovering the recall the missing German decomposition would otherwise lose. See
-    ``_PrefixWebSearchQuery``.
-    """
     if text is None or not text.strip():
         return None
     return _PrefixWebSearchQuery(text, config=_CONFIG, search_type="websearch")
@@ -356,13 +267,9 @@ class _PrefixWebSearchQuery(SearchQuery):
         function: str | None = None,
         template: str | None = None,
     ) -> tuple[str, list[object]]:
-        # ``params`` carries [config, text] for a websearch SearchQuery; we rebuild the SQL around
-        # the same two params so the config is applied to BOTH the websearch parse and the reparse.
         sql, params = super().as_sql(compiler, connection, function, template)  # type: ignore[arg-type]
-        # ``sql`` is ``websearch_to_tsquery(%s::regconfig, %s)`` (Django's rendering). Wrap it:
-        # to_tsquery(config, <that>::text with ':*' after a trailing quote) — but the config param
-        # is consumed once by the inner call, so re-supply it for the outer to_tsquery too. The
-        # first param is always the config (a websearch SearchQuery always renders config + term).
+        # The inner ``websearch_to_tsquery`` consumes the config, its first param; re-supply it
+        # for the outer ``to_tsquery``.
         config_param = next(iter(params))
         wrapped = f"to_tsquery(%s::regconfig, regexp_replace(({sql})::text, '''$', ''':*'))"
         return wrapped, [config_param, *params]
@@ -387,7 +294,6 @@ def _matched_vector(viewer: Viewer) -> F | Func:
     """
     match viewer:
         case Archivist():
-            # general_tsv || archivist_tsv — Postgres tsvector concatenation (merges lexemes).
             return Func(
                 F("general_tsv"),
                 F("archivist_tsv"),
@@ -449,16 +355,8 @@ def _ref_code_hit(text: str | None) -> Q | None:
     return Q(_ref_code_key=key) if key else None
 
 
-# ---------------------------------------------------------------------------
-# Filters
-# ---------------------------------------------------------------------------
-
-
 def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[ArticleIndex]:
-    """All filters except date-range, each a plain column/array constraint over the scoped set.
-    Date-range is separate (``_apply_date_range``) because it spans two columns with NULL rules."""
     if f.collection is not None:
-        # Subtree membership: any row whose ancestry chain contains this collection ulid.
         qs = qs.filter(collection_ancestors__contains=[f.collection])
     if f.media_type is not None:
         qs = qs.filter(media_type=f.media_type)
@@ -473,9 +371,6 @@ def _apply_filters(qs: QuerySet[ArticleIndex], f: SearchFilters) -> QuerySet[Art
     if f.decade is not None:
         qs = qs.filter(decades__contains=[f.decade])
     if f.dateless:
-        # "Ohne Datum": rows with NO date at all. Same column, same NULL rule the date-range filter
-        # uses to EXCLUDE dateless rows — here we SELECT them. Applied over the already-scoped set,
-        # so the scope WHERE rides along (no visibility re-derivation).
         qs = qs.filter(date_earliest__isnull=True)
     if f.has_files:
         qs = qs.exclude(file_counts={})
@@ -493,20 +388,6 @@ def _apply_date_range(
     date_from: datetime.date | None,
     date_to: datetime.date | None,
 ) -> QuerySet[ArticleIndex]:
-    """Interval-overlap filter over ``[date_earliest, date_latest]``.
-
-    A row overlaps the query window ``[date_from, date_to]`` iff ``date_earliest <= date_to`` AND
-    ``date_latest >= date_from``. NULL handling:
-
-    - ``date_latest IS NULL`` means an OPEN upper end (an open-ended EDTF interval, e.g. 1970/..):
-      treated as ``+infinity``, so the ``date_latest >= date_from`` half is satisfied unless the
-      row is excluded by its earliest bound.
-    - ``date_earliest IS NULL`` means the row has NO date at all: it is EXCLUDED from any
-      date-range-filtered result (a dateless row cannot be said to overlap a date window).
-
-    Applied only when at least one bound is given; each bound half is independent so ``date_from``
-    alone (open upper query) and ``date_to`` alone (open lower query) both work.
-    """
     if date_from is None and date_to is None:
         return qs
     # A dateless row (date_earliest IS NULL) can never overlap a date window — drop it whenever any
@@ -514,17 +395,11 @@ def _apply_date_range(
     # open-upper-end branch below.)
     qs = qs.filter(date_earliest__isnull=False)
     if date_to is not None:
-        # date_earliest <= date_to: the row starts on or before the window's end.
         qs = qs.filter(date_earliest__lte=date_to)
     if date_from is not None:
         # date_latest >= date_from, OR date_latest IS NULL = an open upper end (+infinity).
         qs = qs.filter(Q(date_latest__gte=date_from) | Q(date_latest__isnull=True))
     return qs
-
-
-# ---------------------------------------------------------------------------
-# Sort + pagination
-# ---------------------------------------------------------------------------
 
 
 def _page_of_hits(
@@ -538,11 +413,6 @@ def _page_of_hits(
     page: int,
     page_size: int,
 ) -> tuple[SearchHit, ...]:
-    """Order ``qs``, slice the page window, and project to floor-safe ``SearchHit``s.
-
-    Uses ``.values(*_HIT_COLUMNS)`` so no model instance is built — only the member-visible
-    columns leave the ORM, and they map 1:1 onto ``SearchHit``.
-    """
     ordered = _ordered(
         qs,
         query=query,
@@ -600,25 +470,11 @@ def _ordered(
     sort: SortOrder,
     descending: bool = False,
 ) -> QuerySet[ArticleIndex]:
-    """Apply the requested sort. Every order ends with ``ulid`` as a deterministic tiebreaker so
-    pages never shuffle between calls. ``relevance`` with no text falls back to ``ulid`` (a stable,
-    unique browse order — the index has no intrinsic "recency", so the PK is the honest default).
-
-    ``descending`` reverses the PRIMARY key of a COLUMN sort (ref_code / date / title) — the
-    workbench's header cycle asc→desc; the ``ulid`` tiebreaker stays ascending so pages remain
-    deterministic within a key value. It does not apply to ``relevance`` (rank is always best-first;
-    relevance is never a column header), so a descending relevance is a no-op. ``added`` is newest
-    first with unknown dates last; it is a preset, not a column header, so ``descending`` is a no-op
-    there too.
-    """
+    """Every order ends on ``ulid`` so pages never shuffle."""
     match sort:
         case "relevance":
             if query is None or ref_code_match is None:
-                return qs.order_by("ulid")  # browse: deterministic, no rank to sort by
-            # rank desc, over the viewer's matched vector (combined for an Archivist, general_tsv
-            # otherwise — same expression the @@ match used); equal ranks read in numeric title
-            # order (a run of issues: Nr. 1, 2, 10), ``ulid`` last. An exact Signatur hit outranks
-            # every text rank.
+                return qs.order_by("ulid")
             exact = Case(When(ref_code_match, then=1), default=0, output_field=IntegerField())
             return qs.annotate(
                 _exact=exact,
@@ -645,18 +501,9 @@ def _ordered(
 
 
 def _clamp_page_size(page_size: int) -> int:
-    """Clamp ``page_size`` into ``[1, _MAX_PAGE_SIZE]`` — a non-positive value becomes 1, an
-    over-large value is capped, so a page is always a bounded, non-empty-capacity window."""
     return max(1, min(page_size, _MAX_PAGE_SIZE))
 
 
-# ---------------------------------------------------------------------------
-# Facets — one aggregate per key, each excluding its own filter dimension
-# ---------------------------------------------------------------------------
-
-# Scalar facets: (facet key, model column). Each is a group-by count over the scoped+filtered set
-# with THIS facet's own filter removed (standard faceting), so the counts show what a user could
-# switch to, not just what the current selection already narrowed to.
 _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("media_type", "media_type"),
     ("document_type", "document_type"),
@@ -664,15 +511,7 @@ _SCALAR_FACETS: tuple[tuple[str, str], ...] = (
     ("place", "subject_place"),
 )
 
-# Array facets: (facet key, array column) — counted per-element via unnest.
-#
-# COLLECTION counts the SUBTREE (owner, 2026-07-10): it unnests ``collection_ancestors`` (each row's
-# leaf→root chain), so every row contributes to each of its ancestors and a parent Collection's
-# count is the size of its whole subtree — exactly the set selecting it as the (subtree) FILTER
-# returns (``collection_ancestors__contains``). This replaces the old direct-membership group-by on
-# ``collection_id`` (the confusing "direkt: N" hedge): facet count now matches what clicking yields.
-# Still per-tier scoped — the aggregate runs over the ``_viewer_scope``'d ``matched`` set — and a
-# fail-closed row carries no ancestors, so it never inflates any collection's count.
+# ``collection`` counts the whole subtree, matching the subtree filter (owner 2026-07-10).
 _ARRAY_FACETS: tuple[tuple[str, str], ...] = (
     ("collection", "collection_ancestors"),
     ("tags", "tags"),
@@ -703,13 +542,7 @@ def _facets(
 
 
 def _dateless_count(matched: QuerySet[ArticleIndex], filters: SearchFilters) -> int:
-    """The "Ohne Datum" facet count: how many in-scope, text-matched, other-filtered rows have NO
-    date (``date_earliest IS NULL``). Own-dimension-excluded like the scalar/array facets — computed
-    over ``matched`` re-filtered by every OTHER dimension (the ``dateless`` and date-range clauses
-    cleared), so it reports what switching the bucket on would yield, and the scope ``WHERE`` rides
-    along from ``matched`` (never re-derived). Date-range is cleared alongside ``dateless`` because a
-    range and "no date" are mutually exclusive dimensions of the same column — leaving a range on
-    would zero this count by construction, which is not the facet's question."""
+    """Clears the date range too: a range would zero the count by construction."""
     other = replace(filters, dateless=False, date_from=None, date_to=None)
     return _apply_filters(matched, other).filter(date_earliest__isnull=True).count()
 
@@ -726,9 +559,6 @@ def _file_kind_facet(
 
 
 def _without(filters: SearchFilters, key: str) -> SearchFilters:
-    """A copy of ``filters`` with the facet ``key``'s own dimension cleared (standard faceting).
-    The facet key maps to the filter field it excludes: ``collection`` -> collection,
-    ``tags`` -> tag, ``decades`` -> decade, and the other keys to themselves."""
     field = {"tags": "tag", "decades": "decade"}.get(key, key)
     # ``field`` is always a nullable dimension, never a bool, so None is well-typed; ``Any`` keeps
     # ``replace`` from narrowing the value against the union of field types.
@@ -739,9 +569,6 @@ def _without(filters: SearchFilters, key: str) -> SearchFilters:
 def _scalar_facet(
     matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
 ) -> tuple[FacetCount, ...]:
-    """Group-by count over a scalar column, NULLs dropped, ordered by count desc then value.
-    Runs over ``matched`` re-filtered by the other dimensions — the scope ``WHERE`` is inherited
-    from ``matched``, so no visibility logic is re-derived here."""
     rows = (
         _apply_filters(matched, filters)
         .exclude(**{f"{column}__isnull": True})
@@ -755,9 +582,6 @@ def _scalar_facet(
 def _array_facet(
     matched: QuerySet[ArticleIndex], *, column: str, filters: SearchFilters
 ) -> tuple[FacetCount, ...]:
-    """Per-element count over an array column via ``unnest``: unnest the array, group by the
-    element, count. Runs over ``matched`` re-filtered by the other dimensions. ``value`` is
-    stringified (so integer decades become strings, uniform with the scalar facets)."""
     rows = (
         _apply_filters(matched, filters)
         .annotate(_elem=Func(F(column), function="unnest"))

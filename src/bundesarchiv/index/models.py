@@ -1,31 +1,7 @@
-"""The derived search-index row — a private, disposable Postgres materialization.
+"""Derived, disposable search rows, never the source of truth (ADR 0003, ADR 0004).
 
-``ArticleIndex`` is one flattened, denormalized row per Article, built by the indexer
-(Task 7) from the files-canonical core and queried viewer-scoped by ``search`` (Task 8).
-It is NOT the source of truth: the whole table can be dropped and rebuilt from the README
-files at any time (ADR 0003, 0004). Nothing here is exported from ``bundesarchiv.index`` —
-the model is an implementation detail of the adapter.
-
-The two ``tsvector`` columns are database-generated (``GENERATED ALWAYS ... STORED``) so
-Postgres, not Python, keeps them in lockstep with the source columns on every write. The
-``bundesarchiv_german`` text-search configuration they use is pinned in
-[ADR 0011](../../docs/adr/0011-german-fts-config.md).
-
-ORM-vs-RunSQL outcome (brief decision point). The generated columns cannot be pure-ORM
-``GeneratedField``s over the inline ADR expression: Postgres requires a generated column's
-expression to be ``IMMUTABLE``, but the ADR expression relies on ``array_to_string(tags,' ')``
-(and, transitively, the ``unaccent``-based config), both only ``STABLE``. Django can render the
-expression but Postgres rejects it ("generation expression is not immutable"). The resolution —
-still ORM-first for the column itself — is to move the verbatim ADR expression into two
-``IMMUTABLE`` SQL wrapper functions (``bundesarchiv_general_tsv`` / ``bundesarchiv_archivist_tsv``,
-created by RunSQL in migration ``0001_search_infrastructure``) and declare each ``GeneratedField``
-as a single call to its wrapper. So: the FTS config, ICU collation and the two wrapper functions
-are RunSQL DDL in 0001; the table, its scalar/array columns, the two generated ``tsvector``
-columns (each a one-line wrapper call) and all indexes are ORM in ``0002_articleindex``. Marking
-the wrappers ``IMMUTABLE`` is safe because the index is derived and disposable — if the config or
-``unaccent`` rules ever change, the config_version bumps and the index is rebuilt (ADR 0003).
-``MediaText`` (ADR 0023) declares its ``tsv`` the same way, over a third wrapper
-(``bundesarchiv_text_tsv``, migration ``0009_mediatext``).
+Each tsvector is a generated column over an ``IMMUTABLE`` SQL wrapper (migrations 0001, 0009): the
+ADR 0011 expression is only ``STABLE``.
 """
 
 from typing import ClassVar
@@ -53,12 +29,6 @@ _ARCHIVIST_TSV_ARGS = ("archivist_text",)
 
 
 def _wrapper(function: str, *field_names: str) -> Func:
-    """A call to one of the ``IMMUTABLE`` tsvector wrapper functions from migration 0001.
-
-    The weighted ADR-0011 expression lives inside the SQL function (see the module docstring on
-    why it can't be inlined into the generated column); the ORM side is just the call, which keeps
-    the ``GeneratedField`` serialization in the migration tiny and refactor-stable.
-    """
     return Func(
         *(F(name) for name in field_names),
         function=function,
@@ -67,9 +37,6 @@ def _wrapper(function: str, *field_names: str) -> Func:
 
 
 class ArticleIndex(models.Model):
-    """One denormalized, disposable search row per Article (ADR 0003/0004). Private to the
-    ``bundesarchiv.index`` adapter — not part of its public interface."""
-
     ulid = models.TextField(primary_key=True)
     title = models.TextField()
     body = models.TextField(blank=True, default="")
@@ -92,22 +59,18 @@ class ArticleIndex(models.Model):
     archivist_only = models.BooleanField()
     tier = models.TextField(null=True)  # "PUBLIC" | "MEMBERS" | "GROUPS"; None iff archivist_only
     groups = ArrayField(models.TextField(), default=list)
-    # Lifecycle marker for archivist chrome (the ENTWURF badge, the drafts filter). Distinct from
-    # archivist_only: a DRAFT and a fail-closed row are BOTH archivist_only, but only a draft is
-    # is_draft — the badge must not label a broken-chain row "ENTWURF". Not a scope column:
-    # visibility is decided by archivist_only/tier/groups alone; this only narrows or labels rows
-    # the archivist already sees. Members/public never receive archivist_only rows.
+    # Chrome, never scope: archivist_only also covers rows that are not drafts.
     is_draft = models.BooleanField(default=False)
-    is_template = models.BooleanField(default=False)  # a Vorlage; a draft, so archivist_only too
-    added_at = models.DateTimeField(null=True)  # the date added; None = unknown
-    # The Papierkorb mark (ADR 0022); None = not deleted. A marked row is also archivist_only.
+    is_template = models.BooleanField(default=False)  # a Vorlage
+    added_at = models.DateTimeField(null=True)  # None = unknown
+    # The Papierkorb mark (ADR 0022); a marked row is also archivist_only.
     deleted_at = models.DateTimeField(null=True)
     deleted_by = models.TextField(null=True)
     # {FileKind value: count} of the Article's media, zero kinds absent; {} = no files.
     file_counts = models.JSONField(default=dict)
     # The content hash of each file, in media order: how a row reaches its files' ``MediaText``.
     media_hashes = ArrayField(models.TextField(), default=list)
-    # bump when the FTS config changes (indexer.CONFIG_VERSION) to trigger a rebuild
+    # indexer.CONFIG_VERSION at write time
     config_version = models.IntegerField()
 
     general_tsv = models.GeneratedField(
@@ -122,7 +85,6 @@ class ArticleIndex(models.Model):
     )
 
     class Meta:
-        # GIN on both tsvectors (FTS); btree on the date and added_at sorts/filters (ADR 0011 / brief).
         indexes: ClassVar[list[Index]] = [
             GinIndex(fields=["general_tsv"], name="index_general_tsv_gin"),
             GinIndex(fields=["archivist_tsv"], name="index_archivist_tsv_gin"),

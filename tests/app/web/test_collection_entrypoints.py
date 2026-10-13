@@ -1,12 +1,5 @@
-"""Archivist entry points to the 4.8 Bestand routes on the workbench.
-
-"Neuer Bestand" lives beside "Neuer Artikel" in the header's "+ Neu …" disclosure panel (Mock B,
-owner 2026-08-07 — archivist-only chrome, absent for everyone else). A per-Bestand "Bestand
-bearbeiten" button sits in the list's tool row (or, while the Bestand is empty, in its empty state)
-only when a ?collection= filter is active (the archivist has a specific Bestand in focus), not in the
-menu. Neither is a visibility decision: the routes are
-independently archivist-gated.
-"""
+"""Showing the archivist's Bestand entry points is chrome, not a visibility decision: the routes
+gate themselves."""
 
 from collections.abc import Callable
 
@@ -48,7 +41,7 @@ def test_public_workbench_hides_new_collection(corpus: Corpus) -> None:
 @pytest.mark.django_db
 def test_edit_affordance_appears_when_a_collection_filter_is_active(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(list_url(collection=FOTOS)).content.decode()
-    assert f"/collections/{FOTOS}/edit" in body  # edit the focused Bestand
+    assert f"/collections/{FOTOS}/edit" in body
 
 
 @pytest.mark.django_db
@@ -75,7 +68,7 @@ def test_an_empty_collection_offers_the_new_article_panel_with_itself_preselecte
 @pytest.mark.django_db
 def test_no_edit_affordance_without_a_collection_filter(focussed: Corpus) -> None:
     body = client_as(Archivist()).get(list_url()).content.decode()
-    assert "/edit" not in body  # no focused Bestand → no rename affordance
+    assert "/edit" not in body
 
 
 @pytest.mark.django_db
@@ -95,8 +88,6 @@ def test_the_header_creates_a_collection_from_an_archivist_page(focussed: Corpus
 
 @pytest.mark.django_db
 def test_the_scoped_list_renames_against_the_version_it_showed(focussed: Corpus) -> None:
-    """The list's "Bestand bearbeiten" panel renames against the version it was rendered for: it
-    saves, and the same panel, now stale, overwrites nothing."""
     client = client_as(Archivist())
     body = client.get(list_url(collection=FOTOS)).content.decode()
     [(action, fields)] = [(a, f) for a, f in page_forms(body) if a.endswith("/edit")]

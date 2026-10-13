@@ -1,9 +1,6 @@
 """The anonymous gate (ADR 0018): an unauthenticated request gets the door, never the content.
 
-The gate is OFF in the web suite's standard settings (``_fixtures.settings_for``) because dev and
-the browser suites browse anonymously through the dev switcher — so every test here turns it ON
-explicitly. The other half of the contract, that the gate changes NOTHING for an authenticated
-viewer, is the leak matrix's whole existing body plus the archivist row below.
+The suite's standard settings keep the gate off (``settings_for``), so each test here turns it on.
 """
 
 from collections.abc import Iterator
@@ -97,6 +94,7 @@ def test_static_assets_stay_public(gated: Corpus) -> None:
 
 
 def test_the_gate_is_off_when_the_flag_is_off(corpus: Corpus) -> None:
-    """settings_dev's configuration: anonymous browsing behaves exactly as it did before the gate."""
+    """settings_dev's configuration: the request reaches the view, which denies Public, instead
+    of the door."""
     with override_settings(ANONYMOUS_GATE_ENABLED=False):
         assert Client().get("/articles/new").status_code == 404

@@ -1,9 +1,4 @@
-"""Effective-Audience resolver — the single, leak-sensitive source (ADR 0001).
-
-Fixture-driven, no IO. Chains are `ResolvedChain`s (leaf-first); their structural invariant
-is tested in test_collections.py. Here we test the resolver's own logic: the article-binding
-check, the Lifecycle gate, the nearest-explicit cascade, and the root default.
-"""
+"""``effective_audience``, fail-closed (ADR 0001)."""
 
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -54,7 +49,6 @@ def test_published_article_with_explicit_audience_resolves_to_that_rung() -> Non
 
 
 def test_lifecycle_gate_makes_a_non_published_article_archivist_only() -> None:
-    # A Public *Draft* is Archivist-only: the Lifecycle gate overrides Audience entirely.
     article = _article(audience=Audience(AudienceTier.PUBLIC), lifecycle=Lifecycle.DRAFT)
     assert effective_audience(article, _chain(_coll("c-leaf"))) == ArchivistOnly()
 
@@ -100,7 +94,6 @@ def test_nearest_explicit_wins_over_a_more_distant_one() -> None:
 
 
 def test_nearest_explicit_ancestor_wins_in_a_deep_chain() -> None:
-    # 3-deep: the explicit MIDDLE Collection wins over a different, more distant root.
     public = Audience(AudienceTier.PUBLIC)
     chain = _chain(
         _coll("c-leaf", parent_id="c-mid"),
@@ -116,8 +109,7 @@ def test_silent_chain_falls_back_to_the_root_default_members() -> None:
 
 
 def test_explicit_article_audience_may_widen_a_narrower_collection() -> None:
-    # ADR 0001: the Article-level Audience wins and MAY WIDEN — a Public Article under a
-    # Members Collection resolves to Public, not clamped down to Members.
+    # by design (ADR 0001)
     public = Audience(AudienceTier.PUBLIC)
     chain = _chain(_coll("c-leaf", audience=Audience(AudienceTier.MEMBERS)))
     assert effective_audience(_article(audience=public), chain) == public

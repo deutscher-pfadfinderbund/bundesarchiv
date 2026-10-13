@@ -1,12 +1,5 @@
-"""Collection write service — the canonical-then-subtree-index shell (ADR 0013 + 0014).
-
-A Collection audience or parent edit changes the effective audience of every descendant Article,
-so after the canonical save ``after_write.run`` reindexes the WHOLE subtree, not a single row. The
-index holds no Collection name, and a new Collection holds no Articles, so a rename and a create
-touch no row and skip the reindex. Same failure contract as the Article services: a stale
-``expected_version`` raises ``Conflict`` before any index work; an index failure leaves the
-canonical write standing and returns ``index_updated=False``.
-"""
+"""Collection write services: a save that moves any Article's visibility (an audience or parent
+edit) reindexes the whole subtree."""
 
 from dataclasses import replace
 
@@ -26,12 +19,7 @@ def create_collection(
     parent_id: Ulid | None = None,
     audience: Audience | None = None,
 ) -> CreateResult:
-    """Mint a NEW Collection (fresh ULID) and save it at version 0 → v1; nothing to reindex. A
-    fresh collection is empty (a leaf, no descendants), so setting its audience at creation is safe —
-    no over-exposure is possible (4.8). When ``parent_id`` is given it MUST exist (else ``NotFound``,
-    fail-closed — a new node cannot dangle); a top-level collection passes ``parent_id=None``. A new
-    leaf can never create a cycle, so no cycle guard is needed here (unlike a move, which is deferred).
-    """
+    """A new leaf holds no Articles, so its audience exposes nothing and nothing is reindexed."""
     if parent_id is not None and not _collection_exists(archive, parent_id):
         raise NotFound(f"parent collection {parent_id!r} does not exist")
     collection = Collection(
@@ -43,8 +31,6 @@ def create_collection(
 
 
 def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
-    """Is ``ulid`` a real saved Collection? A targeted load (1 read) rather than a full ``load_all``
-    sweep — the caller maps a miss to the same refusal any invalid parent gets (no existence oracle)."""
     try:
         archive.collections.load(ulid)
     except NotFound:
@@ -55,11 +41,7 @@ def _collection_exists(archive: Archive, ulid: Ulid) -> bool:
 def save_collection(
     archive: Archive, collection: Collection, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
-    """Save ``collection`` (CAS at ``expected_version``), then synchronously reindex its whole
-    subtree unless only the name changed — an audience/parent edit moves every descendant Article's
-    visibility. A stale version raises ``Conflict`` before any index work. On index failure the
-    canonical write stands, a subtree-reindex retry job is enqueued, and ``index_updated=False`` is
-    returned (ADR 0014)."""
+    """A stale ``expected_version`` raises ``Conflict``."""
     moves = _moves_visibility(archive, collection, expected_version)
     new_version = archive.collections.save(collection, expected_version, changed_by=changed_by)
     written = after_write.MovedCollection if moves else after_write.SavedCollection

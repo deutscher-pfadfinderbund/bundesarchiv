@@ -1,39 +1,7 @@
-"""The indexer — materializes the files-canonical core into ``ArticleIndex`` rows.
+"""Materializes the canonical files into ``ArticleIndex`` rows.
 
-Surfaces:
-
-- ``build_row`` is PURE: an Article plus its already-resolved Collection chain becomes a column
-  dict. No IO, no ORM writes — it only names ``ArticleIndex`` columns as dict keys, so it is
-  fully testable without a database. ``cap_year`` is injected (not read from the clock) to keep
-  the decade computation deterministic and the function pure; ``rebuild`` supplies the current
-  year.
-- ``rebuild`` is the IO edge: it wipes the whole table and re-reads every Collection and Article
-  through the repositories, resolving each Article's chain and effective audience, in a single
-  transaction. The index is derived and disposable (ADR 0003/0004, 0012): a full rebuild is how
-  staleness is cleared in v1.
-- ``index_article`` / ``index_subtree`` are the INCREMENTAL edges (ADR 0014, Part 4.2):
-  performance sugar over the same ``build_row`` + fail-closed code path. Both take a REFERENCE
-  (a ulid) and re-read canonical truth at execution — never a payload — so a stale job simply
-  recomputes the current truth. ``index_article`` upserts one row (or deletes it when the ulid
-  is gone from canonical); ``index_subtree`` recomputes every Article whose resolved chain
-  passes through the named Collection (audience/parent edits move descendants).
-
-Fail-closed is the security invariant (ADR 0012). Any ``DomainError`` resolving an Article — a
-dangling ``collection_id``, a broken tree, a mis-bound chain — does NOT drop the Article and does
-NOT guess a visibility. It writes an archivist-only row (``archivist_only=True``, ``tier=None``,
-no groups) that still carries the Article's text, so an Archivist can search for it and fix the
-source, and records the ulid in the ``RebuildReport`` for the caller/CLI to surface. A README
-that does not decode (owner 2026-10-01) never aborts a writer either: the Article gets the same
-archivist-only row with only its ulid known, and a Collection is treated as absent (so its
-Articles fail closed). ``rebuild`` logs and reports both; ``index_subtree`` leaves such an Article
-to it.
-
-Writer coordination (ADR 0014 v2). Every index writer — ``rebuild``, ``index_article``,
-``index_subtree`` — runs lock, then read, then write in ONE transaction: it takes the same Postgres
-transaction-scoped advisory lock (``pg_advisory_xact_lock`` on ``_INDEX_WRITER_LOCK_KEY``) before
-its first canonical read. Its snapshot is therefore at least as new as every row committed before
-it, so no writer can overwrite a newer row with an older read. Canonical-file writers are governed
-by ADR 0013's ``WRITER_LOCK``, not this lock.
+Fail-closed (ADR 0012): an Article that cannot be resolved or decoded gets an archivist-only row,
+never a guessed visibility.
 """
 
 import logging
@@ -61,29 +29,15 @@ from bundesarchiv.persistence.repository import ArticleRepository
 
 logger = logging.getLogger(__name__)
 
-# Bump on any ADR 0011 config change (FTS config, collation, wrapper functions) OR any change to
-# what feeds a tsvector column. The Part 4 background worker rebuilds when a row's stored
-# config_version does not match this value.
-#   v1: initial FTS infrastructure.
-#   v2: media captions join the body-weight bucket (ADR 0015).
-#   v3: is_draft column added (archivist chrome — ENTWURF badge).
-#   v4: added_at column added (the "added" sort).
-#   v5: file_counts column added (the Digital column and the has-files filter).
-#   v6: deleted_at / deleted_by columns added (the Papierkorb mark).
-#   v7: is_template column added (the Vorlage mark and filter).
-#   v8: media_hashes column added (the page-text match, ADR 0023).
+# Bump on any change to build_row's output or to the ADR 0011 FTS config, collation or tsvector
+# wrappers; rows of another version trigger a rebuild.
 CONFIG_VERSION = 8
 
-# THE ONE project-wide index-writer advisory-lock key (ADR 0014 v2). Every index writer takes
-# ``pg_advisory_xact_lock(_INDEX_WRITER_LOCK_KEY)`` inside its transaction so writes serialize and
-# a rebuild can never clobber a concurrent incremental upsert. Chosen arbitrary-but-fixed; it must
-# never change, and no other advisory lock in the system may reuse this key.
-_INDEX_WRITER_LOCK_KEY = 0x42554E44  # "BUND" — stable, documented, index-writer-only
+# Never change it, never reuse it for another lock (ADR 0014).
+_INDEX_WRITER_LOCK_KEY = 0x42554E44
 
 
-#: How long a save in the request waits for this lock before handing the reindex to its retry
-#: job. A full rebuild holds the lock for its read (~1.5 s on the 2506-article archive) plus its
-#: write, so a save during a rebuild normally still indexes in the request.
+#: Long enough to outwait a typical full rebuild; on timeout the retry job reindexes.
 SYNC_LOCK_TIMEOUT_MS = 5000
 
 
@@ -122,35 +76,20 @@ class RebuildReport:
 
 
 def _archivist_text(article: Article) -> str:
-    """Fold the archivist-only text sources (``_BUILDER_FIELDS``) into one blank-joined string:
-    the physical location and the custom-metadata VALUES only. Custom KEYS are structure, not
-    prose, so they are not indexed. Member-visible fields (title/body/creator/…) never appear
-    here — the module-level check pins this to exactly the domain floor."""
+    """Custom keys are structure, not prose: only their values are indexed."""
     custom_values = [value for _key, value in article.custom]
     return " ".join([article.physical_location or "", *custom_values]).strip()
 
 
 def build_row(article: Article, chain: ResolvedChain, *, cap_year: int) -> dict[str, object]:
-    """Pure: an Article and its resolved Collection ``chain`` -> the ``ArticleIndex`` column dict.
-
-    Routes visibility through the single domain resolver (``effective_audience``) and the scope
-    seam (``_scope_columns``) — it never re-derives a tier. Date columns come from
-    ``article.date`` (bounds + decades, both capped by the injected ``cap_year``);
-    ``collection_ancestors`` is the chain's ulids leaf→root, including the Article's own
-    Collection. No IO — keys are ORM column names only.
-    """
     ancestors = [c.ulid for c in chain.collections]
     scope = _scope_columns(effective_audience(article, chain))
     return _content_columns(article, ancestors=ancestors, cap_year=cap_year) | _scope_dict(scope)
 
 
 def _body_text(article: Article) -> str:
-    """The body FTS bucket: the article body followed by every media caption in order (ADR 0015).
-    Captions are member-visible article content, so they ride the body-weight (weight D) general
-    tsvector — not the archivist bucket. Uncaptioned entries contribute nothing; order is preserved
-    so the cover's caption leads. Blank-joined and stripped so an empty body + one caption yields
-    just the caption (no leading whitespace). This feeds ONLY the FTS ``body`` column; SearchHit
-    never surfaces it, so concatenation cannot leak into displayed text."""
+    """Captions are member-visible (ADR 0015), so they ride the body weight, not
+    ``archivist_text``."""
     captions = [m.caption for m in article.media if m.caption]
     return " ".join([article.body, *captions]).strip()
 
@@ -181,9 +120,6 @@ def _file_counts(article: Article) -> dict[str, int]:
 
 
 def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -> dict[str, object]:
-    """Every non-scope column: identity, member-visible text, folded archivist_text, dates, and
-    the Collection ancestry. Shared by ``build_row`` and the fail-closed path (which supplies an
-    empty ``ancestors`` because its chain never resolved). No IO — keys are ORM column names."""
     earliest, latest, decades = _date_columns(article, cap_year=cap_year)
     return {
         "ulid": article.ulid,
@@ -196,7 +132,6 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
         "document_type": article.document_type,
         "tags": list(article.tags),
         "archivist_text": _archivist_text(article),
-        # Lifecycle marker (the ENTWURF badge, the drafts filter); NOT a scope column.
         "is_draft": article.lifecycle is Lifecycle.DRAFT,
         "is_template": article.template,
         "added_at": article.added_at,
@@ -215,7 +150,6 @@ def _content_columns(article: Article, *, ancestors: list[str], cap_year: int) -
 
 
 def _scope_dict(scope: ScopeColumns) -> dict[str, object]:
-    """The three scope columns as a dict fragment, merged into the content columns."""
     return {
         "archivist_only": scope.archivist_only,
         "tier": scope.tier,
@@ -233,10 +167,7 @@ def _date_columns(article: Article, *, cap_year: int) -> tuple[object, object, t
 
 
 def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
-    """The fail-closed row for an Article whose chain/audience could not be resolved: the
-    archivist-only scope (no tier, no groups) folded onto its otherwise-normal columns, so it is
-    still findable by an Archivist. Dates and text still index; only visibility fails closed. Its
-    chain never resolved, so it carries no ancestors."""
+    """Still indexed, so an Archivist can find and repair the source (ADR 0012)."""
     content = _content_columns(article, ancestors=[], cap_year=cap_year)
     return content | _scope_dict(_scope_columns(ARCHIVIST_ONLY))
 
@@ -244,9 +175,7 @@ def _fail_closed_row(article: Article, *, cap_year: int) -> dict[str, object]:
 def _row_for(
     article: Article, lookup: dict[Ulid, Collection], *, cap_year: int
 ) -> tuple[dict[str, object], bool]:
-    """Compute one Article's row + whether it failed closed, from a Collection lookup. The single
-    resolve-chain-then-build-or-fail-closed decision shared by ``rebuild`` and the incremental
-    writers, so all three keep identical fail-closed semantics (ADR 0012/0014)."""
+    """The row, and whether it failed closed (ADR 0012)."""
     try:
         chain = resolve_chain(article.collection_id, lookup)
         return build_row(article, chain, cap_year=cap_year), False
@@ -310,16 +239,7 @@ def config_stale() -> bool:
 
 
 def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None = None) -> None:
-    """Incrementally reindex ONE Article by reference (ADR 0014): re-read canonical truth for
-    ``ulid`` and upsert its single row, or DELETE the row when the ulid is gone from canonical.
-
-    Reference semantics — the caller passes only a ulid, never a payload, so a stale enqueued job
-    recomputes whatever canonical says NOW. Routes through the same ``build_row`` + fail-closed
-    branch as ``rebuild`` (a broken chain or an undecodable README becomes an archivist-only row).
-    Idempotent. Takes the shared index-writer lock before reading; ``lock_timeout_ms`` bounds that
-    wait (the synchronous request path), and a timeout raises ``OperationalError`` with nothing
-    written.
-    """
+    """A ``lock_timeout_ms`` timeout raises ``OperationalError`` with nothing written."""
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
@@ -328,7 +248,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
         try:
             article = articles.load(ulid).article
         except NotFound:
-            ArticleIndex.objects.filter(ulid=ulid).delete()  # gone from canonical -> drop the row
+            ArticleIndex.objects.filter(ulid=ulid).delete()
             return
         except UnreadableReadme:
             row = _unreadable_row(ulid, cap_year=cap_year)
@@ -341,18 +261,7 @@ def index_article(store: ObjectStore, ulid: Ulid, *, lock_timeout_ms: int | None
 def index_subtree(
     store: ObjectStore, collection_ulid: Ulid, *, lock_timeout_ms: int | None = None
 ) -> None:
-    """Incrementally reindex every Article in the subtree rooted at ``collection_ulid`` (ADR 0014).
-
-    An audience or parent edit on a Collection changes the effective audience of every descendant
-    Article, so the whole subtree must be recomputed. Reference semantics: re-read ALL canonical
-    Collections + Articles, then upsert each Article whose resolved chain passes through
-    ``collection_ulid``. An Article whose chain cannot resolve is upserted as a fail-closed row
-    IFF its own ``collection_id`` is the target (a broken chain has no resolvable ancestry to test
-    against, so only the directly-targeted orphan is touched — non-descendants stay untouched); an
-    Article whose README does not decode is left to ``rebuild``. Idempotent; takes the shared
-    index-writer lock before reading; ``lock_timeout_ms`` bounds that wait as in
-    ``index_article``.
-    """
+    """An Article whose README does not decode is left to ``rebuild``."""
     articles = ArticleRepository(store)
     cap_year = _current_year()
 
@@ -366,10 +275,6 @@ def index_subtree(
 
 
 def _in_subtree(article: Article, collection_ulid: Ulid, lookup: dict[Ulid, Collection]) -> bool:
-    """True iff ``article``'s resolved Collection chain passes through ``collection_ulid`` — i.e.
-    the Article sits in that Collection's subtree. A chain that cannot resolve counts only when the
-    Article's own ``collection_id`` IS the target (an orphan directly under the edited Collection);
-    otherwise a broken chain is not a descendant and is left untouched."""
     try:
         chain = resolve_chain(article.collection_id, lookup)
     except DomainError:
@@ -412,8 +317,6 @@ def hashes_with_text(hashes: Iterable[str]) -> frozenset[str]:
 
 
 def _current_year() -> int:
-    """The current calendar year, read here (not in ``build_row``) so ``build_row`` stays pure.
-    Imported locally so the pure ``build_row`` path never depends on the clock module."""
     import datetime
 
     return datetime.date.today().year  # noqa: DTZ011 — decade bucketing wants the LOCAL year

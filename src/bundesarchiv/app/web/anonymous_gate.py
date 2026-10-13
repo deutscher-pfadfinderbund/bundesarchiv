@@ -1,13 +1,5 @@
-"""The anonymous gate: an unauthenticated request gets the door, not an answer (ADR 0018).
-
-ONE check for the whole surface, as middleware — never a per-view decorator anybody could forget to
-copy onto the next route. It runs on every path, method and status alike, so an anonymous visitor
-cannot tell a real article from a made-up one: both are the same door.
-
-``ANONYMOUS_GATE_ENABLED`` is TRUE in the base settings and false only in ``settings_dev`` — the
-fail-closed direction. A production deploy that forgets its OIDC env vars still cannot fall open to
-anonymous browsing; its door leads to a login that itself falls closed.
-"""
+"""An unauthenticated request gets the door, not an answer — on every path, so a real article and a
+made-up one look alike (ADR 0018)."""
 
 from collections.abc import Callable
 from functools import lru_cache
@@ -39,11 +31,8 @@ class AnonymousGateMiddleware:
 
 
 def _door(request: HttpRequest) -> HttpResponse:
-    """The door — or, for an htmx request, the login as a HEADER. A swapped-in door would land
-    inside whatever region the request targeted, and a 302 to the login ends at Keycloak's
-    cross-origin authorize URL, where the browser blocks the response and htmx swaps nothing: an
-    expired cookie would turn every save and every search into a control that silently does
-    nothing. ``HX-Redirect`` navigates the whole page, which is what a login needs."""
+    """For htmx, ``HX-Redirect``: a swapped door lands inside the target region, and a 302 to
+    Keycloak's cross-origin URL is blocked, so htmx would silently swap nothing."""
     if request_kind(request) is not RequestKind.PAGE:
         return htmx_redirect(login_redirect(request.get_full_path()))
     sign_in = login_redirect(safe_next(request.get_full_path()) or "/")

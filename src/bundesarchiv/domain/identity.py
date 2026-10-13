@@ -1,11 +1,3 @@
-"""Article identity primitives (ADR 0006).
-
-A ULID is an Article's stable identity and its only key segment — `articles/<ulid>/`.
-A title-derived slug would change when the title changes, so it never carries identity.
-These are pure functions; minting a ULID at Article creation is a
-caller concern (Part 2), so they live in `domain`, not the persistence layer.
-"""
-
 from datetime import UTC, datetime
 
 from ulid import ULID
@@ -15,7 +7,6 @@ from bundesarchiv.domain.models import Article, Audience, Lifecycle, MediaRef, U
 
 
 def new_ulid() -> Ulid:
-    """Mint a fresh ULID (26-char Crockford base32, lexicographically sortable)."""
     return str(ULID())
 
 
@@ -37,10 +28,7 @@ def create_article(
     subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> Article:
-    """Create a NEW Article, minting its stable ULID at creation (ADR 0006: identity is a
-    ULID minted here, never derived from a slug). The single place a ULID is minted — every
-    other field mirrors Article's, and ``added_at`` is now. Existing Articles are reconstructed by
-    the README codec (which carries the already-minted ULID), not created here."""
+    """Never for rebuilding a loaded Article: that keeps its ULID (ADR 0006)."""
     return Article(
         ulid=new_ulid(),
         title=title,

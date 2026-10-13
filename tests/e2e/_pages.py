@@ -1,31 +1,7 @@
-"""THE screen inventory — the one list of screens every e2e walker covers.
-
-Learning G.21, applied to PAGE coverage rather than to row discovery: an invariant written as a
-walker over all instances protects the next sibling the day it appears — but only if the set it walks
-is derived, not hand-typed. Four hand-maintained page lists had grown side by side (the state
-gallery's states, the axe pass's paths, the overlay-containment walker's pages, the three URLs in the
-C8 control-row test), and they had already drifted: only the PUBLISHED record has media, so the media
-register's icon toolbar — with its hit floor, its disabled treatment and its accessible names — was
-composed on a screen none of the three guards visited.
-
-So the screens live here once, and each guard derives its own view of them:
-
-- ``test_a11y`` runs axe over every screen, split by viewer;
-- ``test_journeys.test_control_rows_compute_one_height_source`` walks every ARCHIVIST screen's
-  control rows and every toolbar button's ink;
-- ``test_journeys.test_overlays_stay_inside_the_viewport`` opens every overlay on every screen that
-  composes one, across the width range;
-- ``_gallery`` renders every screen from here and declares only its own INTERACTION states (a menu
-  opened, a rejected save) itself.
-
-A new screen therefore lands in one tuple and is covered everywhere at once — and it cannot be
-FORGOTTEN either: ``tests/app/web/test_screen_inventory.py`` asserts this tuple against the leak
-matrix's route contract, so a new GET-reachable prod screen fails the fast suite until it joins.
-
-A screen is reached by a ``reach`` callable, not by a bare path. Most are a plain navigate, but the
-two bulk surfaces (confirm and result) exist only behind a POST — they were the inventory's blind
-spot: they lived as gallery interaction states with zero assertions, and an unlabelled ``<input>``
-plus an alt-less ``<img>`` planted on the confirm page passed every guard.
+"""THE screen inventory: every GET-reachable screen once, which the a11y pass, the control-row and
+overlay walks and the gallery all derive from (G.21; tests/CLAUDE.md).
+``tests/app/web/test_screen_inventory.py`` joins it to the leak matrix's routes. A screen has a
+``reach``, not a path, because the two bulk surfaces exist only behind a POST.
 """
 
 import json
@@ -70,14 +46,9 @@ Reach = Callable[[Page, str, CorpusHandles], None]
 
 @dataclass(frozen=True, slots=True)
 class Screen:
-    """One screen of the app. ``name`` is the file-safe gallery name, ``what`` the one-line manifest
-    description, ``archivist`` whether it needs the archivist cookie, ``reach`` how a browser gets
-    there, ``route`` the prod route name that renders it (the handle the inventory gate joins on).
-
-    ``overlays`` is the MINIMUM number of dropped overlay panels the screen composes — the walkers
-    assert it so a silent no-find can never pass as a green walk (a screen whose overlays vanished
-    would otherwise be "covered" by measuring nothing). ``control_rows`` names the row-name PREFIXES
-    the C8 walk must find on the screen, for the same reason.
+    """``route`` is the prod route name the inventory gate joins on. ``overlays`` and
+    ``control_rows`` are the MINIMUM a walker must find, so a silent no-find never passes as a green
+    walk.
     """
 
     name: str
@@ -108,8 +79,6 @@ BULK_COMMIT = 'main form:has(input[name="confirmed"]) button[type="submit"]'
 
 
 def _reach_bulk_confirm(page: Page, base: str, corpus: CorpusHandles) -> None:
-    """The bulk CONFIRM surface: a URL-seeded selection, open "Feld ändern …", choose a field and a
-    value, submit. POST-only — no path reaches it, which is why it needs a reach."""
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
@@ -283,9 +252,7 @@ SCREENS: tuple[Screen, ...] = (
         overlays=4,
         control_rows=("header", "div.record-meta-actions"),
     ),
-    # The PUBLISHED record's edit surface is the only screen carrying MEDIA — so it is the only one
-    # that composes the media register's icon toolbar (owner ruling 6, the form wave's control row).
-    # Every guard here was walking the DRAFT, which has no media at all.
+    # The only screen with media, hence the only one composing the media register's icon toolbar.
     Screen(
         "edit-published",
         "the edit surface (a published record: media rows + their icon toolbars)",
@@ -384,8 +351,6 @@ SCREENS: tuple[Screen, ...] = (
         reach_door,
         "article-detail",
     ),
-    # The two POST-only bulk surfaces. They are real prod screens with real chrome, and until they
-    # joined the inventory they existed only as gallery shots — nothing asserted anything about them.
     Screen(
         "bulk-confirm",
         "bulk edit, confirm surface (field · value · affected list · the one primary action)",
@@ -406,12 +371,8 @@ SCREENS: tuple[Screen, ...] = (
     ),
 )
 
-#: The count pin. Every guard here is a WALKER, and a walker over a shorter list is green — deleting
-#: an entry silently retires the a11y pass, the C8 walk, the overlay walk and the gallery shot for
-#: that screen at once. Two independently-RED mutations (a broken media toolbar, a missing
-#: aria-label) both went green when their screen was dropped. The inventory gate joins this tuple to
-#: the leak matrix's routes; this catches the shrink a route-level join cannot see, because several
-#: screens share one route.
+#: The count pin: a walker over a shorter list stays green, and the route join cannot see a dropped
+#: screen because several share one route.
 SCREEN_COUNT = 30
 
 

@@ -1,12 +1,6 @@
-"""``viewer_from_claims`` — validated OIDC claims → domain ``Viewer`` (ADR 0018 claims contract).
-
-The mapping is the whole authorization decision of a login: everything after it (cookie, gate,
-domain policy) trusts the ``Viewer`` this returns. So the table below is exhaustive about the three
-claims it reads — the realm role that grants Archivist, the username that names one, and the
-forward-compat ``groups`` claim — including the shapes a hostile or merely misconfigured token can
-carry: wrong types, wrong case, empty entries. Anything unrecognized must degrade to the LEAST
-privileged authenticated viewer, ``Member(groups=())``, never to Archivist and never to an
-exception; an archivist without a usable username is ``unbekannt`` (owner, 2026-09-24).
+"""``viewer_from_claims`` (ADR 0018): the whole authorization decision of a login. Anything
+unrecognized degrades to ``Member(groups=())``, never to Archivist or an exception; an archivist
+without a usable username is ``unbekannt`` (owner, 2026-09-24).
 """
 
 from typing import Any

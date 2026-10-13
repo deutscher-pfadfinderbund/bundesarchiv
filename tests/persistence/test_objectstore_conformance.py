@@ -1,17 +1,5 @@
-"""Conformance suite: every ObjectStore adapter must pass these tests.
-
-The `store` fixture is parametrized over every adapter — in-memory, local-FS, and
-WebDAV (against a real in-process server, and opt-in against a live one) — so this one
-suite is the shared contract.
-
-Scope note: ADR 0005's atomicity claims — a crash mid-write leaves
-prior-object-or-nothing at the final key, and `create_large`'s finalize is
-all-or-nothing — hold trivially for the in-memory fake (a single dict assignment),
-so the crash half is not stressed here. The SIGKILL crash tests in test_localfs.py
-exercise it for real: a process killed mid-stream in `create_large` leaves no key, and
-one killed at the rename of a `write_atomic` replace leaves the prior value. What a
-concurrent reader may see (old or new bytes, or NotFound before a create lands, never
-a prefix) is raced here against both `write_atomic` and `create_large`.
+"""The ObjectStore contract, run against every adapter. Crash atomicity (ADR 0005) lives in
+``test_localfs.py``.
 """
 
 import io
@@ -220,8 +208,6 @@ def test_list_excludes_reserved_keys(store: ObjectStore) -> None:
 
 
 def test_exists_includes_reserved_keys(store: ObjectStore) -> None:
-    # The list/exists asymmetry: reserved keys are hidden from list() but remain
-    # detectable via exists() — the per-Article lock object relies on this.
     store.write_atomic("art/1/.lock", b"lock")
     store.write_atomic(".tmp/scratch", b"tmp")
     assert store.exists("art/1/.lock") is True
@@ -292,16 +278,12 @@ def test_open_stream_directory_prefix_key_raises_not_found(store: ObjectStore) -
 
 
 def test_read_directory_prefix_key_raises_not_found(store: ObjectStore) -> None:
-    # "art/1" names no blob even though "art/1/README.md" does — it is absent,
-    # not a leaked backend error. (Pins memory and FS adapters to the same behavior.)
     store.write_atomic("art/1/README.md", b"body")
     with pytest.raises(NotFound):
         pytest.fail(f"read returned {store.read('art/1')[:80]!r}")
 
 
 def test_delete_directory_prefix_key_is_a_no_op(store: ObjectStore) -> None:
-    # Deleting a directory-prefix key removes nothing and must not touch the blobs
-    # nested under it.
     store.write_atomic("art/1/README.md", b"body")
     store.delete("art/1")
     assert store.read("art/1/README.md") == b"body"
@@ -312,10 +294,7 @@ def test_delete_directory_prefix_key_is_a_no_op(store: ObjectStore) -> None:
     ["", ".", "..", "a/../b", "a//b", "/x", "x/", "a\x00b", "a\tb", "a\x7fb"],
 )
 def test_invalid_keys_are_rejected(store: ObjectStore, bad: str) -> None:
-    # Key validity (fail-closed traversal safety + no control chars) is a port
-    # contract EVERY key-taking op of EVERY adapter enforces — not a rule only the
-    # local-FS adapter happens to apply. NUL/control chars matter because they would
-    # otherwise leak a raw ValueError from pathlib or be silently stored by the fake.
+    # Control characters would otherwise leak a raw ValueError from pathlib or be stored by the fake.
     with pytest.raises(ArchiveError, match="invalid key"):
         store.read(bad)
     with pytest.raises(ArchiveError, match="invalid key"):

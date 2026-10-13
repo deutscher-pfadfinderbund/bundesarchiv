@@ -1,24 +1,4 @@
-"""Collection README codec: Collection ⇄ Markdown-front-matter bytes (ADR 0010/0013).
-
-A canonical README.md is a managed-by marker + a YAML front-matter fence + an
-empty body. This module owns that translation for Collections, mirroring the
-Article readme codec. Wire keys: `name` (required), `version` (optimistic-
-concurrency counter, ADR 0013), `changed_at` + `changed_by` (the change record,
-ADR 0019), `parent_id` (optional), `audience` (optional, same convention as
-Article — omit when None).
-
-Version + backfill (ADR 0013): `encode_collection` writes the caller's version;
-`decode_collection` returns `(Collection, version, change)`. A README written before
-versioning existed has NO `version:` key — it backfills to version 0 (the same
-"never saved" floor a fresh Article uses), so its first versioned save writes
-version 1 and existing unversioned trees migrate cleanly. A present-but-corrupt
-version (float/str/negative) is NOT a backfill case: it surfaces as `UnreadableReadme`
-rather than coercing, matching the Article codec's `read_version` discipline.
-
-Only `UnreadableReadme` crosses out: malformed/unfenced/non-mapping/
-invalid front-matter all surface as it, never a raw yaml/KeyError/
-ValueError.
-"""
+"""Collection README codec (ADR 0010, ADR 0013). Only `UnreadableReadme` crosses out."""
 
 from typing import Any
 
@@ -28,7 +8,6 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 
 
 def encode_collection(collection: Collection, version: Version, change: Change) -> str:
-    """Render a Collection + version + change record to README.md text (marker + front-matter)."""
     front_matter: dict[str, Any] = {
         "ulid": collection.ulid,
         "name": collection.name,

@@ -4,7 +4,6 @@
     articles/<ulid>/media/<name>
 
 The keys inside a folder beyond the README (``history/``) and the save order are ``_writer``'s.
-Both repositories and the fixity check read the layout from here.
 """
 
 import hashlib
@@ -73,7 +72,6 @@ def media_key(ulid: Ulid, ref: MediaRef) -> str:
     return f"{media_folder(ulid)}{ref.filename if ref.stored_name is None else ref.stored_name}"
 
 
-#: How much of a media file one read of a hash pass takes.
 _CHUNK = 1024 * 1024
 
 

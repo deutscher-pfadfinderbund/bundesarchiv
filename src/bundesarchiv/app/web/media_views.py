@@ -42,16 +42,12 @@ from bundesarchiv.persistence.errors import ArchiveError
 
 logger = logging.getLogger(__name__)
 
-#: A content_hash is a sha256 hex digest: exactly 64 lowercase hex characters. Anything else is
-#: malformed → the same 404 (a route param that can't name a blob must not be distinguishable from
-#: a param that names a forbidden one).
+#: A content_hash is a lowercase sha256 hex digest.
 _HASH_LENGTH = 64
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
 
 def _is_valid_hash(value: str) -> bool:
-    """True iff ``value`` is a well-formed sha256 content hash (64 lowercase hex chars). Total: a
-    malformed route param yields False, never an exception — it floors to the shared 404."""
     return len(value) == _HASH_LENGTH and all(ch in _HEX_DIGITS for ch in value)
 
 
@@ -63,13 +59,8 @@ def _not_found_page() -> bytes:
 
 
 def not_found() -> HttpResponse:
-    """THE single 404 every denial/absence path returns — one shape by construction.
-
-    Status 404 and one constant German page (``404.html``), rendered once with no request context.
-    A caller can learn NOTHING from a 404 — not whether the article exists, the blob exists, the
-    viewer lacks permission, or a param was malformed: the body and header set are the same for
-    every reason (plan §4.3). Django's own 404 for an unmatched path answers through here too
-    (``page_not_found`` in ``urls.py``)."""
+    """The one 404 every deny and absence returns: same status, body and headers for every
+    reason."""
     return HttpResponse(_not_found_page(), status=404)
 
 
@@ -81,39 +72,28 @@ def page_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
 def _authorize(
     request: HttpRequest, ulid: str, content_hash: str
 ) -> tuple[Archive, Article, MediaRef] | None:
-    """The shared gate for both views: validate params, resolve the viewer, load + authorize the
-    article, and locate the referenced media — returning ``(archive, article, media_ref)`` ONLY if
-    every check passes, else ``None`` (the caller returns ``not_found()``). The archive travels
-    with the decision so the seam reads the blob through the same handle the gate loaded from.
-
-    Order is load-bearing: authorization runs to a decision BEFORE any blob-existence lookup (the
-    blob is never touched here — only the in-memory Article and its media list are). A malformed
-    param, a missing article, a broken chain, a denied viewer, or a hash not on THIS article all
-    collapse to ``None`` with no filesystem probe of the blob."""
+    """Authorization decides before any blob is touched; the hash is matched in memory."""
     if not is_valid_ulid(ulid) or not _is_valid_hash(content_hash):
-        return None  # malformed route param → the same 404, before any lookup
+        return None
     archive = Archive.canonical()
     try:
         article = archive.articles.load(ulid).article
     except ArchiveError:
-        return None  # no such article (or an unreadable one) → 404 (existence-hiding)
+        return None
     viewer = viewer_of(request)
     chain = CollectionChooser.of(archive).chain_of(article.collection_id)
     if chain is None:
-        return None  # broken/unresolvable chain → deny everyone (fail closed)
+        return None
     if not can_view(viewer, article, chain):
-        return None  # AUTHORIZATION denies here — before any blob-existence lookup
+        return None
     media_ref = _media_ref_for(article, content_hash)
     if media_ref is None:
-        return None  # a valid hash that is not on THIS article → 404 (wrong-article guard)
+        return None
     return archive, article, media_ref
 
 
 def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpResponseBase:
-    """``GET /media/<ulid>/<content_hash>`` — the original blob, authorized. Denial/absence/malformed
-    → the plain 404. A permitted request hands off to the ``media_response`` seam (which
-    alone knows the bytes are local); if the blob is unexpectedly absent, the seam raises absence and
-    we still return the SAME 404 (existence-hiding preserved past the auth gate)."""
+    """``GET /media/<ulid>/<content_hash>`` — the original file."""
     authorized = _authorize(request, ulid, content_hash)
     if authorized is None:
         return not_found()
@@ -121,7 +101,7 @@ def serve_media(request: HttpRequest, ulid: str, content_hash: str) -> HttpRespo
     try:
         return media.media_response(archive, article, media_ref, request)
     except ArchiveError:
-        return not_found()  # blob absent in the store (not-yet-mirrored/pruned) → the same 404
+        return not_found()
 
 
 def serve_thumbnail(
@@ -138,14 +118,11 @@ def serve_thumbnail(
     try:
         return media.thumbnail_response(archive, article, media_ref, size)
     except FileNotFoundError:
-        return not_found()  # no such version for this file → the same 404
+        return not_found()
     except Exception:
         logger.exception("serving the %s version of %s failed", size.name, content_hash)
         return not_found()
 
 
 def _media_ref_for(article: Article, content_hash: str) -> MediaRef | None:
-    """The ``MediaRef`` on ``article`` whose ``content_hash`` matches, or ``None`` if this article
-    carries no such blob (the wrong-article / no-such-blob guard — an in-memory check, no filesystem
-    probe)."""
     return next((ref for ref in article.media if ref.content_hash == content_hash), None)

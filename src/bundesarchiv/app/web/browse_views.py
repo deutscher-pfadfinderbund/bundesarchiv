@@ -1,20 +1,5 @@
-"""The archivist workbench views (Part 4.5-MVP): search/browse + the 4.6 detail read view.
-
-Thin by design. Every request resolves its viewer via ``viewer_of`` and reaches data ONLY through
-``search`` (results are pre-scoped SearchHits — no ``can_view`` in the search path) or, for the
-detail view, through ``article_auth.resolve_visible_detail`` (the one place ``can_view`` + ``project``
-run here — one load, feeding the projected Article + the archivist CAS version). No visibility logic
-and no business logic live in these views or the templates (plan §11): param parsing is the pure
-``browse`` layer, scoping is the index layer, and the templates only render.
-
-Progressive enhancement (BINDING, plan §4.5): a plain GET renders the whole page; an ``HX-Request``
-GET renders only the results region (same data, same template partial), so the no-JS baseline and
-the HTMX-enhanced path share one render. URL-as-state: the full state is the query string, so an
-HTMX swap that pushes the URL and a shared/bookmarked link resolve to the identical page.
-
-The workbench + the detail view are production routes (mounted in ``web.urls``). The detail view
-(``article_detail``, Part 4.6) is the Lesesaal read page: one template fed a ``visible``-projected
-Article, so archivist-only fields are floored before render — no member/archivist fork.
+"""No visibility logic lives here (plan §11): data comes from the viewer-scoped ``search``,
+``resolve_visible_detail``, or, for the archivist-only Papierkorb, the canonical load.
 """
 
 import datetime
@@ -53,20 +38,10 @@ _PANE_PARAM = "article"
 
 
 def workbench(request: HttpRequest) -> HttpResponse:
-    """``GET /articles`` — the workbench: the search sentence, the results.
-
-    Pipeline: parse the query string (pure ``browse``), resolve the viewer, run the viewer-scoped
-    ``search``, resolve collection-facet ULIDs to Collection names for display, then render. On a
-    plain ``HX-Request`` only the results region renders (same data, same partial) — the no-JS full
-    page and the HTMX swap are one code path. A history-restore request (``HX-History-Restore-Request``;
-    htmx 4 sends it without ``HX-Request``) gets the full page — htmx swaps the whole document on a
-    Back-button restore."""
+    """``GET /articles`` — the workbench."""
     parsed = browse.parse_query(request.GET)
     viewer = viewer_of(request)
-    # Presentation-only chrome flag: the templates hide archivist affordances (the Entwurf mark,
-    # Bearbeiten, the bulk selection, "+ Neu …") for non-Archivists. This is NOT scoping (§11) —
-    # result visibility is decided exclusively by search()/can_view; the /articles/new ROUTE stays
-    # independently Archivist-gated regardless of this flag.
+    # chrome only, not scoping (§11): search() decides visibility, archivist routes gate themselves
     is_archivist = isinstance(viewer, Archivist)
     page = search(
         viewer,
@@ -81,13 +56,8 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
-    # The preview pane: ?article=<ulid> resolved fail-closed through the ONE render path. None when
-    # absent/malformed/denied — the workbench then renders byte-identically (no existence oracle).
     pane = _resolve_pane(request, archive, chooser, is_archivist=is_archivist)
-    # Bulk-edit selection (archivist-only chrome, spec §2): any ?selection= is selection mode
-    # ("Auswählen"; a bare ``selection=`` is the mode with nothing ticked), and its values carry the
-    # selected ulids across pages. Non-archivists never get the mode, so their selection is dropped
-    # entirely (defence-in-depth — the POST route is independently gated too).
+    # a bare ?selection= is selection mode with nothing ticked (spec §2)
     selecting = is_archivist and browse.PARAM_SELECTION in request.GET
     selection = [u for u in request.GET.getlist(browse.PARAM_SELECTION) if u] if selecting else []
     context = _results_context(
@@ -102,9 +72,6 @@ def workbench(request: HttpRequest) -> HttpResponse:
     )
     context["is_archivist"] = is_archivist
     context["pane"] = pane
-    # The active Bestand filter (if any) — the archivist's focused collection. Drives the workbench's
-    # "Bestand bearbeiten" affordance (4.8): a rename entry point appears only when one Bestand is in
-    # focus. Archivist-only chrome; the /collections/<ulid>/edit route is independently gated.
     context["active_collection"] = parsed.filters.collection if is_archivist else None
     # body.preview adds the pane column (the pane switch, layouts.css); the ledger re-densifies by
     # itself, it is a size container (law C11).
@@ -119,11 +86,7 @@ def workbench(request: HttpRequest) -> HttpResponse:
 
 
 def choose_columns(request: HttpRequest) -> HttpResponseBase:
-    """``POST /columns`` — the "Spalten …" choice, kept in a cookie for whoever made it (ruling
-    2026-09-29), then back to the SAME list (PRG), which works without JS. The way back is always the
-    workbench path with the posted query after it, so no posted value can point it off the site;
-    the cookie holds registry keys only (``ledger.cookie_value``). Any other method is the plain
-    404."""
+    """``POST /columns`` — the "Spalten …" choice, kept in a cookie (ruling 2026-09-29)."""
     if request.method != "POST":
         return not_found()
     # the fixed path is the guard: whatever was posted can only ever be this list's query
@@ -183,12 +146,8 @@ _DRAWN = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 
 @dataclass(frozen=True, slots=True)
 class MediaTile:
-    """One file as the pane, the article page and the edit form show it: its kind word, name and
-    caption, the gated URL of the original, ``full_url`` (the same URL, only when a browser draws
-    the original as an image), the gated display URL (images only, derived on its first request),
-    and the gated thumbnail URL with the tile's ``aspect`` (width, height), both empty while the
-    local cache holds no tile for it (the tile then shows kind and name). The URLs re-authorize per
-    request; a page never inlines bytes."""
+    """Every URL is gated and re-authorizes per request (a page never inlines bytes); an empty URL
+    means that version is not offered."""
 
     kind: str
     name: str
@@ -234,10 +193,7 @@ def _tile(ulid: str, ref: MediaRef, aspect: tuple[int, int] | None) -> MediaTile
 
 @dataclass(frozen=True, slots=True)
 class _Pane:
-    """The preview pane view-model, built ONLY from a ``visible``-projected Article (so no floored
-    field can reach it). ``media`` is cover-first (the tuple's order is meaning, ADR 0015). The
-    Bearbeiten href is archivist-only (empty otherwise) and points at the edit form; Öffnen goes
-    to the detail read view."""
+    """Built only from a ``visible``-projected Article."""
 
     ulid: str
     title: str
@@ -253,22 +209,16 @@ class _Pane:
 def _resolve_pane(
     request: HttpRequest, archive: Archive, chooser: CollectionChooser, *, is_archivist: bool
 ) -> _Pane | None:
-    """Resolve the ``?article`` param to a preview-pane view-model, or ``None`` when there is no
-    pane to show. Fail-closed by delegating to the ONE render-resolution path
-    (``resolve_visible_detail`` = load + chain + ``visible``): a malformed, absent, or DENIED ulid
-    all return ``None`` here, so the caller renders the byte-identical no-pane workbench (no
-    existence oracle). An absent ``article`` param is simply no pane."""
+    """The ``?article`` pane, or ``None`` when absent, malformed, denied or in the Papierkorb — all
+    alike, so the workbench renders byte-identically (no existence oracle)."""
     ulid = request.GET.get(_PANE_PARAM)
     if not ulid:
         return None
     resolution = resolve_visible_detail(request, ulid, archive, chooser)
     article = resolution.article if resolution is not None else None
     if article is None or article.deleted is not None:
-        # malformed / absent / denied — all indistinguishable; a marked one is edited nowhere
         return None
-    # The ✕ close target: the SAME search minus only the pane selection (article). Strip article like
-    # _results_context does — keep text/facets/sort/page — so closing the pane never blows away the
-    # query (a bare "?" would). article is pane state, not search state.
+    # closing keeps the search: only the pane param goes (a bare "?" would drop it)
     close_params = {k: v for k, v in request.GET.dict().items() if k != _PANE_PARAM}
     close_query = urlencode(close_params)
     return _Pane(
@@ -279,25 +229,17 @@ def _resolve_pane(
         doc_type=article.document_type or "",
         media=media_tiles(article.ulid, article.media),
         open_href=reverse("article-detail", args=[article.ulid]),
-        # Bearbeiten goes straight to the 4.7 edit form (userflows flow 1: PANE → Bearbeiten → EDIT).
         edit_href=reverse("article-edit", args=[article.ulid]) if is_archivist else "",
         close_href="?" + close_query if close_query else "?",
     )
 
 
-#: The active-filter query params the search form echoes as hidden inputs (GH #21), in a fixed
-#: render order: the ONE filter-dimension list (``browse.FILTER_PARAMS``, which the sentence's
-#: clear-all clears) plus the sort. Every ``browse`` search-state key EXCEPT ``q`` (the form's own
-#: live input, never duplicated as hidden) and ``page`` (a new search deliberately resets to
-#: page 1 — kept as-is).
+#: ``q`` is the form's own input, and a new search resets ``page``.
 _FORM_FILTER_PARAMS: tuple[str, ...] = (*browse.FILTER_PARAMS, browse.PARAM_SORT)
 
 
 def _form_filters(params: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
-    """The active filter params as ``(key, value)`` pairs for the search form's hidden inputs — read
-    from the SAME ``params`` mapping the facet/sort/pagination links below build from, so the form
-    and the sentence can never drift out of sync (GH #21: typing refines WITHIN the active filter
-    scope). A blank or absent param is omitted entirely — never an empty-value hidden input."""
+    """The set filters as hidden inputs, so typing a new ``q`` refines within them."""
     return tuple((key, params[key]) for key in _FORM_FILTER_PARAMS if params.get(key))
 
 
@@ -312,17 +254,8 @@ def _results_context(
     selection: list[str],
     chooser: CollectionChooser,
 ) -> dict[str, object]:
-    """The template context shared by the full page and the results partial. Every link the
-    sentence/pagination/ledger need is prebuilt in Python from the local ``params`` dict (the
-    template calls no functions with args), so the raw query dict itself is never handed to the
-    template. No visibility logic — that already happened in ``search``; the ledger's archivist
-    chrome is a presentation gate off ``is_archivist``.
-
-    ``article`` (pane) and ``selection`` (bulk selection) are STRIPPED from the link-building
-    ``params``: neither is search state, so no facet/sort link may carry them. In selection mode
-    (``selecting``) the PAGINATION links re-attach a bare ``selection=`` plus every selected ulid, so
-    paging keeps both the mode and the selection. Pane selection is tracked separately via
-    ``selected_ulid``."""
+    """Links are prebuilt from ``params``, which drops the pane, the selection and the landing
+    flags: none is search state."""
     params = {
         k: v
         for k, v in request.GET.dict().items()
@@ -334,8 +267,6 @@ def _results_context(
     total = page.total
     context: dict[str, object] = {
         "text": parsed.text or "",
-        # The search form's hidden inputs (GH #21) — every active filter, so typing a new q keeps
-        # refining WITHIN the current filter scope instead of silently dropping it.
         "filter_params": _form_filters(params),
         "page": page,
         "ledger": ledger.build(
@@ -354,9 +285,6 @@ def _results_context(
         # "Spalten …" returns to this very list, pane and selection included
         "columns_back": here.urlencode(),
         "total": vocab.count(total),
-        # When a zero-hit result is filtered ONLY by a Bestand (no text, no other facet), the empty
-        # state is Bestand-specific ("Noch keine Artikel in diesem Bestand." + an archivist create
-        # link pre-seeded with it) instead of the generic "remove filters" copy (4.8 item 3).
         "empty_collection": _only_collection_filter(parsed) if total == 0 else None,
     }
     context.update(_sentence(params, parsed, page, chooser, is_archivist=is_archivist))
@@ -367,10 +295,7 @@ def _results_context(
 
 @dataclass(frozen=True, slots=True)
 class _Pager:
-    """The pager (a2 rounds 9 and 10): the range between the two steps on a list of several pages,
-    where a step that cannot move yet is disabled (``None``); a one-page list shows only its count
-    and its ``noun``. ``shown`` is the range on this page from ``first``, empty past the last
-    page."""
+    """A step that cannot move is ``None``; ``shown`` is empty past the last page."""
 
     stepped: bool
     prev_query: str | None
@@ -411,8 +336,6 @@ def _pager(
 
 
 def _only_collection_filter(parsed: browse.ParsedQuery) -> str | None:
-    """The Bestand ulid when the search's ONLY constraint is that collection (no text, no other
-    facet) — else ``None``. Used to pick the Bestand-specific empty state over the generic one."""
     f = parsed.filters
     others_empty = not parsed.text and replace(f, collection=None) == SearchFilters()
     return f.collection if f.collection is not None and others_empty else None
@@ -425,14 +348,8 @@ def _bulk_bar_context(
     selection: list[str],
     chooser: CollectionChooser,
 ) -> dict[str, object]:
-    """The tool row's selection tools (spec §2 B/C, a2 rounds 2 and 11, owner 2026-09-30),
-    archivist-only: "Auswählen" outside selection mode; in it "Abbrechen", the count and the Feld
-    chooser. Both links keep the search (params already exclude selection and article): a bare "?"
-    would wipe the filters.
-
-    The client adds its live checkbox count to ``selection_offpage_count``, the part of the URL-borne
-    selection NOT on this page, which it cannot otherwise see (learning G.25).
-    """
+    """Both links keep the search (a bare "?" would wipe the filters);
+    ``selection_offpage_count`` feeds the client's live count (catalog_bulk.js)."""
     hits = page.hits
     if not hits:
         return {}
@@ -606,15 +523,8 @@ def _facet_items(
 
 
 def article_detail(request: HttpRequest, ulid: str) -> HttpResponseBase:
-    """``GET /articles/<ulid>`` — the 4.6 Lesesaal detail read view (spec §§3-4).
-
-    ONE resolution path (``resolve_visible_detail``): load once, resolve chain, ``visible``-project —
-    any deny/absence/malformed/broken-chain → the plain 404 (existence-hiding). The template
-    is a SINGLE file fed a projected Article, so archivist-only fields (Standort, Weitere Angaben) are
-    floored to None/() before rendering and vanish through the same ``{% if value %}`` — there is no
-    member-vs-archivist template fork (spec §4/§10). The archivist's tools are presentation-gated
-    on ``is_archivist``. A write whose index update lagged lands here with the index-lag hint
-    (``landing.noting_lag``); ``render_screen`` shows it."""
+    """``GET /articles/<ulid>`` — the Lesesaal read page: one template for every viewer, fed the
+    ``visible`` projection (spec §4/§10)."""
     archive = Archive.canonical()
     chooser = CollectionChooser.of(archive)
     resolution = resolve_visible_detail(request, ulid, archive, chooser)
@@ -650,18 +560,12 @@ def collection_crumbs(chain: ResolvedChain) -> tuple[CollectionCrumb, ...]:
 
 
 def _body_paragraphs(body: str) -> tuple[str, ...]:
-    """Split the Markdown ``body`` into paragraphs on blank lines (spec §3). No Markdown rendering in
-    this minimal slice — each paragraph is emitted as an autoescaped ``<p>``, so no markup is
-    interpreted (rich rendering is a later owner decision, §11). Empty/whitespace body → ()."""
+    """No Markdown is rendered; the template escapes each paragraph (spec §3, §11)."""
     return tuple(block.strip() for block in body.split("\n\n") if block.strip())
 
 
 def _detail_context(resolution: DetailResolution) -> dict[str, object]:
-    """The detail template context, built ONLY from the projected Article (no floored field can reach
-    it) + the member-safe chain. Every value is `{% if %}`-gated in the template, so an absent field
-    (or a floored archivist-only field) renders nothing — no member/archivist fork, no "—"
-    placeholders. The crumbs run root→leaf; tags + crumbs link back into the workbench facets (the
-    archive's browsing loop)."""
+    """Built only from the projected Article and the member-safe chain."""
     article = resolution.article
     is_draft = article.lifecycle is Lifecycle.DRAFT
     slots = iter(range(len(article.media)))
@@ -690,10 +594,6 @@ def _detail_context(resolution: DetailResolution) -> dict[str, object]:
         "doc_type": article.document_type or article.media_type or "",
         "creator": article.creator or "",
         "place": article.subject_place or "",
-        # Beschreibung: split the Markdown body into paragraphs on blank lines and render each as an
-        # escaped <p> (spec §3 — no Markdown dependency in this minimal slice; the template autoescapes,
-        # so no markup is interpreted). Flagged to the owner as §11: rich Markdown rendering is a later
-        # decision, not manufactured here.
         "body_paragraphs": _body_paragraphs(article.body),
         # a marked Article's place is the Papierkorb
         "crumbs": (

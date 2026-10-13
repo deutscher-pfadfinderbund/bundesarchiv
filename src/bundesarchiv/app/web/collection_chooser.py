@@ -70,8 +70,6 @@ class CollectionChooser:
             return None
 
     def names(self) -> Mapping[Ulid, str]:
-        """ULID → name for every saved Bestand — how a screen showing raw collection values (the
-        Bestand facet) resolves them."""
         return {ulid: c.name for ulid, c in self.by_ulid().items()}
 
     def options(self) -> Options:

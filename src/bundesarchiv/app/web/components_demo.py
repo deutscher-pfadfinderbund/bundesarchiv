@@ -1,19 +1,4 @@
-"""Dev-only component library page (``/_dev/components/``).
-
-Referenced ONLY from ``dev_urls`` (the switcher pattern): production settings never mount it, so
-it is unreachable in prod by absence of a code path, not by a flag. It renders every design-system
-component (``templates/components/``), each shown side-by-side in light and dark — the two columns
-force ``color-scheme`` per container, and ``light-dark()`` resolves per element, so both modes
-render in one document without JS.
-
-ONE theme (owner ruling, 2026-08-06): design iterations happen ON the real components.
-
-Doubles as developer documentation: every sample is annotated with its include path + params and
-the inventory status (design-system.md) of each component it shows, with each family it is in, and
-a token-swatch section shows the monochrome ink/ground pairs and the lines with role names.
-Page chrome is English (development-facing); the SAMPLE CONTENT inside atoms is German (product
-UI copy). Sample data below is inert demo fixture data — no store, no index, no viewer.
-"""
+"""Dev-only component library: English chrome, German samples, inert data."""
 
 from pathlib import Path
 from typing import NamedTuple
@@ -74,9 +59,8 @@ _SORT_OPTIONS = (
     ("title", "Titel"),
 )
 
-#: Ledger sample hits — the known demo set, printed through the REAL ``ledger.build``. The draft
-#: carries a Signatur (the lifecycle rides the title as its mark); one Signatur sits at the domain
-#: ceiling (owner 2026-08-07: no spaces, 8 characters); the last three show absence as absence.
+#: A draft with a Signatur, one Signatur at the owner's 8-character ceiling, and three rows
+#: missing facts.
 _LEDGER_HITS = tuple(
     SearchHit(
         ulid=f"01KDEMQ0000000000000000{n:03d}",
@@ -180,9 +164,6 @@ _SWATCH_LINES = ("rule", "edge", "faint")
 
 
 def component_library(request: HttpRequest) -> HttpResponse:
-    """GET: the component library — the ONE baseline stylesheet (components.css).
-
-    Never mounted in production."""
     family_rows = families()
     return render(
         request,

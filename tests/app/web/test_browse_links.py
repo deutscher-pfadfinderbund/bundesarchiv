@@ -1,10 +1,4 @@
-"""URL-as-state link helpers (Part 4.5-MVP, plan §4.5: URL-as-state, forms/links stable).
-
-The workbench's whole state lives in the query string. These pure helpers build the links the
-filter rail / pagination / sort control emit, and pin the round-trip: a param set that
-``parse_query`` reads back is exactly what a link that ADDS that facet produces, and removing it
-(the chip ✕) drops just that one dimension. No DB, no request — pure query-string algebra.
-"""
+"""URL-as-state link helpers: a param set ``parse_query`` reads back is what a link adding that facet produces, and removing it (the chip ✕) drops just that one dimension."""
 
 from bundesarchiv.app.web.browse import (
     clear_filters_query,
@@ -56,9 +50,6 @@ def test_add_then_parse_round_trips() -> None:
 
 
 # --- clear-all (clear_filters_query) -----------------------------------------------
-# The rail's "Alle Filter entfernen" link (owner 2026-08-07, rail round 2): removes ALL filter
-# params in one click but keeps the text query + sort — the same semantics as the chips, which
-# each remove ONE filter and keep q. seite resets like every narrowing change.
 
 
 def test_clear_filters_removes_every_filter_keeps_q_and_sort() -> None:
@@ -90,9 +81,6 @@ def test_clear_filters_drops_blank_values_like_every_link_helper() -> None:
 
 
 # --- pagination boundary (has_next_page) ------------------------------------------
-# The bug this pins: computing "rows consumed" from page * len(hits) understates consumption on a
-# partial last page (total=60, page 2 with 10 hits -> 2*10=20 < 60 -> a spurious "Weiter" link to
-# an empty page). Consumed rows are (page-1)*page_size + hits_on_page.
 
 
 def test_has_next_true_on_full_non_final_page() -> None:
@@ -114,7 +102,6 @@ def test_has_next_false_on_empty_results() -> None:
 
 
 def test_has_next_false_on_overshot_empty_page() -> None:
-    # A hand-edited seite beyond the end (no hits) must not offer a further page.
     assert has_next_page(page=3, page_size=50, hits_on_page=0, total=60) is False
 
 

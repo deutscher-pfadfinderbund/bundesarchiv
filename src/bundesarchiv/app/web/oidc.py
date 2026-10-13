@@ -21,11 +21,7 @@ ARCHIVIST_REALM_ROLE = "Bundesarchiv"
 
 
 def viewer_from_claims(claims: Mapping[str, object]) -> Viewer:
-    """Map checked access-token claims to the request's ``Viewer``: ``Archivist``
-    for the realm role ``Bundesarchiv`` in ``realm_access.roles``, named by ``preferred_username``
-    (the default name when that is absent or blank), otherwise ``Member`` carrying the ``groups``
-    claim (empty when absent — group rollout is then Keycloak configuration, not code). Claims of
-    an unexpected type are read as absent, so no token shape can raise or escalate."""
+    """The ``Viewer`` of checked access-token claims; no claim shape raises or escalates."""
     if ARCHIVIST_REALM_ROLE in _strings(_as_mapping(claims.get("realm_access")).get("roles")):
         username = claims.get("preferred_username")
         if isinstance(username, str) and username.strip():

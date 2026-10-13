@@ -33,7 +33,7 @@ from bundesarchiv.persistence.objectstore import (
     validate_prefix,
 )
 
-_CHUNK = 1024 * 1024  # 1 MiB streaming chunk for create_large
+_CHUNK = 1024 * 1024
 
 
 class LocalFsObjectStore(ObjectStore):
@@ -51,11 +51,6 @@ class LocalFsObjectStore(ObjectStore):
 
     @contextmanager
     def _backend(self, key: str) -> Generator[None]:
-        """The single seam every filesystem operation passes through, so no raw
-        `OSError` ever crosses the port (the local-FS analogue of WebDav's
-        `_request`). A path that names no blob — missing (`FileNotFoundError`) or a
-        directory-prefix key (`IsADirectoryError`) — is "absent" → `NotFound`; every
-        other backend failure (permissions, ENOSPC, EXDEV, …) → `ArchiveError`."""
         try:
             yield
         except FileNotFoundError, IsADirectoryError, NotADirectoryError:
@@ -116,10 +111,9 @@ class LocalFsObjectStore(ObjectStore):
     def delete_prefix(self, prefix: str) -> None:
         validate_prefix(prefix)
         folder = self._path(prefix)
-        # One rename takes the whole prefix out of sight, so a crash during the removal never
-        # leaves part of a hard-deleted Article readable, only a reserved leftover. Its name is
-        # fixed per prefix: the next delete of that prefix removes it, and deletes of other
-        # prefixes never touch it (they run without WRITER_LOCK, _writer.py).
+        # One rename takes the whole prefix out of sight, so a crash mid-removal leaves only a
+        # reserved leftover. Its name is fixed per prefix: the next delete of that prefix removes
+        # it, and deletes of other prefixes never touch it.
         doomed = folder.with_name(_deletion_name(folder.name))
         with self._backend(prefix):
             if not _is_dir(folder.parent):
@@ -156,9 +150,7 @@ class LocalFsObjectStore(ObjectStore):
         )
 
     def _commit(self, key: str, write: Callable[[BinaryIO], None], *, replace: bool) -> str:
-        """Durably commit `write`'s output to `key`: temp → fsync → rename (`replace`) or
-        link (create-only) → fsync parent dir(s). The temp sibling is reserved (".tmp-…"),
-        so a crash that leaves it behind is invisible to `list()`."""
+        """The temp sibling is a reserved key, so a crash leftover never lists."""
         with self._backend(key):
             target = self._path(key)
             created = _make_parents(target.parent)

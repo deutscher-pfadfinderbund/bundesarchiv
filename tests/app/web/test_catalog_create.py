@@ -1,11 +1,4 @@
-"""The create step ``/articles/new`` (Part 4.7 Slice A, spec §2).
-
-GET renders the minimal create form (Titel + Bestand); POST creates a DRAFT via ``create_article``
-and 302s to ``/articles/<ulid>/edit``. Both methods are archivist-gated: a Member / Public /
-anonymous request gets a 404 (existence-hiding — the cataloging entry point must not be
-discoverable). Validation state B re-renders the form with the verbatim error and preserved values,
-no create.
-"""
+"""The create step ``/articles/new`` (spec §2)."""
 
 from collections.abc import Callable
 
@@ -81,7 +74,6 @@ def test_create_post_missing_title_re_renders_state_b(empty_archive: Corpus) -> 
     assert response.status_code == 200
     body = response.content.decode()
     assert "Titel ist erforderlich." in body
-    # the chosen Bestand is preserved
     assert list(empty_archive.articles.list_ulids()) == []
 
 

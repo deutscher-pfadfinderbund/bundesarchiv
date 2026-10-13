@@ -1,21 +1,5 @@
-"""Worker jobs — the Postgres-backed background queue (Procrastinate, ADR 0014, Part 4.2).
-
-Every job is a REFERENCE, never a payload: it carries only a ulid (or the periodic tick, for a
-scheduled job), and its execution re-reads canonical truth from the configured store and recomputes
-(ADR 0014 §"Queue jobs are references"). So two racing edits enqueue two pointers and whichever
-runs last recomputes the same final truth — jobs are idempotent and commute. The queue exists for:
-retry after a failed synchronous index update (the app services enqueue here), heavier work
-(thumbnails, page text, future OCR), mirror replay, the scheduled full rebuild, and the monthly
-fixity check.
-
-The tasks are thin wrappers over ``indexer.index_article`` / ``index_subtree`` / ``rebuild``; the
-security logic lives there, not here. Procrastinate auto-discovers this module (it is named
-``tasks`` inside an installed app), so ``@app.task`` registration happens on Django startup.
-
-Scheduled reconcile: ``reconcile`` is registered periodic on the ``BUNDESARCHIV_RECONCILE_CRON``
-schedule (hourly default) — a periodic full rebuild bounds every missed incremental update (ADR
-0014 §"Scheduled reconcile"). config_version drift is handled at worker startup by the
-``ensure_index_current`` management command (see docs/adr/0014).
+"""A job carries references (a ulid, a content hash) and recomputes from current canonical when
+it runs, so jobs are idempotent and commute (ADR 0014).
 """
 
 import contextlib
@@ -48,7 +32,7 @@ logger = logging.getLogger(__name__)
 #: parked job would have (ADR 0020 "Loss window").
 _MIRROR_RETRY = RetryStrategy(max_attempts=5, exponential_wait=3)
 
-#: The fixity check's schedule (ADR 0019 "Fixity"): monthly, 04:00 on the first.
+#: ADR 0019 "Fixity".
 _VERIFY_CRON = "0 4 1 * *"
 
 #: A connect to the system of record that takes longer than 5 s is a partition, not a slow server:
@@ -63,19 +47,11 @@ def canonical_store() -> ObjectStore:
 
 
 def _mirror_configured() -> bool:
-    """Whether a system of record is configured — the settings predicate shared by
-    ``mirror_store()`` and the enqueue wrappers, so the enqueue path can answer "is mirroring on"
-    without building a client (and its eager SSL-context load) just to throw it away."""
     return bool(settings.BUNDESARCHIV_MIRROR_DAV_URL)
 
 
 def mirror_store() -> ObjectStore | None:
-    """Build the system of record's WebDAV store from settings (ADR 0020), or None when none is
-    configured.
-
-    When ``BUNDESARCHIV_MIRROR_DAV_URL`` is unset (the common dev case) this returns None and every
-    mirror job / enqueue becomes a clean no-op. Constructed per job from settings (jobs carry
-    references, never a store handle); monkeypatched in tests."""
+    """Built per job, since every job closes it (``_close_mirror``)."""
     url: str | None = settings.BUNDESARCHIV_MIRROR_DAV_URL
     if not url:
         return None
@@ -90,23 +66,16 @@ def mirror_store() -> ObjectStore | None:
 
 @app.task(name="reindex_article")
 def reindex_article(ulid: str) -> None:
-    """Reference job: reindex ONE Article by ulid, recomputing from current canonical truth."""
     indexer.index_article(canonical_store(), ulid)
 
 
 @app.task(name="reindex_subtree")
 def reindex_subtree(collection_ulid: str) -> None:
-    """Reference job: reindex the subtree rooted at ``collection_ulid`` from current canonical."""
     indexer.index_subtree(canonical_store(), collection_ulid)
 
 
 @app.task(name="generate_thumbnail")
 def generate_thumbnail(ulid: str, content_hash: str) -> None:
-    """Reference job: derive the AVIF tile for the media file with ``content_hash``
-    on Article ``ulid``, re-reading it from current canonical and writing to the LOCAL derived
-    thumbnail cache (``BUNDESARCHIV_THUMBNAIL_ROOT``). A no-op for a file without a renderer or one no
-    longer on the Article; idempotent. The thumbnail is a prunable cache, never archive truth (README
-    runbook)."""
     thumbnails.generate_thumbnail(
         canonical_store(), ulid, content_hash, Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
     )
@@ -122,10 +91,7 @@ def extract_media_text(ulid: str) -> None:
 @app.periodic(cron=settings.BUNDESARCHIV_RECONCILE_CRON)
 @app.task(name="reconcile")
 def reconcile(timestamp: int) -> None:
-    """The scheduled reconcile (ADR 0014): a periodic full rebuild that restores the index
-    invariant no matter what any incremental path missed. Hourly by default
-    (``BUNDESARCHIV_RECONCILE_CRON``). ``timestamp`` is the tick Procrastinate passes to a periodic
-    task; it is unused here (the job is a pure reference — it recomputes from current canonical)."""
+    """The scheduled full rebuild that bounds whatever an incremental path missed (ADR 0014)."""
     store = canonical_store()
     rows_before = ArticleIndex.objects.count()  # the drift the rebuild is about to repair
     indexer.rebuild(store)
@@ -142,13 +108,11 @@ def reconcile(timestamp: int) -> None:
 @app.periodic(cron=_VERIFY_CRON)
 @app.task(name="verify")
 def verify(timestamp: int) -> None:
-    """The monthly fixity check (ADR 0019): ``manage.py verify`` over the canonical archive. Its
-    report goes to the worker's output; a finding raises ``CommandError`` and so fails the job.
-    ``timestamp`` is the periodic tick (unused)."""
+    """A finding raises ``CommandError`` and so fails the job."""
     call_command("verify")
 
 
-# --- mirror replay + reconcile (Part 4.9) ----------------------------------------
+# --- mirror jobs (ADR 0020) ------------------------------------------------------
 
 
 @app.task(name="mirror_push", retry=_MIRROR_RETRY)
@@ -165,7 +129,7 @@ def mirror_push(ulid: str) -> None:
             sent = mirror.push(Archive.of(canonical_store()), remote, PostgresPushRecord(), ulid)
             fields |= {"sent": sent.keys, "sent_bytes": sent.bytes}
     finally:
-        _close_mirror(remote)  # release the per-job httpx2.Client even when the push raises
+        _close_mirror(remote)
 
 
 @app.task(name="mirror_delete_article", retry=_MIRROR_RETRY)
@@ -186,12 +150,6 @@ def mirror_delete_article(ulid: str) -> None:
 @app.periodic(cron=settings.BUNDESARCHIV_MIRROR_RECONCILE_CRON)
 @app.task(name="mirror_reconcile")
 def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
-    """The scheduled reconcile (ADR 0020): pushes what any push job missed, rebuilds a lost push
-    record, and reports what it leaves alone, keys changed on the system of record and keys only
-    there, which it never deletes. Daily by default (``BUNDESARCHIV_MIRROR_RECONCILE_CRON``). The
-    findings go to the log as warnings; the task result, which the worker logs, is how many keys
-    each holds. A no-op returning ``skipped=True`` when no system of record is configured.
-    ``timestamp`` is the periodic tick (unused; the sweep recomputes from canonical)."""
     remote = mirror_store()
     if remote is None:
         return {"skipped": True}
@@ -210,7 +168,7 @@ def mirror_reconcile(timestamp: int = 0) -> dict[str, object]:
                     if (size := remote.root_size()) is not None:
                         fields["remote_bytes"] = size
     finally:
-        _close_mirror(remote)  # release the per-job httpx2.Client even when the sweep raises
+        _close_mirror(remote)
     return counts
 
 
@@ -243,20 +201,15 @@ def _close_mirror(store: ObjectStore) -> None:
 
 
 def enqueue_reindex_article(ulid: str) -> None:
-    """Enqueue a ``reindex_article`` reference job (the app services' retry net on a failed
-    synchronous index update, ADR 0014)."""
     reindex_article.defer(ulid=ulid)
 
 
 def enqueue_reindex_subtree(collection_ulid: str) -> None:
-    """Enqueue a ``reindex_subtree`` reference job (retry net for a failed subtree reindex)."""
     reindex_subtree.defer(collection_ulid=collection_ulid)
 
 
 def enqueue_generate_thumbnail(ulid: str, content_hash: str) -> None:
-    """Enqueue a ``generate_thumbnail`` reference job for one file on Article ``ulid`` (the app
-    services call this for image and PDF media on save/create). Re-enqueuing the same file is
-    harmless (the job is idempotent and the cache key is the hash)."""
+    """Re-enqueuing the same file is harmless: the job is idempotent and the cache key is the hash."""
     generate_thumbnail.defer(ulid=ulid, content_hash=content_hash)
 
 
@@ -275,17 +228,11 @@ def enqueue_missing_text(archive: Archive) -> None:
 
 
 def enqueue_mirror_push(ulid: str) -> None:
-    """Enqueue a ``mirror_push`` reference job for the saved Article or Collection ``ulid``. The app
-    services call this AFTER a canonical write; the push is async and never blocks the request. A
-    clean no-op when no system of record is configured (do not churn the queue for a feature that
-    is off). A push already queued for ``ulid`` stands in for this one: it reads current truth when
-    it runs.
-
-    Checks ``_mirror_configured()`` rather than ``mirror_store()`` so this path never constructs a
-    client (GH #20): building one only to discard it leaked a fresh ``httpx2.Client`` — with its
-    eager SSL-context load — on every canonical write when mirroring is configured."""
+    """A push already queued for ``ulid`` stands in for this one: it reads current truth when it
+    runs. ``_mirror_configured()``, not ``mirror_store()``: building a client to drop it costs an
+    eager SSL-context load."""
     if not _mirror_configured():
-        return  # mirror unset -> nothing to enqueue
+        return
     with contextlib.suppress(AlreadyEnqueued):
         mirror_push.configure(queueing_lock=f"mirror_push:{ulid}").defer(ulid=ulid)
 
@@ -313,7 +260,7 @@ def run_worker_once_in_test(defer: Callable[[], None]) -> int:
 
     connector = InMemoryConnector()
     with app.replace_connector(connector):
-        defer()  # the test hands a zero-arg callable that defers jobs onto the connector
+        defer()
         app.run_worker(
             wait=False, install_signal_handlers=False, listen_notify=False, delete_jobs="never"
         )

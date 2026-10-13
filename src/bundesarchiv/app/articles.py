@@ -1,17 +1,4 @@
-"""Article write services — the canonical-then-index shell (ADR 0013 + 0014).
-
-Each service: write canonical through ``ArticleRepository`` (CAS — a stale ``expected_version``
-raises ``Conflict``, which propagates so the view can re-render the diff), THEN hand what it wrote
-to ``after_write.run`` — index sync, retry fallback, mirror job, never raising — and return its
-``index_updated`` so the view can warn that the visibility change is not yet effective (ADR 0014).
-Only the derived-file jobs (thumbnails, page text) stay here: only Article content has files.
-
-Two entry points into that shell, and ADR 0013's split is which one you call. ``save_article`` takes
-an Article plus the version the caller is betting on and lets ``Conflict`` propagate — the form path,
-where losing means showing the archivist the winner. ``update_article`` takes a transform, owns the
-load-mutate-save cycle, and retries onto the winner — the internal-mutation path, safe only because
-the transform re-applies to whatever it is handed.
-"""
+"""Article write services (ordering law: app/CLAUDE.md; entry-point split: ADR 0013)."""
 
 import contextlib
 from collections.abc import Callable
@@ -45,9 +32,7 @@ from bundesarchiv.persistence.errors import ArchiveError, Conflict
 def save_article(
     archive: Archive, article: Article, expected_version: Version, *, changed_by: str
 ) -> SaveResult:
-    """Save ``article`` (CAS at ``expected_version``) then synchronously reindex it. A stale
-    version raises ``Conflict`` before anything is indexed. On index failure the canonical write
-    stands, a retry job is enqueued, and ``index_updated=False`` is returned (ADR 0014)."""
+    """The form path (ADR 0013): a stale ``expected_version`` raises ``Conflict``."""
     new_version = archive.articles.save(article, expected_version, changed_by=changed_by)
     index_updated = after_write.run(archive, after_write.SavedArticle(article.ulid))
     _enqueue_derived(article)
@@ -62,19 +47,8 @@ def update_article(
     changed_by: str,
     retries: int = 3,
 ) -> UpdateOutcome:
-    """Load the Article, apply ``mutate``, and ``save_article`` at the version just loaded, re-loading
-    and re-applying on ``Conflict`` up to ``retries`` times (``retries + 1`` attempts). Returns
-    ``Updated`` with the saved Article, ``Conflicted`` if every attempt lost, ``Missing`` if the
-    Article is absent or in the Papierkorb (ADR 0022: restore it first) — at the start, or
-    underneath a retry.
-
-    FORBIDDEN for form saves (ADR 0013): a form carries values the archivist typed against a
-    now-stale Article, so a retry would silently overwrite the concurrent edit — the one unforgivable
-    archive failure. ``mutate`` must be a pure, idempotent transform of whatever it is handed,
-    because a retry re-applies it to the WINNER's Article; it must not add media (``add_media`` first,
-    then let the transform reference the ref). Exceptions ``mutate`` raises propagate untouched: it
-    may refuse a mutation the freshly-loaded state no longer admits.
-    """
+    """Never for form saves (ADR 0013). ``mutate`` must be pure, since a retry re-applies it to
+    the winner: store new media with ``add_media`` before the call."""
     for _ in range(retries + 1):
         try:
             stored = archive.articles.load(ulid)
@@ -111,9 +85,6 @@ def create_article(
     subject_place: str | None = None,
     custom: tuple[tuple[str, str], ...] = (),
 ) -> CreateResult:
-    """Mint a NEW Article (ULID minted by the domain factory, ADR 0006), save it at version 0,
-    then synchronously index it. Mirrors ``domain.create_article``'s fields, adding the persistence
-    + index wiring the view needs. Returns the new ulid so the view can redirect to it."""
     article = identity.create_article(
         title=title,
         collection_id=collection_id,
@@ -138,12 +109,6 @@ def create_article(
 
 
 def copy_article(archive: Archive, ulid: Ulid, *, changed_by: str) -> CreateResult:
-    """Copy an existing Article's METADATA into a fresh DRAFT (spec §7 Kopieren). The copy goes
-    through ``create_article`` (so it mints a new ULID and indexes like any new article), carrying
-    every metadata field forward EXCEPT: the Signatur (``ref_code`` cleared — a Signatur is unique to
-    one record), the media (NONE copied — series items differ; the archivist attaches fresh), and the
-    lifecycle (always a new DRAFT, never inheriting the source's published state). Creates, never
-    destroys — the source is untouched. Returns the new ulid so the view can 302 to its edit form."""
     source = archive.articles.load(ulid).article
     return create_article(
         archive,
@@ -188,12 +153,8 @@ def restore_article(
 
 
 def hard_delete_article(archive: Archive, ulid: Ulid, expected_version: Version) -> SaveResult:
-    """Delete the Article from canonical for good (ADR 0020) — a stale ``expected_version`` raises
-    ``Conflict`` before anything is deleted — then synchronously reindex —
-    ``index_article`` sees the ulid gone from canonical and DELETES its index row — and enqueue the
-    delete on the system of record. On index failure the delete stands, a retry job (which will
-    also drop the row) is enqueued, and ``index_updated=False`` is returned. Version is 0 (the
-    Article no longer exists)."""
+    """Delete ``ulid`` from canonical for good (ADR 0020); a stale ``expected_version`` raises
+    ``Conflict``."""
     archive.articles.hard_delete(ulid, expected_version)
     index_updated = after_write.run(archive, after_write.RemovedArticle(ulid))
     return SaveResult(version=0, index_updated=index_updated)

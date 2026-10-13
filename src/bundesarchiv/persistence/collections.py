@@ -1,15 +1,4 @@
-"""CollectionRepository — the deep module for Collection persistence (ADR 0010/0013).
-
-Key layout mirrors ArticleRepository:
-
-    collections/<ulid>/README.md             the canonical commit point (front-matter + marker)
-    collections/<ulid>/history/<version>.md  each replaced README
-
-Migration (ADR 0013): a README written before versioning existed has no `version:` key; it loads
-as version 0 and saves cleanly from there (its first save writes v1).
-
-Callers depend only on this module; they never touch `ObjectStore` keys directly.
-"""
+"""CollectionRepository (ADR 0010, ADR 0013). Callers never touch ObjectStore keys."""
 
 from dataclasses import dataclass
 
@@ -23,8 +12,7 @@ from bundesarchiv.persistence.objectstore import ObjectStore
 
 @dataclass(frozen=True, slots=True)
 class StoredCollection:
-    """A Collection as loaded, paired with the version to pass to the next `save` and that
-    version's change record — mirrors ArticleRepository's `Stored`."""
+    """`version` is what the next `save` expects."""
 
     collection: Collection
     version: Version
@@ -68,12 +56,8 @@ class CollectionRepository:
         )
 
     def load_all(self) -> tuple[Collection, ...]:
-        """Return every saved Collection whose README decodes (for tree assembly / rebuild).
-
-        Returns plain `Collection`s, NOT `StoredCollection`s: tree assembly and the
-        indexer resolve chains and audience from Collection fields alone — they never
-        write, so they need no versions. Callers that intend to `save` must `load` the
-        one Collection to get its version."""
+        """Every Collection whose README decodes, without versions; `load` one before saving
+        it."""
         return self.scan().readable
 
     def scan(self) -> Scan[Collection]:

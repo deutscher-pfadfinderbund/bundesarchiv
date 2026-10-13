@@ -1,20 +1,5 @@
-"""The state gallery (Part #26): render every canonical UI state to a PNG, in both color modes.
-
-A design gate / an owner phone review wants ONE folder of screenshots that always shows the same
-states in the same order — not a hand-driven click-through. This module is that: a list of named
-``GalleryState``s (a state = how to reach it in a real browser + what to shoot), plus ``render_state``
-which drives one state in both color modes and each width (``prefers-color-scheme``) and writes ``<name>.<mode>.png``.
-
-It reuses the E2E stack (live server + Postgres index + the cached chromium) so a shot is the REAL
-page, byte-for-byte what ships — not a static mock. The GET-renderable states come from THE screen
-inventory (``_pages.SCREENS``), shared with the a11y pass and the control-row/overlay walkers, so the
-gallery and the guards can never disagree about which screens the app has; the states behind an
-INTERACTION — an open menu, a rejected save — are declared here and reached the way a user
-reaches them, by driving the affordance. A whole SCREEN that needs driving (the two bulk surfaces)
-belongs in the inventory instead, with its own reach, so every guard covers it too.
-
-Entry point: the ``gallery`` marker in ``test_gallery.py`` (``mise run test:gallery``); the
-PNGs land in ``var/gallery/`` (override with ``BUNDESARCHIV_GALLERY_DIR``).
+"""The state gallery: every inventory screen plus the interaction states declared here, shot per mode
+and width to ``var/gallery/<state>.<mode>.<width>.png`` (``BUNDESARCHIV_GALLERY_DIR`` overrides).
 """
 
 import os
@@ -28,18 +13,12 @@ from playwright.sync_api import Browser, Page
 from tests.e2e._corpus import TEMPLATE_ULID, CorpusHandles
 from tests.e2e._pages import LIST, SCREENS, Screen, reach_tag_suggestions
 
-#: The two color modes the design system supports (``:root { color-scheme: light dark }`` +
-#: ``light-dark()`` tokens, resolved by ``prefers-color-scheme`` — no JS toggle). Every state is
-#: shot once per mode; the mode is forced through the browser context, not a cookie.
+#: Shot under the emulated ``prefers-color-scheme``, with no theme cookie.
 MODES: tuple[Literal["light", "dark"], ...] = ("light", "dark")
 
 
 @dataclass(frozen=True, slots=True)
 class GalleryState:
-    """One canonical UI state: its file-safe ``name``, a one-line ``what`` (for the manifest), whether
-    it needs an ``archivist`` cookie, and a ``reach`` callable that navigates the page to the state
-    (a plain goto for GET states; a click-through for the POST-gated confirm surfaces)."""
-
     name: str
     what: str
     archivist: bool
@@ -64,22 +43,18 @@ def _screen_state(screen: Screen) -> GalleryState:
 
 
 def _reach_slot_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the search sentence with its Bestand slot open: the menu with its counts over the ledger
     page.goto(f"{base}/articles", wait_until="networkidle")
     page.locator(".search-sentence-slots .menu-button").first.click()
 
 
 def _reach_plus_filter_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the search sentence with "+ Filter" open: the secondary filters as a check list; on S,
-    # "Filter", which also holds the folded slots
+    # on S the trigger is "Filter"; click whichever is visible
     page.goto(f"{base}/articles", wait_until="networkidle")
     triggers = page.locator(":is(.search-sentence-add, .search-sentence-more) .menu-button")
     triggers.filter(visible=True).click()
 
 
 def _reach_header_new_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the header's "+ Neu …" create menu open (Mock B, owner 2026-08-07) — the floating
-    # overlay panel with "Neuer Artikel …" / "Neuer Bestand …"
     page.goto(f"{base}/articles", wait_until="networkidle")
     page.click(".menu-button")
 
@@ -95,8 +70,7 @@ def _reach_new_article_open(page: Page, base: str, _corpus: CorpusHandles) -> No
 
 
 def _reach_new_collection_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # Anlegen with a blank Name: htmx answers in the panel itself, the error under the field. Spaces,
-    # because the browser's `required` stops an empty Name before the server sees it.
+    # Spaces: the browser's `required` stops an empty Name before the server sees it.
     _reach_header_panel(page, base, LIST, "Neuer Bestand …")
     page.locator("#new-collection-name").fill("   ")
     page.locator("#new-collection").get_by_role("button", name="Anlegen").click()
@@ -109,13 +83,11 @@ def _reach_collection_edit_open(page: Page, base: str, corpus: CorpusHandles) ->
 
 
 def _reach_columns_open(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # the list's "Spalten …" check list open (ruling 2026-09-29: five columns, kept in a cookie)
     page.goto(f"{base}/articles", wait_until="networkidle")
     page.get_by_role("button", name="Spalten …").click()
 
 
 def _reach_selection(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # a URL-seeded selection: the tool row shows the count and its tools
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
@@ -123,13 +95,11 @@ def _reach_selection(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_bulk(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the same selection with "Feld ändern …" open (the chooser in its toolpanel)
     _reach_selection(page, base, corpus)
     page.click('[popovertarget="field-change"]')
 
 
 def _reach_csrf_refused(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # a form posted with a token that no longer matches: the "form expired" page
     page.goto(f"{base}/collections/new", wait_until="networkidle")
     page.locator('main input[name="csrfmiddlewaretoken"]').evaluate("e => e.value = 'x'.repeat(64)")
     page.locator('main input[name="name"]').fill("Abgelaufen")
@@ -145,7 +115,6 @@ def _reach_server_error(page: Page, base: str, _corpus: CorpusHandles) -> None:
 
 
 def _reach_not_found(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # a path nothing answers: the same page every deny gets
     page.goto(f"{base}/gibt-es-nicht", wait_until="networkidle")
 
 
@@ -181,7 +150,6 @@ def _reach_detail_template_actions_open(page: Page, base: str, corpus: CorpusHan
 
 
 def _reach_edit_template_refused(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # Vorlage ticked on a draft with Veröffentlicht chosen: the save refuses, nothing is written
     page.goto(f"{base}/articles/{corpus.draft_ulid}/edit", wait_until="networkidle")
     page.check('main input[name="template"]')
     page.select_option('main select[name="lifecycle"]', "published")
@@ -206,8 +174,7 @@ def _reach_detail_lightbox_open(page: Page, base: str, corpus: CorpusHandles) ->
 
 
 def _reach_trash_emptied(page: Page, base: str, _corpus: CorpusHandles) -> None:
-    # "Endgültig löschen …" on the one record, confirmed: the Papierkorb it lands on, empty. Every
-    # shot of the state reaches it again on the same corpus, so only the first one deletes.
+    # Each width reaches this again on the same corpus, so only the first reach deletes.
     page.goto(f"{base}/trash", wait_until="networkidle")
     delete = page.locator("main a", has_text="Endgültig löschen …")
     if delete.count():
@@ -222,9 +189,7 @@ def _reach_edit_date_help(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the REJECTED state of the edit form: Sichtbarkeit=Gruppe(n) with an empty Gruppen field, the
-    # error in the margin — a visible cue needs a render to be judged on (learning G.7), and this shot
-    # is also the C13 error-border state.
+    # Gruppe(n) with no Gruppen; also the C13 error-border shot.
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.select_option('main select[name="audience"]', "groups")
     page.click('main button:has-text("Speichern")')
@@ -232,7 +197,7 @@ def _reach_edit_rejected(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_edit_more_details(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the corpus holds no custom row; "+ Angabe hinzufügen" re-renders one without saving
+    # the published record holds no custom row
     page.goto(f"{base}/articles/{corpus.published_ulid}/edit", wait_until="networkidle")
     page.click('button:has-text("+ Angabe hinzufügen")')
     page.fill('#custom-bag input[name="custom_key"]', "Legacy-ID")
@@ -259,8 +224,6 @@ def _reach_edit_conflict(page: Page, base: str, corpus: CorpusHandles) -> None:
 
 
 def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> None:
-    # the confirm surface's ERROR mode: a blank Medienart re-renders the chooser under the verbatim
-    # message, which must show exactly one "Neuer Wert" widget
     page.goto(
         f"{base}{LIST}?selection={corpus.published_ulid}&selection={corpus.second_ulid}",
         wait_until="networkidle",
@@ -272,9 +235,8 @@ def _reach_bulk_confirm_error(page: Page, base: str, corpus: CorpusHandles) -> N
     page.wait_for_selector(".column .error")
 
 
-#: The states that are not SCREENS but STATES OF one — a menu opened, a save rejected. A screen that
-#: merely needs driving to reach (the two bulk surfaces) belongs in the inventory with its own reach,
-#: so the guards cover it too; only a second state of a screen already in the inventory lives here.
+#: Second states of an inventory screen: a menu opened, a save rejected. A whole screen belongs in
+#: _pages.SCREENS.
 _INTERACTION_STATES: tuple[GalleryState, ...] = (
     GalleryState(
         "workbench-slot-open",
@@ -464,18 +426,13 @@ _INTERACTION_STATES: tuple[GalleryState, ...] = (
     ),
 )
 
-#: The canonical states, in a stable order (the gallery is a design contract: same states, same
-#: order, every run): every GET-reachable SCREEN from the one inventory (_pages.SCREENS — so a new
-#: screen is shot the day it joins it, and the gallery can never disagree with what the guards walk),
-#: then the interaction states above.
+#: Stable order: the gallery is a design contract.
 STATES: tuple[GalleryState, ...] = (
     *(_screen_state(screen) for screen in SCREENS),
     *_INTERACTION_STATES,
 )
 
-#: The gallery is rendered at each of these widths (the design-system's desktop + narrow breakpoints,
-#: spec §4): 1440 is the split-narrow workbench (pane beside ledger); 680 is under the <1280 query
-#: where the pane collapses and the ledger unfolds. Named ``<state>.<mode>.<width>.png``.
+#: 1440 shows the pane beside the ledger; 680 is below the 80rem switch, where the pane collapses.
 WIDTHS: tuple[int, ...] = (1440, 680)
 
 
@@ -493,13 +450,6 @@ def render_state(
     state: GalleryState,
     out_dir: Path | None = None,
 ) -> list[Path]:
-    """Render one state to ``out_dir`` (default ``gallery_dir()``), at each ``WIDTHS`` width in both
-    color modes. One full-page PNG per (mode, width), named ``<state>.<mode>.<width>.png`` (stable
-    so a review brief can reference a shot). Returns the paths.
-
-    One reach per width: the colour modes switch in place (the theme is ``light-dark()`` tokens), so
-    a state's page loads twice, not four times. A reach that raises fails this state alone (the
-    context is closed either way)."""
     out = out_dir if out_dir is not None else gallery_dir()
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []

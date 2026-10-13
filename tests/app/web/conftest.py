@@ -1,21 +1,4 @@
-"""Web-subtree test wiring: the shared corpus fixtures + the genuine external service seams.
-
-The ``corpus`` / ``make_corpus`` fixtures hand out ``_fixtures.Corpus`` with
-``override_settings(**settings_for(...))`` already entered, so a web test neither builds the store
-wiring nor wraps its request in a settings block.
-
-The Part 4.7 cataloging views drive the REAL write path — ``create_article`` / ``save_article`` /
-``hard_delete_article`` — which exercises the repository, the README round-trip, and the ADR-0013
-CAS check (all FS-store, no DB). Those services then reach TWO genuine external boundaries the web
-subtree deliberately does not stand up: the Postgres index (``index_article``, ``index_subtree``) and
-the Procrastinate worker queue (``enqueue_*``). ``app.after_write`` (and ``app.articles``, for the
-thumbnail job) import both as module-level names precisely so they are monkeypatchable.
-
-This autouse fixture no-ops exactly those boundaries, so the web tests keep the whole
-canonical-write + CAS path real. ``after_write.run`` swallows the index step's outcome into
-``index_updated``; a no-op that returns None reads as a successful index, which is what these tests
-assert against unless a test overrides the seam to force the ADR-0014 lag path.
-"""
+"""The index and queue stubs never raise, so ``after_write.run`` reports the index current."""
 
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack

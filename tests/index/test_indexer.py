@@ -1,20 +1,3 @@
-"""Task 7 — the scope seam + fail-closed indexer.
-
-Two halves:
-
-- ``build_row`` is PURE: Article + resolved chain -> column dict. Every case in the first
-  section runs WITHOUT a database (no ``django_db`` mark, no store fixture) — the purity
-  guard. It only ever references ORM column names as dict keys, never touches the ORM.
-- ``rebuild`` is the IO edge: it wipes + re-reads everything through the repositories and
-  writes ``ArticleIndex`` rows in one transaction. Those cases are ``django_db`` and drive a
-  real Postgres via an in-memory ObjectStore fixture (nested Collections, a dangling
-  ``collection_id`` -> fail-closed row, a draft -> archivist-only).
-
-The scope seam itself (``_scope_columns`` / ``_viewer_scope``) is the single place
-viewer-visibility meets SQL; equivalence to ``domain.access.can_view`` is pinned by Task 9's
-``test_equivalence.py``. Here we pin the write-side column mapping.
-"""
-
 import datetime
 import io
 
@@ -37,7 +20,7 @@ from bundesarchiv.persistence.adapters.memory import InMemoryObjectStore
 from bundesarchiv.persistence.collections import CollectionRepository
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# ``cap_year`` is injected so build_row stays pure; a fixed value keeps decade assertions stable.
+# A fixed cap_year keeps the decade assertions stable.
 _CAP_YEAR = 2026
 
 
@@ -53,7 +36,7 @@ def _root(ulid: str = "ROOT", **overrides: object) -> Collection:
 
 
 def _chain(*collections: Collection) -> ResolvedChain:
-    """A resolved chain, leaf-first. Callers pass leaf ... root."""
+    """Leaf first: pass leaf ... root."""
     return ResolvedChain(collections)
 
 
@@ -130,9 +113,6 @@ def test_build_row_still_indexes_text_of_a_draft() -> None:
 
 
 def test_build_row_appends_media_captions_to_the_body_bucket() -> None:
-    """Media captions join the article's FTS document at BODY weight: build_row concatenates them,
-    order-preserving, into the same column the body text feeds (weight D in the general tsvector).
-    The body text stays first; captions follow in media order."""
     root = _root()
     article = _article(
         body="Ein Bericht.",
@@ -148,12 +128,10 @@ def test_build_row_appends_media_captions_to_the_body_bucket() -> None:
     assert body.startswith("Ein Bericht.")  # the real body text leads
     assert "Sprecher unbekannt" in body
     assert "Huelle vorne" in body
-    # order-preserving: the first caption precedes the third
     assert body.index("Sprecher unbekannt") < body.index("Huelle vorne")
 
 
 def test_build_row_body_unchanged_without_captions() -> None:
-    """No captions -> the body column is exactly the article body (no trailing whitespace/joins)."""
     root = _root()
     article = _article(body="Nur Text.", media=(MediaRef("a.jpg", "a" * 64),))
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
@@ -194,8 +172,8 @@ def test_build_row_open_ended_date_has_null_latest() -> None:
     article = _article(date=EdtfDate("1970/.."))
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)
     assert row["date_earliest"] == datetime.date(1970, 1, 1)
-    assert row["date_latest"] is None  # open end
-    # decades run from the earliest up to (not incl.) cap_year's decade.
+    assert row["date_latest"] is None
+    # an open end runs through cap_year's decade
     assert row["decades"] == [1970, 1980, 1990, 2000, 2010, 2020]
 
 
@@ -236,7 +214,6 @@ def test_build_row_archivist_text_excludes_custom_keys() -> None:
 
 
 def test_build_row_archivist_text_excludes_member_visible_fields() -> None:
-    """A member-visible field (title/body/creator) must never leak into archivist_text."""
     root = _root()
     article = _article(
         title="Sichtbarer Titel",
@@ -279,8 +256,6 @@ def test_build_row_ancestors_are_leaf_to_root_including_own_collection() -> None
 
 @pytest.fixture
 def store() -> InMemoryObjectStore:
-    """A populated store: 3 nested Collections (one audience-carrying), 5 Articles including
-    one with a dangling collection_id (fail-closed) and one draft (archivist-only)."""
     store = InMemoryObjectStore()
     collections = CollectionRepository(store)
     articles = ArticleRepository(store)
@@ -361,15 +336,12 @@ def test_rebuild_fails_closed_on_dangling_collection(store: InMemoryObjectStore)
     assert bad.archivist_only is True  # fail-closed: only an Archivist can find it
     assert bad.tier is None
     assert list(bad.groups) == []
-    assert (
-        bad.is_draft is False
-    )  # a broken chain is NOT a draft — draft-vs-failclosed stay distinct
+    assert bad.is_draft is False
     assert bad.title == "Verwaistes Artikel"  # still indexed with its text, so it's findable
 
 
 @pytest.mark.django_db
 def test_rebuild_is_idempotent(store: InMemoryObjectStore) -> None:
-    """A second rebuild wipes and re-writes: the same row count, no duplicates."""
     from bundesarchiv.index.models import ArticleIndex
 
     first = indexer.rebuild(store)
@@ -447,7 +419,6 @@ def test_a_hit_summarizes_its_files_and_the_files_filter_reads_the_same_fact() -
 
 def test_archivist_text_builder_tracks_the_domain_floor() -> None:
     """A member-visible field never reaches archivist_text; a floor field does."""
-    # A field NOT in the floor (creator is member-visible) never appears in archivist_text.
     root = _root()
     article = _article(creator="Nicht Geheim", physical_location="Regal 9")
     row = indexer.build_row(article, _chain(root), cap_year=_CAP_YEAR)

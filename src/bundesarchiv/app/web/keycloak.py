@@ -161,9 +161,6 @@ def _decoded(token: str, keys: KeySet, claims: _Claims) -> Mapping[str, object] 
 def _validated(
     id_token: str, keys: KeySet, *, issuer: str, client_id: str, nonce: str
 ) -> Mapping[str, object] | None:
-    """The ID token's claims checked against ``keys`` — signature, issuer, audience, an ``azp`` that
-    names this client if present, subject, issue and expiry time, and the ``nonce`` this browser's
-    authorize request carried — or ``None``."""
     return _decoded(
         id_token,
         keys,

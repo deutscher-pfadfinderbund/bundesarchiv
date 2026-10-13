@@ -1,13 +1,4 @@
-"""Minimal Django settings — deliberately kept tiny, forever (ADR 0004, 0005).
-
-Django is present as a thin adapter (ADR 0004, 0005): the derived Postgres search index
-plus the server-rendered workbench — templates, one CSRF middleware, a URLconf, and static
-CSS/JS via staticfiles + WhiteNoise (ADR 0016). No admin, auth, or sessions.
-
-The database is configured from the ``BUNDESARCHIV_PG_DSN`` environment variable so dev,
-tests, and (later) the VPS all point at the same connection string. It defaults to the
-local dev container published on ``localhost:5434`` (see README dev setup).
-"""
+"""Django settings, kept small (ADR 0004, ADR 0005)."""
 
 import os
 from pathlib import Path
@@ -17,9 +8,8 @@ from django.utils.csp import CSP
 
 _DEFAULT_PG_DSN = "postgresql://postgres:postgres@localhost:5434/bundesarchiv"
 
-# The web layer's template dir (Part 4.5 workbench). Kept as an explicit DIRS entry rather than
-# APP_DIRS: ``app.web`` is not a Django app (ADR 0004/0005 — Django is an adapter), so templates are
-# addressed by directory, not by app autodiscovery.
+# ``app.web`` is not a Django app (ADR 0004), so its templates are found by directory, not
+# APP_DIRS.
 _WEB_TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "web" / "templates"
 
 # Same reason as the template dir above: ``app.web`` is not a Django app, so staticfiles finds these
@@ -28,11 +18,7 @@ _WEB_STATIC = Path(__file__).resolve().parent.parent / "app" / "web" / "static"
 
 
 def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
-    """Parse a libpq-style ``postgresql://`` URL into Django's DATABASES config.
-
-    Kept dependency-free (no dj-database-url): the DSN shape is fixed and simple, and a
-    decade-maintenance project prefers one obvious stdlib parse over an extra dependency.
-    """
+    """No dj-database-url on purpose: the DSN shape is fixed."""
     url = urlparse(dsn)
     if url.scheme not in {"postgres", "postgresql"}:
         raise ValueError(f"BUNDESARCHIV_PG_DSN must be a postgresql:// URL, got: {dsn!r}")
@@ -50,11 +36,9 @@ def _databases_from_dsn(dsn: str) -> dict[str, dict[str, object]]:
 
 DATABASES = _databases_from_dsn(os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_PG_DSN))
 
-# What an HTTP-serving deploy cannot boot without. Enforced in ``wsgi.py`` — the entry point a real
-# app server imports and neither ``runserver`` nor the test suite ever does — so serving fails loudly
-# on a forgotten variable while dev and the suite need no environment at all. Both values below stay
-# empty by default and are fail-closed in that state: Django raises on an empty SECRET_KEY the moment
-# anything signs, and an empty ALLOWED_HOSTS rejects every request outside DEBUG.
+# Required to serve; only wsgi.py enforces it, so dev and tests need no env. The empty defaults
+# fail closed: Django raises on signing with an empty SECRET_KEY, and an empty ALLOWED_HOSTS
+# rejects every request outside DEBUG.
 REQUIRED_SERVING_ENV = ("BUNDESARCHIV_SECRET_KEY", "BUNDESARCHIV_ALLOWED_HOSTS")
 
 SECRET_KEY = os.environ.get("BUNDESARCHIV_SECRET_KEY", "")
@@ -72,45 +56,25 @@ CSRF_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     "django.contrib.postgres",
-    "django.contrib.staticfiles",  # CSS/JS collected + served by WhiteNoise (ADR 0016)
-    "procrastinate.contrib.django",  # Postgres-table-only worker queue (ADR 0014, Part 4.2)
+    "django.contrib.staticfiles",
+    "procrastinate.contrib.django",
     "bundesarchiv.index",
     # The application-service shell — installed so Procrastinate autodiscovers its ``tasks.py`` and
     # Django discovers the ``ensure_index_current`` command.
     "bundesarchiv.app",
 ]
 
-# The canonical files-store root (ADR 0005). Worker jobs are references — they carry only a ulid —
-# so a job re-reads canonical truth from THIS store at execution (ADR 0014). Defaults to a local
-# dev path; the VPS deploy points it at the real archive root.
 BUNDESARCHIV_CANONICAL_ROOT = os.environ.get("BUNDESARCHIV_CANONICAL_ROOT", "var/canonical")
 
-# Procrastinate scheduled reconcile (ADR 0014): a periodic full rebuild that bounds every missed
-# incremental update. Hourly by default — the rebuild is seconds at this archive's scale, so hourly
-# keeps the worst-case staleness window at an hour, matching the archive's own risk language. Cron
-# expression, overridable by the deploy for a different cadence.
+# Periodic full index rebuild that bounds any missed incremental update (ADR 0014).
 BUNDESARCHIV_RECONCILE_CRON = os.environ.get("BUNDESARCHIV_RECONCILE_CRON", "0 * * * *")
 # A request slower than this many ms is logged as one WARNING record (app/web/slow_requests.py).
 BUNDESARCHIV_SLOW_REQUEST_MS = int(os.environ.get("BUNDESARCHIV_SLOW_REQUEST_MS", "1000"))
 
-# The production HTTP surface (Part 4.3): the authorized media-serving routes and nothing else.
-# Prod stays deliberately minimal (ADR 0004/0005) — no admin/auth/sessions/templates. The dev
-# viewer switcher is NOT here (it lives in settings_dev, which composes these prod routes WITH the
-# switcher); prod is unreachable-by-absence for anything dev-only.
 ROOT_URLCONF = "bundesarchiv.app.web.urls"
 
-# A deliberately short stack — this bends the "tiny settings, no middleware" stance (ADR 0004), and
-# every entry is here for a hole that has no other home. No SessionMiddleware (CsrfViewMiddleware
-# uses the cookie token, CSRF_USE_SESSIONS=False; viewer auth is a separately-signed cookie, not a
-# Django session), no auth/admin.
-# CSRF protects the Part 4.7 write forms — create, edit-save, kopieren, loeschen, the media POSTs
-# and the bulk apply are all POSTs, and without it those destructive POSTs accept cross-site
-# requests despite their {% csrf_token %}.
-# SecurityMiddleware is first because its request phase (the SECURE_* family) must precede anything
-# that can answer, WhiteNoise second: it serves /static/* (ADR 0016) and short-circuits before CSRF.
-# ...and the ADR 0018 anonymous gate, LAST: WhiteNoise short-circuits /static/* above it, and CSRF
-# keeps its request-phase place ahead of it, so the gate only ever sees requests that are about to
-# reach a view. It is the ONE place the app decides an unauthenticated request is not answered.
+# No session or auth middleware (ADR 0018). SecurityMiddleware first, so SECURE_* apply to every
+# answer; the anonymous gate last, so it sees only requests bound for a view.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -154,10 +118,6 @@ SECURE_CSP = {
 # to anonymous browsing, its door leads to a login that itself falls closed.
 ANONYMOUS_GATE_ENABLED = True
 
-# Templates for the server-rendered workbench (Part 4.5). The Django template backend only — no
-# context processors that need auth/sessions (this project has none): the viewer is passed in the
-# view's context, never read from ``request.user``. Autoescape is on (the default), so German UI
-# strings and index values render safely.
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -167,49 +127,29 @@ TEMPLATES = [
     }
 ]
 
-# Media-serving seam config (Part 4.3, roadmap "Media authorization"). When set (prod behind nginx),
-# ``media_response`` returns an X-Accel-Redirect to ``<prefix>/<store-relative blob path>`` and nginx
-# serves the bytes from an ``internal;`` location over the media tree (handling Range itself); the
-# media tree is never web-root reachable. When UNSET (dev, no nginx), the seam streams the blob
-# directly via FileResponse. Kept as ONE setting behind the ``media_response`` seam so the Part 7
-# tiering miss-path can grow there without any caller learning where bytes live (roadmap rule).
+# Behind nginx, ``media_response`` answers with an X-Accel-Redirect to ``<prefix>/<key>``
+# (ADR 0017); unset (dev), it streams the blob.
 BUNDESARCHIV_X_ACCEL_PREFIX = os.environ.get("BUNDESARCHIV_X_ACCEL_PREFIX") or None
 
-# The LOCAL derived thumbnail cache root (Part 4.3). Thumbnails are content-hash-keyed AVIF files
-# regenerated by a worker job from canonical blobs: NOT the ObjectStore, NOT canonical, NOT mirrored,
-# NOT backed up, and freely prunable (README runbook). Defaults to a local dev path; the deploy
-# points it at a cache dir on the same host that serves media.
+# A derived cache, not backed up and freely prunable.
 BUNDESARCHIV_THUMBNAIL_ROOT = os.environ.get("BUNDESARCHIV_THUMBNAIL_ROOT", "var/thumbnails")
 
-# WebDAV mirror (Part 4.9) — an OPTIONAL, browse-only convenience copy of the canonical store on a
-# Nextcloud/WebDAV endpoint. It is NEVER a read path and NEVER counted as durability (restic is the
-# backup; roadmap rule, changed only by Part 7 tiering). UNSET is the common dev case: when
-# ``BUNDESARCHIV_MIRROR_DAV_URL`` is empty, ALL mirror machinery no-ops cleanly (no store is built,
-# no jobs enqueue, the reconcile is a no-op). Credentials are read from env alongside the URL.
+# The system of record's WebDAV folder (ADR 0020); unset, every push job no-ops.
 BUNDESARCHIV_MIRROR_DAV_URL = os.environ.get("BUNDESARCHIV_MIRROR_DAV_URL") or None
 BUNDESARCHIV_MIRROR_DAV_USER = os.environ.get("BUNDESARCHIV_MIRROR_DAV_USER") or None
 BUNDESARCHIV_MIRROR_DAV_PASSWORD = os.environ.get("BUNDESARCHIV_MIRROR_DAV_PASSWORD") or None
 
-# The scheduled mirror reconcile cadence (Part 4.9): a periodic full sweep that re-pushes anything
-# the async replay missed and deletes mirror-only stragglers, so the mirror self-heals. Daily by
-# default — the mirror is a convenience, so a coarser cadence than the hourly index reconcile is
-# right (a briefly-stale browse copy harms nothing). Cron expression, overridable by the deploy.
+# The reconcile (ADR 0020): pushes what a push missed.
 BUNDESARCHIV_MIRROR_RECONCILE_CRON = os.environ.get(
     "BUNDESARCHIV_MIRROR_RECONCILE_CRON", "0 3 * * *"
 )
 
-# The upload ceiling for the Part 4.7 media manager (spec §8): ONE number, 4 GiB by owner ruling
-# (2026-09-19), enforced per file by the upload view, which turns an oversize file into a clean
-# German error rather than a 500. Django's two memory settings keep their defaults on purpose —
-# neither caps a file: DATA_UPLOAD_MAX_MEMORY_SIZE sizes the NON-file part of a request body, and
-# FILE_UPLOAD_MAX_MEMORY_SIZE only picks where an upload moves from RAM to a temp file. nginx's
-# client_max_body_size (deploy/nginx/nginx.conf) bounds the whole request instead, and is set higher
-# so a batch of legal files never trips nginx's English 413 in place of this German error.
+# Per-file upload cap (owner ruling 2026-09-19). nginx's client_max_body_size sits higher, so its
+# English 413 never pre-empts the upload view's German error.
 BUNDESARCHIV_MAX_UPLOAD_BYTES = int(
     os.environ.get("BUNDESARCHIV_MAX_UPLOAD_BYTES", str(4 * 1024**3))
 )
-# A generous ceiling on the number of form fields (the media manager renders one caption input per
-# file); the default 1000 is fine for a v1 item, set explicitly so a large item never trips it.
+# The media manager renders one caption input per file; raised from Django's 1000.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("BUNDESARCHIV_MAX_FORM_FIELDS", "2000"))
 
 # Static assets via staticfiles + WhiteNoise (ADR 0016); ``collectstatic`` is a deploy step. Manifest
@@ -230,7 +170,6 @@ STORAGES = {
 # otherwise serve from the unhashed copy. No-op under dev's non-manifest backend.
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
-# BigAutoField is the 6.0 default; the index model uses an explicit ULID text PK anyway.
 USE_TZ = True
 
 # Every log record is one JSON line on stdout (app, worker, gunicorn's error log; the format and its

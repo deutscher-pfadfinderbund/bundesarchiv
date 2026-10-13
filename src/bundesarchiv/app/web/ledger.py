@@ -1,14 +1,10 @@
 """The ledger's columns and rows: one column registry, one typed view-model (debt #8).
 
-``COLUMNS`` is the one list of the columns a ledger may show after the Titel, which every ledger
-shows first. The chooser offers exactly these and the ledger prints them in this order, so a new
-column is one entry. ``build`` turns a page of ``SearchHit`` s into a ``Ledger`` the templates only
-print: every link is a finished query string, every cell finished text.
-
-A column whose filter is set is left out: every row would repeat the one value the filter holds
-(round 11; LEARNINGS lesson 16). No visibility logic lives here — the hits are already
-viewer-scoped by ``search``; the archivist's chrome (the Entwurf mark, Bearbeiten, the selection)
-is a presentation gate on ``is_archivist``.
+``COLUMNS`` lists every column a ledger may show after the Titel, in print order; the chooser
+offers exactly these. ``build`` turns a page of ``SearchHit`` s into a ``Ledger`` the templates only
+print. A column whose filter is set is left out (every row would repeat its value). No visibility
+logic lives here: the hits arrive viewer-scoped, and the archivist's chrome is a presentation gate
+on ``is_archivist``.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -53,7 +49,6 @@ COLUMNS: tuple[Column, ...] = (
     ),
 )
 
-#: The columns a ledger shows until its viewer chooses (the a2 mock's set).
 DEFAULT_COLUMNS: tuple[Column, ...] = tuple(c for c in COLUMNS if c.key != "collection")
 
 #: The cookie keeping a viewer's chosen columns: a per-person preference, so it never enters the
@@ -161,9 +156,8 @@ def build(
     selected_ulid: str | None,
     chooser: CollectionChooser,
 ) -> Ledger:
-    """The ledger for one page of hits. ``params`` is the search state every link builds from
-    (the pane and selected_ulids params already dropped); ``columns`` the chosen ones, printed in
-    registry order."""
+    """``params`` is the search state the links build from, without the pane, ``selection`` and
+    landing-flag params."""
     shown = tuple(c for c in COLUMNS if c in columns and not _filtered(c, params))
     active = parsed.sort
     heads = (

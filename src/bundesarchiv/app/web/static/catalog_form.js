@@ -1,9 +1,3 @@
-// Cataloging-form progressive enhancement (Part 4.7 Slice E, spec §5).
-//
-// Every behaviour here is ENHANCEMENT-ONLY: the no-JS baseline works without it (the dirty register
-// is simply absent, an upload takes the native input and its submit).
-// Self-contained, same-origin, no framework (dormancy rule) — one script, three small features. HTMX
-// (loaded separately) handles the AJAX swaps; this only covers what HTMX can't express declaratively.
 (() => {
   "use strict";
 

@@ -146,8 +146,7 @@ class MappedItem:
 
 @dataclass(frozen=True, slots=True)
 class Report:
-    """What the archivist must decide about — the dry run's whole output and the post-import
-    summary. The last three are filled in by the command, which alone may look at the disk and at
+    """The defaulted fields are filled in by the command, which alone may look at the disk and at
     the edit form's vocabulary."""
 
     items: int
@@ -211,7 +210,6 @@ class Plan:
 
 
 def collection_name(row: Mapping[str, str]) -> str:
-    """The Bestand this row belongs to — its `collection`, or ``Unsortiert`` when it has none."""
     return row["collection"].strip() or UNSORTED
 
 
@@ -330,13 +328,8 @@ def unknown_vocabulary(
     known_media_types: Vocabulary,
     known_document_types: Vocabulary,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """The Medienarten and Dokumenttypen in ``rows`` that the two lists do not contain.
-
-    The lists are the EDIT FORM's (``app.web.vocab``), so the caller passes them in and this module
-    stays below the web layer. Such a value is imported verbatim — the export is the archive's
-    truth — but a record holding one is a record the form refuses to re-save, which is the
-    archivist's call and so belongs in the ``Report``.
-    """
+    """Values outside the edit form's lists are imported verbatim, but the form refuses to re-save
+    them, so the ``Report`` names them."""
     rows = list(rows)
     return (
         _strangers((row["medartanalog"] for row in rows), known_media_types),

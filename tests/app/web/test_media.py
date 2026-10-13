@@ -1,21 +1,5 @@
-"""The media leak suite (Part 4.3, plan §4.10 seed) — authorized media serving via the seam.
-
-This is the review-critical suite: it proves the classic direct-media leak is closed. Every media
-and thumbnail byte is served ONLY where ``can_view`` allows, and every denial/absence is a plain
-404 that leaks nothing about existence (the byte-identical-404 law was relaxed by the owner,
-2026-08 — a deny is its status code, with no leaked content).
-
-Structure:
-- A fixture corpus of Articles across every tier (public / members / groups / draft /
-  archivist-only), each carrying one real image blob, on a ``LocalFsObjectStore`` under a tmp root.
-- The per-tier grid: original, tile and display URLs against [Public, Member(wrong group), Member(right
-  group), Archivist] -> 200 iff ``can_view`` says so, everything else 404.
-- A 404 for each distinct denial/absence reason, none of which writes a derived version.
-- Authz-before-existence: a forbidden request is denied before any blob or thumbnail probe.
-- X-Accel mode and dev-streaming mode.
-- The thumbnail job (JPEG/PNG generate, text no-op, idempotent, output location).
-- A derived version is made on the first permitted request (the grids run with an empty cache).
-"""
+"""Media serving: bytes and derived versions go out only where ``can_view`` allows, and a deny
+comes before any blob or cache probe."""
 
 import io
 import re
@@ -41,8 +25,6 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 from bundesarchiv.persistence.adapters.localfs import LocalFsObjectStore
 from bundesarchiv.persistence.repository import ArticleRepository
 
-# Media serving is pure request handling against a local FS store — no Postgres.
-
 
 def _png_bytes(color: tuple[int, int, int] = (200, 40, 60)) -> bytes:
     buf = io.BytesIO()
@@ -63,10 +45,7 @@ def _jpeg_bytes() -> bytes:
 
 
 class _TierCorpus:
-    """The fixture archive over a shared ``Corpus``: one Article per tier with a known media
-    content-hash, plus the thumbnail root the seam serves its derived cache from. Every Article
-    carries exactly one image blob. The frozen standard corpus is PUBLIC and media-free, so the
-    tier grid builds its own content."""
+    """The tier grid's own content: the frozen standard corpus is PUBLIC and media-free."""
 
     def __init__(self, base: Corpus, thumbnail_root: Path) -> None:
         self.thumbnail_root = thumbnail_root
@@ -89,9 +68,7 @@ class _TierCorpus:
         base.add_collection(
             make_collection("GRP", "Groups", audience=Audience(AudienceTier.GROUPS, ("vorstand",)))
         )
-        # public, members, groups, draft (non-published → archivist-only via lifecycle),
-        # archivist-only (draft under groups). Each blob is a DISTINCT colour so every content-hash
-        # differs (the wrong-hash test needs a real hash that belongs to a different article).
+        # distinct colours: the wrong-hash deny needs another article's real hash
         specs = [
             ("public", "PUB", Lifecycle.PUBLISHED, (200, 40, 60)),
             ("members", "MEM", Lifecycle.PUBLISHED, (40, 200, 60)),
@@ -382,8 +359,7 @@ def test_hostile_filename_cannot_inject_a_response_header(corpus: _TierCorpus) -
         )
     disposition = response["Content-Disposition"]
     assert "\r" not in disposition and "\n" not in disposition
-    assert "Set-Cookie" not in response  # no header was injected
-    # The raw unescaped quote must not appear as a bare filename= value (it is RFC5987-encoded).
+    assert "Set-Cookie" not in response
     assert 'filename="e"vil' not in disposition
 
 

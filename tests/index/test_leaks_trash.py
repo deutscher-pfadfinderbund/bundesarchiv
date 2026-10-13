@@ -1,12 +1,6 @@
-"""The Papierkorb's leak channels (ADR 0022): a marked Article on every search surface.
-
-A marked Article keeps its index row with the archivist-only scope plus the mark. The normal
-search, its filters, facets and counts leave it out for every viewer, the Archivist included; the
-Papierkorb query lists only marked rows, and only to the Archivist. The corpus is public on
-purpose: without the mark, every tier would see every row, so each absence below is the mark's.
-
-Its own module and corpus, because ``indexer.rebuild`` wipes the table (see
-``test_leaks_decades.py``).
+"""The Papierkorb's leak channels (ADR 0022): a marked Article is absent from every normal search
+surface for every viewer, the Archivist included, and only the Archivist's Papierkorb query lists
+it. The corpus is public on purpose, so each absence below is the mark's.
 """
 
 import io

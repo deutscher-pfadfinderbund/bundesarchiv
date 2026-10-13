@@ -1,8 +1,3 @@
-"""CollectionRepository behaviour, exercised through its interface over both the
-in-memory ObjectStore fake and the LocalFs adapter — mirrors the Article conformance
-pattern so both stores must satisfy the same contract.
-"""
-
 import threading
 from pathlib import Path
 
@@ -63,10 +58,7 @@ def test_load_missing_raises_not_found(repo: CollectionRepository) -> None:
 def test_stale_expected_version_raises_conflict(repo: CollectionRepository) -> None:
     repo.save(_collection(), expected_version=0, changed_by="tester")  # -> v1
     with pytest.raises(Conflict):
-        repo.save(
-            _collection(name="rename"), expected_version=0, changed_by="tester"
-        )  # stale; store is at v1
-    # the correct version wins and bumps to v2
+        repo.save(_collection(name="rename"), expected_version=0, changed_by="tester")
     assert repo.save(_collection(name="rename"), expected_version=1, changed_by="tester") == 2
 
 
@@ -78,8 +70,7 @@ def test_version_increments_across_saves(repo: CollectionRepository) -> None:
 
 
 def test_unversioned_readme_loads_as_zero_then_saves_cleanly(repo: CollectionRepository) -> None:
-    # Migration (ADR 0013): a README written before versioning has no `version:` key.
-    # It must load as version 0, and a save at expected_version=0 must write version 1.
+    # Written before versioning (ADR 0013).
     repo._store.write_atomic("collections/01J0/README.md", b"---\nulid: 01J0\nname: Old\n---\n")
     loaded = repo.load("01J0")
     assert loaded.version == 0
@@ -134,14 +125,7 @@ def test_collection_without_parent_and_audience_round_trips(repo: CollectionRepo
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     repo: CollectionRepository,
 ) -> None:
-    """Two threads save the same Collection at the same expected_version. The shared writer
-    mutex (ADR 0013) serializes the check-then-write, so EXACTLY one wins and the other sees a
-    stale version -> Conflict. Assert the README version ends at the winner's version + 1.
-
-    A barrier releases both threads together to force the interleave through the mutex; the
-    mutex makes the outcome deterministic once both are past the barrier, so there are no
-    sleeps and no flakiness.
-    """
+    """Concurrent saves serialize through the writer mutex (ADR 0013)."""
     repo.save(_collection(), expected_version=0, changed_by="tester")  # store is now at v1
     barrier = threading.Barrier(2)
     results: dict[str, object] = {}

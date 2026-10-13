@@ -1,14 +1,4 @@
-"""Task 4.2 — the incremental indexer surface: ``index_article`` + ``index_subtree``.
-
-These are the performance-sugar paths over ``rebuild`` (ADR 0014): both re-read canonical
-truth at execution (reference semantics — never a payload) and route through the SAME
-``build_row`` + fail-closed branch as ``rebuild``. Every case here drives a real Postgres
-through an in-memory ObjectStore, so the upsert/delete + generated tsvector columns are
-produced by the production code path.
-
-The single writer coordination rule (ADR 0014 v2): every index writer takes the same
-``pg_advisory_xact_lock`` inside its transaction. The serialization test lives here too.
-"""
+"""The incremental indexer, ``index_article`` and ``index_subtree`` (ADR 0014)."""
 
 import threading
 from collections.abc import Callable
@@ -46,8 +36,8 @@ def _article(collection_id: str, ulid: str, **overrides: object) -> Article:
 
 @pytest.fixture
 def store() -> InMemoryObjectStore:
-    """ROOT (Members) -> FOTOS (PUBLIC) -> AKTEN (inherits PUBLIC); three published articles
-    (one under each level) plus none pre-indexed. Tests index incrementally from here."""
+    """ROOT (MEMBERS default) -> FOTOS (PUBLIC) -> AKTEN (inherits); one published article per
+    level, nothing indexed yet."""
     return _seed(InMemoryObjectStore())
 
 
@@ -102,7 +92,7 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
     articles = ArticleRepository(store)
     stored = articles.load("01ROOT")
     articles.save(
-        Article(  # narrow to GROUPS {vorstand}
+        Article(
             ulid="01ROOT",
             title="Wurzelartikel",
             collection_id="ROOT",
@@ -122,7 +112,6 @@ def test_index_article_updates_a_changed_row(store: InMemoryObjectStore) -> None
 
 @pytest.mark.django_db
 def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore) -> None:
-    """The ulid is no longer in canonical -> the index row is deleted (idempotent)."""
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.index_article(store, "01FOTO")
@@ -136,7 +125,6 @@ def test_index_article_deletes_row_when_article_gone(store: InMemoryObjectStore)
 
 @pytest.mark.django_db
 def test_index_article_delete_of_missing_row_is_a_noop(store: InMemoryObjectStore) -> None:
-    """Deleting a never-indexed, non-existent article does nothing and does not raise."""
     from bundesarchiv.index.models import ArticleIndex
 
     indexer.index_article(store, "01NEVER")  # not in canonical, not in index
@@ -145,7 +133,6 @@ def test_index_article_delete_of_missing_row_is_a_noop(store: InMemoryObjectStor
 
 @pytest.mark.django_db
 def test_index_article_broken_chain_writes_fail_closed_row(store: InMemoryObjectStore) -> None:
-    """A dangling collection_id -> archivist-only fail-closed row, same as rebuild."""
     from bundesarchiv.index.models import ArticleIndex
 
     ArticleRepository(store).save(
@@ -168,12 +155,11 @@ def test_index_article_broken_chain_writes_fail_closed_row(store: InMemoryObject
 
 @pytest.mark.django_db
 def test_index_subtree_reindexes_descendants_only(store: InMemoryObjectStore) -> None:
-    """Narrowing FOTOS to MEMBERS then index_subtree(FOTOS) re-scopes FOTOS + AKTEN
-    (descendants) but leaves ROOT's own article untouched (not a descendant of FOTOS): its
-    canonical title changed too, and the index still carries the old one."""
+    """ROOT's article, outside the subtree, keeps its old indexed title although its canonical
+    title changed."""
     from bundesarchiv.index.models import ArticleIndex
 
-    indexer.rebuild(store)  # baseline: everything indexed (allowed: setup, not the assertion)
+    indexer.rebuild(store)
     assert ArticleIndex.objects.get(ulid="01FOTO").tier == "PUBLIC"
     assert ArticleIndex.objects.get(ulid="01AKTE").tier == "PUBLIC"  # inherits FOTOS
     assert ArticleIndex.objects.get(ulid="01ROOT").tier == "MEMBERS"
@@ -342,13 +328,6 @@ def test_a_busy_store_is_no_unreadable_readme(
 def test_advisory_lock_serializes_concurrent_index_writers(
     store: InMemoryObjectStore,
 ) -> None:
-    """Deterministic, lock-SENSITIVE: the main connection opens a transaction and takes the shared
-    index-writer advisory lock, then a background thread runs ``index_article`` (which must acquire
-    the SAME lock inside its own transaction). While the main lock is held the background write
-    CANNOT complete — it blocks; once the main transaction commits (releasing the xact lock) the
-    background write proceeds and lands. Without the lock the background write would finish
-    immediately, so this fails closed if the lock is ever removed.
-    """
     from django.db import connection, transaction
 
     from bundesarchiv.index.indexer import _take_writer_lock
@@ -357,7 +336,7 @@ def test_advisory_lock_serializes_concurrent_index_writers(
     finished = threading.Event()
 
     def background_index() -> None:
-        indexer.index_article(store, "01FOTO")  # will block on _take_writer_lock until we release
+        indexer.index_article(store, "01FOTO")
         connection.close()
         finished.set()
 
@@ -365,8 +344,6 @@ def test_advisory_lock_serializes_concurrent_index_writers(
         _take_writer_lock()  # hold the xact-scoped lock for the whole block
         worker = threading.Thread(target=background_index)
         worker.start()
-        # The background writer is blocked behind our held lock: it must NOT finish within a grace
-        # window. (If the lock were absent, it would complete near-instantly and set the event.)
         assert not finished.wait(timeout=1.0), "index writer did not serialize behind the lock"
     # Our transaction committed here -> the xact lock released -> the background write can proceed.
     assert finished.wait(timeout=5.0), "index writer did not proceed after the lock released"
@@ -377,7 +354,7 @@ def test_advisory_lock_serializes_concurrent_index_writers(
 
 
 # ---------------------------------------------------------------------------
-# Lock, then read: a writer that read before a narrowing cannot overwrite it (issue #62)
+# Lock, then read: a writer that read before a narrowing cannot overwrite it
 # ---------------------------------------------------------------------------
 
 

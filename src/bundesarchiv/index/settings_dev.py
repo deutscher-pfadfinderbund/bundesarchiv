@@ -1,55 +1,30 @@
-"""Development settings — production settings plus the dev-viewer mechanism (Part 4.4).
-
-Production runs on ``bundesarchiv.index.settings``, which NEVER imports this module. This module
-imports everything from prod settings and adds ONLY what the dev-viewer switcher needs:
-
-- ``DEV_VIEWER_SIGNING_KEY`` — a DEDICATED dev-only signing key, deliberately NOT ``SECRET_KEY``.
-  ``viewer_of`` signs/verifies the dev cookie with this key alone, so a dev cookie is worthless
-  against any production deployment (which defines no such key and thus falls closed to Public).
-- ``ROOT_URLCONF`` -> ``dev_urls`` — exposes the switcher route. Absent from prod.
-
-Because these live only here and prod never imports this module, the switcher is unreachable in
-production by absence of code paths, not by a runtime flag (flags get flipped; missing code cannot).
-
-Run dev with ``DJANGO_SETTINGS_MODULE=bundesarchiv.index.settings_dev``.
+"""Prod never imports this module, so the dev-viewer switcher is absent from prod as code, not
+behind a flag.
 """
 
 import os
 
 from bundesarchiv.index.settings import *
 
-# A DEDICATED dev-only signing key — NOT the production SECRET_KEY (that is the whole point: a
-# leaked/replayed dev cookie must be worthless against prod). Fixed value: this file is dev-only and
-# never shipped to production, so there is nothing to protect. Overridable via env for a shared dev
-# host that wants a per-host key.
+# Not SECRET_KEY: a dev cookie must be worthless against prod.
 DEV_VIEWER_SIGNING_KEY = os.environ.get(
     "BUNDESARCHIV_DEV_VIEWER_SIGNING_KEY", "dev-viewer-signing-key-not-a-secret"
 )
 
-# Dev browses anonymously as Public and picks a viewer through the switcher, so the ADR 0018
-# anonymous gate — which would answer every anonymous request with the door — is off here. It stays ON
-# in the base settings this module imports from: disabling it is a deliberate dev-only act, never an
-# omission (settings.py).
+# Dev browses as Public and picks a viewer through the switcher (ADR 0018).
 ANONYMOUS_GATE_ENABLED = False
 
 ROOT_URLCONF = "bundesarchiv.app.web.dev_urls"
 
-# Dev uses the NON-manifest staticfiles backend so ``runserver`` (whose StaticFilesHandler serves
-# /static/ from the finders) needs no ``collectstatic`` and {% static %} yields plain unhashed URLs.
-# REBIND, never mutate: ``from settings import *`` aliases prod's STORAGES dict, and settings_dev is
-# imported at collection time by conftests — an in-place ``STORAGES["staticfiles"] = ...`` would flip
-# the whole test process (which runs under prod settings = manifest) to non-manifest. The manifest
-# storage + its fail-loud {% static %} is exercised by the test gate under prod settings, not here.
+# Non-manifest, so runserver needs no collectstatic. Rebind, never mutate: ``import *`` aliases
+# prod's STORAGES and conftests import this module, so a mutation would flip the whole test process.
 STORAGES = {
     **STORAGES,
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# Local runserver ergonomics — dev-only by construction (prod never imports this module). The
-# SECRET_KEY is fixed here for the same reason as DEV_VIEWER_SIGNING_KEY above: dev never ships, so
-# there is nothing to protect, and the deploy's own key is required env (settings.py). Dev serves
-# plain http, so a Secure CSRF cookie would simply never come back.
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 SECRET_KEY = "dev-secret-key-not-a-secret"  # noqa: S105 — dev-only, prod never imports this
+# Dev serves plain http, so a Secure CSRF cookie would never come back.
 CSRF_COOKIE_SECURE = False

@@ -14,7 +14,7 @@
     setBannerHidden(false);
   });
   document.addEventListener("htmx:error", (event) => {
-    // an abort (a newer history restore, leaving the page) is not a failure — htmx 2 parity
+    // an abort (a newer history restore, leaving the page) is not a failure
     if (event.detail.error?.name !== "AbortError") {
       setBannerHidden(false);
     }

@@ -1,5 +1,3 @@
-"""The Article builder both the web and the index suites use."""
-
 from typing import Any
 
 from bundesarchiv.domain.models import Article, Lifecycle, Ulid

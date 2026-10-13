@@ -1,21 +1,5 @@
-"""Read-view actions + lifecycle (Part 4.7 Slice C, spec §6.2/§7/§8).
-
-Covers the four new routes and the read-view action row:
-
-- ``/articles/<ulid>/copy`` POST — copy to a fresh draft, 302 to the copy's edit form.
-- ``/articles/<ulid>/delete`` GET (confirm) + POST (execute) — into the Papierkorb, 302 to the
-  workbench; ``/delete-permanently`` the same for a marked record, deleting it for good;
-  ``/restore`` POST takes it out again (ADR 0022).
-- the fail-closed publish affordance: no exposure, no Veröffentlichen.
-- ``/articles/<ulid>/publish`` POST — publish a draft from the article page (a3 round 7):
-  CAS on the page's version, the same fail-closed gate as the edit form's Status.
-- the archivist action row on the detail stub (absent for non-archivists).
-
-SECURITY is the load-bearing part (mutation-tested next review): every route archivist-gated for
-BOTH methods → 404 for Member/Public/anon, and the deny tests assert the SIDE EFFECT
-did not happen (nothing created / article still exists / lifecycle unchanged / no widget content).
-The write path is REAL; only the index + queue seams are stubbed (see conftest.py).
-"""
+"""Read-view actions and lifecycle: copy, delete, delete-permanently, restore, publish
+(spec §6.2/§7/§8, ADR 0022)."""
 
 from dataclasses import replace
 from typing import Any
@@ -493,7 +477,7 @@ def test_an_unchanged_status_with_an_unresolvable_chain_stays_a_plain_save(
     assert (stored.title, stored.lifecycle) == ("Nur gespeichert", lifecycle)
 
 
-# --- Veröffentlichen from the article page (a3 round 7) ------------------------------
+# --- Veröffentlichen from the article page ---------------------------------------
 
 
 def _publish(
@@ -609,7 +593,7 @@ def test_a_published_record_has_no_confirmation(corpus: Corpus) -> None:
     assert "Nach dem Veröffentlichen" not in body
 
 
-# --- malformed / absent ulid across every new route --------------------------------
+# --- malformed / absent ulid across every route ----------------------------------
 
 
 @pytest.mark.parametrize(
@@ -654,11 +638,10 @@ def test_no_leaked_template_comment(corpus: Corpus) -> None:
     assert "{#" not in body  # a multi-line {# #} would leak into the rendered page
 
 
-# --- CSRF enforcement (fix wave: prod/dev now run CsrfViewMiddleware) ---------------
+# --- CSRF enforcement ------------------------------------------------------------
 
 
 def test_destructive_post_without_csrf_token_is_403(corpus: Corpus) -> None:
-    # A cross-site destructive POST with no CSRF token must be rejected (CsrfViewMiddleware active).
     response = client_as(Archivist(), enforce_csrf=True).post(f"/articles/{PUBLISHED_ULID}/delete")
     assert response.status_code == 403
     # the article is untouched — the forged POST was rejected before the delete ran

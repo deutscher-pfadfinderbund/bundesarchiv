@@ -1,13 +1,5 @@
-"""Viewer-facing access layer — composes the effective-Audience resolver with a Viewer.
-
-This is the only place a Viewer meets an Article's resolved Audience. It imports
-`effective_audience` (the single source, ADR 0001) and never re-derives a rung itself,
-so every visibility decision routes through one resolver. Pure: no IO, no Keycloak.
-
-The `match` statements close over their unions with `assert_never`: adding a member to
-`EffectiveAudience` or `Viewer`, or a rung to `AudienceTier`, becomes a type error rather
-than a silent fail-open — the leak the single-source resolver exists to prevent.
-"""
+"""Viewer-facing access over `effective_audience` (ADR 0001); pure. `index.scope` must stay
+row-equivalent to `can_view`."""
 
 from dataclasses import dataclass, fields, replace
 from typing import assert_never
@@ -18,14 +10,10 @@ from bundesarchiv.domain.errors import DomainError
 from bundesarchiv.domain.models import Article, Audience, AudienceTier, Lifecycle
 from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 
-# Fields only an Archivist may see, floored from any non-Archivist projection regardless of
-# whether the Viewer can otherwise view the Article. Add provenance/notes fields here as the
-# model grows — projection reads this one set.
+# `project` must floor exactly these.
 ARCHIVIST_ONLY_FIELDS: frozenset[str] = frozenset({"physical_location", "custom"})
 
-# Fail loudly at import if the set names a field Article doesn't have — `project` floors exactly
-# this set, so a typo or stale name must not silently floor nothing (a leak). A raise, not an
-# assert: `python -O` must not strip a leak guard.
+# A raise, not an assert: `python -O` strips asserts.
 if _unknown := ARCHIVIST_ONLY_FIELDS - {f.name for f in fields(Article)}:
     raise RuntimeError(f"ARCHIVIST_ONLY_FIELDS names unknown Article fields: {_unknown}")
 
@@ -43,7 +31,7 @@ def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:
         return False
     match effective:
         case ArchivistOnly():
-            return isinstance(viewer, Archivist)  # the Lifecycle gate: Archivists only
+            return isinstance(viewer, Archivist)
         case Audience() as rung:
             return _viewer_clears_rung(viewer, rung)
         case _ as unreachable:
@@ -51,16 +39,15 @@ def can_view(viewer: Viewer, article: Article, chain: ResolvedChain) -> bool:
 
 
 def _viewer_clears_rung(viewer: Viewer, rung: Audience) -> bool:
-    """Does `viewer` clear a (published) Article's effective rung on the ladder?"""
     match viewer:
         case Archivist():
-            return True  # an Archivist sees everything
+            return True
         case Public():
             return rung.tier is AudienceTier.PUBLIC
         case Member(groups=held):
             match rung.tier:
                 case AudienceTier.PUBLIC | AudienceTier.MEMBERS:
-                    return True  # any Member clears Public/Members
+                    return True
                 case AudienceTier.GROUPS:
                     return _member_satisfies(held, rung.groups)
                 case _ as unreachable:
@@ -70,40 +57,22 @@ def _viewer_clears_rung(viewer: Viewer, rung: Audience) -> bool:
 
 
 def _member_satisfies(held: tuple[str, ...], named: tuple[str, ...]) -> bool:
-    """True iff the Member holds at least one of the named groups (OR-combined). An empty
-    held set is vacuously False — a Member with no groups never clears a GROUPS rung."""
     return any(group in named for group in held)
 
 
 def project(viewer: Viewer, article: Article) -> Article:
-    """Project `article` to the fields `viewer` may see: the Archivist-only fields are floored
-    (set to None) for any non-Archivist, regardless of whether the Viewer can otherwise view
-    the Article. An Archivist sees everything. Returns a new Article — the frozen source is
-    untouched. This does NOT decide visibility; gate with `can_view` separately.
-    """
+    """Not a visibility gate: pair it with `can_view`, or use `visible`."""
     match viewer:
         case Archivist():
             return article
         case Public() | Member():
-            # Explicit kwargs so mypy --strict type-checks each floored field (a dynamic splat
-            # would need a blanket type: ignore that hides exactly that). The import-time assert
-            # pins the field names exist; the drift-guard test pins this floors *exactly*
-            # ARCHIVIST_ONLY_FIELDS — together they cover the fail-open a dynamic form would avoid.
+            # Explicit kwargs, not a loop over ARCHIVIST_ONLY_FIELDS, so each floor is type-checked.
             return replace(article, physical_location=None, custom=())
         case _ as unreachable:
             assert_never(unreachable)
 
 
 def visible(viewer: Viewer, article: Article, chain: ResolvedChain) -> Article | None:
-    """The render-path combinator (Part 4.6): ``can_view`` THEN ``project`` in one call.
-
-    Returns the ``article`` projected to the fields ``viewer`` may see, or ``None`` if ``viewer``
-    may not see it at all. Denial (``None``) and a floored copy are the two outcomes — a caller can
-    never accidentally render an article the viewer can't see, nor an unfloored one. Fail-closed:
-    any ``DomainError`` in resolution makes ``can_view`` deny, so a broken chain yields ``None``.
-    Pure — no IO. The gate (``can_view``) and the floor (``project``) stay the single sources; this
-    only sequences them so the two-step can't be split and half-applied at a call site.
-    """
     if not can_view(viewer, article, chain):
         return None
     return project(viewer, article)
@@ -121,12 +90,6 @@ class VisibilityPreview:
 
 
 def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
-    """If `article` were published now, who would see it.
-
-    Bypasses the Lifecycle gate by previewing a published projection (ADR 0001's publish-time
-    warning), and routes who-sees through `can_view` — it never re-derives visibility, so it
-    shares the one resolver. The rung is read only to surface the named groups for display.
-    """
     published = replace(article, lifecycle=Lifecycle.PUBLISHED, template=False)
     public = can_view(Public(), published, chain)
     members = can_view(Member(), published, chain)
@@ -136,8 +99,6 @@ def preview(article: Article, chain: ResolvedChain) -> VisibilityPreview:
 
 
 def _would_be_groups(article: Article, chain: ResolvedChain) -> tuple[str, ...]:
-    """The named groups of the effective rung, if it is a GROUPS rung — else empty. Reads the
-    resolver's output for display only; the who-sees decision stays in `can_view`."""
     try:
         effective = effective_audience(article, chain)
     except DomainError:

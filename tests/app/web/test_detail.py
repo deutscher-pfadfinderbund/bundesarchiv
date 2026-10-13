@@ -1,13 +1,5 @@
-"""The 4.6 Artikel detail read view (`/articles/<ulid>`, `article_detail`) — the Lesesaal read page.
-
-The leak surface (spec §9): per-tier projection honesty. One template fed a `visible`-projected
-Article, so archivist-only fields (Standort/physical_location, Weitere Angaben/custom) are FLOORED
-before the template and cannot reach a member/public body even by a template mistake. These assert
-field-VALUE absence (not just a missing class), draft 404 discipline, the archivist's tools, and no
-red on a member view.
-
-Pure request-handling against a local FS store (load + resolve + visible) — no Postgres.
-"""
+"""The Artikel detail page (``/articles/<ulid>``): no archivist-only value reaches a member or
+public body."""
 
 import io
 import re
@@ -74,11 +66,8 @@ class _DetailArchive:
 
 @pytest.fixture
 def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
-    """Overrides the standard corpus: the read page needs ONE richly-populated published article
-    (all card fields + two media + archivist-only Standort/custom) alongside a draft and a
-    markup-bearing record — content the frozen standard shape cannot hold. Media blobs are stored
-    via ``add_media`` (the repository refuses an Article referencing an unstored blob), and the
-    returned refs' real content hashes travel back for the media-URL assertions."""
+    """Overrides the standard corpus. Media go through ``add_media``: the repository refuses an
+    Article naming an unstored blob."""
     archive = make_corpus()
     archive.add_collection(
         make_collection(FOTOS, "Fotografien", audience=Audience(AudienceTier.PUBLIC))
@@ -113,8 +102,6 @@ def corpus(make_corpus: Callable[[], Corpus]) -> _DetailArchive:
     archive.add_article(
         make_article(DRAFT, collection_id=FOTOS, lifecycle=Lifecycle.DRAFT, title="Entwurf")
     )
-    # A record whose free-text fields carry HTML markup — the escaping pin (§ leak surface): the
-    # template auto-escapes every value, so a <script> in the body/title/caption round-trips inert.
     evil = archive.articles.add_media(
         MARKUP, "e.png", io.BytesIO(_png((90, 90, 90))), media_type="image/png"
     )
@@ -158,8 +145,8 @@ def test_a_tile_shows_a_thumbnail_only_once_the_cache_holds_one(
         before = _body(Public(), corpus.pub)
         assert generate_thumbnail(Archive.canonical().store, corpus.pub, corpus.second_hash, thumbs)
         after = _body(Public(), corpus.pub)
-    assert second not in before  # nothing that could break
-    assert "b.png" in before  # the uncached file's tile names it
+    assert second not in before
+    assert "b.png" in before
     assert second in re.findall(r'<img [^>]*src="([^"]*)"', after)
     assert "data:image" not in after  # no bytes inlined
 
@@ -330,7 +317,7 @@ def test_archivist_only_fields_are_the_only_member_vs_archivist_diff(
 @pytest.mark.parametrize("viewer", [Public(), Member(groups=())])
 def test_draft_is_404_for_non_archivist(corpus: _DetailArchive, viewer: Viewer) -> None:
     response = client_as(viewer).get(f"/articles/{corpus.draft}")
-    assert_denied(response)  # denied — indistinguishable status from a nonexistent ulid
+    assert_denied(response)
 
 
 def test_draft_is_200_and_closes_with_publish_for_archivist(corpus: _DetailArchive) -> None:
@@ -360,12 +347,11 @@ def test_the_files_after_the_cover_leave_the_cover_out(corpus: _DetailArchive) -
 
 def test_member_published_view_carries_no_action_row(corpus: _DetailArchive) -> None:
     body = _body(Member(groups=()), corpus.pub)
-    assert 'class="actions"' not in body  # no action row for a member
+    assert 'class="actions"' not in body
     assert "/edit" not in body
 
 
 def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) -> None:
-    # §0/§9: a member published view carries NO draft mark or error (red) chrome.
     body = _body(Member(groups=()), corpus.pub)
     assert draft_mark() not in body
     assert "--error" not in body
@@ -376,8 +362,8 @@ def test_member_published_view_has_no_draft_mark_or_red(corpus: _DetailArchive) 
 
 def test_collection_breadcrumb_links_into_collection_facet(corpus: _DetailArchive) -> None:
     body = _body(Public(), corpus.pub)
-    assert "Fotografien" in body  # leaf collection name
-    assert "?collection=FOTOS" in body  # links into the collection facet
+    assert "Fotografien" in body
+    assert "?collection=FOTOS" in body
 
 
 def test_tags_link_into_tag_facet(corpus: _DetailArchive) -> None:
@@ -390,15 +376,10 @@ def test_tags_link_into_tag_facet(corpus: _DetailArchive) -> None:
 
 
 def test_markup_bearing_fields_render_escaped(corpus: _DetailArchive) -> None:
-    # The detail template auto-escapes every value (no |safe / mark_safe anywhere). A <script> in the
-    # title, body, creator, or a media caption must round-trip as escaped text — never as live markup
-    # (stored-XSS closed: an archivist-typed field cannot execute in a reader's browser).
     body = _body(Public(), corpus.markup)
-    # the payloads appear ESCAPED …
     assert "&lt;script&gt;alert(&#x27;body&#x27;)&lt;/script&gt;" in body
     assert "&lt;script&gt;alert(&#x27;titel&#x27;)&lt;/script&gt;" in body
     assert "&lt;img src=x onerror=1&gt;" in body  # the caption
-    # … and NEVER as executable markup.
     assert "<script>alert" not in body
     assert "<img src=x onerror=1>" not in body
 

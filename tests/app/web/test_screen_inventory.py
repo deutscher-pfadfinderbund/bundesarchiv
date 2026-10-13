@@ -1,22 +1,6 @@
-"""The screen inventory is exhaustive against the urlconf — the mirror of the stylesheet gate.
-
-``tests/e2e/_pages.SCREENS`` is the ONE list every e2e walker derives from (the axe pass, both
-control-row walks, the overlay-containment walk, the gallery). That makes it a single point of
-failure of exactly the shape learning G.40/G.41 names: a check whose SCOPE is asserted rather than
-derived. Deleting an entry is GREEN in every guard, because a walker over a shorter list finds
-nothing to complain about — worse, two independently-RED mutations (a broken media toolbar, a missing
-``aria-label``) BOTH went green once their screen was dropped. And two real prod screens were simply
-missing: the bulk CONFIRM and RESULT surfaces existed only as gallery shots, so an unlabelled
-``<input>`` and an alt-less ``<img>`` planted on the confirm page passed everything.
-
-So the inventory is gated the way ``test_design_lint.test_every_prod_stylesheet_is_linted`` gates the
-stylesheet list: against the source of truth. Here that is the leak matrix's ``_CONTRACT``, which
-already classifies every prod route by the status each method returns — a route that answers GET 200
-either renders a screen the inventory names, or is named below as one of the things that are not
-screens.
-
-This lives in the FAST suite deliberately: a deleted screen must fail the gate every commit runs, not
-only ``-m e2e``.
+"""The screen inventory (``tests/e2e/_pages.SCREENS``) is gated exhaustive against the leak matrix's
+``_CONTRACT``: every e2e walker derives from it, and a dropped screen is green in every walker. It
+lives in the fast suite so every commit runs it.
 """
 
 from tests.app.web.test_leak_matrix import _CONTRACT, OK
@@ -44,8 +28,6 @@ _NOT_A_SCREEN: dict[str, str] = {
 
 
 def _get_reachable_routes() -> set[str]:
-    """Every prod route whose GET renders 200 for an archivist — the app's whole readable surface, read
-    off the leak matrix's contract rather than re-listed here (G.40: a guard's SET is derived)."""
     return {name for name, route in _CONTRACT.items() if route.get_arch == OK}
 
 
@@ -71,9 +53,7 @@ def test_no_screen_names_a_route_the_urlconf_lacks() -> None:
 
 
 def test_the_inventory_has_not_shrunk() -> None:
-    # The count pin. The route join above cannot see a shrink, because several screens share one route
-    # (eight on `workbench`, four on `article-detail`, two on `article-edit`) — so deleting one
-    # of them leaves the join green while four walkers quietly stop covering it.
+    # the route join cannot see a shrink: several screens share one route
     assert len(SCREENS) == SCREEN_COUNT, (
         f"the inventory holds {len(SCREENS)} screens, pinned at {SCREEN_COUNT}. Adding one? Raise the"
         " pin. Removing one? Say which guard no longer needs to see it."

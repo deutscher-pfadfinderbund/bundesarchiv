@@ -86,7 +86,6 @@ def _records(stored: Iterable[str]) -> Iterator[tuple[str, Ulid, str, _MediaOf]]
 
 
 def _history(store: ObjectStore, folder: str) -> list[str]:
-    """The keys of `folder`'s history files."""
     return [key for key in store.list(f"{folder}/") if is_history_key(folder, key)]
 
 

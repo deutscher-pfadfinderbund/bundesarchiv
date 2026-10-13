@@ -112,8 +112,6 @@ def _callback(client: Client, **params: str) -> Any:
 def test_a_full_login_authenticates_on_the_archivist_gate(
     corpus: Corpus, keycloak: _FakeKeycloak
 ) -> None:
-    """The whole point, end to end: an anonymous client starts at ``/login``, comes back through the
-    callback, and the cookie it now carries opens an archivist-only route."""
     client = Client()
     assert client.get("/articles/new").status_code == 404  # nobody yet
 

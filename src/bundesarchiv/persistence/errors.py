@@ -1,8 +1,5 @@
-"""Typed exception hierarchy for the persistence layer."""
-
-
 class ArchiveError(Exception):
-    """Base class for all archive persistence errors."""
+    pass
 
 
 class UnreadableReadme(ArchiveError):
@@ -11,7 +8,7 @@ class UnreadableReadme(ArchiveError):
 
 
 class NotFound(ArchiveError):
-    """Raised when a key does not exist in the store."""
+    pass
 
 
 class AlreadyExists(ArchiveError):
@@ -19,8 +16,7 @@ class AlreadyExists(ArchiveError):
 
 
 class Conflict(ArchiveError):
-    """Raised on an optimistic-concurrency conflict — the stored version no longer
-    matches the expected version (a concurrent write won)."""
+    """The stored version is not the expected one: a concurrent write won."""
 
 
 class Busy(ArchiveError):

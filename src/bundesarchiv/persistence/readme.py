@@ -1,13 +1,4 @@
-"""README codec: Article ⇄ Markdown-front-matter bytes (the ADR 0005/0006 README.md).
-
-A canonical README.md is a managed-by marker + a YAML front-matter fence + the Markdown
-body. This module owns that translation alone — separate from ArticleRepository's
-versioning/ordering/storage protocol — so it has its own test surface and offers a cheap
-`read_version` (no whole-Article rebuild) for optimistic-lock checks and reindex walks.
-
-Only `UnreadableReadme` crosses out: malformed/unfenced/non-mapping/invalid
-front-matter all surface as it, never a raw `yaml`/`KeyError`/`ValueError`.
-"""
+"""README codec (ADR 0005, ADR 0006). Only `UnreadableReadme` crosses out."""
 
 from datetime import datetime
 from typing import Any
@@ -28,14 +19,7 @@ from bundesarchiv.persistence.errors import UnreadableReadme
 
 
 def encode(article: Article, version: Version, change: Change) -> str:
-    """Render an Article + version + change record to README.md text (marker + front-matter + body).
-
-    Empty optional fields are OMITTED on write (ADR 0015): a missing optional key defaults on
-    read, so `field: null` / `tags: []` / an all-null media entry are pure noise in the human-
-    readable README. Only the required fields (ulid/version/changed_at/changed_by/title/
-    collection_id/lifecycle) are always present; everything else is emitted only when it carries a
-    value. The loader still accepts the old explicit-null spelling, so existing READMEs parse
-    identically."""
+    """Empty optional fields are omitted (ADR 0015)."""
     front_matter = {
         "ulid": article.ulid,
         "version": version,
@@ -55,24 +39,19 @@ def encode(article: Article, version: Version, change: Change) -> str:
             if article.audience is not None
             else {}
         ),
-        # Optional scalars: omit the key entirely when None (no `field: null` noise, ADR 0015).
         **({"ref_code": article.ref_code} if article.ref_code is not None else {}),
         **({"media_type": article.media_type} if article.media_type is not None else {}),
         **({"document_type": article.document_type} if article.document_type is not None else {}),
-        # Empty tuple -> omit the key (no `tags: []`); a non-empty tuple writes the list.
         **({"tags": list(article.tags)} if article.tags else {}),
         **(
             {"physical_location": article.physical_location}
             if article.physical_location is not None
             else {}
         ),
-        # Optional provenance fields: omit key entirely when None (same convention as audience).
         **({"date": article.date.value} if article.date is not None else {}),
         **({"creator": article.creator} if article.creator is not None else {}),
         **({"subject_place": article.subject_place} if article.subject_place is not None else {}),
-        # Empty tuple -> omit the key (no `media: []`); each entry omits its own empty fields.
         **({"media": [_media_entry(m) for m in article.media]} if article.media else {}),
-        # Custom metadata as a sub-mapping; omitted when empty (like audience) to avoid noise.
         **({"custom": dict(article.custom)} if article.custom else {}),
         **(
             {"added_at": _change.utc_text(article.added_at)} if article.added_at is not None else {}
@@ -83,9 +62,6 @@ def encode(article: Article, version: Version, change: Change) -> str:
 
 
 def _media_entry(media: MediaRef) -> dict[str, Any]:
-    """One media entry for the front matter: always filename + content_hash; the optional
-    stored_name / media_type / byte_size / caption / alt are emitted only when set (ADR 0015 omit-empty,
-    ADR 0019)."""
     entry: dict[str, Any] = {"filename": media.filename}
     if media.stored_name is not None:
         entry["stored_name"] = media.stored_name
@@ -116,7 +92,6 @@ def decode(ulid: Ulid, text: str) -> tuple[Article, Version, Change | None]:
 
 
 def read_version(ulid: Ulid, text: str) -> Version:
-    """Read only the stored version — no Article rebuild (optimistic-lock / reindex)."""
     front_matter, _ = _front_matter.parse(ulid, text)
     try:
         return _front_matter.version_of(front_matter)

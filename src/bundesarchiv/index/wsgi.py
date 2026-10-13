@@ -1,9 +1,5 @@
-"""The production WSGI entry point — what gunicorn imports (ADR 0016).
-
-Dev runs ``manage.py runserver``, which builds its own handler; nothing but a real app server
-reaches this module. Tests never import it either, so this is the one place that may insist on the
-environment a public deployment needs, and it does: serving without it is refused here rather than
-half-working until the first signature or the first POST.
+"""The production WSGI entry point (gunicorn, ADR 0016): the one place that refuses to serve
+without ``REQUIRED_SERVING_ENV``, since neither runserver nor the tests import it.
 """
 
 import os

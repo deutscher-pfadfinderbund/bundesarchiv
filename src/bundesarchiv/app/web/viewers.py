@@ -37,10 +37,9 @@ from bundesarchiv.domain.viewer import Archivist, Member, Public, Viewer
 #: Name of the signed cookie the dev switcher sets and this seam reads.
 DEV_VIEWER_COOKIE = "dev_viewer"
 
-#: Signer salt namespacing the dev-viewer cookie (kept separate from any other signed value).
 _DEV_VIEWER_SALT = "dev-viewer"
 
-#: How long a dev-viewer cookie stays valid (12h — a working day; expired ones fall back to Public).
+#: A working day.
 _DEV_VIEWER_MAX_AGE = 12 * 60 * 60
 
 #: The two cookies an OIDC login leaves the browser holding (ADR 0018): Keycloak's access token and
@@ -95,12 +94,8 @@ def encode_viewer(viewer: Viewer) -> str:
 
 
 def _parse_viewer(payload: str) -> Viewer | None:
-    """Parse a verified cookie payload back to a ``Viewer``, or ``None`` if it is not a known shape.
-    STRICT: only the exact vocabulary ``archivist:<username>`` / ``public`` / ``member`` /
-    ``member:<groups>`` is accepted; anything else (a signed-but-garbage payload, or a bare
-    ``archivist`` with no name) yields ``None`` so the caller floors to Public. Names are
-    percent-unescaped (the inverse of ``encode_viewer``). Empty group entries are dropped so
-    ``member:a,,b`` -> groups ``(a, b)``."""
+    """The inverse of ``encode_viewer``; ``None`` for any other shape, including a bare
+    ``archivist``."""
     if payload.startswith("archivist:"):
         return Archivist(username=unquote(payload.removeprefix("archivist:")))
     if payload == "public":
@@ -150,7 +145,6 @@ def set_token_cookies(tokens: Tokens, response: HttpResponse) -> None:
 
 
 def delete_token_cookies(response: HttpResponse) -> None:
-    """Delete both token cookies on ``response``."""
     for name in (ACCESS_COOKIE, REFRESH_COOKIE):
         response.delete_cookie(name, samesite="Lax")
 
@@ -192,15 +186,8 @@ class TokenCookieMiddleware:
 
 
 def viewer_of(request: HttpRequest) -> Viewer:
-    """Resolve the request's ``Viewer`` — the single web-layer trust boundary. An OIDC login's token
-    cookies answer first, then the dev switcher, which only ever answers where a dev key is
-    configured. Every failure mode of every adapter falls closed to
-    ``Public()``; a bad cookie never raises.
-
-    Resolved once per request and cached on the request: the four call sites (gate, view, article
-    authorization, ``render_screen``) then cannot answer *who is asking* differently, and the
-    token is checked — and at most refreshed — once instead of once each. Sound because cookie state
-    cannot change mid-request — set and clear happen on the response."""
+    """Never raises. Cached on the request so every reader agrees and the token is refreshed at
+    most once."""
     cached: Viewer | None = getattr(request, _VIEWER_CACHE_ATTR, None)
     if cached is not None:
         return cached
@@ -216,27 +203,8 @@ def render_screen(
     *,
     chooser: CollectionChooser | None = None,
 ) -> HttpResponse:
-    """Render a screen with ``is_archivist`` and ``is_signed_in`` resolved HERE, from ``viewer_of``.
-
-    The shared header's "+ Neu …" create disclosure is ARCHIVIST CHROME, so whether it renders is an
-    authorization-shaped fact — and an authorization fact is the view's to decide, exactly as
-    ``browse_views`` decides it for the workbench and the detail reader. Four include sites used to
-    ASSERT it (``{% include "workbench/_header.html" with is_archivist=True %}``) on the grounds that
-    their routes are archivist-gated. True today, and unfalsifiable by the leak matrix, which asserts
-    route gates and never chrome: the day a screen with this header is reached by a lower tier — a
-    member-facing Lesesaal composition, a capability-link surface — the template would hand out
-    archivist chrome without a word. One helper, and the fact comes from the viewer everywhere.
-
-    ``is_signed_in`` is the shared header's OTHER gate, and a different question: Abmelden belongs to
-    whoever holds a cookie, not to archivists (a Member's cookie is the longer-lived of the two, and
-    the shared workstation is the normal case — ADR 0018).
-
-    This helper is the SINGLE authority for both keys: they are stamped over ``context``, so no
-    caller can assert chrome the viewer has not earned. ``index_lag`` is the same kind of fact: the
-    request says a redirect found the search index behind (``landing``), shown to archivists, who made the write.
-    For an archivist it also stamps ``new``, the
-    header's create panels, built from the view's own ``chooser`` where it has one, so a
-    request reads the Bestände once."""
+    """The viewer-derived chrome is stamped over ``context``, so no caller can grant chrome the
+    viewer has not earned."""
     viewer = viewer_of(request)
     is_archivist = isinstance(viewer, Archivist)
     chrome: dict[str, object] = {
@@ -309,10 +277,6 @@ def htmx_redirect(location: str) -> HttpResponse:
 
 
 def redirect_to(request: HttpRequest, location: str) -> HttpResponseBase:
-    """Redirect to ``location`` — a normal 302 for a plain POST, or a 204 carrying ``HX-Redirect`` for
-    an HTMX request so htmx does a full browser navigation (spec §5: delete confirm HX-Redirects to /;
-    a saved form navigates to the read view). One helper so the enhancement never forks the render:
-    the destination is identical, only the mechanism differs by request kind."""
     if is_partial(request):
         return htmx_redirect(location)
     return HttpResponseRedirect(location)

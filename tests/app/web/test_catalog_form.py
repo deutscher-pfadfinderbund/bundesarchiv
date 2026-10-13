@@ -1,16 +1,4 @@
-"""The pure cataloging-form parse/validate layer (Part 4.7, spec §3/§4/§5/§8).
-
-``catalog.parse_edit_form`` is a total function over a plain string→list mapping (a Django
-``QueryDict`` shape) plus the article's identity/collection: it either yields a fully-built
-``Article`` ready for ``save_article`` OR a ``FormErrors`` map keyed by field name with the verbatim
-German strings. It is IO-free and request-free so the whole validation contract is unit-testable
-with no database and no request cycle — the view stays a thin Conflict-catch shell over it.
-
-The leak-sensitive contract (spec §8, the "" → None boundary) is pinned here: EVERY optional scalar
-empties to ``None`` (``ref_code``, ``media_type``, ``document_type``, ``physical_location``,
-``creator``, ``subject_place``, ``date``, each ``custom_value[]``); empty custom rows drop; ``body``
-stays a ``str``; inheriting Sichtbarkeit yields ``audience=None``; a POST naming no Sichtbarkeit keeps the stored one.
-"""
+"""``catalog.parse_edit_form``. The "" → None boundary (spec §8) is leak-sensitive."""
 
 from datetime import UTC, datetime
 
@@ -314,7 +302,7 @@ def test_the_explicit_inherit_choice_drops_the_stored_audience() -> None:
     assert art.audience is None
 
 
-# --- custom bag (Gruppe 7) ---------------------------------------------------------
+# --- custom bag ------------------------------------------------------------------
 
 
 def test_custom_rows_round_trip() -> None:

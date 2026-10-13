@@ -1,8 +1,4 @@
-"""Task 4.2 — the worker jobs (Procrastinate). Jobs are REFERENCES (a ulid), never payloads:
-execution re-reads canonical truth and recomputes (ADR 0014). These tests drive Procrastinate's
-``InMemoryConnector`` so no live worker/broker is needed, and run one job through the real task
-function to prove the reference semantics and a synchronous worker-execution smoke.
-"""
+"""The worker jobs: references (a ulid), never payloads, so a run re-reads canonical (ADR 0014)."""
 
 import io
 from collections.abc import Callable
@@ -57,9 +53,6 @@ def store() -> InMemoryObjectStore:
 def test_reindex_article_job_recomputes_from_current_canonical(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A stale-enqueued job, run AFTER a further edit, reflects CURRENT canonical (references, not
-    payloads). We point the task's store factory at our in-memory store, then narrow the article
-    between 'enqueue' and 'run'; running the task must produce the NARROWED scope."""
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
@@ -130,12 +123,7 @@ def test_reindex_subtree_job_recomputes_subtree(
 def test_worker_execution_smoke_runs_deferred_reindex_article(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Worker-loop smoke: defer reindex_article onto the in-memory connector, then drain the
-    worker once (synchronous, one-shot). The job runs end-to-end and writes the index row.
-
-    ``transaction=True``: the Procrastinate worker commits the task's DB write in its OWN
-    transaction (outside pytest-django's per-test rollback), so the row would leak into later tests
-    under the default rollback fixture; TransactionTestCase semantics truncate it after the test."""
+    """``transaction=True``: the worker commits the task's write in its own transaction, outside pytest-django's per-test rollback, so the row would leak into later tests."""
     import bundesarchiv.app.tasks as tasks_mod
     from bundesarchiv.index.models import ArticleIndex
 
@@ -156,9 +144,6 @@ def enqueue_test_article() -> None:
 def test_generate_thumbnail_task_derives_from_canonical(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The Procrastinate thumbnail task is a reference over an Article's ulid and a content-hash: it
-    re-reads the file from the store the factory builds and writes the AVIF tile into the configured
-    THUMBNAIL_ROOT. Runs the task's underlying function directly (no DB needed)."""
     import bundesarchiv.app.tasks as tasks_mod
 
     store = InMemoryObjectStore()
@@ -193,13 +178,11 @@ def test_the_monthly_verify_fails_its_job_when_it_finds_something(tmp_path: Path
 
 
 # ---------------------------------------------------------------------------
-# Task 4.9 — WebDAV mirror replay + reconcile (jobs are references)
+# The push to the system of record + reconcile
 # ---------------------------------------------------------------------------
 
 
 def test_mirror_store_is_none_when_url_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The common dev case: BUNDESARCHIV_MIRROR_DAV_URL unset -> no mirror store is built, so every
-    mirror job is a clean no-op (the mirror is optional convenience, never required)."""
     import bundesarchiv.app.tasks as tasks_mod
 
     with override_settings(BUNDESARCHIV_MIRROR_DAV_URL=None):
@@ -289,9 +272,6 @@ def test_enqueue_mirror_push_is_noop_when_mirror_unset() -> None:
 
 
 def test_enqueue_mirror_push_never_builds_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    """GH #20: the enqueue path must answer "is mirroring on" from settings alone — it must never
-    construct a fresh ``httpx2.Client`` (eager SSL-context load) just to throw it away. Only
-    ``mirror_push`` itself, once actually run, may build one."""
     import httpx2
 
     import bundesarchiv.app.tasks as tasks_mod
@@ -329,9 +309,7 @@ def test_saves_of_one_record_share_one_queued_push_and_never_hold_back_its_delet
 def test_mirror_push_worker_execution_smoke(
     store: InMemoryObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Worker-loop smoke (like the reindex smoke): defer mirror_push onto the in-memory connector,
-    drain the worker once, and the job pushes the Article end-to-end. ``transaction=True`` for the
-    same reason as the reindex smoke: the job writes the push record in its own transaction."""
+    """``transaction=True``: the job writes the push record in its own transaction, as in the reindex smoke."""
     import bundesarchiv.app.tasks as tasks_mod
 
     remote = InMemoryObjectStore()

@@ -1,24 +1,5 @@
-"""The media-serving seam (Part 4.3) — ``media_response`` + ``thumbnail_response``.
-
-THE POINT OF THIS MODULE: every media/thumbnail byte reaches a browser through one of these two
-functions and nowhere else, and each is called ONLY after the caller (the view) has already run
-``can_view`` on the resolved Collection chain. Authorization is not this module's job;
-serving-once-authorized is (roadmap "Media authorization: critical").
-
-Tiering door (ADR 0017): choosing between the X-Accel redirect and a direct stream is an
-IMPLEMENTATION DETAIL confined to ``media_response``. When media tiering lands (Nextcloud cold
-storage + a size-capped local read-through cache behind a ``TieredObjectStore``), the miss-path —
-blob not resident locally → stream/Range-proxy from cold storage — grows HERE, behind this same
-signature. No caller changes. Where the bytes physically live is the store's business, never this
-module's: a blob is named and opened through ``ArticleRepository`` (ADR 0005). The one local path
-served here is the THUMBNAIL cache (tile and display versions), which is deliberately not the
-ObjectStore (derived, prunable).
-
-Denial is NEVER expressed here — the view owns 404s (see ``media_views.not_found``). These
-functions are only ever reached for an authorized (article, media_ref) pair; if the blob is
-unexpectedly absent they raise, which the view turns into the same 404 (a not-yet-mirrored blob
-or one that yields no version is indistinguishable from a forbidden one).
-"""
+"""Serving already-authorized media bytes — the only path a media byte takes to a browser. Callers
+authorize first and own every 404; where bytes live is the store's business (ADR 0017, ADR 0005)."""
 
 from pathlib import Path
 from urllib.parse import quote
@@ -50,28 +31,8 @@ _SAME_ORIGIN_ONLY = "same-origin"
 def media_response(
     archive: Archive, article: Article, media_ref: MediaRef, request: HttpRequest
 ) -> HttpResponseBase:
-    """Serve the bytes of ``media_ref`` (belonging to ``article``) — called ONLY after
-    authorization has passed for the resolved chain (the view's job, never re-checked here).
-
-    Two modes, chosen by ``settings.BUNDESARCHIV_X_ACCEL_PREFIX``:
-
-    - **Prod / nginx** (prefix set): returns an EMPTY-body response carrying an ``X-Accel-Redirect``
-      header pointing at ``<prefix>/<store-relative file key>``, each key segment percent-encoded
-      (nginx decodes the header as a URI, ADR 0019). nginx (with an ``internal;`` location over the
-      media tree) serves the file and, crucially, handles HTTP Range requests itself — so
-      byte-range/streaming is delegated to nginx, not Django. The key is the wire format here, and
-      the repository is its one author. Content-Type comes from the MediaRef; Content-Disposition is
-      ``inline`` with the original filename.
-
-    - **Dev / no nginx** (prefix unset): streams the blob out of the store through the port. Range
-      is NOT supported in this path — a dev ``FileResponse`` without an explicit Range handler
-      ignores the ``Range`` header and returns the whole body (200). That is ACCEPTED for dev (ADR
-      0017); do not rely on Range in dev.
-
-    An absent blob raises (the port's ``NotFound`` in dev; in prod the path goes to nginx, which
-    404s internally) — the view treats absence as the same 404 as a denial, so existence never
-    leaks.
-    """
+    """An X-Accel handoff to nginx (which serves Range) when ``BUNDESARCHIV_X_ACCEL_PREFIX`` is
+    set, else a stream without Range (dev, ADR 0017) that raises for an absent blob."""
     content_type = media_ref.media_type or _DEFAULT_CONTENT_TYPE
     prefix = getattr(settings, "BUNDESARCHIV_X_ACCEL_PREFIX", None)
     if prefix:
@@ -88,15 +49,7 @@ def media_response(
 def thumbnail_response(
     archive: Archive, article: Article, media_ref: MediaRef, size: Size
 ) -> HttpResponseBase:
-    """Serve the AVIF version of ``size`` derived from ``media_ref``'s blob — same authorization
-    contract as ``media_response`` (a derived version leaks the image, so it is gated identically).
-    It comes from the LOCAL derived cache (``thumbnails.cached``), made first on a miss: not
-    canonical, not the ObjectStore, prunable. A file that yields no such version raises absence,
-    which the view turns into the same 404 (indistinguishable from a forbidden one).
-
-    Served straight from the local thumbnail cache: no X-Accel path (the thumbnail root is not the
-    canonical media tree nginx fronts, and versions are small — dev-style streaming is fine in prod
-    too). Range is not supported (same dev-FileResponse caveat as above)."""
+    """Streamed, not X-Accel: nginx's X-Accel location fronts only the canonical media tree."""
     root = Path(settings.BUNDESARCHIV_THUMBNAIL_ROOT)
     path = cached(archive.articles, article.ulid, media_ref, root, size)
     if path is None:
@@ -121,12 +74,8 @@ def _stamped(response: HttpResponseBase) -> HttpResponseBase:
 
 
 def _x_accel(prefix: str, key: str, content_type: str, filename: str) -> HttpResponse:
-    """Prod path: hand the file to nginx via ``X-Accel-Redirect`` over an ``internal;`` location.
-    Empty body — nginx replaces it with the file bytes (and serves Range itself). The filename is
-    encoded through Django's ``content_disposition_header`` (RFC 5987), so a hostile upload filename
-    (quotes/newlines) cannot inject a response header.
-
-    ADR 0017: the sidecar's ``internal;`` location must not set its own ``expires``/``Cache-Control``."""
+    """``key`` is percent-encoded: nginx decodes the header as a URI (ADR 0019). The filename
+    goes through ``content_disposition_header``, so a hostile name cannot inject a header."""
     response = HttpResponse(b"", content_type=content_type)
     response["X-Accel-Redirect"] = f"{prefix.rstrip('/')}/{quote(key)}"
     disposition = content_disposition_header(as_attachment=False, filename=filename)

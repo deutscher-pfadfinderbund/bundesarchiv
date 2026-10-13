@@ -1,6 +1,4 @@
-"""In-memory ObjectStore adapter: the simplest implementation, and the test fake
-the ArticleRepository is exercised against (no disk).
-"""
+"""In-memory ObjectStore: the test fake."""
 
 import io
 import itertools

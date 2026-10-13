@@ -1,13 +1,4 @@
-"""HTMX enhancement endpoint (Part 4.7 Slice E, spec §5).
-
-``/articles/<ulid>/document-types?media_type=`` → the Dokumenttyp option list for one Medienart, the
-partial the edit form's HTMX layer swaps in (the no-JS baseline renders the same content
-server-side and is unchanged).
-
-It is archivist-gated via _load_gated → 404 for Member/Public/anon/malformed/absent,
-and must NEVER render partial content for a non-archivist (content-absence asserts — they join the
-4.10 leak suite). A pure transform; no mutation. Plus the state-H index-lag hinweis on the save path.
-"""
+"""The Dokumenttyp options endpoint and the htmx save (spec §5)."""
 
 import pytest
 from tests.app.web._asserts import assert_denied

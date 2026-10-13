@@ -1,8 +1,5 @@
-"""The start page (``/``) and the list's move to ``/articles``.
-
-Postgres-backed: the start page's counts come from the viewer-scoped index. The leak spine: a
-Bestand's count is what THIS viewer may see, and a Bestand with nothing the viewer may see is not
-named at all.
+"""The start page (``/``) and the redirect of old list links to ``/articles``. Leak spine: a
+Bestand's count is what this viewer may see; one with nothing visible to them is not named.
 """
 
 import datetime

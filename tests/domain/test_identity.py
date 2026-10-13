@@ -1,5 +1,3 @@
-"""domain.identity — ULID minting/validation and the display-slug helper."""
-
 from datetime import UTC, datetime
 
 import pytest

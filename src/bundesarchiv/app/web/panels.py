@@ -43,10 +43,7 @@ class FormPanel:
 
 
 def header_panels(chooser: CollectionChooser, *, active: str | None) -> tuple[FormPanel, ...]:
-    """The header's forms as tool panels: Neuer Artikel (the Bestand ``aktiver`` preselected, while the
-    list is scoped to one) and Neuer Bestand in the "+ Neu …" menu, and in that case Bestand
-    bearbeiten, which the list's own button opens. Archivist chrome — the caller
-    (``viewers.render_screen``) builds it for archivists only; the routes stay gated on their own."""
+    """Archivist chrome only: the caller gates."""
     panels = [
         new_article_panel(chooser, collection_id=active or ""),
         new_collection_panel(collection_rows(chooser, "", "", "", "", {})),
@@ -170,10 +167,7 @@ def edit_collection_panel(
     version: Version | None,
     conflict_name: str | None = None,
 ) -> FormPanel:
-    """The rename form, page and tool panel alike: the editable Name (preserved on re-render) + the
-    READ-ONLY parent name + Sichtbarkeit label as facts (this slice edits neither). ``version`` is the
-    one the form saves against (ADR 0013); ``conflict_name``, the winner's name, shows the conflict
-    notice."""
+    """``conflict_name`` is the winner's name after a lost save (ADR 0013)."""
     collection = stored.collection
     parent_id = collection.parent_id
     return FormPanel(

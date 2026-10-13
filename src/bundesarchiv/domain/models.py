@@ -1,11 +1,4 @@
-"""Domain data shapes for the archive — the records the persistence layer (de)serializes.
-
-Value objects self-validate their construction invariants here (e.g. `Audience` enforces
-the groups-iff-GROUPS rule in `__post_init__`); the *resolution* logic over these shapes —
-effective-audience and Collection-tree resolution — lives in `audience.py` / `collections.py`,
-and the field floors in `access.py`. Terms follow CONTEXT.md
-(English code, German UI labels live in the glossary).
-"""
+"""Names follow CONTEXT.md."""
 
 import enum
 import unicodedata
@@ -19,9 +12,6 @@ type Version = int  # optimistic-concurrency counter (0 = never saved; first sav
 
 
 class Lifecycle(enum.Enum):
-    """An Article's workflow state (CONTEXT.md). Anything not PUBLISHED is
-    Archivist-only regardless of Audience."""
-
     DRAFT = "draft"
     PUBLISHED = "published"
 
@@ -49,9 +39,6 @@ class Audience:
     groups: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        # Normalize before validating: dedupe (preserving first-occurrence order) into a tuple,
-        # so a frozen, hashable value object stays well-formed from untyped/duplicated input
-        # (groups are OR-combined, so a duplicate is redundant; object.__setattr__ — frozen).
         groups = tuple(dict.fromkeys(self.groups))
         if any(not name.strip() for name in groups):
             raise ValueError(f"audience: group names must be non-blank (got {self.groups!r})")
@@ -81,23 +68,15 @@ class Change:
 
 @dataclass(frozen=True, slots=True)
 class MediaRef:
-    """A reference to one stored media file, which is write-once. `filename` is the name it was
-    uploaded with; `stored_name` is the name it is stored under, recorded only when the two differ
-    (ADR 0019). `content_hash` links the entry to the bytes and is their fixity value.
-
-    `caption` is a per-file human caption (ADR 0015): canonical article input carried in the
-    README front matter, NOT a sidecar (sidecars key by content hash — the same bytes on two
-    articles would wrongly share one caption) and NOT embedded metadata (mutating a file would
-    break its fixity value). Order in the `media` tuple is meaning — the first entry is the cover."""
+    """One write-once media file. `stored_name` is set only when it differs from the upload's
+    `filename` (ADR 0019). In `Article.media` the first entry is the cover."""
 
     filename: str
     content_hash: str  # sha256 hex of the bytes
-    media_type: str | None = None  # MIME-ish, optional
+    media_type: str | None = None  # MIME-ish
     byte_size: int | None = None
     caption: str | None = None
-    alt: str | None = (
-        None  # an image's description for people who cannot see it; the caption stands in
-    )
+    alt: str | None = None
     stored_name: str | None = None
 
 
@@ -132,14 +111,12 @@ class Article:
     tags: tuple[str, ...] = ()
     physical_location: str | None = None  # Standort
     media: tuple[MediaRef, ...] = ()
-    # Member-visible provenance fields (Part 3).
-    date: EdtfDate | None = None  # EDTF Level 0/1 archival date
+    date: EdtfDate | None = None
     creator: str | None = None  # Urheber
     subject_place: str | None = None  # Ortsangabe
-    # Archivist-only escape hatch for metadata the schema doesn't cover (ADR 0009). The body
-    # already holds the (physical or digital) description, so there is no separate field for it.
+    # Archivist-only metadata the schema doesn't cover (ADR 0009).
     custom: tuple[tuple[str, str], ...] = ()
-    # Hinzugefügt am: UTC, whole seconds; None = unknown (ADR 0019 amendment).
+    # Hinzugefügt am; None = unknown (ADR 0019).
     added_at: datetime | None = None
     # The Papierkorb mark: who deleted the Article and when; None = not deleted (ADR 0022).
     deleted: Change | None = None
@@ -153,9 +130,7 @@ class Article:
             self.added_at.utcoffset() != timedelta(0) or self.added_at.microsecond
         ):
             raise ValueError(f"added_at must be UTC in whole seconds, got {self.added_at!r}")
-        # Normalize custom: sort by key (canonical, order-independent), dedupe (last wins),
-        # coerce values to str, and reject a key that collides with a predefined field name
-        # (a custom key must never masquerade as a visible predefined field). frozen -> setattr.
+        # A custom key may not shadow a predefined field, or it would pose as one.
         reserved = {f.name for f in fields(self)} - {"custom"}
         normalized: dict[str, str] = {}
         for key, value in self.custom:

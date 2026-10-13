@@ -1,13 +1,3 @@
-"""The pure bulk-edit layer (Sammelbearbeitung, spec §0/§1/§3/§4).
-
-``bulk`` is IO-free where it can be (the field allowlist, the per-article field application, the
-dependent-pair validation) and wraps the ONE bulk Conflict catch (``apply_bulk``) around the real
-``save_article`` service. The leak-sensitive contract (spec §6) is pinned here: an unknown ``feld``
-mutates nothing; a Dokumenttyp that mismatches any article's current Medienart rejects the WHOLE
-apply (all-or-nothing, fail-closed); every distinct selection ulid lands in exactly one outcome
-bucket (property); a Conflict is bucketed, never retried, never aborts the loop.
-"""
-
 import pytest
 
 from bundesarchiv.app.archive import Archive
@@ -140,8 +130,6 @@ def test_apply_bulk_missing_ulid_buckets() -> None:
 
 
 def test_apply_bulk_conflict_buckets_and_does_not_abort(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Force a Conflict on the FIRST ulid and prove the SECOND still saves (partial durability, spec
-    # §8). save_article is patched to conflict for 01A, else delegate to the real service.
     from bundesarchiv.app import articles
 
     archive = _archive_with(_article(ulid="01A", ref_code="F1"), _article(ulid="01B"))

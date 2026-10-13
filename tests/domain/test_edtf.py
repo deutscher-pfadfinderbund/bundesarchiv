@@ -6,11 +6,7 @@ import pytest
 
 from bundesarchiv.domain.edtf import EdtfDate
 
-# ---------------------------------------------------------------------------
-# Valid-input table: (edtf_string, earliest, latest_or_None, decades_tuple)
-# decades are computed with cap_year=2030 for all fixed rows; open-end rows
-# use cap_year values stated inline.
-# ---------------------------------------------------------------------------
+# (value, earliest, latest, decades at cap_year=2030)
 
 VALID_ROWS: list[tuple[str, datetime.date, datetime.date | None, tuple[int, ...]]] = [
     # --- Level 0: date-only ---
@@ -102,7 +98,6 @@ def test_valid_edtf_bounds_and_decades(
 
 
 def test_open_upper_end_bounds_and_capped_decades() -> None:
-    """'1964/..' — open upper end: bounds()[1] is None; decades capped at cap_year."""
     ed = EdtfDate("1964/..")
     lo, hi = ed.bounds()
     assert lo == datetime.date(1964, 1, 1)

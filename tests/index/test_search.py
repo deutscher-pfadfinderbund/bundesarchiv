@@ -1,15 +1,4 @@
-"""Task 8 — viewer-scoped ``search``: text, filters, facets, sort, pagination.
-
-Every test runs against a real Postgres (the migrated test DB) over the shared corpus in
-``tests/index/fixtures.py`` (a 3-level collection tree, 12 articles spanning tiers, groups,
-lifecycles, dates, tags). The corpus is indexed ONCE per module via ``rebuild`` — search is
-read-only, so the rows are shared read-only across the module's cases.
-
-The security spine of these tests: the base queryset is ``_viewer_scope(viewer)``, so every
-count, facet and hit must reflect exactly what that viewer may see. Per-viewer expected totals
-come straight from ``fixtures.EXPECTED_VISIBILITY`` (Public 5, plain Member 8, vorstand Member
-10, Archivist 12) — the same ground truth Task 9's grid pins.
-"""
+"""Ground truth is ``fixtures.EXPECTED_VISIBILITY``."""
 
 import datetime
 from collections.abc import Iterator
@@ -34,9 +23,6 @@ from bundesarchiv.index.query import _MAX_PAGE_SIZE, Facet, SearchFilters, Searc
 def _indexed(
     django_db_setup: None, django_db_blocker: pytest.FixtureRequest
 ) -> Iterator[indexer.RebuildReport]:
-    """Build + index the shared corpus once for the whole module (search never mutates), routed
-    through ``fixtures.indexed_corpus`` — the single isolation mechanism, which wipes the table on
-    module teardown so the committed corpus never leaks into a later module."""
     yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 
 
@@ -100,7 +86,6 @@ def test_archivist_sees_everything_including_draft_and_orphan(corpus: None) -> N
 
 @pytest.mark.django_db
 def test_text_is_umlaut_insensitive(corpus: None) -> None:
-    """Umlaut-less typing finds an umlaut document (unaccent): 'Baume' -> 'Bäume'."""
     page = search(PUBLIC, text="Baume")
     assert "ART_PUBHAUS" in _ulids(page)  # "Bäume vor dem Haus"
 
@@ -161,7 +146,6 @@ def test_collection_filter_leaf(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_collection_filter_mid_includes_descendants(corpus: None) -> None:
-    """FOTOS (mid) includes its LAGER descendants — subtree membership, not just direct."""
     page = search(PUBLIC, filters=SearchFilters(collection="FOTOS"))
     # FOTOS-direct public: PUBFOTO, PUBHAUS, PUBKARTE; LAGER descendants: PUBLAGER, PUBPLAKAT.
     assert _ulids(page) == {
@@ -248,7 +232,6 @@ def test_date_range_includes_open_ended_article(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_date_range_from_only(corpus: None) -> None:
-    """date_from with no date_to: everything from 1985 on (open upper bound)."""
     page = search(PLAIN_MEMBER, filters=SearchFilters(date_from=datetime.date(1985, 1, 1)))
     # member-visible with earliest/interval reaching >= 1985: MEMNOTIZ(1988), MEMBRIEF(1990),
     # PUBPLAKAT(1970/.. open -> reaches 1985).
@@ -332,7 +315,7 @@ def test_a_facet_subset_leaves_the_rest_of_the_page_as_it_was(corpus: None) -> N
 
 @pytest.mark.django_db
 def test_facet_tags_via_unnest(corpus: None) -> None:
-    """Array tags are unnested and counted: public 'natur' on PUBHAUS + PUBKARTE."""
+    """Public 'natur' is on PUBHAUS and PUBKARTE."""
     tags = _facet_map(search(PUBLIC), "tags")
     assert tags["natur"] == 2
     assert tags["lager"] == 2  # PUBFOTO, PUBLAGER
@@ -340,30 +323,22 @@ def test_facet_tags_via_unnest(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_facet_excludes_own_dimension(corpus: None) -> None:
-    """Standard faceting: a media_type filter must NOT collapse the media_type facet — that
-    facet is computed with its own filter excluded, so all media types still show."""
+    """A facet ignores its own filter; every other facet honours it."""
     filtered = search(PUBLIC, filters=SearchFilters(media_type="Foto"))
     media = _facet_map(filtered, "media_type")
-    # Own dimension excluded: the facet still lists Karte/Plakat (what you could switch to),
-    # each with its FULL scoped count (3 Foto, 1 Karte, 1 Plakat) — not collapsed to the selection.
     assert media == {"Foto": 3, "Karte": 1, "Plakat": 1}
-    # A DIFFERENT facet DOES reflect the media_type=Foto filter: only the 3 Foto docs are counted
-    # (PUBFOTO+PUBLAGER are document_type Fotografie; PUBHAUS is document_type Karte).
+    # PUBFOTO and PUBLAGER are Fotografie, PUBHAUS is Karte.
     doc = _facet_map(filtered, "document_type")
     assert doc == {"Fotografie": 2, "Karte": 1}
 
 
 # ===========================================================================
-# "Ohne Datum" facet (Part 4) — dateless count. The shared corpus dates every article, so here
-# the count is 0; the tier-exclusive leak case (a restricted dateless row must not inflate a
-# lesser viewer's count) needs its own corpus — see ``test_leaks_dateless.py``, mirroring the
-# decade-leak module's dedicated-corpus pattern.
+# "Ohne Datum" count; the tier-exclusive leak case is test_leaks_dateless.py.
 # ===========================================================================
 
 
 @pytest.mark.django_db
 def test_dateless_count_is_zero_when_every_row_is_dated(corpus: None) -> None:
-    """Every corpus article has a date, so the "Ohne Datum" bucket is empty for every viewer."""
     for viewer in (PUBLIC, PLAIN_MEMBER, BOARD_MEMBER, ARCHIVIST):
         assert search(viewer, page_size=200).dateless_count == 0
 
@@ -396,7 +371,6 @@ def test_pagination_past_end_is_empty(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_page_size_is_capped(corpus: None) -> None:
-    """An absurd page_size is capped at the maximum, not honored verbatim."""
     fixtures.index_beside_corpus(
         Collection(ulid="VIELE", name="Viele", parent_id=None),
         *(

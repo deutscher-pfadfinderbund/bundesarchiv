@@ -30,9 +30,6 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
     all_ulids = request.POST.get("all", "").split()
     selection = _distinct_valid_ulids([*request.POST.getlist("selection"), *all_ulids])
     field = request.POST.get("field", "")
-    # Read the value for ANY field, allowed or not: a refused field never mutates (``_validate``
-    # gates that), and the reject page must echo what was typed — gating the read here blanked the
-    # value whenever the placeholder was submitted.
     value = request.POST.get(bulk.value_input_of(field), "")
 
     error = _validate(selection, field, archive, chooser, value)
@@ -45,10 +42,8 @@ def article_bulk_edit(request: HttpRequest) -> HttpResponseBase:
 
 
 def bulk_document_types(request: HttpRequest) -> HttpResponseBase:
-    """``GET /articles/bulk-edit/document-types?media_type=`` — the dependent Dokumenttyp option
-    list for the bulk drawer (spec §0.5). ULID-FREE (pure vocab, no article), archivist-gated,
-    GET-only → the plain 404 otherwise. The no-JS baseline renders all optgroups + the
-    server re-validates per-article; this only removes a round-trip on Medienart change."""
+    """``GET /articles/bulk-edit/document-types`` — the Dokumenttyp options for a Medienart; the
+    no-JS drawer lists them all."""
     if not isinstance(viewer_of(request), Archivist) or request.method != "GET":
         return not_found()
     # htmx sends the drawer's <select name="value_media_type"> value under that name; accept the plain
@@ -145,7 +140,7 @@ def _commit(
         and request.POST.get("clear_document_type") != "1"
         and _orphans(_load_all(archive, selection), field, value)
     ):
-        return _confirm(request, archive, chooser, selection, field, value)  # re-confirm, no write
+        return _confirm(request, archive, chooser, selection, field, value)
     outcome = bulk.apply_bulk(archive, selection, field, value, changed_by=changed_by)
     return render_screen(
         request,
@@ -202,9 +197,7 @@ def _orphans(articles: list[Article], field: str, value: str) -> list[Article]:
 
 
 def _load_all(archive: Archive, ulids: list[str]) -> list[Article]:
-    """Load every present article for ``ulids`` (read-only, for the confirm list + orphan/pair
-    checks). An absent/unreadable ulid, or one in the Papierkorb (ADR 0022), is silently skipped —
-    it will bucket ``missing`` on commit."""
+    """Absent, unreadable and trashed ones are skipped."""
     repo = archive.articles
     out: list[Article] = []
     for ulid in ulids:

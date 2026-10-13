@@ -1,9 +1,3 @@
-"""ArticleRepository behaviour, exercised through its interface over both the
-in-memory ObjectStore fake and the LocalFs adapter (the Collection conformance
-pattern) — the canonical-file protocol, optimistic concurrency, named write-once media
-(ADR 0019), and the hard delete (ADR 0020).
-"""
-
 import io
 import threading
 from collections.abc import Iterable
@@ -24,10 +18,8 @@ from bundesarchiv.persistence.repository import ArticleRepository, cleaned_name
 
 @pytest.fixture(params=["memory", "localfs"])
 def repo(request: pytest.FixtureRequest, tmp_path: Path) -> ArticleRepository:
-    # Parametrized over both stores: the racing test in particular MUST run against
-    # localfs — the in-memory critical section has no IO yield point, so under the GIL
-    # it cannot lose the race even with the lock neutralized; only real file IO between
-    # the version check and the commit makes the race honest.
+    # The racing test needs localfs: the in-memory critical section has no IO yield point, so it
+    # cannot lose the race even without the lock.
     if request.param == "memory":
         store: ObjectStore = InMemoryObjectStore()
     else:
@@ -68,12 +60,9 @@ def test_load_missing_raises_not_found(repo: ArticleRepository) -> None:
 def test_stale_expected_version_raises_conflict(repo: ArticleRepository) -> None:
     repo.save(_article(), expected_version=0, changed_by="tester")  # -> v1
     with pytest.raises(Conflict):
-        repo.save(
-            _article(title="rename"), expected_version=0, changed_by="tester"
-        )  # stale; store is at v1
-    assert (
-        repo.save(_article(title="rename"), expected_version=1, changed_by="tester") == 2
-    )  # correct version wins
+        repo.save(_article(title="rename"), expected_version=0, changed_by="tester")
+    # correct version wins
+    assert repo.save(_article(title="rename"), expected_version=1, changed_by="tester") == 2
 
 
 def test_marking_is_a_save_whose_change_record_is_the_mark(repo: ArticleRepository) -> None:
@@ -313,7 +302,6 @@ def test_open_media_streams_the_file_and_absence_is_not_found(repo: ArticleRepos
 
 
 def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None:
-    # ADR 0015: add_media threads an optional caption into the returned ref; absent -> None.
     with_caption = repo.add_media(
         "01J0", "seite-a.mp3", io.BytesIO(b"audio"), caption="Seite A — Bericht"
     )
@@ -323,8 +311,6 @@ def test_add_media_carries_the_optional_caption(repo: ArticleRepository) -> None
 
 
 def test_save_refuses_readme_referencing_unstored_media(repo: ArticleRepository) -> None:
-    # The pinned order is media -> README. Referencing media that was never stored must fail,
-    # writing nothing (no history file either), rather than commit a README that points at nothing.
     ref = repo.add_media("01J0", "photo.jpg", io.BytesIO(b"the bytes"))
     repo.save(_article(media=(ref,)), expected_version=0, changed_by="tester")
     orphan = type(ref)(filename="ghost.jpg", content_hash="0" * 64)
@@ -360,15 +346,7 @@ def test_hard_delete_is_a_no_op_for_absent_article(repo: ArticleRepository) -> N
 def test_racing_saves_one_winner_one_conflict_readme_at_winner_version(
     repo: ArticleRepository,
 ) -> None:
-    """Two threads save the same Article at the same expected_version. The shared writer
-    mutex (ADR 0013) serializes the check-then-write critical section, so EXACTLY one wins
-    and the other sees a stale version -> Conflict. Assert the README version ends at the
-    winner's version + 1.
-
-    A barrier releases both threads together to force the interleave through the mutex; the
-    mutex makes the outcome deterministic once both are past the barrier, so there are no
-    sleeps and no flakiness.
-    """
+    """Concurrent saves serialize through the writer mutex (ADR 0013)."""
     repo.save(_article(), expected_version=0, changed_by="tester")  # store is now at v1
     barrier = threading.Barrier(2)
     results: dict[str, object] = {}

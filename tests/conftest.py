@@ -1,29 +1,5 @@
-"""Suite-wide test setup: Postgres gating for every DB-touching suite (``tests/index/``,
-``tests/app/``), one test database per checkout, and strict templates (a missing ``{{ var }}``
-raises).
-
-Design constraints (Task 4 / 4.2 brief):
-
-- ``tests/domain`` and ``tests/persistence`` must keep running with NO Postgres. They use no
-  ``db``/``django_db`` fixture, so the session-scoped ``django_db_setup`` override below is never
-  instantiated for them and pytest-django never creates a test database — even though
-  ``DJANGO_SETTINGS_MODULE`` is set project-wide (it must be set before pytest-django's plugin
-  configure runs ``django.setup()``, which is DB-free).
-
-- DB-touching tests REQUIRE Postgres. If the DB is unreachable they FAIL (not skip) with an
-  actionable hint, so a missing container never masquerades as green. The probe (``_pg_guard``) is
-  session-scoped and wired as the FIRST dependency of the ``django_db_setup`` override, so it runs
-  before pytest-django creates the test database — a down container reports the fix instead of a
-  raw ``OperationalError`` deep inside test-database creation.
-
-- Which tests need Postgres is DERIVED, never listed: ``pytest_collection_modifyitems`` marks every
-  item whose (transitive) fixture closure pulls in a pytest-django database fixture with
-  ``requires_pg``. Run without a container via ``uv run pytest -m "not requires_pg"``. A test that
-  reaches Postgres out of band — a subprocess, say — is invisible to the derivation and carries the
-  marker explicitly.
-
-This lives at the repo-test root so BOTH the index adapter tests and the app-service tests inherit
-the same guarded ``django_db_setup``.
+"""``tests/domain`` and ``tests/persistence`` use no DB fixture, so they never create a test
+database and run without Postgres.
 """
 
 import os
@@ -90,11 +66,7 @@ def pytest_terminal_summary(
 
 @pytest.fixture(scope="session")
 def _pg_guard() -> None:
-    """Fail (never skip) with an actionable hint when Postgres is unreachable.
-
-    Probes with raw psycopg (independent of Django) once per session. Wired ahead of
-    test-database creation via the ``django_db_setup`` override below.
-    """
+    """Fail, never skip, when Postgres is unreachable."""
     import psycopg
 
     dsn = os.environ.get("BUNDESARCHIV_PG_DSN", _DEFAULT_PG_DSN)
@@ -131,12 +103,7 @@ def django_db_modify_db_settings(
 
 @pytest.fixture(scope="session")
 def django_db_setup(_pg_guard: None, django_db_setup: None) -> None:
-    """pytest-django's ``django_db_setup``, guarded by the reachability probe.
-
-    Standard fixture-override pattern: the ``django_db_setup`` parameter resolves to the plugin's
-    fixture. ``_pg_guard`` is listed first so it is instantiated first — every ``db``/``django_db``
-    test therefore hits the probe before test-DB creation can raise a raw connection error.
-    """
+    """``_pg_guard`` is listed first so the probe runs before test-database creation."""
 
 
 class _MissingVariable(str):
@@ -148,11 +115,7 @@ class _MissingVariable(str):
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Every suite renders templates strictly: a missing ``{{ var }}`` raises, naming it and its template.
-
-    Prod and dev keep Django's lenient empty string. A value that is optional by design says so
-    with ``{% firstof var %}``; a ``|default`` filter does not escape this, ``{% if %}`` does.
-    """
+    """Strict templates (tests/CLAUDE.md); prod and dev keep Django's lenient empty string."""
     from django.conf import settings
 
     options = cast("dict[str, object]", settings.TEMPLATES[0]["OPTIONS"])

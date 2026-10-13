@@ -1,12 +1,3 @@
-"""The 4.8 rename-Bestand form (`/collections/<ulid>/edit`, `collection_edit`).
-
-SLIM rename: Name field ONLY. Parent + Sichtbarkeit render as quiet READ-ONLY display rows with one
-hint — moving + changing visibility are deferred. Archivist-gated both methods (404 otherwise);
-a malformed/absent ulid is likewise a 404. POST saves under CAS and reindexes the subtree
-(the name is live in facets on the next render). A renamed Bestand shows its new name in workbench
-facets — pinned by a test.
-"""
-
 import re
 from collections.abc import Callable
 
@@ -31,9 +22,7 @@ FOTOS = new_ulid()
 
 @pytest.fixture
 def archive(make_corpus: Callable[[], Corpus]) -> Corpus:
-    """One MEMBERS Bestand holding one article. ROOT is renamed because the form prints the PARENT's
-    name and a test pins it — under the shared default name that assert would pass on the page's
-    wordmark alone."""
+    """One MEMBERS Bestand holding one article."""
     corpus = make_corpus()
     corpus.collections.save(
         make_collection(ROOT, "Bundesarchiv", parent_id=None), 1, changed_by="tester"
@@ -68,7 +57,7 @@ def test_malformed_or_absent_ulid_is_404(archive: Corpus, ulid: str) -> None:
 @pytest.mark.django_db
 def test_non_archivist_post_leaves_name_unchanged(archive: Corpus) -> None:
     client_as(Public()).post(f"/collections/{FOTOS}/edit", {"name": "Gehackt"})
-    assert _name_of(archive, FOTOS) == "Fotografien"  # unchanged
+    assert _name_of(archive, FOTOS) == "Fotografien"
 
 
 # --- GET renders the rename form (Name editable, parent + Sichtbarkeit read-only) --
@@ -102,21 +91,19 @@ def test_post_blank_name_re_renders_with_error_unchanged(archive: Corpus) -> Non
     )
     assert response.status_code == 200
     assert "Name ist erforderlich." in response.content.decode()
-    assert _name_of(archive, FOTOS) == "Fotografien"  # unchanged
+    assert _name_of(archive, FOTOS) == "Fotografien"
 
 
 @pytest.mark.django_db
 def test_rename_shows_new_name_in_workbench_facets(archive: Corpus) -> None:
-    # the reindex path must surface the new name in the collection facet group (the denormalized
-    # ancestors reindex + the live name resolution).
     client = client_as(Archivist())
     client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
     body = client.get(list_url()).content.decode()
-    assert "Lichtbilder" in body  # the renamed Bestand's new name in the rail's Bestand dropdown
-    assert "Fotografien" not in body  # the old name is gone
+    assert "Lichtbilder" in body
+    assert "Fotografien" not in body
 
 
-# --- racing rename: Conflict → the "Inzwischen geändert" panel (security LOW) --------
+# --- racing rename: Conflict → the "Inzwischen geändert" panel ---
 
 
 def _expected_version_of(body: str) -> str:
@@ -129,43 +116,33 @@ def _expected_version_of(body: str) -> str:
 
 @pytest.mark.django_db
 def test_stale_expected_version_loses_the_race_and_preserves_input(archive: Corpus) -> None:
-    # The genuine race the brief describes: the form is GET'd at v1, a CONCURRENT rename (a second
-    # archivist, or this same one in another tab) bumps the store to v2, and the ORIGINAL stale form
-    # then POSTs expected_version=1. The CAS check must reject that stale version — a rename that
-    # raced another rename must NOT silently win (lost update) — and re-render the "Inzwischen
-    # geändert" panel with the winner's name shown and the submitted name preserved.
     client = client_as(Archivist())
     get_body = client.get(f"/collections/{FOTOS}/edit").content.decode()
     stale_version = _expected_version_of(get_body)
     assert stale_version == "1"
 
-    # a concurrent rename lands first (its own fresh GET+POST at v1), bumping the store to v2
+    # the other tab saves first
     client.post(
         f"/collections/{FOTOS}/edit",
         {"name": "Lichtbilder", "expected_version": stale_version},
     )
     assert _name_of(archive, FOTOS) == "Lichtbilder"
 
-    # the ORIGINAL stale form now POSTs, still carrying expected_version=1
     response = client.post(
         f"/collections/{FOTOS}/edit",
         {"name": "Gestohlen", "expected_version": stale_version},
     )
-    assert response.status_code == 200  # not a 500, and NOT a redirect (no save happened)
+    assert response.status_code == 200
     body = response.content.decode()
-    assert "Inzwischen geändert" in body  # the conflict panel
-    assert "Lichtbilder" in body  # the winner's name is shown
-    assert 'value="Gestohlen"' in body  # the just-submitted (losing) name is preserved in the input
-    assert _expected_version_of(body) == "2"  # refreshed to the winner's version
-    assert (
-        _name_of(archive, FOTOS) == "Lichtbilder"
-    )  # the stale rename never took effect (no lost update)
+    assert "Inzwischen geändert" in body
+    assert "Lichtbilder" in body
+    assert 'value="Gestohlen"' in body
+    assert _expected_version_of(body) == "2"
+    assert _name_of(archive, FOTOS) == "Lichtbilder"
 
 
 @pytest.mark.django_db
 def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) -> None:
-    # Pin: a fresh rename (matching version) still saves and redirects, now that expected_version
-    # rides the form.
     client = client_as(Archivist())
     get_body = client.get(f"/collections/{FOTOS}/edit").content.decode()
     version = _expected_version_of(get_body)
@@ -180,8 +157,6 @@ def test_matching_expected_version_still_saves_and_redirects(archive: Corpus) ->
 
 @pytest.mark.django_db
 def test_the_panel_answers_a_race_in_place_then_saves(archive: Corpus) -> None:
-    """With htmx the rename's tool panel is its own answer: a lost race comes back as the one form,
-    the typed name kept and the winner's version to save against; a save navigates to the list."""
     client = client_as(Archivist())
     client.post(f"/collections/{FOTOS}/edit", {"name": "Lichtbilder", "expected_version": "1"})
     refused = client.post(
