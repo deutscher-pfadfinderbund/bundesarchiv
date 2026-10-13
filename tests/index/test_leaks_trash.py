@@ -4,9 +4,6 @@ A marked Article keeps its index row with the archivist-only scope plus the mark
 search, its filters, facets and counts leave it out for every viewer, the Archivist included; the
 Papierkorb query lists only marked rows, and only to the Archivist. The corpus is public on
 purpose: without the mark, every tier would see every row, so each absence below is the mark's.
-
-Its own module and corpus, because ``indexer.rebuild`` wipes the table (see
-``test_leaks_decades.py``).
 """
 
 import io

@@ -1,29 +1,7 @@
-"""THE §11 guard, half two: per-tier leak negatives over the shared corpus.
-
-Where ``test_equivalence.py`` pins the whole SQL ≡ ``can_view`` grid, this file pins the specific
-leak channels that a scoped-search adapter must never open — each as an explicit per-tier negative
-so a regression names the exact leak, not just a count drift. Tiers: Public, Member(no groups),
-Member(wrong group), Member(right group = vorstand), Archivist.
-
-Channels covered:
-
-- **Floored-field term isolation.** A term living ONLY in ``physical_location`` (an archivist-only
-  field) is unreachable to every non-Archivist through the text vector, even on a row they can see.
-- **Draft invisibility through EVERY path.** A DRAFT (archivist-only) Article must be absent from a
-  non-Archivist's text hits, every filter, EVERY facet key, and the total — not just the hit list.
-- **GROUPS or-narrowing.** A GROUPS row is reachable only by a viewer holding an overlapping group.
-- **Differential facet leaks (controller #3, the mutation-tested gap).** A TAG occurring ONLY on
-  restricted rows must be ABSENT from an unauthorized viewer's facets and PRESENT for an authorized
-  one — the test that catches an *unscoped* facet queryset a hit-set check would miss. (The matching
-  DECADE differential needs a tier-exclusive decade the shared corpus can't offer — its open-ended
-  ``ART_PUBPLAKAT`` bleeds a public row into every decade from 1970 on — so it lives in its own
-  module, ``test_leaks_decades.py``, with a dedicated two-row corpus; one destructive ``rebuild``
-  per corpus means two corpora can't share this module's table.)
-- **Fail-closed row invisibility.** The dangling-collection row (``ART_ORPHAN``) is archivist-only
-  and, carrying no ancestors, unreachable via any collection filter even for the Archivist.
-- **``SearchHit`` field floor.** The result dataclass statically cannot carry a floored field.
-
-Runs against the shared corpus (``tests/index/fixtures.py``), indexed ONCE per module.
+"""Per-tier leak negatives over the shared corpus: each channel — floored-field text, drafts,
+GROUPS narrowing, facets, fail-closed rows, captions, ``SearchHit`` fields — asserted per tier so a
+regression names the leak. The decade differential lives in ``test_leaks_decades.py``: it needs a
+tier-exclusive decade this corpus cannot offer.
 """
 
 from collections.abc import Iterator
@@ -62,9 +40,7 @@ _NON_ARCHIVIST_TIERS = (
 def _indexed(
     django_db_setup: None, django_db_blocker: pytest.FixtureRequest
 ) -> Iterator[indexer.RebuildReport]:
-    """Build + index the shared corpus once for the whole module (search never mutates), routed
-    through ``fixtures.indexed_corpus`` — the single isolation mechanism, which wipes the table on
-    module teardown so the committed corpus never leaks into a later module."""
+    """The shared corpus, indexed once per module via ``fixtures.indexed_corpus``."""
     yield from fixtures.indexed_corpus(django_db_blocker, fixtures.build_index)
 
 
@@ -150,7 +126,7 @@ _DRAFT_ULID = "ART_DRAFT"
 
 @pytest.mark.django_db
 def test_draft_invisible_via_text_to_non_archivists(corpus: None) -> None:
-    """Its title word 'Entwurf' and unique tag 'entwurf' both return nothing for a non-Archivist."""
+    """Its title word 'Entwurf' and its document_type 'Chronik' return nothing for a non-Archivist."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert _DRAFT_ULID not in _ulids(viewer, text="Entwurf"), f"[{label}] draft via title text"
         assert _DRAFT_ULID not in _ulids(viewer, text="Chronik"), (
@@ -160,8 +136,8 @@ def test_draft_invisible_via_text_to_non_archivists(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_draft_invisible_via_filters_to_non_archivists(corpus: None) -> None:
-    """Through the collection subtree (FOTOS/ROOT, both of which the draft is under), its
-    document_type, its tag, and its decade — every filter path is scope-first."""
+    """Every filter path is scope-first: the subtree (FOTOS, ROOT), document_type, tag and
+    has_files."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         for f in (
             SearchFilters(collection="FOTOS"),
@@ -177,9 +153,8 @@ def test_draft_invisible_via_filters_to_non_archivists(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_draft_absent_from_every_facet_key_for_non_archivists(corpus: None) -> None:
-    """The draft's exclusive facet values must not appear in ANY facet a non-Archivist sees:
-    its tag 'entwurf', its document_type 'Chronik'. (Its media_type 'Akte' and decades are shared
-    with visible rows, so only the exclusive values are asserted-absent here.)"""
+    """Only the draft's exclusive values are probed; its media_type and decades are shared with
+    visible rows."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert "entwurf" not in _facet_values(viewer, "tags"), f"[{label}] draft tag in facet"
         assert "Chronik" not in _facet_values(viewer, "document_type"), (
@@ -217,8 +192,8 @@ def test_the_drafts_filter_answers_a_non_archivist_with_an_empty_page(corpus: No
 
 
 def label_in(label: str, who: frozenset[str]) -> bool:
-    """Map a tier label to whether its viewer is in a fixtures visibility set. The wrong-group
-    Member has the same visibility as a plain Member (never clears the vorstand GROUPS rung)."""
+    """The wrong-group Member has the same visibility as a plain Member (never clears the vorstand
+    GROUPS rung)."""
     mapping = {
         "public": "public",
         "member()": "member",
@@ -235,8 +210,7 @@ def label_in(label: str, who: frozenset[str]) -> bool:
 
 @pytest.mark.django_db
 def test_groups_row_reachable_only_with_overlapping_group(corpus: None) -> None:
-    """ART_GRPPROT is GROUPS{vorstand}. Absent for Public, plain Member and a wrong-group Member;
-    present for the vorstand Member and the Archivist."""
+    """ART_GRPPROT is GROUPS{vorstand}."""
     assert "ART_GRPPROT" not in _ulids(PUBLIC, page_size=200)
     assert "ART_GRPPROT" not in _ulids(PLAIN_MEMBER, page_size=200)
     assert "ART_GRPPROT" not in _ulids(Member(("nicht-vorstand",)), page_size=200)
@@ -246,23 +220,16 @@ def test_groups_row_reachable_only_with_overlapping_group(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_wrong_group_member_sees_exactly_a_plain_member(corpus: None) -> None:
-    """Holding an UNRELATED group grants nothing over a groupless Member — no group is a superset
-    key. The two viewers' whole result sets are identical."""
     assert _ulids(Member(("nicht-vorstand",)), page_size=200) == _ulids(PLAIN_MEMBER, page_size=200)
 
 
 # ===========================================================================
-# Collection facet = SUBTREE counts (owner correction). The count must equal what selecting the
-# collection as a (subtree) filter yields, AND stay per-tier scoped — no descendant a viewer can't
-# see may inflate an ancestor's count.
+# Collection facet = subtree counts, scoped per tier.
 # ===========================================================================
 
 
 @pytest.mark.django_db
 def test_collection_facet_count_equals_subtree_filter_result_per_tier(corpus: None) -> None:
-    """The invariant the "direkt:" hedge violated: for every collection in a viewer's Bestand facet,
-    its count equals the number of results selecting that collection as the subtree filter returns —
-    for EACH tier independently (so the count is scoped, never a global subtree size)."""
     for label, viewer in (*_NON_ARCHIVIST_TIERS, ("archivist", ARCHIVIST)):
         page = search(viewer, page_size=200)
         for fc in page.facets["collection"]:
@@ -274,14 +241,10 @@ def test_collection_facet_count_equals_subtree_filter_result_per_tier(corpus: No
 
 @pytest.mark.django_db
 def test_collection_facet_root_count_is_the_whole_rooted_visible_set(corpus: None) -> None:
-    """ROOT is every WELL-FORMED row's ancestor, so its subtree count is the viewer's whole visible
-    set MINUS ancestorless rows (a fail-closed row carries collection_ancestors=[], so it is in the
-    archivist's total but under no collection — including ROOT). The count still equals the ROOT
-    subtree-filter result, and the archivist (drafts + members/groups rows) counts more than public."""
+    """A fail-closed row has no ancestors, so ROOT's count is the visible set minus ancestorless
+    rows."""
     root_pub = _facet_count(PUBLIC, "collection", "ROOT")
     root_arch = _facet_count(ARCHIVIST, "collection", "ROOT")
-    # ROOT count == ROOT subtree-filter result (the invariant) — for the archivist this is < total
-    # by exactly the ancestorless ART_ORPHAN (present in total, absent from every collection).
     assert root_arch == len(
         _ulids(ARCHIVIST, filters=SearchFilters(collection="ROOT"), page_size=200)
     )
@@ -292,9 +255,7 @@ def test_collection_facet_root_count_is_the_whole_rooted_visible_set(corpus: Non
 
 @pytest.mark.django_db
 def test_collection_facet_subtree_count_hides_restricted_descendants(corpus: None) -> None:
-    """AKTEN's subtree holds VORSTAND (GROUPS). A plain member's AKTEN count must exclude the
-    GROUPS rows under it (they can't see them); the vorstand member's AKTEN count includes them —
-    a restricted descendant never inflates an ancestor's count for a viewer who can't see it."""
+    """AKTEN's subtree holds VORSTAND's GROUPS rows."""
     akten_plain = _facet_count(PLAIN_MEMBER, "collection", "AKTEN")
     akten_vorstand = _facet_count(BOARD_MEMBER, "collection", "AKTEN")
     assert akten_vorstand > akten_plain  # the vorstand rows show up only for the holder
@@ -308,9 +269,8 @@ def test_collection_facet_subtree_count_hides_restricted_descendants(corpus: Non
 
 
 # ===========================================================================
-# Differential facet leaks (controller #3) — tags. The mutation-tested gap:
-# a value on ONLY restricted rows must be absent from an unauthorized viewer's
-# facet and present for an authorized one. Catches an unscoped facet queryset.
+# Differential facet leaks: a value only on restricted rows is absent from an unauthorized
+# viewer's facet, present for an authorized one.
 # ===========================================================================
 
 
@@ -332,9 +292,7 @@ def test_facet_counts_are_each_tiers_own_search_facets(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_group_only_tag_absent_from_unauthorized_facets(corpus: None) -> None:
-    """'protokoll' is on ONLY ART_GRPPROT (GROUPS{vorstand}); 'vorstand' only on the two GROUPS
-    rows. Both must be absent from Public, plain-Member and wrong-group-Member tag facets, and
-    present (correctly counted) for the vorstand Member and the Archivist."""
+    """'protokoll' is only on ART_GRPPROT, 'vorstand' only on the two GROUPS rows."""
     for label, viewer in (
         ("public", PUBLIC),
         ("member()", PLAIN_MEMBER),
@@ -343,7 +301,6 @@ def test_group_only_tag_absent_from_unauthorized_facets(corpus: None) -> None:
         tags = _facet_values(viewer, "tags")
         assert "protokoll" not in tags, f"[{label}] group-only tag 'protokoll' leaked into facet"
         assert "vorstand" not in tags, f"[{label}] group-only tag 'vorstand' leaked into facet"
-    # Authorized: present AND correctly counted (protokoll on 1 row, vorstand on 2).
     assert _facet_count(BOARD_MEMBER, "tags", "protokoll") == 1
     assert _facet_count(BOARD_MEMBER, "tags", "vorstand") == 2
     assert _facet_count(ARCHIVIST, "tags", "vorstand") == 2
@@ -351,16 +308,14 @@ def test_group_only_tag_absent_from_unauthorized_facets(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_member_only_tag_absent_from_public_facets(corpus: None) -> None:
-    """'mitglieder' is on ONLY the three MEMBERS rows — absent from Public's tag facet, present
-    (count 3) for any Member."""
+    """'mitglieder' is only on the MEMBERS rows."""
     assert "mitglieder" not in _facet_values(PUBLIC, "tags")
     assert _facet_count(PLAIN_MEMBER, "tags", "mitglieder") == 3
 
 
 @pytest.mark.django_db
 def test_draft_and_failclosed_tags_absent_from_all_non_archivist_facets(corpus: None) -> None:
-    """'entwurf' (draft-only) and 'verwaist' (fail-closed-only) never appear in any non-Archivist
-    tag facet, and both appear (count 1 each) for the Archivist."""
+    """'entwurf' is draft-only, 'verwaist' fail-closed-only."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         tags = _facet_values(viewer, "tags")
         assert "entwurf" not in tags, f"[{label}] draft-only tag leaked"
@@ -376,8 +331,6 @@ def test_draft_and_failclosed_tags_absent_from_all_non_archivist_facets(corpus: 
 
 @pytest.mark.django_db
 def test_failclosed_row_invisible_to_every_non_archivist(corpus: None) -> None:
-    """ART_ORPHAN indexes as a fail-closed archivist-only row. Invisible to every non-Archivist
-    through browse, its title text 'Verwaistes', and its unique tag 'verwaist'."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert "ART_ORPHAN" not in _ulids(viewer, page_size=200), f"[{label}] fail-closed browse"
         assert "ART_ORPHAN" not in _ulids(viewer, text="Verwaistes"), f"[{label}] fail-closed text"
@@ -388,9 +341,7 @@ def test_failclosed_row_invisible_to_every_non_archivist(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_failclosed_row_visible_to_archivist_but_not_via_collection_filter(corpus: None) -> None:
-    """The Archivist reaches the fail-closed row via unfiltered/text search, but NEVER via a
-    collection filter — it carries collection_ancestors=[] by spec (controller #2), so no subtree
-    filter can contain it. Pinned for the Archivist because that's the only viewer it's visible to."""
+    """A fail-closed row carries no collection ancestors, so no subtree filter contains it."""
     assert "ART_ORPHAN" in _ulids(ARCHIVIST, page_size=200)  # unfiltered: reachable
     assert "ART_ORPHAN" in _ulids(ARCHIVIST, text="Verwaistes")  # text: reachable
     # No collection filter reaches it — not even ROOT, the whole resolved tree.
@@ -410,10 +361,8 @@ def test_failclosed_row_visible_to_archivist_but_not_via_collection_filter(corpu
 
 @pytest.mark.django_db
 def test_public_caption_word_reaches_every_tier(corpus: None) -> None:
-    """'Zeltwiese' lives ONLY in ART_PUBFOTO's media caption (a public, published row). Because it
-    joins the body-weight FTS bucket, every tier — including the Archivist — reaches the row by that
-    caption word. This is the positive that proves captions actually index (the negatives below are
-    scope gates, not an indexing gap)."""
+    """'Zeltwiese' is only in ART_PUBFOTO's caption: the positive that proves captions index at
+    all."""
     for label, viewer in (*_NON_ARCHIVIST_TIERS, ("archivist", ARCHIVIST)):
         assert "ART_PUBFOTO" in _ulids(viewer, text="Zeltwiese"), (
             f"[{label}] public caption word did not reach a tier that can see the row"
@@ -422,9 +371,7 @@ def test_public_caption_word_reaches_every_tier(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) -> None:
-    """'Tresornotiz' is ONLY in ART_GRPPROT's caption (GROUPS{vorstand}). A caption is member-
-    visible content, so it is scope-first like body text: absent for Public, plain Member and a
-    wrong-group Member; present for the vorstand Member and the Archivist."""
+    """'Tresornotiz' is only in ART_GRPPROT's caption; a caption is scoped like body text."""
     assert _ulids(PUBLIC, text="Tresornotiz") == set()
     assert _ulids(PLAIN_MEMBER, text="Tresornotiz") == set()
     assert _ulids(Member(("nicht-vorstand",)), text="Tresornotiz") == set()
@@ -434,9 +381,8 @@ def test_group_caption_word_does_not_leak_to_unauthorized_tiers(corpus: None) ->
 
 @pytest.mark.django_db
 def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> None:
-    """'Skizzenblatt' is ONLY in ART_DRAFT's caption. A draft is archivist-only regardless of
-    audience, so its caption word yields ZERO hits for every non-Archivist tier and reaches only
-    the Archivist — the caption channel does not bypass the lifecycle gate."""
+    """'Skizzenblatt' is only in ART_DRAFT's caption: the caption channel does not bypass the
+    lifecycle gate."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert _ulids(viewer, text="Skizzenblatt") == set(), (
             f"[{label}] draft caption word 'Skizzenblatt' leaked via the caption channel"
@@ -445,24 +391,19 @@ def test_draft_caption_word_invisible_to_every_non_archivist(corpus: None) -> No
 
 
 # ===========================================================================
-# SearchHit is_draft — the archivist's Entwurf mark, no cross-tier leak: _viewer_scope already
-# restricts WHICH rows come back, so the mark on them is never a leak.
+# SearchHit is_draft
 # ===========================================================================
 
 
 @pytest.mark.django_db
 def test_no_non_archivist_hit_is_ever_a_draft(corpus: None) -> None:
-    """A non-archivist never receives an archivist_only row, so no hit they get is_draft. (The
-    draft ART_DRAFT is absent from their results entirely — this pins the FIELD too: even if a bug
-    returned it, is_draft would have to be False on every row a non-archivist can see.)"""
+    """Pins the field itself, independent of the row scope that already hides ART_DRAFT."""
     for label, viewer in _NON_ARCHIVIST_TIERS:
         assert all(not hit.is_draft for hit in _hits(viewer)), f"[{label}] a draft rode a hit"
 
 
 @pytest.mark.django_db
 def test_archivist_hits_mark_the_draft(corpus: None) -> None:
-    """The archivist DOES get is_draft=True on the draft row (the chrome needs it) and False on
-    published rows — draft-vs-published is honestly carried."""
     by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
     assert by_ulid["ART_DRAFT"].is_draft is True
     assert by_ulid["ART_PUBFOTO"].is_draft is False
@@ -470,8 +411,6 @@ def test_archivist_hits_mark_the_draft(corpus: None) -> None:
 
 @pytest.mark.django_db
 def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
-    """A fail-closed row (broken chain, archivist_only) is NOT a draft — the ENTWURF badge must
-    never mislabel it. Only the archivist sees it at all."""
     by_ulid = {hit.ulid: hit for hit in _hits(ARCHIVIST)}
     assert by_ulid["ART_ORPHAN"].is_draft is False
 
@@ -482,8 +421,6 @@ def test_failclosed_hit_is_not_marked_draft_for_archivist(corpus: None) -> None:
 
 
 def test_search_hit_dataclass_fields_exclude_floored_content() -> None:
-    """Static floor: ``SearchHit`` carries the member-visible identity/metadata columns plus
-    ``is_draft`` / ``is_template``, and never a floored field."""
     field_names = set(SearchHit.__dataclass_fields__)
     assert field_names == {
         "ulid",
